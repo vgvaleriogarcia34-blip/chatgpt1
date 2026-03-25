@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini CRM</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Mini CRM</h1>
+    <p>Gestión de clientes, oportunidades y tareas.</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Nuevo cliente</h2>
+      <form id="client-form">
+        <label>Nombre <input id="client-name" required /></label>
+        <label>Email <input id="client-email" type="email" required /></label>
+        <label>Empresa <input id="client-company" required /></label>
+        <label>Estado
+          <select id="client-status">
+            <option>Nuevo</option>
+            <option>Contactado</option>
+            <option>Negociación</option>
+            <option>Ganado</option>
+            <option>Perdido</option>
+          </select>
+        </label>
+        <button type="submit">Guardar cliente</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Nueva oportunidad</h2>
+      <form id="deal-form">
+        <label>Título <input id="deal-title" required /></label>
+        <label>Cliente
+          <select id="deal-client" required></select>
+        </label>
+        <label>Valor estimado (USD) <input id="deal-value" type="number" min="0" required /></label>
+        <label>Etapa
+          <select id="deal-stage">
+            <option>Prospección</option>
+            <option>Demo</option>
+            <option>Propuesta</option>
+            <option>Cierre</option>
+          </select>
+        </label>
+        <button type="submit">Guardar oportunidad</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Nueva tarea</h2>
+      <form id="task-form">
+        <label>Descripción <input id="task-desc" required /></label>
+        <label>Fecha límite <input id="task-date" type="date" required /></label>
+        <label>Prioridad
+          <select id="task-priority">
+            <option>Alta</option>
+            <option selected>Media</option>
+            <option>Baja</option>
+          </select>
+        </label>
+        <button type="submit">Guardar tarea</button>
+      </form>
+    </section>
+
+    <section class="card wide">
+      <h2>Resumen</h2>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <section class="card wide">
+      <h2>Clientes</h2>
+      <table>
+        <thead>
+          <tr><th>Nombre</th><th>Email</th><th>Empresa</th><th>Estado</th><th></th></tr>
+        </thead>
+        <tbody id="clients-table"></tbody>
+      </table>
+    </section>
+
+    <section class="card wide">
+      <h2>Oportunidades</h2>
+      <table>
+        <thead>
+          <tr><th>Título</th><th>Cliente</th><th>Valor</th><th>Etapa</th><th></th></tr>
+        </thead>
+        <tbody id="deals-table"></tbody>
+      </table>
+    </section>
+
+    <section class="card wide">
+      <h2>Tareas</h2>
+      <table>
+        <thead>
+          <tr><th>Descripción</th><th>Fecha límite</th><th>Prioridad</th><th></th></tr>
+        </thead>
+        <tbody id="tasks-table"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
