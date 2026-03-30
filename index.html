@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IA50 - Descubre cuánto dinero estás perdiendo sin IA</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-steps" id="progressSteps">
+            <span class="step active" data-step="1">Claridad</span>
+            <span class="step" data-step="2">Uso Actual</span>
+            <span class="step" data-step="3">Construcción</span>
+            <span class="step" data-step="4">Impacto</span>
+            <span class="step" data-step="5">Informe</span>
+        </div>
+
+        <!-- Step 1: CLARIDAD - Situación actual -->
+        <div class="step-container active" id="step1">
+            <div class="step-icon">🔍</div>
+            <h1>¿Dónde estás hoy con la IA?</h1>
+            <p class="subtitle">Vamos a ser honestos. Responde con sinceridad para obtener un diagnóstico real.</p>
+
+            <div class="question-group">
+                <label class="question-label">¿Cuál es tu rol principal?</label>
+                <div class="options-grid">
+                    <button class="option-btn" data-field="rol" data-value="emprendedor">🚀 Emprendedor / Fundador</button>
+                    <button class="option-btn" data-field="rol" data-value="freelancer">💻 Freelancer / Consultor</button>
+                    <button class="option-btn" data-field="rol" data-value="marketing">📊 Marketing / Ventas</button>
+                    <button class="option-btn" data-field="rol" data-value="developer">⚙️ Desarrollador / Tech</button>
+                    <button class="option-btn" data-field="rol" data-value="ejecutivo">👔 Directivo / Manager</button>
+                    <button class="option-btn" data-field="rol" data-value="creativo">🎨 Creativo / Diseñador</button>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">¿Cuántas horas a la semana dedicas a tareas repetitivas?</label>
+                <div class="slider-container">
+                    <input type="range" min="0" max="40" value="15" class="slider" id="horasRepetitivas">
+                    <div class="slider-value"><span id="horasRepVal">15</span> horas/semana</div>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">¿Cuál es tu ingreso mensual aproximado (€)?</label>
+                <div class="options-grid cols-3">
+                    <button class="option-btn" data-field="ingreso" data-value="2000">< 2.000€</button>
+                    <button class="option-btn" data-field="ingreso" data-value="4000">2.000€ - 5.000€</button>
+                    <button class="option-btn" data-field="ingreso" data-value="7500">5.000€ - 10.000€</button>
+                    <button class="option-btn" data-field="ingreso" data-value="15000">10.000€ - 20.000€</button>
+                    <button class="option-btn" data-field="ingreso" data-value="30000">20.000€ - 50.000€</button>
+                    <button class="option-btn" data-field="ingreso" data-value="75000">+50.000€</button>
+                </div>
+            </div>
+
+            <button class="btn-next" id="next1" disabled>Siguiente →</button>
+        </div>
+
+        <!-- Step 2: USO ACTUAL de IA -->
+        <div class="step-container" id="step2">
+            <div class="step-icon">🤖</div>
+            <h1>Tu relación actual con la IA</h1>
+            <p class="subtitle">Queremos entender exactamente cómo usas (o no) la inteligencia artificial.</p>
+
+            <div class="question-group">
+                <label class="question-label">¿Qué herramientas de IA usas actualmente?</label>
+                <div class="checkbox-grid">
+                    <label class="checkbox-option"><input type="checkbox" value="chatgpt"> ChatGPT</label>
+                    <label class="checkbox-option"><input type="checkbox" value="claude"> Claude</label>
+                    <label class="checkbox-option"><input type="checkbox" value="midjourney"> Midjourney / DALL-E</label>
+                    <label class="checkbox-option"><input type="checkbox" value="copilot"> GitHub Copilot</label>
+                    <label class="checkbox-option"><input type="checkbox" value="jasper"> Jasper / Copy.ai</label>
+                    <label class="checkbox-option"><input type="checkbox" value="automation"> Make / Zapier con IA</label>
+                    <label class="checkbox-option"><input type="checkbox" value="voice"> IA de voz (ElevenLabs...)</label>
+                    <label class="checkbox-option"><input type="checkbox" value="ninguna"> ❌ Ninguna</label>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">¿Con qué frecuencia usas IA en tu trabajo?</label>
+                <div class="options-grid cols-2">
+                    <button class="option-btn" data-field="frecuencia" data-value="nunca">Nunca o casi nunca</button>
+                    <button class="option-btn" data-field="frecuencia" data-value="ocasional">Algunas veces al mes</button>
+                    <button class="option-btn" data-field="frecuencia" data-value="semanal">Varias veces por semana</button>
+                    <button class="option-btn" data-field="frecuencia" data-value="diario">Todos los días</button>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">¿Cómo definirías tu nivel de dominio de IA?</label>
+                <div class="level-selector">
+                    <button class="level-btn" data-field="nivel" data-value="1">
+                        <span class="level-number">1</span>
+                        <span class="level-label">Curioso</span>
+                        <span class="level-desc">He oído hablar pero no la uso</span>
+                    </button>
+                    <button class="level-btn" data-field="nivel" data-value="2">
+                        <span class="level-number">2</span>
+                        <span class="level-label">Principiante</span>
+                        <span class="level-desc">Uso ChatGPT para cosas básicas</span>
+                    </button>
+                    <button class="level-btn" data-field="nivel" data-value="3">
+                        <span class="level-number">3</span>
+                        <span class="level-label">Intermedio</span>
+                        <span class="level-desc">Uso prompts y varias herramientas</span>
+                    </button>
+                    <button class="level-btn" data-field="nivel" data-value="4">
+                        <span class="level-number">4</span>
+                        <span class="level-label">Avanzado</span>
+                        <span class="level-desc">Automatizo procesos con IA</span>
+                    </button>
+                    <button class="level-btn" data-field="nivel" data-value="5">
+                        <span class="level-number">5</span>
+                        <span class="level-label">Experto</span>
+                        <span class="level-desc">Construyo soluciones con IA</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-back" id="back2">← Atrás</button>
+                <button class="btn-next" id="next2" disabled>Siguiente →</button>
+            </div>
+        </div>
+
+        <!-- Step 3: CONSTRUCCIÓN - Qué construye -->
+        <div class="step-container" id="step3">
+            <div class="step-icon">🏗️</div>
+            <h1>¿Qué construyes con IA?</h1>
+            <p class="subtitle">O mejor dicho... ¿qué podrías estar construyendo?</p>
+
+            <div class="question-group">
+                <label class="question-label">¿Para qué usas (o usarías) la IA?</label>
+                <div class="checkbox-grid">
+                    <label class="checkbox-option"><input type="checkbox" value="contenido"> Crear contenido (textos, posts, emails)</label>
+                    <label class="checkbox-option"><input type="checkbox" value="analisis"> Analizar datos y tomar decisiones</label>
+                    <label class="checkbox-option"><input type="checkbox" value="automatizar"> Automatizar tareas repetitivas</label>
+                    <label class="checkbox-option"><input type="checkbox" value="producto"> Crear productos digitales</label>
+                    <label class="checkbox-option"><input type="checkbox" value="clientes"> Atención al cliente / chatbots</label>
+                    <label class="checkbox-option"><input type="checkbox" value="ventas"> Generar leads y ventas</label>
+                    <label class="checkbox-option"><input type="checkbox" value="codigo"> Escribir código / desarrollo</label>
+                    <label class="checkbox-option"><input type="checkbox" value="estrategia"> Planificación y estrategia</label>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">¿Cuántos procesos de tu negocio has automatizado con IA?</label>
+                <div class="options-grid cols-2">
+                    <button class="option-btn" data-field="procesos" data-value="0">Ninguno (0)</button>
+                    <button class="option-btn" data-field="procesos" data-value="2">Algunos (1-3)</button>
+                    <button class="option-btn" data-field="procesos" data-value="5">Varios (4-7)</button>
+                    <button class="option-btn" data-field="procesos" data-value="10">Muchos (+8)</button>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">¿Cuánto tiempo te ahorraría automatizar tus tareas principales?</label>
+                <div class="slider-container">
+                    <input type="range" min="0" max="30" value="10" class="slider" id="horasAhorro">
+                    <div class="slider-value"><span id="horasAhVal">10</span> horas/semana</div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-back" id="back3">← Atrás</button>
+                <button class="btn-next" id="next3" disabled>Siguiente →</button>
+            </div>
+        </div>
+
+        <!-- Step 4: IMPACTO - Dolor y urgencia -->
+        <div class="step-container" id="step4">
+            <div class="step-icon">💥</div>
+            <h1>El impacto real en tu negocio</h1>
+            <p class="subtitle">Estas preguntas van a doler un poco. Pero necesitas verlo.</p>
+
+            <div class="question-group">
+                <label class="question-label">¿Cuáles son tus mayores frustraciones hoy?</label>
+                <div class="checkbox-grid">
+                    <label class="checkbox-option"><input type="checkbox" value="tiempo"> No tengo suficiente tiempo</label>
+                    <label class="checkbox-option"><input type="checkbox" value="escalar"> No puedo escalar mi negocio</label>
+                    <label class="checkbox-option"><input type="checkbox" value="competencia"> La competencia me adelanta</label>
+                    <label class="checkbox-option"><input type="checkbox" value="equipo"> Dependo demasiado de mi equipo</label>
+                    <label class="checkbox-option"><input type="checkbox" value="ingresos"> Mis ingresos están estancados</label>
+                    <label class="checkbox-option"><input type="checkbox" value="manual"> Hago todo manualmente</label>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">Si pudieras recuperar 15 horas a la semana, ¿en qué las invertirías?</label>
+                <div class="options-grid cols-2">
+                    <button class="option-btn" data-field="inversion" data-value="vender">Vender más y captar clientes</button>
+                    <button class="option-btn" data-field="inversion" data-value="producto">Crear nuevos productos</button>
+                    <button class="option-btn" data-field="inversion" data-value="estrategia">Pensar en estrategia</button>
+                    <button class="option-btn" data-field="inversion" data-value="vida">Vida personal / descanso</button>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">¿Cuánto pagarías por una solución que te ahorre +15h/semana y multiplique tus resultados?</label>
+                <div class="options-grid cols-2">
+                    <button class="option-btn" data-field="disposicion" data-value="100">Hasta 100€/mes</button>
+                    <button class="option-btn" data-field="disposicion" data-value="300">100€ - 500€/mes</button>
+                    <button class="option-btn" data-field="disposicion" data-value="1000">500€ - 2.000€ (inversión única)</button>
+                    <button class="option-btn" data-field="disposicion" data-value="3000">Lo que haga falta si funciona</button>
+                </div>
+            </div>
+
+            <div class="question-group">
+                <label class="question-label">Último dato: tu email para recibir el informe completo</label>
+                <input type="email" id="emailInput" class="text-input" placeholder="tu@email.com">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-back" id="back4">← Atrás</button>
+                <button class="btn-next btn-generate" id="next4" disabled>🔥 Generar Mi Informe →</button>
+            </div>
+        </div>
+
+        <!-- Step 5: INFORME -->
+        <div class="step-container" id="step5">
+            <div class="step-icon">📊</div>
+            <h1>Tu Informe de Pérdidas por No Usar IA</h1>
+            <p class="subtitle">Basado en tus respuestas, esto es lo que estás dejando sobre la mesa.</p>
+
+            <div class="report-container" id="reportContainer">
+                <!-- Generated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
