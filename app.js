@@ -1,442 +1,452 @@
-// ===== STATE =====
+/* ============================================================
+   Clarity OS — app.js
+   Tu sistema de dirección personal
+   ============================================================ */
+
+// ===== Estado =====
 const state = {
-    currentStep: 1,
-    totalSteps: 5,
-    // Step 1
-    rol: null,
-    horasRepetitivas: 15,
-    ingreso: null,
-    // Step 2
-    herramientas: [],
-    frecuencia: null,
-    nivel: null,
-    // Step 3
-    usosIA: [],
-    procesos: null,
-    horasAhorro: 10,
-    // Step 4
-    frustraciones: [],
-    inversion: null,
-    disposicion: null,
-    email: ''
+    activeScreen: 'screen-hoy',
+    tasks: [
+        { id: 't1', title: 'Enviar presupuesto a Laura', tag: { label: 'Alta prioridad', cls: 'gold' }, mins: 25, num: 1, numCls: 'gold', cat: 'commercial' },
+        { id: 't2', title: 'Preparar reunión con Antonio', tag: { label: 'Clave', cls: 'blue' }, mins: 30, num: 2, numCls: 'blue', cat: 'work' },
+        { id: 't3', title: 'Resolver documentación de Hacienda', tag: { label: 'Importante', cls: 'purple' }, mins: 40, num: 3, numCls: 'purple', cat: 'admin' }
+    ],
+    detectedTopics: [],
+    clarifications: [],
+    foco: {
+        secondsLeft: 25 * 60,
+        timerId: null,
+        running: false,
+        currentTaskId: 't1',
+        block: 25,
+        distractions: 0
+    }
 };
 
-// ===== DOM ELEMENTS =====
-const progressFill = document.getElementById('progressFill');
-const progressSteps = document.getElementById('progressSteps');
-const steps = document.querySelectorAll('.step-container');
+// ===== Categorías =====
+const CATEGORIES = {
+    work:        { label: 'Trabajo',       icon: 'i-people',  cls: 'work' },
+    admin:       { label: 'Administración',icon: 'i-doc',     cls: 'admin' },
+    commercial:  { label: 'Comercial',     icon: 'i-send',    cls: 'commercial' },
+    family:      { label: 'Familia',       icon: 'i-home',    cls: 'family' },
+    personal:    { label: 'Personal',      icon: 'i-phone',   cls: 'personal' }
+};
 
-// ===== INIT =====
-function init() {
-    setupOptionButtons();
-    setupCheckboxes();
-    setupSliders();
-    setupNavigation();
-    setupEmail();
-    updateProgress();
+// Palabras clave para clasificar y detectar ambigüedad
+const KEYWORDS = {
+    admin:      ['hacienda', 'banco', 'factura', 'impuesto', 'gestor', 'documentación', 'documentacion', 'irpf', 'iva', 'asesor', 'préstamo', 'prestamo', 'seguro'],
+    commercial: ['presupuesto', 'propuesta', 'venta', 'oferta', 'contrato', 'cotización', 'cotizacion', 'cliente potencial', 'lead'],
+    family:     ['colegio', 'hijo', 'hija', 'familia', 'casa', 'pareja', 'cumpleaños', 'cumpleanos', 'guardería', 'guarderia'],
+    personal:   ['médico', 'medico', 'gimnasio', 'salud', 'doctor', 'dentista', 'comprar', 'tienda'],
+    work:       ['reunión', 'reunion', 'cliente', 'equipo', 'proyecto', 'agenda', 'llamar', 'pedro', 'antonio', 'laura', 'jefe']
+};
+
+// Verbos vagos -> ambigüedad
+const VAGUE_VERBS = ['mirar', 'ver', 'revisar', 'hablar', 'pensar', 'echar un ojo', 'preparar', 'recordar', 'no olvidar', 'ocuparme', 'ocuparse', 'gestionar', 'lo de'];
+
+// ===== Inicio =====
+document.addEventListener('DOMContentLoaded', () => {
+    setGreeting();
+    renderHoy();
+    bindTabs();
+    bindCaptura();
+    bindClarificador();
+    bindFoco();
+    bindPerfil();
+    bindAlerts();
+});
+
+// ===== Saludo según hora =====
+function setGreeting() {
+    const h = new Date().getHours();
+    const saludo = h < 6 ? 'Buenas noches' : h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+    const el = document.getElementById('hoyGreeting');
+    if (el) el.textContent = `${saludo}, Valerio`;
 }
 
-// ===== OPTION BUTTONS (single select) =====
-function setupOptionButtons() {
-    document.querySelectorAll('.option-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const field = btn.dataset.field;
-            const value = btn.dataset.value;
-
-            // Deselect siblings
-            btn.closest('.options-grid, .level-selector').querySelectorAll('.option-btn, .level-btn').forEach(b => {
-                b.classList.remove('selected');
-            });
-            btn.classList.add('selected');
-
-            state[field] = value;
-            validateCurrentStep();
-        });
-    });
-
-    document.querySelectorAll('.level-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const field = btn.dataset.field;
-            const value = btn.dataset.value;
-
-            btn.closest('.level-selector').querySelectorAll('.level-btn').forEach(b => {
-                b.classList.remove('selected');
-            });
-            btn.classList.add('selected');
-
-            state[field] = value;
-            validateCurrentStep();
-        });
-    });
-}
-
-// ===== CHECKBOXES =====
-function setupCheckboxes() {
-    // Step 2 - herramientas
-    document.querySelectorAll('#step2 .checkbox-option input').forEach(cb => {
-        cb.addEventListener('change', () => {
-            const checked = Array.from(document.querySelectorAll('#step2 .checkbox-option input:checked'))
-                .map(c => c.value);
-            state.herramientas = checked;
-            validateCurrentStep();
-        });
-    });
-
-    // Step 3 - usos
-    document.querySelectorAll('#step3 .checkbox-option input').forEach(cb => {
-        cb.addEventListener('change', () => {
-            const checked = Array.from(document.querySelectorAll('#step3 .checkbox-option input:checked'))
-                .map(c => c.value);
-            state.usosIA = checked;
-            validateCurrentStep();
-        });
-    });
-
-    // Step 4 - frustraciones
-    document.querySelectorAll('#step4 .checkbox-option input').forEach(cb => {
-        cb.addEventListener('change', () => {
-            const checked = Array.from(document.querySelectorAll('#step4 .checkbox-option input:checked'))
-                .map(c => c.value);
-            state.frustraciones = checked;
-            validateCurrentStep();
-        });
+// ===== Navegación entre pantallas =====
+function bindTabs() {
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => goTo(tab.dataset.target));
     });
 }
 
-// ===== SLIDERS =====
-function setupSliders() {
-    const sliderRep = document.getElementById('horasRepetitivas');
-    const sliderRepVal = document.getElementById('horasRepVal');
-    sliderRep.addEventListener('input', () => {
-        state.horasRepetitivas = parseInt(sliderRep.value);
-        sliderRepVal.textContent = sliderRep.value;
-    });
+function goTo(screenId) {
+    state.activeScreen = screenId;
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === screenId));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.target === screenId));
 
-    const sliderAh = document.getElementById('horasAhorro');
-    const sliderAhVal = document.getElementById('horasAhVal');
-    sliderAh.addEventListener('input', () => {
-        state.horasAhorro = parseInt(sliderAh.value);
-        sliderAhVal.textContent = sliderAh.value;
-    });
-}
+    // Resaltar tab Captura cuando estás en Clarificador
+    if (screenId === 'screen-clarificador') {
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.target === 'screen-captura'));
+    }
 
-// ===== EMAIL =====
-function setupEmail() {
-    document.getElementById('emailInput').addEventListener('input', (e) => {
-        state.email = e.target.value;
-        validateCurrentStep();
-    });
-}
-
-// ===== NAVIGATION =====
-function setupNavigation() {
-    document.getElementById('next1').addEventListener('click', () => goToStep(2));
-    document.getElementById('next2').addEventListener('click', () => goToStep(3));
-    document.getElementById('next3').addEventListener('click', () => goToStep(4));
-    document.getElementById('next4').addEventListener('click', () => {
-        generateReport();
-        goToStep(5);
-    });
-
-    document.getElementById('back2').addEventListener('click', () => goToStep(1));
-    document.getElementById('back3').addEventListener('click', () => goToStep(2));
-    document.getElementById('back4').addEventListener('click', () => goToStep(3));
-}
-
-function goToStep(step) {
-    steps.forEach(s => s.classList.remove('active'));
-    document.getElementById(`step${step}`).classList.add('active');
-    state.currentStep = step;
-    updateProgress();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function updateProgress() {
-    const pct = (state.currentStep / state.totalSteps) * 100;
-    progressFill.style.width = `${pct}%`;
+// ===== HOY: Render lista de cierres =====
+function renderHoy() {
+    const list = document.getElementById('cierresList');
+    if (!list) return;
+    list.innerHTML = state.tasks.slice(0, 3).map(t => `
+        <li class="task-card" data-id="${t.id}">
+            <div class="task-num ${t.numCls}">${t.num}</div>
+            <div class="task-body">
+                <div class="task-title-row">${escapeHtml(t.title)}</div>
+                <span class="tag ${t.tag.cls}">${t.tag.label}</span>
+            </div>
+            <span class="task-time">
+                <svg><use href="#i-clock"/></svg> ${t.mins} min
+            </span>
+            <svg class="task-chev"><use href="#i-chevron"/></svg>
+        </li>
+    `).join('');
 
-    progressSteps.querySelectorAll('.step').forEach(s => {
-        const stepNum = parseInt(s.dataset.step);
-        s.classList.remove('active', 'completed');
-        if (stepNum === state.currentStep) s.classList.add('active');
-        else if (stepNum < state.currentStep) s.classList.add('completed');
+    list.querySelectorAll('.task-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const id = card.dataset.id;
+            startFocusOn(id);
+        });
+    });
+
+    document.getElementById('statTareas').textContent = state.tasks.length;
+}
+
+function startFocusOn(taskId) {
+    const t = state.tasks.find(x => x.id === taskId);
+    if (!t) return;
+    state.foco.currentTaskId = taskId;
+    state.foco.secondsLeft = (t.mins || 25) * 60;
+    state.foco.block = t.mins || 25;
+    document.getElementById('focoTask').textContent = t.title;
+    document.getElementById('focoGoal').textContent = guessGoal(t);
+    document.getElementById('focoBlock').textContent = state.foco.block;
+    updateFocoTimer();
+    goTo('screen-foco');
+}
+
+function guessGoal(t) {
+    if (t.cat === 'commercial') return 'email enviado con PDF adjunto';
+    if (t.cat === 'admin')      return 'documento entregado y registrado';
+    if (t.cat === 'work')       return 'agenda enviada antes de las 18:00';
+    return 'tarea cerrada con criterio claro';
+}
+
+// ===== CAPTURA =====
+function bindCaptura() {
+    // Segmented Texto / Audio / Foto
+    document.querySelectorAll('.seg-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('.seg-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            const mode = b.dataset.mode;
+            const input = document.getElementById('captureInput');
+            if (mode === 'audio') input.placeholder = 'Pulsa "Analizar ahora" para simular transcripción del audio.';
+            else if (mode === 'foto') input.placeholder = 'Pulsa "Analizar ahora" para simular OCR de la imagen.';
+            else input.placeholder = 'Tengo que llamar a Pedro, revisar lo de Hacienda, preparar la reunión de mañana, mandar el presupuesto a Laura y no olvidar lo del colegio.';
+        });
+    });
+
+    document.getElementById('analyzeBtn').addEventListener('click', () => {
+        const text = (document.getElementById('captureInput').value || '').trim();
+        const sample = 'Tengo que llamar a Pedro, revisar lo de Hacienda, preparar la reunión de mañana, mandar el presupuesto a Laura y no olvidar lo del colegio.';
+        const source = text || sample;
+        const topics = analyzeText(source);
+        state.detectedTopics = topics;
+        renderTopics(topics);
+        showToast(`✨ ${topics.length} asuntos detectados`);
     });
 }
 
-// ===== VALIDATION =====
-function validateCurrentStep() {
-    let valid = false;
-    switch (state.currentStep) {
-        case 1:
-            valid = state.rol && state.ingreso;
-            document.getElementById('next1').disabled = !valid;
-            break;
-        case 2:
-            valid = state.frecuencia && state.nivel;
-            document.getElementById('next2').disabled = !valid;
-            break;
-        case 3:
-            valid = state.procesos !== null;
-            document.getElementById('next3').disabled = !valid;
-            break;
-        case 4:
-            valid = state.inversion && state.disposicion && isValidEmail(state.email);
-            document.getElementById('next4').disabled = !valid;
-            break;
+function analyzeText(raw) {
+    // Divide por comas, "y", puntos, saltos de línea
+    const chunks = raw
+        .replace(/\bno olvidar\b/gi, ' ')
+        .replace(/\btengo que\b/gi, ' ')
+        .replace(/\bdebería\b/gi, ' ')
+        .replace(/\bquiero\b/gi, ' ')
+        .split(/[,.;\n]| y (?=[a-záéíóúñ])/i)
+        .map(s => s.trim())
+        .filter(s => s.length > 3);
+
+    const topics = chunks.map((chunk, i) => {
+        const cat = classify(chunk);
+        const ambiguous = isAmbiguous(chunk);
+        const title = capitalizeFirst(cleanTitle(chunk));
+        return {
+            id: `c${i + 1}`,
+            num: i + 1,
+            title,
+            raw: chunk,
+            cat,
+            ambiguous
+        };
+    });
+
+    return topics;
+}
+
+function classify(chunk) {
+    const c = chunk.toLowerCase();
+    let best = 'work', bestScore = 0;
+    for (const [cat, words] of Object.entries(KEYWORDS)) {
+        let score = 0;
+        for (const w of words) if (c.includes(w)) score++;
+        if (score > bestScore) { best = cat; bestScore = score; }
+    }
+    return bestScore === 0 ? 'work' : best;
+}
+
+function isAmbiguous(chunk) {
+    const c = chunk.toLowerCase();
+    return VAGUE_VERBS.some(v => c.includes(v)) && !/\d|antes de|para el/.test(c);
+}
+
+function cleanTitle(chunk) {
+    return chunk
+        .replace(/^\s*(que|de|el|la|los|las)\s+/i, '')
+        .replace(/^\s*lo de\s+/i, 'Revisar ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function capitalizeFirst(s) {
+    return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+function renderTopics(topics) {
+    const list = document.getElementById('topicList');
+    list.innerHTML = topics.map(t => {
+        const cat = CATEGORIES[t.cat];
+        return `
+            <li class="topic-card" data-id="${t.id}">
+                <div class="topic-num">${t.num}</div>
+                <div class="topic-icon ${cat.cls}"><svg><use href="#${cat.icon}"/></svg></div>
+                <div class="topic-body">
+                    <div class="topic-title">${escapeHtml(t.title)}</div>
+                    <span class="tag ${cat.cls === 'work' ? 'blue' : cat.cls === 'admin' ? '' : cat.cls === 'commercial' ? 'green' : cat.cls === 'family' ? 'purple' : 'red'}">${cat.label}</span>
+                </div>
+                <svg class="topic-chev"><use href="#i-chevron"/></svg>
+            </li>
+        `;
+    }).join('');
+
+    const ambigCount = topics.filter(t => t.ambiguous).length;
+    const note = document.getElementById('ambiguityNote');
+    if (ambigCount > 0) {
+        document.getElementById('ambiguityCount').textContent = ambigCount;
+        note.hidden = false;
+        note.onclick = openClarificador;
+    } else {
+        note.hidden = true;
     }
 }
 
-function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+// ===== CLARIFICADOR =====
+function openClarificador() {
+    const ambiguous = state.detectedTopics.filter(t => t.ambiguous);
+    if (ambiguous.length === 0) {
+        showToast('No hay tareas ambiguas que clarificar');
+        return;
+    }
+    state.clarifications = ambiguous.map(buildClarification);
+    renderClarificador();
+    goTo('screen-clarificador');
 }
 
-// ===== REPORT GENERATION =====
-function generateReport() {
-    const ingreso = parseInt(state.ingreso);
-    const horasRep = state.horasRepetitivas;
-    const horasAhorro = state.horasAhorro;
-    const nivel = parseInt(state.nivel);
-    const procesos = parseInt(state.procesos);
-    const frecuenciaMap = { nunca: 0, ocasional: 0.2, semanal: 0.5, diario: 0.8 };
-    const frecuenciaPct = frecuenciaMap[state.frecuencia] || 0;
+function buildClarification(topic) {
+    const cat = CATEGORIES[topic.cat];
+    const t = topic.raw.toLowerCase();
+    let clarified = '', mins = 25, criterio = 'tarea cerrada', chip = { label: 'Importante', cls: 'blue' };
 
-    // Calculate hourly rate
-    const horasTrabajo = 160; // monthly hours
-    const tarifaHora = ingreso / horasTrabajo;
+    if (t.includes('reunión') || t.includes('reunion')) {
+        const persona = (t.match(/con\s+([a-záéíóú]+)/i) || [])[1] || 'el equipo';
+        clarified = `Preparar una agenda de 5 puntos para la reunión con ${capitalizeFirst(persona)} y enviarla antes de las 18:00`;
+        mins = 30; criterio = 'agenda enviada'; chip = { label: 'Clave', cls: 'blue' };
+    } else if (t.includes('banco')) {
+        clarified = 'Llamar al banco para confirmar el estado del préstamo y anotar próximos pasos';
+        mins = 20; criterio = 'respuesta anotada'; chip = { label: 'Administración', cls: 'purple' };
+    } else if (t.includes('hacienda') || t.includes('factura') || t.includes('impuesto')) {
+        clarified = 'Recopilar facturas pendientes y subirlas al gestor antes del viernes';
+        mins = 45; criterio = 'documentos subidos'; chip = { label: 'Administración', cls: 'purple' };
+    } else if (t.includes('colegio')) {
+        clarified = 'Confirmar con el colegio el horario y dejarlo apuntado en el calendario familiar';
+        mins = 10; criterio = 'evento creado'; chip = { label: 'Familia', cls: 'purple' };
+    } else if (t.includes('presupuesto') || t.includes('propuesta')) {
+        clarified = 'Redactar el presupuesto con 3 paquetes y enviarlo por email con PDF adjunto';
+        mins = 40; criterio = 'email enviado'; chip = { label: 'Comercial', cls: 'green' };
+    } else if (t.includes('mirar') || t.includes('ver')) {
+        clarified = `Definir 1 acción concreta sobre "${topic.title}" y bloquear 20 min hoy para ejecutarla`;
+        mins = 20; criterio = 'acción ejecutada';
+    } else {
+        clarified = `Convertir "${topic.title}" en una sola acción cerrable y agendarla hoy`;
+        mins = 20; criterio = 'acción agendada';
+    }
 
-    // Money lost on repetitive tasks
-    const horasRepMes = horasRep * 4.3;
-    const dineroRepetitivo = horasRepMes * tarifaHora;
-
-    // Efficiency multiplier based on AI level
-    const eficienciaActual = 0.1 + (nivel * 0.15) + (frecuenciaPct * 0.2);
-    const eficienciaIA50 = 0.85;
-    const gapEficiencia = eficienciaIA50 - eficienciaActual;
-
-    // Opportunity cost of not automating
-    const horasAhorroMes = horasAhorro * 4.3;
-    const costoOportunidad = horasAhorroMes * tarifaHora * (1 - eficienciaActual);
-
-    // Potential revenue increase
-    const multiplicadorPotencial = 1.5 + (gapEficiencia * 2);
-    const ingresoPotencial = ingreso * multiplicadorPotencial;
-    const ingresoExtra = ingresoPotencial - ingreso;
-
-    // Total annual loss
-    const perdidaMensual = dineroRepetitivo * gapEficiencia + costoOportunidad * 0.6;
-    const perdidaAnual = perdidaMensual * 12;
-
-    // Diagnosis score
-    const scoreDiagnostico = Math.min(100, Math.round(
-        (nivel * 8) +
-        (frecuenciaPct * 20) +
-        (procesos * 4) +
-        (state.herramientas.length * 5)
-    ));
-
-    // Profile classification
-    const perfiles = {
-        low: { name: 'Dormido Digital', color: 'var(--danger)', emoji: '😴' },
-        mid: { name: 'Explorador IA', color: 'var(--accent)', emoji: '🧭' },
-        high: { name: 'Constructor IA', color: 'var(--success)', emoji: '🏗️' }
+    return {
+        id: topic.id,
+        detectedTitle: capitalizeFirst(topic.title),
+        clarifiedTitle: clarified,
+        mins,
+        criterio,
+        chip,
+        cat
     };
-    const perfil = scoreDiagnostico < 35 ? perfiles.low :
-                   scoreDiagnostico < 65 ? perfiles.mid : perfiles.high;
+}
 
-    // ROI of IA50
-    const inversionIA50 = 497;
-    const roiMeses = inversionIA50 / (perdidaMensual || 1);
-
-    const container = document.getElementById('reportContainer');
-    container.innerHTML = `
-        <!-- Profile Badge -->
-        <div style="text-align: center; margin-bottom: 8px;">
-            <span class="profile-badge">${perfil.emoji} Tu perfil: ${perfil.name}</span>
-        </div>
-
-        <!-- Main Loss Card -->
-        <div class="report-header">
-            <div class="money-lost-label">Estás perdiendo aproximadamente</div>
-            <div class="money-lost">${formatMoney(perdidaAnual)}/año</div>
-            <div class="money-period">Eso son <strong>${formatMoney(perdidaMensual)}/mes</strong> que se escapan por no usar IA correctamente</div>
-        </div>
-
-        <!-- Detail Cards -->
-        <div class="report-cards">
-            <!-- Diagnosis -->
-            <div class="report-card">
-                <div class="report-card-header">
-                    <span class="report-card-icon">🩺</span>
-                    <span class="report-card-title">Tu Diagnóstico IA</span>
+function renderClarificador() {
+    const host = document.getElementById('clarifyPairs');
+    host.innerHTML = state.clarifications.map(c => `
+        <div class="clarify-pair">
+            <div class="clarify-card">
+                <div class="clarify-icon q"><svg><use href="#i-q"/></svg></div>
+                <div>
+                    <div class="clarify-label detected">Tarea detectada</div>
+                    <div class="clarify-text">${escapeHtml(c.detectedTitle)}</div>
+                    <span class="clarify-ambi"><svg><use href="#i-warn"/></svg> Ambigua</span>
                 </div>
-                <div class="report-card-value ${scoreDiagnostico < 35 ? 'danger' : scoreDiagnostico < 65 ? 'warning' : 'success'}">${scoreDiagnostico}/100</div>
-                <div class="report-card-desc">
-                    ${scoreDiagnostico < 35
-                        ? 'Estás muy por debajo del potencial. La IA podría transformar completamente tu forma de trabajar.'
-                        : scoreDiagnostico < 65
-                        ? 'Tienes una base, pero estás dejando mucho potencial sin explotar. Hay un salto enorme disponible.'
-                        : 'Buen nivel, pero aún hay margen significativo de mejora para maximizar resultados.'}
-                </div>
-                <div class="diagnosis-bar">
-                    <span style="font-size: 12px; color: var(--text-muted);">0</span>
-                    <div class="diagnosis-fill">
-                        <div class="diagnosis-fill-inner" style="width: ${scoreDiagnostico}%; background: ${scoreDiagnostico < 35 ? 'var(--danger)' : scoreDiagnostico < 65 ? 'var(--accent)' : 'var(--success)'}"></div>
+            </div>
+            <svg class="clarify-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 14l6 6 6-6"/></svg>
+            <div class="clarify-card">
+                <div class="clarify-icon ok"><svg><use href="#i-check"/></svg></div>
+                <div>
+                    <div class="clarify-label clarified">Versión clarificada</div>
+                    <div class="clarify-text">${escapeHtml(c.clarifiedTitle)}</div>
+                    <div class="clarify-meta">
+                        <span class="tag blue"><svg style="width:11px;height:11px" hidden></svg> ${c.mins} min</span>
+                        <span class="tag ${c.chip.cls}">${c.chip.label}</span>
+                        <span class="tag ${c.cat.cls === 'work' ? 'blue' : c.cat.cls === 'admin' ? 'purple' : c.cat.cls === 'commercial' ? 'green' : c.cat.cls === 'family' ? 'purple' : 'red'}">${c.cat.label}</span>
                     </div>
-                    <span class="diagnosis-label" style="color: ${scoreDiagnostico < 35 ? 'var(--danger)' : scoreDiagnostico < 65 ? 'var(--accent)' : 'var(--success)'}">${scoreDiagnostico}%</span>
+                    <div class="clarify-criterion">Criterio de cierre: <strong>${escapeHtml(c.criterio)}</strong></div>
                 </div>
             </div>
-
-            <!-- Time Wasted -->
-            <div class="report-card">
-                <div class="report-card-header">
-                    <span class="report-card-icon">⏰</span>
-                    <span class="report-card-title">Tiempo Perdido</span>
-                </div>
-                <div class="report-card-value danger">${horasRep}h/semana</div>
-                <div class="report-card-desc">
-                    Dedicas <strong>${horasRep} horas semanales</strong> a tareas repetitivas.
-                    Eso son <strong>${Math.round(horasRepMes)} horas al mes</strong> (${Math.round(horasRepMes / horasTrabajo * 100)}% de tu jornada)
-                    valoradas en <strong>${formatMoney(dineroRepetitivo)}/mes</strong>.
-                </div>
-            </div>
-
-            <!-- Opportunity Cost -->
-            <div class="report-card">
-                <div class="report-card-header">
-                    <span class="report-card-icon">💸</span>
-                    <span class="report-card-title">Costo de Oportunidad</span>
-                </div>
-                <div class="report-card-value warning">${formatMoney(costoOportunidad)}/mes</div>
-                <div class="report-card-desc">
-                    Podrías estar ganando <strong>${formatMoney(ingresoExtra)} más al mes</strong>
-                    si automatizaras tus procesos clave. Tu potencial está en <strong>${formatMoney(ingresoPotencial)}/mes</strong>.
-                </div>
-            </div>
-
-            <!-- Tu vs IA50 -->
-            <div class="report-card">
-                <div class="report-card-header">
-                    <span class="report-card-icon">⚔️</span>
-                    <span class="report-card-title">Tú Hoy vs. Tú con IA50</span>
-                </div>
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th>Métrica</th>
-                            <th>Tú Hoy</th>
-                            <th>Con IA50</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Eficiencia IA</td>
-                            <td class="you">${Math.round(eficienciaActual * 100)}%</td>
-                            <td class="ia50">${Math.round(eficienciaIA50 * 100)}%</td>
-                        </tr>
-                        <tr>
-                            <td>Horas en tareas manuales</td>
-                            <td class="you">${horasRep}h/sem</td>
-                            <td class="ia50">${Math.max(2, Math.round(horasRep * 0.2))}h/sem</td>
-                        </tr>
-                        <tr>
-                            <td>Procesos automatizados</td>
-                            <td class="you">${procesos}</td>
-                            <td class="ia50">+15</td>
-                        </tr>
-                        <tr>
-                            <td>Ingreso potencial</td>
-                            <td class="you">${formatMoney(ingreso)}</td>
-                            <td class="ia50">${formatMoney(ingresoPotencial)}</td>
-                        </tr>
-                        <tr>
-                            <td>Horas libres extra</td>
-                            <td class="you">0h</td>
-                            <td class="ia50">+${horasAhorro}h/sem</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Frustrations Addressed -->
-            ${state.frustraciones.length > 0 ? `
-            <div class="report-card">
-                <div class="report-card-header">
-                    <span class="report-card-icon">🎯</span>
-                    <span class="report-card-title">Problemas que IA50 Resuelve</span>
-                </div>
-                <div class="report-card-desc">
-                    ${generateFrustrationSolutions(state.frustraciones)}
-                </div>
-            </div>
-            ` : ''}
         </div>
-
-        <!-- CTA -->
-        <div class="cta-section">
-            <div class="cta-title">IA50: Domina la IA en 50 Días</div>
-            <div class="cta-subtitle">
-                El programa que transforma tu forma de trabajar con IA.<br>
-                De ${perfil.name} a Constructor IA en 7 semanas.
-            </div>
-            <div class="cta-price">Inversión única: <strong>497€</strong></div>
-            <div class="cta-savings">
-                💰 ROI estimado: recuperas la inversión en ${roiMeses < 1 ? 'menos de 1 mes' : Math.ceil(roiMeses) + ' meses'}
-                · Ahorro anual: ${formatMoney(perdidaAnual)}
-            </div>
-            <button class="btn-cta" onclick="handleCTA()">🚀 Quiero Dejar de Perder Dinero</button>
-            <div class="cta-guarantee">🔒 Garantía de 14 días. Si no ves resultados, te devolvemos el 100%.</div>
-        </div>
-    `;
-
-    // Animate the diagnosis bar
-    setTimeout(() => {
-        const bar = container.querySelector('.diagnosis-fill-inner');
-        if (bar) bar.style.width = `${scoreDiagnostico}%`;
-    }, 300);
+    `).join('');
 }
 
-// ===== HELPERS =====
-function formatMoney(amount) {
-    if (amount >= 1000) {
-        return new Intl.NumberFormat('es-ES', {
-            style: 'currency',
-            currency: 'EUR',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(Math.round(amount));
-    }
-    return new Intl.NumberFormat('es-ES', {
-        style: 'currency',
-        currency: 'EUR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(Math.round(amount));
+function bindClarificador() {
+    document.getElementById('acceptTasksBtn').addEventListener('click', () => {
+        const newTasks = state.clarifications.map((c, i) => ({
+            id: `clar-${Date.now()}-${i}`,
+            title: c.clarifiedTitle,
+            tag: c.chip,
+            mins: c.mins,
+            num: state.tasks.length + i + 1,
+            numCls: c.chip.cls === 'gold' ? 'gold' : c.chip.cls === 'blue' ? 'blue' : 'purple',
+            cat: Object.keys(CATEGORIES).find(k => CATEGORIES[k] === c.cat) || 'work'
+        }));
+        state.tasks = [...state.tasks, ...newTasks];
+        renumberTasks();
+        renderHoy();
+        showToast(`✅ ${newTasks.length} tareas añadidas a Hoy`);
+        goTo('screen-hoy');
+    });
+
+    document.getElementById('keepClarifyingBtn').addEventListener('click', () => {
+        showToast('🔁 El clarificador seguirá refinando');
+    });
 }
 
-function generateFrustrationSolutions(frustrations) {
-    const solutions = {
-        tiempo: '⏰ <strong>"No tengo tiempo"</strong> → IA50 te enseña a automatizar y delegar a la IA, recuperando +15h/semana.',
-        escalar: '📈 <strong>"No puedo escalar"</strong> → Aprenderás a crear sistemas con IA que escalan sin necesitar más equipo.',
-        competencia: '🏃 <strong>"La competencia me adelanta"</strong> → Con IA50 tendrás ventaja competitiva desde la semana 1.',
-        equipo: '👥 <strong>"Dependo de mi equipo"</strong> → La IA se convierte en tu empleado 24/7 que no descansa.',
-        ingresos: '💰 <strong>"Ingresos estancados"</strong> → Nuevas fuentes de ingreso usando IA para crear productos y automatizar ventas.',
-        manual: '🔧 <strong>"Todo es manual"</strong> → Automatizarás +15 procesos clave de tu negocio con IA.'
-    };
-
-    return frustrations.map(f => `<p style="margin: 8px 0;">${solutions[f] || ''}</p>`).join('');
+function renumberTasks() {
+    state.tasks.forEach((t, i) => { t.num = i + 1; });
 }
 
-function handleCTA() {
-    // Track conversion and redirect
-    const data = {
-        email: state.email,
-        rol: state.rol,
-        nivel: state.nivel,
-        perfil: state.currentStep === 5 ? 'completed' : 'abandoned'
-    };
-    console.log('CTA clicked:', data);
-    alert('¡Perfecto! Te redirigimos a la página de inscripción de IA50.\n\n(Aquí iría el enlace de pago)');
+// ===== FOCO =====
+function bindFoco() {
+    updateFocoTimer();
+
+    // Auto-arranca el timer al entrar en la pantalla
+    const observer = new MutationObserver(() => {
+        const screen = document.getElementById('screen-foco');
+        if (screen.classList.contains('active') && !state.foco.running) {
+            startFocoTimer();
+        } else if (!screen.classList.contains('active') && state.foco.running) {
+            pauseFocoTimer();
+        }
+    });
+    observer.observe(document.getElementById('screen-foco'), { attributes: true, attributeFilter: ['class'] });
+
+    document.getElementById('distractedBtn').addEventListener('click', () => {
+        state.foco.distractions++;
+        showToast('👁 Anotado. Vuelve al objetivo.');
+    });
+
+    document.getElementById('blockedBtn').addEventListener('click', () => {
+        showToast('🔒 Vamos a romper el bloqueo: define un movimiento de 2 min.');
+    });
+
+    document.getElementById('closedBtn').addEventListener('click', () => {
+        const id = state.foco.currentTaskId;
+        state.tasks = state.tasks.filter(t => t.id !== id);
+        renumberTasks();
+        renderHoy();
+        pauseFocoTimer();
+        showToast('🎯 Tarea cerrada. ¡Buen trabajo!');
+        goTo('screen-hoy');
+    });
+
+    document.getElementById('nextMoveBtn').addEventListener('click', () => {
+        showToast('▶ Empieza por el movimiento mínimo (2 min).');
+    });
 }
 
-// ===== START =====
-init();
+function startFocoTimer() {
+    if (state.foco.timerId) return;
+    state.foco.running = true;
+    state.foco.timerId = setInterval(() => {
+        state.foco.secondsLeft = Math.max(0, state.foco.secondsLeft - 1);
+        updateFocoTimer();
+        if (state.foco.secondsLeft === 0) {
+            pauseFocoTimer();
+            showToast('⏰ Bloque completado. Respira 2 min.');
+        }
+    }, 1000);
+}
+
+function pauseFocoTimer() {
+    if (state.foco.timerId) clearInterval(state.foco.timerId);
+    state.foco.timerId = null;
+    state.foco.running = false;
+}
+
+function updateFocoTimer() {
+    const m = Math.floor(state.foco.secondsLeft / 60);
+    const s = state.foco.secondsLeft % 60;
+    const el = document.getElementById('focoTimer');
+    if (el) el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+// ===== Perfil =====
+function bindPerfil() {
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        if (!confirm('¿Restablecer datos de ejemplo?')) return;
+        location.reload();
+    });
+}
+
+// ===== Alertas (Hoy) =====
+function bindAlerts() {
+    document.querySelectorAll('.alert.dark').forEach(a => {
+        a.addEventListener('click', () => showToast('⚠ 3 reuniones consecutivas detectadas. Considera dejar 1 bloque libre.'));
+    });
+    document.querySelectorAll('.alert.light').forEach(a => {
+        a.addEventListener('click', () => showToast('💡 Activa "modo claridad" desde Perfil.'));
+    });
+
+    const verTodo = document.querySelector('[data-action="ver-todo"]');
+    if (verTodo) verTodo.addEventListener('click', () => goTo('screen-foco'));
+}
+
+// ===== Helpers =====
+let toastTimer = null;
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}

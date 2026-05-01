@@ -2,238 +2,359 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IA50 - Descubre cuánto dinero estás perdiendo sin IA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F2F3F7">
+    <title>Clarity OS — Tu sistema de dirección personal</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Progress Bar -->
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+        <symbol id="i-bell" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 8H4c0-2 2-3 2-8Z M10 19a2 2 0 0 0 4 0"/></symbol>
+        <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 7v5l3 2"/></symbol>
+        <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M3 19c0-3 3-5 6-5s6 2 6 5M15 19c0-2 2-3.5 4-3.5s2.5 1 2.5 2"/></symbol>
+        <symbol id="i-list" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M8 6h12M8 12h12M8 18h12"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></symbol>
+        <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.1 6.6 19.9l1-6.1L3.2 9.5l6.1-.9L12 3Z" fill="currentColor"/></symbol>
+        <symbol id="i-warn" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 3l10 18H2L12 3Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 10v5M12 18.2v.1"/></symbol>
+        <symbol id="i-bulb" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 17h6M10 20h4M12 3a6 6 0 0 0-4 10c1 1 1.5 2 1.5 3h5c0-1 .5-2 1.5-3a6 6 0 0 0-4-10Z"/></symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></symbol>
+        <symbol id="i-text" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5 7h14M5 12h14M5 17h9"/></symbol>
+        <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+        <symbol id="i-camera" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 8h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+        <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Zm7 9l.8 2.2L22 15l-2.2.8L19 18l-.8-2.2L16 15l2.2-.8L19 12Z" fill="currentColor"/></symbol>
+        <symbol id="i-phone" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2Z"/></symbol>
+        <symbol id="i-doc" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M7 3h7l5 5v13H7V3Z M14 3v5h5"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M9 13h7M9 17h7"/></symbol>
+        <symbol id="i-send" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M21 3L3 11l7 2 2 7 9-17Z M10 13l5-5"/></symbol>
+        <symbol id="i-home" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9Z"/></symbol>
+        <symbol id="i-q" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M9 9a3 3 0 1 1 4.5 2.6c-.9.5-1.5 1-1.5 2.4M12 17.5v.1"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7"/></symbol>
+        <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></symbol>
+        <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7V5Z" fill="currentColor"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></symbol>
+        <symbol id="i-eyeoff" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 6.2A10 10 0 0 1 22 12a10 10 0 0 1-3 4M6.5 7.5A10 10 0 0 0 2 12a10 10 0 0 0 13.5 5.4M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M8 10V7a4 4 0 1 1 8 0v3"/></symbol>
+        <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 12.5l3 3 5-6"/></symbol>
+        <symbol id="i-tab-capture" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3 7h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z M3 7l3-3h12l3 3"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M8 13h8"/></symbol>
+        <symbol id="i-tab-today" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M3 10h18M8 3v4M16 3v4"/></symbol>
+        <symbol id="i-tab-stats" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5 19V11M10 19V7M15 19v-5M20 19v-9"/></symbol>
+        <symbol id="i-tab-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+        <symbol id="i-logo" viewBox="0 0 64 64"><defs><linearGradient id="lg-c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B82F6"/><stop offset="1" stop-color="#1D4ED8"/></linearGradient></defs><path d="M48 18a18 18 0 1 0 4 16" fill="none" stroke="url(#lg-c)" stroke-width="6" stroke-linecap="round"/><path d="M34 14h12v12" fill="none" stroke="url(#lg-c)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M34 28L48 14" fill="none" stroke="url(#lg-c)" stroke-width="6" stroke-linecap="round"/></symbol>
+    </defs>
+</svg>
+
+<div class="phone">
+
+    <header class="topbar">
+        <div class="brand">
+            <svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg>
+            <span>Clarity OS</span>
         </div>
-        <div class="progress-steps" id="progressSteps">
-            <span class="step active" data-step="1">Claridad</span>
-            <span class="step" data-step="2">Uso Actual</span>
-            <span class="step" data-step="3">Construcción</span>
-            <span class="step" data-step="4">Impacto</span>
-            <span class="step" data-step="5">Informe</span>
-        </div>
+        <button class="bell" aria-label="Notificaciones">
+            <svg aria-hidden="true"><use href="#i-bell"/></svg>
+            <span class="dot"></span>
+        </button>
+    </header>
 
-        <!-- Step 1: CLARIDAD - Situación actual -->
-        <div class="step-container active" id="step1">
-            <div class="step-icon">🔍</div>
-            <h1>¿Dónde estás hoy con la IA?</h1>
-            <p class="subtitle">Vamos a ser honestos. Responde con sinceridad para obtener un diagnóstico real.</p>
+    <main class="screens">
 
-            <div class="question-group">
-                <label class="question-label">¿Cuál es tu rol principal?</label>
-                <div class="options-grid">
-                    <button class="option-btn" data-field="rol" data-value="emprendedor">🚀 Emprendedor / Fundador</button>
-                    <button class="option-btn" data-field="rol" data-value="freelancer">💻 Freelancer / Consultor</button>
-                    <button class="option-btn" data-field="rol" data-value="marketing">📊 Marketing / Ventas</button>
-                    <button class="option-btn" data-field="rol" data-value="developer">⚙️ Desarrollador / Tech</button>
-                    <button class="option-btn" data-field="rol" data-value="ejecutivo">👔 Directivo / Manager</button>
-                    <button class="option-btn" data-field="rol" data-value="creativo">🎨 Creativo / Diseñador</button>
+        <!-- ============ HOY ============ -->
+        <section class="screen active" id="screen-hoy">
+            <h1 class="title" id="hoyGreeting">Buenos días, Valerio</h1>
+            <p class="subtitle">Tu sistema de dirección personal</p>
+
+            <div class="stats-card">
+                <div class="stat">
+                    <div class="stat-icon"><svg><use href="#i-clock"/></svg></div>
+                    <div class="stat-label">Tiempo útil</div>
+                    <div class="stat-value" id="statTiempo"><span>3</span><em>h</em><span>20</span><em>min</em></div>
+                </div>
+                <div class="stat">
+                    <div class="stat-icon"><svg><use href="#i-people"/></svg></div>
+                    <div class="stat-label">Reuniones</div>
+                    <div class="stat-value" id="statReuniones">3</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-icon"><svg><use href="#i-list"/></svg></div>
+                    <div class="stat-label">Tareas abiertas</div>
+                    <div class="stat-value" id="statTareas">8</div>
                 </div>
             </div>
 
-            <div class="question-group">
-                <label class="question-label">¿Cuántas horas a la semana dedicas a tareas repetitivas?</label>
-                <div class="slider-container">
-                    <input type="range" min="0" max="40" value="15" class="slider" id="horasRepetitivas">
-                    <div class="slider-value"><span id="horasRepVal">15</span> horas/semana</div>
+            <div class="section-head">
+                <div class="section-title">
+                    <span class="star"><svg><use href="#i-star"/></svg></span>
+                    Cierres de hoy
+                </div>
+                <button class="link" data-action="ver-todo">Ver todo <svg><use href="#i-chevron"/></svg></button>
+            </div>
+
+            <ul class="task-list" id="cierresList"></ul>
+
+            <div class="alert dark">
+                <div class="alert-icon dark"><svg><use href="#i-warn"/></svg></div>
+                <div class="alert-body">
+                    <div class="alert-title">Riesgo del día:</div>
+                    <div class="alert-text">Sobrecarga por reuniones</div>
+                </div>
+                <svg class="alert-chev"><use href="#i-chevron"/></svg>
+            </div>
+
+            <div class="alert light">
+                <div class="alert-icon light"><svg><use href="#i-bulb"/></svg></div>
+                <div class="alert-body">
+                    <div class="alert-title">Recomendación</div>
+                    <div class="alert-text">No añadas tareas nuevas antes de las <strong>12:00</strong></div>
+                </div>
+                <svg class="alert-chev"><use href="#i-chevron"/></svg>
+            </div>
+        </section>
+
+        <!-- ============ CAPTURA ============ -->
+        <section class="screen" id="screen-captura">
+            <h1 class="title">Captura</h1>
+            <p class="subtitle">Vuelca aquí tu caos. Yo lo convierto en claridad.</p>
+
+            <div class="seg" role="tablist" aria-label="Modo de captura">
+                <button class="seg-btn active" data-mode="texto">
+                    <svg><use href="#i-text"/></svg> Texto
+                </button>
+                <button class="seg-btn" data-mode="audio">
+                    <svg><use href="#i-mic"/></svg> Audio
+                </button>
+                <button class="seg-btn" data-mode="foto">
+                    <svg><use href="#i-camera"/></svg> Foto
+                </button>
+            </div>
+
+            <textarea
+                id="captureInput"
+                class="capture-input"
+                rows="4"
+                placeholder="Tengo que llamar a Pedro, revisar lo de Hacienda, preparar la reunión de mañana, mandar el presupuesto a Laura y no olvidar lo del colegio."
+            ></textarea>
+
+            <button class="btn primary big" id="analyzeBtn">
+                <svg><use href="#i-spark"/></svg> Analizar ahora
+            </button>
+
+            <div id="capturaResults" class="captura-results">
+                <div class="section-head plain">
+                    <div class="section-title sm">Asuntos detectados</div>
+                </div>
+                <ul class="topic-list" id="topicList"></ul>
+                <div class="alert soft" id="ambiguityNote" hidden>
+                    <div class="alert-icon soft"><svg><use href="#i-warn"/></svg></div>
+                    <div class="alert-body">
+                        <div class="alert-text"><span id="ambiguityCount">0</span> tareas parecen ambiguas y necesitan clarificación</div>
+                    </div>
+                    <svg class="alert-chev"><use href="#i-chevron"/></svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ CLARIFICADOR (sub-pantalla, accesible desde Captura) ============ -->
+        <section class="screen" id="screen-clarificador">
+            <h1 class="title">Clarificador</h1>
+            <p class="subtitle">Transformo tareas ambiguas en acciones cerrables</p>
+
+            <div id="clarifyPairs" class="clarify-pairs"></div>
+
+            <div class="stack">
+                <button class="btn primary" id="acceptTasksBtn">
+                    <svg><use href="#i-spark"/></svg> Aceptar tareas
+                </button>
+                <button class="btn outline" id="keepClarifyingBtn">
+                    <svg><use href="#i-refresh"/></svg> Seguir clarificando
+                </button>
+            </div>
+        </section>
+
+        <!-- ============ FOCO ============ -->
+        <section class="screen" id="screen-foco">
+            <h1 class="title">Foco</h1>
+            <p class="subtitle">Ahora solo esto</p>
+
+            <div class="foco-card">
+                <div class="foco-head">
+                    <div class="foco-target"><svg><use href="#i-target"/></svg></div>
+                    <div>
+                        <div class="foco-task" id="focoTask">Enviar presupuesto a Laura</div>
+                        <div class="foco-goal"><span>Objetivo:</span> <em id="focoGoal">email enviado con PDF adjunto</em></div>
+                    </div>
+                </div>
+                <div class="foco-timer" id="focoTimer">25:00</div>
+                <div class="foco-chips">
+                    <span class="chip light"><svg><use href="#i-clock"/></svg> Bloque de <span id="focoBlock">25</span> min</span>
+                    <span class="chip gold"><svg><use href="#i-star"/></svg> Alta prioridad</span>
                 </div>
             </div>
 
-            <div class="question-group">
-                <label class="question-label">¿Cuál es tu ingreso mensual aproximado (€)?</label>
-                <div class="options-grid cols-3">
-                    <button class="option-btn" data-field="ingreso" data-value="2000">< 2.000€</button>
-                    <button class="option-btn" data-field="ingreso" data-value="4000">2.000€ - 5.000€</button>
-                    <button class="option-btn" data-field="ingreso" data-value="7500">5.000€ - 10.000€</button>
-                    <button class="option-btn" data-field="ingreso" data-value="15000">10.000€ - 20.000€</button>
-                    <button class="option-btn" data-field="ingreso" data-value="30000">20.000€ - 50.000€</button>
-                    <button class="option-btn" data-field="ingreso" data-value="75000">+50.000€</button>
+            <div class="card">
+                <div class="card-title">Progreso del bloque</div>
+                <div class="stepper" id="focoStepper">
+                    <div class="step done"><span class="dot">1</span><div class="lbl">Revisar<br>documento</div></div>
+                    <div class="step active"><span class="dot">2</span><div class="lbl">Adjuntar<br>PDF</div></div>
+                    <div class="step"><span class="dot">3</span><div class="lbl">Enviar<br>email</div></div>
                 </div>
             </div>
 
-            <button class="btn-next" id="next1" disabled>Siguiente →</button>
-        </div>
+            <button class="row-card" id="nextMoveBtn">
+                <div class="row-icon blue"><svg><use href="#i-play"/></svg></div>
+                <div class="row-body">
+                    <div class="row-title">Siguiente movimiento mínimo</div>
+                    <div class="row-sub">Adjunta el PDF y redacta el asunto del correo</div>
+                </div>
+                <svg class="row-chev"><use href="#i-chevron"/></svg>
+            </button>
 
-        <!-- Step 2: USO ACTUAL de IA -->
-        <div class="step-container" id="step2">
-            <div class="step-icon">🤖</div>
-            <h1>Tu relación actual con la IA</h1>
-            <p class="subtitle">Queremos entender exactamente cómo usas (o no) la inteligencia artificial.</p>
+            <button class="row-card">
+                <div class="row-icon amber"><svg><use href="#i-warn"/></svg></div>
+                <div class="row-body">
+                    <div class="row-title">Riesgo</div>
+                    <div class="row-sub">No revises de más. Envía versión suficiente.</div>
+                </div>
+                <svg class="row-chev"><use href="#i-chevron"/></svg>
+            </button>
 
-            <div class="question-group">
-                <label class="question-label">¿Qué herramientas de IA usas actualmente?</label>
-                <div class="checkbox-grid">
-                    <label class="checkbox-option"><input type="checkbox" value="chatgpt"> ChatGPT</label>
-                    <label class="checkbox-option"><input type="checkbox" value="claude"> Claude</label>
-                    <label class="checkbox-option"><input type="checkbox" value="midjourney"> Midjourney / DALL-E</label>
-                    <label class="checkbox-option"><input type="checkbox" value="copilot"> GitHub Copilot</label>
-                    <label class="checkbox-option"><input type="checkbox" value="jasper"> Jasper / Copy.ai</label>
-                    <label class="checkbox-option"><input type="checkbox" value="automation"> Make / Zapier con IA</label>
-                    <label class="checkbox-option"><input type="checkbox" value="voice"> IA de voz (ElevenLabs...)</label>
-                    <label class="checkbox-option"><input type="checkbox" value="ninguna"> ❌ Ninguna</label>
+            <div class="foco-actions">
+                <button class="pill ghost" id="distractedBtn">
+                    <svg><use href="#i-eyeoff"/></svg> Me he<br>distraído
+                </button>
+                <button class="pill ghost" id="blockedBtn">
+                    <svg><use href="#i-lock"/></svg> Estoy<br>bloqueado
+                </button>
+                <button class="pill solid" id="closedBtn">
+                    <svg><use href="#i-check-circle"/></svg> Cerrado
+                </button>
+            </div>
+        </section>
+
+        <!-- ============ DIAGNÓSTICO ============ -->
+        <section class="screen" id="screen-diagnostico">
+            <h1 class="title">Diagnóstico</h1>
+            <p class="subtitle">Cómo va tu sistema esta semana</p>
+
+            <div class="grid-2">
+                <div class="kpi">
+                    <div class="kpi-label">Cierres / día</div>
+                    <div class="kpi-value" id="kpiCierres">5,2</div>
+                    <div class="kpi-trend up">+18% vs semana pasada</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Bloques de foco</div>
+                    <div class="kpi-value" id="kpiFoco">12</div>
+                    <div class="kpi-trend up">+3 esta semana</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Tareas ambiguas</div>
+                    <div class="kpi-value" id="kpiAmbi">23%</div>
+                    <div class="kpi-trend down">-7% gracias al Clarificador</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Distracciones</div>
+                    <div class="kpi-value" id="kpiDist">7</div>
+                    <div class="kpi-trend down">-2 vs semana anterior</div>
                 </div>
             </div>
 
-            <div class="question-group">
-                <label class="question-label">¿Con qué frecuencia usas IA en tu trabajo?</label>
-                <div class="options-grid cols-2">
-                    <button class="option-btn" data-field="frecuencia" data-value="nunca">Nunca o casi nunca</button>
-                    <button class="option-btn" data-field="frecuencia" data-value="ocasional">Algunas veces al mes</button>
-                    <button class="option-btn" data-field="frecuencia" data-value="semanal">Varias veces por semana</button>
-                    <button class="option-btn" data-field="frecuencia" data-value="diario">Todos los días</button>
+            <div class="card">
+                <div class="card-title">Riesgos detectados</div>
+                <ul class="risk-list">
+                    <li><span class="dot amber"></span>Sobrecarga por reuniones los martes</li>
+                    <li><span class="dot red"></span>Tareas de administración acumuladas (5)</li>
+                    <li><span class="dot blue"></span>Bloques de foco interrumpidos en horario tarde</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Recomendación de la semana</div>
+                <p class="card-text">Reserva 2 bloques de 50 min los <strong>lunes por la mañana</strong> para limpiar la bandeja de Administración. Es donde se acumula el ruido.</p>
+            </div>
+        </section>
+
+        <!-- ============ PERFIL ============ -->
+        <section class="screen" id="screen-perfil">
+            <h1 class="title">Perfil</h1>
+            <p class="subtitle">Ajustes y preferencias</p>
+
+            <div class="profile-head">
+                <div class="avatar">V</div>
+                <div>
+                    <div class="profile-name">Valerio</div>
+                    <div class="profile-plan">Plan Clarity Pro · activo</div>
                 </div>
             </div>
 
-            <div class="question-group">
-                <label class="question-label">¿Cómo definirías tu nivel de dominio de IA?</label>
-                <div class="level-selector">
-                    <button class="level-btn" data-field="nivel" data-value="1">
-                        <span class="level-number">1</span>
-                        <span class="level-label">Curioso</span>
-                        <span class="level-desc">He oído hablar pero no la uso</span>
-                    </button>
-                    <button class="level-btn" data-field="nivel" data-value="2">
-                        <span class="level-number">2</span>
-                        <span class="level-label">Principiante</span>
-                        <span class="level-desc">Uso ChatGPT para cosas básicas</span>
-                    </button>
-                    <button class="level-btn" data-field="nivel" data-value="3">
-                        <span class="level-number">3</span>
-                        <span class="level-label">Intermedio</span>
-                        <span class="level-desc">Uso prompts y varias herramientas</span>
-                    </button>
-                    <button class="level-btn" data-field="nivel" data-value="4">
-                        <span class="level-number">4</span>
-                        <span class="level-label">Avanzado</span>
-                        <span class="level-desc">Automatizo procesos con IA</span>
-                    </button>
-                    <button class="level-btn" data-field="nivel" data-value="5">
-                        <span class="level-number">5</span>
-                        <span class="level-label">Experto</span>
-                        <span class="level-desc">Construyo soluciones con IA</span>
-                    </button>
-                </div>
+            <div class="card list">
+                <button class="list-item">
+                    <div class="li-label">Nombre</div>
+                    <div class="li-value">Valerio</div>
+                    <svg class="li-chev"><use href="#i-chevron"/></svg>
+                </button>
+                <button class="list-item">
+                    <div class="li-label">Zona horaria</div>
+                    <div class="li-value">Europa / Madrid</div>
+                    <svg class="li-chev"><use href="#i-chevron"/></svg>
+                </button>
+                <button class="list-item">
+                    <div class="li-label">Bloque de foco</div>
+                    <div class="li-value">25 min</div>
+                    <svg class="li-chev"><use href="#i-chevron"/></svg>
+                </button>
             </div>
 
-            <div class="btn-group">
-                <button class="btn-back" id="back2">← Atrás</button>
-                <button class="btn-next" id="next2" disabled>Siguiente →</button>
-            </div>
-        </div>
-
-        <!-- Step 3: CONSTRUCCIÓN - Qué construye -->
-        <div class="step-container" id="step3">
-            <div class="step-icon">🏗️</div>
-            <h1>¿Qué construyes con IA?</h1>
-            <p class="subtitle">O mejor dicho... ¿qué podrías estar construyendo?</p>
-
-            <div class="question-group">
-                <label class="question-label">¿Para qué usas (o usarías) la IA?</label>
-                <div class="checkbox-grid">
-                    <label class="checkbox-option"><input type="checkbox" value="contenido"> Crear contenido (textos, posts, emails)</label>
-                    <label class="checkbox-option"><input type="checkbox" value="analisis"> Analizar datos y tomar decisiones</label>
-                    <label class="checkbox-option"><input type="checkbox" value="automatizar"> Automatizar tareas repetitivas</label>
-                    <label class="checkbox-option"><input type="checkbox" value="producto"> Crear productos digitales</label>
-                    <label class="checkbox-option"><input type="checkbox" value="clientes"> Atención al cliente / chatbots</label>
-                    <label class="checkbox-option"><input type="checkbox" value="ventas"> Generar leads y ventas</label>
-                    <label class="checkbox-option"><input type="checkbox" value="codigo"> Escribir código / desarrollo</label>
-                    <label class="checkbox-option"><input type="checkbox" value="estrategia"> Planificación y estrategia</label>
-                </div>
+            <div class="card list">
+                <label class="list-item toggle">
+                    <div class="li-label">Notificaciones inteligentes</div>
+                    <input type="checkbox" checked>
+                    <span class="switch"></span>
+                </label>
+                <label class="list-item toggle">
+                    <div class="li-label">Resumen diario por email</div>
+                    <input type="checkbox" checked>
+                    <span class="switch"></span>
+                </label>
+                <label class="list-item toggle">
+                    <div class="li-label">Modo claridad extrema</div>
+                    <input type="checkbox">
+                    <span class="switch"></span>
+                </label>
             </div>
 
-            <div class="question-group">
-                <label class="question-label">¿Cuántos procesos de tu negocio has automatizado con IA?</label>
-                <div class="options-grid cols-2">
-                    <button class="option-btn" data-field="procesos" data-value="0">Ninguno (0)</button>
-                    <button class="option-btn" data-field="procesos" data-value="2">Algunos (1-3)</button>
-                    <button class="option-btn" data-field="procesos" data-value="5">Varios (4-7)</button>
-                    <button class="option-btn" data-field="procesos" data-value="10">Muchos (+8)</button>
-                </div>
-            </div>
+            <button class="btn outline danger" id="resetBtn">Restablecer datos de ejemplo</button>
+        </section>
 
-            <div class="question-group">
-                <label class="question-label">¿Cuánto tiempo te ahorraría automatizar tus tareas principales?</label>
-                <div class="slider-container">
-                    <input type="range" min="0" max="30" value="10" class="slider" id="horasAhorro">
-                    <div class="slider-value"><span id="horasAhVal">10</span> horas/semana</div>
-                </div>
-            </div>
+    </main>
 
-            <div class="btn-group">
-                <button class="btn-back" id="back3">← Atrás</button>
-                <button class="btn-next" id="next3" disabled>Siguiente →</button>
-            </div>
-        </div>
+    <nav class="tabbar" role="tablist">
+        <button class="tab" data-target="screen-captura">
+            <svg><use href="#i-tab-capture"/></svg>
+            <span>Captura</span>
+        </button>
+        <button class="tab active" data-target="screen-hoy">
+            <svg><use href="#i-tab-today"/></svg>
+            <span>Hoy</span>
+        </button>
+        <button class="tab" data-target="screen-foco">
+            <svg><use href="#i-target"/></svg>
+            <span>Foco</span>
+        </button>
+        <button class="tab" data-target="screen-diagnostico">
+            <svg><use href="#i-tab-stats"/></svg>
+            <span>Diagnóstico</span>
+        </button>
+        <button class="tab" data-target="screen-perfil">
+            <svg><use href="#i-tab-profile"/></svg>
+            <span>Perfil</span>
+        </button>
+    </nav>
 
-        <!-- Step 4: IMPACTO - Dolor y urgencia -->
-        <div class="step-container" id="step4">
-            <div class="step-icon">💥</div>
-            <h1>El impacto real en tu negocio</h1>
-            <p class="subtitle">Estas preguntas van a doler un poco. Pero necesitas verlo.</p>
+</div>
 
-            <div class="question-group">
-                <label class="question-label">¿Cuáles son tus mayores frustraciones hoy?</label>
-                <div class="checkbox-grid">
-                    <label class="checkbox-option"><input type="checkbox" value="tiempo"> No tengo suficiente tiempo</label>
-                    <label class="checkbox-option"><input type="checkbox" value="escalar"> No puedo escalar mi negocio</label>
-                    <label class="checkbox-option"><input type="checkbox" value="competencia"> La competencia me adelanta</label>
-                    <label class="checkbox-option"><input type="checkbox" value="equipo"> Dependo demasiado de mi equipo</label>
-                    <label class="checkbox-option"><input type="checkbox" value="ingresos"> Mis ingresos están estancados</label>
-                    <label class="checkbox-option"><input type="checkbox" value="manual"> Hago todo manualmente</label>
-                </div>
-            </div>
+<div class="toast" id="toast" hidden></div>
 
-            <div class="question-group">
-                <label class="question-label">Si pudieras recuperar 15 horas a la semana, ¿en qué las invertirías?</label>
-                <div class="options-grid cols-2">
-                    <button class="option-btn" data-field="inversion" data-value="vender">Vender más y captar clientes</button>
-                    <button class="option-btn" data-field="inversion" data-value="producto">Crear nuevos productos</button>
-                    <button class="option-btn" data-field="inversion" data-value="estrategia">Pensar en estrategia</button>
-                    <button class="option-btn" data-field="inversion" data-value="vida">Vida personal / descanso</button>
-                </div>
-            </div>
-
-            <div class="question-group">
-                <label class="question-label">¿Cuánto pagarías por una solución que te ahorre +15h/semana y multiplique tus resultados?</label>
-                <div class="options-grid cols-2">
-                    <button class="option-btn" data-field="disposicion" data-value="100">Hasta 100€/mes</button>
-                    <button class="option-btn" data-field="disposicion" data-value="300">100€ - 500€/mes</button>
-                    <button class="option-btn" data-field="disposicion" data-value="1000">500€ - 2.000€ (inversión única)</button>
-                    <button class="option-btn" data-field="disposicion" data-value="3000">Lo que haga falta si funciona</button>
-                </div>
-            </div>
-
-            <div class="question-group">
-                <label class="question-label">Último dato: tu email para recibir el informe completo</label>
-                <input type="email" id="emailInput" class="text-input" placeholder="tu@email.com">
-            </div>
-
-            <div class="btn-group">
-                <button class="btn-back" id="back4">← Atrás</button>
-                <button class="btn-next btn-generate" id="next4" disabled>🔥 Generar Mi Informe →</button>
-            </div>
-        </div>
-
-        <!-- Step 5: INFORME -->
-        <div class="step-container" id="step5">
-            <div class="step-icon">📊</div>
-            <h1>Tu Informe de Pérdidas por No Usar IA</h1>
-            <p class="subtitle">Basado en tus respuestas, esto es lo que estás dejando sobre la mesa.</p>
-
-            <div class="report-container" id="reportContainer">
-                <!-- Generated dynamically -->
-            </div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
