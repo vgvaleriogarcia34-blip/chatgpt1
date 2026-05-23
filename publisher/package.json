@@ -1,0 +1,25 @@
+{
+  "name": "social-publisher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Genera imagenes y publica posts en Instagram y articulos en LinkedIn",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "axios": "^1.7.7",
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "form-data": "^4.0.1",
+    "nanoid": "^5.0.9",
+    "sharp": "^0.33.5"
+  }
+}

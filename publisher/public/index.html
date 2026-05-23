@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Social Publisher - IG & LinkedIn</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Social Publisher</div>
+    <nav class="status" id="status">
+      <span class="pill" data-key="anthropic">Claude</span>
+      <span class="pill" data-key="instagram">Instagram</span>
+      <span class="pill" data-key="linkedin">LinkedIn</span>
+      <a class="connect" href="/auth/instagram">Conectar IG</a>
+      <a class="connect" href="/auth/linkedin">Conectar LinkedIn</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab active" data-tab="ig">Instagram</button>
+      <button class="tab" data-tab="li">LinkedIn</button>
+    </div>
+
+    <!-- ============ Instagram ============ -->
+    <section id="tab-ig" class="tab-panel active">
+      <div class="grid">
+        <div class="card">
+          <h2>1. Brief del post</h2>
+          <label>Tema</label>
+          <input id="ig-topic" placeholder="Ej: 5 errores al automatizar con IA" />
+
+          <label>Publico objetivo</label>
+          <input id="ig-audience" placeholder="Ej: emprendedores B2B en LATAM" />
+
+          <label>Objetivo</label>
+          <input id="ig-goal" placeholder="Ej: agendar una llamada de descubrimiento" />
+
+          <label>Plantilla de imagen</label>
+          <select id="ig-template"></select>
+
+          <div class="row">
+            <button id="ig-brief-btn" class="secondary">Sugerir contenido con Claude</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>2. Parametros de la imagen</h2>
+          <div id="ig-fields" class="dyn-fields"></div>
+          <div class="row">
+            <button id="ig-render-btn">Generar imagen</button>
+          </div>
+          <div class="preview-wrap">
+            <img id="ig-preview" alt="Preview" />
+          </div>
+        </div>
+
+        <div class="card span-2">
+          <h2>3. Caption</h2>
+          <div class="row">
+            <button id="ig-caption-btn" class="secondary">Escribir caption con Claude</button>
+          </div>
+          <textarea id="ig-caption" rows="10" placeholder="El caption aparecera aqui. Tambien puedes escribirlo a mano."></textarea>
+          <div class="row right">
+            <button id="ig-publish-btn" class="primary">Publicar en Instagram</button>
+          </div>
+          <pre id="ig-log" class="log"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LinkedIn ============ -->
+    <section id="tab-li" class="tab-panel">
+      <div class="grid">
+        <div class="card">
+          <h2>1. Brief del articulo</h2>
+          <label>Tema</label>
+          <input id="li-topic" placeholder="Ej: por que las pymes deben adoptar IA en 2026" />
+
+          <label>Publico objetivo</label>
+          <input id="li-audience" placeholder="Ej: directivos de pymes industriales" />
+
+          <label>Objetivo</label>
+          <input id="li-goal" placeholder="Ej: generar conversaciones de consultoria" />
+
+          <label>Longitud aproximada (palabras)</label>
+          <input id="li-length" type="number" value="600" min="200" max="1500" />
+
+          <div class="row">
+            <button id="li-article-btn" class="secondary">Escribir articulo con Claude</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>2. Portada del articulo (opcional)</h2>
+          <label>Plantilla</label>
+          <select id="li-template"></select>
+          <div id="li-fields" class="dyn-fields"></div>
+          <div class="row">
+            <button id="li-render-btn">Generar portada</button>
+          </div>
+          <div class="preview-wrap">
+            <img id="li-preview" alt="Preview" />
+          </div>
+        </div>
+
+        <div class="card span-2">
+          <h2>3. Articulo</h2>
+          <textarea id="li-article" rows="18" placeholder="El articulo aparecera aqui. Tambien puedes escribirlo o pegarlo a mano."></textarea>
+          <div class="row right">
+            <button id="li-publish-btn" class="primary">Publicar en LinkedIn</button>
+          </div>
+          <pre id="li-log" class="log"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
