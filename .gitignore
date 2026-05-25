@@ -1,0 +1,14 @@
+# Datos confidenciales de cliente — NO subir a remoto
+clientes/*/01-datos-entrada/**
+clientes/*/02-analisis/**
+clientes/*/03-entregables/**
+
+# Excepciones: estructura mínima sí se versiona
+!clientes/*/01-datos-entrada/
+!clientes/*/01-datos-entrada/*/
+!clientes/*/01-datos-entrada/**/.gitkeep
+!clientes/*/02-analisis/
+!clientes/*/02-analisis/.gitkeep
+!clientes/*/03-entregables/
+!clientes/*/03-entregables/.gitkeep
+!clientes/*/README.md
