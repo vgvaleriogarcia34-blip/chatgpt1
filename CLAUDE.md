@@ -2,7 +2,9 @@
 
 Este repositorio contiene, además de la app `IA50`, el sistema de **agentes de consultoría** que se usan para analizar empresas familiares y producir entregables profesionales.
 
-Cliente piloto: **Familias Empresarias S.L.**
+**Firma consultora:** Familias Empresarias, S.L. (CIF 02262). Sus propias cuentas de gestión están en `firma-consultora/` y **no son objeto de análisis**, sólo material interno.
+
+**Cliente piloto:** Snoopy Heladerías, S.L. (CIF B05546601) — grupo de heladerías con varios locales, entre ellos "ZigZag".
 
 ## Arquitectura de agentes
 
