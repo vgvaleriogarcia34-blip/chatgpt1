@@ -1,14 +1,10 @@
-# Datos confidenciales de cliente — NO subir a remoto
+# Datos brutos del cliente: NO se versionan (confidencialidad estricta)
 clientes/*/01-datos-entrada/**
-clientes/*/02-analisis/**
-clientes/*/03-entregables/**
 
-# Excepciones: estructura mínima sí se versiona
+# Pero sí mantenemos la estructura visible
 !clientes/*/01-datos-entrada/
 !clientes/*/01-datos-entrada/*/
 !clientes/*/01-datos-entrada/**/.gitkeep
-!clientes/*/02-analisis/
-!clientes/*/02-analisis/.gitkeep
-!clientes/*/03-entregables/
-!clientes/*/03-entregables/.gitkeep
-!clientes/*/README.md
+
+# Carpetas de análisis y entregables SÍ se versionan (son trabajo del consultor,
+# no datos brutos del cliente). El repo es privado.
