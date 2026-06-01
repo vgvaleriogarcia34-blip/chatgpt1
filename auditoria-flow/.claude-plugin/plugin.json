@@ -1,0 +1,15 @@
+{
+  "name": "auditoria-flow",
+  "version": "0.1.0",
+  "description": "Secuencia de trabajo para auditorías de código: revisión de código, revisión de seguridad y revisión final del PR, ejecutadas en orden con el comando /audit-flow.",
+  "author": {
+    "name": "vgvaleriogarcia34"
+  },
+  "keywords": [
+    "auditoria",
+    "code-review",
+    "security",
+    "workflow",
+    "pull-request"
+  ]
+}
