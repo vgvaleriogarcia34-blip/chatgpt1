@@ -21,9 +21,10 @@ calidad. Si hay bugs bloqueantes, indícalo claramente antes de continuar.
 Invoca el skill `audit-security-review`. Reporta vulnerabilidades por
 severidad. Marca los hallazgos críticos/altos como bloqueantes.
 
-## Fase 3 — Revisión final del PR
-Invoca el skill `audit-final-review`. Verifica que los hallazgos de las fases
-1 y 2 se hayan atendido y emite el veredicto consolidado.
+## Fase 3 — Verificación funcional
+Invoca el skill `audit-verify`. Ejecuta la app, reproduce los flujos afectados
+y confirma que los cambios funcionan y que los hallazgos de las fases 1 y 2 se
+atendieron sin introducir regresiones. Emite el veredicto consolidado.
 
 ## Cierre
 Entrega un **resumen final** con el estado de cada fase y el veredicto global:

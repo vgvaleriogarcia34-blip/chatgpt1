@@ -7,7 +7,7 @@ de código** basada en los tres skills que más se usan en auditorías:
 |------|------------------|------------------------------|
 | 1. Revisar    | `audit-code-review`     | `code-review`     |
 | 2. Seguridad  | `audit-security-review` | `security-review` |
-| 3. Verificar  | `audit-final-review`    | `review`          |
+| 3. Verificar  | `audit-verify`          | `verify`          |
 
 ## Uso
 
@@ -41,7 +41,7 @@ auditoria-flow/
 ├── skills/
 │   ├── audit-code-review/SKILL.md
 │   ├── audit-security-review/SKILL.md
-│   └── audit-final-review/SKILL.md
+│   └── audit-verify/SKILL.md
 └── README.md
 ```
 
@@ -53,5 +53,5 @@ auditoria-flow/
 3. Verifica que aparezca el comando `/audit-flow` y los skills `audit-*`.
 
 > Nota: las fases delegan en los skills integrados `code-review`,
-> `security-review` y `review`. Si alguno no estuviera disponible en tu
+> `security-review` y `verify`. Si alguno no estuviera disponible en tu
 > entorno, cada SKILL.md incluye un procedimiento manual de respaldo.

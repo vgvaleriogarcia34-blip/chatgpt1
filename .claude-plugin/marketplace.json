@@ -7,7 +7,7 @@
     {
       "name": "auditoria-flow",
       "source": "./auditoria-flow",
-      "description": "Secuencia de trabajo para auditorías de código: revisión de código, revisión de seguridad y revisión final del PR, ejecutadas en orden con /audit-flow.",
+      "description": "Secuencia de trabajo para auditorías de código: revisión de código, revisión de seguridad y verificación funcional, ejecutadas en orden con /audit-flow.",
       "version": "0.1.0",
       "keywords": [
         "auditoria",
