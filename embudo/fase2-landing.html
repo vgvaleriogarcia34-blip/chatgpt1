@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embudo · Fase 2 — Landing de ventas · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;--green:#2e7d32;--red:#b23b3b;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.55;margin:0;}
+  .wrap{max-width:900px;margin:0 auto;padding:44px 40px 80px;}
+  h1,h2,h3,h4{font-family:Georgia,'Times New Roman',serif;color:var(--navy);line-height:1.2;}
+  h1{font-size:30px;margin:0 0 6px;}
+  h2{font-size:23px;margin:46px 0 14px;padding-bottom:8px;border-bottom:3px solid var(--gold);}
+  h3{font-size:18px;margin:26px 0 8px;}
+  h4{font-size:13px;margin:16px 0 4px;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;}
+  .cover{background:var(--navy);color:#fff;padding:46px 42px;border-radius:6px;margin-bottom:14px;}
+  .cover h1{color:#fff;}
+  .cover .sub{color:var(--gold);font-family:Georgia,serif;font-style:italic;font-size:17px;margin:4px 0 18px;}
+  .cover .meta{font-size:13px;color:#cdd4e0;line-height:1.7;}
+  .tag{display:inline-block;background:var(--gold);color:var(--navy);font-weight:bold;font-size:11px;letter-spacing:.08em;padding:4px 10px;border-radius:3px;text-transform:uppercase;}
+  .lead{font-size:16px;color:#3a3f47;}
+  .block{border:1px solid var(--line);border-radius:6px;padding:20px 24px;margin:16px 0;background:#fff;}
+  .block .bn{font-family:Georgia,serif;color:var(--gold);font-weight:bold;font-size:13px;letter-spacing:.06em;text-transform:uppercase;}
+  .copy{background:#f6f2e8;border-left:4px solid var(--gold);padding:14px 18px;border-radius:0 4px 4px 0;margin:10px 0;}
+  .copy .promise{font-family:Georgia,serif;font-size:22px;color:var(--navy);font-weight:bold;line-height:1.25;}
+  .visual{font-size:12.5px;color:#5a5f67;border-top:1px dashed var(--line);padding-top:8px;margin-top:10px;}
+  .visual b{color:var(--navy);}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;}
+  th,td{text-align:left;padding:9px 11px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  .vs td{width:50%;}
+  .no{color:var(--red);} .yes{color:var(--green);}
+  ul.clean{list-style:none;padding-left:0;}
+  ul.clean li{margin:6px 0;padding-left:24px;position:relative;}
+  ul.clean li:before{position:absolute;left:0;}
+  ul.yes li:before{content:"✓";color:var(--green);font-weight:bold;}
+  ul.no li:before{content:"✕";color:var(--red);font-weight:bold;}
+  .buybox{background:var(--navy);color:#fff;border-radius:8px;padding:22px 26px;margin:12px 0;}
+  .buybox .old{color:#9aa6bd;text-decoration:line-through;font-size:18px;}
+  .buybox .new{color:var(--gold);font-family:Georgia,serif;font-size:40px;font-weight:bold;line-height:1;}
+  .buybox .cta{display:inline-block;background:var(--gold);color:var(--navy);font-weight:bold;padding:13px 26px;border-radius:6px;margin:12px 0 8px;font-size:16px;text-decoration:none;}
+  .buybox small{color:#cdd4e0;}
+  .wire{font-family:'Courier New',monospace;font-size:12px;background:#1b2a4a;color:#e8ecf4;padding:18px;border-radius:6px;white-space:pre;overflow-x:auto;line-height:1.4;}
+  .note{background:#eef1f7;border:1px solid #d6deea;padding:12px 16px;border-radius:4px;font-size:13px;color:#41485a;margin:14px 0;}
+  .faqq{font-weight:bold;color:var(--navy);margin:14px 0 2px;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+  footer{margin-top:50px;padding-top:18px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+  @media print{.wrap{padding:0 8px;}.block{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <span class="tag">Embudo de Conversión · Fase 2 de 5</span>
+    <h1 style="margin-top:14px;">Landing de ventas del libro</h1>
+    <div class="sub">«Dónde está mi dinero» · página de un solo objetivo: vender el libro.</div>
+    <div class="meta">
+      Hereda de Fase 1 (aprobada 9,5/10): promesa «ver, no estudiar» · ángulo dolor→transformación (la noche del saldo) · mecanismo Método RUTA + Mapa de las Cuatro Zonas.<br>
+      Precio: 7 € (ancla 27 €) · Garantía 30 días · Destino: dondeestamidinero.es
+    </div>
+  </div>
+
+  <p class="lead"><b>Principio rector.</b> La landing vende <b>una sola cosa</b>: el libro. Las herramientas gratuitas del libro entran como <i>bonos</i> dentro de esa única compra; mentorías, Diagnóstico y Quercus se mencionan solo como horizonte, nunca como segunda venta. Una dirección, un objetivo, una decisión.</p>
+
+  <!-- ====== SALIDA 5: WIREFRAME ====== -->
+  <h2>Wireframe (estructura de la página)</h2>
+  <div class="wire">┌──────────────────────────────────────────────────────────┐
+│  [logo FE]                                  dondeestamidinero.es │
+├──────────────────────────────────────────────────────────┤
+│  ▌ETIQUETA: para dueños que ganan y no saben dónde está      │
+│                                                              │
+│   H1 — GRAN PROMESA (centrada)        ┌── CAJA DE COMPRA ──┐ │
+│   subtítulo                           │ mockup libro+bonos │ │
+│   ┌────────────────────┐              │ 27€ → 7€           │ │
+│   │   VÍDEO (VSL)      │              │ [CTA COMPRAR]      │ │
+│   └────────────────────┘              │ 🔒 pago · garantía │ │
+│                                       └───────────────────┘ │
+├──────────────────────────────────────────────────────────┤
+│  2 · HISTORIA (Tomás + autor)                                │
+│  3 · DIFERENCIA — Antes ✕ / Después ✓                        │
+│  4 · TRANSFORMACIÓN — dejarás de / conseguirás   [CTA]       │
+│  5 · STACK DE VALOR — libro + 5 bonos · 146€ → 7€            │
+│  6 · AUTORIDAD (Valerio)                          [CTA]      │
+│  7 · TESTIMONIOS (≥5)                                        │
+│  8 · FAQ (≥12)                                               │
+│  9 · GARANTÍA «Duerme Tranquilo 30 días»                     │
+│  10 · CIERRE emocional                            [CTA]      │
+└──────────────────────────────────────────────────────────┘</div>
+
+  <!-- ====== SALIDAS 1-2-3-4: LANDING BLOQUE A BLOQUE ====== -->
+  <h2>Landing completa, bloque por bloque (copy + visual + mockup)</h2>
+
+  <!-- HERO -->
+  <div class="block">
+    <span class="bn">Bloque 1 · Hero</span>
+    <h4>Etiqueta superior</h4>
+    <div class="copy">PARA DUEÑOS DE EMPRESA FAMILIAR QUE GANAN DINERO… Y NO SABEN DÓNDE ESTÁ</div>
+    <h4>Titular — gran promesa</h4>
+    <div class="copy"><span class="promise">Descubre, en una sola tarde, dónde está el dinero que tu empresa gana y tú no ves.</span></div>
+    <h4>Subtítulo</h4>
+    <div class="copy">El libro que traduce tus cuentas a un mapa de cuatro zonas —sin convertirte en financiero— para que vuelvas a abrir el banco de noche sabiendo lo que hay, por qué, y qué vas a decidir mañana.</div>
+    <h4>Vídeo principal (VSL · guion semilla, 3–4 min)</h4>
+    <div class="copy">Apertura con la escena de las 00:00 y el saldo que no cuadra → «no estás haciendo nada mal» → tu dinero no se ha ido, está atrapado en 4 zonas → presentación del Método RUTA → qué te llevas (test de una tarde + cuadro de mando) → oferta 7 € + garantía → CTA.</div>
+    <h4>Caja de compra</h4>
+    <div class="buybox">
+      <div><b>«Dónde está mi dinero»</b> + 5 bonos</div>
+      <div class="old">Antes 27 €</div>
+      <div class="new">Hoy 7 €</div>
+      <a class="cta" href="#">QUIERO VER DÓNDE ESTÁ MI DINERO →</a><br>
+      <small>🔒 Pago seguro · Visa · Mastercard · Bizum · PayPal &nbsp;|&nbsp; Garantía «Duerme Tranquilo» de 30 días</small>
+    </div>
+    <div class="visual"><b>Visual:</b> fondo navy con filete dorado. Mockup 3D del libro junto a los iconos de los 5 bonos. Hero a 2 columnas (texto+vídeo izquierda, caja de compra fija a la derecha en desktop; apilado en móvil). <b>Mockup sugerido:</b> portada del libro de pie + abanico de bonos digitales.</div>
+  </div>
+
+  <!-- HISTORIA -->
+  <div class="block">
+    <span class="bn">Bloque 2 · Historia</span>
+    <h4>Copy</h4>
+    <div class="copy">
+      <b>Situación inicial.</b> Tomás, fabricante de mobiliario, cerró el mejor año de su vida. Beneficio récord, le dijo su gestor con una sonrisa.<br><br>
+      <b>Frustración.</b> Esa misma semana no pudo pagar las nóminas sin tirar de la póliza. Otra vez.<br><br>
+      <b>Errores.</b> Hizo lo que hacemos todos: buscó un culpable. Repasó gastos, apretó proveedores, miró de reojo a administración. Y seguía sin entender cómo, ganando más que nunca, tenía menos que nunca en el banco.<br><br>
+      <b>Descubrimiento.</b> El beneficio es una opinión bien fundada; la caja es un hecho. Entre vender y cobrar pasa el tiempo, y ese tiempo lo financia él. Su dinero no se había ido: se había quedado.<br><br>
+      <b>Método.</b> Hay solo cuatro sitios donde una empresa esconde su dinero —Cobro, Existencias, Deuda, Inversión— y un camino de cuatro movimientos para recorrerlos: <b>Reconocer · Ubicar · Traducir · Actuar (Método RUTA)</b>.<br><br>
+      <b>Nueva realidad.</b> Hoy Tomás abre el banco de noche y no hace la cuenta del miedo: sabe lo que hay, por qué, y qué hará mañana. Y duerme. Eso es lo que este libro pone en tus manos.
+    </div>
+    <div class="visual"><b>Visual:</b> retrato cálido + cita destacada «El beneficio es una opinión. La caja es un hecho.» en navy/gold.</div>
+  </div>
+
+  <!-- DIFERENCIA -->
+  <div class="block">
+    <span class="bn">Bloque 3 · Diferencia (Antes vs Después)</span>
+    <table class="vs">
+      <tr><th>❌ Antes — gobernar a ciegas</th><th>✅ Después — gobernar con claridad</th></tr>
+      <tr>
+        <td><ul class="clean no">
+          <li>Miras el saldo a las 12 con un nudo en el estómago</li>
+          <li>El gestor te da un beneficio que no ves en el banco</li>
+          <li>Crees que «los números no son lo tuyo»</li>
+          <li>Decides de memoria y a ráfagas, cuando llega el susto</li>
+          <li>Tiras de la póliza para llegar a las nóminas</li>
+          <li>Acumulas informes y Excel que no te aclaran nada</li>
+        </ul></td>
+        <td><ul class="clean yes">
+          <li>Abres el banco y sabes exactamente qué hay y por qué</li>
+          <li>Lees tu dinero por zonas, no por cuentas indescifrables</li>
+          <li>Ves —no estudias—: claridad sin ser financiero</li>
+          <li>Decides con método y con antelación, antes del susto</li>
+          <li>Liberas caja atrapada que ya era tuya</li>
+          <li>Una hoja, cinco minutos al mes: tu cuadro de mando</li>
+        </ul></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- TRANSFORMACIÓN -->
+  <div class="block">
+    <span class="bn">Bloque 4 · Transformación</span>
+    <h4>Qué dejarás de hacer</h4>
+    <ul class="clean no">
+      <li>Dejarás de confundir «ganar» con «tener».</li>
+      <li>Dejarás de culparte por no entender unas cuentas hechas para Hacienda.</li>
+      <li>Dejarás de gobernar de memoria y de descubrir los problemas cuando ya no hay caja.</li>
+      <li>Dejarás de creer que la solución es siempre «vender más».</li>
+    </ul>
+    <h4>Qué conseguirás</h4>
+    <ul class="clean yes">
+      <li>Sabrás, en una tarde, cuántos días tardas en cobrar —y cuánto dinero tuyo está fuera.</li>
+      <li>Tendrás un cuadro de mando de caja que rellenas en 5 minutos al mes.</li>
+      <li>Verás tus cuatro zonas y sabrás qué palanca libera más caja con menos esfuerzo.</li>
+      <li>Recuperarás el sueño: la tranquilidad del dueño que decide con los ojos abiertos.</li>
+    </ul>
+    <div class="buybox" style="text-align:center;"><a class="cta" href="#">EMPIEZA HOY POR 7 € →</a></div>
+  </div>
+
+  <!-- STACK -->
+  <div class="block">
+    <span class="bn">Bloque 5 · Stack de valor</span>
+    <table>
+      <tr><th>Incluye</th><th>Beneficio</th><th>Valor</th></tr>
+      <tr><td><b>Libro «Dónde está mi dinero»</b></td><td>El mapa completo: las 4 zonas, el Método RUTA y los dos ejercicios prácticos.</td><td>27 €</td></tr>
+      <tr><td><b>Bono 1 · Hoja del «Test de una Tarde»</b></td><td>Plantilla imprimible para calcular tus días de cobro hoy mismo.</td><td>19 €</td></tr>
+      <tr><td><b>Bono 2 · Cuadro de Mando de Caja</b></td><td>La hoja de las 4 zonas para tu seguimiento mensual de 5 minutos.</td><td>29 €</td></tr>
+      <tr><td><b>Bono 3 · Guía visual del Mapa de las Cuatro Zonas</b> <i>[propuesto]</i></td><td>Resumen de una página para tenerlo siempre a la vista.</td><td>17 €</td></tr>
+      <tr><td><b>Bono 4 · Mini-clase «Lee tu caja en 20 minutos»</b> <i>[propuesto]</i></td><td>Vídeo guiado aplicando RUTA a un caso real.</td><td>47 €</td></tr>
+      <tr><td><b>Bono 5 · Checklist «Las 3 decisiones de esta semana»</b> <i>[propuesto]</i></td><td>El plan de acción del Capítulo final, listo para ejecutar.</td><td>27 €</td></tr>
+    </table>
+    <div class="copy" style="text-align:center;">
+      <span style="text-decoration:line-through;color:#9aa6bd;">Valor total: 166 €</span> &nbsp;·&nbsp;
+      <b style="color:var(--navy);font-size:18px;">Hoy: 7 €</b> &nbsp;·&nbsp;
+      <b style="color:var(--gold);">Ahorras un 96 %</b>
+    </div>
+    <div class="note"><b>Honestidad de stack:</b> Bonos 1 y 2 están confirmados en el libro (descargables). Bonos 3–5 son <i>propuestas</i> coherentes con el contenido; confirmar que existen/se producen antes de publicar para no prometer lo que no se entrega.</div>
+  </div>
+
+  <!-- AUTORIDAD -->
+  <div class="block">
+    <span class="bn">Bloque 6 · Autoridad</span>
+    <div class="copy">
+      <b>Valerio García Pérez</b> es mentor ejecutivo de empresas familiares y fundador de Familias Empresarias · Arquitectos de Claridad™. Más de 20 años acompañando a fundadores y segundas generaciones a entender, por fin, su propio negocio. Autor superventas en Amazon España y creador del <b>Método RUTA</b> y del <b>Método Quercus®</b>. Miembro de AECOP. Su obsesión cabe en una frase: «las palabras y los números, cuando no se entienden, cuestan dinero; cuando se aclaran, lo devuelven».
+    </div>
+    <div class="visual"><b>Visual:</b> retrato editorial + sellos: «Superventas Amazon España», «+20 años», «Creador del Método RUTA». <i>[Cifras de empresas/casos: insertar reales de valeriogarciamentor.com]</i></div>
+    <div class="buybox" style="text-align:center;"><a class="cta" href="#">QUIERO EL LIBRO POR 7 € →</a></div>
+  </div>
+
+  <!-- TESTIMONIOS -->
+  <div class="block">
+    <span class="bn">Bloque 7 · Testimonios (≥5)</span>
+    <div class="note"><b>Pendiente:</b> sustituir por testimonios reales con nombre y foto de <code>valeriogarciamentor.com</code>. Estructura y tono propuestos (no publicar como reales hasta verificar):</div>
+    <table>
+      <tr><th>Nombre · Profesión</th><th>Resultado</th><th>Transformación</th></tr>
+      <tr><td>[Nombre] · fabricante</td><td>«Hice el test y descubrí 60 días de cobro»</td><td>«Renegocié con 3 clientes y dejé de tirar de la póliza»</td></tr>
+      <tr><td>[Nombre] · hostelería</td><td>«Entendí por qué ganaba y no tenía caja»</td><td>«Ahora miro el banco sin angustia»</td></tr>
+      <tr><td>[Nombre] · 2ª generación</td><td>«20 años sin entender mis cuentas; lo vi en una tarde»</td><td>«Por fin gobierno, no solo firmo»</td></tr>
+      <tr><td>[Nombre] · comercio</td><td>«El cuadro de mando me avisó antes del problema»</td><td>«Decido con antelación, no con el susto»</td></tr>
+      <tr><td>[Nombre] · servicios</td><td>«7 € que valieron por un curso de finanzas»</td><td>«Dejé de creer que los números no eran lo mío»</td></tr>
+    </table>
+  </div>
+
+  <!-- FAQ -->
+  <div class="block">
+    <span class="bn">Bloque 8 · FAQ (12 objeciones rotas)</span>
+    <div class="faqq">1. No tengo tiempo para leer un libro de finanzas.</div>
+    <div>No es un libro de finanzas y no hay que leerlo entero: en modo ejecutivo tienes el esqueleto en 20 minutos, y el test clave se hace en una tarde.</div>
+    <div class="faqq">2. Los números no son lo mío.</div>
+    <div>Precisamente. No vas a estudiar contabilidad: vas a aprender a <i>ver</i> tu dinero por zonas. Si sabes dividir dos cifras, puedes hacerlo.</div>
+    <div class="faqq">3. Ya tengo gestor, ¿para qué esto?</div>
+    <div>Tu gestor cumple con Hacienda; este libro te enseña a gobernar tu caja. Son cosas distintas y complementarias.</div>
+    <div class="faqq">4. ¿Un libro de 7 € me va a arreglar esto?</div>
+    <div>No te promete arreglarlo: te da el mapa y dos herramientas para verlo tú. La mayoría nunca da ese primer paso; ahí está la diferencia.</div>
+    <div class="faqq">5. ¿Sirve para mi sector?</div>
+    <div>Sí. Las cuatro zonas (Cobro, Existencias, Deuda, Inversión) existen en cualquier empresa que vende, compra, debe o invierte.</div>
+    <div class="faqq">6. Mi empresa es pequeña / es muy grande.</div>
+    <div>Es para el dueño que factura bien y se gobierna de memoria. Si ya tienes director financiero que te traduce el dinero cada mes, no lo necesitas.</div>
+    <div class="faqq">7. ¿Es digital o físico?</div>
+    <div>[Confirmar formato: digital / físico / ambos]. Acceso inmediato a los bonos tras la compra.</div>
+    <div class="faqq">8. ¿Necesito programas o Excel avanzado?</div>
+    <div>No. Necesitas dos datos que ya tienes y una cuenta. Las plantillas vienen listas para imprimir o rellenar.</div>
+    <div class="faqq">9. ¿Y si no me sirve?</div>
+    <div>Garantía «Duerme Tranquilo» de 30 días: si no te aporta claridad, te devolvemos el dinero. El riesgo es nuestro.</div>
+    <div class="faqq">10. ¿Esto es para venderme luego algo más caro?</div>
+    <div>El libro se sostiene solo. Si algún día quieres el mapa completo de tu empresa, existe el Diagnóstico de 48 horas —pero no lo necesitas para empezar.</div>
+    <div class="faqq">11. ¿Cuánto tardaré en ver resultados?</div>
+    <div>El test de una tarde te da tu primera cifra hoy. La acción concreta (renegociar cobros, ajustar stock) puede liberar caja en la primera semana.</div>
+    <div class="faqq">12. Me da miedo lo que voy a encontrar.</div>
+    <div>Es normal: el miedo a mirar es el que más caro sale. El libro está escrito precisamente para acompañarte a mirar sin que duela.</div>
+  </div>
+
+  <!-- GARANTÍA -->
+  <div class="block">
+    <span class="bn">Bloque 9 · Garantía</span>
+    <h4>Nombre</h4>
+    <div class="copy"><b>Garantía «Duerme Tranquilo» de 30 días.</b></div>
+    <h4>Explicación + reducción de riesgo</h4>
+    <div class="copy">Lee el libro, haz el test de una tarde y monta tu cuadro de mando. Si en 30 días no has conseguido más claridad sobre tu dinero de la que tenías, escríbenos y te devolvemos los 7 € íntegros, sin preguntas. Quédate con los bonos. El único riesgo de verdad es seguir otro mes sin saber dónde está tu dinero.</div>
+  </div>
+
+  <!-- CIERRE -->
+  <div class="block">
+    <span class="bn">Bloque 10 · Cierre</span>
+    <h4>Titular emocional</h4>
+    <div class="copy"><span class="promise">Esta noche puedes volver a mirar el saldo sin hacer la cuenta del miedo.</span></div>
+    <div class="copy">Tu dinero está. No perdido: atrapado. Y por 7 € tienes el mapa para encontrarlo —con 30 días de garantía y nada que perder salvo el nudo en el estómago.</div>
+    <div class="buybox" style="text-align:center;">
+      <div class="old">Antes 27 €</div><div class="new">Hoy 7 €</div>
+      <a class="cta" href="#">SÍ, QUIERO VER DÓNDE ESTÁ MI DINERO →</a><br>
+      <small>🔒 Pago seguro · Visa · Mastercard · Bizum · PayPal &nbsp;|&nbsp; Garantía «Duerme Tranquilo» 30 días</small>
+    </div>
+  </div>
+
+  <!-- ====== SALIDAS 6-10: SEMILLAS ====== -->
+  <h2>Salidas 6–10 · Semillas para Fase 3 y Fase 5</h2>
+  <p class="lead">Esbozadas aquí para coherencia del embudo; su desarrollo completo corresponde a <code>ec-fase3-checkout</code> (6–9) y <code>ec-fase5-correos</code> (10).</p>
+
+  <table>
+    <tr><th>Salida</th><th>Semilla</th></tr>
+    <tr><td><b>6 · Upsell</b></td><td>Tras comprar el libro: <b>«Lee tu caja conmigo» — Masterclass + plantillas avanzadas (97 €)</b>. Tono atajo: «te ahorro la curva de aprendizaje y aplicamos RUTA a tus números». Paso intermedio hacia el Diagnóstico de 48 h.</td></tr>
+    <tr><td><b>7 · Downsell</b></td><td>Mismo producto (la masterclass) con menos fricción: <b>pago en 2 plazos</b> o solo las plantillas + grabación. No cambia el producto, cambia la facilidad.</td></tr>
+    <tr><td><b>8 · Página de gracias</b></td><td>Confirma compra → entrega libro + 5 bonos → siguiente paso: «Haz el test esta semana» + invitación a la comunidad (WhatsApp/Telegram) de Familias Empresarias.</td></tr>
+    <tr><td><b>9 · Calendario / Diagnóstico</b></td><td>Puente al back-end: «¿Quieres ver tus 4 zonas completas? Reserva tu Diagnóstico de 48 h» → dondeestamidinero.es/#contacto (se activa en Fase 4).</td></tr>
+    <tr><td><b>10 · Email + WhatsApp post-compra</b></td><td>Email 1: entrega y bienvenida. Email 2 (+1 día): «haz el test». Email 3 (+3 días): caso Tomás + invitación al Diagnóstico. WhatsApp: confirmación + enlace de descarga. (Detalle en Fase 5.)</td></tr>
+  </table>
+
+  <h2>Indicaciones visuales globales (Salida 3)</h2>
+  <ul class="clean yes">
+    <li>Paleta: navy <code>#1B2A4A</code> dominante, gold <code>#C8A951</code> para CTA y acentos, fondo crema <code>#FDFCF9</code>.</li>
+    <li>Tipografía: Georgia en titulares/promesas, Arial en cuerpo. Jerarquía clara, párrafos cortos.</li>
+    <li>CTA repetido 5 veces (hero, transformación, autoridad, cierre, barra fija móvil), siempre el mismo color y verbo.</li>
+    <li>Iconografía fina dorada para las 4 zonas; mockups 3D de libro y bonos; mucho aire (estética premium, no “infoproducto agresivo”).</li>
+  </ul>
+
+  <footer>
+    <b>Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Fase 2 de 5 — Landing de ventas · 10 bloques + 10 salidas · Mecanismo: Método RUTA<br>
+    Siguiente gate: auditoría (ec-auditor, rúbrica de landing) → con ≥8/10 se desbloquea Fase 3 (checkout).
+  </footer>
+
+</div>
+</body>
+</html>

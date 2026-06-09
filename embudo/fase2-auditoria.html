@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoría · Fase 2 — Landing · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.5;margin:0;}
+  .wrap{max-width:880px;margin:0 auto;padding:40px 40px 70px;}
+  h1,h2{font-family:Georgia,'Times New Roman',serif;color:var(--navy);}
+  h2{font-size:21px;margin:36px 0 12px;padding-bottom:6px;border-bottom:3px solid var(--gold);}
+  .cover{background:var(--navy);color:#fff;padding:34px 38px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+  .cover h1{color:#fff;font-size:25px;margin:0 0 6px;}
+  .cover .sub{color:#cdd4e0;font-size:13px;}
+  .score{text-align:center;background:var(--gold);color:var(--navy);border-radius:8px;padding:16px 22px;min-width:140px;}
+  .score .n{font-family:Georgia,serif;font-size:42px;font-weight:bold;line-height:1;}
+  .score .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;}
+  .verdict{font-family:Georgia,serif;font-size:13px;font-weight:bold;margin-top:6px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px;}
+  th,td{text-align:left;padding:8px 9px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  td.c{text-align:center;font-weight:bold;}
+  .ok{color:#2e7d32;font-weight:bold;} .par{color:#b8860b;font-weight:bold;}
+  .stamp{background:#eef6ee;border:2px solid #2e7d32;color:#1b5e20;padding:18px 22px;border-radius:6px;margin:18px 0;font-family:Georgia,serif;}
+  .stamp b{font-size:17px;}
+  .fail{background:#f6f2e8;border-left:4px solid var(--gold);padding:14px 18px;margin:12px 0;border-radius:0 4px 4px 0;font-size:13.5px;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+  footer{margin-top:46px;padding-top:16px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <div>
+      <span style="color:var(--gold);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;">ec-auditor · Rúbrica 2 — Landing</span>
+      <h1>Informe de auditoría · Fase 2</h1>
+      <div class="sub">Entregable: <code>embudo/fase2-landing.html</code> · Landing del libro «Dónde está mi dinero» · Gate ≥ 8,0</div>
+    </div>
+    <div class="score">
+      <div class="n">9,3</div>
+      <div class="l">/ 10</div>
+      <div class="verdict">APROBADO</div>
+    </div>
+  </div>
+
+  <h2>Puntuación criterio por criterio</h2>
+  <table>
+    <tr><th>#</th><th>Criterio</th><th>Peso</th><th>Nota</th><th>Evidencia</th><th>Veredicto</th></tr>
+    <tr><td>1</td><td>Una sola dirección / un solo objetivo</td><td class="c">12</td><td class="c">10</td><td>Vende solo el libro; Diagnóstico/Quercus aparecen únicamente como horizonte en §6–9 «semillas», no como segunda venta.</td><td class="ok">Cumple</td></tr>
+    <tr><td>2</td><td>Los 10 bloques completos y en orden</td><td class="c">14</td><td class="c">10</td><td>Hero→Historia→Diferencia→Transformación→Stack→Autoridad→Testimonios→FAQ→Garantía→Cierre, en ese orden exacto.</td><td class="ok">Cumple</td></tr>
+    <tr><td>3</td><td>Hero con gran promesa</td><td class="c">12</td><td class="c">10</td><td>Titular específico («en una sola tarde, dónde está el dinero…») + subtítulo + VSL + caja de compra + 27€→7€ + CTA + garantía.</td><td class="ok">Cumple</td></tr>
+    <tr><td>4</td><td>Stack de valor cuantificado</td><td class="c">10</td><td class="c">9</td><td>Libro + 5 bonos con beneficio y valor €; total 166 € → hoy 7 € → ahorro 96 %.</td><td class="ok">Cumple</td></tr>
+    <tr><td>5</td><td>FAQ rompe ≥12 objeciones</td><td class="c">8</td><td class="c">9</td><td>12 preguntas: tiempo, dinero, experiencia, sector/audiencia, formato, miedo, resultados, «¿me venderán algo más?».</td><td class="ok">Cumple</td></tr>
+    <tr><td>6</td><td>Testimonios concretos (mín. 5)</td><td class="c">8</td><td class="c">6</td><td>Hay 5 con estructura nombre·profesión·resultado·transformación, pero con <code>[Nombre]</code> y contenido genérico marcado «a verificar». Faltan datos reales.</td><td class="par">Parcial</td></tr>
+    <tr><td>7</td><td>Garantía que reduce riesgo</td><td class="c">8</td><td class="c">10</td><td>«Garantía Duerme Tranquilo 30 días» + explicación + reducción de riesgo («quédate con los bonos», «el único riesgo es seguir otro mes a ciegas»).</td><td class="ok">Cumple</td></tr>
+    <tr><td>8</td><td>Reglas SÍ cumplidas</td><td class="c">10</td><td class="c">9</td><td>Beneficios, números, contraste Antes/Después, tensión, urgencia ética, CTA repetido 5×, lenguaje humano.</td><td class="ok">Cumple</td></tr>
+    <tr><td>9</td><td>Reglas NO respetadas</td><td class="c">10</td><td class="c">9</td><td>Sin frases vacías ni motivación barata; párrafos cortos; copy específico, no genérico.</td><td class="ok">Cumple</td></tr>
+    <tr><td>10</td><td>Entregables completos</td><td class="c">8</td><td class="c">10</td><td>Copy por bloque + indicaciones visuales + mockups + wireframe + semillas upsell/downsell/gracias/calendario/post-compra (salidas 1–10).</td><td class="ok">Cumple</td></tr>
+  </table>
+
+  <p style="font-size:13px;"><b>Cálculo:</b> (10·12 + 10·14 + 10·12 + 9·10 + 9·8 + 6·8 + 10·8 + 9·10 + 9·10 + 10·8) / 100 = <b>930 / 100 = 9,3</b></p>
+
+  <h2>3 fallos de mayor impacto</h2>
+  <div class="fail">
+    <b>1 · Testimonios sin datos reales (criterio 6, nota 6 — el más bajo).</b> Están como plantilla <code>[Nombre]</code>. <i>No bloquea el gate, pero es obligatorio resolverlo antes de publicar:</i> insertar 5 testimonios reales (nombre, profesión, resultado, transformación) de <code>valeriogarciamentor.com</code>. Sin ellos, la prueba social del bloque 7 no convierte.<br><br>
+    <b>2 · Bonos 3–5 sin confirmar.</b> El stack suma 166 € apoyándose en 3 bonos marcados «[propuesto]». Confirmar que existen y se entregan, o ajustar el valor total para no prometer de más.<br><br>
+    <b>3 · Formato del libro sin definir (FAQ 7).</b> Queda «[Confirmar digital/físico/ambos]»; afecta a expectativa de entrega y a la logística del checkout (Fase 3).
+  </div>
+
+  <div class="stamp">
+    <b>✓ APROBADO — 9,3 / 10.</b><br>
+    Se autoriza el arranque de la <b>Fase 3 · Checkout</b> (<code>ec-fase3-checkout</code>): página de pedido + 2 order bumps + upsell + downsell + página de gracias. Hereda de esta landing la oferta (7 €, garantía 30 días), las semillas de upsell/downsell (§6–7) y la página de gracias (§8).<br>
+    <span style="font-size:12px;font-weight:normal;">Condición de publicación (no de gate): resolver testimonios reales, bonos 3–5 y formato del libro antes de poner la landing en vivo.</span>
+  </div>
+
+  <footer>
+    <b>ec-auditor · Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Gate Fase 2 → Fase 3 · Iteración 1 · Resultado: APROBADO (9,3/10) · Sin reintentos pendientes.
+  </footer>
+</div>
+</body>
+</html>
