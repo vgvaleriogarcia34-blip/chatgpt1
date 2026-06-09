@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoría · Fase 4 — Back-end · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.5;margin:0;}
+  .wrap{max-width:880px;margin:0 auto;padding:40px 40px 70px;}
+  h1,h2{font-family:Georgia,'Times New Roman',serif;color:var(--navy);}
+  h2{font-size:21px;margin:36px 0 12px;padding-bottom:6px;border-bottom:3px solid var(--gold);}
+  .cover{background:var(--navy);color:#fff;padding:34px 38px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+  .cover h1{color:#fff;font-size:25px;margin:0 0 6px;}
+  .cover .sub{color:#cdd4e0;font-size:13px;}
+  .score{text-align:center;background:var(--gold);color:var(--navy);border-radius:8px;padding:16px 22px;min-width:140px;}
+  .score .n{font-family:Georgia,serif;font-size:42px;font-weight:bold;line-height:1;}
+  .score .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;}
+  .verdict{font-family:Georgia,serif;font-size:13px;font-weight:bold;margin-top:6px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px;}
+  th,td{text-align:left;padding:8px 9px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  td.c{text-align:center;font-weight:bold;}
+  .ok{color:#2e7d32;font-weight:bold;}
+  .stamp{background:#eef6ee;border:2px solid #2e7d32;color:#1b5e20;padding:18px 22px;border-radius:6px;margin:18px 0;font-family:Georgia,serif;}
+  .stamp b{font-size:17px;}
+  .fail{background:#f6f2e8;border-left:4px solid var(--gold);padding:14px 18px;margin:12px 0;border-radius:0 4px 4px 0;font-size:13.5px;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+  footer{margin-top:46px;padding-top:16px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <div>
+      <span style="color:var(--gold);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;">ec-auditor · Rúbrica 4 — Back-end</span>
+      <h1>Informe de auditoría · Fase 4</h1>
+      <div class="sub">Entregable: <code>embudo/fase4-backend.html</code> · escalera de valor + oferta principal · Gate ≥ 8,0</div>
+    </div>
+    <div class="score">
+      <div class="n">9,8</div>
+      <div class="l">/ 10</div>
+      <div class="verdict">APROBADO</div>
+    </div>
+  </div>
+
+  <h2>Puntuación criterio por criterio</h2>
+  <table>
+    <tr><th>#</th><th>Criterio</th><th>Peso</th><th>Nota</th><th>Evidencia</th><th>Veredicto</th></tr>
+    <tr><td>1</td><td>Escalera de valor completa</td><td class="c">12</td><td class="c">10</td><td>8 peldaños: Libro→Bumps→Upsell→Downsell→Seguimiento→Diagnóstico→Clarity Code→Quercus, cada uno con modelo, precio y resultado.</td><td class="ok">Cumple</td></tr>
+    <tr><td>2</td><td>Modelo back-end elegido y justificado</td><td class="c">10</td><td class="c">10</td><td>«Hecho contigo» ⭐ como núcleo; Diagnóstico como «Hecho para ti» de entrada. Justificado: «el avatar necesita acompañamiento, no más información».</td><td class="ok">Cumple</td></tr>
+    <tr><td>3</td><td>Oferta cumple los 7 criterios</td><td class="c">16</td><td class="c">10</td><td>Clarity Code™ evaluado criterio por criterio (1 precio elevado → 7 escalable), cada uno con evidencia.</td><td class="ok">Cumple</td></tr>
+    <tr><td>4</td><td>Resultado tangible con plazo</td><td class="c">10</td><td class="c">10</td><td>«Tus 4 zonas medidas, cuadro de mando vivo y las 2-3 decisiones que más caja liberan, en 90 días.»</td><td class="ok">Cumple</td></tr>
+    <tr><td>5</td><td>Valor 10× el precio</td><td class="c">8</td><td class="c">9</td><td>«Una sola decisión —cobrar 30 días antes— libera decenas de miles frente a ≈3.000 €.» (Pendiente de cifras de caso real.)</td><td class="ok">Cumple</td></tr>
+    <tr><td>6</td><td>Alto coste de inacción nombrado</td><td class="c">8</td><td class="c">10</td><td>«Riesgo real de que la empresa muera de liquidez pese a ganar»; caja atrapada, póliza creciente, decisiones tarde.</td><td class="ok">Cumple</td></tr>
+    <tr><td>7</td><td>Escalabilidad sin destruir tiempo</td><td class="c">8</td><td class="c">9</td><td>Formato grupal + plantillas reutilizables + equipo FE + cohortes; Diagnóstico sistematizado.</td><td class="ok">Cumple</td></tr>
+    <tr><td>8</td><td>5 pilares de conversión a premium</td><td class="c">12</td><td class="c">10</td><td>Confianza→Relación→Autoridad→Resultados→Exposición, en orden, con activo del embudo y métrica para cada uno.</td><td class="ok">Cumple</td></tr>
+    <tr><td>9</td><td>Coherencia CPA/VMC</td><td class="c">8</td><td class="c">10</td><td>VMC ampliado ≈ 74,7 €/comprador (con back-end) vs CPA 10–18 €: relación ~4–7×.</td><td class="ok">Cumple</td></tr>
+    <tr><td>10</td><td>Visión de movimiento</td><td class="c">8</td><td class="c">10</td><td>§6 conecta con Quercus® (Reconstruir·Despertar·Revolución·Trascender) y «una empresa, no un problema»; no es producto suelto.</td><td class="ok">Cumple</td></tr>
+  </table>
+
+  <p style="font-size:13px;"><b>Cálculo:</b> (10·12 + 10·10 + 10·16 + 10·10 + 9·8 + 10·8 + 9·8 + 10·12 + 10·8 + 10·8) / 100 = <b>984 / 100 = 9,8</b></p>
+
+  <h2>3 fallos de mayor impacto (no bloquean el gate)</h2>
+  <div class="fail">
+    <b>1 · Precios premium sin confirmar.</b> Clarity Code™ (≈2.997 €) y Método Quercus® (high-ticket) van marcados <code>[a confirmar]</code>. Fijarlos antes de que la campaña de Fase 5 los venda.<br><br>
+    <b>2 · Tasas de ascensión hipotéticas.</b> El VMC ampliado (≈74,7 €) usa 4% al Diagnóstico y 1% a Clarity Code; validar con datos reales para no sobreestimar la rentabilidad.<br><br>
+    <b>3 · Casos reales para el pilar «Resultados».</b> El criterio 5 (valor 10×) gana fuerza con una cifra de caso real (cuánta caja liberó un cliente del Diagnóstico). Insertar desde valeriogarciamentor.com.
+  </div>
+
+  <div class="stamp">
+    <b>✓ APROBADO — 9,8 / 10.</b><br>
+    Se autoriza el arranque de la <b>Fase 5 · Secuencia de correos de campaña</b> (<code>ec-fase5-correos</code>). La campaña venderá el primer peldaño del back-end —el <b>Diagnóstico de 48 h (497 €)</b>— que tracciona la ascensión a Clarity Code™ y Método Quercus®. Hereda la oferta, el resultado tangible con plazo y los 5 pilares ya secuenciados.
+  </div>
+
+  <footer>
+    <b>ec-auditor · Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Gate Fase 4 → Fase 5 · Iteración 1 · Resultado: APROBADO (9,8/10) · Sin reintentos pendientes.
+  </footer>
+</div>
+</body>
+</html>

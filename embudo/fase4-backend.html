@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embudo · Fase 4 — Back-end y escalera de valor · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;--green:#2e7d32;--red:#b23b3b;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.55;margin:0;}
+  .wrap{max-width:900px;margin:0 auto;padding:44px 40px 80px;}
+  h1,h2,h3,h4{font-family:Georgia,'Times New Roman',serif;color:var(--navy);line-height:1.2;}
+  h1{font-size:30px;margin:0 0 6px;}
+  h2{font-size:23px;margin:48px 0 14px;padding-bottom:8px;border-bottom:3px solid var(--gold);}
+  h3{font-size:18px;margin:24px 0 8px;}
+  h4{font-size:13px;margin:16px 0 4px;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;}
+  .cover{background:var(--navy);color:#fff;padding:46px 42px;border-radius:6px;margin-bottom:14px;}
+  .cover h1{color:#fff;}
+  .cover .sub{color:var(--gold);font-family:Georgia,serif;font-style:italic;font-size:17px;margin:4px 0 18px;}
+  .cover .meta{font-size:13px;color:#cdd4e0;line-height:1.7;}
+  .tag{display:inline-block;background:var(--gold);color:var(--navy);font-weight:bold;font-size:11px;letter-spacing:.08em;padding:4px 10px;border-radius:3px;text-transform:uppercase;}
+  .lead{font-size:16px;color:#3a3f47;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
+  th,td{text-align:left;padding:9px 11px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  .wire{font-family:'Courier New',monospace;font-size:12.5px;background:#1b2a4a;color:#e8ecf4;padding:18px;border-radius:6px;white-space:pre;overflow-x:auto;line-height:1.5;}
+  .crit{border:1px solid var(--line);border-radius:6px;padding:14px 18px;margin:12px 0;background:#fff;}
+  .crit .n{font-family:Georgia,serif;color:var(--gold);font-weight:bold;font-size:14px;}
+  .crit .v{color:var(--green);font-weight:bold;}
+  .copy{background:#f6f2e8;border-left:4px solid var(--gold);padding:12px 16px;border-radius:0 4px 4px 0;margin:8px 0;}
+  .big{font-family:Georgia,serif;font-size:20px;color:var(--navy);font-weight:bold;line-height:1.25;}
+  .pillars{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0;}
+  .pillar{background:var(--navy);color:#fff;border-radius:6px;padding:12px 10px;font-size:12px;}
+  .pillar b{color:var(--gold);display:block;font-family:Georgia,serif;font-size:14px;margin-bottom:4px;}
+  .note{background:#eef1f7;border:1px solid #d6deea;padding:12px 16px;border-radius:4px;font-size:13px;color:#41485a;margin:14px 0;}
+  ul.clean{list-style:none;padding-left:0;}
+  ul.clean li{margin:5px 0;padding-left:22px;position:relative;}
+  ul.clean li:before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:bold;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+  footer{margin-top:50px;padding-top:18px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+  @media(max-width:680px){.pillars{grid-template-columns:1fr 1fr;}}
+  @media print{.wrap{padding:0 8px;}.crit{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <span class="tag">Embudo de Conversión · Fase 4 de 5</span>
+    <h1 style="margin-top:14px;">Back-end y escalera de valor</h1>
+    <div class="sub">«El libro no es el negocio: es la puerta.» Aquí aparece la rentabilidad real.</div>
+    <div class="meta">
+      Hereda de Fase 3 (aprobada 9,8/10): VMC objetivo, precios del flujo y perfil del comprador.<br>
+      Conecta con el back-end real de Familias Empresarias: Diagnóstico de 48 h · Clarity Code™ · Método Quercus®.
+    </div>
+  </div>
+
+  <p class="lead"><b>Principio rector.</b> El libro convierte desconocidos en clientes; las ofertas posteriores generan el beneficio. La primera venta da confianza; las siguientes, rentabilidad. Y el destino no es vender productos sueltos, sino llevar al dueño a un <b>movimiento</b>: empresas familiares que se gobiernan con claridad y sobreviven a su relevo.</p>
+
+  <!-- ESCALERA -->
+  <h2>1 · La escalera de valor (producto real FE)</h2>
+  <div class="wire">LIBRO ─▶ BUMPS ─▶ UPSELL ─▶ DOWNSELL ─▶ SEGUIMIENTO ─▶ OFERTA PRINCIPAL ─▶ CLIENTE PREMIUM
+  7€      17/27€    97€        3×37€       (nurture)      Diagnóstico 48h     Clarity Code → Quercus
+  ───────────────────────────────────────────────────────────────────────────────────────
+  confianza ───────────────────────────────────▶ beneficio ──────────────▶ permanencia / legado</div>
+  <table>
+    <tr><th>Peldaño</th><th>Oferta</th><th>Modelo</th><th>Precio</th><th>Resultado / función</th></tr>
+    <tr><td>1 · Puerta</td><td>Libro «Dónde está mi dinero»</td><td>—</td><td>7 €</td><td>Convierte al desconocido en comprador; inicia la relación.</td></tr>
+    <tr><td>2 · Bumps</td><td>Plantillas Pro · Masterclass</td><td>Hazlo tú mismo</td><td>17 € / 27 €</td><td>Aceleran la primera victoria; recuperan CPA.</td></tr>
+    <tr><td>3 · Upsell</td><td>Sistema Claridad de Caja</td><td>Hazlo tú mismo</td><td>97 €</td><td>Implementación guiada de las 4 zonas.</td></tr>
+    <tr><td>4 · Downsell</td><td>Sistema, en 3 pagos</td><td>Hazlo tú mismo</td><td>3×37 €</td><td>Recupera al comprador sensible al precio.</td></tr>
+    <tr><td>5 · Seguimiento</td><td>Comunidad + emails de nurture</td><td>—</td><td>0 €</td><td>Construye los 5 pilares antes de la venta premium.</td></tr>
+    <tr><td><b>6 · Oferta principal</b></td><td><b>Diagnóstico de 48 horas</b></td><td><b>Hecho para ti</b></td><td><b>497 €</b></td><td>El mapa completo de las 4 zonas hecho con rigor; puerta de entrada al back-end.</td></tr>
+    <tr><td>7 · Core</td><td>Clarity Code™ (90 días)</td><td>Hecho contigo</td><td>≈ 2.997 € <i>[a confirmar]</i></td><td>Empresa gobernada con cuadro de mando vivo.</td></tr>
+    <tr><td>8 · Premium</td><td>Método Quercus® (12 meses)</td><td>Hecho contigo</td><td>high-ticket <i>[a confirmar]</i></td><td>Empresa que se gobierna sola y prepara su relevo.</td></tr>
+  </table>
+
+  <!-- MODELO -->
+  <h2>2 · Modelo back-end elegido y justificado</h2>
+  <p class="lead">Modelo principal: <b>«Hecho contigo»</b> (mentoría/acompañamiento), con el <b>Diagnóstico de 48 h como entrada «Hecho para ti»</b>.</p>
+  <table>
+    <tr><th>Modelo</th><th>Dónde se usa en FE</th><th>Por qué</th></tr>
+    <tr><td><b>Hazlo tú mismo</b></td><td>Bumps + Upsell (Sistema Claridad de Caja)</td><td>Escalable y automatizable; recupera el CPA y filtra a quien quiere implementar solo.</td></tr>
+    <tr><td><b>Hecho para ti</b></td><td>Diagnóstico de 48 h (497 €)</td><td>Máxima percepción de valor y cero fricción: rompe la objeción «no tengo tiempo / no sé hacerlo». Ideal como primer paso del back-end.</td></tr>
+    <tr><td><b>Hecho contigo</b> ⭐</td><td>Clarity Code™ y Método Quercus®</td><td>El cliente (dueño con miedo a mirar) necesita <b>acompañamiento, no más información</b>. Mayor transformación, mayor valor percibido, mayor ticket. Es el corazón del negocio de FE.</td></tr>
+  </table>
+  <div class="note"><b>Juicio:</b> sería un error hacer el back-end «Hazlo tú mismo» de alto ticket (cursos caros). El avatar ya tiene información de sobra; lo que le falta es claridad y compañía para mirar. Por eso el premium es acompañamiento, no contenido.</div>
+
+  <!-- OFERTA vs 7 CRITERIOS -->
+  <h2>3 · La oferta principal contra los 7 criterios</h2>
+  <div class="copy"><span class="big">Clarity Code™ — «Tu empresa gobernada con claridad de caja en 90 días»</span><br>Oferta core (Hecho contigo). El Diagnóstico de 48 h es su qualifier de entrada; el Método Quercus®, su continuación premium.</div>
+
+  <div class="crit"><span class="n">Criterio 1 · Precio elevado</span> — <span class="v">Cumple</span><br>≈ 2.997 € <i>[a confirmar]</i>. No compite por precio con cursos de finanzas: compite por la tranquilidad de gobernar la empresa. Frente a una póliza al límite o un susto de liquidez, es una inversión, no un gasto.</div>
+
+  <div class="crit"><span class="n">Criterio 2 · Resuelve un gran problema</span> — <span class="v">Cumple</span><br>El libro resuelve un problema pequeño (ver una zona). Clarity Code resuelve el grande: <b>dejar de gobernar a ciegas la empresa que avalas con tu casa</b>. Cuanto mayor el problema, más sencilla la venta.</div>
+
+  <div class="crit"><span class="n">Criterio 3 · Resultado tangible</span> — <span class="v">Cumple</span><br>✗ «Te ayudo con tus finanzas.» &nbsp;✓ <b>«Tus 4 zonas medidas, un cuadro de mando vivo y las 2-3 decisiones que más caja liberan, ejecutándose.»</b> Medible: días de cobro, stock, deuda e inversión, mes a mes.</div>
+
+  <div class="crit"><span class="n">Criterio 4 · Plazo específico</span> — <span class="v">Cumple</span><br>✗ «Algún día tendrás claridad.» &nbsp;✓ <b>«En 90 días.»</b> Un resultado con plazo es un objetivo, no un deseo.</div>
+
+  <div class="crit"><span class="n">Criterio 5 · Valor 10× el precio</span> — <span class="v">Cumple</span><br>Una sola decisión bien tomada —cobrar 30 días antes, ajustar stock, reordenar deuda— puede liberar decenas de miles de euros de caja atrapada. Frente a ≈ 3.000 €, el valor liberado y el sueño recuperado superan con holgura el 10×. Rompe la resistencia de «otro producto que decepciona».</div>
+
+  <div class="crit"><span class="n">Criterio 6 · Alto coste de inacción</span> — <span class="v">Cumple</span><br>Seguir a ciegas cuesta: caja atrapada cada mes, decisiones tarde, póliza creciente, y el riesgo real de que la empresa <b>muera de liquidez pese a ganar</b> (la mortalidad de pymes no es por falta de beneficio). El coste de no actuar es la empresa misma.</div>
+
+  <div class="crit"><span class="n">Criterio 7 · Escalable</span> — <span class="v">Cumple</span><br>Formato grupal + plantillas y sistema reutilizables + equipo de FE + sesiones en cohortes. Crece sin destruir el tiempo del mentor: el Diagnóstico (Hecho para ti) se sistematiza y Clarity Code se entrega en grupos.</div>
+
+  <!-- 5 PILARES -->
+  <h2>4 · Plan de los 5 pilares (conversión a premium)</h2>
+  <p class="lead">No se vende lo premium en frío. Se construye, en orden, dentro del propio embudo:</p>
+  <div class="pillars">
+    <div class="pillar"><b>1 · Confianza</b>El libro cumple lo que promete + garantía «Duerme Tranquilo».</div>
+    <div class="pillar"><b>2 · Relación</b>Comunidad FE + secuencia de emails (Fase 5) + retos.</div>
+    <div class="pillar"><b>3 · Autoridad</b>Método RUTA/Quercus, autor superventas, casos reales.</div>
+    <div class="pillar"><b>4 · Resultados</b>Primera victoria con el test; casos del Diagnóstico de 48 h.</div>
+    <div class="pillar"><b>5 · Exposición</b>Emails, comunidad y contenido repetido antes de la oferta.</div>
+  </div>
+  <table>
+    <tr><th>Pilar</th><th>Activo del embudo que lo construye</th><th>Cómo se mide</th></tr>
+    <tr><td>Confianza</td><td>Libro de calidad + garantía 30 días + entrega impecable</td><td>Reembolsos bajos · valoraciones</td></tr>
+    <tr><td>Relación</td><td>Comunidad (gracias) + secuencia post-compra</td><td>Altas en comunidad · apertura de emails</td></tr>
+    <tr><td>Autoridad</td><td>Bloque autoridad de la landing + casos + método propietario</td><td>Menciones · referencias</td></tr>
+    <tr><td>Resultados</td><td>Test de una tarde + Diagnóstico de 48 h (resultado tangible)</td><td>Cifras liberadas · testimonios</td></tr>
+    <tr><td>Exposición repetida</td><td>Emails de campaña (Fase 5) + contenido recurrente</td><td>Nº de impactos antes de la venta</td></tr>
+  </table>
+  <div class="note">Solo cuando los 5 pilares están en pie aparece, de forma natural, la venta de Clarity Code / Quercus. La campaña de la Fase 5 venderá el primer peldaño del back-end (el <b>Diagnóstico de 48 h</b>), que es el que tracciona toda la ascensión.</div>
+
+  <!-- CPA/VMC -->
+  <h2>5 · Coherencia CPA/VMC (cierre del círculo de la Fase 1)</h2>
+  <p>La Fase 1 estimó VMC ≈ 44,7 € contando solo libro+bump+upsell+Diagnóstico al 4%. El back-end <b>dispara</b> ese VMC: cada ascensión a Clarity Code o Quercus multiplica el valor del lector.</p>
+  <div class="copy">
+    <b>VMC ampliado (por 100 compradores del libro):</b><br>
+    • Front-end (libro + bumps + upsell) ≈ <b>2.480 €</b><br>
+    • Diagnóstico 48 h · 4% × 497 € = <b>1.988 €</b><br>
+    • Clarity Code · 1% × 2.997 € = <b>2.997 €</b><br>
+    • (Quercus premium · &lt;1% — beneficio adicional, no contabilizado aquí)<br>
+    <hr style="border:none;border-top:1px solid var(--line);margin:8px 0;">
+    Total ≈ <b>7.465 €</b> / 100 compradores → <b>VMC ≈ 74,7 €/comprador</b> (vs CPA objetivo 10–18 €).
+  </div>
+  <p>Con el back-end, la relación pasa de ~2,5–4,5× a <b>~4–7×</b>. Es lo que vuelve el sistema rentable y escalable: el libro adquiere, el back-end financia y multiplica.</p>
+
+  <!-- MOVIMIENTO -->
+  <h2>6 · Visión de movimiento</h2>
+  <div class="copy">El libro era la puerta; los productos, el vehículo; la empresa, la estructura. El destino es un <b>movimiento</b>: una comunidad de dueños de empresa familiar que dejan de gobernar a ciegas, que cambian la frase «los números no son lo mío» y que dejan a su familia <b>una empresa, no un problema</b>. Niveles: conectar con el libro → comprar → entrar en el Diagnóstico → ascender a Clarity Code / Quercus → formar parte del movimiento. Productos generan ventas; movimientos, permanencia; y la permanencia, legado.</div>
+  <ul class="clean">
+    <li>Conecta con el back-end real de FE (Quercus®: Reconstruir · Despertar · Revolución · Trascender), no es un producto suelto.</li>
+    <li>Coherente con la promesa del libro: ver el dinero es el principio; gobernar la empresa es el destino.</li>
+  </ul>
+
+  <div class="note"><b>Pendiente de confirmar antes de campaña:</b> precios de Clarity Code™ y Método Quercus® (marcados <i>[a confirmar]</i>), formato y plazas del Diagnóstico de 48 h, y tasas reales de ascensión (1% Clarity Code es hipótesis conservadora).</div>
+
+  <footer>
+    <b>Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Fase 4 de 5 — Back-end y escalera de valor · Oferta principal: Clarity Code™ · Entrada: Diagnóstico de 48 h<br>
+    Siguiente gate: auditoría (ec-auditor, rúbrica de back-end) → con ≥8/10 se desbloquea Fase 5 (correos de campaña).
+  </footer>
+
+</div>
+</body>
+</html>
