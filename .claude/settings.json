@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "embudo-fe-local": {
+      "source": {
+        "source": "directory",
+        "path": "${CLAUDE_PROJECT_DIR}/.claude/marketplace"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "embudo-conversion-fe@embudo-fe-local": true
+  }
+}

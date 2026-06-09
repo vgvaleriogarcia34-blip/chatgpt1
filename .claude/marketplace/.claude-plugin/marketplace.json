@@ -1,0 +1,14 @@
+{
+  "name": "embudo-fe-local",
+  "owner": {
+    "name": "Valerio García Pérez",
+    "url": "https://familiasempresarias.com"
+  },
+  "plugins": [
+    {
+      "name": "embudo-conversion-fe",
+      "source": "./embudo-conversion-fe",
+      "description": "Cadena secuencial para construir el embudo de conversión completo de Familias Empresarias / Arquitectos de Claridad: anuncios, landing, checkout (pedido+bumps+upsell+downsell+gracias), back-end y secuencia de correos. Cada fase pasa por un gate de auditoría 8/10 antes de desbloquear la siguiente."
+    }
+  ]
+}
