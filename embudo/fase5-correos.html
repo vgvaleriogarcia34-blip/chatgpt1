@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embudo · Fase 5 — Secuencia de correos · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;--green:#2e7d32;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.55;margin:0;}
+  .wrap{max-width:900px;margin:0 auto;padding:44px 40px 80px;}
+  h1,h2,h3,h4{font-family:Georgia,'Times New Roman',serif;color:var(--navy);line-height:1.2;}
+  h1{font-size:30px;margin:0 0 6px;}
+  h2{font-size:23px;margin:48px 0 14px;padding-bottom:8px;border-bottom:3px solid var(--gold);}
+  .cover{background:var(--navy);color:#fff;padding:46px 42px;border-radius:6px;margin-bottom:14px;}
+  .cover h1{color:#fff;}
+  .cover .sub{color:var(--gold);font-family:Georgia,serif;font-style:italic;font-size:17px;margin:4px 0 18px;}
+  .cover .meta{font-size:13px;color:#cdd4e0;line-height:1.7;}
+  .tag{display:inline-block;background:var(--gold);color:var(--navy);font-weight:bold;font-size:11px;letter-spacing:.08em;padding:4px 10px;border-radius:3px;text-transform:uppercase;}
+  .lead{font-size:16px;color:#3a3f47;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
+  th,td{text-align:left;padding:8px 10px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  .email{border:1px solid var(--line);border-radius:6px;margin:16px 0;background:#fff;overflow:hidden;}
+  .ehead{background:var(--navy);color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+  .ehead .n{font-family:Georgia,serif;color:var(--gold);font-weight:bold;font-size:14px;}
+  .ehead .when{font-size:12px;color:#cdd4e0;}
+  .esub{padding:8px 16px;background:#f6f2e8;font-size:13px;border-bottom:1px solid var(--line);}
+  .esub b{color:var(--navy);}
+  .ebody{padding:14px 18px;font-size:14px;}
+  .ebody p{margin:8px 0;}
+  .ebody ul{margin:8px 0;padding-left:20px;}
+  .ebody .cta{display:inline-block;background:var(--gold);color:var(--navy);font-weight:bold;padding:9px 18px;border-radius:6px;margin:8px 0;text-decoration:none;font-size:13.5px;}
+  .ebody .pd{color:#5a5f67;font-size:13px;font-style:italic;border-top:1px dashed var(--line);padding-top:8px;margin-top:8px;}
+  .sig{font-family:Georgia,serif;color:var(--navy);font-weight:bold;}
+  .note{background:#eef1f7;border:1px solid #d6deea;padding:12px 16px;border-radius:4px;font-size:13px;color:#41485a;margin:14px 0;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+  .done{background:#eef6ee;border:2px solid var(--green);border-radius:8px;padding:18px 22px;margin:20px 0;}
+  .done h3{color:#1b5e20;margin-top:0;}
+  footer{margin-top:50px;padding-top:18px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+  @media print{.wrap{padding:0 8px;}.email{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <span class="tag">Embudo de Conversión · Fase 5 de 5</span>
+    <h1 style="margin-top:14px;">Secuencia de correos de campaña</h1>
+    <div class="sub">17 envíos · 7 plantillas · arco de 7 días. Vende el Diagnóstico de 48 h (497 €).</div>
+    <div class="meta">
+      Hereda de Fase 4 (aprobada 9,8/10): oferta «Diagnóstico de 48 horas» · resultado tangible con plazo · 5 pilares.<br>
+      Una idea y una sola CTA por correo · promesa, precio (497 €) y garantía idénticos a la landing/checkout.
+    </div>
+  </div>
+
+  <p class="lead"><b>Oferta que vende la campaña:</b> el <b>Diagnóstico de 48 horas</b> (497 €): en dos días, el mapa completo de las 4 zonas de tu empresa con tus cifras y las 2-3 decisiones que más caja liberan. <b>Mecanismo:</b> Método RUTA (leer el dinero por zonas, no por cuentas). <b>Garantía:</b> «si no ves tus 4 zonas con claridad, te devuelvo los 497 €». <b>Escasez real:</b> plazas limitadas por capacidad (cada diagnóstico lo supervisa Valerio).</p>
+
+  <div class="note"><b>Urgencia ética:</b> se usa solo escasez real —nº limitado de diagnósticos por convocatoria y cierre por plazas llenas—. Se ha <b>eliminado</b> el recurso de plantilla «las grabaciones costarán el triple» porque el Diagnóstico no es una formación grabada: sería falsa escasez.</div>
+
+  <h2>Calendario de envíos</h2>
+  <table>
+    <tr><th>#</th><th>Momento</th><th>Plantilla</th><th>Asunto</th></tr>
+    <tr><td>0</td><td>−24 h</td><td>Anticipación</td><td>algo emocionante para ti</td></tr>
+    <tr><td>1</td><td>Día 1 · 09:00</td><td>Anuncio</td><td>plazas abiertas</td></tr>
+    <tr><td>2</td><td>Día 1 · 19:00</td><td>Prueba</td><td>¿quieres esto?</td></tr>
+    <tr><td>3</td><td>Día 2 · 09:00</td><td>Puntos de dolor</td><td>¿eres tú?</td></tr>
+    <tr><td>4</td><td>Día 2 · 19:00</td><td>Gran idea</td><td>por qué leer tu dinero por zonas funciona tan bien</td></tr>
+    <tr><td>5</td><td>Día 3 · 09:00</td><td>¿Qué quieres?</td><td>¿qué quieres?</td></tr>
+    <tr><td>6</td><td>Día 3 · 19:00</td><td>Esto es para ti si…</td><td>esto es para ti si…</td></tr>
+    <tr><td>7</td><td>Día 4 · 09:00</td><td>Lo que NO necesitas</td><td>no hagas esto</td></tr>
+    <tr><td>8</td><td>Día 4 · 19:00</td><td>¿Qué prefieres?</td><td>¿qué prefieres?</td></tr>
+    <tr><td>9</td><td>Día 5 · 09:00</td><td>Beneficios ocultos</td><td>no me di cuenta de esto…</td></tr>
+    <tr><td>10</td><td>Día 5 · 19:00</td><td>¿Qué te está costando?</td><td>¿qué te está costando esto?</td></tr>
+    <tr><td>11</td><td>Día 6 · 09:00</td><td>¿Funcionará para mí?</td><td>¿funcionará para ti?</td></tr>
+    <tr><td>12</td><td>Día 6 · 19:00</td><td>Imagina tu vida</td><td>imagina esto…</td></tr>
+    <tr><td>13</td><td>Día 7 · 09:00</td><td>Cierra hoy</td><td>¡cerramos esta noche!</td></tr>
+    <tr><td>14</td><td>Día 7 · −12 h</td><td>Quedan 12 horas</td><td>expira a las 23:59</td></tr>
+    <tr><td>15</td><td>Día 7 · −6 h</td><td>Quedan 6 horas</td><td>quedan 6 horas…</td></tr>
+    <tr><td>16</td><td>Día 7 · −2 h</td><td>Última oportunidad</td><td>cerramos en 2 horas (última oportunidad)</td></tr>
+  </table>
+
+  <h2>Los 17 correos (listos para programar)</h2>
+
+  <!-- E0 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 0 · Anticipación</span><span class="when">−24 h</span></div>
+    <div class="esub"><b>Asunto:</b> algo emocionante para ti</div>
+    <div class="ebody">
+      <p>Mañana abro algo que llevo meses queriendo ofrecer.</p>
+      <p>Voy a abrir unas pocas plazas del <b>Diagnóstico de 48 horas</b>: el trabajo en el que cojo las cuentas de tu empresa y, en dos días, te entrego el mapa completo de dónde está tu dinero —las cuatro zonas, con tus cifras— y las dos o tres decisiones que más caja te van a liberar.</p>
+      <p>Llevo años sentándome con dueños de empresa familiar y veo lo mismo una y otra vez: ganan dinero y no lo ven en el banco. Con este diagnóstico he podido:</p>
+      <ul>
+        <li>Mostrarles, con sus números, cuántos días tardan de verdad en cobrar.</li>
+        <li>Sacar a la luz el dinero atrapado en stock, deuda e inversiones.</li>
+        <li>Señalar la palanca que más caja libera con menos esfuerzo.</li>
+        <li>Devolverles algo que llevaban tiempo sin tener: dormir tranquilos.</li>
+      </ul>
+      <p>Mañana te mando el correo con todos los detalles y cómo reservar tu plaza. Solo abro unas pocas.</p>
+      <p>Estate atento.<br><span class="sig">Valerio García</span></p>
+    </div>
+  </div>
+
+  <!-- E1 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 1 · Anuncio</span><span class="when">Día 1 · 09:00</span></div>
+    <div class="esub"><b>Asunto:</b> plazas abiertas</div>
+    <div class="ebody">
+      <p>Si eres dueño de una empresa familiar que factura bien pero mira el banco con miedo, esto es para ti.</p>
+      <p>Abro hoy unas plazas del <b>Diagnóstico de 48 horas</b>, donde en dos días te entrego el mapa completo de dónde está el dinero que tu empresa gana y tú no ves.</p>
+      <p>Todo gira en torno a una idea: <b>dejar de leer cuentas y empezar a leer zonas</b>.</p>
+      <p>Esto es lo que tendrás al terminar las 48 horas:</p>
+      <ul>
+        <li>Tus cuatro zonas —Cobro, Existencias, Deuda, Inversión— con tus cifras reales.</li>
+        <li>Tus días de cobro de verdad (no los que crees).</li>
+        <li>Cuánto dinero tuyo está durmiendo en stock, deuda e inversiones.</li>
+        <li>Las 2-3 decisiones que más caja liberan, priorizadas.</li>
+        <li>Un cuadro de mando para seguirlo tú, en 5 minutos al mes.</li>
+      </ul>
+      <p>Solo abro <b>10 plazas</b> esta convocatoria, porque cada diagnóstico lo superviso yo. Cuando se llenan, cierro.</p>
+      <p><a class="cta" href="#">Ver los detalles y reservar mi plaza →</a></p>
+      <p class="sig">Valerio García</p>
+    </div>
+  </div>
+
+  <!-- E2 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 2 · Prueba</span><span class="when">Día 1 · 19:00</span></div>
+    <div class="esub"><b>Asunto:</b> ¿quieres esto?</div>
+    <div class="ebody">
+      <p>Déjame contarte lo que le pasó a Tomás (fabricante de mobiliario; su historia es la de cientos).</p>
+      <p>Cerró el mejor año de su vida. «Beneficio récord», le dijo su gestor. Esa misma semana no pudo pagar las nóminas sin tirar de la póliza.</p>
+      <p>Cuando pusimos sus números sobre las cuatro zonas, lo vio en una tarde: tardaba más de dos meses en cobrar y tenía el almacén lleno de dinero dormido. No le faltaba beneficio. Le faltaba ver dónde se le quedaba.</p>
+      <p>Hoy abre el banco y ya no hace la cuenta del miedo: sabe lo que hay, por qué, y qué decidir.</p>
+      <p>Eso es exactamente lo que hace el <b>Diagnóstico de 48 horas</b> con tu empresa.</p>
+      <p><a class="cta" href="#">Quiero mi diagnóstico →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E3 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 3 · Puntos de dolor</span><span class="when">Día 2 · 09:00</span></div>
+    <div class="esub"><b>Asunto:</b> ¿eres tú?</div>
+    <div class="ebody">
+      <p>Sé que tu empresa puede ir mejor. Y lo sé porque he visto a muchos dueños como tú salir del mismo sitio.</p>
+      <p>Antes de aprender a mirar, estaban igual que quizá estés tú:</p>
+      <ul>
+        <li>Mirando el saldo a las doce de la noche, haciendo la cuenta que no cuadra.</li>
+        <li>Tirando de la póliza para llegar a las nóminas. Otra vez.</li>
+        <li>Sintiendo —injustamente— que el problema eran ellos por no entender sus cuentas.</li>
+      </ul>
+      <p>El <b>Diagnóstico de 48 horas</b> te ahorra los años de ir a ciegas: en dos días tienes el mapa que a la mayoría le cuesta un susto encontrar. Sin estudiar contabilidad. Sin montar un departamento financiero. Sin pelearte con tu Excel.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+      <p class="pd">P.D.: Si al terminar no ves tus cuatro zonas con claridad, te devuelvo cada euro de los 497 €.</p>
+    </div>
+  </div>
+
+  <!-- E4 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 4 · Gran idea</span><span class="when">Día 2 · 19:00</span></div>
+    <div class="esub"><b>Asunto:</b> por qué leer tu dinero por zonas funciona tan bien</div>
+    <div class="ebody">
+      <p>Uno de los mayores errores cuando no ves tu dinero es intentar arreglarlo vendiendo más.</p>
+      <p>Eso solo lleva a: más ventas sin cobrar, más stock por delante, más caja consumida. Crecer sin ver te ahoga.</p>
+      <p>¿La solución? <b>Dejar de leer cuentas y empezar a leer zonas.</b></p>
+      <p>Funciona tan bien porque tu dinero no está en cien sitios: está en cuatro —Cobro, Existencias, Deuda, Inversión—. Cuando los miras por separado, lo invisible se vuelve obvio: ves dónde se queda y qué decidir.</p>
+      <p>Es lo que hago en el <b>Diagnóstico de 48 horas</b>: pongo tus números sobre esas cuatro zonas y te traduzco lo que dicen.</p>
+      <p><a class="cta" href="#">Ver los detalles →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E5 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 5 · ¿Qué quieres?</span><span class="when">Día 3 · 09:00</span></div>
+    <div class="esub"><b>Asunto:</b> ¿qué quieres?</div>
+    <div class="ebody">
+      <p>Como sabes, esta semana abrí plazas del <b>Diagnóstico de 48 horas</b>.</p>
+      <p>Tengo el proceso afinado para mostrarte dónde está tu dinero… pero quiero preguntarte una cosa:</p>
+      <p>Si pudieras resolver UNA sola duda sobre el dinero de tu empresa, ¿cuál sería? Responde a este correo y dímelo. Si de verdad mueve la aguja, me aseguro de incluirlo en tu diagnóstico.</p>
+      <p>Y si aún no has reservado, hazlo: solo abro 10 plazas esta convocatoria.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E6 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 6 · Esto es para ti si…</span><span class="when">Día 3 · 19:00</span></div>
+    <div class="esub"><b>Asunto:</b> esto es para ti si…</div>
+    <div class="ebody">
+      <p>El <b>Diagnóstico de 48 horas</b> es para ti si:</p>
+      <ul>
+        <li>Facturas bien pero miras el banco con miedo.</li>
+        <li>Te gobiernas de memoria y notas que ya no te basta.</li>
+        <li>Delegaste «el entender» en tu gestor y descubriste que necesitas verlo tú.</li>
+      </ul>
+      <p>Si te reconoces, vas a querer esto. En 48 horas tendrás tu mapa completo y tus decisiones.</p>
+      <p><a class="cta" href="#">Ver los detalles y reservar →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E7 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 7 · Lo que NO necesitas</span><span class="when">Día 4 · 09:00</span></div>
+    <div class="esub"><b>Asunto:</b> no hagas esto</div>
+    <div class="ebody">
+      <p>Antes de decirte qué necesitas para ver tu dinero, déjame decirte lo que NO necesitas.</p>
+      <p>Por ahí oirás que para controlar tus finanzas tienes que:</p>
+      <ul>
+        <li>Estudiar contabilidad y aprender a leer un balance…</li>
+        <li>Montar un departamento financiero o contratar un director financiero…</li>
+        <li>O la peor de todas: simplemente «vender más».</li>
+      </ul>
+      <p>Nada de eso es verdad. Para ver dónde está tu dinero solo necesitas tres cosas:</p>
+      <ul>
+        <li><b>Ubicar:</b> poner tus números sobre las cuatro zonas.</li>
+        <li><b>Traducir:</b> entender qué te dice cada zona.</li>
+        <li><b>Actuar:</b> elegir la palanca que más caja libera.</li>
+      </ul>
+      <p>Eso es justo lo que hacemos juntos en el <b>Diagnóstico de 48 horas</b>.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E8 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 8 · ¿Qué prefieres?</span><span class="when">Día 4 · 19:00</span></div>
+    <div class="esub"><b>Asunto:</b> ¿qué prefieres?</div>
+    <div class="ebody">
+      <p>¿Qué prefieres?</p>
+      <p><b>A:</b> Seguir otro trimestre haciendo la cuenta del miedo a las doce de la noche, sin saber dónde se te queda el dinero.</p>
+      <p><b>B:</b> Tener en 48 horas el mapa de tus cuatro zonas y las decisiones que liberan caja.</p>
+      <p>¿Eres del equipo B? La convocatoria del <b>Diagnóstico de 48 horas</b> se cierra en unos días.</p>
+      <p><a class="cta" href="#">Quiero el equipo B →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E9 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 9 · Beneficios ocultos</span><span class="when">Día 5 · 09:00</span></div>
+    <div class="esub"><b>Asunto:</b> no me di cuenta de esto…</div>
+    <div class="ebody">
+      <p>Cuando los dueños me piden el Diagnóstico, creen que solo quieren una cosa: saber dónde está su dinero. Y está genial. Pero hay un beneficio que no esperan…</p>
+      <p>Cuando por fin ven sus cuatro zonas, dejan de decidir con miedo. Empiezan a negociar mejor con el banco, a poner condiciones de cobro sin culpa, a decir que no a un pedido que les ahogaría la caja.</p>
+      <p>Es decir: recuperan el mando. Y, casi siempre, eso acaba haciéndoles ganar más —porque deciden con los ojos abiertos.</p>
+      <p>Si aún no has reservado tu <b>Diagnóstico de 48 horas</b>, ¿a qué esperas?</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E10 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 10 · ¿Qué te está costando?</span><span class="when">Día 5 · 19:00</span></div>
+    <div class="esub"><b>Asunto:</b> ¿qué te está costando esto?</div>
+    <div class="ebody">
+      <p>Una pregunta. Sé que quieres ver dónde está tu dinero. Pero ¿cuánto te está costando NO verlo?</p>
+      <p>Cada mes que pasa a ciegas:</p>
+      <ul>
+        <li>Hay dinero tuyo financiando gratis a clientes que pagan tarde.</li>
+        <li>Hay caja dormida en stock que no rota.</li>
+        <li>Y tomas decisiones tarde, cuando ya no hay margen.</li>
+      </ul>
+      <p>Mereces gobernar con claridad. El <b>Diagnóstico de 48 horas</b> cuesta 497 € e incluye garantía de devolución: si no ves tus cuatro zonas con claridad, te devuelvo cada euro.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+      <p class="pd">P.D.: Solo quedan unas pocas plazas esta convocatoria. Cuando se llenan, cierro.</p>
+    </div>
+  </div>
+
+  <!-- E11 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 11 · ¿Funcionará para mí?</span><span class="when">Día 6 · 09:00</span></div>
+    <div class="esub"><b>Asunto:</b> ¿funcionará para ti?</div>
+    <div class="ebody">
+      <p>Quizá pienses: «el Diagnóstico suena bien, pero ¿funcionará en MI empresa?».</p>
+      <p>Te respondo. Ver tu dinero se reduce a tres cosas:</p>
+      <ul>
+        <li>Ubicar tus números en las cuatro zonas.</li>
+        <li>Traducir qué te dice cada una.</li>
+        <li>Actuar sobre la que más caja libera.</li>
+      </ul>
+      <p>Da igual tu sector o tu tamaño: si vendes, compras, debes o inviertes, tu dinero está en esas cuatro zonas. Es causa y efecto. Por eso el <b>Diagnóstico de 48 horas</b> funciona en cualquier empresa familiar que se gobierna de memoria.</p>
+      <p><a class="cta" href="#">Ver los detalles →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E12 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 12 · Imagina tu vida</span><span class="when">Día 6 · 19:00</span></div>
+    <div class="esub"><b>Asunto:</b> imagina esto…</div>
+    <div class="ebody">
+      <p>Imagina esto…</p>
+      <p>Abres el banco de noche y no haces la cuenta del miedo: sabes lo que hay y por qué.</p>
+      <p>Hablas con tu gestor de tú a tú, porque entiendes tus propios números.</p>
+      <p>Decides subir un precio, aguantar a un cliente o esperar una inversión con criterio, no a ciegas.</p>
+      <p>Se acabaron las noches en vela. Se acabó tirar de la póliza por sorpresa. Y se acabó sentir que el problema eres tú.</p>
+      <p>Eso es lo que se llevó Tomás cuando vio sus cuatro zonas. Y es lo que te llevas tú con el <b>Diagnóstico de 48 horas</b>. La convocatoria se cierra mañana.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E13 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 13 · Cierra hoy</span><span class="when">Día 7 · 09:00</span></div>
+    <div class="esub"><b>Asunto:</b> ¡cerramos esta noche!</div>
+    <div class="ebody">
+      <p>Hoy es el último día para reservar tu plaza del <b>Diagnóstico de 48 horas</b>.</p>
+      <p>El gran resultado: en dos días tendrás el mapa completo de dónde está el dinero de tu empresa y las 2-3 decisiones que más caja te liberan. Y funciona aunque creas que «los números no son lo tuyo».</p>
+      <p>Además te llevas:</p>
+      <ul>
+        <li>Tus cuatro zonas con tus cifras reales.</li>
+        <li>Tus días de cobro de verdad.</li>
+        <li>El dinero atrapado en stock, deuda e inversión.</li>
+        <li>Tu cuadro de mando de 5 minutos al mes.</li>
+        <li>La palanca prioritaria que más caja libera.</li>
+      </ul>
+      <p>¿El precio? 497 € si reservas antes de las 23:59 de hoy. Con garantía: si no ves con claridad, te devuelvo cada euro. Cuando se llenan las plazas, cierro la convocatoria.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E14 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 14 · Quedan 12 horas</span><span class="when">Día 7 · −12 h</span></div>
+    <div class="esub"><b>Asunto:</b> expira a las 23:59</div>
+    <div class="ebody">
+      <p>Cierro las plazas del <b>Diagnóstico de 48 horas</b> en menos de 12 horas.</p>
+      <p>Va directo: si quieres ver dónde está tu dinero, seguro te han dicho que necesitas estudiar finanzas o montar un departamento. No es cierto.</p>
+      <p>Te enseño a verlo sin nada de eso: tus cuatro zonas, en 48 horas.</p>
+      <p>Esto ha devuelto el sueño a dueños que llevaban años gobernando a ciegas. El plazo termina hoy a las 23:59.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E15 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 15 · Quedan 6 horas</span><span class="when">Día 7 · −6 h</span></div>
+    <div class="esub"><b>Asunto:</b> quedan 6 horas…</div>
+    <div class="ebody">
+      <p>Quedan 6 horas para reservar tu <b>Diagnóstico de 48 horas</b>.</p>
+      <p>Voy a poner tus números sobre las cuatro zonas y enseñarte la forma más sencilla de ver tu dinero, aunque hoy sientas que no entiendes tus cuentas.</p>
+      <p>No seas de los que me escriben mañana pidiendo entrar cuando ya he cerrado. (Pasa cada convocatoria.)</p>
+      <p>Llevo años traduciendo cuentas ilegibles en decisiones claras. En tu diagnóstico verás:</p>
+      <ul>
+        <li>Tus cuatro zonas con tus cifras.</li>
+        <li>Tus días reales de cobro.</li>
+        <li>El dinero dormido en stock, deuda e inversión.</li>
+        <li>Las decisiones que más caja liberan.</li>
+      </ul>
+      <p>Quedan pocas plazas y cierro en 6 horas, pase lo que pase.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <!-- E16 -->
+  <div class="email">
+    <div class="ehead"><span class="n">Email 16 · Última oportunidad</span><span class="when">Día 7 · −2 h</span></div>
+    <div class="esub"><b>Asunto:</b> cerramos en 2 horas (última oportunidad)</div>
+    <div class="ebody">
+      <p>Si te has saltado los correos anteriores, este es el último aviso.</p>
+      <p>El plazo del <b>Diagnóstico de 48 horas</b> termina en unas dos horas.</p>
+      <p>Si quieres ver dónde está tu dinero leyendo tus cuatro zonas con el Método RUTA, esta es tu última oportunidad de esta convocatoria. No lo dejes pasar por procrastinar.</p>
+      <p>Tienes dos horas. Y si al terminar no crees que ha valido diez veces los 497 €, te devuelvo el dinero. Así de simple.</p>
+      <p><a class="cta" href="#">Reservar mi plaza →</a></p>
+      <p class="sig">Valerio</p>
+    </div>
+  </div>
+
+  <div class="note"><b>Datos a fijar al programar (no quedan en el cuerpo de los correos):</b> fechas exactas de la convocatoria y del cierre; número real de plazas (aquí 10, confirmar capacidad); enlace de reserva (dondeestamidinero.es/#contacto). Insertar, si se desea, una captura o cifra de un caso real verificable de <code>valeriogarciamentor.com</code> en los emails 2 y 12 (ahora se usa el caso «Tomás» del propio libro).</div>
+
+  <!-- CIERRE DEL EMBUDO -->
+  <h2>Cierre del embudo — las 5 fases</h2>
+  <table>
+    <tr><th>Fase</th><th>Entregable</th><th>Nota auditoría</th></tr>
+    <tr><td>1 · Anuncios + modelo económico</td><td>25 anuncios A/B + anuncio TOP 15 elementos + CPA/VMC</td><td><b>9,5</b> ✓</td></tr>
+    <tr><td>2 · Landing de ventas</td><td>10 bloques + 10 salidas, oferta libro 7 €</td><td><b>9,3</b> ✓</td></tr>
+    <tr><td>3 · Checkout</td><td>Pedido + 2 bumps + upsell + downsell + gracias</td><td><b>9,8</b> ✓</td></tr>
+    <tr><td>4 · Back-end y escalera</td><td>Escalera de 8 peldaños + oferta vs 7 criterios + 5 pilares</td><td><b>9,8</b> ✓</td></tr>
+    <tr><td>5 · Correos de campaña</td><td>17 envíos, venden el Diagnóstico de 48 h</td><td>(esta auditoría)</td></tr>
+  </table>
+
+  <footer>
+    <b>Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Fase 5 de 5 — Secuencia de correos · 17 envíos · vende el Diagnóstico de 48 h · Mecanismo: Método RUTA<br>
+    Último gate: auditoría (ec-auditor, rúbrica de correos) → con ≥8/10 el embudo queda COMPLETO.
+  </footer>
+
+</div>
+</body>
+</html>

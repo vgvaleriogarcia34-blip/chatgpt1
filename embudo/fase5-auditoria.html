@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoría · Fase 5 — Correos + Cierre del embudo · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;--green:#2e7d32;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.5;margin:0;}
+  .wrap{max-width:880px;margin:0 auto;padding:40px 40px 70px;}
+  h1,h2{font-family:Georgia,'Times New Roman',serif;color:var(--navy);}
+  h2{font-size:21px;margin:36px 0 12px;padding-bottom:6px;border-bottom:3px solid var(--gold);}
+  .cover{background:var(--navy);color:#fff;padding:34px 38px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+  .cover h1{color:#fff;font-size:25px;margin:0 0 6px;}
+  .cover .sub{color:#cdd4e0;font-size:13px;}
+  .score{text-align:center;background:var(--gold);color:var(--navy);border-radius:8px;padding:16px 22px;min-width:140px;}
+  .score .n{font-family:Georgia,serif;font-size:42px;font-weight:bold;line-height:1;}
+  .score .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;}
+  .verdict{font-family:Georgia,serif;font-size:13px;font-weight:bold;margin-top:6px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px;}
+  th,td{text-align:left;padding:8px 9px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  td.c{text-align:center;font-weight:bold;}
+  .ok{color:#2e7d32;font-weight:bold;}
+  .stamp{background:#eef6ee;border:2px solid #2e7d32;color:#1b5e20;padding:18px 22px;border-radius:6px;margin:18px 0;font-family:Georgia,serif;}
+  .stamp b{font-size:17px;}
+  .fail{background:#f6f2e8;border-left:4px solid var(--gold);padding:14px 18px;margin:12px 0;border-radius:0 4px 4px 0;font-size:13.5px;}
+  .final{background:var(--navy);color:#fff;border-radius:8px;padding:24px 28px;margin:24px 0;text-align:center;}
+  .final h2{color:#fff;border:none;margin:0 0 8px;}
+  .final .avg{font-family:Georgia,serif;font-size:38px;color:var(--gold);font-weight:bold;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+  footer{margin-top:46px;padding-top:16px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <div>
+      <span style="color:var(--gold);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;">ec-auditor · Rúbrica 5 — Correos</span>
+      <h1>Informe de auditoría · Fase 5</h1>
+      <div class="sub">Entregable: <code>embudo/fase5-correos.html</code> · 17 correos · vende el Diagnóstico de 48 h · Gate ≥ 8,0</div>
+    </div>
+    <div class="score">
+      <div class="n">9,5</div>
+      <div class="l">/ 10</div>
+      <div class="verdict">APROBADO</div>
+    </div>
+  </div>
+
+  <h2>Puntuación criterio por criterio</h2>
+  <table>
+    <tr><th>#</th><th>Criterio</th><th>Peso</th><th>Nota</th><th>Evidencia</th><th>Veredicto</th></tr>
+    <tr><td>1</td><td>Secuencia completa</td><td class="c">14</td><td class="c">10</td><td>Email −24h + 7 días con envíos AM/PM + cierres −12h/−6h/−2h: 17 envíos, todos presentes.</td><td class="ok">Cumple</td></tr>
+    <tr><td>2</td><td>Cadencia y horarios correctos</td><td class="c">8</td><td class="c">10</td><td>09:00 / 19:00 etiquetados por correo; cierres a −12/−6/−2 h del plazo.</td><td class="ok">Cumple</td></tr>
+    <tr><td>3</td><td>Cada email = una idea, una CTA</td><td class="c">12</td><td class="c">9</td><td>Un único enlace por correo. Excepción leve: el Email 5 combina «responde a este correo» + «reservar plaza» (doble acción).</td><td class="ok">Cumple</td></tr>
+    <tr><td>4</td><td>Placeholders resueltos con el producto real</td><td class="c">12</td><td class="c">10</td><td>Sin corchetes en los cuerpos: oferta (Diagnóstico 497€), mecanismo (RUTA/4 zonas), avatar, dolores y garantía resueltos. Variables operativas (fechas, nº plazas) van fuera, en nota.</td><td class="ok">Cumple</td></tr>
+    <tr><td>5</td><td>Arco psicológico de los 7 días</td><td class="c">12</td><td class="c">10</td><td>Anuncio→prueba→dolor→gran idea→qué quieres→para ti si→lo que NO→qué prefieres→beneficios ocultos→coste→funcionará→imagina→cierre. Progresión coherente.</td><td class="ok">Cumple</td></tr>
+    <tr><td>6</td><td>Coherencia con landing y oferta</td><td class="c">10</td><td class="c">9</td><td>Promesa, mecanismo y garantía idénticos. Nota: la campaña vende el back-end (Diagnóstico 497€), distinto del front-end de la landing (libro 7€) —por diseño de Fase 4—; convendría una página de ventas propia del Diagnóstico.</td><td class="ok">Cumple</td></tr>
+    <tr><td>7</td><td>Prueba y testimonios reales</td><td class="c">8</td><td class="c">8</td><td>Usa el caso «Tomás» <i>del propio libro</i> (no inventado). Falta una captura/cifra de cliente real verificable.</td><td class="ok">Cumple</td></tr>
+    <tr><td>8</td><td>Urgencia y escasez éticas</td><td class="c">8</td><td class="c">10</td><td>Escasez real (plazas limitadas por capacidad, cierre por llenado). Se eliminó el recurso «las grabaciones costarán el triple» por no aplicar (sería falsa escasez).</td><td class="ok">Cumple</td></tr>
+    <tr><td>9</td><td>Voz FE</td><td class="c">8</td><td class="c">10</td><td>Humano, directo, sin humo: «no hace falta estudiar finanzas ni montar un departamento»; sin motivación barata.</td><td class="ok">Cumple</td></tr>
+    <tr><td>10</td><td>Asuntos que se abren</td><td class="c">8</td><td class="c">9</td><td>«¿eres tú?», «no me di cuenta de esto…», «¿qué te está costando esto?»: curiosidad/tensión legítima, coherentes con el cuerpo.</td><td class="ok">Cumple</td></tr>
+  </table>
+
+  <p style="font-size:13px;"><b>Cálculo:</b> (10·14 + 10·8 + 9·12 + 10·12 + 10·12 + 9·10 + 8·8 + 10·8 + 10·8 + 9·8) / 100 = <b>954 / 100 = 9,5</b></p>
+
+  <h2>3 fallos de mayor impacto (no bloquean el gate)</h2>
+  <div class="fail">
+    <b>1 · Email 5 con doble acción.</b> Pide responder al correo y reservar plaza. Para regla estricta de «una sola CTA», dejar solo la pregunta-respuesta (el objetivo de ese correo es conversación, no venta).<br><br>
+    <b>2 · Falta prueba de cliente real.</b> Se apoya en «Tomás» (del libro). Añadir una cifra/caso verificable de <code>valeriogarciamentor.com</code> en los emails 2 y 12 elevaría la credibilidad.<br><br>
+    <b>3 · Oferta de campaña vs front-end.</b> Los correos venden el Diagnóstico (497 €), no el libro (7 €). Es correcto según Fase 4, pero requiere una <b>página de ventas propia del Diagnóstico</b> (fuera del alcance de estas 5 fases) para coherencia total de precio/garantía al hacer clic.
+  </div>
+
+  <div class="stamp">
+    <b>✓ APROBADO — 9,5 / 10.</b> Quinta y última fase superada.
+  </div>
+
+  <div class="final">
+    <h2>★ EMBUDO COMPLETO ★</h2>
+    <div>Las 5 fases aprobadas (gate ≥ 8,0 en todas)</div>
+    <div class="avg">Media 9,6 / 10</div>
+    <table style="color:#fff;">
+      <tr><th>Fase</th><th>Entregable</th><th>Nota</th></tr>
+      <tr><td>1 · Anuncios + modelo económico</td><td>25 anuncios A/B + TOP 15 elementos + CPA/VMC</td><td class="c" style="color:var(--gold)">9,5</td></tr>
+      <tr><td>2 · Landing de ventas</td><td>10 bloques + 10 salidas (libro 7 €)</td><td class="c" style="color:var(--gold)">9,3</td></tr>
+      <tr><td>3 · Checkout</td><td>Pedido + 2 bumps + upsell + downsell + gracias</td><td class="c" style="color:var(--gold)">9,8</td></tr>
+      <tr><td>4 · Back-end y escalera</td><td>8 peldaños + oferta vs 7 criterios + 5 pilares</td><td class="c" style="color:var(--gold)">9,8</td></tr>
+      <tr><td>5 · Correos de campaña</td><td>17 envíos (Diagnóstico 48 h)</td><td class="c" style="color:var(--gold)">9,5</td></tr>
+    </table>
+  </div>
+
+  <h2>Pendientes transversales antes de poner en vivo</h2>
+  <div class="fail">
+    • <b>Testimonios/casos reales</b> con nombre y cifras (landing, anuncios, correos) desde valeriogarciamentor.com.<br>
+    • <b>Formato del libro</b> (digital/físico/ambos) — condiciona landing y checkout.<br>
+    • <b>Bonos 3–5</b> de la landing: confirmar que se producen o ajustar el valor del stack.<br>
+    • <b>Precios premium</b> (Clarity Code™, Quercus®) y <b>tasas de ascensión</b> reales para el VMC.<br>
+    • <b>Producción</b>: VSL de landing/upsell/gracias, pasarela de pago con la lógica del flujo, y página de ventas del Diagnóstico.
+  </div>
+
+  <footer>
+    <b>ec-auditor · Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Gate Fase 5 (final) · Iteración 1 · Resultado: APROBADO (9,5/10) · <b>EMBUDO COMPLETO — 5/5 fases.</b>
+  </footer>
+</div>
+</body>
+</html>
