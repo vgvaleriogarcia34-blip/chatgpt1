@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embudo de Conversión · Fase 1 — Anuncios · «Dónde está mi dinero»</title>
+<style>
+  :root{
+    --navy:#1B2A4A;
+    --gold:#C8A951;
+    --ink:#21262e;
+    --paper:#fdfcf9;
+    --line:#e6e0d2;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    color:var(--ink);
+    background:var(--paper);
+    line-height:1.55;
+    margin:0;
+    padding:0;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:48px 40px 80px;}
+  h1,h2,h3,h4{font-family:Georgia,'Times New Roman',serif;color:var(--navy);line-height:1.2;}
+  h1{font-size:30px;margin:0 0 6px;}
+  h2{font-size:23px;margin:48px 0 14px;padding-bottom:8px;border-bottom:3px solid var(--gold);}
+  h3{font-size:18px;margin:30px 0 8px;color:var(--navy);}
+  h4{font-size:15px;margin:18px 0 4px;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;}
+  .cover{background:var(--navy);color:#fff;padding:46px 42px;border-radius:6px;margin-bottom:14px;}
+  .cover h1{color:#fff;}
+  .cover .sub{color:var(--gold);font-family:Georgia,serif;font-style:italic;font-size:17px;margin:4px 0 18px;}
+  .cover .meta{font-size:13px;color:#cdd4e0;line-height:1.7;}
+  .tag{display:inline-block;background:var(--gold);color:var(--navy);font-weight:bold;font-size:11px;letter-spacing:.08em;padding:4px 10px;border-radius:3px;text-transform:uppercase;}
+  .lead{font-size:16px;color:#3a3f47;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;}
+  th,td{text-align:left;padding:9px 11px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  .calc{background:#f6f2e8;border-left:4px solid var(--gold);padding:16px 20px;border-radius:0 4px 4px 0;margin:16px 0;}
+  .calc b{color:var(--navy);}
+  .ad{border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin:14px 0;background:#fff;}
+  .ad .id{font-family:Georgia,serif;color:var(--gold);font-weight:bold;font-size:13px;letter-spacing:.05em;}
+  .ad .ang{font-size:12px;color:#7a7f87;float:right;}
+  .ad .label{font-size:11px;font-weight:bold;color:var(--navy);letter-spacing:.06em;text-transform:uppercase;}
+  .ad p{margin:4px 0 10px;}
+  .ad .hook{font-family:Georgia,serif;font-size:16px;color:var(--navy);font-weight:bold;font-style:italic;}
+  .meta-line{font-size:12.5px;color:#5a5f67;border-top:1px dashed var(--line);padding-top:8px;margin-top:8px;}
+  .meta-line span{margin-right:18px;}
+  .top{border:2px solid var(--gold);background:#fffdf6;}
+  .top ol{margin:8px 0 0;padding-left:22px;}
+  .top ol li{margin:7px 0;}
+  .top ol li b{color:var(--navy);}
+  .checks{list-style:none;padding-left:0;}
+  .checks li:before{content:"✓ ";color:var(--gold);font-weight:bold;}
+  .note{background:#eef1f7;border:1px solid #d6deea;padding:12px 16px;border-radius:4px;font-size:13px;color:#41485a;margin:14px 0;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media print{.wrap{padding:0 8px;}.ad{break-inside:avoid;}.cover{border-radius:0;}}
+  @media(max-width:680px){.grid{grid-template-columns:1fr;}}
+  footer{margin-top:50px;padding-top:18px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <span class="tag">Embudo de Conversión · Fase 1 de 5</span>
+    <h1 style="margin-top:14px;">Anuncios y modelo económico</h1>
+    <div class="sub">«Dónde está mi dinero» — Por qué ganas dinero que nunca llegas a ver, y el mapa para recuperarlo.</div>
+    <div class="meta">
+      Marca: Familias Empresarias · Arquitectos de Claridad™ &nbsp;|&nbsp; Autor: Valerio García Pérez<br>
+      Front-end: libro a 7&nbsp;€ &nbsp;|&nbsp; Mecanismo: Método&nbsp;RUTA + Mapa de las Cuatro Zonas<br>
+      Destino del tráfico: landing del libro → checkout &nbsp;|&nbsp; dondeestamidinero.es
+    </div>
+  </div>
+
+  <p class="lead"><b>Principio rector.</b> La publicidad no vende: amplifica lo que ya existe. El anuncio se construye sobre un mensaje, un libro, un embudo y una oferta ya definidos. Aquí trabajamos el último eslabón visible —los anuncios— y los dos números que deciden si el sistema es rentable.</p>
+
+  <!-- ============ MODELO ECONÓMICO ============ -->
+  <h2>1 · Modelo económico (CPA &lt; VMC)</h2>
+  <p>El libro es la <b>puerta</b> (front-end de precio bajo): no busca beneficio en sí mismo, busca compradores cualificados. El beneficio vive en lo que el lector activa después dentro del ecosistema. La regla del sistema es una: <b>el valor medio por cliente debe superar el coste de adquirirlo</b>.</p>
+
+  <table>
+    <tr><th>Concepto</th><th>Qué es</th><th>En este embudo</th></tr>
+    <tr><td><b>CPA</b></td><td>Coste por adquisición: lo que cuesta conseguir un comprador del libro.</td><td>Objetivo de tráfico frío: <b>10–18 €</b> por comprador del libro a 7 €.</td></tr>
+    <tr><td><b>VMC</b></td><td>Valor medio por cliente: lo que genera de media un lector sumando libro + bump + upsell + back-end.</td><td>Estimado <b>≈ 44,7 €</b> por comprador (ver cálculo).</td></tr>
+  </table>
+
+  <div class="calc">
+    <b>Cálculo del VMC (hipótesis de trabajo, por cada 100 compradores del libro):</b><br><br>
+    • Libro · 100 × 7 € = <b>700 €</b><br>
+    • Order bump (plantillas/herramientas premium · 27 €) · 30% × 100 × 27 € = <b>810 €</b><br>
+    • Upsell (masterclass / Clarity Code intro · 97 €) · 10% × 100 × 97 € = <b>970 €</b><br>
+    • Back-end · Diagnóstico de 48 horas · 497 € · 4% × 100 × 497 € = <b>1.988 €</b><br>
+    <hr style="border:none;border-top:1px solid var(--line);margin:10px 0;">
+    Ingreso total por 100 compradores = <b>4.468 €</b> &nbsp;→&nbsp; <b>VMC ≈ 44,7 €/comprador</b>
+  </div>
+
+  <p><b>Lectura del sistema:</b> con un VMC ≈ 44,7 € y un CPA objetivo de 10–18 €, la relación <b>VMC &gt; CPA</b> se cumple con holgura: por cada euro de adquisición el ecosistema devuelve entre 2,5× y 4,5×. El front-end a 7 € recupera buena parte del CPA en el acto, de modo que el back-end (Diagnóstico) es beneficio casi puro. <b>El punto crítico no es el libro: es la tasa de conversión a Diagnóstico</b> (cada punto porcentual sobre 497 € mueve el VMC con fuerza).</p>
+
+  <h4>Estrategia de inversión inicial</h4>
+  <p>Validar antes de escalar: <b>validar el sistema → medir conversiones → revisar números → ajustar el embudo → escalar</b>. Arrancar con varios conjuntos de anuncios (no uno) sobre distintos públicos, <b>~10 €/día por conjunto, un público por conjunto</b>. A los pocos días: el conjunto que pierde se apaga; el que recupera inversión se repite y se duplica su audiencia. Solo se escala con el embudo optimizado y la oferta final probada.</p>
+
+  <div class="note"><b>Juicio de viabilidad.</b> Precio del libro (7 €) y back-end (497 €) son coherentes con la relación CPA/VMC: el modelo no se rompe. Las tasas de conversión (30% bump · 10% upsell · 4% Diagnóstico) son <i>hipótesis conservadoras a validar</i> con los primeros 200–300 compradores; son el dato que más mueve la rentabilidad y deben medirse desde el día 1.</p>
+
+  <!-- ============ INTAKE 28 CAMPOS ============ -->
+  <h2>2 · Intake (28 campos, precargados del libro)</h2>
+  <h4>Negocio</h4>
+  <table>
+    <tr><td>1 · Marca</td><td>Familias Empresarias · Arquitectos de Claridad™</td></tr>
+    <tr><td>2 · Libro</td><td>«Dónde está mi dinero»</td></tr>
+    <tr><td>3 · Precio</td><td>7 € (front-end)</td></tr>
+    <tr><td>4 · Bonos</td><td>Hoja del «Test de una tarde» + Cuadro de Mando de Caja (descargables gratis)</td></tr>
+    <tr><td>5 · Valor total</td><td>Mapa completo + 2 herramientas listas para usar (percibido &gt;&gt; 7 €)</td></tr>
+    <tr><td>6 · Mecanismo único</td><td>Método RUTA (Reconocer · Ubicar · Traducir · Actuar) + Mapa de las Cuatro Zonas (Cobro · Existencias · Deuda · Inversión)</td></tr>
+    <tr><td>7 · Promesa</td><td>Saber dónde está tu dinero sin convertirte en financiero. «Ver, no estudiar.»</td></tr>
+    <tr><td>8 · Transformación</td><td>Del dueño que hace la cuenta del miedo a las 12 de la noche → al dueño que sabe lo que hay, por qué, y qué hará mañana. Y duerme.</td></tr>
+    <tr><td>9 · Problema</td><td>«Gano dinero pero no lo tengo»: el beneficio (opinión) no es la caja (hecho). La contabilidad se hizo para Hacienda, no para el dueño.</td></tr>
+    <tr><td>10 · Diferencia</td><td>No enseña finanzas: enseña a ver el dinero por zonas. Traducción, no estudio.</td></tr>
+    <tr><td>11 · Ecosistema / upsell</td><td>Libro 7 € → herramientas gratis → <b>Diagnóstico de 48 horas (497 €)</b> → Clarity Code → Método Quercus®</td></tr>
+    <tr><td>12 · Historia</td><td>Tomás, fabricante de mobiliario: mejor año de su vida, beneficio récord… y no pudo pagar nóminas sin tirar de la póliza.</td></tr>
+  </table>
+  <h4>Cliente ideal</h4>
+  <table>
+    <tr><td>13 · Cliente ideal</td><td>Dueño de empresa familiar / pyme que factura bien y se gobierna de memoria.</td></tr>
+    <tr><td>14 · Situación actual</td><td>Beneficio en el papel, miedo en el banco; póliza al límite; delegó «el entender» en su gestor.</td></tr>
+    <tr><td>15 · Deseo</td><td>Tranquilidad: dormir sabiendo dónde está su dinero y gobernar con criterio.</td></tr>
+    <tr><td>16 · Dolores</td><td>El saldo que no cuadra; las nóminas que solo salen con la póliza; noches sin dormir.</td></tr>
+    <tr><td>17 · Miedos</td><td>Que el problema sea él; perder la empresa (y la casa que la avala); dejar a su familia un problema.</td></tr>
+    <tr><td>18 · Objeciones</td><td>«Un libro no me arregla esto» · «Los números no son lo mío» · «No tengo tiempo» · «Ya tengo gestor».</td></tr>
+    <tr><td>19 · Qué ha probado</td><td>Vender más, apretar proveedores, buscar culpables, acumular informes y Excel.</td></tr>
+    <tr><td>20 · Frustraciones</td><td>El gestor cumple pero no traduce; tiene más información que nunca y menos claridad que nunca.</td></tr>
+  </table>
+  <h4>Autoridad</h4>
+  <table>
+    <tr><td>21 · Casos</td><td>Empresas familiares acompañadas a entender, por fin, su propio negocio. <i>[Casos con nombre: valeriogarciamentor.com]</i></td></tr>
+    <tr><td>22 · Resultados</td><td>Cuentas ilegibles traducidas en decisiones claras; Diagnóstico de 48 h que «ha devuelto el sueño» a dueños que gobernaban a ciegas.</td></tr>
+    <tr><td>23 · Trayectoria</td><td>+20 años en empresa familiar (junto a su socia Cecilia); mentor ejecutivo; miembro de AECOP.</td></tr>
+    <tr><td>24 · Testimonios</td><td><i>[Insertar testimonios verificables de valeriogarciamentor.com]</i></td></tr>
+  </table>
+  <h4>Identidad visual</h4>
+  <table>
+    <tr><td>25–28 · Estilo</td><td>Navy <code>#1B2A4A</code> / gold <code>#C8A951</code>; Georgia (titulares) + Arial (texto). Tono: sobrio, cálido, autoridad tranquila. Recursos: web dondeestamidinero.es, valeriogarciamentor.com. <i>[Subir logos / fotos del autor / imágenes de marca]</i></td></tr>
+  </table>
+
+  <!-- ============ ANÁLISIS ============ -->
+  <h2>3 · Análisis estratégico</h2>
+  <table>
+    <tr><th>Eje</th><th>Conclusión</th></tr>
+    <tr><td><b>Deseo principal</b></td><td>Dormir tranquilo sabiendo dónde está su dinero. Claridad = tranquilidad.</td></tr>
+    <tr><td><b>Dolor visible</b></td><td>El saldo no cuadra pese al beneficio; la póliza siempre al límite.</td></tr>
+    <tr><td><b>Dolor oculto</b></td><td>Vergüenza de no entender sus propios números; sentirse un impostor en lo financiero; miedo a mirar.</td></tr>
+    <tr><td><b>Objeciones</b></td><td>«Un libro no arregla esto» · «No tengo tiempo para finanzas» · «Ya tengo quien me lleva las cuentas».</td></tr>
+    <tr><td><b>Enemigo común</b></td><td>La contabilidad hecha para Hacienda y no para el dueño; el falso atajo del «vende más»; la oscuridad.</td></tr>
+    <tr><td><b>Identidad aspiracional</b></td><td>El dueño que gobierna con los ojos abiertos, duerme tranquilo y deja una empresa —no un problema— a su familia.</td></tr>
+    <tr><td><b>Emociones dominantes</b></td><td>Salida: miedo, vergüenza, soledad. Entrada: alivio, control, dignidad recuperada.</td></tr>
+    <tr><td><b>Mecanismo único</b></td><td>Mapa de las Cuatro Zonas + Método RUTA. La frase-bandera: «Ver, no estudiar.»</td></tr>
+  </table>
+
+  <!-- ============ 10 ÁNGULOS ============ -->
+  <h2>4 · Los 10 ángulos</h2>
+  <table>
+    <tr><th>#</th><th>Ángulo</th><th>Promesa / entrada emocional</th></tr>
+    <tr><td>1</td><td><b>Dolor</b></td><td>«La cuenta de las doce de la noche que no cuadra.»</td></tr>
+    <tr><td>2</td><td><b>Curiosidad</b></td><td>«Solo hay 4 sitios donde una empresa esconde el dinero que gana.»</td></tr>
+    <tr><td>3</td><td><b>Autoridad</b></td><td>«Mentor de empresas familiares, +20 años, autor superventas en Amazon España.»</td></tr>
+    <tr><td>4</td><td><b>Error</b></td><td>«Crees que necesitas vender más. Es justo al revés.»</td></tr>
+    <tr><td>5</td><td><b>Transformación</b></td><td>«Del nudo en el estómago a dormir del tirón.»</td></tr>
+    <tr><td>6</td><td><b>Oportunidad</b></td><td>«El test de una tarde: tu primera victoria con tus números, hoy.»</td></tr>
+    <tr><td>7</td><td><b>Enemigo</b></td><td>«Tu contabilidad no se hizo para ti. Se hizo para Hacienda.»</td></tr>
+    <tr><td>8</td><td><b>Identidad</b></td><td>«Eres brillante en lo tuyo. Nadie te tradujo nunca tus números.»</td></tr>
+    <tr><td>9</td><td><b>Estatus</b></td><td>«Gobernar con criterio, no a ráfagas y con miedo.»</td></tr>
+    <tr><td>10</td><td><b>Polémica</b></td><td>«Delegar el entender es delegar el mandar.»</td></tr>
+  </table>
+
+  <!-- ============ 25 ANUNCIOS ============ -->
+  <h2>5 · 25 anuncios A/B</h2>
+  <p class="lead">5 imagen · 5 vídeo · 5 UGC · 5 historia · 5 autoridad. Cada uno: <b>HOOK · CUERPO · CTA · EMOCIÓN · OBJETIVO</b>. CTA común: <b>«Consigue ‘Dónde está mi dinero’ por 7 € → dondeestamidinero.es»</b>.</p>
+
+  <h3>Formato Imagen (A1–A5)</h3>
+
+  <div class="ad">
+    <span class="id">A1</span><span class="ang">Ángulo: Dolor</span>
+    <p class="hook">Son las 00:13. Abres el banco a oscuras para no despertar a nadie.</p>
+    <p class="label">Cuerpo</p><p>Tu gestor te dio «beneficio récord» este año. Tu saldo dice otra cosa. Entre los dos hay un hueco que pagas con noches sin dormir. No estás haciendo nada mal: nadie te enseñó a mirar dónde se queda tu dinero. Este libro sí.</p>
+    <p class="label">CTA</p><p>Encuentra tu dinero por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> identificación / alivio</span><span><b>Objetivo:</b> tráfico frío, conexión por dolor</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A2</span><span class="ang">Ángulo: Curiosidad</span>
+    <p class="hook">Tu empresa gana dinero. ¿Por qué no está en el banco?</p>
+    <p class="label">Cuerpo</p><p>Porque no se ha ido: está atrapado. Solo hay cuatro sitios donde una empresa esconde el dinero que gana. Aprende a verlos en una tarde —sin estudiar contabilidad— con el Mapa de las Cuatro Zonas.</p>
+    <p class="label">CTA</p><p>Descubre las 4 zonas por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> intriga</span><span><b>Objetivo:</b> CTR alto, clic curioso</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A3</span><span class="ang">Ángulo: Error</span>
+    <p class="hook">«Si vendo más, se arregla.» Es justo al revés.</p>
+    <p class="label">Cuerpo</p><p>Cada venta que aún no has cobrado es dinero que adelantas tú. Crecer consume caja antes de generarla. Por eso tantas empresas no mueren de débiles, sino de éxito. Aprende a ver tu dinero antes de pisar el acelerador.</p>
+    <p class="label">CTA</p><p>Lee el libro por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> sorpresa / corrección de creencia</span><span><b>Objetivo:</b> romper la objeción «vender más»</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A4</span><span class="ang">Ángulo: Transformación</span>
+    <p class="hook">Del nudo en el estómago a dormir del tirón.</p>
+    <p class="label">Cuerpo</p><p>Imagina abrir el banco de noche y, por primera vez, no hacer la cuenta del miedo: sabes lo que hay, por qué, y qué harás mañana. Eso es lo que de verdad vende este libro. No técnicas. Sueño.</p>
+    <p class="label">CTA</p><p>Recupera el sueño por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> esperanza / alivio</span><span><b>Objetivo:</b> deseo de la transformación</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A5</span><span class="ang">Ángulo: Enemigo</span>
+    <p class="hook">Tu contabilidad no se hizo para ti. Se hizo para Hacienda.</p>
+    <p class="label">Cuerpo</p><p>Por eso «que las cuentas estén bien» no es lo mismo que «que tú sepas dónde está tu dinero». Lo primero es cumplir. Lo segundo es gobernar —y es tuyo e intransferible. Este libro te devuelve esa segunda parte.</p>
+    <p class="label">CTA</p><p>Aprende a gobernar tu caja por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> indignación justa / desahogo</span><span><b>Objetivo:</b> posicionar enemigo común</span></div>
+  </div>
+
+  <h3>Formato Vídeo (A6–A10) · guion de gancho</h3>
+
+  <div class="ad">
+    <span class="id">A6</span><span class="ang">Ángulo: Identidad</span>
+    <p class="hook">[0–3 s] «Levantaste una empresa de la nada. Y te encoges cuando tu asesor abre un Excel.»</p>
+    <p class="label">Cuerpo (guion)</p><p>No es falta de inteligencia: es falta de traducción. He visto a fundadores que negocian con cualquiera quedarse mudos ante sus propias cuentas. No es un defecto tuyo: es la prueba de que nadie te las tradujo nunca. Te enseño a leerlas tú.</p>
+    <p class="label">CTA</p><p>«Empieza por el libro, 7 € → dondeestamidinero.es»</p>
+    <div class="meta-line"><span><b>Emoción:</b> dignidad / reconocimiento</span><span><b>Objetivo:</b> retención 3 s + identificación</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A7</span><span class="ang">Ángulo: Historia</span>
+    <p class="hook">[0–3 s] «Tomás cerró el mejor año de su vida. No pudo pagar las nóminas.»</p>
+    <p class="label">Cuerpo (guion)</p><p>Beneficio récord, dijo el gestor. Esa semana tiró de la póliza. Otra vez. Buscó culpables, apretó proveedores… y seguía sin entender cómo, ganando más que nunca, tenía menos que nunca. Le faltaba una cosa: ver dónde se quedaba su dinero.</p>
+    <p class="label">CTA</p><p>«La explicación está en este libro, 7 € → dondeestamidinero.es»</p>
+    <div class="meta-line"><span><b>Emoción:</b> identificación narrativa</span><span><b>Objetivo:</b> VSL corta, retención media</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A8</span><span class="ang">Ángulo: Oportunidad</span>
+    <p class="hook">[0–3 s] «Una tarde. Dos números. Y sabrás cuántos días tardas en cobrar.»</p>
+    <p class="label">Cuerpo (guion)</p><p>No necesitas a tu gestor ni un programa. Solo dos datos que ya tienes y una cuenta. En el libro está el «test de una tarde»: la zona donde más dinero se atrapa, medida con tus números. Tu primera victoria, hoy.</p>
+    <p class="label">CTA</p><p>«Hazlo esta semana, 7 € → dondeestamidinero.es»</p>
+    <div class="meta-line"><span><b>Emoción:</b> capacidad / acción inmediata</span><span><b>Objetivo:</b> conversión por promesa concreta</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A9</span><span class="ang">Ángulo: Curiosidad</span>
+    <p class="hook">[0–3 s] «El beneficio es una opinión. La caja es un hecho.»</p>
+    <p class="label">Cuerpo (guion)</p><p>El beneficio se calcula —con amortizaciones, criterios, periodificaciones—. La caja no se discute: el dinero está o no está. Por eso puedes cerrar un año brillante y un año asfixiante a la vez. Te enseño a leer los dos.</p>
+    <p class="label">CTA</p><p>«Entiende la diferencia, 7 € → dondeestamidinero.es»</p>
+    <div class="meta-line"><span><b>Emoción:</b> revelación</span><span><b>Objetivo:</b> autoridad + intriga</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A10</span><span class="ang">Ángulo: Dolor</span>
+    <p class="hook">[0–3 s] «La conversación que ningún empresario tiene en las comidas.»</p>
+    <p class="label">Cuerpo (guion)</p><p>Se habla de facturación, de pedidos, de lo difícil que está todo. Nadie habla del saldo de las doce de la noche. Cada uno se cree el único —y por eso cada uno calla. No estás solo. Y tiene solución.</p>
+    <p class="label">CTA</p><p>«Rompe el silencio, 7 € → dondeestamidinero.es»</p>
+    <div class="meta-line"><span><b>Emoción:</b> pertenencia / desahogo</span><span><b>Objetivo:</b> conexión emocional, guardar/compartir</span></div>
+  </div>
+
+  <h3>Formato UGC (A11–A15) · primera persona / testimonio</h3>
+
+  <div class="ad">
+    <span class="id">A11</span><span class="ang">Ángulo: Identidad</span>
+    <p class="hook">«Pensaba que el problema era yo. Era el idioma en que me daban las cuentas.»</p>
+    <p class="label">Cuerpo</p><p>Llevo años facturando bien y mirando el banco con miedo. Este libro no me convirtió en financiero —no quería serlo—. Me enseñó a ver. Y eso lo cambió todo. <i>[testimonio a verificar / sustituir por real]</i></p>
+    <p class="label">CTA</p><p>Pruébalo tú por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> alivio / cercanía</span><span><b>Objetivo:</b> prueba social, look orgánico</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A12</span><span class="ang">Ángulo: Oportunidad</span>
+    <p class="hook">«Hice el test de la página 40. En una tarde vi el dinero que mis clientes me debían.»</p>
+    <p class="label">Cuerpo</p><p>Dos números y una cuenta. Me salió que tardaba muchísimo en cobrar. Llamé a los tres que más me debían esa misma semana. Eso no es saber de finanzas: es gobernar. <i>[testimonio a verificar]</i></p>
+    <p class="label">CTA</p><p>Haz el test por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> logro / capacidad</span><span><b>Objetivo:</b> demostrar resultado rápido</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A13</span><span class="ang">Ángulo: Autoridad (lector)</span>
+    <p class="hook">«20 años con la empresa. Nadie me había explicado esto en 20 minutos.»</p>
+    <p class="label">Cuerpo</p><p>Lo leí en modo ejecutivo: las aperturas, los recuadros, los mapas. En una sentada tenía el esqueleto entero y sabía exactamente a qué volver con mis números. <i>[testimonio a verificar]</i></p>
+    <p class="label">CTA</p><p>Léelo tú por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> sorpresa / confianza</span><span><b>Objetivo:</b> vencer «no tengo tiempo»</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A14</span><span class="ang">Ángulo: Error</span>
+    <p class="hook">«Lo compré pensando que era otro libro de finanzas. No estudias nada. Ves.»</p>
+    <p class="label">Cuerpo</p><p>Tengo la estantería llena de manuales que no abrí. Este es distinto: no te pide aprender contabilidad, te enseña a mirar tu propio dinero por zonas. Por 7 €. <i>[testimonio a verificar]</i></p>
+    <p class="label">CTA</p><p>Compruébalo por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> alivio / desmitificación</span><span><b>Objetivo:</b> romper objeción «otro libro más»</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A15</span><span class="ang">Ángulo: Transformación</span>
+    <p class="hook">«Ahora miro el banco de noche y no hago la cuenta del miedo.»</p>
+    <p class="label">Cuerpo</p><p>Sé lo que hay, sé por qué, y sé qué voy a hacer mañana. Cierro el teléfono y duermo. Eso valía mucho más que 7 €. <i>[testimonio a verificar]</i></p>
+    <p class="label">CTA</p><p>Recupera el sueño por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> paz / aspiración</span><span><b>Objetivo:</b> cierre emocional, conversión</span></div>
+  </div>
+
+  <h3>Formato Historia / Stories (A16–A20) · texto + swipe</h3>
+
+  <div class="ad">
+    <span class="id">A16</span><span class="ang">Ángulo: Dolor</span>
+    <p class="hook">«00:00. Pagos mañana. No cuadra.»</p>
+    <p class="label">Cuerpo (3 tarjetas)</p><p>1) La cuenta que ya has hecho cien veces. → 2) No es mala suerte ni culpa tuya. → 3) Tiene una explicación tan sencilla que te costará creer que nadie te la contara.</p>
+    <p class="label">CTA</p><p>Desliza arriba · 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> tensión → alivio</span><span><b>Objetivo:</b> swipe-up en stories</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A17</span><span class="ang">Ángulo: Curiosidad</span>
+    <p class="hook">«Tu dinero está en una de estas 4 zonas.»</p>
+    <p class="label">Cuerpo (3 tarjetas)</p><p>Cobro · Existencias · Deuda · Inversión. → No en cien sitios: en cuatro. → Cuando dejas de leer cuentas y empiezas a leer zonas, lo invisible se vuelve obvio.</p>
+    <p class="label">CTA</p><p>El mapa completo · 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> intriga / orden</span><span><b>Objetivo:</b> guardar + clic</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A18</span><span class="ang">Ángulo: Identidad</span>
+    <p class="hook">«Gano. No lo tengo. No estás loco.»</p>
+    <p class="label">Cuerpo (3 tarjetas)</p><p>El beneficio es una opinión. → La caja es un hecho. → Y casi nunca dicen lo mismo. Aquí entiendes por qué.</p>
+    <p class="label">CTA</p><p>Entiéndelo · 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> validación</span><span><b>Objetivo:</b> identificación rápida</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A19</span><span class="ang">Ángulo: Oportunidad</span>
+    <p class="hook">«El test de una tarde.»</p>
+    <p class="label">Cuerpo (3 tarjetas)</p><p>2 números. → 1 cuenta. → Tu primera victoria con tus propios números, hoy.</p>
+    <p class="label">CTA</p><p>Empieza hoy · 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> impulso</span><span><b>Objetivo:</b> acción inmediata</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A20</span><span class="ang">Ángulo: Transformación</span>
+    <p class="hook">«Mira el saldo. Cierra el teléfono. Duerme.»</p>
+    <p class="label">Cuerpo (3 tarjetas)</p><p>Esa es la escena del final del libro. → No técnicas, no fórmulas: sueño. → La tranquilidad del que dejó de gobernar a ciegas.</p>
+    <p class="label">CTA</p><p>Desliza · 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> calma / deseo</span><span><b>Objetivo:</b> cierre aspiracional</span></div>
+  </div>
+
+  <h3>Formato Autoridad (A21–A25)</h3>
+
+  <!-- TOP AD -->
+  <div class="ad top">
+    <span class="id">A21 ★ ANUNCIO TOP — estructura obligatoria de 15 elementos</span><span class="ang">Ángulo: Autoridad + Dolor</span>
+    <ol>
+      <li><b>1 · Gancho:</b> Si tu empresa gana dinero pero tú no lo ves en el banco, lee esto antes de volver a ampliar la póliza.</li>
+      <li><b>2 · Problema:</b> Cada mes tu gestor te enseña un beneficio y tu banco te enseña otra cosa. Entre los dos hay un hueco que nadie te explica.</li>
+      <li><b>3 · Puntos dolorosos:</b> «La cuenta de las doce de la noche que no cuadra.» «Las nóminas que solo salen tirando de la póliza.» «La sensación —injusta— de que quizá el problema seas tú.»</li>
+      <li><b>4 · Solución:</b> No lo eres. Tu dinero no se ha ido: está atrapado en una de cuatro zonas. Y aprender a verlas no exige convertirte en financiero.</li>
+      <li><b>5 · Autoridad:</b> Soy Valerio García, mentor ejecutivo de empresas familiares, autor superventas en Amazon España y creador del Método RUTA. Llevo más de 20 años traduciendo cuentas ilegibles en decisiones claras.</li>
+      <li><b>6 · Curiosidad:</b> Lo he resumido en un mapa de cuatro zonas y un camino de cuatro movimientos: el Método RUTA.</li>
+      <li><b>7 · Oferta:</b> Está todo en mi libro «Dónde está mi dinero», por solo 7 €.</li>
+      <li><b>8 · Llamada a la acción:</b> Consíguelo aquí → dondeestamidinero.es</li>
+      <li><b>9 · Beneficios / puntos clave:</b>
+        <ul class="checks">
+          <li>Las 4 zonas donde se esconde tu dinero (Cobro · Existencias · Deuda · Inversión)</li>
+          <li>El «test de una tarde» para encontrar dinero atrapado hoy</li>
+          <li>El cuadro de mando de 5 minutos al mes</li>
+          <li>Sin estudiar finanzas: aprendes a ver, no a calcular</li>
+        </ul>
+      </li>
+      <li><b>10 · Curiosidad:</b> Dentro descubrirás por qué el beneficio es una opinión y la caja, un hecho —y por qué casi nunca dicen lo mismo.</li>
+      <li><b>11 · Generar deseo:</b> Imagina abrir el banco de noche y, por primera vez, no hacer la cuenta del miedo: sabes lo que hay, por qué, y qué harás mañana. Y duermes.</li>
+      <li><b>12 · Riesgo de no actuar:</b> Cada mes que no miras, el dinero sigue atrapado —y a veces en más zonas. La mayoría de pymes no cierran por falta de beneficio, sino de liquidez.</li>
+      <li><b>13 · Llamada a la acción:</b> Empieza esta noche → dondeestamidinero.es</li>
+      <li><b>14 · Puntos dolorosos:</b> Basta de gobernar a ciegas, de noche y con miedo, algo que avalas con tu casa.</li>
+      <li><b>15 · Postdata + CTA:</b> P.D.: Por el precio de dos cafés tienes el mapa que a la mayoría le cuesta años —o un susto— encontrar. Y si no te sirve, te devuelvo el dinero. → dondeestamidinero.es</li>
+    </ol>
+    <div class="meta-line"><span><b>Emoción:</b> alivio + urgencia serena</span><span><b>Objetivo:</b> anuncio principal de conversión (tráfico frío → compra)</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A22</span><span class="ang">Ángulo: Autoridad</span>
+    <p class="hook">Mentor de empresas familiares, +20 años. Autor superventas en Amazon España.</p>
+    <p class="label">Cuerpo</p><p>He acompañado a fundadores y segundas generaciones a hacer algo sencillo y transformador: entender, por fin, su propio negocio. Ese método cabe en un libro de 7 €.</p>
+    <p class="label">CTA</p><p>Léelo por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> confianza</span><span><b>Objetivo:</b> credibilidad + conversión</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A23</span><span class="ang">Ángulo: Estatus</span>
+    <p class="hook">Creador del Método RUTA y del Mapa de las Cuatro Zonas.</p>
+    <p class="label">Cuerpo</p><p>Reconocer · Ubicar · Traducir · Actuar. El camino que separa decidir con criterio de dar palos de ciego. El mismo que uso cuando me siento con un empresario —ahora en tus manos.</p>
+    <p class="label">CTA</p><p>Hazlo tuyo por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> aspiración / control</span><span><b>Objetivo:</b> posicionar mecanismo único</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A24</span><span class="ang">Ángulo: Polémica</span>
+    <p class="hook">He visto morir empresas familiares buenas de algo que tenía remedio: oscuridad.</p>
+    <p class="label">Cuerpo</p><p>No morían por malas ni por falta de trabajo, sino porque nadie en la casa entendía dónde estaba el dinero —hasta que un día ya no había. Escribí este libro para romper la frase «los números no son lo mío».</p>
+    <p class="label">CTA</p><p>Rompe la frase por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> urgencia / propósito</span><span><b>Objetivo:</b> mover al indeciso</span></div>
+  </div>
+
+  <div class="ad">
+    <span class="id">A25</span><span class="ang">Ángulo: Autoridad / honestidad</span>
+    <p class="hook">No te prometo que ganes más. Te prometo que sabrás dónde está lo que ganas.</p>
+    <p class="label">Cuerpo</p><p>Y resulta que esa claridad es, casi siempre, lo que acaba haciendo que ganes más —porque por fin decides con los ojos abiertos. Empieza por ver. El resto viene solo.</p>
+    <p class="label">CTA</p><p>Empieza a ver por 7 € → dondeestamidinero.es</p>
+    <div class="meta-line"><span><b>Emoción:</b> confianza / honestidad</span><span><b>Objetivo:</b> conversión por sinceridad (anti-hype)</span></div>
+  </div>
+
+  <!-- ============ CREATIVIDADES ============ -->
+  <h2>6 · Ficha de creatividades (visuales 4:5)</h2>
+  <p class="lead">Especificación de los visuales clave para producción. Paleta de marca: navy <code>#1B2A4A</code> / gold <code>#C8A951</code>, fondo crema <code>#FDFCF9</code>.</p>
+
+  <div class="ad">
+    <span class="id">CRE-1 · para A1 (Dolor · imagen)</span>
+    <table>
+      <tr><td><b>Texto principal</b></td><td>«¿Dónde está mi dinero?»</td></tr>
+      <tr><td><b>Subtítulo</b></td><td>Ganas. Pero no lo ves en el banco.</td></tr>
+      <tr><td><b>Expresión</b></td><td>Empresario 45–60, gesto pensativo/preocupado contenido, no dramático.</td></tr>
+      <tr><td><b>Fotografía</b></td><td>Rostro iluminado por la pantalla del móvil en penumbra; el banco abierto en la mano.</td></tr>
+      <tr><td><b>Iluminación</b></td><td>Clave baja, luz fría azulada del teléfono sobre la cara; resto en sombra.</td></tr>
+      <tr><td><b>Fondo</b></td><td>Despacho/casa de noche, desenfocado.</td></tr>
+      <tr><td><b>Composición</b></td><td>Rostro a la derecha (regla de tercios); titular en bloque navy a la izquierda con filete dorado.</td></tr>
+      <tr><td><b>Colores</b></td><td>Navy dominante + acento gold en el titular.</td></tr>
+      <tr><td><b>Relación</b></td><td>4:5 (1080×1350)</td></tr>
+    </table>
+  </div>
+
+  <div class="ad">
+    <span class="id">CRE-2 · para A2/A17 (Curiosidad · las 4 zonas)</span>
+    <table>
+      <tr><td><b>Texto principal</b></td><td>«Solo hay 4 sitios donde se esconde tu dinero.»</td></tr>
+      <tr><td><b>Subtítulo</b></td><td>Cobro · Existencias · Deuda · Inversión</td></tr>
+      <tr><td><b>Expresión</b></td><td>N/A (infografía).</td></tr>
+      <tr><td><b>Fotografía</b></td><td>Mapa/diagrama de 4 cuadrantes con iconografía fina dorada (factura, caja, banco, máquina).</td></tr>
+      <tr><td><b>Iluminación</b></td><td>Plana, limpia, editorial.</td></tr>
+      <tr><td><b>Fondo</b></td><td>Crema con textura sutil de papel; marco navy.</td></tr>
+      <tr><td><b>Composición</b></td><td>Cuatro cuadrantes simétricos; titular arriba en Georgia; «estás aquí» en oro.</td></tr>
+      <tr><td><b>Colores</b></td><td>Navy + gold sobre crema.</td></tr>
+      <tr><td><b>Relación</b></td><td>4:5 (1080×1350)</td></tr>
+    </table>
+  </div>
+
+  <div class="ad">
+    <span class="id">CRE-3 · para A4/A20 (Transformación · dormir)</span>
+    <table>
+      <tr><td><b>Texto principal</b></td><td>«Mira el saldo. Y duerme.»</td></tr>
+      <tr><td><b>Subtítulo</b></td><td>Lo que de verdad vende este libro: sueño.</td></tr>
+      <tr><td><b>Expresión</b></td><td>Rostro sereno, ligera sonrisa de alivio; o silla vacía de despacho ordenado al amanecer.</td></tr>
+      <tr><td><b>Fotografía</b></td><td>Luz cálida de mañana entrando por la ventana; teléfono boca abajo sobre la mesa.</td></tr>
+      <tr><td><b>Iluminación</b></td><td>Clave alta, cálida, dorada (contraste con la penumbra de CRE-1).</td></tr>
+      <tr><td><b>Fondo</b></td><td>Despacho/hogar ordenado, amplio, desenfocado.</td></tr>
+      <tr><td><b>Composición</b></td><td>Mucho aire; titular centrado abajo en navy; portada del libro en esquina.</td></tr>
+      <tr><td><b>Colores</b></td><td>Cálidos + acento gold; navy solo en tipografía.</td></tr>
+      <tr><td><b>Relación</b></td><td>4:5 (1080×1350)</td></tr>
+    </table>
+  </div>
+
+  <div class="ad">
+    <span class="id">CRE-4 · para A21/A22 (Autoridad · autor + libro)</span>
+    <table>
+      <tr><td><b>Texto principal</b></td><td>«El mapa para recuperar tu dinero.»</td></tr>
+      <tr><td><b>Subtítulo</b></td><td>Valerio García · Mentor de empresas familiares · Autor superventas en Amazon España</td></tr>
+      <tr><td><b>Expresión</b></td><td>Autor en actitud de confianza tranquila, mirada a cámara, media sonrisa.</td></tr>
+      <tr><td><b>Fotografía</b></td><td>Retrato editorial sosteniendo o junto al libro «Dónde está mi dinero».</td></tr>
+      <tr><td><b>Iluminación</b></td><td>Retrato suave de estudio, clave media, fondo limpio.</td></tr>
+      <tr><td><b>Fondo</b></td><td>Navy sólido o estantería desenfocada.</td></tr>
+      <tr><td><b>Composición</b></td><td>Autor a un lado; portada del libro destacada; sello «superventas» en oro.</td></tr>
+      <tr><td><b>Colores</b></td><td>Navy + gold, alto contraste, premium.</td></tr>
+      <tr><td><b>Relación</b></td><td>4:5 (1080×1350)</td></tr>
+    </table>
+  </div>
+
+  <div class="note"><b>Pendiente de activos reales:</b> sustituir testimonios marcados <i>[a verificar]</i> y los campos 24/28 por material de <code>valeriogarciamentor.com</code> (testimonios con nombre, casos, fotos del autor y logos) antes de poner los anuncios en producción.</div>
+
+  <footer>
+    <b>Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Fase 1 de 5 — Anuncios y modelo económico · Libro «Dónde está mi dinero» · Mecanismo: Método RUTA<br>
+    Siguiente gate: auditoría (ec-auditor, rúbrica de anuncios) → con ≥8/10 se desbloquea Fase 2 (landing).
+  </footer>
+
+</div>
+</body>
+</html>

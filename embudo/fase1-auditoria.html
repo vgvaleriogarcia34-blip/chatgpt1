@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoría · Fase 1 — Anuncios · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.5;margin:0;}
+  .wrap{max-width:880px;margin:0 auto;padding:40px 40px 70px;}
+  h1,h2,h3{font-family:Georgia,'Times New Roman',serif;color:var(--navy);}
+  h2{font-size:21px;margin:36px 0 12px;padding-bottom:6px;border-bottom:3px solid var(--gold);}
+  .cover{background:var(--navy);color:#fff;padding:34px 38px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+  .cover h1{color:#fff;font-size:25px;margin:0 0 6px;}
+  .cover .sub{color:#cdd4e0;font-size:13px;}
+  .score{text-align:center;background:var(--gold);color:var(--navy);border-radius:8px;padding:16px 22px;min-width:140px;}
+  .score .n{font-family:Georgia,serif;font-size:42px;font-weight:bold;line-height:1;}
+  .score .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;}
+  .verdict{font-family:Georgia,serif;font-size:13px;font-weight:bold;margin-top:6px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px;}
+  th,td{text-align:left;padding:8px 9px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  td.c{text-align:center;font-weight:bold;}
+  .ok{color:#2e7d32;font-weight:bold;}
+  .stamp{background:#eef6ee;border:2px solid #2e7d32;color:#1b5e20;padding:18px 22px;border-radius:6px;margin:18px 0;font-family:Georgia,serif;}
+  .stamp b{font-size:17px;}
+  .fail{background:#f6f2e8;border-left:4px solid var(--gold);padding:14px 18px;margin:12px 0;border-radius:0 4px 4px 0;font-size:13.5px;}
+  footer{margin-top:46px;padding-top:16px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <div>
+      <span style="color:var(--gold);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;">ec-auditor · Rúbrica 1 — Anuncios</span>
+      <h1>Informe de auditoría · Fase 1</h1>
+      <div class="sub">Entregable: <code>embudo/fase1-anuncios.html</code> · Libro «Dónde está mi dinero» · Gate de paso ≥ 8,0</div>
+    </div>
+    <div class="score">
+      <div class="n">9,5</div>
+      <div class="l">/ 10</div>
+      <div class="verdict">APROBADO</div>
+    </div>
+  </div>
+
+  <h2>Puntuación criterio por criterio</h2>
+  <table>
+    <tr><th>#</th><th>Criterio</th><th>Peso</th><th>Nota</th><th>Evidencia</th><th>Veredicto</th></tr>
+    <tr><td>1</td><td>Anuncio TOP con estructura obligatoria completa</td><td class="c">15</td><td class="c">10</td><td>A21 mapea los 15 elementos en orden (gancho→…→postdata+CTA), cada uno etiquetado.</td><td class="ok">Cumple</td></tr>
+    <tr><td>2</td><td>Cobertura de los 10 ángulos</td><td class="c">10</td><td class="c">10</td><td>§4 lista dolor, curiosidad, autoridad, error, transformación, oportunidad, enemigo, identidad, estatus, polémica.</td><td class="ok">Cumple</td></tr>
+    <tr><td>3</td><td>Volumen y formatos A/B</td><td class="c">10</td><td class="c">10</td><td>5 imagen (A1–5) + 5 vídeo (A6–10) + 5 UGC (A11–15) + 5 historia (A16–20) + 5 autoridad (A21–25), cada uno con HOOK/CUERPO/CTA/EMOCIÓN/OBJETIVO.</td><td class="ok">Cumple</td></tr>
+    <tr><td>4</td><td>Gancho que detiene el scroll</td><td class="c">12</td><td class="c">9</td><td>«Son las 00:13. Abres el banco a oscuras…», «Tu empresa gana dinero. ¿Por qué no está en el banco?» Rompen patrón; ninguno genérico.</td><td class="ok">Cumple</td></tr>
+    <tr><td>5</td><td>Dolor y deseo del avatar reales</td><td class="c">10</td><td class="c">10</td><td>Noche del saldo, póliza al límite, nóminas, «dormir»: todos del libro, no inventados.</td><td class="ok">Cumple</td></tr>
+    <tr><td>6</td><td>Mecanismo único presente</td><td class="c">8</td><td class="c">9</td><td>Método RUTA + Mapa de las Cuatro Zonas nombrados en A2, A17, A21, A23.</td><td class="ok">Cumple</td></tr>
+    <tr><td>7</td><td>Oferta y precio coherentes con el embudo</td><td class="c">10</td><td class="c">9</td><td>Front-end 7 € + modelo CPA(10–18 €)/VMC(≈44,7 €) con back-end 497 € que sostiene la promesa.</td><td class="ok">Cumple</td></tr>
+    <tr><td>8</td><td>CTA inequívoca y única</td><td class="c">10</td><td class="c">10</td><td>Un solo destino por anuncio: dondeestamidinero.es.</td><td class="ok">Cumple</td></tr>
+    <tr><td>9</td><td>Riesgo de no actuar / urgencia ética</td><td class="c">8</td><td class="c">8</td><td>A21·12 («cada mes que no miras… mueren de liquidez») y A24; sin falsa escasez. Concentrado en pocos anuncios.</td><td class="ok">Cumple (parcial)</td></tr>
+    <tr><td>10</td><td>Voz y ética FE</td><td class="c">7</td><td class="c">10</td><td>A25 «No te prometo que ganes más…», garantía honesta; tono humano, sin humo.</td><td class="ok">Cumple</td></tr>
+  </table>
+
+  <p style="font-size:13px;"><b>Cálculo:</b> (10·15 + 10·10 + 10·10 + 9·12 + 10·10 + 9·8 + 9·10 + 10·10 + 8·8 + 10·7) / 100 = <b>954 / 100 = 9,5</b></p>
+
+  <h2>Observaciones (mejoras opcionales, no bloquean el gate)</h2>
+  <div class="fail">
+    <b>1 · Urgencia distribuida (criterio 9, nota 8).</b> El «riesgo de no actuar» vive sobre todo en el anuncio TOP y A24. Para escalar, conviene inyectar una línea de coste de inacción en 2–3 anuncios más de imagen/UGC.<br><br>
+    <b>2 · Activos de autoridad reales (afecta a producción, no a la nota de copy).</b> Los testimonios A11–A15 y los campos 24/28 están marcados <i>[a verificar]</i>. Sustituir por material real de <code>valeriogarciamentor.com</code> antes de publicar.<br><br>
+    <b>3 · Tasas del VMC son hipótesis.</b> 30% bump / 10% upsell / 4% Diagnóstico deben validarse con los primeros 200–300 compradores; es la palanca que más mueve la rentabilidad.
+  </div>
+
+  <div class="stamp">
+    <b>✓ APROBADO — 9,5 / 10.</b><br>
+    Se autoriza el arranque de la <b>Fase 2 · Landing de ventas</b> (<code>ec-fase2-landing</code>). La landing hereda de esta fase: la promesa («saber dónde está tu dinero sin estudiar finanzas»), el ángulo ganador (dolor → transformación: la noche del saldo) y el mecanismo validado (Método RUTA + Mapa de las Cuatro Zonas).
+  </div>
+
+  <footer>
+    <b>ec-auditor · Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Gate Fase 1 → Fase 2 · Iteración 1 · Resultado: APROBADO (9,5/10) · Sin reintentos pendientes.
+  </footer>
+</div>
+</body>
+</html>
