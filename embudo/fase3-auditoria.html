@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoría · Fase 3 — Checkout · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.5;margin:0;}
+  .wrap{max-width:880px;margin:0 auto;padding:40px 40px 70px;}
+  h1,h2{font-family:Georgia,'Times New Roman',serif;color:var(--navy);}
+  h2{font-size:21px;margin:36px 0 12px;padding-bottom:6px;border-bottom:3px solid var(--gold);}
+  .cover{background:var(--navy);color:#fff;padding:34px 38px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+  .cover h1{color:#fff;font-size:25px;margin:0 0 6px;}
+  .cover .sub{color:#cdd4e0;font-size:13px;}
+  .score{text-align:center;background:var(--gold);color:var(--navy);border-radius:8px;padding:16px 22px;min-width:140px;}
+  .score .n{font-family:Georgia,serif;font-size:42px;font-weight:bold;line-height:1;}
+  .score .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;}
+  .verdict{font-family:Georgia,serif;font-size:13px;font-weight:bold;margin-top:6px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px;}
+  th,td{text-align:left;padding:8px 9px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  td.c{text-align:center;font-weight:bold;}
+  .ok{color:#2e7d32;font-weight:bold;}
+  .stamp{background:#eef6ee;border:2px solid #2e7d32;color:#1b5e20;padding:18px 22px;border-radius:6px;margin:18px 0;font-family:Georgia,serif;}
+  .stamp b{font-size:17px;}
+  .fail{background:#f6f2e8;border-left:4px solid var(--gold);padding:14px 18px;margin:12px 0;border-radius:0 4px 4px 0;font-size:13.5px;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+  footer{margin-top:46px;padding-top:16px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <div>
+      <span style="color:var(--gold);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold;">ec-auditor · Rúbrica 3 — Checkout</span>
+      <h1>Informe de auditoría · Fase 3</h1>
+      <div class="sub">Entregable: <code>embudo/fase3-checkout.html</code> · pedido + 2 bumps + upsell + downsell + gracias · Gate ≥ 8,0</div>
+    </div>
+    <div class="score">
+      <div class="n">9,8</div>
+      <div class="l">/ 10</div>
+      <div class="verdict">APROBADO</div>
+    </div>
+  </div>
+
+  <h2>Puntuación criterio por criterio</h2>
+  <table>
+    <tr><th>#</th><th>Criterio</th><th>Peso</th><th>Nota</th><th>Evidencia</th><th>Veredicto</th></tr>
+    <tr><td>1</td><td>Página de pedido sin nueva venta</td><td class="c">12</td><td class="c">10</td><td>«Es una caja registradora, no una segunda página de ventas»; bloques header/formulario/resumen/CTA, no reabre argumentos.</td><td class="ok">Cumple</td></tr>
+    <tr><td>2</td><td>Formulario mínimo</td><td class="c">8</td><td class="c">10</td><td>Nombre · Email · Teléfono · Tarjeta · botón. «Sin campos opcionales, sin cuentas que crear.»</td><td class="ok">Cumple</td></tr>
+    <tr><td>3</td><td>2 order bumps que aceleran el resultado</td><td class="c">10</td><td class="c">10</td><td>Plantillas Pro (47€→17€) y Masterclass (97€→27€), cada uno con beneficio, valor, precio y casilla «☑ Sí, añadir». Añaden velocidad, no complejidad.</td><td class="ok">Cumple</td></tr>
+    <tr><td>4</td><td>Upsell = atajo, no «más cosas» (16 bloques)</td><td class="c">12</td><td class="c">10</td><td>Los 16 bloques presentes; «No es más contenido. Es el sistema ya montado». Tono atajo/implementación.</td><td class="ok">Cumple</td></tr>
+    <tr><td>5</td><td>Upsell con comparativa y opción negativa</td><td class="c">8</td><td class="c">9</td><td>Comparativa libro vs upsell (bloque 11) + opción negativa honesta (8 y 16) + barra de urgencia con contador.</td><td class="ok">Cumple</td></tr>
+    <tr><td>6</td><td>Downsell = mismo producto, menos fricción</td><td class="c">12</td><td class="c">10</td><td>«El mismo sistema completo… solo cambia que el dinero no te frene»: 97€ → 3×37€. No cambia el producto.</td><td class="ok">Cumple</td></tr>
+    <tr><td>7</td><td>Downsell con 12 bloques y riesgo inverso</td><td class="c">8</td><td class="c">9</td><td>12 bloques + «SIN RIESGOS. SIN EXCUSAS. SOLO RESULTADOS.»</td><td class="ok">Cumple</td></tr>
+    <tr><td>8</td><td>Página de gracias activa el ecosistema</td><td class="c">12</td><td class="c">10</td><td>No solo entrega: rama Comunidad (WhatsApp/Telegram) + reto «mide una zona» + puente al Diagnóstico de 48 h.</td><td class="ok">Cumple</td></tr>
+    <tr><td>9</td><td>Continuidad visual premium</td><td class="c">8</td><td class="c">9</td><td>Sección de continuidad: misma paleta navy/gold, mockups y garantía que la landing; un solo CTA por pantalla. (Spec, falta montaje real.)</td><td class="ok">Cumple</td></tr>
+    <tr><td>10</td><td>Lógica de flujo correcta</td><td class="c">10</td><td class="c">10</td><td>Mapa de flujo con rama NO→downsell bien conectada; «toda ruta termina en la página de gracias».</td><td class="ok">Cumple</td></tr>
+  </table>
+
+  <p style="font-size:13px;"><b>Cálculo:</b> (10·12 + 10·8 + 10·10 + 10·12 + 9·8 + 10·12 + 9·8 + 10·12 + 9·8 + 10·10) / 100 = <b>976 / 100 = 9,8</b></p>
+
+  <h2>3 fallos de mayor impacto (no bloquean el gate)</h2>
+  <div class="fail">
+    <b>1 · Es especificación, no páginas montadas.</b> Falta producir los vídeos (VSL del upsell y de gracias) y conectar la pasarela de pago real con la lógica upsell→downsell→gracias antes de publicar.<br><br>
+    <b>2 · Formato del libro sin definir (heredado de Fase 2).</b> «Acceso inmediato» exige decidir digital/físico/ambos; condiciona la entrega y los plazos de la página de gracias.<br><br>
+    <b>3 · Operativa del upsell por confirmar.</b> El «Sistema Claridad de Caja» incluye una <i>sesión mensual de preguntas en directo</i>. Confirmar que se puede sostener operativamente; no prometer acompañamiento que no se entregue.
+  </div>
+
+  <div class="stamp">
+    <b>✓ APROBADO — 9,8 / 10.</b><br>
+    Se autoriza el arranque de la <b>Fase 4 · Back-end y escalera de valor</b> (<code>ec-fase4-backend</code>). Hereda: el upsell «Sistema Claridad de Caja» (97 €) como peldaño intermedio y el puente al <b>Diagnóstico de 48 h</b> de la página de gracias, que la Fase 4 desarrolla hasta el cliente premium (Clarity Code / Método Quercus®).
+  </div>
+
+  <footer>
+    <b>ec-auditor · Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Gate Fase 3 → Fase 4 · Iteración 1 · Resultado: APROBADO (9,8/10) · Sin reintentos pendientes.
+  </footer>
+</div>
+</body>
+</html>

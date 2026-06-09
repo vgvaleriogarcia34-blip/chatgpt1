@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embudo · Fase 3 — Checkout · «Dónde está mi dinero»</title>
+<style>
+  :root{--navy:#1B2A4A;--gold:#C8A951;--ink:#21262e;--paper:#fdfcf9;--line:#e6e0d2;--green:#2e7d32;--red:#b23b3b;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.55;margin:0;}
+  .wrap{max-width:900px;margin:0 auto;padding:44px 40px 80px;}
+  h1,h2,h3,h4{font-family:Georgia,'Times New Roman',serif;color:var(--navy);line-height:1.2;}
+  h1{font-size:30px;margin:0 0 6px;}
+  h2{font-size:23px;margin:48px 0 14px;padding-bottom:8px;border-bottom:3px solid var(--gold);}
+  h3{font-size:18px;margin:24px 0 8px;}
+  h4{font-size:13px;margin:16px 0 4px;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;}
+  .cover{background:var(--navy);color:#fff;padding:46px 42px;border-radius:6px;margin-bottom:14px;}
+  .cover h1{color:#fff;}
+  .cover .sub{color:var(--gold);font-family:Georgia,serif;font-style:italic;font-size:17px;margin:4px 0 18px;}
+  .cover .meta{font-size:13px;color:#cdd4e0;line-height:1.7;}
+  .tag{display:inline-block;background:var(--gold);color:var(--navy);font-weight:bold;font-size:11px;letter-spacing:.08em;padding:4px 10px;border-radius:3px;text-transform:uppercase;}
+  .lead{font-size:16px;color:#3a3f47;}
+  .page{border:1px solid var(--line);border-radius:6px;padding:8px 24px 22px;margin:18px 0;background:#fff;}
+  .pagehead{background:var(--navy);color:#fff;margin:-8px -24px 14px;padding:12px 24px;border-radius:6px 6px 0 0;font-family:Georgia,serif;font-size:16px;}
+  .pagehead span{color:var(--gold);}
+  .copy{background:#f6f2e8;border-left:4px solid var(--gold);padding:12px 16px;border-radius:0 4px 4px 0;margin:8px 0;}
+  .big{font-family:Georgia,serif;font-size:20px;color:var(--navy);font-weight:bold;line-height:1.25;}
+  .visual{font-size:12.5px;color:#5a5f67;border-top:1px dashed var(--line);padding-top:8px;margin-top:10px;}
+  .visual b{color:var(--navy);}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
+  th,td{text-align:left;padding:8px 10px;border:1px solid var(--line);vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-family:Georgia,serif;font-weight:normal;}
+  tr:nth-child(even) td{background:#f6f2e8;}
+  .bump{border:2px dashed var(--gold);background:#fffdf6;border-radius:6px;padding:12px 16px;margin:10px 0;}
+  .bump .chk{font-weight:bold;color:var(--green);}
+  .urg{background:#3a1f1f;color:#ffd9d9;text-align:center;padding:9px;border-radius:6px;font-weight:bold;font-size:13px;}
+  .confirm{background:#173d17;color:#d7f5d7;text-align:center;padding:9px;border-radius:6px;font-weight:bold;font-size:13px;}
+  .buybox{background:var(--navy);color:#fff;border-radius:8px;padding:18px 22px;margin:10px 0;text-align:center;}
+  .buybox .old{color:#9aa6bd;text-decoration:line-through;}
+  .buybox .new{color:var(--gold);font-family:Georgia,serif;font-size:30px;font-weight:bold;}
+  .cta{display:inline-block;background:var(--gold);color:var(--navy);font-weight:bold;padding:12px 24px;border-radius:6px;margin:8px 0;font-size:15px;text-decoration:none;}
+  .neg{display:block;color:#9aa6bd;font-size:12.5px;margin-top:8px;text-decoration:underline;}
+  ul.clean{list-style:none;padding-left:0;}
+  ul.clean li{margin:5px 0;padding-left:22px;position:relative;}
+  ul.clean li:before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:bold;}
+  .wire{font-family:'Courier New',monospace;font-size:12px;background:#1b2a4a;color:#e8ecf4;padding:18px;border-radius:6px;white-space:pre;overflow-x:auto;line-height:1.4;}
+  .vs td{width:50%;}
+  .note{background:#eef1f7;border:1px solid #d6deea;padding:12px 16px;border-radius:4px;font-size:13px;color:#41485a;margin:14px 0;}
+  code{background:#eee5cc;padding:1px 5px;border-radius:3px;font-size:12.5px;}
+  footer{margin-top:50px;padding-top:18px;border-top:3px solid var(--gold);font-size:12px;color:#7a7f87;}
+  @media print{.wrap{padding:0 8px;}.page{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <span class="tag">Embudo de Conversión · Fase 3 de 5</span>
+    <h1 style="margin-top:14px;">Checkout: pedido · bumps · upsell · downsell · gracias</h1>
+    <div class="sub">«Dónde está mi dinero» · aumentar el valor del pedido sin subir el CPA.</div>
+    <div class="meta">
+      Hereda de Fase 2 (aprobada 9,3/10): libro 7 € (ancla 27 €) · garantía «Duerme Tranquilo» 30 días · 5 bonos · identidad navy/gold.<br>
+      Principio: la venta ya se produjo en la landing. El checkout elimina fricción y añade <b>velocidad</b>, no complejidad.
+    </div>
+  </div>
+
+  <!-- FLOW MAP -->
+  <h2>Mapa del flujo</h2>
+  <div class="wire">  ┌─ LANDING (libro 7€) ─ "Comprar"
+  │
+  ▼
+①  PÁGINA DE PEDIDO  +  ☑ Order Bump 1 (17€)  +  ☑ Order Bump 2 (27€)
+  │  (completa el pago)
+  ▼
+②  UPSELL — «Sistema Claridad de Caja» 97€ ──NO──▶ ③ DOWNSELL — mismo
+  │  SÍ                                              sistema en 3× 37€
+  ▼                                                       │ (SÍ o NO)
+  └──────────────▶ ④ PÁGINA DE GRACIAS ◀──────────────────┘
+                   (entrega + comunidad FE + puente al Diagnóstico 48h)
+
+  Toda ruta —acepte o rechace— termina en la página de gracias.
+  Extensión opcional: Upsell 2 / Downsell 2 antes de gracias (no incluida; mismo patrón).</div>
+  <div class="note"><b>Coherencia económica:</b> bump ≈ 27 € y upsell ≈ 97 € son exactamente los supuestos del modelo VMC de la Fase 1, así que el checkout sostiene el VMC ≈ 44,7 €/comprador sin tocar el CPA.</div>
+
+  <!-- ============ PÁGINA 1 · PEDIDO ============ -->
+  <h2>① Página de pedido (+ 2 order bumps)</h2>
+  <p class="lead">Misión: convertir intención en compra con mínima fricción. <b>Es una caja registradora, no una segunda página de ventas.</b> No reabre argumentos.</p>
+
+  <div class="page">
+    <div class="pagehead"><span>Bloque 1</span> · Header superior</div>
+    <div class="confirm">🔒 Pago 100% seguro &nbsp;·&nbsp; ✓ Acceso inmediato &nbsp;·&nbsp; 🛡️ Garantía «Duerme Tranquilo» 30 días</div>
+
+    <div class="pagehead"><span>Bloque 2</span> · Titular</div>
+    <div class="copy"><span class="big">Obtén acceso inmediato a «Dónde está mi dinero» + tus 5 bonos</span><br>Estás a un paso de saber, en una tarde, dónde está el dinero que tu empresa gana y no ves.</div>
+
+    <div class="pagehead"><span>Bloque 3</span> · Formulario (mínimo)</div>
+    <div class="copy">Nombre · Email · Teléfono · Datos de tarjeta · <b>[ Completar pedido ]</b><br><i>Nada más. Sin campos opcionales, sin cuentas que crear.</i></div>
+
+    <div class="pagehead"><span>Bloque 4</span> · Mockup premium</div>
+    <div class="visual"><b>Visual:</b> libro 3D de pie + los 5 bonos en abanico, sombras suaves, fondo navy, iluminación cálida lateral. Sello dorado «Acceso inmediato».</div>
+
+    <div class="pagehead"><span>Bloque 5</span> · «Esto es lo que obtendrás»</div>
+    <table>
+      <tr><th>Incluye</th><th>Valor</th></tr>
+      <tr><td>Libro «Dónde está mi dinero»</td><td>27 €</td></tr>
+      <tr><td>Bono 1 · Hoja del «Test de una Tarde»</td><td>19 €</td></tr>
+      <tr><td>Bono 2 · Cuadro de Mando de Caja</td><td>29 €</td></tr>
+      <tr><td>Bono 3 · Guía visual de las 4 Zonas</td><td>17 €</td></tr>
+      <tr><td>Bono 4 · Mini-clase «Lee tu caja en 20 min»</td><td>47 €</td></tr>
+      <tr><td>Bono 5 · Checklist «Las 3 decisiones de esta semana»</td><td>27 €</td></tr>
+      <tr><td><b>Total valor</b></td><td><b><span style="text-decoration:line-through;color:#9aa6bd;">166 €</span> → hoy 7 €</b> (ahorras 96%)</td></tr>
+    </table>
+
+    <div class="pagehead"><span>Bloque 6</span> · Order Bumps (2) — añaden velocidad, no complejidad</div>
+    <div class="bump">
+      <span class="chk">☑ Sí, añadir a mi pedido</span> — <b>Plantillas Pro de las 4 Zonas</b> (Excel/Google Sheets autocalculado)<br>
+      <b>Beneficio:</b> en vez de hacer las cuentas a mano, metes tus cifras y el cálculo de las 4 zonas se hace solo. <b>Valor 47 € · Hoy solo 17 €.</b>
+    </div>
+    <div class="bump">
+      <span class="chk">☑ Sí, añadir a mi pedido</span> — <b>Masterclass grabada «Lee tu caja en 30 minutos»</b><br>
+      <b>Beneficio:</b> Valerio aplica el Método RUTA a un caso real, en vídeo, para que repliques cada movimiento sin atascarte. <b>Valor 97 € · Hoy solo 27 €.</b>
+    </div>
+    <div class="note">Regla del bump cumplida: ninguno es «otro producto enorme». Los dos <b>aceleran el resultado del libro</b> (calcular más rápido, implementar sin errores). Compra impulsiva: el cliente ya dijo «sí».</div>
+
+    <div class="pagehead"><span>Bloque 7</span> · Resumen del pedido</div>
+    <div class="copy">Libro + 5 bonos … 7 €<br>(+ Plantillas Pro … 17 €)<br>(+ Masterclass … 27 €)<br><b>Total: 7 € – 51 €</b> según extras marcados.</div>
+
+    <div class="pagehead"><span>Bloque 8</span> · CTA final</div>
+    <div class="buybox"><a class="cta" href="#">COMPLETAR PEDIDO →</a><br><small>✓ Acceso inmediato · Visa · Mastercard · PayPal · Apple Pay · Bizum</small></div>
+
+    <div class="pagehead"><span>Bloque 9</span> · Footer</div>
+    <div class="copy">Pago cifrado SSL · Garantía «Duerme Tranquilo» 30 días · Soporte: hola@dondeestamidinero.es · © Familias Empresarias · Arquitectos de Claridad™</div>
+  </div>
+
+  <!-- ============ PÁGINA 2 · UPSELL ============ -->
+  <h2>② Upsell — «Sistema Claridad de Caja» (97 €)</h2>
+  <p class="lead">Aparece tras la compra. Debe sentirse como «te doy el atajo para implementarlo sin errores», nunca como «te vendo más». 16 bloques.</p>
+
+  <div class="page">
+    <div class="pagehead"><span>1</span> · Barra de urgencia</div>
+    <div class="urg">⏳ ESPERA — no cierres esta página. Esta oferta solo aparece una vez. [contador 15:00]</div>
+
+    <div class="pagehead"><span>2</span> · Etiqueta de oferta</div>
+    <div class="copy">Oferta única desbloqueada por tu compra de hoy.</div>
+
+    <div class="pagehead"><span>3</span> · Titular (transformación)</div>
+    <div class="copy"><span class="big">¿Quieres el sistema completo para ver tus 4 zonas y decidir cada mes —sin pelearte con tus números ni con tu gestor?</span></div>
+
+    <div class="pagehead"><span>4</span> · Subtítulo</div>
+    <div class="copy">El libro te enseña <i>qué</i> mirar. El <b>Sistema Claridad de Caja</b> te lo deja <i>montado</i>: plantillas guiadas de las 4 zonas, vídeos paso a paso y una sesión de preguntas al mes para que nunca te atasques.</div>
+
+    <div class="pagehead"><span>5</span> · Vídeo central (guion)</div>
+    <div class="copy">Gracias por tu compra → lo que acabas de desbloquear → por qué esto acelera el resultado (de «sé qué hacer» a «ya lo tengo funcionando») → qué contiene → por qué solo está disponible aquí y ahora.</div>
+
+    <div class="pagehead"><span>6</span> · Anclaje de precio</div>
+    <div class="copy">Valor real <b>297 €</b> · Solo en esta página <b>97 €</b> (pago único).</div>
+
+    <div class="pagehead"><span>7</span> · CTA principal</div>
+    <div class="buybox"><a class="cta" href="#">SÍ, QUIERO EL SISTEMA CLARIDAD DE CAJA →</a><br><small>🛡️ Garantía 30 días · pago seguro</small></div>
+
+    <div class="pagehead"><span>8</span> · Opción negativa (honesta)</div>
+    <div class="copy"><span class="neg">No, gracias. Prefiero montar mi cuadro de mando por mi cuenta, mes a mes.</span></div>
+
+    <div class="pagehead"><span>9</span> · Mecanismo diferenciador</div>
+    <div class="copy">No es más contenido. Es <b>el sistema ya montado</b>: las plantillas, los vídeos de implementación y el acompañamiento mensual que convierten el método del libro en un hábito.</div>
+
+    <div class="pagehead"><span>10</span> · «Esto es todo lo que vas a recibir» (6 ítems)</div>
+    <ul class="clean">
+      <li>Las 4 plantillas Pro de zona, conectadas en un panel único de caja.</li>
+      <li>6 vídeos paso a paso (uno por movimiento RUTA + dos de lectura de señales).</li>
+      <li>Biblioteca de «traducciones»: qué te dice cada cifra cuando sube o baja.</li>
+      <li>Sesión mensual de preguntas en directo con el equipo de Familias Empresarias.</li>
+      <li>Calendario de revisión de 5 minutos al mes (recordatorios incluidos).</li>
+      <li>Plantilla de guion para renegociar cobros y deuda con clientes y banco.</li>
+    </ul>
+
+    <div class="pagehead"><span>11</span> · Comparativa</div>
+    <table class="vs">
+      <tr><th>Con el libro (lo que ya tienes)</th><th>Con el Sistema Claridad de Caja</th></tr>
+      <tr><td>Sabes qué mirar y haces el test de una zona.</td><td>Tienes las 4 zonas montadas y actualizadas cada mes, casi sin esfuerzo.</td></tr>
+      <tr><td>Implementas tú solo, a tu ritmo.</td><td>Te guían en vídeo y resuelves dudas en directo: menos errores, más rápido.</td></tr>
+    </table>
+
+    <div class="pagehead"><span>12</span> · Garantía</div>
+    <div class="copy">Pruébalo 30 días. Si no te da más claridad de la que tienes, te devolvemos el dinero. Sin preguntas.</div>
+
+    <div class="pagehead"><span>13</span> · «Esto es para ti si…» (6)</div>
+    <ul class="clean">
+      <li>Quieres ver las 4 zonas, no solo una.</li>
+      <li>Prefieres una plantilla lista a montarla desde cero.</li>
+      <li>Te atascas cuando estás solo frente a tus números.</li>
+      <li>Quieres convertir el mirar en un hábito mensual, no en una urgencia.</li>
+      <li>Valoras poder preguntar a alguien que ya ha recorrido esto.</li>
+      <li>Quieres decidir con criterio sobre cobro, stock, deuda e inversión.</li>
+    </ul>
+
+    <div class="pagehead"><span>14</span> · «Lo que lograrás» (5)</div>
+    <ul class="clean">
+      <li><b>Tiempo:</b> 5 minutos al mes en vez de tardes enteras de Excel.</li>
+      <li><b>Claridad:</b> tus 4 zonas en un solo panel, siempre al día.</li>
+      <li><b>Implementación:</b> el método del libro, ya funcionando.</li>
+      <li><b>Caja:</b> detectas dinero atrapado antes de que falte.</li>
+      <li><b>Confianza:</b> decides con los ojos abiertos, no a ciegas.</li>
+    </ul>
+
+    <div class="pagehead"><span>15</span> · Recordatorio de urgencia</div>
+    <div class="copy">Esta oferta solo está disponible en esta página. Si la rechazas, no volverás a verla en estas condiciones.</div>
+
+    <div class="pagehead"><span>16</span> · CTA final</div>
+    <div class="buybox"><div>Valor 297 € · <span class="new">hoy 97 €</span></div><a class="cta" href="#">SÍ, LO QUIERO →</a><br><small>🛡️ 30 días de garantía · pago seguro</small><span class="neg">No, gracias. Seguiré por mi cuenta.</span></div>
+  </div>
+
+  <!-- ============ PÁGINA 3 · DOWNSELL ============ -->
+  <h2>③ Downsell — el mismo sistema, en 3 pagos (3 × 37 €)</h2>
+  <p class="lead">Aparece al rechazar el upsell. <b>Mismo producto</b>: solo cae la barrera económica (pago dividido). No cambia lo que se entrega. 12 bloques.</p>
+
+  <div class="page">
+    <div class="pagehead"><span>1</span> · Barra superior</div>
+    <div class="confirm">PAGO DIVIDIDO ACTIVADO</div>
+
+    <div class="pagehead"><span>2</span> · Microtexto</div>
+    <div class="copy">Dejemos que esto sea muy fácil para ti…</div>
+
+    <div class="pagehead"><span>3</span> · Titular grande</div>
+    <div class="copy"><span class="big">Consigue el Sistema Claridad de Caja por solo 3 pagos de 37 €.</span></div>
+
+    <div class="pagehead"><span>4</span> · Subtítulo</div>
+    <div class="copy">El mismo sistema completo de antes. Solo cambia una cosa: que el dinero no te frene para tener tu caja bajo control este mes.</div>
+
+    <div class="pagehead"><span>5</span> · Mockup principal</div>
+    <div class="visual"><b>Visual:</b> panel de las 4 zonas + miniaturas de los 6 vídeos + plantillas, en navy/gold, limpio y con aire.</div>
+
+    <div class="pagehead"><span>6</span> · CTA principal</div>
+    <div class="buybox"><a class="cta" href="#">¡SÍ, QUIERO ACCESO INMEDIATO! →</a><br><small>🛡️ Garantía 30 días · pago seguro · acceso inmediato</small></div>
+
+    <div class="pagehead"><span>7</span> · Beneficios visuales (4)</div>
+    <table>
+      <tr><td>🗓️ Pruébalo 30 días</td><td>⚙️ Implementa y ve resultados</td></tr>
+      <tr><td>💶 Libera caja atrapada</td><td>↩️ Reembolso si no es para ti</td></tr>
+    </table>
+
+    <div class="pagehead"><span>8</span> · Mecanismo principal</div>
+    <div class="copy">El Sistema Claridad de Caja es lo que usamos internamente en Familias Empresarias para tener las 4 zonas a la vista cada mes.</div>
+
+    <div class="pagehead"><span>9</span> · Riesgo inverso</div>
+    <div class="copy"><span class="big">SIN RIESGOS. SIN EXCUSAS. SOLO RESULTADOS.</span></div>
+
+    <div class="pagehead"><span>10</span> · Recordatorio final</div>
+    <div class="copy">Pago único 97 € → ahora <b>3 pagos de 37 €</b>. Misma garantía, mismo acceso inmediato. [contador]</div>
+
+    <div class="pagehead"><span>11</span> · CTA final</div>
+    <div class="buybox"><a class="cta" href="#">EMPEZAR CON EL PRIMER PAGO DE 37 € →</a><br><small>Visa · Mastercard · PayPal</small></div>
+
+    <div class="pagehead"><span>12</span> · Opción negativa</div>
+    <div class="copy"><span class="neg">No, gracias. Prefiero seguir haciéndolo por mi cuenta.</span></div>
+  </div>
+
+  <!-- ============ PÁGINA 4 · GRACIAS ============ -->
+  <h2>④ Página de gracias — activa el ecosistema</h2>
+  <p class="lead">No solo entrega: convierte al comprador en miembro del ecosistema FE. Rama elegida: <b>Comunidad</b> (baja fricción tras 7 €), con puente suave al Diagnóstico de 48 h.</p>
+
+  <div class="page">
+    <div class="pagehead"><span>1</span> · Barra de confirmación</div>
+    <div class="confirm">✓ Pago confirmado · Tu compra se ha realizado correctamente · Revisa tu email</div>
+
+    <div class="pagehead"><span>2</span> · Titular grande</div>
+    <div class="copy"><span class="big">Gracias por confiar en «Dónde está mi dinero». Mira este vídeo de 2 minutos antes de empezar.</span></div>
+
+    <div class="pagehead"><span>3</span> · Subtítulo</div>
+    <div class="copy">Ya tienes el libro y tus bonos en tu email. Esto es lo que significa: estás a una tarde de ver, por fin, dónde está tu dinero. Aquí te digo por dónde empezar.</div>
+
+    <div class="pagehead"><span>4</span> · Vídeo principal (guion 3–5 min)</div>
+    <div class="copy">Agradecer → reforzar la decisión → «haz el test del Capítulo 7 esta semana» → presentar la comunidad → dejar caer que, cuando quieras el mapa completo, existe el Diagnóstico de 48 h.</div>
+
+    <div class="pagehead"><span>5</span> · Titular siguiente acción</div>
+    <div class="copy"><span class="big">Únete a la comunidad de Familias Empresarias.</span></div>
+
+    <div class="pagehead"><span>6</span> · Beneficios con iconos (4)</div>
+    <table>
+      <tr><td>💬 Pregunta tus dudas del test</td><td>📈 Comparte tu primera cifra y celébrala</td></tr>
+      <tr><td>🧭 Recibe el reto «mide una zona esta semana»</td><td>🤝 Conecta con otros dueños que también miran</td></tr>
+    </table>
+
+    <div class="pagehead"><span>7</span> · Bloque principal de acción (rama Comunidad)</div>
+    <div class="buybox"><a class="cta" href="#">ENTRAR A LA COMUNIDAD (WhatsApp/Telegram) →</a><br><small>Acceso gratuito para lectores · instrucciones enviadas a tu email</small></div>
+    <div class="note"><b>Puente al back-end (suave, no segunda venta):</b> «¿Prefieres ver tus 4 zonas completas sin pelearte con tus archivos? Cuando quieras, reserva tu <b>Diagnóstico de 48 h</b> en dondeestamidinero.es/#contacto.» — se desarrolla en Fase 4.</div>
+
+    <div class="pagehead"><span>8</span> · «Qué conseguirás»</div>
+    <ul class="clean">
+      <li>Tu primera victoria con tus propios números, esta semana.</li>
+      <li>Un hábito de 5 minutos al mes que te avisa antes del susto.</li>
+      <li>Dejar de gobernar de memoria y empezar a gobernar con criterio.</li>
+    </ul>
+
+    <div class="pagehead"><span>9</span> · Bloque motivacional</div>
+    <div class="copy">La compra fue el primer paso. La mayoría nunca lo da; tú sí. Tu tranquilidad empieza esta tarde.</div>
+
+    <div class="pagehead"><span>10</span> · Soporte</div>
+    <div class="copy">¿Algún problema con tu acceso? Escríbenos a hola@dondeestamidinero.es y lo resolvemos enseguida.</div>
+
+    <div class="pagehead"><span>11</span> · Footer</div>
+    <div class="copy">Familias Empresarias · Arquitectos de Claridad™ · Método RUTA · navy/gold.</div>
+
+    <div class="pagehead"><span>12</span> · Generación automática</div>
+    <div class="visual"><b>Listo para implementar:</b> copy, titulares, CTA, iconos, mockups e indicaciones visuales de las 4 páginas, con continuidad de marca respecto a la landing.</div>
+  </div>
+
+  <h2>Continuidad visual (las 5 páginas)</h2>
+  <ul class="clean">
+    <li>Misma paleta navy <code>#1B2A4A</code> / gold <code>#C8A951</code>, Georgia/Arial y mockups que la landing: el checkout se siente como su continuación.</li>
+    <li>Jerarquía y espacio premium; un único CTA dorado por pantalla; barras de estado (confirmación verde / urgencia) coherentes.</li>
+    <li>Garantía «Duerme Tranquilo» y métodos de pago repetidos en todas las páginas de cobro.</li>
+  </ul>
+
+  <footer>
+    <b>Embudo de Conversión · Familias Empresarias · Arquitectos de Claridad™</b><br>
+    Fase 3 de 5 — Checkout (pedido · 2 bumps · upsell · downsell · gracias) · Mecanismo: Método RUTA<br>
+    Siguiente gate: auditoría (ec-auditor, rúbrica de checkout) → con ≥8/10 se desbloquea Fase 4 (back-end).
+  </footer>
+
+</div>
+</body>
+</html>
