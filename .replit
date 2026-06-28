@@ -1,0 +1,20 @@
+# Configuración de Replit
+# Arranca la web (sitio actual + blog automático desde Drive).
+run = "npm start"
+entrypoint = "server.js"
+modules = ["nodejs-20"]
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+# Para "Deploy" en Replit (Reserved VM / Autoscale): mantiene el servidor vivo.
+run = ["npm", "start"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[env]
+NODE_ENV = "production"

@@ -1,0 +1,18 @@
+{
+  "name": "valeriogarciamentor-web",
+  "version": "1.0.0",
+  "description": "Web de Valerio García Mentor con blog que se publica automáticamente desde Google Drive (Círculo de Claridad).",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "sync": "node scripts/sync-once.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "googleapis": "^140.0.1"
+  }
+}
