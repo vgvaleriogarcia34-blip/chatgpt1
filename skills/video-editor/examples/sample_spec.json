@@ -1,0 +1,30 @@
+{
+  "resolution": [1080, 1920],
+  "font_scale": 1.0,
+  "subtitles": [
+    {"start": 0.2, "end": 2.6, "text": "te lo voy a decir bien claro", "reveal": "word"},
+    {"start": 2.6, "end": 5.0, "text": "ganar dinero es muy facil", "reveal": "word"},
+    {"start": 5.2, "end": 8.0, "text": "la gente no entiende que hay que enamorarse del proceso", "reveal": "word"},
+    {"start": 8.2, "end": 11.0, "text": "si tu entregas amor el dinero viene a ti", "reveal": "word", "highlight": "red"},
+    {"start": 16.2, "end": 19.0, "text": "he pasado por las tres grandes derrotas que tiene todo ser humano", "reveal": "word", "box": true}
+  ],
+  "headlines": [
+    {"start": 2.6, "end": 5.0, "align": "left",
+     "lines": [{"text": "GANAR", "size": "big"},
+               {"text": "DINERO", "size": "big", "color": "green"}]},
+    {"start": 5.2, "end": 8.0, "align": "left", "rule": "red",
+     "lines": ["hoy hay que", "ENAMORARSE", "del proceso"],
+     "accent": {"word": "ENAMORARSE", "color": "red"}},
+    {"start": 8.2, "end": 11.0, "align": "right",
+     "lines": ["si tu entregas", "AMOR"],
+     "accent": {"word": "AMOR", "color": "red"}},
+    {"start": 19.2, "end": 22.0, "align": "left",
+     "lines": ["que implicaba", "tu CANCER?"],
+     "accent": {"word": "CANCER?", "color": "red"}}
+  ],
+  "cards": [
+    {"start": 11.2, "end": 13.4, "type": "name", "name": "SERGIO"},
+    {"start": 13.4, "end": 16.0, "type": "brand",
+     "lines": ["mentor", "de VIDA", "& NEGOCIOS"]}
+  ]
+}
