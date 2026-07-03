@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protón EPIs — Modelo de Gestión de Pedidos y Entrega</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- ===================== CABECERA ===================== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="#/tienda" class="logo">
+        <span class="logo-mark">⛑️</span>
+        <span class="logo-text">Protón<strong>EPIs</strong></span>
+        <span class="logo-sub">modelo de pedidos</span>
+      </a>
+
+      <div class="header-search">
+        <input type="search" id="buscador" placeholder="Buscar calzado, guantes, ropa laboral…" autocomplete="off">
+      </div>
+
+      <nav class="header-nav">
+        <a href="#/tienda" data-nav="tienda">Tienda</a>
+        <a href="#/mis-pedidos" data-nav="mis-pedidos">Mis pedidos</a>
+        <a href="#/admin" data-nav="admin" class="nav-admin">Gestión ⚙️</a>
+        <a href="#/carrito" class="cart-link" data-nav="carrito">
+          🛒 <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+      </nav>
+    </div>
+    <div class="header-benefits">
+      <span>🚀 Pedidos gestionados en menos de 24 h</span>
+      <span>🚚 Envío gratis desde 50 €</span>
+      <span>↩️ 14 días de devolución</span>
+      <span>🏭 EPIs certificados</span>
+    </div>
+  </header>
+
+  <!-- ===================== CONTENIDO ===================== -->
+  <main id="app" class="app-main"></main>
+
+  <!-- ===================== PIE ===================== -->
+  <footer class="site-footer">
+    <p>Modelo funcional de gestión de pedidos y entrega · Inspirado en el flujo de
+       <a href="https://protonepis.com" target="_blank" rel="noopener">protonepis.com</a>.
+       Datos de demostración almacenados en tu navegador.</p>
+    <button class="btn-reset" id="btnReset">↺ Reiniciar datos de demo</button>
+  </footer>
+
+  <!-- Contenedor de notificaciones -->
+  <div id="toast" class="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
