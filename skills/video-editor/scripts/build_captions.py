@@ -79,16 +79,18 @@ class Builder:
         return max(1, int(round(self.H * frac * self.k)))
 
     def fit(self, text: str, base_fs: int, max_frac_w: float = 0.88,
-            char_w: float = 0.62) -> int:
+            char_w: float = 0.66) -> int:
         """Shrink base_fs so `text` fits within max_frac_w * frame width.
 
         char_w is the average glyph advance as a fraction of the font size
-        (~0.62 for a heavy grotesque). Prevents big headlines / card lines from
-        overflowing the frame (e.g. '& NEGOCIOS')."""
+        (~0.66 for a bold grotesque — kept slightly generous so lines don't
+        clip). Prevents headlines / card lines / long intro lines from running
+        off the frame (e.g. '& NEGOCIOS' or 'cuando me preguntan si me afecta').
+        The floor is low so long lines really can shrink."""
         n = max(1, len(text))
         avail = self.W * max_frac_w
         fs_fit = int(avail / (char_w * n))
-        return max(self.px(0.028), min(base_fs, fs_fit))
+        return max(self.px(0.020), min(base_fs, fs_fit))
 
     # ---- ASS document -----------------------------------------------------
     def header(self) -> str:
@@ -218,9 +220,14 @@ class Builder:
         big_texts = [l["text"] for l in norm if l["size"] == "big"]
         big_fs = self.fit(max(big_texts, key=len), self.px(0.075),
                           max_frac_w=0.88) if big_texts else self.px(0.075)
+        # lead (small) lines get fitted too, otherwise a long intro line like
+        # "cuando me preguntan si me afecta" runs off both edges.
+        lead_texts = [l["text"] for l in norm if l["size"] != "big"]
+        lead_fs = self.fit(max(lead_texts, key=len), self.px(0.036),
+                           max_frac_w=0.90) if lead_texts else self.px(0.036)
         parts = []
         for ln in norm:
-            fs = big_fs if ln["size"] == "big" else self.px(0.036)
+            fs = big_fs if ln["size"] == "big" else lead_fs
             seg = f"{{\\fs{fs}}}"
             txt = ln["text"]
             color = ln.get("color")
