@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test de evaluación · TalentFlow</title>
+<style>
+    :root { --brand:#5b8cff; --accent:#7c5cff; --bg:#f6f8fc; --surface:#fff; --border:#e4e9f2; --text:#1a2238; --muted:#68728c; --green:#2fce8a; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+    .wrap { max-width:720px; margin:0 auto; padding:24px 18px 60px; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:28px; box-shadow:0 6px 28px rgba(30,45,90,.08); }
+    .brandbar { height:6px; border-radius:10px; background:linear-gradient(90deg,var(--brand),var(--accent)); margin-bottom:22px; }
+    h1 { font-size:24px; letter-spacing:-.02em; margin-bottom:8px; }
+    h2 { font-size:19px; margin-bottom:4px; }
+    .sub { color:var(--muted); font-size:14px; margin-bottom:20px; }
+    .progress { height:8px; background:var(--bg); border-radius:8px; overflow:hidden; margin-bottom:6px; }
+    .progress > div { height:100%; background:linear-gradient(90deg,var(--brand),var(--accent)); width:0; transition:width .3s; }
+    .steplabel { font-size:12px; color:var(--muted); margin-bottom:20px; text-align:right; }
+    .q { padding:16px 0; border-top:1px solid var(--border); }
+    .q:first-child { border-top:none; }
+    .q .qtext { font-size:14px; font-weight:500; margin-bottom:12px; }
+    .likert { display:flex; gap:6px; justify-content:space-between; max-width:420px; }
+    .likert label { flex:1; text-align:center; cursor:pointer; }
+    .likert input { display:none; }
+    .likert .dot { display:block; width:100%; padding:9px 0; border:1px solid var(--border); border-radius:9px; font-size:13px; font-weight:600; color:var(--muted); transition:all .12s; }
+    .likert input:checked + .dot { background:var(--brand); color:#fff; border-color:var(--brand); }
+    .likert .ends { font-size:10px; color:var(--muted); }
+    .scale-ends { display:flex; justify-content:space-between; max-width:420px; font-size:11px; color:var(--muted); margin-top:6px; }
+    .opts { display:flex; flex-direction:column; gap:8px; }
+    .opts label { display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:10px; padding:11px 14px; cursor:pointer; font-size:14px; transition:all .12s; }
+    .opts label:hover { border-color:var(--brand); }
+    .opts input { accent-color:var(--brand); }
+    .opts input:checked + span { font-weight:600; }
+    .opts label:has(input:checked) { border-color:var(--brand); background:rgba(91,140,255,.06); }
+    .nav { display:flex; justify-content:space-between; gap:12px; margin-top:26px; }
+    .btn { background:var(--brand); color:#fff; border:none; padding:12px 22px; border-radius:11px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
+    .btn:hover { filter:brightness(1.07); }
+    .btn.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .intro-list { list-style:none; display:flex; flex-direction:column; gap:10px; margin:18px 0; }
+    .intro-list li { display:flex; gap:10px; align-items:flex-start; font-size:14px; }
+    .intro-list .ic { width:30px; height:30px; border-radius:8px; background:rgba(91,140,255,.12); color:var(--brand); display:grid; place-items:center; flex-shrink:0; font-size:15px; }
+    .done { text-align:center; padding:20px 6px; }
+    .done .tick { width:64px; height:64px; border-radius:50%; background:var(--green); color:#fff; display:grid; place-items:center; font-size:32px; margin:0 auto 18px; }
+    .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0; text-align:left; }
+    .rescard { border:1px solid var(--border); border-radius:12px; padding:14px; }
+    .rescard .rl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    .rescard .rv { font-size:15px; font-weight:700; margin-top:3px; }
+    .warn { background:#fff6e6; border:1px solid #ffe0a3; color:#8a6100; border-radius:10px; padding:12px 14px; font-size:13px; }
+    @media (max-width:560px){ .result-grid{grid-template-columns:1fr;} .likert .dot{font-size:12px;padding:8px 0;} }
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card" id="card"></div></div>
+<script>
+const KEY = 'talentflow_ats_v2';
+const params = new URLSearchParams(location.search);
+const cid = params.get('cid');
+
+// ---- Banco de preguntas ----
+const BELBIN = [
+    ['CE','Propongo ideas originales y poco convencionales.'],['CE','Disfruto resolviendo problemas complejos.'],['CE','Prefiero pensar de forma creativa antes que seguir lo establecido.'],
+    ['ME','Analizo las opciones con objetividad antes de decidir.'],['ME','Detecto fallos en los razonamientos de los demás.'],['ME','Soy prudente y ponderado al juzgar.'],
+    ['ES','Aporto conocimientos técnicos especializados.'],['ES','Me gusta profundizar a fondo en mi área.'],['ES','Prefiero dominar un tema que abarcar muchos.'],
+    ['CO','Sé delegar y sacar lo mejor de cada persona.'],['CO','Clarifico los objetivos del equipo.'],['CO','Coordino con facilidad a personas diversas.'],
+    ['CH','Me preocupo por el clima y las relaciones del equipo.'],['CH','Busco el consenso y evito los conflictos.'],['CH','Escucho y apoyo a mis compañeros.'],
+    ['IR','Hago contactos y exploro oportunidades fuera del equipo.'],['IR','Soy entusiasta y comunicativo.'],['IR','Busco ideas y recursos en el exterior.'],
+    ['IS','Empujo al equipo para superar obstáculos.'],['IS','Trabajo bien bajo presión.'],['IS','Soy directo y orientado a resultados.'],
+    ['ID','Convierto las ideas en tareas y planes concretos.'],['ID','Soy organizado y metódico.'],['ID','Cumplo lo acordado de forma fiable.'],
+    ['FI','Reviso el trabajo en busca de errores.'],['FI','Me aseguro de cumplir los plazos.'],['FI','Cuido los detalles hasta el final.'],
+];
+const BIGFIVE = [
+    ['O','Tengo una imaginación vívida.',0],['O','Me interesan las ideas abstractas.',0],['O','Evito los conceptos complejos.',1],['O','Tengo poca curiosidad artística.',1],
+    ['C','Soy ordenado y cuidadoso.',0],['C','Cumplo mis tareas a tiempo.',0],['C','Suelo dejar mis cosas desordenadas.',1],['C','A veces descuido mis obligaciones.',1],
+    ['E','Me siento cómodo entre mucha gente.',0],['E','Inicio conversaciones con facilidad.',0],['E','Soy callado con desconocidos.',1],['E','Prefiero pasar desapercibido.',1],
+    ['A','Me intereso de verdad por los demás.',0],['A','Empatizo con los sentimientos ajenos.',0],['A','Me cuesta preocuparme por otros.',1],['A','A veces soy poco considerado.',1],
+    ['S','Suelo estar relajado.',0],['S','Gestiono bien el estrés.',0],['S','Me preocupo por muchas cosas.',1],['S','Cambio de humor con facilidad.',1],
+];
+const DISCQ = [
+    ['D','Me gusta tomar el control de las situaciones.'],['D','Soy directo al expresar lo que quiero.'],['D','Asumo riesgos para lograr resultados.'],
+    ['I','Convenzo a los demás con facilidad.'],['I','Soy sociable y optimista.'],['I','Disfruto interactuando con gente nueva.'],
+    ['S','Prefiero entornos estables y predecibles.'],['S','Soy paciente y buen oyente.'],['S','Apoyo a los demás con constancia.'],
+    ['C','Sigo las normas y procedimientos.'],['C','Cuido la precisión y los detalles.'],['C','Analizo los datos antes de actuar.'],
+];
+const PSICO = [
+    ['verbal','Sinónimo de «efímero»:',['Duradero','Pasajero','Enorme','Costoso'],1],
+    ['verbal','Antónimo de «escaso»:',['Limitado','Insuficiente','Abundante','Raro'],2],
+    ['verbal','Completa: «La explicación fue tan ___ que nadie tuvo dudas».',['confusa','clara','extensa','técnica'],1],
+    ['numerico','Un producto cuesta 80 € y sube un 25 %. Precio final:',['96 €','100 €','105 €','110 €'],1],
+    ['numerico','Serie: 3, 6, 12, 24, ?',['30','36','48','60'],2],
+    ['numerico','El 15 % de 200 es:',['15','20','30','45'],2],
+    ['logico','Todos los A son B. Algún B es C. Por tanto:',['Todo A es C','Algún A podría ser C','Ningún A es C','Todo C es A'],1],
+    ['logico','«Si llueve, la calle se moja». La calle NO está mojada. Entonces:',['Llovió','No llovió','Quizá llovió','Falta información'],1],
+    ['logico','Ordena de menor a mayor: 1/2 · 0,4 · 3/5',['0,4 < 1/2 < 3/5','1/2 < 0,4 < 3/5','3/5 < 1/2 < 0,4','0,4 < 3/5 < 1/2'],0],
+    ['abstracto','Serie: 2, 4, 8, 16, ?',['24','32','30','20'],1],
+    ['abstracto','▲, ▲▲, ▲▲▲, ? → nº de triángulos siguiente:',['3','4','5','6'],1],
+    ['abstracto','Patrón: 1, 1, 2, 3, 5, 8, ?',['11','12','13','15'],2],
+];
+
+// ---- Contexto (candidato + valores empresa + marca) ----
+let store = null, candidate = null, DNA_VALUES = ['Orientación al cliente','Trabajo en equipo','Excelencia','Innovación','Integridad'];
+try {
+    store = JSON.parse(localStorage.getItem(KEY));
+    if (store) {
+        if (store.settings && store.settings.dna && store.settings.dna.values) DNA_VALUES = store.settings.dna.values.map(v => v.name);
+        if (store.settings && store.settings.portal) { document.documentElement.style.setProperty('--brand', store.settings.portal.brandColor || '#5b8cff'); document.documentElement.style.setProperty('--accent', store.settings.portal.accentColor || '#7c5cff'); }
+        if (cid) candidate = (store.candidates || []).find(c => c.id === cid);
+    }
+} catch (e) {}
+
+// ---- Estado del wizard ----
+const answers = { values:{}, belbin:{}, bigfive:{}, disc:{}, psico:{} };
+let step = 0;
+const STEPS = ['intro','values','belbin','personality','psico'];
+const card = document.getElementById('card');
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+function likert(name, val){
+    const L = ['Muy en<br>desacuerdo','','Neutral','','Muy de<br>acuerdo'];
+    return `<div class="likert">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="${name}" value="${n}" ${val==n?'checked':''} onchange="setAns('${name}',${n})"><span class="dot">${n}</span></label>`).join('')}</div>
+    <div class="scale-ends"><span>Muy en desacuerdo</span><span>Muy de acuerdo</span></div>`;
+}
+window.setAns = (name, val) => {
+    const [grp, idx] = name.split(':');
+    answers[grp][idx] = val;
+    const btn = document.getElementById('nextBtn'); if (btn) btn.disabled = !stepComplete();
+};
+
+function stepComplete(){
+    const s = STEPS[step];
+    if (s === 'values') return DNA_VALUES.every((_,i)=>answers.values['v'+i]!=null);
+    if (s === 'belbin') return BELBIN.every((_,i)=>answers.belbin['b'+i]!=null);
+    if (s === 'personality') return BIGFIVE.every((_,i)=>answers.bigfive['f'+i]!=null) && DISCQ.every((_,i)=>answers.disc['d'+i]!=null);
+    if (s === 'psico') return PSICO.every((_,i)=>answers.psico['p'+i]!=null);
+    return true;
+}
+
+function render(){
+    const s = STEPS[step];
+    const pct = Math.round(step/(STEPS.length)*100);
+    let inner = '';
+    if (s === 'intro') {
+        inner = `<div class="brandbar"></div>
+        <h1>Test de evaluación de talento</h1>
+        <p class="sub">${candidate ? 'Hola <strong>'+esc(candidate.name.split(' ')[0])+'</strong>, gracias por tu interés.' : 'Bienvenido/a.'} Este cuestionario nos ayuda a conocerte mejor. Dura unos <strong>8–10 minutos</strong> y no hay respuestas «malas» salvo en la parte de aptitudes.</p>
+        <ul class="intro-list">
+            <li><span class="ic">🎯</span><div><strong>Valores</strong> — cuánto te identificas con nuestra cultura.</div></li>
+            <li><span class="ic">🧩</span><div><strong>Roles de equipo (Belbin)</strong> — cómo contribuyes en un equipo.</div></li>
+            <li><span class="ic">🧠</span><div><strong>Personalidad (Big Five y DISC)</strong> — tu estilo de trabajo.</div></li>
+            <li><span class="ic">📐</span><div><strong>Aptitudes</strong> — razonamiento verbal, numérico, lógico y abstracto.</div></li>
+        </ul>
+        ${!candidate && cid ? '<div class="warn">No hemos encontrado tu ficha, pero puedes completar el test igualmente.</div>' : ''}
+        <div class="nav"><span></span><button class="btn" onclick="next()">Empezar →</button></div>`;
+    } else if (s === 'values') {
+        inner = head('🎯 Valores', 'Indica cuánto te identificas con cada afirmación.', pct) +
+            DNA_VALUES.map((v,i)=>`<div class="q"><div class="qtext">Me identifico con el valor: «${esc(v)}»</div>${likert('values:v'+i, answers.values['v'+i])}</div>`).join('') + navBtns();
+    } else if (s === 'belbin') {
+        inner = head('🧩 Roles de equipo', 'Cómo sueles comportarte trabajando en equipo.', pct) +
+            BELBIN.map((q,i)=>`<div class="q"><div class="qtext">${esc(q[1])}</div>${likert('belbin:b'+i, answers.belbin['b'+i])}</div>`).join('') + navBtns();
+    } else if (s === 'personality') {
+        inner = head('🧠 Personalidad', 'Tu forma de ser y de trabajar (Big Five y DISC).', pct) +
+            BIGFIVE.map((q,i)=>`<div class="q"><div class="qtext">${esc(q[1])}</div>${likert('bigfive:f'+i, answers.bigfive['f'+i])}</div>`).join('') +
+            DISCQ.map((q,i)=>`<div class="q"><div class="qtext">${esc(q[1])}</div>${likert('disc:d'+i, answers.disc['d'+i])}</div>`).join('') + navBtns();
+    } else if (s === 'psico') {
+        inner = head('📐 Aptitudes', 'Elige la respuesta correcta. Hay una sola por pregunta.', pct) +
+            PSICO.map((q,i)=>`<div class="q"><div class="qtext">${i+1}. ${esc(q[1])}</div><div class="opts">${q[2].map((o,oi)=>`<label><input type="radio" name="psico:p${i}" value="${oi}" ${answers.psico['p'+i]==oi?'checked':''} onchange="setAns('psico:p${i}',${oi})"><span>${esc(o)}</span></label>`).join('')}</div></div>`).join('') +
+            `<div class="nav"><button class="btn ghost" onclick="prev()">← Atrás</button><button class="btn" id="nextBtn" onclick="finish()" ${stepComplete()?'':'disabled'}>Finalizar y enviar</button></div>`;
+    }
+    card.innerHTML = inner;
+}
+function head(title, sub, pct){ return `<div class="progress"><div style="width:${pct}%"></div></div><div class="steplabel">Paso ${step} de ${STEPS.length-1}</div><h2>${title}</h2><p class="sub">${sub}</p>`; }
+function navBtns(){ return `<div class="nav"><button class="btn ghost" onclick="prev()">← Atrás</button><button class="btn" id="nextBtn" onclick="next()" ${stepComplete()?'':'disabled'}>Continuar →</button></div>`; }
+window.next = () => { if (step>0 && !stepComplete()) return; step++; window.scrollTo(0,0); render(); };
+window.prev = () => { step--; window.scrollTo(0,0); render(); };
+
+// ---- Puntuación ----
+function computeAssess(){
+    // Valores 1-5
+    const valuesFit = {}; DNA_VALUES.forEach((v,i)=>valuesFit[v] = answers.values['v'+i] || 0);
+    // Belbin -> 0-10 por rol (media de sus 3 ítems, 1-5 -> 0-10)
+    const belSum = {}, belN = {};
+    BELBIN.forEach((q,i)=>{ const r=q[0]; belSum[r]=(belSum[r]||0)+(answers.belbin['b'+i]||0); belN[r]=(belN[r]||0)+1; });
+    const belbin = {}; Object.keys(belSum).forEach(r=>{ const avg=belSum[r]/belN[r]; belbin[r]=Math.round((avg-1)/4*10); });
+    // Big Five -> 0-100 (reverse en q[2]==1)
+    const bfSum={}, bfN={};
+    BIGFIVE.forEach((q,i)=>{ const d=q[0]; let v=answers.bigfive['f'+i]||0; if(q[2]===1) v=6-v; bfSum[d]=(bfSum[d]||0)+v; bfN[d]=(bfN[d]||0)+1; });
+    const bigfive={}; Object.keys(bfSum).forEach(d=>bigfive[d]=Math.round((bfSum[d]/bfN[d])/5*100));
+    // DISC -> 0-100
+    const dSum={}, dN={};
+    DISCQ.forEach((q,i)=>{ const d=q[0]; dSum[d]=(dSum[d]||0)+(answers.disc['d'+i]||0); dN[d]=(dN[d]||0)+1; });
+    const disc={}; Object.keys(dSum).forEach(d=>disc[d]=Math.round((dSum[d]/dN[d])/5*100));
+    // Psicotécnico -> % aciertos por área
+    const pOk={}, pT={};
+    PSICO.forEach((q,i)=>{ const a=q[0]; pT[a]=(pT[a]||0)+1; if(answers.psico['p'+i]===q[3]) pOk[a]=(pOk[a]||0)+1; });
+    const psycho={}; Object.keys(pT).forEach(a=>psycho[a]=Math.round((pOk[a]||0)/pT[a]*100));
+    return { valuesFit, belbin, bigfive, disc, psycho, selfCompleted: new Date().toISOString().slice(0,10), selfReported:true };
+}
+
+window.finish = () => {
+    if (!stepComplete()) return;
+    const assess = computeAssess();
+    const saved = saveResult(assess);
+    showDone(assess, saved);
+};
+function saveResult(assess){
+    try {
+        const s = JSON.parse(localStorage.getItem(KEY));
+        if (s && cid) { const c=(s.candidates||[]).find(x=>x.id===cid);
+            if (c){ c.assess = Object.assign({}, c.assess, assess); c.activities=c.activities||[]; c.activities.push({type:'score',text:'Completó el test de evaluación (autoevaluación)',date:assess.selfCompleted,who:c.name}); localStorage.setItem(KEY, JSON.stringify(s)); return 'ats'; } }
+    } catch(e){}
+    try { const inbox=JSON.parse(localStorage.getItem('talentflow_assessment_inbox')||'[]'); inbox.push({cid,assess}); localStorage.setItem('talentflow_assessment_inbox', JSON.stringify(inbox)); return 'inbox'; } catch(e){}
+    return 'none';
+}
+function showDone(a, saved){
+    const belbinNames = {CE:'Cerebro',ME:'Monitor Evaluador',ES:'Especialista',CO:'Coordinador',CH:'Cohesionador',IR:'Investigador de Recursos',IS:'Impulsor',ID:'Implementador',FI:'Finalizador'};
+    const topRole = Object.entries(a.belbin).sort((x,y)=>y[1]-x[1])[0];
+    const psTotal = Math.round(Object.values(a.psycho).reduce((s,v)=>s+v,0)/Object.keys(a.psycho).length);
+    card.innerHTML = `<div class="done">
+        <div class="tick">✓</div>
+        <h1>¡Test completado!</h1>
+        <p class="sub">Gracias${candidate?', '+esc(candidate.name.split(' ')[0]):''}. Hemos registrado tus respuestas y el equipo de selección las revisará.</p>
+        <div class="result-grid">
+            <div class="rescard"><div class="rl">Rol de equipo principal</div><div class="rv">${belbinNames[topRole[0]]||'—'}</div></div>
+            <div class="rescard"><div class="rl">Aptitud psicotécnica</div><div class="rv">${psTotal}% de aciertos</div></div>
+            <div class="rescard"><div class="rl">Extraversión</div><div class="rv">${a.bigfive.E||0}%</div></div>
+            <div class="rescard"><div class="rl">Responsabilidad</div><div class="rv">${a.bigfive.C||0}%</div></div>
+        </div>
+        ${saved==='ats' ? '<p class="sub">Ya puedes cerrar esta página.</p>' : '<div class="warn">Resultados guardados localmente. Si abriste el test fuera del sistema de RRHH, envía una captura de esta pantalla al reclutador.</div>'}
+    </div>`;
+    window.scrollTo(0,0);
+}
+
+if (!cid) {
+    card.innerHTML = '<div class="brandbar"></div><h1>Test de evaluación</h1><p class="sub">Este enlace no es válido: falta el identificador del candidato. Pide al equipo de selección un enlace personalizado.</p>';
+} else {
+    render();
+}
+</script>
+</body>
+</html>

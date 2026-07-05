@@ -46,7 +46,11 @@ talento).
   **roles de equipo de Belbin** (los 9 roles con perfil radar y clúster),
   **personalidad Big Five (OCEAN) y DISC**, y **aptitudes psicotécnicas**
   (verbal, numérica, lógica, abstracta) por percentil. Ranking de candidatos
-  por encaje.
+  por encaje. El reclutador puede rellenar la evaluación **o enviar un test
+  autoadministrado** (`assessment.html`) para que **el propio candidato** lo
+  complete: un cuestionario con corrección automática (valores, Belbin,
+  Big Five, DISC y aptitudes con respuestas correctas) que rellena su perfil
+  y recalcula el Fit score sin intervención del reclutador.
 - **📈 Informes**: analítica de contratación — conversión del embudo,
   efectividad por origen, contrataciones por mes (gráfico), candidatos por
   departamento, ratio entrevista→oferta y **reporting DE&I** de diversidad.

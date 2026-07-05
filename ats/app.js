@@ -1341,9 +1341,34 @@ function evaluationTab(c) {
     const psychBlock = `
         <div class="assess-head"><div class="cd-section-title" style="margin:0">Aptitudes psicotécnicas (percentil)</div><button class="btn-outline btn-sm" onclick="openAssessPsych('${c.id}')">Evaluar</button></div>
         ${a.psycho ? PSICO.map(t => barMeter(t.name, a.psycho[t.id] || 0, 100, '#22c1c3', ' pc')).join('') : '<p class="assess-empty">Sin prueba psicotécnica.</p>'}`;
+    const done = c.assess && c.assess.selfCompleted;
+    const inviteBar = `<div class="invite-bar ${done ? 'ok' : ''}">
+        <div>${done ? `✅ El candidato completó el test el <strong>${c.assess.selfCompleted}</strong>` : '📋 Deja que el <strong>propio candidato</strong> rellene su evaluación con un test autoadministrado'}</div>
+        <button class="btn-primary btn-sm" onclick="openAssessInvite('${c.id}')">${done ? 'Reenviar test' : 'Enviar test al candidato'}</button>
+    </div>`;
     return `
-        <div class="fit-summary"><div class="fit-big" style="color:${fitColor(fit)}">${fit != null ? fit + '%' : '—'}</div><div><div style="font-weight:700">${fitLabel(fit)}</div><div class="cc-role">Fit score compuesto (valores + evaluación técnica)</div></div></div>
+        ${inviteBar}
+        <div class="fit-summary"><div class="fit-big" style="color:${fitColor(fit)}">${fit != null ? fit + '%' : '—'}</div><div><div style="font-weight:700">${fitLabel(fit)} ${c.assess && c.assess.selfReported ? '<span class="badge dept" style="vertical-align:middle">Autoevaluado</span>' : ''}</div><div class="cc-role">Fit score compuesto (valores + evaluación técnica)</div></div></div>
         ${valuesBlock}<hr class="assess-sep">${belbinBlock}<hr class="assess-sep">${persBlock}<hr class="assess-sep">${psychBlock}`;
+}
+
+function openAssessInvite(id) {
+    const c = state.candidates.find(x => x.id === id);
+    const link = `assessment.html?cid=${id}`;
+    const abs = location.href.replace(/[^/]*$/, '') + link;
+    const done = c.assess && c.assess.selfCompleted;
+    openModal(`
+        <h2>Test de autoevaluación</h2><div class="modal-sub">Envía este enlace a ${c.name}. Al completarlo, su perfil (valores, Belbin, Big Five, DISC y psicotécnico) se rellena automáticamente y se recalcula el Fit score.</div>
+        ${done ? `<div class="invite-bar ok" style="margin-bottom:14px">✅ Ya completó el test el <strong>${c.assess.selfCompleted}</strong>. Reenviar lo dejará rehacerlo.</div>` : ''}
+        <div class="cd-section-title">Enlace personalizado del candidato</div>
+        <pre class="codeblock" id="assessLink">${abs}</pre>
+        <button class="btn-primary btn-sm" onclick="copyText('assessLink')">Copiar enlace</button>
+        <div class="cd-section-title" style="margin-top:16px">Enviar por email</div>
+        <p style="font-size:13px;color:var(--muted)">Puedes registrar el envío con una plantilla desde la pestaña «Comunicación», o pegar el enlace en tu propio correo.</p>
+        <div class="modal-actions">
+            <button class="btn-outline" onclick="window.open('${link}','_blank')">↗ Previsualizar test</button>
+            <button class="btn-primary" onclick="openCandidate('${id}','evaluacion')">Cerrar</button>
+        </div>`, 'wide');
 }
 
 function openAssessValues(id) {
@@ -1510,7 +1535,7 @@ document.getElementById('hamburger').addEventListener('click', () => document.ge
 document.getElementById('seedBtn').addEventListener('click', () => { if (confirm('Restaurar los datos de ejemplo y reemplazar los actuales?')) { seedData(); render(); toast('Datos demo cargados', 'ok'); } });
 document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('¿Borrar TODOS los datos?')) { state = { jobs: [], candidates: [], templates: [], automations: [], team: [], settings: {} }; save(); render(); toast('Datos borrados', 'info'); } });
 
-Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych });
+Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych, openAssessInvite });
 
 /* ---------- Init ---------- */
 load();
