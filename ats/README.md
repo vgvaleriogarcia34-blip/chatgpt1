@@ -18,9 +18,11 @@ y guarda los datos en `localStorage`.
   **arrastrar y soltar** para mover candidatos entre etapas. Filtro por vacante.
 - **Candidatos**: base de datos con búsqueda, filtro por etapa, valoración por
   estrellas, etiquetas de habilidades, origen y ficha detallada.
-- **Ficha del candidato**: cambio de etapa, valoración, etiquetas y notas de
-  evaluación con historial.
-- **Entrevistas**: agenda de entrevistas próximas ordenadas por fecha.
+- **Ficha del candidato**: cambio de etapa, valoración, etiquetas, fecha de
+  entrevista y notas de evaluación con historial.
+- **Entrevistas**: agenda de entrevistas próximas ordenadas por fecha
+  (se programan desde la ficha del candidato).
+- **Exportar a CSV**: descarga la base de candidatos lista para Excel.
 - **Buscador global** y **datos de ejemplo** precargados.
 
 ## Uso

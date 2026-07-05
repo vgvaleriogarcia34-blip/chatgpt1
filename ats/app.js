@@ -315,7 +315,10 @@ function renderCandidates() {
     content.innerHTML = `
         <div class="page-head">
             <div><h1>Candidatos</h1><p>${state.candidates.length} en la base de datos</p></div>
-            <button class="btn-primary" onclick="openCandidateForm()">＋ Añadir candidato</button>
+            <div style="display:flex;gap:10px">
+                <button class="btn-outline" onclick="exportCandidatesCSV()">⭳ Exportar CSV</button>
+                <button class="btn-primary" onclick="openCandidateForm()">＋ Añadir candidato</button>
+            </div>
         </div>
         <div class="filters">
             <select id="candStageFilter">
@@ -362,6 +365,7 @@ function openCandidateForm(id) {
                 <div class="field"><label>Origen</label><select name="source">
                     ${['LinkedIn','Referido','Web empleo','Portal propio','Otro'].map(o => `<option ${c?.source === o ? 'selected' : ''}>${o}</option>`).join('')}
                 </select></div>
+                <div class="field"><label>Fecha de entrevista</label><input name="interviewDate" type="date" value="${c?.interviewDate || ''}"></div>
                 <div class="field full"><label>Etiquetas (separadas por comas)</label><input name="tags" value="${(c?.tags || []).join(', ')}" placeholder="Ej: React, 5 años, Senior"></div>
             </div>
             <div class="modal-actions">
@@ -374,6 +378,7 @@ function openCandidateForm(id) {
         const data = Object.fromEntries(new FormData(e.target).entries());
         data.tags = data.tags.split(',').map(t => t.trim()).filter(Boolean);
         data.jobId = data.jobId || null;
+        data.interviewDate = data.interviewDate || null;
         if (c) { Object.assign(c, data); toast('Candidato actualizado', 'ok'); }
         else {
             state.candidates.unshift({ id: uid('cand'), rating: 0, applied: todayISO(), notes: [], interviewDate: null, ...data });
@@ -453,6 +458,25 @@ function deleteCandidate(id) {
     save(); closeModal(); toast('Candidato eliminado', 'info'); render();
 }
 
+function exportCandidatesCSV() {
+    if (!state.candidates.length) { toast('No hay candidatos que exportar', 'info'); return; }
+    const cols = ['Nombre','Email','Teléfono','Vacante','Etapa','Valoración','Origen','Etiquetas','Aplicó','Entrevista'];
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = state.candidates.map(c => {
+        const job = state.jobs.find(j => j.id === c.jobId);
+        return [c.name, c.email, c.phone, job ? job.title : '', stageById(c.stage).name,
+            c.rating || 0, c.source, (c.tags || []).join('; '), c.applied, c.interviewDate || ''].map(esc).join(',');
+    });
+    const csv = '﻿' + [cols.map(esc).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `candidatos_${todayISO()}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+    toast(`${state.candidates.length} candidatos exportados`, 'ok');
+}
+
 /* ---------- Entrevistas ---------- */
 function renderCalendar() {
     const upcoming = state.candidates
@@ -519,7 +543,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 });
 
 // exponer funciones usadas en atributos inline
-Object.assign(window, { openJobForm, openJobDetail, deleteJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, closeModal });
+Object.assign(window, { openJobForm, openJobDetail, deleteJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, closeModal, exportCandidatesCSV });
 
 /* ---------- Init ---------- */
 load();
