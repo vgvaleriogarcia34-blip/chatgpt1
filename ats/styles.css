@@ -396,3 +396,27 @@ tr:hover td { background: var(--panel-2); }
 .portal-footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
 .codeblock { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 12px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; color: var(--text); overflow-x: auto; white-space: pre; line-height: 1.5; }
 code { background: var(--panel-2); padding: 1px 5px; border-radius: 5px; font-size: 12px; font-family: ui-monospace, monospace; }
+
+/* ================= v5: evaluación / cultura / fit ================= */
+.value-item { padding: 8px 0; border-top: 1px solid var(--border); }
+.value-item:first-of-type { border-top: none; }
+.value-item strong { display: block; font-size: 13px; }
+.value-item span { font-size: 12px; color: var(--muted); }
+.fit-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.fit-row:first-of-type { border-top: none; }
+.fit-badge { font-weight: 800; font-size: 14px; padding: 4px 10px; border-radius: 10px; flex-shrink: 0; }
+.fit-summary { display: flex; align-items: center; gap: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.fit-big { font-size: 34px; font-weight: 800; }
+.assess-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 10px; }
+.assess-empty { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+.assess-sep { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+.radar-wrap { display: grid; grid-template-columns: 240px 1fr; gap: 16px; align-items: center; }
+.belbin-top { display: flex; flex-direction: column; gap: 8px; }
+.belbin-role { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.belbin-role .rank { font-weight: 800; color: var(--brand); width: 20px; }
+.belbin-role b { margin-left: auto; font-size: 14px; }
+.slider-row { display: flex; align-items: center; gap: 12px; padding: 7px 0; }
+.slider-label { flex: 1; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.slider-row input[type=range] { width: 150px; accent-color: var(--brand); }
+.slider-val { width: 48px; text-align: right; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 620px) { .radar-wrap { grid-template-columns: 1fr; } }

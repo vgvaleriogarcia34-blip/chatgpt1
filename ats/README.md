@@ -40,6 +40,13 @@ talento).
   candidatos archivados que encajan con vacantes abiertas por sus etiquetas.
 - **📅 Entrevistas**: agenda global de entrevistas con entrevistadores.
 - **📄 Ofertas**: gestión, estados y **tasa de aceptación**.
+- **🧭 Cultura & Fit**: **ADN de empresa** (misión, visión, valores)
+  configurable y un **Fit score** compuesto por candidato. En la ficha, pestaña
+  **Evaluación** con: **alineamiento por valores** (% de encaje cultural),
+  **roles de equipo de Belbin** (los 9 roles con perfil radar y clúster),
+  **personalidad Big Five (OCEAN) y DISC**, y **aptitudes psicotécnicas**
+  (verbal, numérica, lógica, abstracta) por percentil. Ranking de candidatos
+  por encaje.
 - **📈 Informes**: analítica de contratación — conversión del embudo,
   efectividad por origen, contrataciones por mes (gráfico), candidatos por
   departamento, ratio entrevista→oferta y **reporting DE&I** de diversidad.

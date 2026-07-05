@@ -37,6 +37,52 @@ const GENDERS = ['Mujer', 'Hombre', 'No binario', 'Prefiere no decir'];
 const AVATAR_COLORS = ['#5b8cff','#7c5cff','#ffb547','#2fce8a','#ff5f6d','#22c1c3','#e879f9','#fb923c'];
 const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
+/* --- Evaluación de conducta / psicotécnicos --- */
+const BELBIN_ROLES = [
+    { id: 'CE', name: 'Cerebro', cluster: 'Mental', desc: 'Creativo, imaginativo; resuelve problemas difíciles.', color: '#7c5cff' },
+    { id: 'ME', name: 'Monitor Evaluador', cluster: 'Mental', desc: 'Estratégico y crítico; juzga con precisión.', color: '#6366f1' },
+    { id: 'ES', name: 'Especialista', cluster: 'Mental', desc: 'Dedicado; aporta conocimiento experto.', color: '#22c1c3' },
+    { id: 'CO', name: 'Coordinador', cluster: 'Social', desc: 'Maduro; clarifica objetivos y delega bien.', color: '#2fce8a' },
+    { id: 'CH', name: 'Cohesionador', cluster: 'Social', desc: 'Cooperador y diplomático; evita fricciones.', color: '#16a34a' },
+    { id: 'IR', name: 'Investigador de Recursos', cluster: 'Social', desc: 'Extrovertido; explora oportunidades y contactos.', color: '#84cc16' },
+    { id: 'IS', name: 'Impulsor', cluster: 'Acción', desc: 'Retador y dinámico; empuja bajo presión.', color: '#ff5f6d' },
+    { id: 'ID', name: 'Implementador', cluster: 'Acción', desc: 'Disciplinado y eficiente; convierte ideas en acciones.', color: '#fb923c' },
+    { id: 'FI', name: 'Finalizador', cluster: 'Acción', desc: 'Concienzudo; busca errores y cumple plazos.', color: '#ffb547' },
+];
+const belbinById = id => BELBIN_ROLES.find(r => r.id === id);
+const BIGFIVE = [
+    { id: 'O', name: 'Apertura', desc: 'Curiosidad, creatividad' },
+    { id: 'C', name: 'Responsabilidad', desc: 'Organización, disciplina' },
+    { id: 'E', name: 'Extraversión', desc: 'Sociabilidad, energía' },
+    { id: 'A', name: 'Amabilidad', desc: 'Cooperación, empatía' },
+    { id: 'S', name: 'Estabilidad emocional', desc: 'Calma, resiliencia' },
+];
+const DISC = [
+    { id: 'D', name: 'Dominancia', color: '#ff5f6d' },
+    { id: 'I', name: 'Influencia', color: '#ffb547' },
+    { id: 'S', name: 'Estabilidad', color: '#2fce8a' },
+    { id: 'C', name: 'Cumplimiento', color: '#5b8cff' },
+];
+const PSICO = [
+    { id: 'verbal', name: 'Razonamiento verbal' },
+    { id: 'numerico', name: 'Razonamiento numérico' },
+    { id: 'logico', name: 'Razonamiento lógico' },
+    { id: 'abstracto', name: 'Razonamiento abstracto' },
+];
+function defaultDNA() {
+    return {
+        mission: 'Ayudar a las empresas a tomar mejores decisiones con datos.',
+        vision: 'Ser la plataforma de referencia en gestión del talento en habla hispana.',
+        values: [
+            { name: 'Orientación al cliente', desc: 'Ponemos al cliente en el centro de cada decisión.' },
+            { name: 'Trabajo en equipo', desc: 'Colaboramos con transparencia y confianza.' },
+            { name: 'Excelencia', desc: 'Buscamos la calidad y la mejora continua.' },
+            { name: 'Innovación', desc: 'Cuestionamos el statu quo y experimentamos.' },
+            { name: 'Integridad', desc: 'Actuamos con honestidad y responsabilidad.' },
+        ],
+    };
+}
+
 /* ---------- Estado ---------- */
 let state = { jobs: [], candidates: [], templates: [], automations: [], team: [], settings: {} };
 let currentView = 'dashboard';
@@ -62,7 +108,8 @@ function load() {
     // Migraciones
     state.settings = state.settings || {};
     if (!state.settings.portal) state.settings.portal = defaultPortal();
-    (state.candidates || []).forEach(c => { if (!c.attachments) c.attachments = c.cv ? [c.cv] : []; });
+    if (!state.settings.dna) state.settings.dna = defaultDNA();
+    (state.candidates || []).forEach(c => { if (!c.attachments) c.attachments = c.cv ? [c.cv] : []; if (!c.assess) c.assess = {}; });
 }
 function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -174,7 +221,7 @@ const content = document.getElementById('content');
 const VIEWS = {
     dashboard: renderDashboard, jobs: renderJobs, pipeline: renderPipeline,
     candidates: renderCandidates, crm: renderCRM, interviews: renderInterviews,
-    offers: renderOffers, reports: renderReports, careers: renderCareers, automation: renderAutomation,
+    offers: renderOffers, reports: renderReports, culture: renderCulture, careers: renderCareers, automation: renderAutomation,
 };
 function render() {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === currentView));
@@ -536,8 +583,8 @@ function bulkArchive() { state.candidates.forEach(c => { if (sel.has(c.id)) c.ar
 function openCandidate(id, tab = 'resumen') {
     const c = state.candidates.find(x => x.id === id); if (!c) return;
     const job = jobById(c.jobId);
-    const tabs = ['resumen','scorecards','entrevistas','comunicacion','oferta','actividad'];
-    const tabNames = { resumen: 'Resumen', scorecards: 'Scorecards', entrevistas: 'Entrevistas', comunicacion: 'Comunicación', oferta: 'Oferta', actividad: 'Actividad' };
+    const tabs = ['resumen','scorecards','evaluacion','entrevistas','comunicacion','oferta','actividad'];
+    const tabNames = { resumen: 'Resumen', scorecards: 'Scorecards', evaluacion: 'Evaluación', entrevistas: 'Entrevistas', comunicacion: 'Comunicación', oferta: 'Oferta', actividad: 'Actividad' };
     openModal(`
         <div class="cd-head">
             <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
@@ -560,6 +607,7 @@ function candidateTab(c, tab) {
                 <div class="cd-info-item"><div class="lbl">Puesto actual</div><div class="val">${c.currentTitle || '—'}${c.currentCompany ? ' · ' + c.currentCompany : ''}</div></div>
                 <div class="cd-info-item"><div class="lbl">Aplicó</div><div class="val">${c.applied || '—'}</div></div>
                 <div class="cd-info-item"><div class="lbl">Puntuación media</div><div class="val">${candScore(c) ? '★ ' + candScore(c) + ' / 5' : 'Sin evaluar'}</div></div>
+                <div class="cd-info-item"><div class="lbl">Fit cultural</div><div class="val" style="color:${fitColor(fitScore(c))}">${fitScore(c) != null ? fitScore(c) + '% · ' + fitLabel(fitScore(c)) : 'Sin evaluar'}</div></div>
             </div>
             <div class="cd-section-title">Etapa del proceso</div>
             <div class="stage-pills">${STAGES.map(s => `<span class="stage-pill ${c.stage === s.id ? 'active' : ''}" style="${c.stage === s.id ? `background:${s.color};` : ''}" onclick="setStage('${c.id}','${s.id}')">${s.name}</span>`).join('')}</div>
@@ -576,6 +624,7 @@ function candidateTab(c, tab) {
                 <button class="btn-outline" onclick="openCandidateForm('${c.id}')">Editar datos</button>
             </div>`;
     }
+    if (tab === 'evaluacion') return evaluationTab(c);
     if (tab === 'scorecards') {
         const recap = c.scorecards && c.scorecards.length ? scorecardRecommendation(c) : null;
         return `
@@ -1180,6 +1229,194 @@ function importCSV() {
 }
 
 /* ============================================================
+   Evaluación de conducta, encaje cultural y psicotécnicos
+   ============================================================ */
+function valuesFitPct(c) {
+    const vf = c.assess && c.assess.valuesFit; if (!vf) return null;
+    const vals = (state.settings.dna.values || []).map(v => vf[v.name]).filter(x => typeof x === 'number');
+    if (!vals.length) return null;
+    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length / 5 * 100);
+}
+function fitScore(c) {
+    const vp = valuesFitPct(c);
+    const sc = candScore(c); const scPct = sc ? sc / 5 * 100 : null;
+    const parts = [vp, scPct].filter(x => x != null);
+    if (!parts.length) return null;
+    return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
+}
+function fitColor(p) { return p == null ? 'var(--muted)' : p >= 75 ? '#2fce8a' : p >= 50 ? '#ffb547' : '#ff5f6d'; }
+function fitLabel(p) { return p == null ? 'Sin evaluar' : p >= 75 ? 'Alto encaje' : p >= 50 ? 'Encaje medio' : 'Bajo encaje'; }
+function topBelbin(c) {
+    const b = c.assess && c.assess.belbin; if (!b) return null;
+    const arr = BELBIN_ROLES.map(r => ({ r, v: b[r.id] || 0 })).sort((a, z) => z.v - a.v);
+    return arr[0].v ? arr : null;
+}
+
+function radarChart(axes, values, max, color) {
+    const N = axes.length, R = 82, cx = 110, cy = 108;
+    const pt = (i, r) => { const a = -Math.PI / 2 + i * 2 * Math.PI / N; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; };
+    let grid = '';
+    [0.25, 0.5, 0.75, 1].forEach(f => { grid += `<polygon points="${axes.map((_, i) => pt(i, R * f).join(',')).join(' ')}" fill="none" stroke="var(--border)" stroke-width="1"/>`; });
+    let spokes = '', labels = '';
+    axes.forEach((ax, i) => { const [x, y] = pt(i, R); spokes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--border)"/>`; const [lx, ly] = pt(i, R + 15); labels += `<text x="${lx}" y="${ly}" font-size="9" fill="var(--muted)" text-anchor="middle" dominant-baseline="middle">${ax.short || ax.name}</text>`; });
+    const pts = values.map((v, i) => pt(i, R * Math.min(1, (v || 0) / max)).join(',')).join(' ');
+    return `<svg viewBox="0 0 220 216" width="100%" style="max-width:240px">${grid}${spokes}<polygon points="${pts}" fill="${color}33" stroke="${color}" stroke-width="2"/>${labels}</svg>`;
+}
+function barMeter(label, val, max, color, sub) {
+    return `<div class="bar-row"><span class="bar-label">${label}</span><div class="bar-track"><div class="bar-fill" style="width:${(val / max) * 100}%;background:${color || 'var(--brand)'}"></div></div><span class="bar-val">${val}${sub || ''}</span></div>`;
+}
+
+/* ---------- Vista Cultura & Fit ---------- */
+function renderCulture() {
+    const dna = state.settings.dna;
+    const scored = activeCandidates().map(c => ({ c, fit: fitScore(c), vp: valuesFitPct(c), tb: topBelbin(c) }))
+        .filter(x => x.fit != null).sort((a, b) => b.fit - a.fit);
+    content.innerHTML = `
+        <div class="page-head"><div><h1>Cultura &amp; Fit</h1><p>ADN de empresa, alineamiento por valores y evaluación de talento</p></div>
+        <button class="btn-primary" onclick="openDnaForm()">⚙ Editar ADN</button></div>
+        <div class="grid-2">
+            <div class="panel">
+                <h3>🧭 ADN de la empresa</h3>
+                <div class="cd-section-title">Misión</div><p style="font-size:13px;color:var(--muted);line-height:1.6">${dna.mission || '—'}</p>
+                <div class="cd-section-title">Visión</div><p style="font-size:13px;color:var(--muted);line-height:1.6">${dna.vision || '—'}</p>
+                <div class="cd-section-title">Valores</div>
+                ${(dna.values || []).map(v => `<div class="value-item"><strong>${v.name}</strong><span>${v.desc || ''}</span></div>`).join('')}
+            </div>
+            <div class="panel">
+                <h3>🏅 Ranking de encaje</h3>
+                <p style="color:var(--muted);font-size:12px;margin-bottom:12px">Candidatos activos ordenados por Fit score (valores + evaluación).</p>
+                ${scored.length ? scored.map(({ c, fit, tb }) => `
+                    <div class="fit-row" onclick="openCandidate('${c.id}','evaluacion')">
+                        <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
+                        <div style="flex:1;min-width:0"><div class="cc-name">${c.name}</div><div class="cc-role">${tb ? 'Belbin: ' + tb[0].r.name : 'Sin perfil Belbin'}</div></div>
+                        <div class="fit-badge" style="background:${fitColor(fit)}22;color:${fitColor(fit)}">${fit}%</div>
+                    </div>`).join('') : '<p style="color:var(--muted);font-size:13px">Aún no hay evaluaciones. Abre la ficha de un candidato → pestaña «Evaluación».</p>'}
+            </div>
+        </div>`;
+}
+
+function openDnaForm() {
+    const dna = state.settings.dna;
+    openModal(`
+        <h2>ADN de la empresa</h2><div class="modal-sub">Define misión, visión y valores. Sirven de referencia para evaluar el encaje cultural.</div>
+        <form id="dnaForm">
+            <div class="field"><label>Misión</label><textarea name="mission">${dna.mission || ''}</textarea></div>
+            <div class="field"><label>Visión</label><textarea name="vision">${dna.vision || ''}</textarea></div>
+            <div class="field"><label>Valores (uno por línea, formato «Nombre | descripción»)</label>
+            <textarea name="values" style="min-height:130px">${(dna.values || []).map(v => v.name + (v.desc ? ' | ' + v.desc : '')).join('\n')}</textarea></div>
+            <div class="modal-actions"><button type="button" class="btn-outline" onclick="closeModal()">Cancelar</button><button type="submit" class="btn-primary">Guardar ADN</button></div>
+        </form>`);
+    document.getElementById('dnaForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const f = Object.fromEntries(new FormData(e.target).entries());
+        const values = f.values.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [name, ...d] = l.split('|'); return { name: name.trim(), desc: d.join('|').trim() }; });
+        state.settings.dna = { mission: f.mission, vision: f.vision, values };
+        save(); closeModal(); toast('ADN actualizado', 'ok'); render();
+    });
+}
+
+/* ---------- Pestaña Evaluación (ficha) ---------- */
+function evaluationTab(c) {
+    const a = c.assess || {};
+    const vp = valuesFitPct(c), fit = fitScore(c);
+    const dna = state.settings.dna;
+    // Valores
+    const valuesBlock = `
+        <div class="assess-head"><div class="cd-section-title" style="margin:0">Alineamiento con valores ${vp != null ? `· <span style="color:${fitColor(vp)}">${vp}%</span>` : ''}</div><button class="btn-outline btn-sm" onclick="openAssessValues('${c.id}')">Evaluar</button></div>
+        ${a.valuesFit ? (dna.values || []).map(v => barMeter(v.name, a.valuesFit[v.name] || 0, 5, '#7c5cff', ' /5')).join('') + (a.valuesComment ? `<div class="sc-comment">"${a.valuesComment}"</div>` : '') : '<p class="assess-empty">Sin evaluar los valores.</p>'}`;
+    // Belbin
+    const tb = topBelbin(c);
+    const belbinBlock = `
+        <div class="assess-head"><div class="cd-section-title" style="margin:0">Roles de equipo de Belbin</div><button class="btn-outline btn-sm" onclick="openAssessBelbin('${c.id}')">Evaluar</button></div>
+        ${a.belbin ? `<div class="radar-wrap"><div>${radarChart(BELBIN_ROLES.map(r => ({ short: r.id })), BELBIN_ROLES.map(r => a.belbin[r.id] || 0), 10, '#2fce8a')}</div>
+            <div class="belbin-top">${tb ? tb.slice(0, 3).map((x, i) => `<div class="belbin-role"><span class="rank">${i + 1}º</span><span class="dot" style="background:${x.r.color}"></span><div><strong>${x.r.name}</strong> <small>(${x.r.cluster})</small><div class="cc-role">${x.r.desc}</div></div><b>${x.v}</b></div>`).join('') : ''}</div></div>` : '<p class="assess-empty">Sin perfil Belbin.</p>'}`;
+    // Big Five + DISC
+    const persBlock = `
+        <div class="assess-head"><div class="cd-section-title" style="margin:0">Personalidad (Big Five &amp; DISC)</div><button class="btn-outline btn-sm" onclick="openAssessPersonality('${c.id}')">Evaluar</button></div>
+        ${a.bigfive || a.disc ? `<div class="grid-2">
+            <div>${a.bigfive ? '<div class="cc-role" style="margin-bottom:8px">Big Five (OCEAN)</div>' + BIGFIVE.map(d => barMeter(d.name, a.bigfive[d.id] || 0, 100, '#5b8cff', '%')).join('') : ''}</div>
+            <div>${a.disc ? '<div class="cc-role" style="margin-bottom:8px">DISC</div>' + DISC.map(d => barMeter(d.name, a.disc[d.id] || 0, 100, d.color, '%')).join('') : ''}</div>
+        </div>` : '<p class="assess-empty">Sin perfil de personalidad.</p>'}`;
+    // Psicotécnico
+    const psychBlock = `
+        <div class="assess-head"><div class="cd-section-title" style="margin:0">Aptitudes psicotécnicas (percentil)</div><button class="btn-outline btn-sm" onclick="openAssessPsych('${c.id}')">Evaluar</button></div>
+        ${a.psycho ? PSICO.map(t => barMeter(t.name, a.psycho[t.id] || 0, 100, '#22c1c3', ' pc')).join('') : '<p class="assess-empty">Sin prueba psicotécnica.</p>'}`;
+    return `
+        <div class="fit-summary"><div class="fit-big" style="color:${fitColor(fit)}">${fit != null ? fit + '%' : '—'}</div><div><div style="font-weight:700">${fitLabel(fit)}</div><div class="cc-role">Fit score compuesto (valores + evaluación técnica)</div></div></div>
+        ${valuesBlock}<hr class="assess-sep">${belbinBlock}<hr class="assess-sep">${persBlock}<hr class="assess-sep">${psychBlock}`;
+}
+
+function openAssessValues(id) {
+    const c = state.candidates.find(x => x.id === id); const vf = (c.assess && c.assess.valuesFit) || {};
+    openModal(`
+        <h2>Alineamiento con valores</h2><div class="modal-sub">Valora 1–5 cómo demuestra ${c.name} cada valor de la empresa.</div>
+        <form id="vForm">
+        ${(state.settings.dna.values || []).map((v, i) => `<div class="sc-input-row"><span title="${v.desc || ''}">${v.name}</span><div class="score-picker" data-v="${i}">${[1, 2, 3, 4, 5].map(n => `<span data-n="${n}" class="${(vf[v.name] || 0) >= n ? 'on' : ''}">●</span>`).join('')}</div></div>`).join('')}
+        <div class="field full" style="margin-top:12px"><label>Comentario</label><textarea name="comment">${(c.assess && c.assess.valuesComment) || ''}</textarea></div>
+        <div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','evaluacion')">Cancelar</button><button type="submit" class="btn-primary">Guardar</button></div></form>`, 'wide');
+    const scores = {}; (state.settings.dna.values || []).forEach((v, i) => { scores[i] = vf[v.name] || 0; });
+    document.querySelectorAll('.score-picker').forEach(sp => sp.querySelectorAll('span').forEach(dot => dot.addEventListener('click', () => {
+        const n = +dot.dataset.n; scores[sp.dataset.v] = n; sp.querySelectorAll('span').forEach(d => d.classList.toggle('on', +d.dataset.n <= n));
+    })));
+    document.getElementById('vForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const valuesFit = {}; (state.settings.dna.values || []).forEach((v, i) => { valuesFit[v.name] = scores[i] || 0; });
+        c.assess = c.assess || {}; c.assess.valuesFit = valuesFit; c.assess.valuesComment = new FormData(e.target).get('comment');
+        logActivity(c, 'score', `Evaluación de valores: ${valuesFitPct(c)}% de encaje`);
+        save(); openCandidate(id, 'evaluacion'); toast('Alineamiento guardado', 'ok');
+    });
+}
+
+function sliderRow(label, name, val, max, sub) {
+    return `<div class="slider-row"><span class="slider-label">${label}</span><input type="range" name="${name}" min="0" max="${max}" value="${val || 0}" oninput="this.nextElementSibling.textContent=this.value+'${sub || ''}'"><span class="slider-val">${val || 0}${sub || ''}</span></div>`;
+}
+function openAssessBelbin(id) {
+    const c = state.candidates.find(x => x.id === id); const b = (c.assess && c.assess.belbin) || {};
+    openModal(`
+        <h2>Roles de equipo de Belbin</h2><div class="modal-sub">Puntúa 0–10 la presencia de cada rol en ${c.name}.</div>
+        <form id="bForm">${BELBIN_ROLES.map(r => sliderRow(`<span class="dot" style="background:${r.color}"></span> ${r.name} <small style="color:var(--muted)">${r.cluster}</small>`, r.id, b[r.id], 10)).join('')}
+        <div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','evaluacion')">Cancelar</button><button type="submit" class="btn-primary">Guardar perfil</button></div></form>`, 'wide');
+    document.getElementById('bForm').addEventListener('submit', e => {
+        e.preventDefault(); const f = Object.fromEntries(new FormData(e.target).entries());
+        const belbin = {}; BELBIN_ROLES.forEach(r => belbin[r.id] = +f[r.id] || 0);
+        c.assess = c.assess || {}; c.assess.belbin = belbin;
+        const tb = topBelbin(c); logActivity(c, 'score', `Perfil Belbin: rol principal ${tb ? tb[0].r.name : '—'}`);
+        save(); openCandidate(id, 'evaluacion'); toast('Perfil Belbin guardado', 'ok');
+    });
+}
+function openAssessPersonality(id) {
+    const c = state.candidates.find(x => x.id === id); const bf = (c.assess && c.assess.bigfive) || {}; const dc = (c.assess && c.assess.disc) || {};
+    openModal(`
+        <h2>Personalidad</h2><div class="modal-sub">Big Five (OCEAN) y DISC de ${c.name} (0–100).</div>
+        <form id="pForm">
+        <div class="cd-section-title">Big Five (OCEAN)</div>${BIGFIVE.map(d => sliderRow(`${d.name} <small style="color:var(--muted)">${d.desc}</small>`, 'bf_' + d.id, bf[d.id], 100, '%')).join('')}
+        <div class="cd-section-title">DISC</div>${DISC.map(d => sliderRow(d.name, 'dc_' + d.id, dc[d.id], 100, '%')).join('')}
+        <div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','evaluacion')">Cancelar</button><button type="submit" class="btn-primary">Guardar</button></div></form>`, 'wide');
+    document.getElementById('pForm').addEventListener('submit', e => {
+        e.preventDefault(); const f = Object.fromEntries(new FormData(e.target).entries());
+        const bigfive = {}; BIGFIVE.forEach(d => bigfive[d.id] = +f['bf_' + d.id] || 0);
+        const disc = {}; DISC.forEach(d => disc[d.id] = +f['dc_' + d.id] || 0);
+        c.assess = c.assess || {}; c.assess.bigfive = bigfive; c.assess.disc = disc;
+        logActivity(c, 'score', 'Perfil de personalidad actualizado');
+        save(); openCandidate(id, 'evaluacion'); toast('Personalidad guardada', 'ok');
+    });
+}
+function openAssessPsych(id) {
+    const c = state.candidates.find(x => x.id === id); const ps = (c.assess && c.assess.psycho) || {};
+    openModal(`
+        <h2>Prueba psicotécnica</h2><div class="modal-sub">Percentil (0–100) de ${c.name} en cada aptitud.</div>
+        <form id="psForm">${PSICO.map(t => sliderRow(t.name, t.id, ps[t.id], 100, ' pc')).join('')}
+        <div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','evaluacion')">Cancelar</button><button type="submit" class="btn-primary">Guardar</button></div></form>`, 'wide');
+    document.getElementById('psForm').addEventListener('submit', e => {
+        e.preventDefault(); const f = Object.fromEntries(new FormData(e.target).entries());
+        const psycho = {}; PSICO.forEach(t => psycho[t.id] = +f[t.id] || 0);
+        c.assess = c.assess || {}; c.assess.psycho = psycho;
+        logActivity(c, 'score', 'Prueba psicotécnica registrada');
+        save(); openCandidate(id, 'evaluacion'); toast('Psicotécnico guardado', 'ok');
+    });
+}
+
+/* ============================================================
    Adjuntos (subida múltiple de archivos: PDF, PNG, JPG)
    ============================================================ */
 const CV_MAX = 3 * 1024 * 1024; // 3 MB por archivo
@@ -1273,7 +1510,7 @@ document.getElementById('hamburger').addEventListener('click', () => document.ge
 document.getElementById('seedBtn').addEventListener('click', () => { if (confirm('Restaurar los datos de ejemplo y reemplazar los actuales?')) { seedData(); render(); toast('Datos demo cargados', 'ok'); } });
 document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('¿Borrar TODOS los datos?')) { state = { jobs: [], candidates: [], templates: [], automations: [], team: [], settings: {} }; save(); render(); toast('Datos borrados', 'info'); } });
 
-Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText });
+Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych });
 
 /* ---------- Init ---------- */
 load();
