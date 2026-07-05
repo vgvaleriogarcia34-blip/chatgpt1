@@ -23,6 +23,9 @@ talento).
 - **👥 Candidatos**: base de datos con búsqueda, filtros combinables
   (etapa/vacante/origen), **selección múltiple con acciones en lote**,
   importación y exportación **CSV**.
+- **📎 Currículum adjunto**: subida de CV en **PDF, PNG o JPG** (hasta 3 MB)
+  desde el alta de candidato y desde el portal de empleo, con vista previa,
+  descarga e indicador en la lista.
 - **Ficha de candidato con pestañas**: Resumen · **Scorecards** estructurados
   (criterios 1–5 + recomendación tipo «Sí rotundo/No») · **Entrevistas**
   (scheduling con entrevistador y modalidad) · **Comunicación** (envío de

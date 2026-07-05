@@ -367,3 +367,20 @@ tr:hover td { background: var(--panel-2); }
 /* Bulk bar */
 .bulkbar { display: flex; align-items: center; gap: 10px; background: var(--panel-2); border: 1px solid var(--brand); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; }
 .selbox { width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; }
+
+/* ================= v3: subida de currículum ================= */
+.file-input { font-size: 12px; color: var(--muted); cursor: pointer; }
+.file-input::file-selector-button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 12px; font-size: 12px; font-family: inherit; cursor: pointer; margin-right: 10px;
+}
+.file-input::file-selector-button:hover { border-color: var(--brand); }
+.cv-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.cv-box { display: flex; gap: 14px; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.cv-thumb { width: 60px; height: 76px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; background: #fff; }
+.cv-pdf { display: grid; place-items: center; background: linear-gradient(135deg, #ff5f6d, #d64550); color: #fff; font-size: 13px; font-weight: 800; letter-spacing: .05em; }
+.cv-info { min-width: 0; }
+.cv-name { font-size: 13px; font-weight: 600; word-break: break-word; }
+.cv-meta { font-size: 11px; color: var(--muted); margin: 2px 0 8px; }
+.cv-actions { display: flex; gap: 8px; align-items: center; }
+.cv-actions a.btn-outline { text-decoration: none; display: inline-block; }

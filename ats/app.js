@@ -52,7 +52,10 @@ function load() {
     if (raw) { try { state = JSON.parse(raw); } catch (e) { seedData(); } }
     else seedData();
 }
-function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { toast('Almacenamiento lleno: elimina algún CV grande para guardar', 'info'); }
+}
 
 /* ============================================================
    Datos demo
@@ -487,7 +490,7 @@ function renderCandidates() {
                 const job = jobById(c.jobId); const st = stageById(c.stage); const sc = candScore(c);
                 return `<tr class="row-click">
                     <td onclick="event.stopPropagation()"><input type="checkbox" class="selbox" data-id="${c.id}" ${sel.has(c.id) ? 'checked' : ''}></td>
-                    <td onclick="openCandidate('${c.id}')"><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div><div><strong>${c.name}</strong><br><span style="color:var(--muted);font-size:11px">${c.email}</span></div></div></td>
+                    <td onclick="openCandidate('${c.id}')"><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div><div><strong>${c.name}${c.cv ? ' <span title="CV adjunto">📎</span>' : ''}</strong><br><span style="color:var(--muted);font-size:11px">${c.email}</span></div></div></td>
                     <td onclick="openCandidate('${c.id}')">${job ? job.title : '—'}</td>
                     <td onclick="openCandidate('${c.id}')"><span class="badge" style="background:${st.color}22;color:${st.color}">${st.name}</span></td>
                     <td onclick="openCandidate('${c.id}')"><span class="scorechip">${sc ? '★ ' + sc : '—'}</span></td>
@@ -550,6 +553,8 @@ function candidateTab(c, tab) {
             <div class="stage-pills">${STAGES.map(s => `<span class="stage-pill ${c.stage === s.id ? 'active' : ''}" style="${c.stage === s.id ? `background:${s.color};` : ''}" onclick="setStage('${c.id}','${s.id}')">${s.name}</span>`).join('')}</div>
             <div class="cd-section-title">Etiquetas</div>
             <div>${(c.tags || []).length ? c.tags.map(t => `<span class="tag">${t}</span>`).join('') : '<span style="color:var(--muted);font-size:13px">Sin etiquetas</span>'}</div>
+            <div class="cd-section-title">Currículum</div>
+            <div>${renderCV(c)}</div>
             <div class="cd-section-title">Notas</div>
             <div id="notesList">${renderNotes(c)}</div>
             <div class="note-add"><input id="noteInput" placeholder="Añadir una nota..."><button class="btn-primary btn-sm" onclick="addNote('${c.id}')">Añadir</button></div>
@@ -965,13 +970,16 @@ function openApplyForm(jid) {
             <div class="field"><label>Puesto actual</label><input name="currentTitle"></div>
             <div class="field full"><label>Género (opcional, para DE&I)</label><select name="gender"><option value="">Prefiere no decir</option>${GENDERS.map(g => `<option>${g}</option>`).join('')}</select></div>
             <div class="field full"><label>Habilidades (separadas por comas)</label><input name="tags" placeholder="Ej: React, 3 años"></div>
+            <div class="field full">${cvFieldHTML(null)}</div>
         </div><div class="modal-actions"><button type="button" class="btn-outline" onclick="closeModal()">Cancelar</button><button type="submit" class="btn-primary">Enviar candidatura</button></div></form>`);
+    let cvData = null;
+    wireCvInput(v => { cvData = v; });
     document.getElementById('applyForm').addEventListener('submit', e => {
         e.preventDefault();
         const f = Object.fromEntries(new FormData(e.target).entries());
         const c = { id: uid('cand'), name: f.name, email: f.email, phone: f.phone, currentTitle: f.currentTitle,
             gender: f.gender || 'Prefiere no decir', jobId: jid, stage: 'nuevo', source: 'Portal propio',
-            applied: todayISO(), tags: f.tags.split(',').map(t => t.trim()).filter(Boolean), rating: 0,
+            applied: todayISO(), tags: f.tags.split(',').map(t => t.trim()).filter(Boolean), rating: 0, cv: cvData,
             scorecards: [], emails: [], interviews: [], notes: [], offer: null, archived: false, location: '',
             activities: [{ type: 'apply', text: 'Aplicó por el portal de empleo', date: todayISO() }] };
         state.candidates.unshift(c);
@@ -1026,12 +1034,16 @@ function openCandidateForm(id, toPool) {
             <div class="field"><label>Origen</label><select name="source">${SOURCES.map(o => `<option ${c?.source === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
             <div class="field"><label>Género (DE&I)</label><select name="gender">${GENDERS.map(g => `<option ${c?.gender === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
             <div class="field full"><label>Etiquetas (comas)</label><input name="tags" value="${(c?.tags || []).join(', ')}" placeholder="Ej: React, Senior"></div>
+            <div class="field full">${cvFieldHTML(c?.cv)}</div>
         </div><div class="modal-actions"><button type="button" class="btn-outline" onclick="closeModal()">Cancelar</button><button type="submit" class="btn-primary">${c ? 'Guardar' : 'Añadir'}</button></div></form>`);
+    let cvData = c?.cv || null;
+    wireCvInput(v => { cvData = v; });
     document.getElementById('candForm').addEventListener('submit', e => {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target).entries());
         data.tags = data.tags.split(',').map(t => t.trim()).filter(Boolean);
         data.jobId = data.jobId || null;
+        data.cv = cvData;
         if (c) { Object.assign(c, data); toast('Candidato actualizado', 'ok'); }
         else {
             const nc = { id: uid('cand'), rating: 0, applied: todayISO(), notes: [], scorecards: [], emails: [], interviews: [], offer: null, archived: !!toPool, activities: [{ type: 'apply', text: toPool ? 'Añadido al CRM' : 'Añadido manualmente', date: todayISO() }], ...data };
@@ -1082,6 +1094,51 @@ function importCSV() {
 }
 
 /* ============================================================
+   Currículum (subida de archivos: PDF, PNG, JPG)
+   ============================================================ */
+const CV_MAX = 3 * 1024 * 1024; // 3 MB
+function cvFieldHTML(cv) {
+    return `<label>Currículum (PDF, PNG o JPG · máx 3 MB)</label>
+        <input type="file" id="cvInput" class="file-input" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
+        <div id="cvHint" class="cv-hint">${cv ? '📎 ' + cv.name + ' (' + fmtSize(cv.size) + ') — sube otro para reemplazar' : 'Ningún archivo seleccionado'}</div>`;
+}
+function wireCvInput(cb) {
+    const inp = document.getElementById('cvInput'); if (!inp) return;
+    inp.addEventListener('change', () => {
+        const f = inp.files[0]; if (!f) return;
+        const okType = /pdf|png|jpe?g/i.test(f.type) || /\.(pdf|png|jpe?g)$/i.test(f.name);
+        if (!okType) { toast('Formato no válido. Usa PDF, PNG o JPG', 'info'); inp.value = ''; return; }
+        if (f.size > CV_MAX) { toast('Archivo demasiado grande (máx 3 MB)', 'info'); inp.value = ''; return; }
+        const r = new FileReader();
+        r.onload = () => {
+            cb({ name: f.name, type: f.type || guessType(f.name), dataUrl: r.result, size: f.size });
+            const h = document.getElementById('cvHint'); if (h) h.innerHTML = '✅ ' + f.name + ' (' + fmtSize(f.size) + ')';
+        };
+        r.readAsDataURL(f);
+    });
+}
+function guessType(name) { return /\.pdf$/i.test(name) ? 'application/pdf' : /\.png$/i.test(name) ? 'image/png' : 'image/jpeg'; }
+function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+function isImg(cv) { return cv && /image\//.test(cv.type); }
+function renderCV(c) {
+    const cv = c.cv;
+    if (!cv) return '<span style="color:var(--muted);font-size:13px">Sin currículum adjunto.</span>';
+    const thumb = isImg(cv) ? `<img src="${cv.dataUrl}" class="cv-thumb" alt="CV">` : `<div class="cv-thumb cv-pdf">PDF</div>`;
+    return `<div class="cv-box">${thumb}
+        <div class="cv-info"><div class="cv-name">📎 ${cv.name}</div><div class="cv-meta">${fmtSize(cv.size)} · ${isImg(cv) ? 'Imagen' : 'PDF'}</div>
+        <div class="cv-actions"><button class="btn-outline btn-sm" onclick="openCV('${c.id}')">Ver</button>
+        <a class="btn-outline btn-sm" href="${cv.dataUrl}" download="${cv.name}">Descargar</a></div></div></div>`;
+}
+function openCV(id) {
+    const c = state.candidates.find(x => x.id === id); if (!c || !c.cv) return;
+    const cv = c.cv;
+    const view = isImg(cv) ? `<img src="${cv.dataUrl}" style="max-width:100%;border-radius:10px">`
+        : `<iframe src="${cv.dataUrl}" style="width:100%;height:68vh;border:none;border-radius:10px;background:#fff"></iframe>`;
+    openModal(`<h2>Currículum · ${c.name}</h2><div class="modal-sub">${cv.name} · ${fmtSize(cv.size)}</div>${view}
+        <div class="modal-actions"><a class="btn-outline" href="${cv.dataUrl}" download="${cv.name}">Descargar</a><button class="btn-primary" onclick="closeModal()">Cerrar</button></div>`, 'wide');
+}
+
+/* ============================================================
    Utilidades UI
    ============================================================ */
 function initials(name) { return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
@@ -1116,7 +1173,7 @@ document.getElementById('hamburger').addEventListener('click', () => document.ge
 document.getElementById('seedBtn').addEventListener('click', () => { if (confirm('Restaurar los datos de ejemplo y reemplazar los actuales?')) { seedData(); render(); toast('Datos demo cargados', 'ok'); } });
 document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('¿Borrar TODOS los datos?')) { state = { jobs: [], candidates: [], templates: [], automations: [], team: [], settings: {} }; save(); render(); toast('Datos borrados', 'info'); } });
 
-Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel });
+Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openCV });
 
 /* ---------- Init ---------- */
 load();
