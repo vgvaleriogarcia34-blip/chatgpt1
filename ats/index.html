@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalentFlow · ATS para RRHH</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-logo">TF</div>
+                <div class="brand-name">
+                    <strong>TalentFlow</strong>
+                    <span>ATS · Recursos Humanos</span>
+                </div>
+            </div>
+            <nav class="nav">
+                <button class="nav-item active" data-view="dashboard"><span class="ico">📊</span> Panel</button>
+                <button class="nav-item" data-view="jobs"><span class="ico">💼</span> Vacantes</button>
+                <button class="nav-item" data-view="pipeline"><span class="ico">🗂️</span> Pipeline</button>
+                <button class="nav-item" data-view="candidates"><span class="ico">👥</span> Candidatos</button>
+                <button class="nav-item" data-view="calendar"><span class="ico">📅</span> Entrevistas</button>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn-ghost" id="seedBtn" title="Cargar datos de ejemplo">↺ Datos demo</button>
+                <button class="btn-ghost" id="resetBtn" title="Borrar todos los datos">🗑 Reiniciar</button>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="main">
+            <header class="topbar">
+                <button class="hamburger" id="hamburger" aria-label="Menú">☰</button>
+                <div class="search-box">
+                    <span>🔎</span>
+                    <input type="text" id="globalSearch" placeholder="Buscar candidatos, vacantes...">
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-primary" id="newJobBtn">＋ Nueva vacante</button>
+                    <button class="btn-primary" id="newCandidateBtn">＋ Candidato</button>
+                </div>
+            </header>
+
+            <div class="content" id="content"><!-- vistas dinámicas --></div>
+        </main>
+    </div>
+
+    <!-- Modal genérico -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal">
+            <button class="modal-close" id="modalClose">✕</button>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
