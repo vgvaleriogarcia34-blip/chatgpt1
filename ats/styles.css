@@ -384,3 +384,15 @@ tr:hover td { background: var(--panel-2); }
 .cv-meta { font-size: 11px; color: var(--muted); margin: 2px 0 8px; }
 .cv-actions { display: flex; gap: 8px; align-items: center; }
 .cv-actions a.btn-outline { text-decoration: none; display: inline-block; }
+
+/* ================= v4: adjuntos múltiples + portal ================= */
+.attach-list { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.attach-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font-size: 12px; }
+.attach-chip small { color: var(--muted); }
+.attach-x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0 2px; }
+.attach-x:hover { color: var(--red); }
+.attach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.portal-logo { max-height: 40px; margin-bottom: 14px; background: rgba(255,255,255,.15); border-radius: 8px; padding: 6px 8px; }
+.portal-footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+.codeblock { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 12px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; color: var(--text); overflow-x: auto; white-space: pre; line-height: 1.5; }
+code { background: var(--panel-2); padding: 1px 5px; border-radius: 5px; font-size: 12px; font-family: ui-monospace, monospace; }

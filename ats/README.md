@@ -23,9 +23,14 @@ talento).
 - **👥 Candidatos**: base de datos con búsqueda, filtros combinables
   (etapa/vacante/origen), **selección múltiple con acciones en lote**,
   importación y exportación **CSV**.
-- **📎 Currículum adjunto**: subida de CV en **PDF, PNG o JPG** (hasta 3 MB)
-  desde el alta de candidato y desde el portal de empleo, con vista previa,
-  descarga e indicador en la lista.
+- **📎 Documentos adjuntos**: subida de **varios archivos** (CV, carta,
+  portfolio…) en **PDF, PNG o JPG** (hasta 3 MB c/u) desde el alta de
+  candidato y desde el portal, con vista previa, descarga e indicador.
+- **🌐 Portal de empleo configurable y embebible**: página pública
+  (`careers.html`) con **branding propio** (nombre, logo, colores, textos) y
+  un **código de inserción `<iframe>`** para integrarlo en la web de cualquier
+  empresa. La marca y las vacantes viajan codificadas en la URL, y las
+  candidaturas (con sus archivos) entran directamente al pipeline.
 - **Ficha de candidato con pestañas**: Resumen · **Scorecards** estructurados
   (criterios 1–5 + recomendación tipo «Sí rotundo/No») · **Entrevistas**
   (scheduling con entrevistador y modalidad) · **Comunicación** (envío de

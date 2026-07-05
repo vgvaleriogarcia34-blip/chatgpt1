@@ -47,10 +47,22 @@ function uid(p) { return p + '_' + Math.random().toString(36).slice(2, 9); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
 
+function defaultPortal() {
+    return {
+        company: 'Mi Empresa', tagline: 'Únete a nuestro equipo',
+        intro: 'Estamos creciendo y buscamos talento como tú. Descubre nuestras vacantes abiertas y da el siguiente paso en tu carrera.',
+        brandColor: '#5b8cff', accentColor: '#7c5cff', logo: null,
+        showSalary: true, footer: '© Mi Empresa · Trabaja con nosotros',
+    };
+}
 function load() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) { try { state = JSON.parse(raw); } catch (e) { seedData(); } }
     else seedData();
+    // Migraciones
+    state.settings = state.settings || {};
+    if (!state.settings.portal) state.settings.portal = defaultPortal();
+    (state.candidates || []).forEach(c => { if (!c.attachments) c.attachments = c.cv ? [c.cv] : []; });
 }
 function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -151,7 +163,7 @@ function seedData() {
         c('Tomás Vega', 'tomas.vega@mail.com', 1, 'rechazado', 'Evento', '2026-01-22', 'Hombre', { title: 'Marketing Manager', company: 'BrandCo', tags: ['SEM','Email'], rating: 4, archived: true }),
     ];
 
-    state = { jobs, candidates, templates, automations, team, settings: { company: 'Mi Empresa' } };
+    state = { jobs, candidates, templates, automations, team, settings: { company: 'Mi Empresa', portal: defaultPortal() } };
     save();
 }
 
@@ -490,7 +502,7 @@ function renderCandidates() {
                 const job = jobById(c.jobId); const st = stageById(c.stage); const sc = candScore(c);
                 return `<tr class="row-click">
                     <td onclick="event.stopPropagation()"><input type="checkbox" class="selbox" data-id="${c.id}" ${sel.has(c.id) ? 'checked' : ''}></td>
-                    <td onclick="openCandidate('${c.id}')"><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div><div><strong>${c.name}${c.cv ? ' <span title="CV adjunto">📎</span>' : ''}</strong><br><span style="color:var(--muted);font-size:11px">${c.email}</span></div></div></td>
+                    <td onclick="openCandidate('${c.id}')"><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div><div><strong>${c.name}${attCount(c) ? ` <span title="${attCount(c)} documento(s)">📎</span>` : ''}</strong><br><span style="color:var(--muted);font-size:11px">${c.email}</span></div></div></td>
                     <td onclick="openCandidate('${c.id}')">${job ? job.title : '—'}</td>
                     <td onclick="openCandidate('${c.id}')"><span class="badge" style="background:${st.color}22;color:${st.color}">${st.name}</span></td>
                     <td onclick="openCandidate('${c.id}')"><span class="scorechip">${sc ? '★ ' + sc : '—'}</span></td>
@@ -553,8 +565,8 @@ function candidateTab(c, tab) {
             <div class="stage-pills">${STAGES.map(s => `<span class="stage-pill ${c.stage === s.id ? 'active' : ''}" style="${c.stage === s.id ? `background:${s.color};` : ''}" onclick="setStage('${c.id}','${s.id}')">${s.name}</span>`).join('')}</div>
             <div class="cd-section-title">Etiquetas</div>
             <div>${(c.tags || []).length ? c.tags.map(t => `<span class="tag">${t}</span>`).join('') : '<span style="color:var(--muted);font-size:13px">Sin etiquetas</span>'}</div>
-            <div class="cd-section-title">Currículum</div>
-            <div>${renderCV(c)}</div>
+            <div class="cd-section-title">Documentos (${attCount(c)})</div>
+            <div>${renderAttachments(c)}</div>
             <div class="cd-section-title">Notas</div>
             <div id="notesList">${renderNotes(c)}</div>
             <div class="note-add"><input id="noteInput" placeholder="Añadir una nota..."><button class="btn-primary btn-sm" onclick="addNote('${c.id}')">Añadir</button></div>
@@ -944,20 +956,94 @@ function sparkline(vals) {
    ============================================================ */
 function renderCareers() {
     const openJobs = state.jobs.filter(j => j.status === 'open');
+    const p = state.settings.portal || defaultPortal();
     content.innerHTML = `
-        <div class="page-head"><div><h1>Portal de empleo</h1><p>Vista pública de candidatos · las solicitudes entran al pipeline</p></div></div>
+        <div class="page-head"><div><h1>Portal de empleo</h1><p>Web pública, configurable y embebible en cualquier sitio</p></div>
+        <div style="display:flex;gap:10px">
+            <button class="btn-outline" onclick="openStandalonePortal()">↗ Abrir portal</button>
+            <button class="btn-outline" onclick="openEmbedCode()">&lt;/&gt; Código de inserción</button>
+            <button class="btn-primary" onclick="openPortalConfig()">⚙ Configurar</button>
+        </div></div>
+        <p style="color:var(--muted);font-size:12px;margin:-8px 0 16px">Vista previa de cómo se verá el portal con tu marca. Las candidaturas entran al pipeline.</p>
         <div class="careers">
-            <div class="careers-hero">
-                <h2>Únete a ${state.settings.company || 'nuestro equipo'}</h2>
-                <p>${openJobs.length} vacantes abiertas. Encuentra tu próximo reto.</p>
+            <div class="careers-hero" style="background:linear-gradient(135deg, ${p.brandColor}, ${p.accentColor})">
+                ${p.logo ? `<img src="${p.logo}" alt="logo" class="portal-logo">` : ''}
+                <h2>${p.tagline || 'Únete a nuestro equipo'}</h2>
+                <p>${p.intro || ''}</p>
+                <p style="margin-top:10px;font-weight:600">${openJobs.length} vacantes abiertas</p>
             </div>
             ${openJobs.length ? openJobs.map(j => `
                 <div class="career-card">
                     <div><div class="cc-name" style="font-size:15px">${j.title}</div>
-                    <div class="cc-role">${j.dept} · ${j.location} · ${j.type} · ${j.salary || ''}</div></div>
-                    <button class="btn-primary btn-sm" onclick="openApplyForm('${j.id}')">Aplicar</button>
+                    <div class="cc-role">${j.dept} · ${j.location} · ${j.type}${p.showSalary && j.salary ? ' · ' + j.salary : ''}</div></div>
+                    <button class="btn-primary btn-sm" style="background:${p.brandColor}" onclick="openApplyForm('${j.id}')">Aplicar</button>
                 </div>`).join('') : '<p style="color:var(--muted)">No hay vacantes abiertas ahora mismo.</p>'}
+            <div class="portal-footer">${p.footer || ''}</div>
         </div>`;
+}
+
+function openPortalConfig() {
+    const p = state.settings.portal || defaultPortal();
+    openModal(`
+        <h2>Configurar portal de empleo</h2><div class="modal-sub">Personaliza la marca; los cambios se reflejan en la web pública y en el código de inserción.</div>
+        <form id="portalForm"><div class="form-grid">
+            <div class="field"><label>Nombre de la empresa</label><input name="company" value="${p.company || ''}"></div>
+            <div class="field"><label>Titular (hero)</label><input name="tagline" value="${p.tagline || ''}"></div>
+            <div class="field"><label>Color principal</label><input name="brandColor" type="color" value="${p.brandColor || '#5b8cff'}"></div>
+            <div class="field"><label>Color de acento</label><input name="accentColor" type="color" value="${p.accentColor || '#7c5cff'}"></div>
+            <div class="field full"><label>Texto de introducción</label><textarea name="intro">${p.intro || ''}</textarea></div>
+            <div class="field full"><label>Pie de página</label><input name="footer" value="${p.footer || ''}"></div>
+            <div class="field"><label>Mostrar salario</label><select name="showSalary"><option value="1" ${p.showSalary ? 'selected' : ''}>Sí</option><option value="0" ${!p.showSalary ? 'selected' : ''}>No</option></select></div>
+            <div class="field full"><label>Logo (PNG/JPG · opcional)</label><input type="file" id="logoInput" class="file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg"><div id="logoHint" class="cv-hint">${p.logo ? '🖼️ Logo cargado' : 'Sin logo'}</div></div>
+        </div><div class="modal-actions"><button type="button" class="btn-outline" onclick="closeModal()">Cancelar</button><button type="submit" class="btn-primary">Guardar</button></div></form>`);
+    let logo = p.logo || null;
+    const li = document.getElementById('logoInput');
+    li.addEventListener('change', () => {
+        const f = li.files[0]; if (!f) return;
+        if (f.size > CV_MAX) { toast('Logo demasiado grande (máx 3 MB)', 'info'); li.value = ''; return; }
+        const r = new FileReader(); r.onload = () => { logo = r.result; document.getElementById('logoHint').innerHTML = '✅ ' + f.name; }; r.readAsDataURL(f);
+    });
+    document.getElementById('portalForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const f = Object.fromEntries(new FormData(e.target).entries());
+        state.settings.portal = { ...p, company: f.company, tagline: f.tagline, intro: f.intro, footer: f.footer, brandColor: f.brandColor, accentColor: f.accentColor, showSalary: f.showSalary === '1', logo };
+        state.settings.company = f.company;
+        save(); closeModal(); toast('Portal actualizado', 'ok'); render();
+    });
+}
+
+function portalConfigPayload() {
+    const p = state.settings.portal || defaultPortal();
+    const jobs = state.jobs.filter(j => j.status === 'open').map(j => ({ id: j.id, title: j.title, dept: j.dept, location: j.location, type: j.type, salary: j.salary, description: j.description }));
+    return { portal: p, jobs };
+}
+function encodeConfig() {
+    try { return btoa(unescape(encodeURIComponent(JSON.stringify(portalConfigPayload())))); }
+    catch (e) { return ''; }
+}
+function openEmbedCode() {
+    const cfg = encodeConfig();
+    const big = cfg.length > 8000;
+    const src = big ? 'careers.html' : `careers.html?c=${cfg}`;
+    const iframe = `<iframe\n  src="https://TU-DOMINIO/${src}"\n  title="Portal de empleo"\n  width="100%" height="900"\n  style="border:0;max-width:960px"\n  loading="lazy">\n</iframe>`;
+    openModal(`
+        <h2>Código de inserción</h2><div class="modal-sub">Pega este iframe en la web de cualquier empresa que use este portal.</div>
+        <div class="cd-section-title">1 · Sube <code>careers.html</code> a tu dominio</div>
+        <p style="font-size:13px;color:var(--muted)">Es una página autónoma (sin dependencias). Súbela junto a tu web o a cualquier hosting estático.</p>
+        <div class="cd-section-title">2 · Inserta el iframe</div>
+        <pre class="codeblock" id="embedCode">${iframe.replace(/</g, '&lt;')}</pre>
+        <button class="btn-primary btn-sm" onclick="copyText('embedCode')">Copiar código</button>
+        ${big ? '<p class="cv-hint" style="margin-top:10px">⚠️ Tu configuración (con logo) es grande: el portal leerá la marca desde su propio almacenamiento en lugar de la URL.</p>' : '<p class="cv-hint" style="margin-top:10px">La marca y las vacantes viajan codificadas en el parámetro <code>?c=</code>, así el portal se ve igual en cualquier web.</p>'}
+        <div class="modal-actions"><button class="btn-outline" onclick="openStandalonePortal()">↗ Previsualizar portal</button><button class="btn-primary" onclick="closeModal()">Cerrar</button></div>`, 'wide');
+}
+function openStandalonePortal() {
+    const cfg = encodeConfig();
+    const url = cfg.length > 8000 ? 'careers.html' : `careers.html?c=${cfg}`;
+    window.open(url, '_blank');
+}
+function copyText(id) {
+    const el = document.getElementById(id); const txt = el.innerText || el.textContent;
+    navigator.clipboard?.writeText(txt).then(() => toast('Código copiado', 'ok'), () => toast('Copia manual', 'info'));
 }
 function openApplyForm(jid) {
     const j = jobById(jid);
@@ -970,16 +1056,16 @@ function openApplyForm(jid) {
             <div class="field"><label>Puesto actual</label><input name="currentTitle"></div>
             <div class="field full"><label>Género (opcional, para DE&I)</label><select name="gender"><option value="">Prefiere no decir</option>${GENDERS.map(g => `<option>${g}</option>`).join('')}</select></div>
             <div class="field full"><label>Habilidades (separadas por comas)</label><input name="tags" placeholder="Ej: React, 3 años"></div>
-            <div class="field full">${cvFieldHTML(null)}</div>
+            <div class="field full">${attachFieldHTML([])}</div>
         </div><div class="modal-actions"><button type="button" class="btn-outline" onclick="closeModal()">Cancelar</button><button type="submit" class="btn-primary">Enviar candidatura</button></div></form>`);
-    let cvData = null;
-    wireCvInput(v => { cvData = v; });
+    let attach = [];
+    wireAttachInput(() => attach, v => { attach = v; });
     document.getElementById('applyForm').addEventListener('submit', e => {
         e.preventDefault();
         const f = Object.fromEntries(new FormData(e.target).entries());
         const c = { id: uid('cand'), name: f.name, email: f.email, phone: f.phone, currentTitle: f.currentTitle,
             gender: f.gender || 'Prefiere no decir', jobId: jid, stage: 'nuevo', source: 'Portal propio',
-            applied: todayISO(), tags: f.tags.split(',').map(t => t.trim()).filter(Boolean), rating: 0, cv: cvData,
+            applied: todayISO(), tags: f.tags.split(',').map(t => t.trim()).filter(Boolean), rating: 0, attachments: attach, cv: attach[0] || null,
             scorecards: [], emails: [], interviews: [], notes: [], offer: null, archived: false, location: '',
             activities: [{ type: 'apply', text: 'Aplicó por el portal de empleo', date: todayISO() }] };
         state.candidates.unshift(c);
@@ -1034,16 +1120,16 @@ function openCandidateForm(id, toPool) {
             <div class="field"><label>Origen</label><select name="source">${SOURCES.map(o => `<option ${c?.source === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
             <div class="field"><label>Género (DE&I)</label><select name="gender">${GENDERS.map(g => `<option ${c?.gender === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
             <div class="field full"><label>Etiquetas (comas)</label><input name="tags" value="${(c?.tags || []).join(', ')}" placeholder="Ej: React, Senior"></div>
-            <div class="field full">${cvFieldHTML(c?.cv)}</div>
+            <div class="field full">${attachFieldHTML(c ? attachmentsOf(c) : [])}</div>
         </div><div class="modal-actions"><button type="button" class="btn-outline" onclick="closeModal()">Cancelar</button><button type="submit" class="btn-primary">${c ? 'Guardar' : 'Añadir'}</button></div></form>`);
-    let cvData = c?.cv || null;
-    wireCvInput(v => { cvData = v; });
+    let attach = c ? attachmentsOf(c).slice() : [];
+    wireAttachInput(() => attach, v => { attach = v; });
     document.getElementById('candForm').addEventListener('submit', e => {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target).entries());
         data.tags = data.tags.split(',').map(t => t.trim()).filter(Boolean);
         data.jobId = data.jobId || null;
-        data.cv = cvData;
+        data.attachments = attach; data.cv = attach[0] || null;
         if (c) { Object.assign(c, data); toast('Candidato actualizado', 'ok'); }
         else {
             const nc = { id: uid('cand'), rating: 0, applied: todayISO(), notes: [], scorecards: [], emails: [], interviews: [], offer: null, archived: !!toPool, activities: [{ type: 'apply', text: toPool ? 'Añadido al CRM' : 'Añadido manualmente', date: todayISO() }], ...data };
@@ -1094,48 +1180,62 @@ function importCSV() {
 }
 
 /* ============================================================
-   Currículum (subida de archivos: PDF, PNG, JPG)
+   Adjuntos (subida múltiple de archivos: PDF, PNG, JPG)
    ============================================================ */
-const CV_MAX = 3 * 1024 * 1024; // 3 MB
-function cvFieldHTML(cv) {
-    return `<label>Currículum (PDF, PNG o JPG · máx 3 MB)</label>
-        <input type="file" id="cvInput" class="file-input" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
-        <div id="cvHint" class="cv-hint">${cv ? '📎 ' + cv.name + ' (' + fmtSize(cv.size) + ') — sube otro para reemplazar' : 'Ningún archivo seleccionado'}</div>`;
-}
-function wireCvInput(cb) {
-    const inp = document.getElementById('cvInput'); if (!inp) return;
-    inp.addEventListener('change', () => {
-        const f = inp.files[0]; if (!f) return;
-        const okType = /pdf|png|jpe?g/i.test(f.type) || /\.(pdf|png|jpe?g)$/i.test(f.name);
-        if (!okType) { toast('Formato no válido. Usa PDF, PNG o JPG', 'info'); inp.value = ''; return; }
-        if (f.size > CV_MAX) { toast('Archivo demasiado grande (máx 3 MB)', 'info'); inp.value = ''; return; }
-        const r = new FileReader();
-        r.onload = () => {
-            cb({ name: f.name, type: f.type || guessType(f.name), dataUrl: r.result, size: f.size });
-            const h = document.getElementById('cvHint'); if (h) h.innerHTML = '✅ ' + f.name + ' (' + fmtSize(f.size) + ')';
-        };
-        r.readAsDataURL(f);
-    });
-}
+const CV_MAX = 3 * 1024 * 1024; // 3 MB por archivo
 function guessType(name) { return /\.pdf$/i.test(name) ? 'application/pdf' : /\.png$/i.test(name) ? 'image/png' : 'image/jpeg'; }
 function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
-function isImg(cv) { return cv && /image\//.test(cv.type); }
-function renderCV(c) {
-    const cv = c.cv;
-    if (!cv) return '<span style="color:var(--muted);font-size:13px">Sin currículum adjunto.</span>';
-    const thumb = isImg(cv) ? `<img src="${cv.dataUrl}" class="cv-thumb" alt="CV">` : `<div class="cv-thumb cv-pdf">PDF</div>`;
-    return `<div class="cv-box">${thumb}
-        <div class="cv-info"><div class="cv-name">📎 ${cv.name}</div><div class="cv-meta">${fmtSize(cv.size)} · ${isImg(cv) ? 'Imagen' : 'PDF'}</div>
-        <div class="cv-actions"><button class="btn-outline btn-sm" onclick="openCV('${c.id}')">Ver</button>
-        <a class="btn-outline btn-sm" href="${cv.dataUrl}" download="${cv.name}">Descargar</a></div></div></div>`;
+function isImg(a) { return a && /image\//.test(a.type); }
+function attachmentsOf(c) { return c.attachments || (c.cv ? [c.cv] : []); }
+function attCount(c) { return attachmentsOf(c).length; }
+
+function attachFieldHTML(list) {
+    return `<label>Documentos (CV, carta, portfolio… · PDF, PNG o JPG · máx 3 MB c/u)</label>
+        <input type="file" id="attachInput" class="file-input" multiple accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
+        <div id="attachList" class="attach-list">${attachChips(list)}</div>`;
 }
-function openCV(id) {
-    const c = state.candidates.find(x => x.id === id); if (!c || !c.cv) return;
-    const cv = c.cv;
-    const view = isImg(cv) ? `<img src="${cv.dataUrl}" style="max-width:100%;border-radius:10px">`
-        : `<iframe src="${cv.dataUrl}" style="width:100%;height:68vh;border:none;border-radius:10px;background:#fff"></iframe>`;
-    openModal(`<h2>Currículum · ${c.name}</h2><div class="modal-sub">${cv.name} · ${fmtSize(cv.size)}</div>${view}
-        <div class="modal-actions"><a class="btn-outline" href="${cv.dataUrl}" download="${cv.name}">Descargar</a><button class="btn-primary" onclick="closeModal()">Cerrar</button></div>`, 'wide');
+function attachChips(list) {
+    if (!list || !list.length) return '<span class="cv-hint">Ningún archivo aún · puedes subir varios</span>';
+    return list.map((a, i) => `<span class="attach-chip">${isImg(a) ? '🖼️' : '📄'} ${a.name} <small>${fmtSize(a.size)}</small> <button type="button" class="attach-x" data-i="${i}">✕</button></span>`).join('');
+}
+function wireAttachInput(getList, setList) {
+    const inp = document.getElementById('attachInput'); if (!inp) return;
+    const refresh = () => {
+        const el = document.getElementById('attachList'); if (!el) return;
+        el.innerHTML = attachChips(getList());
+        el.querySelectorAll('.attach-x').forEach(b => b.onclick = () => { const l = getList().slice(); l.splice(+b.dataset.i, 1); setList(l); refresh(); });
+    };
+    inp.addEventListener('change', () => {
+        const files = [...inp.files]; let pending = files.length; if (!pending) return;
+        files.forEach(f => {
+            const ok = /pdf|png|jpe?g/i.test(f.type) || /\.(pdf|png|jpe?g)$/i.test(f.name);
+            if (!ok) { toast('Formato no válido: ' + f.name, 'info'); if (!--pending) refresh(); return; }
+            if (f.size > CV_MAX) { toast('Muy grande (máx 3 MB): ' + f.name, 'info'); if (!--pending) refresh(); return; }
+            const r = new FileReader();
+            r.onload = () => { setList([...getList(), { name: f.name, type: f.type || guessType(f.name), dataUrl: r.result, size: f.size }]); if (!--pending) refresh(); };
+            r.readAsDataURL(f);
+        });
+        inp.value = '';
+    });
+    refresh();
+}
+function renderAttachments(c) {
+    const list = attachmentsOf(c);
+    if (!list.length) return '<span style="color:var(--muted);font-size:13px">Sin documentos adjuntos.</span>';
+    return `<div class="attach-grid">${list.map((a, i) => {
+        const thumb = isImg(a) ? `<img src="${a.dataUrl}" class="cv-thumb" alt="doc">` : `<div class="cv-thumb cv-pdf">PDF</div>`;
+        return `<div class="cv-box">${thumb}<div class="cv-info"><div class="cv-name">${isImg(a) ? '🖼️' : '📄'} ${a.name}</div><div class="cv-meta">${fmtSize(a.size)}</div>
+            <div class="cv-actions"><button class="btn-outline btn-sm" onclick="openAttachment('${c.id}',${i})">Ver</button>
+            <a class="btn-outline btn-sm" href="${a.dataUrl}" download="${a.name}">Descargar</a></div></div></div>`;
+    }).join('')}</div>`;
+}
+function openAttachment(id, idx) {
+    const c = state.candidates.find(x => x.id === id); if (!c) return;
+    const a = attachmentsOf(c)[idx]; if (!a) return;
+    const view = isImg(a) ? `<img src="${a.dataUrl}" style="max-width:100%;border-radius:10px">`
+        : `<iframe src="${a.dataUrl}" style="width:100%;height:68vh;border:none;border-radius:10px;background:#fff"></iframe>`;
+    openModal(`<h2>${a.name}</h2><div class="modal-sub">${c.name} · ${fmtSize(a.size)}</div>${view}
+        <div class="modal-actions"><a class="btn-outline" href="${a.dataUrl}" download="${a.name}">Descargar</a><button class="btn-primary" onclick="closeModal()">Cerrar</button></div>`, 'wide');
 }
 
 /* ============================================================
@@ -1173,7 +1273,7 @@ document.getElementById('hamburger').addEventListener('click', () => document.ge
 document.getElementById('seedBtn').addEventListener('click', () => { if (confirm('Restaurar los datos de ejemplo y reemplazar los actuales?')) { seedData(); render(); toast('Datos demo cargados', 'ok'); } });
 document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('¿Borrar TODOS los datos?')) { state = { jobs: [], candidates: [], templates: [], automations: [], team: [], settings: {} }; save(); render(); toast('Datos borrados', 'info'); } });
 
-Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openCV });
+Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText });
 
 /* ---------- Init ---------- */
 load();
