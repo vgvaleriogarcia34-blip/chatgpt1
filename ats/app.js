@@ -114,6 +114,10 @@ function load() {
     state.settings = state.settings || {};
     if (!state.settings.portal) state.settings.portal = defaultPortal();
     if (!state.settings.dna) state.settings.dna = defaultDNA();
+    if (!state.settings.autonomy) state.settings.autonomy = {};
+    state.proposals = state.proposals || [];
+    state.dismissedKeys = state.dismissedKeys || [];
+    state.agentLog = state.agentLog || [];
     (state.candidates || []).forEach(c => { if (!c.attachments) c.attachments = c.cv ? [c.cv] : []; if (!c.assess) c.assess = {}; });
 }
 function save() {
@@ -192,14 +196,14 @@ function seedData() {
                 psycho: { verbal: 82, numerico: 90, logico: 85, abstracto: 88 },
                 valuesFit: { 'Orientación al cliente': 4, 'Trabajo en equipo': 4, 'Excelencia': 5, 'Innovación': 5, 'Integridad': 4 } },
         }),
-        c('Diego Ferrer', 'diego.ferrer@mail.com', 0, 'nuevo', 'Portal propio', '2026-07-01', 'Hombre', { tags: ['Junior','Angular'], rating: 0 }),
+        c('Diego Ferrer', 'diego.ferrer@mail.com', 0, 'nuevo', 'Portal propio', '2026-07-01', 'Hombre', { tags: ['React','Node','Junior'], rating: 0 }),
         c('Iván Lozano', 'ivan.lozano@mail.com', 0, 'entrevista', 'LinkedIn', '2026-06-18', 'Hombre', {
-            tags: ['TypeScript','GraphQL'], rating: 4, interviewDate: '2026-07-09',
-            interviews: [{ id: uid('iv'), date: '2026-07-09', time: '16:00', type: 'RRHH', interviewer: 'Ana Torres', mode: 'Videollamada' }],
+            tags: ['TypeScript','GraphQL'], rating: 4, interviewDate: '2026-07-01',
+            interviews: [{ id: uid('iv'), date: '2026-07-01', time: '16:00', type: 'RRHH', interviewer: 'Ana Torres', mode: 'Videollamada' }],
         }),
         c('Sofía Marín', 'sofia.marin@mail.com', 1, 'oferta', 'LinkedIn', '2026-05-10', 'Mujer', {
             title: 'Growth Lead', company: 'ScaleUp', tags: ['SEO','Growth','Team lead'], rating: 5,
-            offer: { salary: '50.000 €', startDate: '2026-08-01', status: 'sent', date: '2026-07-02' },
+            offer: { salary: '50.000 €', startDate: '2026-08-01', status: 'sent', date: '2026-06-28' },
             scorecards: [mkScore('Luis Fernández', 'sf', 'Perfil de liderazgo excelente.', '2026-06-15')],
         }),
         c('Pablo Herrera', 'pablo.herrera@mail.com', 1, 'entrevista', 'Agencia', '2026-06-01', 'Hombre', { tags: ['Content','Ads'], rating: 4, interviewDate: '2026-07-11', interviews: [{ id: uid('iv'), date: '2026-07-11', time: '11:00', type: 'Manager', interviewer: 'Luis Fernández', mode: 'Videollamada' }] }),
@@ -233,7 +237,7 @@ function seedData() {
    ============================================================ */
 const content = document.getElementById('content');
 const VIEWS = {
-    dashboard: renderDashboard, jobs: renderJobs, pipeline: renderPipeline,
+    dashboard: renderDashboard, inbox: renderInbox, jobs: renderJobs, pipeline: renderPipeline,
     candidates: renderCandidates, crm: renderCRM, interviews: renderInterviews,
     offers: renderOffers, reports: renderReports, culture: renderCulture, careers: renderCareers, automation: renderAutomation,
 };
@@ -307,19 +311,75 @@ function renderDashboard() {
 }
 
 function copilotPanel() {
-    const insights = computeInsights();
-    if (!insights.length) return '';
+    agentTick();
+    const pending = (state.proposals || []).filter(p => p.status === 'pending' && p.level !== 'L1');
+    const autoToday = (state.proposals || []).filter(p => p.status === 'auto' && p.executed === todayISO()).length;
+    if (!pending.length && !autoToday) return '';
     return `<div class="panel" style="margin-bottom:16px">
-        <h3>🤖 Copiloto de selección <span class="badge dept">${insights.length} avisos</span></h3>
-        ${insights.map(i => `
-            <div class="insight-row ${i.sev}">
-                <span class="insight-ico">${i.icon}</span>
-                <div class="insight-text">${i.text}</div>
-                ${i.action ? `<button class="btn-outline btn-sm" onclick="openCandidate('${i.action}','${i.tab || 'resumen'}')">Ver</button>` : ''}
-                ${i.job ? `<button class="btn-primary btn-sm" onclick="approveJob('${i.job}')">Aprobar</button>` : ''}
+        <h3>🤖 Agente de selección
+            ${pending.length ? `<span class="badge paused">${pending.length} esperando tu aprobación</span>` : ''}
+            ${autoToday ? `<span class="badge open">${autoToday} ejecutadas hoy en autonomía</span>` : ''}
+        </h3>
+        ${pending.slice(0, 3).map(p => `
+            <div class="insight-row ${p.type === 'reject' ? 'crit' : 'warn'}">
+                <span class="insight-ico">${autoTypeById(p.type).icon}</span>
+                <div class="insight-text"><strong>${p.title}</strong><div class="cc-role">${p.reason}</div></div>
+                <button class="btn-primary btn-sm" onclick="approveProposal('${p.id}')">Aprobar</button>
             </div>`).join('')}
+        <button class="btn-outline btn-sm" style="margin-top:8px" onclick="goView('inbox')">📥 Abrir bandeja de decisiones${pending.length > 3 ? ` (${pending.length - 3} más)` : ''}</button>
     </div>`;
 }
+
+/* ============================================================
+   Bandeja de decisiones — la pantalla principal del ATS autónomo
+   ============================================================ */
+function renderInbox() {
+    agentTick();
+    const props = state.proposals || [];
+    const validC = p => !p.candidateId || state.candidates.some(c => c.id === p.candidateId);
+    const pending = props.filter(p => p.status === 'pending' && p.level === 'L2' && validC(p));
+    const avisos = props.filter(p => p.status === 'pending' && p.level === 'L1' && validC(p));
+    const done = props.filter(p => ['auto', 'executed'].includes(p.status)).slice(0, 10);
+    const card = (p, isAviso) => {
+        const t = autoTypeById(p.type);
+        return `<div class="prop-card ${t.adverse ? 'adverse' : ''}">
+            <div class="prop-head">
+                <span class="insight-ico">${t.icon}</span>
+                <div style="flex:1;min-width:0"><strong>${p.title}</strong>
+                    <div class="prop-reason">${p.reason}</div></div>
+                <span class="conf-badge" title="Confianza del agente">${p.confidence || 70}%</span>
+            </div>
+            ${p.email ? `<details class="prop-email"><summary>✉️ Ver borrador preparado — «${p.email.subject}»</summary><div class="email-body">${p.email.body.replace(/\n/g, '<br>')}</div></details>` : ''}
+            <div class="prop-actions">
+                ${t.adverse ? '<span class="lock-note">🔒 Acción adversa: requiere humano</span>' : ''}
+                ${p.candidateId ? `<button class="btn-outline btn-sm" onclick="openCandidate('${p.candidateId}')">Ver ficha</button>` : ''}
+                <button class="btn-outline btn-sm" onclick="dismissProposal('${p.id}')">Descartar</button>
+                ${!isAviso && p.email ? `<button class="btn-outline btn-sm" onclick="editProposal('${p.id}')">✎ Editar</button>` : ''}
+                ${!isAviso ? `<button class="btn-primary btn-sm" onclick="approveProposal('${p.id}')">✓ Aprobar</button>` : ''}
+            </div>
+        </div>`;
+    };
+    content.innerHTML = `
+        <div class="page-head">
+            <div><h1>📥 Bandeja de decisiones</h1><p>El agente trabaja; tú decides. Configura su autonomía en «Automatización».</p></div>
+            <button class="btn-outline" onclick="goView('automation')">⚙ Niveles de autonomía</button>
+        </div>
+        <div class="kpi-grid">
+            <div class="kpi k3"><div class="kpi-label">Esperando tu aprobación</div><div class="kpi-value">${pending.length}</div><div class="kpi-sub">acciones preparadas (L2)</div></div>
+            <div class="kpi k2"><div class="kpi-label">Ejecutadas en autonomía</div><div class="kpi-value">${props.filter(p => p.status === 'auto').length}</div><div class="kpi-sub">nivel L3, con deshacer</div></div>
+            <div class="kpi k1"><div class="kpi-label">Aprobadas por ti</div><div class="kpi-value">${props.filter(p => p.status === 'executed').length}</div><div class="kpi-sub">histórico</div></div>
+            <div class="kpi k4"><div class="kpi-label">Acciones adversas</div><div class="kpi-value">🔒 L2</div><div class="kpi-sub">siempre con humano (AI Act)</div></div>
+        </div>
+        ${pending.length ? `<div class="cd-section-title" style="margin-top:0">Pendientes de tu aprobación</div>${pending.map(p => card(p, false)).join('')}` : '<div class="empty" style="padding:30px"><span class="emoji">✅</span><h3>Bandeja limpia</h3><p>El agente no tiene propuestas pendientes ahora mismo.</p></div>'}
+        ${avisos.length ? `<div class="cd-section-title">Avisos (nivel L1 · solo información)</div>${avisos.map(p => card(p, true)).join('')}` : ''}
+        ${done.length ? `<div class="cd-section-title">Registro del agente</div>${done.map(p => `
+            <div class="prop-card done">
+                <div class="prop-head"><span class="insight-ico">${autoTypeById(p.type).icon}</span>
+                <div style="flex:1"><strong>${p.title}</strong><div class="prop-reason">${p.status === 'auto' ? '⚡ Ejecutada automáticamente (L3)' : '✓ Aprobada por ti'} · ${p.executed}</div></div>
+                ${p.undo && !p.noUndo ? `<button class="btn-outline btn-sm" onclick="undoProposal('${p.id}')">↩ Deshacer</button>` : ''}</div>
+            </div>`).join('')}` : ''}`;
+}
+function goView(v) { currentView = v; render(); }
 
 function genderBars(cs) {
     const counts = {};
@@ -1269,7 +1329,19 @@ function openApplyForm(jid) {
 function autoEnabled(name) { const a = state.automations.find(x => x.name === name); return a && a.enabled; }
 function renderAutomation() {
     content.innerHTML = `
-        <div class="page-head"><div><h1>Automatización y plantillas</h1><p>Reglas y comunicaciones automáticas</p></div></div>
+        <div class="page-head"><div><h1>Automatización y plantillas</h1><p>Define hasta dónde puede llegar el agente sin ti</p></div></div>
+        <div class="panel" style="margin-bottom:16px">
+            <h3>🤖 Niveles de autonomía del agente</h3>
+            <p style="color:var(--muted);font-size:12px;margin-bottom:14px"><strong>L1</strong> avisar · <strong>L2</strong> proponer con acción preparada (tú apruebas) · <strong>L3</strong> autónomo con registro y deshacer. Las acciones adversas están limitadas a L2 por diseño.</p>
+            ${AUTONOMY_TYPES.map(t => `
+                <div class="auto-row">
+                    <div style="flex:1;min-width:0"><strong>${t.icon} ${t.name}</strong><div class="cc-role">${t.desc}</div></div>
+                    <div class="seg">${['L1', 'L2', 'L3'].map(l => `<button class="seg-btn ${autonomyLevel(t.id) === l ? 'on' : ''}" ${t.adverse && l === 'L3' ? 'disabled title="🔒 Supervisión humana obligatoria"' : ''} onclick="setAutonomy('${t.id}','${l}')">${l}${t.adverse && l === 'L3' ? '🔒' : ''}</button>`).join('')}</div>
+                </div>`).join('')}
+        </div>
+        <div class="panel" style="margin-bottom:16px"><h3>📜 Registro del agente</h3>
+            ${(state.agentLog || []).length ? (state.agentLog || []).slice(0, 8).map(l => `<div class="tl-item"><span class="tl-dot" style="background:var(--brand)"></span><div><div class="tl-text">${l.text}</div><div class="tl-meta">${l.date}</div></div></div>`).join('') : '<p style="color:var(--muted);font-size:13px">Aún sin actividad del agente.</p>'}
+        </div>
         <div class="panel" style="margin-bottom:16px"><h3>⚙️ Reglas de automatización</h3>
             ${state.automations.map(a => `
                 <div class="auto-row">
@@ -1450,46 +1522,185 @@ function lastActivityDate(c) {
     const dates = (c.activities || []).map(a => a.date).filter(Boolean);
     return dates.length ? dates.sort().pop() : c.applied;
 }
-function computeInsights() {
+/* ============================================================
+   AGENTE DE SELECCIÓN — propuestas con acción preparada
+   Niveles de autonomía por tipo de acción:
+     L1 avisar · L2 proponer (humano aprueba) · L3 autónomo (con deshacer)
+   Las acciones ADVERSAS (rechazos) quedan limitadas a L2 por diseño
+   (supervisión humana obligatoria, en línea con el AI Act europeo).
+   ============================================================ */
+const AUTONOMY_TYPES = [
+    { id: 'followup_email',     name: 'Email a candidatos estancados',      icon: '⏳', adverse: false, def: 'L2', desc: 'Redacta un email de cortesía cuando alguien lleva ≥7 días sin avanzar.' },
+    { id: 'offer_followup',     name: 'Seguimiento de oferta sin respuesta', icon: '📄', adverse: false, def: 'L2', desc: 'Recuerda amablemente la oferta enviada hace ≥5 días.' },
+    { id: 'scorecard_reminder', name: 'Recordatorio de scorecard',           icon: '📋', adverse: false, def: 'L3', desc: 'Avisa al entrevistador cuando hay una entrevista pasada sin evaluación.' },
+    { id: 'send_test',          name: 'Envío del test de evaluación',        icon: '🧪', adverse: false, def: 'L2', desc: 'Envía el test autoadministrado a candidatos en entrevista o posterior.' },
+    { id: 'move_stage',         name: 'Avance de etapa por Job-Match',       icon: '🗂️', adverse: false, def: 'L2', desc: 'Propone pasar a Preselección cuando el encaje con el perfil ideal es ≥70 %.' },
+    { id: 'reject',             name: 'Rechazo cordial por bajo encaje',     icon: '🚫', adverse: true,  def: 'L2', desc: 'Prepara el rechazo cuando el fit es <40 % en etapa avanzada. 🔒 Siempre con aprobación humana.' },
+    { id: 'approve_job',        name: 'Apertura de requisiciones',           icon: '✅', adverse: false, def: 'L2', desc: 'Prepara la aprobación de requisiciones pendientes.' },
+];
+const autoTypeById = id => AUTONOMY_TYPES.find(t => t.id === id);
+function autonomyLevel(typeId) {
+    const t = autoTypeById(typeId);
+    let lvl = (state.settings.autonomy || {})[typeId] || t.def;
+    if (t.adverse && lvl === 'L3') lvl = 'L2'; // guardarraíl: adversas nunca autónomas
+    return lvl;
+}
+function setAutonomy(typeId, level) {
+    const t = autoTypeById(typeId);
+    if (t.adverse && level === 'L3') { toast('🔒 Acción adversa: la supervisión humana es obligatoria', 'info'); return; }
+    state.settings.autonomy = state.settings.autonomy || {};
+    state.settings.autonomy[typeId] = level;
+    save(); toast(`${t.name} → ${level === 'L1' ? 'solo avisar' : level === 'L2' ? 'proponer' : 'autónomo'}`, 'ok'); renderAutomation();
+}
+function agentLogPush(text) {
+    state.agentLog = state.agentLog || [];
+    state.agentLog.unshift({ date: todayISO(), text });
+    if (state.agentLog.length > 50) state.agentLog.length = 50;
+}
+
+/* ---- Borradores contextuales ---- */
+function draftEmail(c, kind, extra = {}) {
+    const job = jobById(c.jobId); const first = c.name.split(' ')[0]; const jt = job ? job.title : 'la posición';
+    if (kind === 'followup') return {
+        subject: `Seguimos contigo — proceso de ${jt}`,
+        body: `Hola ${first},\n\nQueríamos escribirte para confirmarte que tu candidatura a ${jt} sigue activa. Estamos avanzando en la etapa de ${stageById(c.stage).name.toLowerCase()} y te daremos novedades muy pronto.\n\nGracias por tu paciencia e interés.\n\nUn saludo,\nEquipo de RRHH` };
+    if (kind === 'offer') return {
+        subject: `¿Pudiste revisar nuestra oferta? — ${jt}`,
+        body: `Hola ${first},\n\nHace unos días te enviamos nuestra oferta para incorporarte como ${jt} y nos encantaría conocer tus impresiones. Si tienes cualquier duda sobre las condiciones, estaremos encantados de resolverla en una llamada.\n\nUn saludo,\nEquipo de RRHH` };
+    if (kind === 'test') return {
+        subject: `Un paso más en tu proceso — test de evaluación (${jt})`,
+        body: `Hola ${first},\n\nComo parte del proceso para ${jt}, nos gustaría conocerte mejor con un breve test (~10 min) sobre valores, formas de trabajar y aptitudes.\n\nPuedes hacerlo aquí: assessment.html?cid=${c.id}\n\nUn saludo,\nEquipo de RRHH` };
+    if (kind === 'reject') return {
+        subject: `Sobre tu candidatura a ${jt}`,
+        body: `Hola ${first},\n\nQueremos agradecerte el tiempo y el interés que has dedicado al proceso de ${jt}. Tras evaluar detenidamente tu perfil${extra.fit != null ? ' junto al resto de candidaturas' : ''}, hemos decidido avanzar con otros perfiles que se ajustan más a lo que buscamos en este momento.\n\nConservaremos tu candidatura para futuras oportunidades.\n\nUn saludo,\nEquipo de RRHH` };
+    return { subject: '', body: '' };
+}
+
+/* ---- Generador de propuestas (el "tick" del agente) ---- */
+function proposalKey(p) { return p.type + '|' + (p.candidateId || p.jobId || '') + '|' + (p.ctx || ''); }
+function agentTick() {
     const today = todayISO();
-    const out = [];
-    const active = activeCandidates().filter(c => !['contratado', 'rechazado'].includes(c.stage));
-    // 1 · Candidatos estancados (>7 días sin actividad)
-    active.forEach(c => {
-        const last = lastActivityDate(c);
-        const d = last ? daysBetween(last, today) : null;
-        if (d != null && d >= 7) out.push({ sev: 'warn', icon: '⏳', text: `<strong>${c.name}</strong> lleva ${d} días sin avanzar en ${stageById(c.stage).name}`, action: c.id });
+    state.proposals = state.proposals || []; state.dismissedKeys = state.dismissedKeys || [];
+    const known = new Set(state.proposals.map(p => p.key).concat(state.dismissedKeys));
+    let changed = false;
+    const add = p => {
+        p.key = proposalKey(p);
+        if (known.has(p.key)) return;
+        known.add(p.key);
+        p.id = uid('prop'); p.created = today; p.level = autonomyLevel(p.type); p.status = 'pending';
+        if (p.level === 'L3') { executeProposal(p); p.status = 'auto'; p.executed = today; }
+        state.proposals.unshift(p); changed = true;
+    };
+    const active = activeCandidates().filter(c => !['contratado', 'rechazado'].includes(c.stage) && !c.gdprAnonymized);
+    // 1 · Estancados ≥7 días → email de cortesía (top 5 por antigüedad)
+    active.map(c => ({ c, d: daysBetween(lastActivityDate(c) || today, today) }))
+        .filter(x => x.d >= 7).sort((a, b) => b.d - a.d).slice(0, 5)
+        .forEach(({ c, d }) => add({ type: 'followup_email', candidateId: c.id, ctx: lastActivityDate(c),
+            title: `Reactivar a ${c.name}`, confidence: 80,
+            reason: `Lleva ${d} días sin actividad en ${stageById(c.stage).name}. Email de cortesía preparado para mantener su interés.`,
+            email: draftEmail(c, 'followup') }));
+    // 2 · Ofertas enviadas sin respuesta ≥5 días
+    state.candidates.filter(c => c.offer && c.offer.status === 'sent' && daysBetween(c.offer.date, today) >= 5)
+        .forEach(c => add({ type: 'offer_followup', candidateId: c.id, ctx: c.offer.date,
+            title: `Seguimiento de oferta a ${c.name}`, confidence: 90,
+            reason: `La oferta se envió hace ${daysBetween(c.offer.date, today)} días y sigue sin respuesta. Cada día baja la probabilidad de aceptación.`,
+            email: draftEmail(c, 'offer') }));
+    // 3 · Entrevista pasada sin scorecard → recordatorio interno
+    active.filter(c => (c.interviews || []).some(iv => iv.date && iv.date < today) && !(c.scorecards || []).length)
+        .forEach(c => { const iv = c.interviews.filter(x => x.date < today).pop();
+            add({ type: 'scorecard_reminder', candidateId: c.id, ctx: 'sc' + (iv ? iv.date : ''),
+                title: `Recordar scorecard de ${c.name}`, confidence: 95, interviewer: iv ? iv.interviewer : 'el entrevistador', noUndo: true,
+                reason: `${iv ? iv.interviewer : 'El entrevistador'} hizo la entrevista (${iv ? iv.date : ''}) y aún no registró su evaluación. Sin scorecard no hay decisión trazable.` }); });
+    // 4 · Test de evaluación pendiente en entrevista+
+    active.filter(c => stageIndex(c.stage) >= stageIndex('entrevista') && !(c.assess && c.assess.selfCompleted))
+        .forEach(c => add({ type: 'send_test', candidateId: c.id, ctx: 'test',
+            title: `Enviar test de evaluación a ${c.name}`, confidence: 85,
+            reason: `Está en ${stageById(c.stage).name} sin perfil de evaluación (Belbin, valores, aptitudes). El test completa su Fit score sin trabajo del equipo.`,
+            email: draftEmail(c, 'test') }));
+    // 5 · Job-Match ≥70 en etapa Nuevo → avanzar a Preselección
+    active.filter(c => c.stage === 'nuevo').forEach(c => {
+        const m = jobMatch(c, jobById(c.jobId));
+        if (m != null && m >= 70) add({ type: 'move_stage', candidateId: c.id, ctx: 'nuevo', to: 'preseleccion', match: m,
+            title: `Avanzar a ${c.name} a Preselección`, confidence: m,
+            reason: `Su Job-Match con el perfil ideal es del ${m} %. Cumple los requisitos definidos en la requisición.` });
     });
-    // 2 · Ofertas enviadas sin respuesta (>5 días)
-    state.candidates.filter(c => c.offer && c.offer.status === 'sent').forEach(c => {
-        const d = daysBetween(c.offer.date, today);
-        if (d >= 5) out.push({ sev: 'crit', icon: '📄', text: `Oferta a <strong>${c.name}</strong> sin respuesta desde hace ${d} días — considera hacer seguimiento`, action: c.id, tab: 'oferta' });
-    });
-    // 3 · Entrevistas pasadas sin scorecard
-    active.forEach(c => {
-        const past = (c.interviews || []).some(iv => iv.date && iv.date < today);
-        if (past && (!c.scorecards || !c.scorecards.length)) out.push({ sev: 'warn', icon: '📋', text: `<strong>${c.name}</strong> tuvo entrevista pero nadie rellenó la scorecard`, action: c.id, tab: 'scorecards' });
-    });
-    // 4 · Fit bajo en etapa avanzada
+    // 6 · Fit <40 en etapa avanzada → rechazo cordial (SIEMPRE con humano)
     active.filter(c => ['prueba', 'oferta'].includes(c.stage)).forEach(c => {
         const f = fitScore(c);
-        if (f != null && f < 50) out.push({ sev: 'crit', icon: '🧭', text: `<strong>${c.name}</strong> está en ${stageById(c.stage).name} con un fit de solo ${f}%`, action: c.id, tab: 'evaluacion' });
+        if (f != null && f < 40) add({ type: 'reject', candidateId: c.id, ctx: 'rej', fit: f,
+            title: `Rechazo cordial de ${c.name}`, confidence: 100 - f,
+            reason: `Fit de solo ${f} % en ${stageById(c.stage).name}. El agente ha preparado el email, pero un rechazo SIEMPRE requiere tu aprobación.`,
+            email: draftEmail(c, 'reject', { fit: f }) });
     });
-    // 5 · Test de evaluación sin completar en entrevista+
-    active.filter(c => stageIndex(c.stage) >= stageIndex('entrevista') && !(c.assess && c.assess.selfCompleted)).slice(0, 3).forEach(c => {
-        out.push({ sev: 'info', icon: '🧪', text: `<strong>${c.name}</strong> aún no ha hecho el test de evaluación — envíaselo`, action: c.id, tab: 'evaluacion' });
+    // 7 · Requisiciones pendientes de aprobación
+    state.jobs.filter(j => j.status === 'pending').forEach(j => add({ type: 'approve_job', jobId: j.id, ctx: j.title,
+        title: `Abrir la requisición «${j.title}»`, confidence: 70,
+        reason: `Creada el ${j.created}, pendiente de ${j.approver || 'dirección'}. Al aprobarla se publica en el portal de empleo.` }));
+    if (changed) save();
+}
+
+/* ---- Ejecución, aprobación, deshacer ---- */
+function executeProposal(p) {
+    const c = p.candidateId ? state.candidates.find(x => x.id === p.candidateId) : null;
+    if (p.type === 'approve_job') {
+        const j = jobById(p.jobId); if (j) { p.undo = { status: j.status }; j.status = 'open'; }
+    } else if (p.type === 'move_stage' && c) {
+        p.undo = { stage: c.stage }; c.stage = p.to;
+        logActivity(c, 'stage', `El agente lo avanzó a ${stageById(p.to).name} (Job-Match ${p.match} %)`, 'Agente');
+    } else if (p.type === 'scorecard_reminder' && c) {
+        logActivity(c, 'score', `El agente recordó a ${p.interviewer} rellenar la scorecard`, 'Agente');
+    } else if (c && p.email) {
+        const em = { id: uid('em'), subject: p.email.subject, body: p.email.body, template: 'Agente · ' + autoTypeById(p.type).name, date: todayISO(), direction: 'out' };
+        c.emails = c.emails || []; c.emails.unshift(em); p.undo = { emailId: em.id };
+        logActivity(c, 'email', `El agente envió: ${p.email.subject}`, 'Agente');
+        if (p.type === 'reject') { p.undo.stage = c.stage; c.stage = 'rechazado'; logActivity(c, 'reject', 'Rechazado tras aprobación humana', 'RRHH'); }
+        if (p.type === 'send_test') logActivity(c, 'stage', 'Test de evaluación enviado por el agente', 'Agente');
+    }
+    agentLogPush(`${autoTypeById(p.type).icon} ${p.title} — ${p.level === 'L3' ? 'ejecutado en autonomía L3' : 'aprobado por humano'}`);
+}
+function approveProposal(id) {
+    const p = (state.proposals || []).find(x => x.id === id);
+    if (!p || p.status !== 'pending') return;
+    executeProposal(p);
+    p.status = 'executed'; p.executed = todayISO();
+    save(); toast('✓ Acción ejecutada', 'ok'); render();
+}
+function dismissProposal(id) {
+    const p = (state.proposals || []).find(x => x.id === id); if (!p) return;
+    p.status = 'dismissed'; state.dismissedKeys.push(p.key);
+    save(); toast('Propuesta descartada', 'info'); render();
+}
+function undoProposal(id) {
+    const p = (state.proposals || []).find(x => x.id === id);
+    if (!p || !p.undo) { toast('Esta acción no se puede deshacer', 'info'); return; }
+    const c = p.candidateId ? state.candidates.find(x => x.id === p.candidateId) : null;
+    if (p.undo.emailId && c) c.emails = (c.emails || []).filter(e => e.id !== p.undo.emailId);
+    if (p.undo.stage && c) c.stage = p.undo.stage;
+    if (p.undo.status && p.jobId) { const j = jobById(p.jobId); if (j) j.status = p.undo.status; }
+    if (c) logActivity(c, 'stage', `Acción del agente deshecha: ${p.title}`, 'RRHH');
+    p.status = 'undone'; state.dismissedKeys.push(p.key);
+    agentLogPush(`↩ Deshecho por humano: ${p.title}`);
+    save(); toast('↩ Acción deshecha', 'ok'); render();
+}
+function editProposal(id) {
+    const p = (state.proposals || []).find(x => x.id === id);
+    if (!p || !p.email) return;
+    openModal(`
+        <h2>Editar antes de aprobar</h2><div class="modal-sub">${p.title} · el agente redactó este borrador; ajústalo a tu gusto.</div>
+        <form id="propForm">
+            <div class="field"><label>Asunto</label><input name="subject" value="${p.email.subject.replace(/"/g, '&quot;')}"></div>
+            <div class="field"><label>Mensaje</label><textarea name="body" style="min-height:180px">${p.email.body}</textarea></div>
+            <div class="modal-actions">
+                <button type="button" class="btn-outline" onclick="closeModal();render()">Cancelar</button>
+                <button type="submit" class="btn-primary">Aprobar y ejecutar</button>
+            </div>
+        </form>`);
+    document.getElementById('propForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
+        p.email.subject = f.subject; p.email.body = f.body;
+        closeModal(); approveProposal(id);
     });
-    // 6 · Requisiciones pendientes de aprobar
-    state.jobs.filter(j => j.status === 'pending').forEach(j => {
-        out.push({ sev: 'info', icon: '✅', text: `La requisición <strong>${j.title}</strong> espera aprobación de ${j.approver || 'dirección'}`, job: j.id });
-    });
-    // 7 · Mejor origen (positivo)
-    const bySrc = {};
-    state.candidates.filter(c => c.stage === 'contratado').forEach(c => { bySrc[c.source] = (bySrc[c.source] || 0) + 1; });
-    const best = Object.entries(bySrc).sort((a, b) => b[1] - a[1])[0];
-    if (best) out.push({ sev: 'ok', icon: '📈', text: `<strong>${best[0]}</strong> es tu origen más efectivo (${best[1]} contratación${best[1] > 1 ? 'es' : ''}) — prioriza invertir ahí` });
-    const order = { crit: 0, warn: 1, info: 2, ok: 3 };
-    return out.sort((a, b) => order[a.sev] - order[b.sev]).slice(0, 8);
 }
 
 function radarChart(axes, values, max, color) {
@@ -1906,7 +2117,7 @@ document.getElementById('hamburger').addEventListener('click', () => document.ge
 document.getElementById('seedBtn').addEventListener('click', () => { if (confirm('Restaurar los datos de ejemplo y reemplazar los actuales?')) { seedData(); render(); toast('Datos demo cargados', 'ok'); } });
 document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('¿Borrar TODOS los datos?')) { state = { jobs: [], candidates: [], templates: [], automations: [], team: [], settings: {} }; save(); render(); toast('Datos borrados', 'info'); } });
 
-Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych, openAssessInvite, openSelfTest, openCompare, exportCandidateJSON, anonymizeCandidate });
+Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych, openAssessInvite, openSelfTest, openCompare, exportCandidateJSON, anonymizeCandidate, approveProposal, dismissProposal, undoProposal, editProposal, setAutonomy, goView });
 
 /* ---------- Init ---------- */
 load();

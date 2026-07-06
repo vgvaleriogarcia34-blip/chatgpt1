@@ -60,6 +60,28 @@ talento).
   al rechazar, avisos de estancamiento…) y **plantillas de email** con
   variables `{nombre}` / `{puesto}`.
 
+## ATS autónomo: bandeja de decisiones
+
+TalentFlow invierte la relación clásica con el ATS: **el agente ejecuta el
+proceso y el humano supervisa**.
+
+- **📥 Bandeja de decisiones**: la pantalla principal del modo autónomo. El
+  agente genera propuestas con la **acción ya preparada** (email redactado,
+  cambio de etapa justificado, requisición lista para abrir) y tú decides:
+  *Aprobar · Editar · Descartar*. Todo con explicación, confianza y registro.
+- **Niveles de autonomía por tipo de acción** (configurables en
+  Automatización): **L1** avisar · **L2** proponer (humano aprueba) ·
+  **L3** autónomo con registro y **deshacer**.
+- **Guardarraíl de acciones adversas**: los rechazos están limitados a L2
+  por diseño — la supervisión humana es obligatoria, en línea con el
+  AI Act europeo para sistemas de empleo (alto riesgo).
+- **Propuestas que genera el agente**: reactivar candidatos estancados,
+  seguimiento de ofertas sin respuesta, recordatorios de scorecard, envío
+  del test de evaluación, avance de etapa cuando el Job-Match ≥ 70 %,
+  rechazo cordial por bajo encaje y apertura de requisiciones.
+- **Auditoría completa**: registro del agente, marca «Agente» en el timeline
+  de cada candidato, y deshacer para cada acción reversible.
+
 ## Más allá del mercado
 
 Capacidades que los ATS líderes no ofrecen de serie:

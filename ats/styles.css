@@ -490,3 +490,23 @@ code { background: var(--panel-2); padding: 1px 5px; border-radius: 5px; font-si
 .cmp-bar > div { height: 100%; border-radius: 6px; }
 .cmp-table small { color: var(--muted); }
 #cmpBtn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ================= v9: bandeja de decisiones / agente ================= */
+.prop-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+.prop-card.adverse { border-left: 3px solid var(--red); }
+.prop-card.done { opacity: .8; background: var(--bg-2); }
+.prop-head { display: flex; align-items: flex-start; gap: 12px; }
+.prop-reason { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.conf-badge { background: var(--panel-2); color: var(--brand); font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; flex-shrink: 0; }
+.prop-email { margin: 10px 0 0 30px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+.prop-email summary { font-size: 12px; color: var(--brand); cursor: pointer; }
+.prop-email .email-body { margin-top: 8px; }
+.prop-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.lock-note { font-size: 11px; color: var(--red); margin-right: auto; }
+
+/* Selector de nivel L1/L2/L3 */
+.seg { display: flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; flex-shrink: 0; }
+.seg-btn { background: var(--bg); border: none; color: var(--muted); font-size: 12px; font-weight: 700; padding: 8px 13px; cursor: pointer; font-family: inherit; }
+.seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+.seg-btn.on { background: var(--brand); color: #fff; }
+.seg-btn:disabled { opacity: .4; cursor: not-allowed; }
