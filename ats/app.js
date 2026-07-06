@@ -1363,12 +1363,138 @@ function openAssessInvite(id) {
         <div class="cd-section-title">Enlace personalizado del candidato</div>
         <pre class="codeblock" id="assessLink">${abs}</pre>
         <button class="btn-primary btn-sm" onclick="copyText('assessLink')">Copiar enlace</button>
-        <div class="cd-section-title" style="margin-top:16px">Enviar por email</div>
-        <p style="font-size:13px;color:var(--muted)">Puedes registrar el envío con una plantilla desde la pestaña «Comunicación», o pegar el enlace en tu propio correo.</p>
+        <div class="cd-section-title" style="margin-top:16px">O que lo haga aquí mismo</div>
+        <p style="font-size:13px;color:var(--muted)">Lanza el test <strong>dentro de la app</strong> (ideal para demo o para que el candidato lo haga en tu equipo). Al terminar, el perfil se rellena solo.</p>
         <div class="modal-actions">
-            <button class="btn-outline" onclick="window.open('${link}','_blank')">↗ Previsualizar test</button>
-            <button class="btn-primary" onclick="openCandidate('${id}','evaluacion')">Cerrar</button>
+            <button class="btn-outline" onclick="window.open('${link}','_blank')">↗ Abrir enlace externo</button>
+            <button class="btn-primary" onclick="openSelfTest('${id}')">▶ Realizar test ahora</button>
         </div>`, 'wide');
+}
+
+/* ============================================================
+   Test autoadministrado DENTRO de la app (mismo cuestionario)
+   ============================================================ */
+const Q_BELBIN = [
+    ['CE','Propongo ideas originales y poco convencionales.'],['CE','Disfruto resolviendo problemas complejos.'],['CE','Prefiero pensar de forma creativa antes que seguir lo establecido.'],
+    ['ME','Analizo las opciones con objetividad antes de decidir.'],['ME','Detecto fallos en los razonamientos de los demás.'],['ME','Soy prudente y ponderado al juzgar.'],
+    ['ES','Aporto conocimientos técnicos especializados.'],['ES','Me gusta profundizar a fondo en mi área.'],['ES','Prefiero dominar un tema que abarcar muchos.'],
+    ['CO','Sé delegar y sacar lo mejor de cada persona.'],['CO','Clarifico los objetivos del equipo.'],['CO','Coordino con facilidad a personas diversas.'],
+    ['CH','Me preocupo por el clima y las relaciones del equipo.'],['CH','Busco el consenso y evito los conflictos.'],['CH','Escucho y apoyo a mis compañeros.'],
+    ['IR','Hago contactos y exploro oportunidades fuera del equipo.'],['IR','Soy entusiasta y comunicativo.'],['IR','Busco ideas y recursos en el exterior.'],
+    ['IS','Empujo al equipo para superar obstáculos.'],['IS','Trabajo bien bajo presión.'],['IS','Soy directo y orientado a resultados.'],
+    ['ID','Convierto las ideas en tareas y planes concretos.'],['ID','Soy organizado y metódico.'],['ID','Cumplo lo acordado de forma fiable.'],
+    ['FI','Reviso el trabajo en busca de errores.'],['FI','Me aseguro de cumplir los plazos.'],['FI','Cuido los detalles hasta el final.'],
+];
+const Q_BIGFIVE = [
+    ['O','Tengo una imaginación vívida.',0],['O','Me interesan las ideas abstractas.',0],['O','Evito los conceptos complejos.',1],['O','Tengo poca curiosidad artística.',1],
+    ['C','Soy ordenado y cuidadoso.',0],['C','Cumplo mis tareas a tiempo.',0],['C','Suelo dejar mis cosas desordenadas.',1],['C','A veces descuido mis obligaciones.',1],
+    ['E','Me siento cómodo entre mucha gente.',0],['E','Inicio conversaciones con facilidad.',0],['E','Soy callado con desconocidos.',1],['E','Prefiero pasar desapercibido.',1],
+    ['A','Me intereso de verdad por los demás.',0],['A','Empatizo con los sentimientos ajenos.',0],['A','Me cuesta preocuparme por otros.',1],['A','A veces soy poco considerado.',1],
+    ['S','Suelo estar relajado.',0],['S','Gestiono bien el estrés.',0],['S','Me preocupo por muchas cosas.',1],['S','Cambio de humor con facilidad.',1],
+];
+const Q_DISC = [
+    ['D','Me gusta tomar el control de las situaciones.'],['D','Soy directo al expresar lo que quiero.'],['D','Asumo riesgos para lograr resultados.'],
+    ['I','Convenzo a los demás con facilidad.'],['I','Soy sociable y optimista.'],['I','Disfruto interactuando con gente nueva.'],
+    ['S','Prefiero entornos estables y predecibles.'],['S','Soy paciente y buen oyente.'],['S','Apoyo a los demás con constancia.'],
+    ['C','Sigo las normas y procedimientos.'],['C','Cuido la precisión y los detalles.'],['C','Analizo los datos antes de actuar.'],
+];
+const Q_PSICO = [
+    ['verbal','Sinónimo de «efímero»:',['Duradero','Pasajero','Enorme','Costoso'],1],
+    ['verbal','Antónimo de «escaso»:',['Limitado','Insuficiente','Abundante','Raro'],2],
+    ['verbal','Completa: «La explicación fue tan ___ que nadie tuvo dudas».',['confusa','clara','extensa','técnica'],1],
+    ['numerico','Un producto cuesta 80 € y sube un 25 %. Precio final:',['96 €','100 €','105 €','110 €'],1],
+    ['numerico','Serie: 3, 6, 12, 24, ?',['30','36','48','60'],2],
+    ['numerico','El 15 % de 200 es:',['15','20','30','45'],2],
+    ['logico','Todos los A son B. Algún B es C. Por tanto:',['Todo A es C','Algún A podría ser C','Ningún A es C','Todo C es A'],1],
+    ['logico','«Si llueve, la calle se moja». La calle NO está mojada. Entonces:',['Llovió','No llovió','Quizá llovió','Falta información'],1],
+    ['logico','Ordena de menor a mayor: 1/2 · 0,4 · 3/5',['0,4 < 1/2 < 3/5','1/2 < 0,4 < 3/5','3/5 < 1/2 < 0,4','0,4 < 3/5 < 1/2'],0],
+    ['abstracto','Serie: 2, 4, 8, 16, ?',['24','32','30','20'],1],
+    ['abstracto','▲, ▲▲, ▲▲▲, ? → nº de triángulos siguiente:',['3','4','5','6'],1],
+    ['abstracto','Patrón: 1, 1, 2, 3, 5, 8, ?',['11','12','13','15'],2],
+];
+
+function openSelfTest(id) {
+    const c = state.candidates.find(x => x.id === id); if (!c) return;
+    const values = (state.settings.dna.values || []).map(v => v.name);
+    const steps = ['intro', 'values', 'belbin', 'personality', 'psico'];
+    const ans = { values: {}, belbin: {}, bigfive: {}, disc: {}, psico: {} };
+    let step = 0;
+
+    const likert = (name, cur) => `<div class="likert">${[1,2,3,4,5].map(n => `<label><input type="radio" name="${name}" value="${n}" ${cur == n ? 'checked' : ''}><span class="dot">${n}</span></label>`).join('')}</div><div class="scale-ends"><span>Muy en desacuerdo</span><span>Muy de acuerdo</span></div>`;
+    const qrow = (text, ctrl) => `<div class="q"><div class="qtext">${text}</div>${ctrl}</div>`;
+
+    function complete() {
+        const s = steps[step];
+        if (s === 'values') return values.every((_, i) => ans.values['v' + i] != null);
+        if (s === 'belbin') return Q_BELBIN.every((_, i) => ans.belbin['b' + i] != null);
+        if (s === 'personality') return Q_BIGFIVE.every((_, i) => ans.bigfive['f' + i] != null) && Q_DISC.every((_, i) => ans.disc['d' + i] != null);
+        if (s === 'psico') return Q_PSICO.every((_, i) => ans.psico['p' + i] != null);
+        return true;
+    }
+    function draw() {
+        const s = steps[step]; const pct = Math.round(step / steps.length * 100);
+        let inner = '';
+        if (s === 'intro') {
+            inner = `<h2>Test de evaluación de talento</h2>
+                <div class="modal-sub">Este cuestionario lo responde <strong>${c.name}</strong>. Mide valores, roles de equipo (Belbin), personalidad (Big Five y DISC) y aptitudes. Al finalizar, el perfil se calcula y guarda automáticamente. ~8 min.</div>
+                <ul class="intro-list">
+                    <li><span class="ic">🎯</span> Valores de empresa</li>
+                    <li><span class="ic">🧩</span> Roles de equipo (Belbin)</li>
+                    <li><span class="ic">🧠</span> Personalidad (Big Five y DISC)</li>
+                    <li><span class="ic">📐</span> Aptitudes (verbal, numérico, lógico, abstracto)</li>
+                </ul>
+                <div class="modal-actions"><button class="btn-outline" onclick="closeModal()">Cancelar</button><button class="btn-primary" id="stNext">Empezar →</button></div>`;
+        } else {
+            const bar = `<div class="progress"><div style="width:${pct}%"></div></div><div class="steplabel">Paso ${step} de ${steps.length - 1}</div>`;
+            let qs = '';
+            if (s === 'values') qs = `<h2>🎯 Valores</h2><p class="modal-sub">Indica cuánto te identificas con cada afirmación.</p>` + values.map((v, i) => qrow(`Me identifico con el valor: «${v}»`, likert('values:v' + i, ans.values['v' + i]))).join('');
+            else if (s === 'belbin') qs = `<h2>🧩 Roles de equipo</h2><p class="modal-sub">Cómo sueles comportarte en equipo.</p>` + Q_BELBIN.map((q, i) => qrow(q[1], likert('belbin:b' + i, ans.belbin['b' + i]))).join('');
+            else if (s === 'personality') qs = `<h2>🧠 Personalidad</h2><p class="modal-sub">Tu forma de ser y de trabajar.</p>` + Q_BIGFIVE.map((q, i) => qrow(q[1], likert('bigfive:f' + i, ans.bigfive['f' + i]))).join('') + Q_DISC.map((q, i) => qrow(q[1], likert('disc:d' + i, ans.disc['d' + i]))).join('');
+            else if (s === 'psico') qs = `<h2>📐 Aptitudes</h2><p class="modal-sub">Elige la respuesta correcta (una por pregunta).</p>` + Q_PSICO.map((q, i) => `<div class="q"><div class="qtext">${i + 1}. ${q[1]}</div><div class="opts">${q[2].map((o, oi) => `<label><input type="radio" name="psico:p${i}" value="${oi}" ${ans.psico['p' + i] == oi ? 'checked' : ''}><span>${o}</span></label>`).join('')}</div></div>`).join('');
+            const last = step === steps.length - 1;
+            inner = bar + qs + `<div class="modal-actions"><button class="btn-outline" id="stPrev">← Atrás</button><button class="btn-primary" id="stNext" ${complete() ? '' : 'disabled'}>${last ? 'Finalizar y guardar' : 'Continuar →'}</button></div>`;
+        }
+        modalBody.innerHTML = `<div class="selftest">${inner}</div>`;
+        modalEl.classList.add('wide');
+        modalBody.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => {
+            const [grp, idx] = r.name.split(':'); ans[grp][idx] = +r.value;
+            const nb = document.getElementById('stNext'); if (nb) nb.disabled = !complete();
+        }));
+        const prev = document.getElementById('stPrev'); if (prev) prev.onclick = () => { step--; draw(); modalBody.scrollTop = 0; };
+        const nb = document.getElementById('stNext');
+        nb.onclick = () => {
+            if (step > 0 && !complete()) return;
+            if (step === steps.length - 1) return finishTest();
+            step++; draw(); modalBody.scrollTop = 0;
+        };
+    }
+    function finishTest() {
+        // Puntuación (idéntica a assessment.html)
+        const valuesFit = {}; values.forEach((v, i) => valuesFit[v] = ans.values['v' + i] || 0);
+        const bs = {}, bn = {}; Q_BELBIN.forEach((q, i) => { bs[q[0]] = (bs[q[0]] || 0) + (ans.belbin['b' + i] || 0); bn[q[0]] = (bn[q[0]] || 0) + 1; });
+        const belbin = {}; Object.keys(bs).forEach(r => belbin[r] = Math.round((bs[r] / bn[r] - 1) / 4 * 10));
+        const fs = {}, fn = {}; Q_BIGFIVE.forEach((q, i) => { let v = ans.bigfive['f' + i] || 0; if (q[2] === 1) v = 6 - v; fs[q[0]] = (fs[q[0]] || 0) + v; fn[q[0]] = (fn[q[0]] || 0) + 1; });
+        const bigfive = {}; Object.keys(fs).forEach(d => bigfive[d] = Math.round((fs[d] / fn[d]) / 5 * 100));
+        const ds = {}, dn = {}; Q_DISC.forEach((q, i) => { ds[q[0]] = (ds[q[0]] || 0) + (ans.disc['d' + i] || 0); dn[q[0]] = (dn[q[0]] || 0) + 1; });
+        const disc = {}; Object.keys(ds).forEach(d => disc[d] = Math.round((ds[d] / dn[d]) / 5 * 100));
+        const ok = {}, tt = {}; Q_PSICO.forEach((q, i) => { tt[q[0]] = (tt[q[0]] || 0) + 1; if (ans.psico['p' + i] === q[3]) ok[q[0]] = (ok[q[0]] || 0) + 1; });
+        const psycho = {}; Object.keys(tt).forEach(a => psycho[a] = Math.round((ok[a] || 0) / tt[a] * 100));
+        c.assess = Object.assign({}, c.assess, { valuesFit, belbin, bigfive, disc, psycho, selfCompleted: todayISO(), selfReported: true });
+        logActivity(c, 'score', 'Completó el test de evaluación (autoevaluación)', c.name);
+        save();
+        const topRole = Object.entries(belbin).sort((a, b) => b[1] - a[1])[0];
+        const psAvg = Math.round(Object.values(psycho).reduce((s, v) => s + v, 0) / Object.keys(psycho).length);
+        modalBody.innerHTML = `<div class="selftest"><div class="done"><div class="tick">✓</div>
+            <h2>¡Test completado!</h2>
+            <p class="modal-sub">Perfil de ${c.name} registrado y Fit score recalculado (${fitScore(c)}%).</p>
+            <div class="result-grid">
+                <div class="rescard"><div class="rl">Rol de equipo principal</div><div class="rv">${belbinById(topRole[0]) ? belbinById(topRole[0]).name : '—'}</div></div>
+                <div class="rescard"><div class="rl">Aptitud psicotécnica</div><div class="rv">${psAvg}% aciertos</div></div>
+            </div>
+            <div class="modal-actions"><button class="btn-primary" onclick="openCandidate('${c.id}','evaluacion')">Ver resultados</button></div>
+        </div></div>`;
+    }
+    openModal('', 'wide'); draw();
 }
 
 function openAssessValues(id) {
@@ -1535,7 +1661,7 @@ document.getElementById('hamburger').addEventListener('click', () => document.ge
 document.getElementById('seedBtn').addEventListener('click', () => { if (confirm('Restaurar los datos de ejemplo y reemplazar los actuales?')) { seedData(); render(); toast('Datos demo cargados', 'ok'); } });
 document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('¿Borrar TODOS los datos?')) { state = { jobs: [], candidates: [], templates: [], automations: [], team: [], settings: {} }; save(); render(); toast('Datos borrados', 'info'); } });
 
-Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych, openAssessInvite });
+Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych, openAssessInvite, openSelfTest });
 
 /* ---------- Init ---------- */
 load();
