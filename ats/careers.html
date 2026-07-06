@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal de empleo</title>
+<style>
+    :root { --brand:#5b8cff; --accent:#7c5cff; --bg:#f6f8fc; --surface:#fff; --border:#e4e9f2; --text:#1a2238; --muted:#68728c; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+    .wrap { max-width:820px; margin:0 auto; padding:28px 18px 60px; }
+    .hero { background:linear-gradient(135deg,var(--brand),var(--accent)); color:#fff; border-radius:20px; padding:38px 32px; margin-bottom:24px; }
+    .hero img.logo { max-height:44px; margin-bottom:16px; display:block; background:rgba(255,255,255,.15); border-radius:8px; padding:6px 8px; }
+    .hero h1 { font-size:28px; letter-spacing:-.02em; margin-bottom:10px; }
+    .hero p { font-size:15px; opacity:.94; max-width:60ch; }
+    .hero .count { margin-top:14px; font-weight:700; font-size:14px; }
+    .jobs { display:flex; flex-direction:column; gap:12px; }
+    .job { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; box-shadow:0 2px 10px rgba(30,45,90,.04); }
+    .job h3 { font-size:16px; margin-bottom:4px; }
+    .job .meta { font-size:13px; color:var(--muted); }
+    .btn { background:var(--brand); color:#fff; border:none; padding:10px 18px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap; transition:filter .15s; }
+    .btn:hover { filter:brightness(1.08); }
+    .btn.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+    .empty { background:var(--surface); border:1px dashed var(--border); border-radius:14px; padding:40px; text-align:center; color:var(--muted); }
+    .footer { text-align:center; color:var(--muted); font-size:12px; margin-top:30px; }
+    .powered { text-align:center; color:var(--muted); font-size:11px; margin-top:6px; opacity:.7; }
+    /* Modal */
+    .overlay { position:fixed; inset:0; background:rgba(15,20,35,.55); display:none; align-items:flex-start; justify-content:center; padding:30px 16px; overflow-y:auto; z-index:50; }
+    .overlay.show { display:flex; }
+    .modal { background:var(--surface); border-radius:18px; max-width:560px; width:100%; padding:28px; position:relative; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+    .modal h2 { font-size:20px; margin-bottom:4px; }
+    .modal .sub { color:var(--muted); font-size:13px; margin-bottom:20px; }
+    .close { position:absolute; top:16px; right:18px; background:none; border:none; font-size:20px; color:var(--muted); cursor:pointer; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field.full { grid-column:1/-1; }
+    .field label { font-size:12px; color:var(--muted); font-weight:500; }
+    .field input,.field select,.field textarea { border:1px solid var(--border); border-radius:9px; padding:10px 12px; font-size:14px; font-family:inherit; outline:none; background:#fff; color:var(--text); }
+    .field input:focus,.field select:focus,.field textarea:focus { border-color:var(--brand); }
+    .field textarea { min-height:64px; resize:vertical; }
+    .file-input { font-size:12px; color:var(--muted); }
+    .file-input::file-selector-button { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:7px 12px; font-size:12px; font-family:inherit; cursor:pointer; margin-right:10px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .chip { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:4px 8px; font-size:11px; display:inline-flex; align-items:center; gap:6px; }
+    .chip button { background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; }
+    .actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+    .success { text-align:center; padding:26px 10px; }
+    .success .tick { width:56px; height:56px; border-radius:50%; background:#2fce8a; color:#fff; display:grid; place-items:center; font-size:28px; margin:0 auto 16px; }
+    @media (max-width:560px){ .grid{grid-template-columns:1fr;} .job{flex-direction:column;align-items:flex-start;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="hero" id="hero"></div>
+    <div class="jobs" id="jobs"></div>
+    <div class="footer" id="footer"></div>
+    <div class="powered">Portal gestionado con TalentFlow ATS</div>
+</div>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal"><button class="close" id="close">✕</button><div id="modalBody"></div></div></div>
+
+<script>
+const KEY = 'talentflow_ats_v2';
+const DEFAULT = { portal:{ company:'Tu Empresa', tagline:'Únete a nuestro equipo', intro:'Descubre nuestras vacantes abiertas y da el siguiente paso en tu carrera.', brandColor:'#5b8cff', accentColor:'#7c5cff', logo:null, showSalary:true, footer:'© Tu Empresa · Trabaja con nosotros' }, jobs:[] };
+
+function getConfig() {
+    const params = new URLSearchParams(location.search);
+    const c = params.get('c');
+    if (c) { try { return JSON.parse(decodeURIComponent(escape(atob(c)))); } catch(e){} }
+    if (window.TALENTFLOW_PORTAL_CONFIG) return window.TALENTFLOW_PORTAL_CONFIG;
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.settings) return { portal:s.settings.portal, jobs:(s.jobs||[]).filter(j=>j.status==='open') }; } catch(e){}
+    return DEFAULT;
+}
+const CFG = getConfig();
+const P = Object.assign({}, DEFAULT.portal, CFG.portal || {});
+const JOBS = CFG.jobs || [];
+
+document.documentElement.style.setProperty('--brand', P.brandColor);
+document.documentElement.style.setProperty('--accent', P.accentColor);
+document.title = 'Empleo · ' + (P.company || 'Portal');
+
+document.getElementById('hero').innerHTML =
+    (P.logo ? `<img src="${P.logo}" class="logo" alt="logo">` : '') +
+    `<h1>${esc(P.tagline || 'Únete a nuestro equipo')}</h1><p>${esc(P.intro || '')}</p>` +
+    `<div class="count">${JOBS.length} ${JOBS.length===1?'vacante abierta':'vacantes abiertas'}</div>`;
+document.getElementById('footer').textContent = P.footer || '';
+
+document.getElementById('jobs').innerHTML = JOBS.length ? JOBS.map(j => `
+    <div class="job">
+        <div><h3>${esc(j.title)}</h3><div class="meta">${esc(j.dept||'')} · ${esc(j.location||'')} · ${esc(j.type||'')}${P.showSalary && j.salary ? ' · ' + esc(j.salary) : ''}</div></div>
+        <button class="btn" onclick="apply('${j.id}')">Aplicar</button>
+    </div>`).join('') : '<div class="empty">No hay vacantes abiertas ahora mismo. ¡Vuelve pronto!</div>';
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+const overlay = document.getElementById('overlay'), modalBody = document.getElementById('modalBody');
+function openModal(h){ modalBody.innerHTML = h; overlay.classList.add('show'); }
+function closeModal(){ overlay.classList.remove('show'); modalBody.innerHTML=''; }
+document.getElementById('close').onclick = closeModal;
+overlay.onclick = e => { if (e.target === overlay) closeModal(); };
+
+let attach = [];
+function apply(jid){
+    const j = JOBS.find(x => x.id === jid) || {};
+    attach = [];
+    openModal(`
+        <h2>Aplicar: ${esc(j.title||'')}</h2><div class="sub">${esc(j.dept||'')} · ${esc(j.location||'')}</div>
+        <form id="f"><div class="grid">
+            <div class="field"><label>Nombre completo *</label><input name="name" required></div>
+            <div class="field"><label>Email *</label><input name="email" type="email" required></div>
+            <div class="field"><label>Teléfono</label><input name="phone"></div>
+            <div class="field"><label>Puesto actual</label><input name="currentTitle"></div>
+            <div class="field full"><label>Género (opcional, DE&I)</label><select name="gender"><option value="">Prefiere no decir</option><option>Mujer</option><option>Hombre</option><option>No binario</option></select></div>
+            <div class="field full"><label>Habilidades (comas)</label><input name="tags" placeholder="Ej: React, 3 años"></div>
+            <div class="field full"><label>Documentos (CV, carta… · PDF, PNG, JPG · máx 3 MB)</label>
+                <input type="file" id="files" class="file-input" multiple accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
+                <div class="chips" id="chips"></div>
+            </div>
+            <div class="field full"><label style="flex-direction:row;align-items:center;gap:8px;display:flex;font-size:12px"><input type="checkbox" name="consent" required style="width:auto"> Acepto el tratamiento de mis datos personales para este proceso de selección (RGPD)</label></div>
+        </div><div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Cancelar</button><button type="submit" class="btn">Enviar candidatura</button></div></form>`);
+    wireFiles();
+    document.getElementById('f').addEventListener('submit', e => { e.preventDefault(); submitApp(jid, j, e.target); });
+}
+
+function wireFiles(){
+    const inp = document.getElementById('files');
+    const render = () => { document.getElementById('chips').innerHTML = attach.map((a,i)=>`<span class="chip">${/image/.test(a.type)?'🖼️':'📄'} ${esc(a.name)} <button type="button" onclick="rmFile(${i})">✕</button></span>`).join(''); };
+    window.rmFile = i => { attach.splice(i,1); render(); };
+    inp.addEventListener('change', () => {
+        const files = [...inp.files]; let pend = files.length; if(!pend) return;
+        files.forEach(f => {
+            const ok = /pdf|png|jpe?g/i.test(f.type) || /\.(pdf|png|jpe?g)$/i.test(f.name);
+            if (!ok || f.size > 3*1024*1024) { alert('Archivo no válido o >3MB: ' + f.name); if(!--pend) render(); return; }
+            const r = new FileReader();
+            r.onload = () => { attach.push({ name:f.name, type:f.type||'application/octet-stream', dataUrl:r.result, size:f.size }); if(!--pend) render(); };
+            r.readAsDataURL(f);
+        });
+        inp.value = '';
+    });
+    render();
+}
+
+function submitApp(jid, j, form){
+    const f = Object.fromEntries(new FormData(form).entries());
+    const now = new Date().toISOString().slice(0,10);
+    const cand = { id:'cand_'+Math.random().toString(36).slice(2,9), name:f.name, email:f.email, phone:f.phone||'', currentTitle:f.currentTitle||'', gender:f.gender||'Prefiere no decir', jobId:jid, stage:'nuevo', source:'Portal propio', applied:now, tags:(f.tags||'').split(',').map(t=>t.trim()).filter(Boolean), rating:0, attachments:attach, cv:attach[0]||null, scorecards:[], emails:[], interviews:[], notes:[], offer:null, archived:false, location:'', activities:[{type:'apply', text:'Aplicó por el portal de empleo', date:now}] };
+    const where = saveApplication(cand);
+    openModal(`<div class="success"><div class="tick">✓</div><h2>¡Candidatura enviada!</h2><p class="sub" style="margin-top:8px">Gracias, ${esc(f.name.split(' ')[0])}. Hemos recibido tu solicitud para <strong>${esc(j.title||'la vacante')}</strong>${attach.length?` y tus ${attach.length} documento(s)`:''}. Te contactaremos pronto.</p><button class="btn" onclick="closeModal()" style="margin-top:8px">Cerrar</button></div>`);
+}
+
+function saveApplication(cand){
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.candidates) { s.candidates.unshift(cand); localStorage.setItem(KEY, JSON.stringify(s)); return 'ats'; } } catch(e){}
+    try { const inbox = JSON.parse(localStorage.getItem('talentflow_portal_inbox')||'[]'); inbox.unshift(cand); localStorage.setItem('talentflow_portal_inbox', JSON.stringify(inbox)); return 'inbox'; } catch(e){}
+    return 'none';
+}
+</script>
+</body>
+</html>
