@@ -60,6 +60,28 @@ talento).
   al rechazar, avisos de estancamiento…) y **plantillas de email** con
   variables `{nombre}` / `{puesto}`.
 
+## Más allá del mercado
+
+Capacidades que los ATS líderes no ofrecen de serie:
+
+- **🤖 Copiloto de selección**: panel de avisos accionables en el dashboard —
+  candidatos estancados, ofertas sin respuesta, entrevistas sin scorecard,
+  fit bajo en etapas avanzadas, tests pendientes, requisiciones por aprobar
+  y el origen más rentable. Cada aviso enlaza con la acción.
+- **🎯 Job-Match**: define el **perfil ideal** de cada requisición
+  (habilidades imprescindibles, roles Belbin buscados, percentil
+  psicotécnico mínimo) y el sistema **rankea automáticamente** a los
+  candidatos por encaje ponderado con el puesto.
+- **🧩 Equilibrio de equipo Belbin**: por vacante, analiza los roles del
+  equipo ya contratado, muestra la cobertura por clúster (Mental / Social /
+  Acción) y **recomienda candidatos del pipeline que cubren los huecos**.
+- **⚖ Comparador de candidatos**: selecciona 2–3 candidatos y compáralos
+  lado a lado (fit, job-match, Belbin, Big Five, psicotécnico, habilidades).
+- **🔒 RGPD**: consentimiento obligatorio en los formularios públicos,
+  **exportación de datos** del candidato (portabilidad) y **anonimización
+  irreversible** (derecho al olvido) conservando métricas agregadas.
+- Entradas de usuario sanitizadas frente a inyección de HTML.
+
 ## Uso
 
 ```bash

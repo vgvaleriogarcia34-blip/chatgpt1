@@ -91,6 +91,11 @@ const sel = new Set(); // selección múltiple de candidatos
 
 function uid(p) { return p + '_' + Math.random().toString(36).slice(2, 9); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
+// Sanitiza entradas de usuario antes de guardarlas (evita HTML inyectado en plantillas)
+function sanitizeObj(data) {
+    Object.keys(data).forEach(k => { if (typeof data[k] === 'string') data[k] = data[k].replace(/[<>]/g, ''); });
+    return data;
+}
 function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
 
 function defaultPortal() {
@@ -140,9 +145,9 @@ function seedData() {
     ];
 
     const jobs = [
-        { id: uid('job'), title: 'Desarrollador/a Full Stack', dept: 'Tecnología', location: 'Madrid', type: 'Híbrido', status: 'open', salary: '38.000 - 48.000 €', created: '2026-04-10', openings: 2, priority: 'Alta', recruiter: 'Ana Torres', hiringManager: 'Carlos Ruiz', team: ['Ana Torres','Carlos Ruiz'], approver: 'Carlos Ruiz', description: 'Perfil con React y Node.js para nuestro producto SaaS. Trabajarás en equipo con producto y diseño.' },
+        { id: uid('job'), title: 'Desarrollador/a Full Stack', dept: 'Tecnología', location: 'Madrid', type: 'Híbrido', status: 'open', salary: '38.000 - 48.000 €', created: '2026-04-10', openings: 2, priority: 'Alta', recruiter: 'Ana Torres', hiringManager: 'Carlos Ruiz', team: ['Ana Torres','Carlos Ruiz'], approver: 'Carlos Ruiz', description: 'Perfil con React y Node.js para nuestro producto SaaS. Trabajarás en equipo con producto y diseño.', ideal: { mustTags: ['React', 'Node'], belbin: ['CE', 'ID'], minPsico: 60 } },
         { id: uid('job'), title: 'Responsable de Marketing', dept: 'Marketing', location: 'Remoto', type: 'Remoto', status: 'open', salary: '42.000 - 52.000 €', created: '2026-05-02', openings: 1, priority: 'Media', recruiter: 'Marta Gómez', hiringManager: 'Luis Fernández', team: ['Marta Gómez','Luis Fernández'], approver: 'Luis Fernández', description: 'Estrategia de marca y demand generation. Liderazgo de un equipo de 3 personas.' },
-        { id: uid('job'), title: 'Comercial B2B', dept: 'Ventas', location: 'Barcelona', type: 'Presencial', status: 'open', salary: '30.000 € + variable', created: '2026-05-20', openings: 3, priority: 'Alta', recruiter: 'Ana Torres', hiringManager: 'Luis Fernández', team: ['Ana Torres'], approver: 'Luis Fernández', description: 'Ciclo de venta consultiva a empresas medianas.' },
+        { id: uid('job'), title: 'Comercial B2B', dept: 'Ventas', location: 'Barcelona', type: 'Presencial', status: 'open', salary: '30.000 € + variable', created: '2026-05-20', openings: 3, priority: 'Alta', recruiter: 'Ana Torres', hiringManager: 'Luis Fernández', team: ['Ana Torres'], approver: 'Luis Fernández', description: 'Ciclo de venta consultiva a empresas medianas.', ideal: { mustTags: ['SaaS', 'B2B'], belbin: ['IS', 'IR'], minPsico: 50 } },
         { id: uid('job'), title: 'Contable Senior', dept: 'Finanzas', location: 'Valencia', type: 'Híbrido', status: 'paused', salary: '34.000 - 40.000 €', created: '2026-03-30', openings: 1, priority: 'Baja', recruiter: 'Marta Gómez', hiringManager: 'Carlos Ruiz', team: ['Marta Gómez'], approver: 'Carlos Ruiz', description: 'Cierre contable y reporting mensual.' },
         { id: uid('job'), title: 'Data Analyst', dept: 'Tecnología', location: 'Remoto', type: 'Remoto', status: 'pending', salary: '36.000 - 44.000 €', created: '2026-06-28', openings: 1, priority: 'Media', recruiter: 'Ana Torres', hiringManager: 'Carlos Ruiz', team: ['Ana Torres'], approver: 'Carlos Ruiz', description: 'Análisis de producto y dashboards de negocio.' },
         { id: uid('job'), title: 'Diseñador/a UX', dept: 'Producto', location: 'Madrid', type: 'Híbrido', status: 'draft', salary: '34.000 - 42.000 €', created: '2026-07-01', openings: 1, priority: 'Media', recruiter: 'Marta Gómez', hiringManager: 'Carlos Ruiz', team: [], approver: 'Carlos Ruiz', description: 'Diseño de experiencia para el producto SaaS.' },
@@ -163,6 +168,7 @@ function seedData() {
         scorecards: extra.scorecards || [], emails: extra.emails || [],
         interviews: extra.interviews || [], notes: extra.notes || [],
         offer: extra.offer || null, archived: !!extra.archived,
+        assess: extra.assess || {},
         activities: [{ type: 'apply', text: 'Aplicó a la vacante', date: applied }],
         interviewDate: extra.interviewDate || null,
     });
@@ -180,6 +186,11 @@ function seedData() {
             interviews: [{ id: uid('iv'), date: '2026-07-10', time: '12:30', type: 'Técnica', interviewer: 'Carlos Ruiz', mode: 'Presencial' }],
             interviewDate: '2026-07-10',
             scorecards: [mkScore('Carlos Ruiz', 'sf', 'Nivel técnico excelente, encaja muy bien.', '2026-06-25'), mkScore('Ana Torres', 'si', 'Muy profesional.', '2026-06-26')],
+            assess: { selfCompleted: '2026-06-24', selfReported: true,
+                belbin: { CE: 9, ME: 7, ES: 6, CO: 4, CH: 5, IR: 3, IS: 5, ID: 7, FI: 6 },
+                bigfive: { O: 85, C: 78, E: 55, A: 70, S: 72 }, disc: { D: 55, I: 45, S: 60, C: 80 },
+                psycho: { verbal: 82, numerico: 90, logico: 85, abstracto: 88 },
+                valuesFit: { 'Orientación al cliente': 4, 'Trabajo en equipo': 4, 'Excelencia': 5, 'Innovación': 5, 'Integridad': 4 } },
         }),
         c('Diego Ferrer', 'diego.ferrer@mail.com', 0, 'nuevo', 'Portal propio', '2026-07-01', 'Hombre', { tags: ['Junior','Angular'], rating: 0 }),
         c('Iván Lozano', 'ivan.lozano@mail.com', 0, 'entrevista', 'LinkedIn', '2026-06-18', 'Hombre', {
@@ -197,13 +208,16 @@ function seedData() {
             title: 'Account Executive', company: 'SalesCo', tags: ['SaaS','Closer'], rating: 5,
             offer: { salary: '32.000 € + variable', startDate: '2026-06-01', status: 'accepted', date: '2026-05-10' },
             scorecards: [mkScore('Ana Torres', 'sf', 'Cerrador nato, gran actitud.', '2026-04-28')],
+            assess: { belbin: { CE: 3, ME: 4, ES: 2, CO: 5, CH: 4, IR: 8, IS: 9, ID: 5, FI: 4 }, psycho: { verbal: 70, numerico: 65, logico: 60, abstracto: 55 } },
         }),
-        c('Elena Vidal', 'elena.vidal@mail.com', 2, 'preseleccion', 'CRM', '2026-06-10', 'Mujer', { title: 'SDR', company: 'LeadGen', tags: ['Hunter','CRM'], rating: 3 }),
+        c('Elena Vidal', 'elena.vidal@mail.com', 2, 'preseleccion', 'Referido', '2026-06-10', 'Mujer', { title: 'SDR', company: 'LeadGen', tags: ['Hunter','CRM','B2B'], rating: 3,
+            assess: { belbin: { CE: 3, ME: 4, ES: 3, CO: 8, CH: 7, IR: 6, IS: 4, ID: 5, FI: 6 }, psycho: { verbal: 75, numerico: 60, logico: 65, abstracto: 58 } } }),
         c('Óscar Peña', 'oscar.pena@mail.com', 2, 'rechazado', 'Web empleo', '2026-05-25', 'Hombre', { tags: ['Retail'], rating: 2, notes: [{ text: 'Poca experiencia en venta consultiva.', date: '2026-06-05', author: 'Ana Torres' }] }),
         c('Marta Soler', 'marta.soler@mail.com', 3, 'nuevo', 'Web empleo', '2026-06-20', 'Mujer', { tags: ['SAP','Excel'], rating: 0 }),
         c('Andrés Gil', 'andres.gil@mail.com', 2, 'contratado', 'LinkedIn', '2026-03-20', 'Hombre', {
             tags: ['B2B','SaaS'], rating: 4,
             offer: { salary: '31.000 € + variable', startDate: '2026-05-02', status: 'accepted', date: '2026-04-12' },
+            assess: { belbin: { CE: 4, ME: 5, ES: 3, CO: 4, CH: 5, IR: 5, IS: 6, ID: 9, FI: 8 } },
         }),
         // Talent pool (archivados / CRM)
         c('Carmen Ríos', 'carmen.rios@mail.com', 0, 'rechazado', 'LinkedIn', '2026-02-10', 'Mujer', { title: 'Frontend Dev', company: 'WebStudio', tags: ['React','Junior'], rating: 3, archived: true }),
@@ -266,6 +280,7 @@ function renderDashboard() {
             <div class="kpi k4"><div class="kpi-label">Contrataciones</div><div class="kpi-value">${hired}</div><div class="kpi-sub">conversión ${conv}%</div></div>
             <div class="kpi k1"><div class="kpi-label">Time to hire</div><div class="kpi-value">${tth || '—'}<span style="font-size:14px"> días</span></div><div class="kpi-sub">media histórica</div></div>
         </div>
+        ${copilotPanel()}
         <div class="grid-2">
             <div class="panel">
                 <h3>📈 Embudo de selección</h3>
@@ -289,6 +304,21 @@ function renderDashboard() {
                 </div>
             </div>
         </div>`;
+}
+
+function copilotPanel() {
+    const insights = computeInsights();
+    if (!insights.length) return '';
+    return `<div class="panel" style="margin-bottom:16px">
+        <h3>🤖 Copiloto de selección <span class="badge dept">${insights.length} avisos</span></h3>
+        ${insights.map(i => `
+            <div class="insight-row ${i.sev}">
+                <span class="insight-ico">${i.icon}</span>
+                <div class="insight-text">${i.text}</div>
+                ${i.action ? `<button class="btn-outline btn-sm" onclick="openCandidate('${i.action}','${i.tab || 'resumen'}')">Ver</button>` : ''}
+                ${i.job ? `<button class="btn-primary btn-sm" onclick="approveJob('${i.job}')">Aprobar</button>` : ''}
+            </div>`).join('')}
+    </div>`;
 }
 
 function genderBars(cs) {
@@ -382,11 +412,46 @@ function openJobDetail(id) {
         <p style="font-size:13px;color:var(--muted);line-height:1.6">${j.description || 'Sin descripción.'}</p>
         <div class="cd-section-title">Pipeline (${cands.length} candidatos)</div>
         <div class="minibars">${byStage.length ? byStage.map(x => `<div class="minibar"><span class="dot" style="background:${x.s.color}"></span>${x.s.name}<b>${x.n}</b></div>`).join('') : '<span style="color:var(--muted);font-size:13px">Sin candidatos.</span>'}</div>
+        ${jobMatchSection(j, cands)}
+        ${teamBalanceSection(j)}
         <div class="modal-actions">
             ${j.status === 'pending' ? `<button class="btn-primary" onclick="approveJob('${j.id}')">✓ Aprobar requisición</button>` : ''}
             <button class="btn-primary btn-danger" onclick="deleteJob('${j.id}')">Eliminar</button>
             <button class="btn-outline" onclick="openJobForm('${j.id}')">Editar</button>
         </div>`);
+}
+
+function jobMatchSection(j, cands) {
+    if (!j.ideal) return `<div class="cd-section-title">Job-Match</div><p style="font-size:12px;color:var(--muted)">Define el <strong>perfil ideal</strong> (editar requisición) para rankear candidatos automáticamente por encaje con el puesto.</p>`;
+    const ranked = cands.filter(c => !['rechazado'].includes(c.stage))
+        .map(c => ({ c, m: jobMatch(c, j) })).filter(x => x.m != null).sort((a, b) => b.m - a.m);
+    return `<div class="cd-section-title">🎯 Job-Match — ranking por encaje con el perfil ideal</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Perfil: ${(j.ideal.mustTags || []).map(t => `<span class="tag">${t}</span>`).join('')} ${(j.ideal.belbin || []).map(r => `<span class="tag" style="color:${belbinById(r).color}">${belbinById(r).name}</span>`).join('')} ${j.ideal.minPsico ? `<span class="tag">psico ≥ ${j.ideal.minPsico}</span>` : ''}</p>
+        ${ranked.length ? ranked.map(({ c, m }) => `
+            <div class="fit-row" onclick="openCandidate('${c.id}','evaluacion')">
+                <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
+                <div style="flex:1;min-width:0"><div class="cc-name">${c.name}</div><div class="cc-role">${stageById(c.stage).name}${topBelbin(c) ? ' · ' + topBelbin(c)[0].r.name : ''}</div></div>
+                <div class="fit-badge" style="background:${fitColor(m)}22;color:${fitColor(m)}">${m}%</div>
+            </div>`).join('') : '<p style="font-size:13px;color:var(--muted)">Aún no hay candidatos evaluables (necesitan test o etiquetas).</p>'}`;
+}
+
+function teamBalanceSection(j) {
+    const { hired, covered, missing, fillers } = teamBelbinAnalysis(j.id);
+    if (!hired.length) return '';
+    const clusters = ['Mental', 'Social', 'Acción'];
+    return `<div class="cd-section-title">🧩 Equilibrio del equipo (Belbin)</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Basado en ${hired.length} contratado(s) con perfil. Un equipo equilibrado cubre los 3 clústeres.</p>
+        <div class="cluster-row">${clusters.map(cl => {
+            const roles = BELBIN_ROLES.filter(r => r.cluster === cl);
+            const cov = roles.filter(r => covered.has(r.id)).length;
+            return `<div class="cluster-box"><div class="cluster-name">${cl}</div><div class="cluster-cov" style="color:${cov ? 'var(--green)' : 'var(--red)'}">${cov}/${roles.length}</div>
+                <div>${roles.map(r => `<span class="dot" title="${r.name}${covered.has(r.id) ? ' ✓' : ' (sin cubrir)'}" style="background:${covered.has(r.id) ? r.color : 'var(--border)'};width:10px;height:10px;margin-right:4px"></span>`).join('')}</div></div>`;
+        }).join('')}</div>
+        ${fillers.length ? `<p style="font-size:12px;color:var(--muted);margin:10px 0 6px"><strong style="color:var(--text)">💡 Candidatos del pipeline que cubren huecos:</strong></p>
+            ${fillers.slice(0, 3).map(({ c, top }) => `<div class="fit-row" onclick="openCandidate('${c.id}','evaluacion')">
+                <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
+                <div style="flex:1"><div class="cc-name">${c.name}</div><div class="cc-role">Aportaría el rol <strong style="color:${top.color}">${top.name}</strong>, hoy sin cubrir</div></div>
+            </div>`).join('')}` : (missing.length ? `<p style="font-size:12px;color:var(--muted);margin-top:8px">Roles sin cubrir: ${missing.slice(0, 4).map(r => r.name).join(', ')}${missing.length > 4 ? '…' : ''}. Nadie en el pipeline los aporta aún.</p>` : '<p style="font-size:12px;color:var(--green);margin-top:8px">✓ Equipo equilibrado: todos los roles cubiertos.</p>')}`;
 }
 
 function openJobForm(id) {
@@ -411,6 +476,12 @@ function openJobForm(id) {
                 <div class="field"><label>Hiring Manager</label><select name="hiringManager"><option value="">—</option>${teamOpts.map(t => `<option ${j?.hiringManager === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
                 <div class="field full"><label>Rango salarial</label><input name="salary" value="${j?.salary || ''}" placeholder="Ej: 35.000 - 45.000 €"></div>
                 <div class="field full"><label>Descripción</label><textarea name="description">${j?.description || ''}</textarea></div>
+                <div class="field full" style="border-top:1px solid var(--border);padding-top:14px"><label style="font-weight:700;color:var(--text)">🎯 Perfil ideal (para el Job-Match automático)</label></div>
+                <div class="field full"><label>Habilidades imprescindibles (comas)</label><input name="mustTags" value="${(j?.ideal?.mustTags || []).join(', ')}" placeholder="Ej: React, Node, inglés"></div>
+                <div class="field"><label>Percentil psicotécnico mínimo</label><input name="minPsico" type="number" min="0" max="100" value="${j?.ideal?.minPsico || ''}" placeholder="Ej: 60"></div>
+                <div class="field full"><label>Roles Belbin buscados</label>
+                    <div class="chk-row">${BELBIN_ROLES.map(r => `<label class="chk"><input type="checkbox" name="idealBelbin" value="${r.id}" ${(j?.ideal?.belbin || []).includes(r.id) ? 'checked' : ''}><span style="--rc:${r.color}">${r.name}</span></label>`).join('')}</div>
+                </div>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn-outline" onclick="closeModal()">Cancelar</button>
@@ -419,8 +490,14 @@ function openJobForm(id) {
         </form>`);
     document.getElementById('jobForm').addEventListener('submit', e => {
         e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target).entries());
+        const data = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         data.openings = +data.openings || 1;
+        // Perfil ideal para el Job-Match
+        const idealBelbin = [...e.target.querySelectorAll('input[name="idealBelbin"]:checked')].map(x => x.value);
+        const mustTags = (data.mustTags || '').split(',').map(t => t.trim()).filter(Boolean);
+        const minPsico = +data.minPsico || 0;
+        data.ideal = (idealBelbin.length || mustTags.length || minPsico) ? { belbin: idealBelbin, mustTags, minPsico } : null;
+        delete data.mustTags; delete data.minPsico; delete data.idealBelbin;
         if (j) { Object.assign(j, data); toast('Requisición actualizada', 'ok'); }
         else {
             data.team = [data.recruiter, data.hiringManager].filter(Boolean);
@@ -539,6 +616,7 @@ function renderCandidates() {
         <div id="bulkbar" class="bulkbar" style="display:none">
             <span id="bulkcount"></span>
             <select id="bulkStage"><option value="">Mover a etapa…</option>${STAGES.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select>
+            <button class="btn-primary btn-sm" id="cmpBtn" onclick="openCompare()">⚖ Comparar</button>
             <button class="btn-outline btn-sm" onclick="bulkArchive()">Archivar en CRM</button>
             <button class="btn-outline btn-sm" onclick="clearSel()">Cancelar</button>
         </div>
@@ -572,6 +650,35 @@ function updateBulkbar() {
     const bar = document.getElementById('bulkbar'); if (!bar) return;
     bar.style.display = sel.size ? 'flex' : 'none';
     const cc = document.getElementById('bulkcount'); if (cc) cc.textContent = `${sel.size} seleccionado(s)`;
+    const cb = document.getElementById('cmpBtn'); if (cb) { cb.disabled = sel.size < 2 || sel.size > 3; cb.title = 'Selecciona 2 o 3 candidatos'; }
+}
+
+/* ---------- Comparador de candidatos (2–3 lado a lado) ---------- */
+function openCompare() {
+    const list = [...sel].map(id => state.candidates.find(c => c.id === id)).filter(Boolean).slice(0, 3);
+    if (list.length < 2) { toast('Selecciona 2 o 3 candidatos para comparar', 'info'); return; }
+    const row = (label, fn) => `<tr><td class="cmp-label">${label}</td>${list.map(c => `<td>${fn(c)}</td>`).join('')}</tr>`;
+    const miniBar = (v, color) => v == null ? '—' : `<div class="cmp-bar"><div style="width:${v}%;background:${color || 'var(--brand)'}"></div></div><small>${v}%</small>`;
+    openModal(`
+        <h2>⚖ Comparador de candidatos</h2>
+        <div class="modal-sub">Comparación lado a lado para decidir con datos, no con intuición.</div>
+        <div class="table-wrap"><table class="cmp-table">
+            <thead><tr><th></th>${list.map(c => `<th><div class="avatar" style="background:${avatarColor(c.name)};margin:0 auto 6px">${initials(c.name)}</div>${c.name}</th>`).join('')}</tr></thead>
+            <tbody>
+                ${row('Vacante', c => { const j = jobById(c.jobId); return j ? j.title : '—'; })}
+                ${row('Etapa', c => { const s = stageById(c.stage); return `<span class="badge" style="background:${s.color}22;color:${s.color}">${s.name}</span>`; })}
+                ${row('Scorecards ★', c => candScore(c) ? '★ ' + candScore(c) + ` <small style="color:var(--muted)">(${(c.scorecards || []).length})</small>` : '—')}
+                ${row('Fit cultural', c => { const f = fitScore(c); return f != null ? `<strong style="color:${fitColor(f)}">${f}%</strong>` : '—'; })}
+                ${row('Job-Match', c => { const m = jobMatch(c, jobById(c.jobId)); return m != null ? `<strong style="color:${fitColor(m)}">${m}%</strong>` : '—'; })}
+                ${row('Rol Belbin', c => { const tb = topBelbin(c); return tb ? tb.slice(0, 2).map(x => `<span class="tag" style="color:${x.r.color}">${x.r.name}</span>`).join(' ') : '—'; })}
+                ${row('Psicotécnico', c => miniBar(psicoAvg(c), '#22c1c3'))}
+                ${BIGFIVE.map(d => row(d.name, c => miniBar(c.assess?.bigfive?.[d.id] ?? null))).join('')}
+                ${row('Habilidades', c => (c.tags || []).map(t => `<span class="tag">${t}</span>`).join(' ') || '—')}
+                ${row('Origen · Aplicó', c => `${c.source || '—'} · ${c.applied || ''}`)}
+                ${row('', c => `<button class="btn-outline btn-sm" onclick="openCandidate('${c.id}','evaluacion')">Abrir ficha</button>`)}
+            </tbody>
+        </table></div>
+        <div class="modal-actions"><button class="btn-primary" onclick="closeModal()">Cerrar</button></div>`, 'wide');
 }
 function clearSel() { sel.clear(); renderCandidates(); }
 function bulkMove(stage) { [...sel].forEach(id => moveStage(id, stage)); sel.clear(); toast('Candidatos movidos', 'ok'); renderCandidates(); }
@@ -618,6 +725,11 @@ function candidateTab(c, tab) {
             <div class="cd-section-title">Notas</div>
             <div id="notesList">${renderNotes(c)}</div>
             <div class="note-add"><input id="noteInput" placeholder="Añadir una nota..."><button class="btn-primary btn-sm" onclick="addNote('${c.id}')">Añadir</button></div>
+            <div class="cd-section-title">Privacidad (RGPD)</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn-outline btn-sm" onclick="exportCandidateJSON('${c.id}')">⬇ Exportar sus datos (JSON)</button>
+                ${c.gdprAnonymized ? '<span class="badge dept">Anonimizado</span>' : `<button class="btn-outline btn-sm" onclick="anonymizeCandidate('${c.id}')">Anonimizar (derecho al olvido)</button>`}
+            </div>
             <div class="modal-actions">
                 <button class="btn-primary btn-danger" onclick="deleteCandidate('${c.id}')">Eliminar</button>
                 <button class="btn-outline" onclick="toggleArchive('${c.id}')">${c.archived ? 'Devolver a activo' : 'Archivar en CRM'}</button>
@@ -713,11 +825,36 @@ function renderNotes(c) {
 }
 function addNote(id) {
     const c = state.candidates.find(x => x.id === id);
-    const inp = document.getElementById('noteInput'); const text = inp.value.trim(); if (!text) return;
+    const inp = document.getElementById('noteInput'); const text = inp.value.trim().replace(/[<>]/g, ''); if (!text) return;
     c.notes = c.notes || []; c.notes.unshift({ text, date: todayISO(), author: 'RRHH' });
     logActivity(c, 'stage', 'Nota añadida'); save();
     document.getElementById('notesList').innerHTML = renderNotes(c); inp.value = '';
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') addNote(id); });
+}
+
+/* ---------- RGPD: portabilidad y derecho al olvido ---------- */
+function exportCandidateJSON(id) {
+    const c = state.candidates.find(x => x.id === id); if (!c) return;
+    const data = { ...c };
+    delete data.attachments; // los binarios se descargan aparte desde la ficha
+    data.attachmentNames = attachmentsOf(c).map(a => a.name);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    a.download = `datos_${c.name.replace(/\s+/g, '_').toLowerCase()}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+    logActivity(c, 'stage', 'Datos exportados (portabilidad RGPD)'); save();
+    toast('Datos del candidato exportados', 'ok');
+}
+function anonymizeCandidate(id) {
+    const c = state.candidates.find(x => x.id === id); if (!c) return;
+    if (!confirm('Anonimizar borra de forma IRREVERSIBLE los datos personales (nombre, contacto, CV, notas y emails). Se conservan las métricas agregadas del proceso. ¿Continuar?')) return;
+    c.name = 'Candidato anonimizado ' + c.id.slice(-4).toUpperCase();
+    c.email = 'anonimizado@rgpd.local'; c.phone = ''; c.location = '';
+    c.currentTitle = ''; c.currentCompany = ''; c.tags = [];
+    c.attachments = []; c.cv = null; c.notes = []; c.emails = [];
+    c.activities = [{ type: 'stage', text: 'Registro anonimizado a petición del interesado (RGPD)', date: todayISO() }];
+    c.gdprAnonymized = true; c.archived = true;
+    save(); toast('Candidato anonimizado conforme al RGPD', 'ok'); openCandidate(id);
 }
 
 function setStage(id, stage) { moveStage(id, stage, () => openCandidate(id)); }
@@ -725,6 +862,7 @@ function toggleArchive(id) { const c = state.candidates.find(x => x.id === id); 
 function deleteCandidate(id) {
     if (!confirm('¿Eliminar este candidato?')) return;
     state.candidates = state.candidates.filter(c => c.id !== id);
+    sel.delete(id);
     save(); closeModal(); toast('Candidato eliminado', 'info'); render();
 }
 
@@ -754,7 +892,7 @@ function openScorecardForm(id) {
     }));
     document.getElementById('scForm').addEventListener('submit', e => {
         e.preventDefault();
-        const f = Object.fromEntries(new FormData(e.target).entries());
+        const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         const criteria = SCORE_CRITERIA.map((cr, i) => ({ name: cr, score: scores[i] || 3 }));
         c.scorecards = c.scorecards || [];
         c.scorecards.push({ id: uid('sc'), interviewer: f.interviewer, recommendation: rec, date: todayISO(), criteria, comment: f.comment });
@@ -777,7 +915,7 @@ function openInterviewForm(id) {
         </div><div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','entrevistas')">Cancelar</button><button type="submit" class="btn-primary">Programar</button></div></form>`);
     document.getElementById('ivForm').addEventListener('submit', e => {
         e.preventDefault();
-        const f = Object.fromEntries(new FormData(e.target).entries());
+        const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         c.interviews = c.interviews || []; c.interviews.push({ id: uid('iv'), ...f });
         c.interviewDate = f.date;
         if (c.stage === 'nuevo' || c.stage === 'preseleccion') c.stage = 'entrevista';
@@ -798,7 +936,7 @@ function openOfferForm(id) {
         </div><div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','oferta')">Cancelar</button><button type="submit" class="btn-primary">Guardar</button></div></form>`);
     document.getElementById('offForm').addEventListener('submit', e => {
         e.preventDefault();
-        const f = Object.fromEntries(new FormData(e.target).entries());
+        const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         c.offer = { ...f, date: c.offer?.date || todayISO() };
         if (c.stage !== 'contratado' && (f.status === 'sent' || f.status === 'accepted')) c.stage = 'oferta';
         if (f.status === 'accepted') c.stage = 'contratado';
@@ -885,12 +1023,13 @@ function renderInterviews() {
     const items = [];
     activeCandidates().forEach(c => (c.interviews || []).forEach(iv => items.push({ c, iv })));
     items.sort((a, b) => (a.iv.date + a.iv.time).localeCompare(b.iv.date + b.iv.time));
-    const upcoming = items.filter(x => x.iv.date >= '2026-07-05');
+    const today = todayISO();
+    const upcoming = items.filter(x => x.iv.date >= today);
     content.innerHTML = `
-        <div class="page-head"><div><h1>Entrevistas</h1><p>${items.length} entrevistas · scheduling con entrevistadores</p></div></div>
+        <div class="page-head"><div><h1>Entrevistas</h1><p>${upcoming.length} próximas · ${items.length - upcoming.length} pasadas</p></div></div>
         ${items.length ? items.map(({ c, iv }) => {
             const job = jobById(c.jobId);
-            return `<div class="interview-item">
+            return `<div class="interview-item ${iv.date < today ? 'past' : ''}">
                 <div class="interview-date"><div class="d">${(iv.date || '').slice(8, 10)}</div><div class="m">${MONTHS[+(iv.date || '2026-01-01').slice(5, 7) - 1]}</div></div>
                 <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
                 <div style="flex:1"><div class="cc-name">${c.name} <span style="color:var(--muted);font-weight:400">· ${iv.time || ''}</span></div>
@@ -1054,7 +1193,7 @@ function openPortalConfig() {
     });
     document.getElementById('portalForm').addEventListener('submit', e => {
         e.preventDefault();
-        const f = Object.fromEntries(new FormData(e.target).entries());
+        const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         state.settings.portal = { ...p, company: f.company, tagline: f.tagline, intro: f.intro, footer: f.footer, brandColor: f.brandColor, accentColor: f.accentColor, showSalary: f.showSalary === '1', logo };
         state.settings.company = f.company;
         save(); closeModal(); toast('Portal actualizado', 'ok'); render();
@@ -1103,15 +1242,16 @@ function openApplyForm(jid) {
             <div class="field"><label>Email *</label><input name="email" type="email" required></div>
             <div class="field"><label>Teléfono</label><input name="phone"></div>
             <div class="field"><label>Puesto actual</label><input name="currentTitle"></div>
-            <div class="field full"><label>Género (opcional, para DE&I)</label><select name="gender"><option value="">Prefiere no decir</option>${GENDERS.map(g => `<option>${g}</option>`).join('')}</select></div>
+            <div class="field full"><label>Género (opcional, para DE&I)</label><select name="gender"><option value="">Prefiere no decir</option>${GENDERS.filter(g => g !== 'Prefiere no decir').map(g => `<option>${g}</option>`).join('')}</select></div>
             <div class="field full"><label>Habilidades (separadas por comas)</label><input name="tags" placeholder="Ej: React, 3 años"></div>
             <div class="field full">${attachFieldHTML([])}</div>
+            <div class="field full"><label class="consent"><input type="checkbox" name="consent" required> Acepto el tratamiento de mis datos personales para este proceso de selección (RGPD)</label></div>
         </div><div class="modal-actions"><button type="button" class="btn-outline" onclick="closeModal()">Cancelar</button><button type="submit" class="btn-primary">Enviar candidatura</button></div></form>`);
     let attach = [];
     wireAttachInput(() => attach, v => { attach = v; });
     document.getElementById('applyForm').addEventListener('submit', e => {
         e.preventDefault();
-        const f = Object.fromEntries(new FormData(e.target).entries());
+        const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         const c = { id: uid('cand'), name: f.name, email: f.email, phone: f.phone, currentTitle: f.currentTitle,
             gender: f.gender || 'Prefiere no decir', jobId: jid, stage: 'nuevo', source: 'Portal propio',
             applied: todayISO(), tags: f.tags.split(',').map(t => t.trim()).filter(Boolean), rating: 0, attachments: attach, cv: attach[0] || null,
@@ -1175,7 +1315,7 @@ function openCandidateForm(id, toPool) {
     wireAttachInput(() => attach, v => { attach = v; });
     document.getElementById('candForm').addEventListener('submit', e => {
         e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target).entries());
+        const data = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         data.tags = data.tags.split(',').map(t => t.trim()).filter(Boolean);
         data.jobId = data.jobId || null;
         data.attachments = attach; data.cv = attach[0] || null;
@@ -1251,6 +1391,106 @@ function topBelbin(c) {
     const arr = BELBIN_ROLES.map(r => ({ r, v: b[r.id] || 0 })).sort((a, z) => z.v - a.v);
     return arr[0].v ? arr : null;
 }
+function psicoAvg(c) {
+    const p = c.assess && c.assess.psycho; if (!p) return null;
+    const vals = Object.values(p); if (!vals.length) return null;
+    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+}
+
+/* ---------- Job-Match: encaje candidato ↔ perfil ideal del puesto ---------- */
+function jobMatch(c, j) {
+    if (!j || !j.ideal) return null;
+    const ideal = j.ideal;
+    const parts = []; // { score 0..1, weight }
+    // Habilidades requeridas (peso 40)
+    if (ideal.mustTags && ideal.mustTags.length) {
+        const ctags = (c.tags || []).map(t => t.toLowerCase());
+        const hits = ideal.mustTags.filter(t => ctags.some(x => x.includes(t.toLowerCase()) || t.toLowerCase().includes(x))).length;
+        parts.push({ s: hits / ideal.mustTags.length, w: 40 });
+    }
+    // Roles Belbin buscados (peso 25) — solapamiento con el top-3 del candidato
+    if (ideal.belbin && ideal.belbin.length) {
+        const tb = topBelbin(c);
+        if (tb) {
+            const top3 = tb.slice(0, 3).map(x => x.r.id);
+            const hits = ideal.belbin.filter(r => top3.includes(r)).length;
+            parts.push({ s: hits / ideal.belbin.length, w: 25 });
+        }
+    }
+    // Aptitud psicotécnica mínima (peso 15)
+    if (ideal.minPsico) {
+        const avg = psicoAvg(c);
+        if (avg != null) parts.push({ s: Math.min(1, avg / ideal.minPsico), w: 15 });
+    }
+    // Alineamiento con valores (peso 20)
+    const vp = valuesFitPct(c);
+    if (vp != null) parts.push({ s: vp / 100, w: 20 });
+    if (!parts.length) return null;
+    const totalW = parts.reduce((a, p) => a + p.w, 0);
+    return Math.round(parts.reduce((a, p) => a + p.s * p.w, 0) / totalW * 100);
+}
+
+/* ---------- Equilibrio de equipo Belbin por vacante ---------- */
+function teamBelbinAnalysis(jobId) {
+    const hired = state.candidates.filter(c => c.jobId === jobId && c.stage === 'contratado' && c.assess && c.assess.belbin);
+    const covered = new Set();
+    hired.forEach(c => topBelbin(c).slice(0, 2).forEach(x => covered.add(x.r.id)));
+    const missing = BELBIN_ROLES.filter(r => !covered.has(r.id));
+    // Candidatos activos del pipeline (o pool) cuyo rol principal cubre un hueco
+    const gapIds = new Set(missing.map(r => r.id));
+    const fillers = state.candidates
+        .filter(c => c.jobId === jobId && !['contratado', 'rechazado'].includes(c.stage) && !c.archived && c.assess && c.assess.belbin)
+        .map(c => ({ c, top: topBelbin(c)[0].r }))
+        .filter(x => gapIds.has(x.top.id));
+    return { hired, covered, missing, fillers };
+}
+
+/* ---------- Copiloto de selección: insights accionables ---------- */
+function lastActivityDate(c) {
+    const dates = (c.activities || []).map(a => a.date).filter(Boolean);
+    return dates.length ? dates.sort().pop() : c.applied;
+}
+function computeInsights() {
+    const today = todayISO();
+    const out = [];
+    const active = activeCandidates().filter(c => !['contratado', 'rechazado'].includes(c.stage));
+    // 1 · Candidatos estancados (>7 días sin actividad)
+    active.forEach(c => {
+        const last = lastActivityDate(c);
+        const d = last ? daysBetween(last, today) : null;
+        if (d != null && d >= 7) out.push({ sev: 'warn', icon: '⏳', text: `<strong>${c.name}</strong> lleva ${d} días sin avanzar en ${stageById(c.stage).name}`, action: c.id });
+    });
+    // 2 · Ofertas enviadas sin respuesta (>5 días)
+    state.candidates.filter(c => c.offer && c.offer.status === 'sent').forEach(c => {
+        const d = daysBetween(c.offer.date, today);
+        if (d >= 5) out.push({ sev: 'crit', icon: '📄', text: `Oferta a <strong>${c.name}</strong> sin respuesta desde hace ${d} días — considera hacer seguimiento`, action: c.id, tab: 'oferta' });
+    });
+    // 3 · Entrevistas pasadas sin scorecard
+    active.forEach(c => {
+        const past = (c.interviews || []).some(iv => iv.date && iv.date < today);
+        if (past && (!c.scorecards || !c.scorecards.length)) out.push({ sev: 'warn', icon: '📋', text: `<strong>${c.name}</strong> tuvo entrevista pero nadie rellenó la scorecard`, action: c.id, tab: 'scorecards' });
+    });
+    // 4 · Fit bajo en etapa avanzada
+    active.filter(c => ['prueba', 'oferta'].includes(c.stage)).forEach(c => {
+        const f = fitScore(c);
+        if (f != null && f < 50) out.push({ sev: 'crit', icon: '🧭', text: `<strong>${c.name}</strong> está en ${stageById(c.stage).name} con un fit de solo ${f}%`, action: c.id, tab: 'evaluacion' });
+    });
+    // 5 · Test de evaluación sin completar en entrevista+
+    active.filter(c => stageIndex(c.stage) >= stageIndex('entrevista') && !(c.assess && c.assess.selfCompleted)).slice(0, 3).forEach(c => {
+        out.push({ sev: 'info', icon: '🧪', text: `<strong>${c.name}</strong> aún no ha hecho el test de evaluación — envíaselo`, action: c.id, tab: 'evaluacion' });
+    });
+    // 6 · Requisiciones pendientes de aprobar
+    state.jobs.filter(j => j.status === 'pending').forEach(j => {
+        out.push({ sev: 'info', icon: '✅', text: `La requisición <strong>${j.title}</strong> espera aprobación de ${j.approver || 'dirección'}`, job: j.id });
+    });
+    // 7 · Mejor origen (positivo)
+    const bySrc = {};
+    state.candidates.filter(c => c.stage === 'contratado').forEach(c => { bySrc[c.source] = (bySrc[c.source] || 0) + 1; });
+    const best = Object.entries(bySrc).sort((a, b) => b[1] - a[1])[0];
+    if (best) out.push({ sev: 'ok', icon: '📈', text: `<strong>${best[0]}</strong> es tu origen más efectivo (${best[1]} contratación${best[1] > 1 ? 'es' : ''}) — prioriza invertir ahí` });
+    const order = { crit: 0, warn: 1, info: 2, ok: 3 };
+    return out.sort((a, b) => order[a.sev] - order[b.sev]).slice(0, 8);
+}
 
 function radarChart(axes, values, max, color) {
     const N = axes.length, R = 82, cx = 110, cy = 108;
@@ -1308,7 +1548,7 @@ function openDnaForm() {
         </form>`);
     document.getElementById('dnaForm').addEventListener('submit', e => {
         e.preventDefault();
-        const f = Object.fromEntries(new FormData(e.target).entries());
+        const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         const values = f.values.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [name, ...d] = l.split('|'); return { name: name.trim(), desc: d.join('|').trim() }; });
         state.settings.dna = { mission: f.mission, vision: f.vision, values };
         save(); closeModal(); toast('ADN actualizado', 'ok'); render();
@@ -1346,9 +1586,14 @@ function evaluationTab(c) {
         <div>${done ? `✅ El candidato completó el test el <strong>${c.assess.selfCompleted}</strong>` : '📋 Deja que el <strong>propio candidato</strong> rellene su evaluación con un test autoadministrado'}</div>
         <button class="btn-primary btn-sm" onclick="openAssessInvite('${c.id}')">${done ? 'Reenviar test' : 'Enviar test al candidato'}</button>
     </div>`;
+    const jm = jobMatch(c, jobById(c.jobId));
     return `
         ${inviteBar}
-        <div class="fit-summary"><div class="fit-big" style="color:${fitColor(fit)}">${fit != null ? fit + '%' : '—'}</div><div><div style="font-weight:700">${fitLabel(fit)} ${c.assess && c.assess.selfReported ? '<span class="badge dept" style="vertical-align:middle">Autoevaluado</span>' : ''}</div><div class="cc-role">Fit score compuesto (valores + evaluación técnica)</div></div></div>
+        <div class="fit-summary">
+            <div class="fit-big" style="color:${fitColor(fit)}">${fit != null ? fit + '%' : '—'}</div>
+            <div style="flex:1"><div style="font-weight:700">${fitLabel(fit)} ${c.assess && c.assess.selfReported ? '<span class="badge dept" style="vertical-align:middle">Autoevaluado</span>' : ''}</div><div class="cc-role">Fit score compuesto (valores + evaluación técnica)</div></div>
+            ${jm != null ? `<div style="text-align:right"><div class="fit-big" style="font-size:24px;color:${fitColor(jm)}">${jm}%</div><div class="cc-role">Job-Match con el puesto</div></div>` : ''}
+        </div>
         ${valuesBlock}<hr class="assess-sep">${belbinBlock}<hr class="assess-sep">${persBlock}<hr class="assess-sep">${psychBlock}`;
 }
 
@@ -1528,7 +1773,7 @@ function openAssessBelbin(id) {
         <form id="bForm">${BELBIN_ROLES.map(r => sliderRow(`<span class="dot" style="background:${r.color}"></span> ${r.name} <small style="color:var(--muted)">${r.cluster}</small>`, r.id, b[r.id], 10)).join('')}
         <div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','evaluacion')">Cancelar</button><button type="submit" class="btn-primary">Guardar perfil</button></div></form>`, 'wide');
     document.getElementById('bForm').addEventListener('submit', e => {
-        e.preventDefault(); const f = Object.fromEntries(new FormData(e.target).entries());
+        e.preventDefault(); const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         const belbin = {}; BELBIN_ROLES.forEach(r => belbin[r.id] = +f[r.id] || 0);
         c.assess = c.assess || {}; c.assess.belbin = belbin;
         const tb = topBelbin(c); logActivity(c, 'score', `Perfil Belbin: rol principal ${tb ? tb[0].r.name : '—'}`);
@@ -1544,7 +1789,7 @@ function openAssessPersonality(id) {
         <div class="cd-section-title">DISC</div>${DISC.map(d => sliderRow(d.name, 'dc_' + d.id, dc[d.id], 100, '%')).join('')}
         <div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','evaluacion')">Cancelar</button><button type="submit" class="btn-primary">Guardar</button></div></form>`, 'wide');
     document.getElementById('pForm').addEventListener('submit', e => {
-        e.preventDefault(); const f = Object.fromEntries(new FormData(e.target).entries());
+        e.preventDefault(); const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         const bigfive = {}; BIGFIVE.forEach(d => bigfive[d.id] = +f['bf_' + d.id] || 0);
         const disc = {}; DISC.forEach(d => disc[d.id] = +f['dc_' + d.id] || 0);
         c.assess = c.assess || {}; c.assess.bigfive = bigfive; c.assess.disc = disc;
@@ -1559,7 +1804,7 @@ function openAssessPsych(id) {
         <form id="psForm">${PSICO.map(t => sliderRow(t.name, t.id, ps[t.id], 100, ' pc')).join('')}
         <div class="modal-actions"><button type="button" class="btn-outline" onclick="openCandidate('${id}','evaluacion')">Cancelar</button><button type="submit" class="btn-primary">Guardar</button></div></form>`, 'wide');
     document.getElementById('psForm').addEventListener('submit', e => {
-        e.preventDefault(); const f = Object.fromEntries(new FormData(e.target).entries());
+        e.preventDefault(); const f = sanitizeObj(Object.fromEntries(new FormData(e.target).entries()));
         const psycho = {}; PSICO.forEach(t => psycho[t.id] = +f[t.id] || 0);
         c.assess = c.assess || {}; c.assess.psycho = psycho;
         logActivity(c, 'score', 'Prueba psicotécnica registrada');
@@ -1661,7 +1906,7 @@ document.getElementById('hamburger').addEventListener('click', () => document.ge
 document.getElementById('seedBtn').addEventListener('click', () => { if (confirm('Restaurar los datos de ejemplo y reemplazar los actuales?')) { seedData(); render(); toast('Datos demo cargados', 'ok'); } });
 document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('¿Borrar TODOS los datos?')) { state = { jobs: [], candidates: [], templates: [], automations: [], team: [], settings: {} }; save(); render(); toast('Datos borrados', 'info'); } });
 
-Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych, openAssessInvite, openSelfTest });
+Object.assign(window, { openJobForm, openJobDetail, deleteJob, approveJob, openCandidateForm, openCandidate, setStage, addNote, deleteCandidate, toggleArchive, closeModal, exportCandidatesCSV, importCSV, openScorecardForm, openInterviewForm, openOfferForm, setOfferStatus, sendTemplateFromUI, reactivate, openApplyForm, toggleAuto, openTemplate, bulkArchive, clearSel, openAttachment, openPortalConfig, openEmbedCode, openStandalonePortal, copyText, openDnaForm, openAssessValues, openAssessBelbin, openAssessPersonality, openAssessPsych, openAssessInvite, openSelfTest, openCompare, exportCandidateJSON, anonymizeCandidate });
 
 /* ---------- Init ---------- */
 load();
