@@ -55,6 +55,15 @@
            Nada sale de tu ordenador: todo se procesa y se guarda en local.</p>
         <button class="btn primary big" id="btnPickScreenBig">Seleccionar pantalla</button>
       </div>
+      <div class="privacy-screen hidden" id="privacyScreen">
+        <div class="ps-icon">🛡️</div>
+        <h2>Vista previa apagada</h2>
+        <p>La imagen se ha ocultado para que la grabación no se vea a sí misma en bucle.<br>
+           Todo se sigue grabando con normalidad, zonas privadas incluidas.</p>
+        <div class="ps-timer" id="psTimer">00:00:00</div>
+        <p class="ps-note">Puedes minimizar el navegador y usar tu ordenador con normalidad: la grabación continúa.</p>
+        <button class="btn ghost" id="btnReveal">Ver la vista previa igualmente</button>
+      </div>
       <div class="countdown hidden" id="countdown"><span>3</span></div>
     </div>
 
@@ -77,6 +86,12 @@
         <span>Intentar capturar el audio del sistema</span>
       </label>
       <p class="mini">Para que funcione, marca “Compartir audio de la pestaña/sistema” en la ventana del navegador.</p>
+      <label class="check">
+        <input type="checkbox" id="chkHidePreview" checked>
+        <span>Ocultar la vista previa al grabar (evita el efecto espejo)</span>
+      </label>
+      <p class="mini">Si grabas la pantalla completa, la vista previa se vería a sí misma en bucle infinito. Con esta opción se apaga durante la grabación.</p>
+      <div class="warn hidden" id="mirrorWarn"></div>
       <button class="btn ghost block hidden" id="btnStopSource">Dejar de compartir</button>
     </div>
 
@@ -221,6 +236,7 @@
 <div class="rec-hud hidden" id="recHud">
   <span class="rec-dot on"></span>
   <span class="hud-timer" id="hudTimer">00:00:00</span>
+  <button class="hud-btn" id="hudEye" title="Mostrar u ocultar la vista previa (Ctrl+Shift+V)">👁</button>
   <button class="hud-btn" id="hudPause" title="Pausar / reanudar (Ctrl+Shift+P)">❚❚</button>
   <button class="hud-btn stop" id="hudStop" title="Detener (Ctrl+Shift+R)">■</button>
 </div>

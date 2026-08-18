@@ -29,6 +29,11 @@ const el = {
   btnStopSource: $('#btnStopSource'),
   sourceInfo: $('#sourceInfo'),
   chkSysAudio: $('#chkSysAudio'),
+  chkHidePreview: $('#chkHidePreview'),
+  mirrorWarn: $('#mirrorWarn'),
+  privacyScreen: $('#privacyScreen'),
+  psTimer: $('#psTimer'),
+  btnReveal: $('#btnReveal'),
 
   swMic: $('#swMic'),
   selMic: $('#selMic'),
@@ -74,6 +79,7 @@ const el = {
   toast: $('#toast'),
   recHud: $('#recHud'),
   hudTimer: $('#hudTimer'),
+  hudEye: $('#hudEye'),
   hudPause: $('#hudPause'),
   hudStop: $('#hudStop'),
 };
@@ -119,7 +125,10 @@ const state = {
   drag: null,
 
   rafId: null,
+  tickWorker: null,
   lastFrame: 0,
+  surface: '',
+  revealPreview: false,
 };
 
 /* -------------------------------- Utilidades ----------------------------- */
@@ -196,6 +205,10 @@ async function pickScreen() {
       audio: el.chkSysAudio.checked
         ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
         : false,
+      // Evita que se pueda elegir esta misma pestaña, que sería un espejo puro.
+      selfBrowserSurface: 'exclude',
+      surfaceSwitching: 'include',
+      systemAudio: el.chkSysAudio.checked ? 'include' : 'exclude',
     });
     attachScreen(stream);
   } catch (err) {
@@ -229,6 +242,8 @@ function attachScreen(stream) {
   const surfaces = { monitor: 'Pantalla completa', window: 'Ventana de una aplicación', browser: 'Pestaña del navegador' };
   const label = surfaces[s.displaySurface] || 'Fuente de pantalla';
   el.sourceInfo.textContent = `${label} · ${s.width || '?'}×${s.height || '?'} px${aTrack ? ' · con audio del sistema' : ' · sin audio del sistema'}`;
+  state.surface = s.displaySurface || '';
+  updateMirrorWarning();
   el.sourceInfo.classList.add('on');
   el.btnStopSource.classList.remove('hidden');
   el.emptyState.classList.add('hidden');
@@ -249,6 +264,8 @@ function stopScreen(updateUi = true) {
   if (state.sysSource) { try { state.sysSource.disconnect(); } catch (e) {} state.sysSource = null; }
   el.screenVideo.srcObject = null;
   if (!updateUi) return;
+  state.surface = '';
+  updateMirrorWarning();
   el.sourceInfo.textContent = 'Ninguna fuente activa.';
   el.sourceInfo.classList.remove('on');
   el.btnStopSource.classList.add('hidden');
@@ -567,24 +584,93 @@ function renderFrame() {
   if (state.screenStream) drawCamera();
 }
 
+function renderTick(ts) {
+  const fps = Number(el.selFps.value) || 30;
+  const minDelta = 1000 / (fps + 2);
+  if (ts - state.lastFrame < minDelta) return;
+  state.lastFrame = ts;
+  renderFrame();
+}
+
+/* El bucle se alimenta de dos relojes:
+   - requestAnimationFrame mientras la página está a la vista;
+   - un Web Worker con temporizador, que sigue funcionando aunque minimices
+     el navegador o lo tapes con otra ventana (rAF se detendría y la grabación
+     se congelaría justo cuando más falta hace). */
+function startWorkerTick() {
+  stopWorkerTick();
+  const fps = Number(el.selFps.value) || 30;
+  const src = 'let id=null;onmessage=function(e){clearInterval(id);' +
+              'if(e.data&&e.data.stop)return;' +
+              'id=setInterval(function(){postMessage(1)},e.data.interval)};';
+  try {
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+    state.tickWorker = new Worker(url);
+    URL.revokeObjectURL(url);
+    state.tickWorker.onmessage = () => renderTick(performance.now());
+    state.tickWorker.postMessage({ interval: Math.max(8, Math.round(1000 / fps)) });
+  } catch (e) {
+    state.tickWorker = null; // sin worker seguimos con requestAnimationFrame
+  }
+}
+
+function stopWorkerTick() {
+  if (!state.tickWorker) return;
+  try { state.tickWorker.postMessage({ stop: true }); state.tickWorker.terminate(); } catch (e) {}
+  state.tickWorker = null;
+}
+
 function startLoop() {
-  if (state.rafId) return;
-  const tick = (ts) => {
+  if (!state.rafId) {
+    const tick = (ts) => { state.rafId = requestAnimationFrame(tick); renderTick(ts); };
     state.rafId = requestAnimationFrame(tick);
-    const fps = Number(el.selFps.value) || 30;
-    const minDelta = 1000 / (fps + 2);
-    if (ts - state.lastFrame < minDelta) return;
-    state.lastFrame = ts;
-    renderFrame();
-  };
-  state.rafId = requestAnimationFrame(tick);
+  }
+  startWorkerTick();
 }
 
 function stopLoop() {
   if (state.rafId) cancelAnimationFrame(state.rafId);
   state.rafId = null;
+  stopWorkerTick();
   ctx.fillStyle = '#05070c';
   ctx.fillRect(0, 0, el.stage.width, el.stage.height);
+}
+
+/* ---------------------- Efecto espejo / túnel infinito -------------------
+   Al compartir la pantalla completa, la vista previa muestra la pantalla…
+   que a su vez contiene la vista previa, y así hasta el infinito. La imagen
+   se compone igualmente en el lienzo (que es lo que se graba), pero dejamos
+   de mostrarla mientras dura la grabación.                                */
+function previewShouldHide() {
+  return state.recording && el.chkHidePreview.checked && !state.revealPreview;
+}
+
+function updatePreviewMask() {
+  const hide = previewShouldHide();
+  el.canvasWrap.classList.toggle('preview-off', hide);
+  el.privacyScreen.classList.toggle('hidden', !hide);
+  el.hudEye.textContent = hide ? '👁' : '🙈';
+  el.hudEye.classList.toggle('stop', !hide && state.recording && state.surface === 'monitor');
+}
+
+function toggleReveal() {
+  if (!state.recording) return;
+  state.revealPreview = !state.revealPreview;
+  updatePreviewMask();
+  if (state.revealPreview && state.surface === 'monitor') {
+    toast('Vista previa visible: al grabar la pantalla completa reaparecerá el efecto espejo.');
+  }
+}
+
+function updateMirrorWarning() {
+  if (state.surface === 'monitor') {
+    el.mirrorWarn.textContent =
+      'Estás compartiendo la pantalla completa. Es normal ver el efecto espejo en la vista previa: ' +
+      'al pulsar Grabar se apagará sola para que no salga en el vídeo.';
+    el.mirrorWarn.classList.remove('hidden');
+  } else {
+    el.mirrorWarn.classList.add('hidden');
+  }
 }
 
 /* ------------------------------- Zonas privadas -------------------------- */
@@ -842,6 +928,8 @@ async function startRecording() {
   el.hudPause.textContent = '❚❚';
   el.recHud.querySelector('.rec-dot').classList.remove('paused');
   el.recHud.classList.remove('hidden');
+  state.revealPreview = false;
+  updatePreviewMask();
   setStatus('Grabando');
   toast('Grabación iniciada. Puedes seguir añadiendo zonas privadas.');
 }
@@ -896,6 +984,7 @@ function updateTimer() {
   const total = state.elapsed + (state.paused ? 0 : performance.now() - state.startedAt);
   el.timer.textContent = fmtTime(total);
   el.hudTimer.textContent = fmtTime(total);
+  el.psTimer.textContent = fmtTime(total);
 }
 
 function stopRecording() {
@@ -915,6 +1004,7 @@ function stopRecording() {
   el.selFps.disabled = false;
   el.selBitrate.disabled = false;
   el.recHud.classList.add('hidden');
+  updatePreviewMask();
   setStatus('Procesando…');
 }
 
@@ -985,6 +1075,7 @@ function saveSettings() {
     bitrate: el.selBitrate.value,
     countdown: el.chkCountdown.checked,
     sysAudio: el.chkSysAudio.checked,
+    hidePreview: el.chkHidePreview.checked,
   };
   try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
 }
@@ -1010,6 +1101,7 @@ function loadSettings() {
   if (data.bitrate) el.selBitrate.value = data.bitrate;
   if (typeof data.countdown === 'boolean') el.chkCountdown.checked = data.countdown;
   if (typeof data.sysAudio === 'boolean') el.chkSysAudio.checked = data.sysAudio;
+  if (typeof data.hidePreview === 'boolean') el.chkHidePreview.checked = data.hidePreview;
   syncLabels();
   renderZones();
 }
@@ -1051,11 +1143,15 @@ el.rngSysGain.addEventListener('input', () => {
 [el.selCamPos, el.chkCamRound, el.chkCamMirror, el.selFps, el.selBitrate, el.chkCountdown, el.chkSysAudio]
   .forEach((n) => n.addEventListener('change', saveSettings));
 el.selRes.addEventListener('change', () => { resizeCanvas(); saveSettings(); });
+el.selFps.addEventListener('change', () => { if (state.tickWorker) startWorkerTick(); });
 
 el.btnRecord.addEventListener('click', () => { state.recording ? stopRecording() : startRecording(); });
 el.btnPause.addEventListener('click', togglePause);
 el.btnStop.addEventListener('click', stopRecording);
 el.btnShot.addEventListener('click', screenshot);
+el.hudEye.addEventListener('click', toggleReveal);
+el.btnReveal.addEventListener('click', toggleReveal);
+el.chkHidePreview.addEventListener('change', () => { updatePreviewMask(); saveSettings(); });
 el.hudPause.addEventListener('click', togglePause);
 el.hudStop.addEventListener('click', stopRecording);
 
@@ -1080,6 +1176,9 @@ document.addEventListener('keydown', (e) => {
   } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') {
     e.preventDefault();
     togglePause();
+  } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'v') {
+    e.preventDefault();
+    toggleReveal();
   } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedZone && !typing) {
     e.preventDefault();
     deleteZone(state.selectedZone);
