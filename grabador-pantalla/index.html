@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grabador de Pantalla · voz, cámara y zonas privadas</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">●</span>
+    <div>
+      <h1>Grabador de Pantalla</h1>
+      <p>Voz · Cámara opcional · Zonas privadas ocultas</p>
+    </div>
+  </div>
+  <div class="status">
+    <span class="rec-dot" id="recDot"></span>
+    <span class="timer" id="timer">00:00:00</span>
+    <span class="status-text" id="statusText">Sin fuente seleccionada</span>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ======================= ESCENARIO ======================= -->
+  <section class="stage">
+    <div class="stage-toolbar">
+      <button class="tool" id="btnDraw" title="Dibuja un rectángulo sobre la vista previa para ocultarlo">
+        <span class="ico">▦</span> Dibujar zona privada
+      </button>
+      <div class="tool-group" id="drawTypeGroup">
+        <button class="chip active" data-type="solid">Negro</button>
+        <button class="chip" data-type="blur">Desenfoque</button>
+        <button class="chip" data-type="pixel">Pixelado</button>
+      </div>
+      <div class="spacer"></div>
+      <button class="tool ghost" id="btnShot" title="Guardar una imagen PNG con las zonas ya ocultas">
+        <span class="ico">◈</span> Captura PNG
+      </button>
+      <button class="tool ghost" id="btnFullscreen" title="Ver la vista previa a pantalla completa">
+        <span class="ico">⛶</span>
+      </button>
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="stage"></canvas>
+      <div class="overlay" id="overlay"></div>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🖥️</div>
+        <h2>Elige qué quieres grabar</h2>
+        <p>Pantalla completa, una ventana concreta o una pestaña del navegador.<br>
+           Nada sale de tu ordenador: todo se procesa y se guarda en local.</p>
+        <button class="btn primary big" id="btnPickScreenBig">Seleccionar pantalla</button>
+      </div>
+      <div class="countdown hidden" id="countdown"><span>3</span></div>
+    </div>
+
+    <p class="hint" id="hint">
+      Consejo: activa <b>Dibujar zona privada</b> y arrastra sobre la vista previa para tapar nombres de archivo,
+      correos, rutas o cualquier dato sensible. Las zonas se aplican también <b>durante</b> la grabación.
+    </p>
+  </section>
+
+  <!-- ======================= PANEL ======================= -->
+  <aside class="panel">
+
+    <!-- Fuente -->
+    <div class="card">
+      <div class="card-head"><h3>1 · Pantalla</h3></div>
+      <button class="btn primary block" id="btnPickScreen">Seleccionar pantalla / ventana</button>
+      <div class="source-info" id="sourceInfo">Ninguna fuente activa.</div>
+      <label class="check">
+        <input type="checkbox" id="chkSysAudio" checked>
+        <span>Intentar capturar el audio del sistema</span>
+      </label>
+      <p class="mini">Para que funcione, marca “Compartir audio de la pestaña/sistema” en la ventana del navegador.</p>
+      <button class="btn ghost block hidden" id="btnStopSource">Dejar de compartir</button>
+    </div>
+
+    <!-- Micrófono -->
+    <div class="card">
+      <div class="card-head">
+        <h3>2 · Tu voz</h3>
+        <label class="switch"><input type="checkbox" id="swMic" checked><span></span></label>
+      </div>
+      <select id="selMic" class="select"><option>Micrófono por defecto</option></select>
+      <div class="meter"><div class="meter-fill" id="micMeter"></div></div>
+      <label class="slider-row">
+        <span>Volumen voz</span>
+        <input type="range" id="rngMicGain" min="0" max="200" value="100">
+        <b id="lblMicGain">100%</b>
+      </label>
+      <label class="slider-row">
+        <span>Volumen sistema</span>
+        <input type="range" id="rngSysGain" min="0" max="200" value="70">
+        <b id="lblSysGain">70%</b>
+      </label>
+      <p class="mini" id="micState">Micrófono sin activar.</p>
+    </div>
+
+    <!-- Cámara -->
+    <div class="card">
+      <div class="card-head">
+        <h3>3 · Cámara</h3>
+        <label class="switch"><input type="checkbox" id="swCam"><span></span></label>
+      </div>
+      <p class="mini">Puedes encenderla y apagarla en cualquier momento, incluso grabando.</p>
+      <div id="camOptions" class="collapsed">
+        <select id="selCam" class="select"><option>Cámara por defecto</option></select>
+        <label class="field">
+          <span>Posición</span>
+          <select id="selCamPos" class="select">
+            <option value="br">Abajo derecha</option>
+            <option value="bl">Abajo izquierda</option>
+            <option value="tr">Arriba derecha</option>
+            <option value="tl">Arriba izquierda</option>
+            <option value="full">Solo cámara (pantalla completa)</option>
+          </select>
+        </label>
+        <label class="slider-row">
+          <span>Tamaño</span>
+          <input type="range" id="rngCamSize" min="10" max="45" value="22">
+          <b id="lblCamSize">22%</b>
+        </label>
+        <div class="row-2">
+          <label class="check"><input type="checkbox" id="chkCamRound" checked><span>Redonda</span></label>
+          <label class="check"><input type="checkbox" id="chkCamMirror" checked><span>Espejo</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zonas privadas -->
+    <div class="card">
+      <div class="card-head">
+        <h3>4 · Zonas privadas</h3>
+        <span class="badge" id="zoneCount">0</span>
+      </div>
+      <p class="mini">Áreas que quedarán ocultas en el vídeo final: nombres de archivo, rutas, correos, cifras…</p>
+      <label class="slider-row">
+        <span>Intensidad</span>
+        <input type="range" id="rngStrength" min="4" max="60" value="26">
+        <b id="lblStrength">26</b>
+      </label>
+      <div class="zone-list" id="zoneList">
+        <div class="zone-empty">Todavía no hay zonas. Pulsa <b>Dibujar zona privada</b> y arrastra sobre la vista previa.</div>
+      </div>
+      <button class="btn ghost block" id="btnClearZones">Borrar todas las zonas</button>
+    </div>
+
+    <!-- Calidad -->
+    <div class="card">
+      <div class="card-head"><h3>5 · Calidad</h3></div>
+      <label class="field">
+        <span>Resolución</span>
+        <select id="selRes" class="select">
+          <option value="0">Original de la pantalla</option>
+          <option value="2160">4K · 2160p</option>
+          <option value="1440">1440p</option>
+          <option value="1080" selected>Full HD · 1080p</option>
+          <option value="720">HD · 720p</option>
+          <option value="480">480p (archivo ligero)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Fotogramas por segundo</span>
+        <select id="selFps" class="select">
+          <option value="15">15 fps</option>
+          <option value="24">24 fps</option>
+          <option value="30" selected>30 fps</option>
+          <option value="60">60 fps</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Calidad de vídeo</span>
+        <select id="selBitrate" class="select">
+          <option value="2500000">Ligera</option>
+          <option value="5000000" selected>Equilibrada</option>
+          <option value="10000000">Alta</option>
+          <option value="16000000">Máxima</option>
+        </select>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="chkCountdown" checked>
+        <span>Cuenta atrás de 3 segundos</span>
+      </label>
+      <p class="mini" id="formatInfo">Formato: detectando…</p>
+    </div>
+
+    <!-- Grabación -->
+    <div class="card">
+      <button class="btn record block" id="btnRecord" disabled>● Empezar a grabar</button>
+      <div class="row-2">
+        <button class="btn ghost" id="btnPause" disabled>❚❚ Pausa</button>
+        <button class="btn danger" id="btnStop" disabled>■ Detener</button>
+      </div>
+      <p class="mini">Atajos: <b>Ctrl+Shift+R</b> grabar/detener · <b>Ctrl+Shift+P</b> pausa · <b>Supr</b> borra la zona seleccionada.</p>
+    </div>
+
+  </aside>
+</main>
+
+<!-- ======================= RESULTADO ======================= -->
+<section class="result hidden" id="result">
+  <div class="result-box">
+    <div class="result-head">
+      <h2>Grabación lista</h2>
+      <button class="icon-btn" id="btnCloseResult" title="Cerrar">✕</button>
+    </div>
+    <video id="resultVideo" controls playsinline></video>
+    <div class="result-meta" id="resultMeta"></div>
+    <div class="result-actions">
+      <button class="btn primary" id="btnDownload">⭳ Descargar vídeo</button>
+      <button class="btn ghost" id="btnNewRec">Grabar otra vez</button>
+    </div>
+  </div>
+</section>
+
+<div class="rec-hud hidden" id="recHud">
+  <span class="rec-dot on"></span>
+  <span class="hud-timer" id="hudTimer">00:00:00</span>
+  <button class="hud-btn" id="hudPause" title="Pausar / reanudar (Ctrl+Shift+P)">❚❚</button>
+  <button class="hud-btn stop" id="hudStop" title="Detener (Ctrl+Shift+R)">■</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<video id="screenVideo" playsinline muted class="off"></video>
+<video id="camVideo" playsinline muted class="off"></video>
+
+<script src="app.js"></script>
+</body>
+</html>
