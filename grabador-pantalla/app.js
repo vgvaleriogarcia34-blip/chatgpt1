@@ -83,6 +83,11 @@ const el = {
   resultMeta: $('#resultMeta'),
   btnDownload: $('#btnDownload'),
   btnNewRec: $('#btnNewRec'),
+  btnDiscard: $('#btnDiscard'),
+  btnCancel: $('#btnCancel'),
+  btnLast: $('#btnLast'),
+  btnReset: $('#btnReset'),
+  hudCancel: $('#hudCancel'),
   btnCloseResult: $('#btnCloseResult'),
 
   toast: $('#toast'),
@@ -121,6 +126,8 @@ const state = {
   chunks: [],
   blob: null,
   blobUrl: null,
+  downloaded: false,
+  discardOnStop: false,
   mime: '',
   recording: false,
   paused: false,
@@ -1023,6 +1030,9 @@ function buildRecordingStream() {
 
 async function startRecording() {
   if (!hasSource()) { toast('Primero selecciona una pantalla o activa la cámara.', true); return; }
+  if (state.blob && !state.downloaded &&
+      !confirm('Tienes una grabación anterior sin descargar. Si empiezas otra, se perderá. ¿Continuar?')) return;
+  discardRecording(true);
   if (el.swMic.checked && !state.micStream) await startMic();
   resizeCanvas();
 
@@ -1060,6 +1070,7 @@ async function startRecording() {
   el.btnRecord.classList.add('recording');
   el.btnPause.disabled = false;
   el.btnStop.disabled = false;
+  el.btnCancel.disabled = false;
   el.selRes.disabled = true;
   el.selFps.disabled = true;
   el.selBitrate.disabled = true;
@@ -1138,6 +1149,7 @@ function stopRecording() {
   el.btnPause.disabled = true;
   el.btnPause.textContent = '❚❚ Pausa';
   el.btnStop.disabled = true;
+  el.btnCancel.disabled = true;
   el.selRes.disabled = false;
   el.selFps.disabled = false;
   el.selBitrate.disabled = false;
@@ -1147,6 +1159,13 @@ function stopRecording() {
 }
 
 function finishRecording() {
+  if (state.discardOnStop) {
+    state.discardOnStop = false;
+    state.chunks = [];
+    discardRecording(true);
+    toast('Grabación descartada. Ya puedes empezar otra.');
+    return;
+  }
   const type = state.chunks[0] && state.chunks[0].type ? state.chunks[0].type : (OUTPUT.m || 'video/webm');
   state.blob = new Blob(state.chunks, { type });
   state.chunks = [];
@@ -1162,7 +1181,70 @@ function finishRecording() {
     `Voz: <b>${state.micStream ? 'sí' : 'no'}</b> · Cámara: <b>${state.camStream ? 'sí' : 'no'}</b> · ` +
     `Audio del sistema: <b>${state.sysTrack ? 'sí' : 'no'}</b> · Zonas ocultas: <b>${zonasActivas}</b>`;
   el.result.classList.remove('hidden');
+  updateLastButton();
   setStatus('Grabación lista');
+}
+
+/* ------------------- Borrar, repetir y empezar de cero --------------------
+   Todo se puede rehacer sin recargar la aplicación: descartar lo grabado a
+   mitad, borrar el vídeo terminado o dejar la aplicación como recién abierta. */
+function updateLastButton() {
+  el.btnLast.classList.toggle('hidden', !state.blob);
+}
+
+function discardRecording(silent) {
+  if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+  state.blob = null;
+  state.blobUrl = null;
+  state.chunks = [];
+  state.downloaded = false;
+  state.elapsed = 0;
+  try { el.resultVideo.pause(); } catch (e) {}
+  el.resultVideo.removeAttribute('src');
+  el.resultVideo.load();
+  el.result.classList.add('hidden');
+  el.timer.textContent = '00:00:00';
+  el.hudTimer.textContent = '00:00:00';
+  el.psTimer.textContent = '00:00:00';
+  updateLastButton();
+  setStatus(hasSource() ? 'Listo para grabar' : 'Sin fuente seleccionada');
+  if (!silent) toast('Grabación borrada. Puedes empezar otra cuando quieras.');
+}
+
+function cancelRecording() {
+  if (!state.recording) return;
+  if (!confirm('¿Descartar esta grabación? Se perderá lo grabado hasta ahora y podrás empezar de nuevo.')) return;
+  state.discardOnStop = true;
+  stopRecording();
+}
+
+function showLastRecording() {
+  if (!state.blob) return;
+  el.result.classList.remove('hidden');
+}
+
+function resetApp() {
+  const aviso = 'Empezar de cero:\n\n· se deja de compartir la pantalla\n· se apaga la cámara\n' +
+                '· se borran las zonas privadas\n· se borra la última grabación\n\n¿Continuar?';
+  if (!confirm(aviso)) return;
+  if (state.recording) { state.discardOnStop = true; stopRecording(); }
+  stopCam(true);
+  el.swCam.checked = false;
+  stopScreen(true);
+  discardRecording(true);
+  state.zones = [];
+  state.selectedZone = null;
+  state.drawMode = false;
+  el.btnDraw.classList.remove('active');
+  el.overlay.classList.remove('drawing');
+  renderZones();
+  saveSettings();
+  state.stillMode = false;
+  state.selfCapture = false;
+  state.revealPreview = false;
+  updatePreviewLayers();
+  updateMirrorWarning();
+  toast('Aplicación reiniciada. Selecciona una pantalla para empezar.');
 }
 
 function downloadBlob() {
@@ -1173,6 +1255,7 @@ function downloadBlob() {
   document.body.appendChild(a);
   a.click();
   a.remove();
+  state.downloaded = true;
   toast('Vídeo descargado.');
 }
 
@@ -1306,11 +1389,20 @@ el.btnFullscreen.addEventListener('click', () => {
 });
 
 el.btnDownload.addEventListener('click', downloadBlob);
+el.btnDiscard.addEventListener('click', () => {
+  if (confirm('¿Borrar esta grabación? No se podrá recuperar.')) discardRecording();
+});
+el.btnCancel.addEventListener('click', cancelRecording);
+el.hudCancel.addEventListener('click', cancelRecording);
+el.btnLast.addEventListener('click', showLastRecording);
+el.btnReset.addEventListener('click', resetApp);
 el.btnCloseResult.addEventListener('click', () => el.result.classList.add('hidden'));
 el.btnNewRec.addEventListener('click', () => {
   el.result.classList.add('hidden');
   el.timer.textContent = '00:00:00';
+  updateLastButton();
   setStatus(hasSource() ? 'Listo para grabar' : 'Sin fuente seleccionada');
+  if (!state.downloaded) toast('La grabación anterior sigue guardada en “Ver la última grabación”.');
 });
 
 document.addEventListener('keydown', (e) => {
@@ -1353,4 +1445,5 @@ if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
   if (!checkSupport()) return;
   refreshDevices();
   syncPreviewGeometry();
+  updateLastButton();
 })();

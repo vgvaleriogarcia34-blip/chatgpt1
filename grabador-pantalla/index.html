@@ -223,6 +223,9 @@
         <button class="btn ghost" id="btnPause" disabled>❚❚ Pausa</button>
         <button class="btn danger" id="btnStop" disabled>■ Detener</button>
       </div>
+      <button class="btn ghost block" id="btnCancel" disabled>✕ Descartar lo grabado y empezar de nuevo</button>
+      <button class="btn ghost block hidden" id="btnLast">▶ Ver la última grabación</button>
+      <button class="btn ghost block" id="btnReset">⟲ Empezar de cero</button>
       <p class="mini">Atajos: <b>Ctrl+Shift+R</b> grabar/detener · <b>Ctrl+Shift+P</b> pausa · <b>Supr</b> borra la zona seleccionada.</p>
     </div>
 
@@ -240,7 +243,8 @@
     <div class="result-meta" id="resultMeta"></div>
     <div class="result-actions">
       <button class="btn primary" id="btnDownload">⭳ Descargar vídeo</button>
-      <button class="btn ghost" id="btnNewRec">Grabar otra vez</button>
+      <button class="btn ghost" id="btnNewRec">↻ Grabar otra vez</button>
+      <button class="btn danger" id="btnDiscard">🗑 Borrar esta grabación</button>
     </div>
   </div>
 </section>
@@ -251,6 +255,7 @@
   <button class="hud-btn" id="hudEye" title="Mostrar u ocultar la vista previa (Ctrl+Shift+V)">👁</button>
   <button class="hud-btn" id="hudPause" title="Pausar / reanudar (Ctrl+Shift+P)">❚❚</button>
   <button class="hud-btn stop" id="hudStop" title="Detener (Ctrl+Shift+R)">■</button>
+  <button class="hud-btn" id="hudCancel" title="Descartar esta grabación y empezar de nuevo">✕</button>
 </div>
 
 <div class="toast" id="toast"></div>

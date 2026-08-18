@@ -27,6 +27,7 @@ se sube a ningún servidor.
    mientras grabas.
 6. **5 · Calidad** → resolución, fotogramas por segundo, calidad del vídeo y cuenta atrás.
 7. Pulsa **Empezar a grabar**. Al detener aparece el vídeo listo para revisar y descargar.
+8. ¿No te ha gustado la toma? **Borrar esta grabación** y a repetirla; no hace falta cerrar nada.
 
 ## Lo que incluye
 
@@ -36,6 +37,7 @@ se sube a ningún servidor.
 - Zonas privadas ilimitadas con tres modos de tapado y control de intensidad.
 - Sin efecto espejo: se detecta solo, la vista previa pasa a imagen fija y se apaga al grabar; la grabación no se congela aunque minimices el navegador.
 - Pausa y reanudación, cuenta atrás, controles flotantes mientras grabas y atajos de teclado.
+- Borrar la grabación, descartarla a mitad o reiniciar la aplicación entera sin recargar la página.
 - Captura PNG de la pantalla **ya censurada**.
 - Ajustes y zonas guardados en el navegador para la siguiente sesión.
 - Salida en MP4 (H.264) cuando el navegador lo soporta; si no, WebM.
@@ -48,6 +50,23 @@ se sube a ningún servidor.
 | `Ctrl` + `Shift` + `P` | Pausar / reanudar |
 | `Ctrl` + `Shift` + `V` | Mostrar u ocultar la vista previa mientras grabas |
 | `Supr` | Borrar la zona privada seleccionada |
+
+## Borrar y volver a empezar
+
+No hace falta cerrar y abrir la aplicación para repetir una toma:
+
+- **Borrar esta grabación** (en la ventana del resultado): borra el vídeo y deja todo
+  listo para grabar otra vez, con la misma pantalla y las mismas zonas.
+- **Grabar otra vez**: cierra el resultado sin borrar nada. El vídeo sigue disponible
+  en **Ver la última grabación**, por si aún quieres descargarlo.
+- **Descartar lo grabado y empezar de nuevo** (botón del panel, o la ✕ del control
+  flotante): tira lo grabado a mitad de la toma, sin llegar a generar el vídeo.
+- **Empezar de cero**: deja la aplicación como recién abierta — se deja de compartir la
+  pantalla, se apaga la cámara, se borran las zonas privadas y la última grabación.
+- Si empiezas una grabación nueva teniendo otra sin descargar, la aplicación avisa antes
+  de sustituirla.
+
+Todas las acciones que borran algo piden confirmación.
 
 ## El efecto espejo (bucle infinito)
 
