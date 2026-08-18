@@ -32,6 +32,15 @@ const el = {
   chkHidePreview: $('#chkHidePreview'),
   mirrorWarn: $('#mirrorWarn'),
   privacyScreen: $('#privacyScreen'),
+  still: $('#still'),
+  stillBar: $('#stillBar'),
+  btnStillRefresh: $('#btnStillRefresh'),
+  btnGoLive: $('#btnGoLive'),
+  btnPreviewMode: $('#btnPreviewMode'),
+  previewModeLabel: $('#previewModeLabel'),
+  marker: $('#marker'),
+  grabVeil: $('#grabVeil'),
+  btnRecheck: $('#btnRecheck'),
   psTimer: $('#psTimer'),
   btnReveal: $('#btnReveal'),
 
@@ -89,6 +98,8 @@ const tmp = document.createElement('canvas');
 const tmpCtx = tmp.getContext('2d');
 const small = document.createElement('canvas');
 const smallCtx = small.getContext('2d');
+const probe = document.createElement('canvas');       // para detectar el bucle
+const probeCtx = probe.getContext('2d', { willReadFrequently: true });
 
 /* --------------------------------- Estado -------------------------------- */
 const state = {
@@ -129,6 +140,9 @@ const state = {
   lastFrame: 0,
   surface: '',
   revealPreview: false,
+  stillMode: false,
+  selfCapture: false,
+  checking: false,
 };
 
 /* -------------------------------- Utilidades ----------------------------- */
@@ -160,6 +174,8 @@ function stamp() {
 }
 
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 function hasSource() { return !!state.screenStream || !!state.camStream; }
 
@@ -252,9 +268,10 @@ function attachScreen(stream) {
 
   if (el.swMic.checked && !state.micStream) startMic();
 
-  el.screenVideo.addEventListener('loadedmetadata', () => resizeCanvas(), { once: true });
-  setTimeout(resizeCanvas, 250);
+  el.screenVideo.addEventListener('loadedmetadata', () => { resizeCanvas(); syncPreviewGeometry(); }, { once: true });
+  setTimeout(() => { resizeCanvas(); syncPreviewGeometry(); }, 250);
   startLoop();
+  setTimeout(() => { runMirrorCheck(); }, 1000);
 }
 
 function stopScreen(updateUi = true) {
@@ -265,6 +282,9 @@ function stopScreen(updateUi = true) {
   el.screenVideo.srcObject = null;
   if (!updateUi) return;
   state.surface = '';
+  state.selfCapture = false;
+  state.stillMode = false;
+  updatePreviewLayers();
   updateMirrorWarning();
   el.sourceInfo.textContent = 'Ninguna fuente activa.';
   el.sourceInfo.classList.remove('on');
@@ -427,6 +447,7 @@ function fillSelect(select, devices, kind) {
 
 /* ------------------------------ Lienzo / dibujo -------------------------- */
 function resizeCanvas() {
+  setTimeout(syncPreviewGeometry, 0);
   if (state.recording) return; // no cambiamos la resolución a mitad de grabación
   let vw = 1280, vh = 720;
   if (state.screenStream && el.screenVideo.videoWidth) {
@@ -637,36 +658,153 @@ function stopLoop() {
 }
 
 /* ---------------------- Efecto espejo / túnel infinito -------------------
-   Al compartir la pantalla completa, la vista previa muestra la pantalla…
-   que a su vez contiene la vista previa, y así hasta el infinito. La imagen
-   se compone igualmente en el lienzo (que es lo que se graba), pero dejamos
-   de mostrarla mientras dura la grabación.                                */
+   Si lo que compartes contiene esta misma ventana (pantalla completa, o la
+   ventana del navegador), la vista previa se muestra a sí misma una y otra
+   vez. Se resuelve en dos frentes:
+     · se detecta el bucle pintando un color testigo y buscándolo en la
+       imagen capturada;
+     · cuando lo hay, la vista previa pasa a ser una IMAGEN FIJA (tomada con
+       la vista previa apagada, así que sale limpia) sobre la que se siguen
+       colocando las zonas privadas. El vídeo se graba en directo igual.   */
+
+const MARKER = { r: 255, g: 0, b: 230 };
+
+/* La capa de zonas y la imagen fija deben cuadrar al píxel con el lienzo. */
+function syncPreviewGeometry() {
+  const c = el.stage.getBoundingClientRect();
+  const w = el.canvasWrap.getBoundingClientRect();
+  if (!c.width || !c.height) return;
+  // clientLeft/clientTop descuentan el borde del contenedor
+  const box = {
+    left: c.left - w.left - el.canvasWrap.clientLeft,
+    top: c.top - w.top - el.canvasWrap.clientTop,
+    width: c.width,
+    height: c.height,
+  };
+  for (const node of [el.overlay, el.still]) {
+    node.style.left = box.left + 'px';
+    node.style.top = box.top + 'px';
+    node.style.width = box.width + 'px';
+    node.style.height = box.height + 'px';
+  }
+}
+
 function previewShouldHide() {
   return state.recording && el.chkHidePreview.checked && !state.revealPreview;
 }
 
-function updatePreviewMask() {
-  const hide = previewShouldHide();
-  el.canvasWrap.classList.toggle('preview-off', hide);
-  el.privacyScreen.classList.toggle('hidden', !hide);
-  el.hudEye.textContent = hide ? '👁' : '🙈';
-  el.hudEye.classList.toggle('stop', !hide && state.recording && state.surface === 'monitor');
+function updatePreviewLayers() {
+  const hideAll = previewShouldHide();
+  const showStill = state.stillMode && !hideAll;
+  el.canvasWrap.classList.toggle('preview-off', hideAll || showStill);
+  el.still.classList.toggle('hidden', !showStill);
+  el.stillBar.classList.toggle('hidden', !showStill || state.recording);
+  el.privacyScreen.classList.toggle('hidden', !hideAll);
+  el.hudEye.textContent = hideAll ? '👁' : '🙈';
+  el.previewModeLabel.textContent = state.stillMode ? 'Imagen fija' : 'Vista en directo';
+  el.btnPreviewMode.classList.toggle('active', state.stillMode);
+  syncPreviewGeometry();
 }
+
+/* Mantener por compatibilidad con el resto del código */
+function updatePreviewMask() { updatePreviewLayers(); }
 
 function toggleReveal() {
   if (!state.recording) return;
   state.revealPreview = !state.revealPreview;
-  updatePreviewMask();
-  if (state.revealPreview && state.surface === 'monitor') {
-    toast('Vista previa visible: al grabar la pantalla completa reaparecerá el efecto espejo.');
+  updatePreviewLayers();
+  if (state.revealPreview && (state.selfCapture || state.surface === 'monitor')) {
+    toast('Vista previa visible: puede reaparecer el efecto espejo en el vídeo.');
   }
 }
 
+/* ---- Imagen fija ---- */
+async function refreshStill() {
+  if (!state.screenStream || !el.screenVideo.videoWidth) return;
+  el.grabVeil.classList.remove('hidden');        // nada en pantalla mientras se toma la foto
+  el.canvasWrap.classList.add('preview-off');
+  await sleep(420);                              // margen para que la captura recoja el cambio
+  const w = el.stage.width, h = el.stage.height;
+  el.still.width = w; el.still.height = h;
+  const g = el.still.getContext('2d');
+  g.fillStyle = '#05070c';
+  g.fillRect(0, 0, w, h);
+  const r = containRect(el.screenVideo.videoWidth, el.screenVideo.videoHeight, w, h);
+  g.drawImage(el.screenVideo, r.x, r.y, r.w, r.h);
+  el.grabVeil.classList.add('hidden');
+  updatePreviewLayers();
+}
+
+async function enterStillMode() {
+  state.stillMode = true;
+  updatePreviewLayers();
+  await refreshStill();
+}
+
+function exitStillMode() {
+  state.stillMode = false;
+  updatePreviewLayers();
+}
+
+async function togglePreviewMode() {
+  if (state.stillMode) {
+    exitStillMode();
+    if (state.selfCapture) toast('Cuidado: estás capturando esta misma ventana, volverá el efecto espejo.');
+  } else {
+    await enterStillMode();
+  }
+}
+
+/* ---- Detección del bucle ---- */
+function markerVisibleInCapture() {
+  const vw = el.screenVideo.videoWidth, vh = el.screenVideo.videoHeight;
+  if (!vw || !vh) return false;
+  const w = 320, h = Math.max(1, Math.round((320 * vh) / vw));
+  probe.width = w; probe.height = h;
+  probeCtx.drawImage(el.screenVideo, 0, 0, w, h);
+  const d = probeCtx.getImageData(0, 0, w, h).data;
+  let hits = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i] > 200 && d[i + 1] < 90 && d[i + 2] > 170 && d[i + 2] < 255 && d[i] - d[i + 1] > 110) hits++;
+  }
+  return hits > w * h * 0.004;   // el testigo ocupa bastante más que un 0,4% si sale en la captura
+}
+
+async function runMirrorCheck() {
+  if (!state.screenStream || state.recording || state.checking) return false;
+  state.checking = true;
+  const prevStill = state.stillMode;
+  setStatus('Comprobando el efecto espejo…');
+  el.canvasWrap.classList.add('preview-off');    // que no se vea la vista previa bajo el testigo
+  el.marker.classList.remove('hidden');
+  await sleep(520);
+  const found = markerVisibleInCapture();
+  el.marker.classList.add('hidden');
+  state.selfCapture = found;
+  state.checking = false;
+
+  if (found) {
+    if (!prevStill) await enterStillMode(); else await refreshStill();
+  } else {
+    updatePreviewLayers();
+  }
+  updateMirrorWarning();
+  setStatus(state.recording ? 'Grabando' : 'Listo para grabar');
+  return found;
+}
+
 function updateMirrorWarning() {
-  if (state.surface === 'monitor') {
+  el.btnRecheck.classList.toggle('hidden', !state.screenStream);
+  if (state.selfCapture) {
+    el.mirrorWarn.innerHTML =
+      '<b>Efecto espejo detectado.</b> Lo que compartes incluye esta misma ventana, así que la vista ' +
+      'previa se veía a sí misma en bucle. La he cambiado por una <b>imagen fija</b>: coloca las zonas ' +
+      'sobre ella con normalidad, el vídeo se graba en directo igual.';
+    el.mirrorWarn.classList.remove('hidden');
+  } else if (state.surface === 'monitor') {
     el.mirrorWarn.textContent =
-      'Estás compartiendo la pantalla completa. Es normal ver el efecto espejo en la vista previa: ' +
-      'al pulsar Grabar se apagará sola para que no salga en el vídeo.';
+      'Estás compartiendo la pantalla completa. Si aparece el efecto espejo, la vista previa se apagará ' +
+      'al grabar para que no salga en el vídeo.';
     el.mirrorWarn.classList.remove('hidden');
   } else {
     el.mirrorWarn.classList.add('hidden');
@@ -1150,6 +1288,13 @@ el.btnPause.addEventListener('click', togglePause);
 el.btnStop.addEventListener('click', stopRecording);
 el.btnShot.addEventListener('click', screenshot);
 el.hudEye.addEventListener('click', toggleReveal);
+el.btnPreviewMode.addEventListener('click', togglePreviewMode);
+el.btnStillRefresh.addEventListener('click', refreshStill);
+el.btnGoLive.addEventListener('click', togglePreviewMode);
+el.btnRecheck.addEventListener('click', async () => {
+  const found = await runMirrorCheck();
+  toast(found ? 'Sigue habiendo efecto espejo: vista fija activada.' : 'Sin efecto espejo: vista en directo.');
+});
 el.btnReveal.addEventListener('click', toggleReveal);
 el.chkHidePreview.addEventListener('change', () => { updatePreviewMask(); saveSettings(); });
 el.hudPause.addEventListener('click', togglePause);
@@ -1185,6 +1330,10 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+window.addEventListener('resize', syncPreviewGeometry);
+if (window.ResizeObserver) new ResizeObserver(syncPreviewGeometry).observe(el.stage);
+document.addEventListener('fullscreenchange', () => setTimeout(syncPreviewGeometry, 60));
+
 window.addEventListener('beforeunload', (e) => {
   if (state.recording) { e.preventDefault(); e.returnValue = ''; }
 });
@@ -1203,4 +1352,5 @@ if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
   loadSettings();
   if (!checkSupport()) return;
   refreshDevices();
+  syncPreviewGeometry();
 })();

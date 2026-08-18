@@ -34,7 +34,7 @@ se sube a ningún servidor.
 - Narración con micrófono, con selector de dispositivo, medidor de nivel y mezcla de volúmenes.
 - Cámara opcional en recuadro (4 esquinas, tamaño, redonda o rectangular, espejo) o a pantalla completa.
 - Zonas privadas ilimitadas con tres modos de tapado y control de intensidad.
-- Sin efecto espejo: la vista previa se apaga al grabar y la grabación no se congela aunque minimices el navegador.
+- Sin efecto espejo: se detecta solo, la vista previa pasa a imagen fija y se apaga al grabar; la grabación no se congela aunque minimices el navegador.
 - Pausa y reanudación, cuenta atrás, controles flotantes mientras grabas y atajos de teclado.
 - Captura PNG de la pantalla **ya censurada**.
 - Ajustes y zonas guardados en el navegador para la siguiente sesión.
@@ -51,26 +51,32 @@ se sube a ningún servidor.
 
 ## El efecto espejo (bucle infinito)
 
-Al compartir **la pantalla completa**, la vista previa muestra tu pantalla… en la que
-está la propia vista previa, que a su vez muestra la pantalla. De ahí el túnel infinito
-que se cuela en el vídeo.
+Si lo que compartes contiene esta misma ventana —la pantalla completa, o la propia
+ventana del navegador— la vista previa muestra la pantalla… en la que está la vista
+previa, que muestra la pantalla, y así hasta el infinito.
 
-La aplicación lo evita así:
+La aplicación lo resuelve sin que tengas que hacer nada:
 
-- **Apaga la vista previa mientras grabas** (casilla *Ocultar la vista previa al grabar*,
-  activada por defecto). La imagen se sigue componiendo y grabando; simplemente deja de
-  mostrarse en pantalla, así que no hay nada que reflejar. En su lugar verás un panel con
-  el cronómetro.
-- Puedes volver a mostrarla en cualquier momento con el botón del ojo del control flotante
-  o con `Ctrl` + `Shift` + `V`, por si grabas una ventana concreta y prefieres verla.
-- **Esta pestaña no aparece en la lista de fuentes**, para que no puedas elegirla por error
-  (sería un espejo puro).
-- **Puedes minimizar el navegador**: la composición del vídeo se alimenta de un temporizador
-  en un *Web Worker*, así que la grabación no se congela aunque la ventana quede oculta o
-  tapada por otra aplicación.
-
-Antes de empezar a grabar es normal ver el efecto en la vista previa: desaparece al pulsar
-*Empezar a grabar*.
+1. **Lo detecta sola.** Al elegir la fuente pinta durante medio segundo un color
+   testigo sobre la vista previa y comprueba si ese color aparece en la imagen
+   capturada. Si aparece, es que te estás capturando a ti mismo.
+2. **Cambia a imagen fija.** En lugar del directo verás una **foto** de tu pantalla,
+   tomada con la vista previa apagada, así que sale limpia y sin bucle. Colocas las
+   zonas privadas sobre esa foto con normalidad: **el vídeo se sigue grabando en
+   directo**, la foto es solo la referencia para dibujar.
+   - *Actualizar imagen* vuelve a hacer la foto cuando cambie lo que hay en pantalla.
+   - *Ver en directo* fuerza el directo si prefieres asumir el bucle.
+   - El botón **Vista en directo / Imagen fija** de la barra superior alterna a mano.
+   - *Volver a comprobar el efecto espejo* repite la detección cuando cambies de fuente.
+3. **Apaga la vista previa al grabar** (casilla activada por defecto): mientras dura la
+   grabación se muestra un panel con el cronómetro en vez de la imagen, así que no hay
+   nada que reflejar. Se puede volver a mostrar con el botón del ojo del control flotante
+   o con `Ctrl` + `Shift` + `V`.
+4. **Esta pestaña no aparece en la lista de fuentes**, para que no puedas elegirla por
+   error (sería un espejo puro).
+5. **Puedes minimizar el navegador**: la composición del vídeo se alimenta de un
+   temporizador en un *Web Worker*, así que la grabación no se congela aunque la ventana
+   quede oculta o tapada por otra aplicación.
 
 ## Importante sobre las zonas privadas
 

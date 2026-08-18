@@ -37,6 +37,9 @@
         <button class="chip" data-type="pixel">Pixelado</button>
       </div>
       <div class="spacer"></div>
+      <button class="tool ghost" id="btnPreviewMode" title="Alternar entre vista en directo e imagen fija">
+        <span class="ico">👁</span> <span id="previewModeLabel">Vista en directo</span>
+      </button>
       <button class="tool ghost" id="btnShot" title="Guardar una imagen PNG con las zonas ya ocultas">
         <span class="ico">◈</span> Captura PNG
       </button>
@@ -47,7 +50,15 @@
 
     <div class="canvas-wrap" id="canvasWrap">
       <canvas id="stage"></canvas>
+      <canvas id="still" class="still hidden"></canvas>
       <div class="overlay" id="overlay"></div>
+      <div class="still-bar hidden" id="stillBar">
+        <span class="sb-txt">Imagen fija · el vídeo se graba en directo igualmente</span>
+        <button class="chip-btn" id="btnStillRefresh">Actualizar imagen</button>
+        <button class="chip-btn" id="btnGoLive">Ver en directo</button>
+      </div>
+      <div class="veil hidden" id="marker"><span>Comprobando el efecto espejo…</span></div>
+      <div class="veil dark hidden" id="grabVeil"><span>Actualizando la imagen…</span></div>
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">🖥️</div>
         <h2>Elige qué quieres grabar</h2>
@@ -92,6 +103,7 @@
       </label>
       <p class="mini">Si grabas la pantalla completa, la vista previa se vería a sí misma en bucle infinito. Con esta opción se apaga durante la grabación.</p>
       <div class="warn hidden" id="mirrorWarn"></div>
+      <button class="btn ghost block hidden" id="btnRecheck">Volver a comprobar el efecto espejo</button>
       <button class="btn ghost block hidden" id="btnStopSource">Dejar de compartir</button>
     </div>
 
