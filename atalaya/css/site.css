@@ -211,3 +211,4 @@ svg.og.lapiz .ognodes, svg.og.goma .ognodes { pointer-events: none; }
 .rj-bar .icon-btn { width: 26px; height: 26px; }
 .rj-float.min .rj-host { display: none; }
 body.rj-window { margin: 0; padding: 14px; background: var(--abyss, #070c1a); color: var(--fg); font-family: var(--font-body); min-height: 100vh; }
+.st-repbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(10, 16, 34, 0.5); }
