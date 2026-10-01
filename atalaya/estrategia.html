@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atalaya · Sistema estratégico</title>
+<meta name="description" content="Sistema integrado de decisiones estratégicas: dinero, impuestos, tesorería, presupuesto, clientes, margen, compras, tiempos, Lean, personas, mercado y auditoría.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/atalaya.css">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<header class="topbar">
+  <a class="brand" href="index.html"><b>Atalaya</b><span>Sistema estratégico</span></a>
+  <span class="spacer"></span>
+  <a class="btn ghost" href="app.html">Simulador de inversión</a>
+  <div class="account" id="account"></div>
+</header>
+<main class="st-main">
+  <nav class="st-tabs" id="stTabs" role="tablist" aria-label="Módulos"></nav>
+  <section class="st-panel" id="stPanel" aria-live="polite"></section>
+</main>
+<script src="js/platform.js"></script>
+<script src="js/sectors.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/content.js"></script>
+<script src="js/docs.js"></script>
+<script src="js/financials.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/strategy/core.js"></script>
+<script src="js/strategy/finance.js"></script>
+<script src="js/strategy/commercial.js"></script>
+<script src="js/strategy/operations.js"></script>
+<script src="js/strategy/market.js"></script>
+<script src="js/assistant.js"></script>
+<script>Atalaya.strat.start();</script>
+</body>
+</html>

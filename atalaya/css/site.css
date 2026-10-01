@@ -84,7 +84,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .st-tabs { display: flex; gap: 4px; overflow-x: auto; padding: 4px; border-radius: 14px; border: 1px solid var(--line); background: rgba(8, 13, 28, 0.7); position: sticky; top: calc(76px + env(safe-area-inset-top, 0px)); z-index: 20; backdrop-filter: blur(12px); scrollbar-width: none; }
 .st-tabs button { border: 0; background: none; color: var(--muted); padding: 8px 12px; border-radius: 10px; font-size: var(--t-s); white-space: nowrap; }
 .st-tabs button[aria-selected="true"] { background: var(--raise); color: var(--gold-soft); box-shadow: 0 0 0 1px var(--line-strong) inset; }
-.st-panel { margin-top: 18px; display: grid; gap: 14px; }
+.st-panel { margin-top: 18px; display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
 .etable { overflow-x: auto; }
 .etable table td { padding: 4px 6px; }
 .etable input { width: 100%; min-width: 70px; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 5px 6px; color: var(--fg); font-family: var(--font-data); font-size: 0.8rem; text-align: right; }
@@ -111,3 +111,17 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 @media (max-width: 640px) { .dafo { grid-template-columns: 1fr; } .matrix3 { grid-template-columns: 52px repeat(3, minmax(0, 1fr)); } }
 .period { display: flex; gap: 4px; }
 .hint { font-size: var(--t-xs); color: var(--faint); }
+.st-tabs .tabsep { width: 1px; background: var(--line); margin: 6px 4px; flex: 0 0 auto; }
+.areas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+.area { text-align: left; padding: 14px; display: grid; gap: 6px; color: var(--fg); cursor: pointer; align-content: start; }
+.area:hover { border-color: var(--line-strong); }
+.arow { display: grid; grid-template-columns: minmax(0, 1fr) auto 10px; gap: 8px; align-items: center; font-size: var(--t-s); color: var(--muted); }
+.arow b { color: var(--fg); font-weight: 500; font-size: 0.85rem; }
+.cascade { display: grid; gap: 12px; }
+.cobj { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(212, 174, 100, 0.04); display: grid; gap: 8px; }
+.carea { margin-left: 18px; padding: 8px 12px; border-left: 2px solid var(--gold); display: grid; gap: 4px; }
+.carea ul { margin: 0; padding-left: 18px; color: var(--muted); }
+.tsTable td, .tsTable th { font-size: 0.75rem; padding: 6px 8px; }
+.st-panel > .eyebrow { margin-top: 6px; }
+.paper th, .paper td { white-space: normal; }
+.kpi .k { flex-wrap: wrap; }

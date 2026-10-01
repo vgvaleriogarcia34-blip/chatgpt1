@@ -194,6 +194,34 @@
     { t: 'Leasing y renting', cat: 'Societario', d: 'Fórmulas para usar un activo pagando una cuota. El leasing incluye opción de compra; el renting incluye servicios y no aparece como deuda bancaria.', dir: [], ind: [] }
   ];
 
+  /* Conceptos del sistema estratégico */
+  A.GLOSSARY.push(
+    { t: 'Flujo del dinero (estado de origen y aplicación de fondos)', cat: 'Liquidez', d: 'Explica por qué el beneficio no coincide con lo que hay en el banco: qué generó el negocio y en qué se aplicó (clientes, stock, inversiones, deuda, dividendos).', f: 'beneficio + amortización ± circulante − inversión ± deuda − dividendos = variación de caja', dir: ['empresa.dso', 'empresa.dio', 'empresa.dpo'], ind: ['inversion.importe'] },
+    { t: 'Recursos generados', cat: 'Liquidez', d: 'Beneficio más amortización: el dinero que produce el negocio antes de financiar clientes, stock e inversiones.', f: 'beneficio neto + amortización', dir: [], ind: ['empresa.margen'] },
+    { t: 'IVA', cat: 'Impuestos', d: 'Impuesto que cobras a tus clientes y pagas a tus proveedores. Ingresas la diferencia cada trimestre (modelo 303). No es un coste, pero mueve mucha caja.', f: 'IVA repercutido − IVA soportado', dir: [], ind: ['empresa.dso'] },
+    { t: 'Pago fraccionado', cat: 'Impuestos', d: 'Anticipo del Impuesto sobre Sociedades que se paga en abril, octubre y diciembre (modelo 202), normalmente el 18 % de la cuota del último año.', dir: [], ind: [] },
+    { t: 'Retenciones', cat: 'Impuestos', d: 'Parte del salario o del alquiler que la empresa retiene y entrega a Hacienda en nombre del trabajador o del arrendador (modelos 111 y 115).', dir: [], ind: ['empresa.personal'] },
+    { t: 'Reserva de capitalización', cat: 'Impuestos', d: 'Reducción de la base imponible por dejar beneficios dentro de la empresa en lugar de repartirlos, con la condición de mantenerlos varios años.', dir: [], ind: ['empresa.fondosPropios'] },
+    { t: 'Reserva de nivelación', cat: 'Impuestos', d: 'Permite a las empresas de reducida dimensión rebajar la base imponible de hoy y compensarla con pérdidas futuras: aplaza impuestos.', dir: [], ind: [] },
+    { t: 'Tesorería a 13 semanas', cat: 'Liquidez', d: 'Previsión de cobros y pagos semana a semana durante un trimestre. Anticipa los baches de caja antes de que lleguen.', dir: ['empresa.caja', 'empresa.polizaLimite'], ind: ['empresa.dso', 'empresa.dpo'] },
+    { t: 'Tiempo facturable', cat: 'Personas', d: 'Parte de las horas del equipo dedicada directamente a producir lo que se vende. El resto lo consume el sistema interno: gestión, reuniones, errores y esperas.', f: 'horas facturables ÷ horas totales', dir: [], ind: ['humano.procesos'] },
+    { t: 'Lean', cat: 'Operaciones', d: 'Método para producir más con lo mismo eliminando todo lo que no aporta valor al cliente: esperas, movimientos, stock, errores.', dir: [], ind: [] },
+    { t: 'Takt time', cat: 'Operaciones', d: 'Ritmo al que hay que producir para atender exactamente la demanda.', f: 'tiempo disponible ÷ demanda', ej: '900 minutos al día y 400 unidades pedidas: una unidad cada 2,25 minutos.', dir: [], ind: [] },
+    { t: 'Cuello de botella', cat: 'Operaciones', d: 'El paso más lento del proceso. Marca la capacidad de toda la empresa: mejorar cualquier otro paso no aumenta la producción.', dir: [], ind: [] },
+    { t: 'OEE', cat: 'Operaciones', d: 'Eficiencia global de una máquina: cuánto de su tiempo produce piezas buenas a la velocidad correcta. Un 85 % es clase mundial; por debajo del 60 % hay mucho margen.', f: 'disponibilidad × rendimiento × calidad', dir: [], ind: [] },
+    { t: 'Lead time', cat: 'Operaciones', d: 'Tiempo total que tarda un pedido desde que entra hasta que sale, incluidas las esperas.', dir: [], ind: [] },
+    { t: 'Los 8 desperdicios', cat: 'Operaciones', d: 'Transporte, inventario, movimientos, esperas, sobreproceso, sobreproducción, defectos y talento no aprovechado.', dir: [], ind: [] },
+    { t: '5S', cat: 'Operaciones', d: 'Método de orden en el puesto de trabajo: clasificar, ordenar, limpiar, estandarizar y mantener la disciplina.', dir: [], ind: [] },
+    { t: 'Kaizen', cat: 'Operaciones', d: 'Mejora continua a base de pequeños cambios propuestos por quienes hacen el trabajo.', dir: [], ind: [] },
+    { t: 'Matriz de Kraljic', cat: 'Estrategia', d: 'Clasifica proveedores por su peso en el gasto y el riesgo de suministro: estratégicos, apalancados, cuello de botella y no críticos.', dir: [], ind: [] },
+    { t: 'OTIF', cat: 'Operaciones', d: 'Porcentaje de pedidos entregados a tiempo y completos (On Time In Full).', f: '% a tiempo × % completos', dir: [], ind: [] },
+    { t: 'CAC y LTV', cat: 'Estrategia', d: 'CAC es lo que cuesta conseguir un cliente; LTV, el margen que deja durante toda la relación. Un canal sano tiene un LTV de al menos 3 veces el CAC.', dir: [], ind: [] },
+    { t: 'Pipeline comercial', cat: 'Estrategia', d: 'Conjunto de oportunidades de venta abiertas con su probabilidad de cierre. La previsión ponderada multiplica cada importe por su probabilidad.', dir: [], ind: [] },
+    { t: 'Análisis PESTEL y macro', cat: 'Estrategia', d: 'Revisión del entorno político, económico, social, tecnológico, ecológico y legal, y de indicadores como PIB, inflación, tipos y paro, para anticipar su efecto en ventas, costes y financiación.', dir: [], ind: [] },
+    { t: 'Euríbor', cat: 'Financiación', d: 'Tipo de referencia al que se prestan los bancos de la zona euro. La mayoría de préstamos a tipo variable se calculan como Euríbor más un diferencial.', dir: ['inversion.tipo'], ind: [] },
+    { t: 'Cascada de objetivos (macro → micro)', cat: 'Estrategia', d: 'Bajar un objetivo general de la empresa a objetivos de cada área, sus indicadores y acciones concretas con responsable y fecha.', dir: [], ind: [] }
+  );
+
   A.FIELD_LABELS = {
     'empresa.ventas': 'Ventas anuales', 'empresa.margen': 'Margen bruto', 'empresa.personal': 'Coste de personal', 'empresa.fijos': 'Otros gastos fijos',
     'empresa.plantilla': 'Plantilla', 'empresa.crecimiento': 'Crecimiento orgánico', 'empresa.caja': 'Caja disponible', 'empresa.deudaViva': 'Deuda viva',
