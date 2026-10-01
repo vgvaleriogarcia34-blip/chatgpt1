@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atalaya</title>
+<meta name="description" content="Simulador de inversión y crecimiento: liquidez, retorno, estructura humana y societaria en escenarios 3D.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/atalaya.css">
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+
+<header class="topbar" role="banner">
+  <div class="brand"><b>Atalaya</b><span>Simulador de crecimiento</span></div>
+  <div class="seg" id="scenarioSeg" role="group" aria-label="Escenario activo"></div>
+  <button class="verdict-pill v-warn" id="verdictPill" data-info="veredicto"><span class="dot"></span><span class="txt" id="verdictTxt">Calculando…</span></button>
+</header>
+
+<nav class="dock" id="dock" aria-label="Navegación y herramientas"></nav>
+<div class="toolbox glass" id="toolbox" hidden></div>
+<div class="float-card" id="floatCard" hidden role="dialog" aria-live="polite"></div>
+
+<main>
+  <!-- Puente de mando -->
+  <section class="chapter" id="puente">
+    <div class="hero">
+      <div>
+        <div class="eyebrow">Puente de mando</div>
+        <h1 class="mt">¿Puede la empresa <em>pagar su crecimiento</em> con lo que ya gana?</h1>
+        <p class="lede">Atalaya proyecta mes a mes la empresa con y sin la inversión, en cinco escenarios a la vez, y te dice si la estructura financiera y el equipo están listos para el movimiento, o qué les falta para estarlo.</p>
+        <div class="company">
+          <label>Empresa <input id="empresaNombre" class="input-inline"></label>
+          <label>Proyecto <input id="proyecto" class="input-inline"></label>
+          <span id="sectorLabel"></span>
+        </div>
+      </div>
+      <div class="glass verdict-card" id="verdictCard"></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <!-- I. Empresa -->
+  <section class="chapter" id="empresa">
+    <div class="eyebrow"><span class="roman">I</span> Punto de partida</div>
+    <h2>La empresa <em>hoy</em></h2>
+    <p class="lede">Elige el sector para cargar sus idiosincrasias (márgenes, peso salarial, ciclo de cobro y pago, estacionalidad, velocidad de rampa) y ajusta después tus cifras reales.</p>
+    <div class="glass pad mt stack">
+      <h4>Perfil sectorial</h4>
+      <div class="sectors" id="sectors"></div>
+      <p class="small muted" id="sectorNote"></p>
+    </div>
+    <div class="grid cols-2 mt">
+      <div class="glass pad"><h4>Cuenta de resultados</h4><div class="fields" id="f-pyg"></div></div>
+      <div class="glass pad"><h4>Balance y ciclo de caja</h4><div class="fields" id="f-balance"></div></div>
+    </div>
+  </section>
+
+  <!-- II. Inversión -->
+  <section class="chapter" id="inversion">
+    <div class="eyebrow"><span class="roman">II</span> El movimiento</div>
+    <h2>La inversión y su <em>dimensión</em></h2>
+    <p class="lede">Cuánto pesa la inversión frente a lo que la empresa ya es. Toca cualquier anillo para ver cómo se lee.</p>
+    <div class="glass pad mt"><div class="dimension" id="dimension"></div></div>
+    <div class="grid cols-3 mt">
+      <div class="glass pad"><h4>Importe y financiación</h4><div class="fields" id="f-fin"></div></div>
+      <div class="glass pad"><h4>Actividad nueva</h4><div class="fields" id="f-act"></div></div>
+      <div class="glass pad"><h4>Personas y estructura</h4><div class="fields" id="f-org"></div></div>
+    </div>
+  </section>
+
+  <!-- III. Horizonte 3D -->
+  <section class="chapter" id="horizonte">
+    <div class="eyebrow"><span class="roman">III</span> Horizonte</div>
+    <h2>El terreno <em>antes de pisarlo</em></h2>
+    <p class="lede">Cada punto de la superficie es una empresa posible. Cambia los ejes para cruzar dos variables, pasa el cursor para leer cada combinación y haz clic para aplicarla. En «Trayectorias» ves la caja de los cinco escenarios avanzando mes a mes.</p>
+    <div class="stage mt" id="stage">
+      <canvas id="three" aria-label="Vista 3D de escenarios"></canvas>
+      <div class="hud">
+        <div class="glass">
+          <div class="seg" id="viewSeg" style="margin:0"></div>
+        </div>
+        <div class="glass" id="surfaceCtl">
+          <label for="axX">Eje X</label><select id="axX"></select>
+          <label for="axY">Eje Y</label><select id="axY"></select>
+          <label for="metricSel">Altura</label><select id="metricSel"></select>
+        </div>
+      </div>
+      <div class="legend3d glass" id="legend3d"></div>
+      <div class="help3d">Arrastra para girar · rueda para acercar</div>
+    </div>
+  </section>
+
+  <!-- IV. Escenarios -->
+  <section class="chapter" id="escenarios">
+    <div class="eyebrow"><span class="roman">IV</span> Escenarios</div>
+    <h2>Cinco futuros, <em>una tesorería</em></h2>
+    <p class="lede">La caja de la empresa en los próximos 60 meses según cada escenario. La línea roja es el suelo de liquidez; la dorada, tu caja mínima objetivo.</p>
+    <div class="glass pad mt">
+      <div class="chart-legend" id="cashLegend"></div>
+      <div class="chart" id="cashChart"></div>
+    </div>
+    <div class="grid cols-2 mt">
+      <div class="glass pad stack">
+        <h4>Comparativa de escenarios</h4>
+        <div class="table-wrap" id="scenarioTable"></div>
+      </div>
+      <div class="glass pad stack">
+        <div class="row"><h4>Campos hipotéticos</h4><span class="spacer"></span><button class="btn" id="addHyp">Añadir hipótesis</button></div>
+        <p class="small muted" style="margin:0">Sucesos que pueden ocurrir durante el despliegue. Actívalos para ver cómo mueven todos los escenarios.</p>
+        <div id="hypList"></div>
+        <h4 class="mt">Tu escenario de hipótesis</h4>
+        <div class="fields" id="f-custom"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- V. Semáforos y riesgos -->
+  <section class="chapter" id="riesgos">
+    <div class="eyebrow"><span class="roman">V</span> Semáforos y riesgos</div>
+    <h2>Lo que hay que <em>vigilar</em></h2>
+    <p class="lede">Diez semáforos de movimiento para el escenario activo, el mapa de riesgos y qué variable mueve más tu caja mínima.</p>
+    <div class="lights mt" id="lights"></div>
+    <div class="grid cols-2 mt">
+      <div class="glass pad stack"><h4>Mapa de riesgos · probabilidad × impacto</h4><div class="chart" id="riskMatrix"></div></div>
+      <div class="glass pad stack"><h4>Sensibilidad de la caja mínima</h4><div class="chart" id="tornado"></div></div>
+    </div>
+    <div class="glass pad mt"><h4>Registro de riesgos</h4><div class="table-wrap" id="riskTable"></div></div>
+  </section>
+
+  <!-- VI. Nuevo tamaño -->
+  <section class="chapter" id="tamano">
+    <div class="eyebrow"><span class="roman">VI</span> Nuevo tamaño operativo</div>
+    <h2>La empresa <em>que serás</em></h2>
+    <p class="lede" id="sizeLede">Hoy frente al año de crucero, cuando la actividad nueva ha completado su rampa.</p>
+    <div class="size-grid mt" id="sizeGrid"></div>
+    <div class="glass pad mt"><h4>Cuota mensual y EBITDA mensual</h4><div class="chart mt" id="debtChart"></div></div>
+  </section>
+
+  <!-- VII. Sistema humano -->
+  <section class="chapter" id="humano">
+    <div class="eyebrow"><span class="roman">VII</span> Sistema operativo humano</div>
+    <h2>¿Está el equipo listo <em>para la misión</em>?</h2>
+    <p class="lede">El dinero compra máquinas; el tamaño lo sostienen las personas. Seis dimensiones que deciden si la organización absorbe el crecimiento.</p>
+    <div class="grid cols-2 mt">
+      <div class="glass pad stack">
+        <div class="radar-wrap">
+          <div class="chart" id="radar"></div>
+          <div><div class="score-big" id="humanScore"></div><div class="small muted" id="humanTxt"></div></div>
+        </div>
+        <div id="humanDims"></div>
+      </div>
+      <div class="stack">
+        <div class="glass pad"><h4>Datos del equipo</h4><div class="fields" id="f-human"></div></div>
+        <div class="glass pad"><h4>Lo que necesita para estarlo</h4><div class="timeline mt" id="humanPlan"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIII. Estructuras -->
+  <section class="chapter" id="estructuras">
+    <div class="eyebrow"><span class="roman">VIII</span> Estructuras societarias</div>
+    <h2>El mismo objetivo, <em>otros vehículos</em></h2>
+    <p class="lede" id="structLede">Seis formas de hacer la misma inversión. Cada una cambia la caja, el retorno para la propiedad, el control y el tiempo hasta el tamaño pleno. Haz clic en una para adoptarla en todo el simulador.</p>
+    <div class="structs mt" id="structs"></div>
+    <p class="note mt">Comparativa orientativa para preparar la conversación con asesores fiscal y legal. No sustituye su dictamen.</p>
+  </section>
+
+  <!-- IX. Meta y plan -->
+  <section class="chapter" id="plan">
+    <div class="eyebrow"><span class="roman">IX</span> Meta y plan de corrección</div>
+    <h2>Cómo llegar a la <em>posición meta</em></h2>
+    <p class="lede">Define la posición que exiges al movimiento. Atalaya busca, de la palanca más sencilla a la más costosa, el mínimo cambio que la alcanza en el escenario activo.</p>
+    <div class="targets mt" id="targets"></div>
+    <div class="grid cols-2 mt">
+      <div class="stack"><h4>Plan combinado</h4><div id="planSummary"></div><div class="steps" id="planSteps"></div></div>
+      <div class="glass pad stack"><h4>¿Basta una sola palanca?</h4><div class="table-wrap" id="leverTable"></div></div>
+    </div>
+  </section>
+
+  <!-- X. Informe -->
+  <section class="chapter" id="informe">
+    <div class="eyebrow"><span class="roman">X</span> Informe</div>
+    <h2>El dossier <em>para decidir</em></h2>
+    <p class="lede">Genera un informe con veredicto, escenarios, semáforos, riesgos, sistema humano, estructura recomendada y el plan de corrección con su calendario.</p>
+    <div class="row mt"><button class="btn solid" id="openReport">Generar informe</button><button class="btn ghost" id="copySummary">Copiar resumen ejecutivo</button></div>
+  </section>
+</main>
+
+<div class="report-overlay" id="report" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/sectors.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/scene3d.js"></script>
+<script src="js/report.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
