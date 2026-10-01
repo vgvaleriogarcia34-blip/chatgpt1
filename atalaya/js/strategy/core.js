@@ -158,6 +158,44 @@
     if (keep) { const y = keep.y; scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
   }
   S.show = show;
+  S.current = () => current;
+
+  /* ---------- Reloj de tareas: flotante en la aplicación o fuera del navegador ---------- */
+  S.relojStore = {
+    get: () => S.state && S.state.tiempos,
+    commit: () => { S.save(); if (current === 'tiempos') S.rerender(); A.reloj.redrawAll(); }
+  };
+  const FLK = 'atalaya.reloj.flotante';
+  S.relojAbierto = () => !!$('#rjFloat');
+  S.relojFlotante = (abrir) => {
+    const ya = $('#rjFloat');
+    try { localStorage.setItem(FLK, abrir ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
+    if (!abrir) { if (ya) ya.remove(); return; }
+    if (ya) return;
+    const box = document.createElement('div'); box.id = 'rjFloat'; box.className = 'rj-float glass';
+    box.innerHTML = '<div class="rj-bar"><b>Reloj de tareas</b><span class="spacer"></span><button class="icon-btn" data-out title="Sacar del navegador" aria-label="Sacar del navegador">⧉</button><button class="icon-btn" data-min aria-label="Minimizar">–</button><button class="icon-btn" data-x aria-label="Cerrar">×</button></div><div class="rj-host"></div>';
+    document.body.appendChild(box);
+    let pos = null; try { pos = JSON.parse(localStorage.getItem(FLK + '.pos')); } catch (e) { /* nada */ }
+    if (pos) { box.style.left = Math.min(innerWidth - 120, pos.x) + 'px'; box.style.top = Math.min(innerHeight - 60, pos.y) + 'px'; box.style.right = 'auto'; box.style.bottom = 'auto'; }
+    A.reloj.mount(box.querySelector('.rj-host'), S.relojStore, { compact: true });
+    box.querySelector('[data-x]').onclick = () => { S.relojFlotante(false); if (current === 'tiempos') S.rerender(); };
+    box.querySelector('[data-min]').onclick = () => box.classList.toggle('min');
+    box.querySelector('[data-out]').onclick = () => S.relojFuera();
+    const bar = box.querySelector('.rj-bar');
+    bar.addEventListener('pointerdown', (ev) => {
+      if (ev.target.closest('button')) return;
+      const r = box.getBoundingClientRect(), dx = ev.clientX - r.left, dy = ev.clientY - r.top; bar.setPointerCapture(ev.pointerId);
+      const mv = (e) => { const x = Math.max(0, Math.min(innerWidth - r.width, e.clientX - dx)), y = Math.max(0, Math.min(innerHeight - 40, e.clientY - dy)); Object.assign(box.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' }); };
+      const up = () => { bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); const b = box.getBoundingClientRect(); try { localStorage.setItem(FLK + '.pos', JSON.stringify({ x: b.left, y: b.top })); } catch (e) { /* nada */ } };
+      bar.addEventListener('pointermove', mv); bar.addEventListener('pointerup', up);
+    });
+  };
+  /* Fuera del navegador: ventana siempre visible si el navegador lo permite; si no, ventana aparte; si tampoco, flotante */
+  S.relojFuera = async () => {
+    try { await A.reloj.pip(S.relojStore, () => { if (current === 'tiempos') S.rerender(); }); return; } catch (e) { /* sin Picture-in-Picture */ }
+    const w = window.open('reloj.html', 'atalayaReloj', 'width=340,height=600');
+    if (!w) S.relojFlotante(true);
+  };
   S.rerender = () => { const ae = document.activeElement; const fid = ae && ae.id && host0().contains(ae) ? ae.id : null; show(current, { y: scrollY }); if (fid) { const el = document.getElementById(fid); if (el) el.focus({ preventScroll: true }); } };
   const host0 = () => $('#stPanel');
   S.refreshKpis = () => { /* el cuadro de mando se recalcula al abrirse */ };
@@ -230,6 +268,12 @@
     show(S.mod(h) ? h : 'tablero');
     addEventListener('hashchange', () => { const k = location.hash.replace('#', ''); if (S.mod(k) && k !== current) show(k); });
     if (A.assistant) A.assistant.init({ api: apiFor(), page: 'estrategia' });
+    try { if (localStorage.getItem('atalaya.reloj.flotante') === '1') S.relojFlotante(true); } catch (e) { /* sin almacenamiento */ }
+    // El reloj de reloj.html escribe en el mismo almacenamiento: se recoge aquí
+    addEventListener('storage', (e) => {
+      if (e.key !== LSK || !e.newValue) return;
+      try { const n = JSON.parse(e.newValue); if (n && n.tiempos) { S.state.tiempos = n.tiempos; if (current === 'tiempos') S.rerender(); A.reloj.redrawAll(); } } catch (x) { /* ignorar */ }
+    });
     const openTerm = (t) => {
       const key = t.dataset.term.toLowerCase();
       const g = A.GLOSSARY.find((x) => x.t.toLowerCase() === key) || A.GLOSSARY.find((x) => x.t.toLowerCase().startsWith(key)) || A.GLOSSARY.find((x) => x.t.toLowerCase().includes(key));

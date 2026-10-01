@@ -1021,6 +1021,19 @@
       const remote = await P.loadData('simulador');
       if (remote && remote.empresa) { state = loadState(remote); afterLoad(); }
     }
+    followHash();
+  }
+  /* Enlaces directos a un capítulo (app.html#humano): la página crece mientras se dibujan gráficos y 3D,
+     así que se recoloca varias veces hasta que el diseño se estabiliza, salvo que el usuario ya se haya movido */
+  function followHash() {
+    const go = () => {
+      const id = decodeURIComponent(location.hash.slice(1)); const el = id && document.getElementById(id); if (!el) return;
+      let moved = false; const stop = () => { moved = true; };
+      ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach((ev) => addEventListener(ev, stop, { once: true, passive: true }));
+      [0, 150, 500, 1000, 1800, 3000].forEach((t) => setTimeout(() => { if (!moved) el.scrollIntoView({ behavior: 'auto', block: 'start' }); }, t));
+    };
+    go();
+    addEventListener('hashchange', go);
   }
   const boot = () => (P ? P.guard().then((ok) => ok && start()) : start());
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

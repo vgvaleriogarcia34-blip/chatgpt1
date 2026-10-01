@@ -10,6 +10,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (18 módulos). |
+| `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
 | `manual.html` | Manual de uso completo, con buscador. |
 | `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso y enlaces de recuperación. Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
 
@@ -33,7 +34,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | Visión | Cuadro de mando cruzado · Plan de empresa (misión, visión, valores con peso, DAFO contextualizado con tus datos, CAME, filtro de valores, riesgos ponderados por valores y cascada de objetivos macro → micro) · Informe de auditoría completo |
 | Finanzas | Flujo del dinero (con carga manual por años) · Impuestos (calendario de pagos, marco legal de reducción por escenario y escenarios fiscales de la inversión) · Tesorería por semanas · Presupuesto (generador con cuatro métodos, partidas detalladas, versiones, reales por partida y desviaciones en €, % y peso sobre ventas) |
 | Comercial | ABC y concentración de clientes, productos y proveedores (HHI explicado) · Margen de contribución sobre la demanda con palancas y escenarios guardados · Pipeline · Marketing (CAC, LTV) |
-| Operaciones | Compras (Kraljic) · Logística (OTIF, coste por pedido) · Gestor de tiempos (facturable frente a sistema interno) · Lean por sector (takt, OEE, flujo de valor, desperdicios, 5S, kaizen) · Personas |
+| Operaciones | Compras (Kraljic) · Logística (OTIF, coste por pedido) · Gestor de tiempos (facturable frente a sistema interno, con reloj de tareas flotante y ventana siempre visible fuera del navegador) · Lean por sector (takt, OEE, flujo de valor, desperdicios, 5S, kaizen) · Personas (con organigrama dibujable) |
 | Estrategia | Expansión territorial (enviable al simulador) · Mercado y riesgos 360 con datos macro de referencia 2026 y agente sobre fuentes oficiales |
 
 Cada indicador con «?» abre una ficha que explica qué es, cómo se calcula, cómo leer tu dato y cómo mejorarlo (se cierra con la X, Escape o tocando fuera). Todas las tablas admiten importar documentos (PDF, Word, Excel, CSV, Markdown), pegar desde Excel y, donde tiene sentido, dictar por voz. Los riesgos, indicadores y hallazgos de cada módulo se suman al cuadro de mando y al informe de auditoría, que incluye un plan de trabajo de los objetivos a las acciones (macro → micro) y de los hallazgos al resultado (micro → macro).
@@ -85,7 +86,8 @@ atalaya/
 │   ├── docs.js         lectura de PDF, Word, Excel, CSV, Markdown y dictado
 │   ├── financials.js   cuentas de varios años y flujo del dinero
 │   ├── charts.js · scene3d.js · report.js · assistant.js · app.js · site.js · admin.js
-│   └── strategy/       core · finance · commercial · operations · plan · market
+│   ├── reloj.js        reloj de tareas (módulo, flotante, ventana aparte)
+│   └── strategy/       core · finance · commercial · operations · orgchart · plan · market
 ├── manual.html         manual de uso
 └── server/             server.mjs · package.json
 ```

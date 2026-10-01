@@ -89,20 +89,12 @@
   /* =========================================================
      Gestor de tiempos: tiempo ligado a facturación frente al sistema interno
      ========================================================= */
-  const CATS_T = [
-    { k: 'produccion', n: 'Producción o servicio al cliente', fact: true },
-    { k: 'comercial', n: 'Comercial y atención a clientes', fact: false, ventas: true },
-    { k: 'gestion', n: 'Gestión y administración', fact: false },
-    { k: 'reuniones', n: 'Reuniones internas', fact: false },
-    { k: 'retrabajo', n: 'Retrabajos y errores', fact: false, waste: true },
-    { k: 'esperas', n: 'Esperas, búsquedas y desplazamientos', fact: false, waste: true },
-    { k: 'formacion', n: 'Formación', fact: false }
-  ];
+  const CATS_T = A.CATS_TIEMPO;
   const BENCH = { servicios: 72, tecnologia: 70, industria: 80, construccion: 78, hosteleria: 75, salud: 75, logistica: 78, distribucion: 72, retail: 70, agro: 78 };
   S.defaults.tiempos = { ejemplo: true, personas: [
     { nombre: 'Laura', rol: 'Producción', costeHora: 24 }, { nombre: 'Pedro', rol: 'Producción', costeHora: 22 }, { nombre: 'Marta', rol: 'Comercial', costeHora: 30 },
     { nombre: 'Javier', rol: 'Jefe de planta', costeHora: 34 }, { nombre: 'Elena', rol: 'Administración', costeHora: 23 }
-  ], registros: [], timer: null };
+  ], registros: [], timers: {} };
   (function seedTiempos() {
     const reg = []; const add = (p, k, h, t) => reg.push({ fecha: new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10), persona: p, tarea: t, categoria: k, horas: h });
     add('Laura', 'produccion', 29, 'Órdenes de fabricación'); add('Laura', 'esperas', 4, 'Esperar material'); add('Laura', 'retrabajo', 3, 'Rehacer piezas'); add('Laura', 'reuniones', 2, 'Reunión de turno');
@@ -138,20 +130,19 @@
         ])}
         ${ganancia > 0 ? S.note(`Si el tiempo ligado a facturación llegara al ${t.bench} % de tu sector, liberarías unas <b>${F.num(Math.round(ganancia))} horas al año</b>: el equivalente a ${(ganancia / 1700).toFixed(1).replace('.', ',')} personas que podrían producir sin contratar.`) : ''}
         <div class="grid cols-2 mt">
-          <div class="glass pad stack"><h4>Cronómetro de tareas</h4>
-            <div class="row"><select class="input" id="tmP">${T.personas.map((p) => `<option>${esc(p.nombre)}</option>`).join('')}</select><select class="input" id="tmC">${CATS_T.map((c) => `<option value="${c.k}">${c.n}</option>`).join('')}</select></div>
-            <div class="row"><input class="input" id="tmT" placeholder="Tarea" style="flex:1"><button class="btn solid" id="tmGo">${T.timer ? 'Parar' : 'Empezar'}</button><button class="btn" id="tmV">Dictar</button></div>
-            <p class="small" id="tmMsg">${T.timer ? `En marcha desde las ${new Date(T.timer.inicio).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}: ${esc(T.timer.persona)} · ${esc(T.timer.tarea)}` : 'Di, por ejemplo: «Marta, dos horas de reuniones internas».'}</p></div>
+          <div class="glass pad stack"><div class="row"><h4>Reloj de tareas</h4><span class="spacer"></span><button class="btn ghost" id="tmFloat">${S.relojAbierto && S.relojAbierto() ? 'Quitar el flotante' : 'Dejar flotante'}</button><button class="btn" id="tmPip">Sacar del navegador</button></div>
+            <p class="small muted">Cada persona elige su nombre y pulsa el tipo de tiempo en el que está: al pulsar otro, el tramo anterior se guarda solo. «Dejar flotante» lo mantiene a la vista mientras usas cualquier módulo; «Sacar del navegador» lo pone en una ventana pequeña siempre visible, encima de cualquier programa, aunque minimices.</p>
+            <div id="tmClock"></div>
+            <div class="row"><button class="btn ghost" id="tmV">Dictar un registro</button><span class="small" id="tmMsg">Di, por ejemplo: «Marta, dos horas de reuniones internas».</span></div></div>
           <div class="glass pad stack"><h4>Distribución del tiempo</h4>${S.hbars(CATS_T.map((c) => ({ n: c.n, v: t.per.reduce((a, x) => a + x.by[c.k], 0), c: c.fact ? css('--s3') : c.waste ? css('--s2') : c.ventas ? css('--s1') : css('--faint') })), (v) => F.num(v) + ' h')}</div>
         </div>
         <div class="glass pad mt stack"><h4>Por persona</h4><div class="table-wrap"><table><thead><tr><th>Persona</th><th>Rol</th><th>Horas</th><th>Facturable</th><th>Interno</th><th>Errores y esperas</th><th>Coste interno/semana</th></tr></thead><tbody>${t.per.map((x) => `<tr><td>${esc(x.p.nombre)}</td><td>${esc(x.p.rol)}</td><td>${F.num(x.tot)}</td><td><span class="state st-${x.util >= t.bench ? 'ok' : x.util >= t.bench - 15 ? 'warn' : 'stop'}">${F.pct(x.util)}</span></td><td>${F.num(x.tot - x.fact)} h</td><td>${F.num(x.waste)} h</td><td>${F.eur(x.costeNoFact)}</td></tr>`).join('')}</tbody></table></div></div>
         <div class="grid cols-2 mt"><div class="glass pad" id="tpPers"></div><div class="glass pad" id="tpReg"></div></div>`;
       const msg = (m) => { $('#tmMsg', host).textContent = m; };
-      $('#tmGo', host).onclick = () => {
-        if (!T.timer) { T.timer = { persona: $('#tmP', host).value, categoria: $('#tmC', host).value, tarea: $('#tmT', host).value || 'Sin descripción', inicio: Date.now() }; S.save(); S.rerender(); return; }
-        const h = Math.max(0.05, (Date.now() - T.timer.inicio) / 3600e3);
-        T.registros.push({ fecha: new Date().toISOString().slice(0, 10), persona: T.timer.persona, tarea: T.timer.tarea, categoria: T.timer.categoria, horas: Math.round(h * 100) / 100 }); T.timer = null; T.ejemplo = false; S.save(); S.rerender();
-      };
+      A.relojNormaliza(T);
+      const hc = $('#tmClock', host); hc.classList.add('rj-host'); A.reloj.mount(hc, S.relojStore, {});
+      $('#tmFloat', host).onclick = () => { S.relojFlotante(!S.relojAbierto()); S.rerender(); };
+      $('#tmPip', host).onclick = () => S.relojFuera();
       $('#tmV', host).onclick = async () => {
         msg('Escuchando…');
         try {
@@ -293,12 +284,18 @@
         ${S.kpiTiles([{ k: 'Plantilla', v: F.num(tot) }, { k: 'Coste medio', v: F.eur(w('coste')) }, { k: 'Absentismo medio', v: F.pct(w('absentismo')), st: w('absentismo') > 5 ? 'warn' : 'ok', info: 'Absentismo' }, { k: 'Rotación media', v: F.pct(w('rotacion')), st: w('rotacion') > 15 ? 'warn' : 'ok', info: 'Rotación' }, { k: 'Preparación para crecer', v: Math.round(h.score) + '/100', st: h.score >= 70 ? 'ok' : h.score >= 50 ? 'warn' : 'stop' }])}
         <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Sistema humano (del simulador)</h4>${S.hbars(h.dims.map((d) => ({ n: d.nombre, v: d.score, c: d.score >= 70 ? css('--go') : d.score >= 50 ? css('--warn') : css('--stop') })), (v) => Math.round(v))}<a class="btn ghost" href="app.html#humano">Ajustar en el simulador</a></div>
           <div class="glass pad stack"><h4>Lo que necesita para estarlo</h4><div class="timeline">${h.acciones.slice().sort((a, b) => a.cuando - b.cuando).map((a) => `<div class="ev"><div class="when">MES ${a.cuando}${a.coste ? ' · ' + F.eur(a.coste) : ''}</div><div>${esc(a.que)}</div></div>`).join('')}</div></div></div>
+        <div class="glass pad mt stack" id="ogHost"></div>
         <div class="glass pad mt" id="arTable"></div>`;
+      if (S.orgChart) S.orgChart($('#ogHost', host));
       S.etable($('#arTable', host), { titulo: 'Áreas', rows: R, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ area: '', personas: 0, coste: 30000, absentismo: 4, rotacion: 10, vacantes: 0, formacion: 12 }),
         cols: [{ k: 'area', l: 'Área', type: 'text', syn: ['area', 'departamento'] }, { k: 'personas', l: 'Personas', type: 'num' }, { k: 'coste', l: 'Coste medio anual', type: 'num' }, { k: 'absentismo', l: 'Absentismo %', type: 'num' }, { k: 'rotacion', l: 'Rotación %', type: 'num' }, { k: 'vacantes', l: 'Vacantes', type: 'num' }, { k: 'formacion', l: 'Formación h/año', type: 'num' }] });
     },
     kpis() { const R = S.state.personas.areas; const tot = R.reduce((a, x) => a + S.num(x.personas), 0) || 1; const rot = R.reduce((a, x) => a + S.num(x.rotacion) * S.num(x.personas), 0) / tot; return [{ k: 'Rotación media', v: F.pct(rot), st: rot > 15 ? 'warn' : 'ok' }, { k: 'Preparación para crecer', v: Math.round(A.humanReadiness(S.sim, S.analysis()).score) + '/100' }]; },
-    risks() { return S.state.personas.areas.filter((x) => S.num(x.rotacion) > 15).map((x) => S.mkRisk(`Rotación alta en ${x.area} (${x.rotacion} %)`, 4, 3, 'Entrevistas de salida, plan de carrera y revisión salarial selectiva.')); },
+    risks() {
+      const R = S.state.personas.areas.filter((x) => S.num(x.rotacion) > 15).map((x) => S.mkRisk(`Rotación alta en ${x.area} (${x.rotacion} %)`, 4, 3, 'Entrevistas de salida, plan de carrera y revisión salarial selectiva.'));
+      if (S.orgAnalisis) { const o = S.orgAnalisis(); o.saturados.forEach((n) => R.push(S.mkRisk(`${n.puesto}: ${o.span(n)} personas a cargo`, 3, 3, 'Crear un mando intermedio o repartir el equipo: por encima de 10 personas un responsable deja de poder dirigir.'))); }
+      return R;
+    },
     findings() { return S.state.personas.areas.filter((x) => S.num(x.absentismo) > 5).map((x) => ({ hallazgo: `Absentismo del ${x.absentismo} % en ${x.area}.`, accion: 'Analizar causas, turnos y clima; plan de bienestar.', impactoEUR: S.num(x.personas) * S.num(x.coste) * (S.num(x.absentismo) - 4) / 100, tipo: 'ebitda', plazo: 180 })); }
   });
 })();

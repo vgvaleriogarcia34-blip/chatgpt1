@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reloj de tareas · Atalaya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/atalaya.css">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body class="rj-window">
+<div id="rjRoot"><p class="small muted">Cargando el reloj…</p></div>
+<script src="js/platform.js"></script>
+<script src="js/reloj.js"></script>
+<script>
+/* Reloj de tareas en una ventana aparte. Comparte los datos del sistema estratégico (mismo almacenamiento y,
+   con servidor, la misma cuenta): solo escribe la parte de tiempos para no pisar otros módulos. */
+(async function () {
+  const A = window.Atalaya, P = A.platform, LSK = 'atalaya.estrategia.v1';
+  const read = () => { try { return JSON.parse(localStorage.getItem(LSK)) || {}; } catch (e) { return {}; } };
+  const ok = await P.guard(); if (!ok) return;
+  let st = read();
+  if (!st.tiempos) { const remote = await P.loadData('estrategia'); if (remote) st = remote; }
+  let T = A.relojNormaliza(st.tiempos || { personas: [], registros: [], timers: {} });
+  const store = {
+    get: () => T,
+    commit: () => {
+      const fresh = read(); fresh.tiempos = T;
+      try { localStorage.setItem(LSK, JSON.stringify(fresh)); } catch (e) { /* sin almacenamiento */ }
+      P.saveData('estrategia', fresh);
+    }
+  };
+  const root = document.getElementById('rjRoot');
+  A.reloj.mount(root, store, {});
+  addEventListener('storage', (e) => { if (e.key === LSK && e.newValue) { try { const n = JSON.parse(e.newValue); if (n.tiempos) { T = A.relojNormaliza(n.tiempos); root._rjRedraw && root._rjRedraw(); } } catch (x) { /* ignorar */ } } });
+})();
+</script>
+</body>
+</html>
