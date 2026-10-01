@@ -1,49 +1,86 @@
-# Atalaya · Simulador de inversión y crecimiento
+# Atalaya
 
-Herramienta web para decidir si una empresa puede afrontar una inversión nueva **sin romper liquidez y pagándola desde su propia rentabilidad**, y para anticipar qué necesitan su estructura financiera y su equipo para estar preparados.
+Plataforma para que una empresa decida si puede afrontar una inversión **sin romper liquidez y pagándola con su propia rentabilidad**, y para gobernar el día a día con un sistema integrado de decisiones estratégicas. Pensada para empresarios sin formación financiera: cada indicador tiene su horquilla verde, ámbar y roja, las variables que lo mueven y un asistente al que se le puede hablar.
 
-Abre `index.html` en un navegador (o sirve la carpeta con `python3 -m http.server`). No necesita instalación ni servidor: todo el cálculo se hace en el navegador. La vista 3D carga Three.js desde cdnjs.
+## Páginas
 
-## Qué hace
-
-| Bloque | Qué responde |
+| Página | Para qué |
 |---|---|
-| **Puente de mando** | Veredicto de movimiento (Avanzar · Avanzar vigilando · Avanzar con condiciones · Rediseñar) y los indicadores clave del escenario activo. |
-| **I. La empresa hoy** | Diez perfiles sectoriales (industria, distribución, hostelería, retail, construcción, servicios, tecnología, agro, salud, logística) con sus idiosincrasias: márgenes, peso salarial, días de cobro/stock/pago, estacionalidad, rampa y amplitud de mando. |
-| **II. La inversión** | Dimensión frente a la actividad actual (sobre ventas, años de EBITDA, fondos propios, caja), financiación, cuota mensual, actividad nueva y contrataciones. |
-| **III. Horizonte 3D** | *Paisaje*: superficie de una métrica (caja mínima, recuperación, cobertura, VAN) sobre dos variables a elegir, coloreada por semáforo; clic para aplicar una combinación. *Trayectorias*: la caja de los cinco escenarios mes a mes. |
-| **IV. Escenarios** | Estrés, Pesimista, Base, Optimista e Hipótesis (editable), y campos hipotéticos activables: pérdida de cliente, caída de ventas, materias primas, tipos, cobros, convenio, gasto extraordinario. |
-| **V. Semáforos y riesgos** | Diez semáforos de movimiento, matriz probabilidad × impacto, tornado de sensibilidad de la caja mínima y registro de riesgos con mitigación. |
-| **VI. Nuevo tamaño operativo** | Hoy frente al año de crucero: ventas, EBITDA, margen, plantilla, peso salarial, ventas por persona, punto de equilibrio y circulante extra; EBITDA mensual frente a servicio de deuda. |
-| **VII. Sistema operativo humano** | Preparación en seis dimensiones (mando, absorción, dependencia del fundador, procesos, estabilidad, reclutamiento) y calendario de lo que hace falta para estar listos. |
-| **VIII. Estructuras societarias** | Inversión directa, leasing, filial, patrimonial + alquiler, socio inversor y joint venture comparadas con la misma meta y plazo. |
-| **IX. Meta y plan de corrección** | Defines la posición meta y Atalaya busca la combinación mínima de palancas (financiación, plazo, carencia, cobros, pagos, contrataciones, fijos, margen, fases, capital) que la alcanza. |
-| **X. Informe** | Dossier por escenarios con veredicto, semáforos, riesgos, sistema humano, estructura recomendada, plan de corrección y hoja de ruta a 30/90/180 días. |
+| `index.html` | Página comercial: propuesta, demo en vivo con el motor real, planes y preguntas. |
+| `acceso.html` | Alta con 14 días de prueba, inicio de sesión y solicitud de activación al terminar la prueba. |
+| `app.html` | Simulador de inversión y crecimiento. |
+| `estrategia.html` | Sistema estratégico integrado (18 módulos). |
+| `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos y horas de uso. |
 
-La caja de herramientas flotante (icono de llave) permite cambiar escenario, sector y estructura, añadir hipótesis, guardar escenarios de trabajo en el navegador y copiar o pegar los datos.
+## Simulador (`app.html`)
 
-## Modelo
+- Proyección mensual a 60 meses con y sin la inversión, en cinco escenarios (estrés, pesimista, base, optimista, hipótesis) y sucesos activables (pérdida de cliente, tipos, cobros, convenio…).
+- **Pólizas de crédito** en la tesorería: se disponen solas cuando la caja baja de medio mes de gastos, con intereses y comisión de no disposición. Liquidez = caja + póliza libre.
+- **Meses de colchón** mes a mes, con mínimo, máximo, caja máxima y uso de la póliza.
+- **Diez semáforos con horquilla** por color y sus variables directas e indirectas; al tocar uno se ve el efecto de mover cada variable un 10 %.
+- Horizonte 3D con lectura automática del terreno («camino más corto al verde»).
+- Sistema operativo humano: nueve dimensiones y catorce variables explicadas; el absentismo, el coste de selección y la curva de aprendizaje afectan a los números.
+- Estructuras societarias con ficha completa (cómo funciona, flujo entre sociedades, ventajas, fiscalidad orientativa, requisitos, pasos y relaciones dentro del grupo).
+- **Historia**: balances y cuentas de varios años desde PDF, Word, Excel, CSV, Markdown, pegado o dictado; ratios, proyección a tres años, políticas de gobierno y **auditoría del flujo del dinero** (dónde está cada euro del beneficio).
+- Diccionario corporativo con variables directas e indirectas de cada término.
+- Plan de corrección hacia la posición meta e informe de decisión.
 
-- Proyección mensual a 60 meses de la empresa **con** y **sin** la inversión.
-- Préstamo francés con carencia de intereses; deuda existente amortizándose al 4,5 %.
-- Circulante calculado con días de cobro, stock y pago sobre la venta de cada mes.
-- Impuesto de sociedades devengado sobre la base acumulada del año.
-- Recuperación del proyecto = flujo operativo incremental acumulado frente a la inversión; recuperación de caja = mes en que la caja con inversión supera a la caja sin inversión.
-- VAN al 8 % a cinco años con valor residual contable; TIR por bisección.
+## Sistema estratégico (`estrategia.html`)
 
-Es una herramienta de anticipación: los resultados dependen de los supuestos introducidos y no sustituyen el asesoramiento financiero, fiscal ni legal.
+| Grupo | Módulos |
+|---|---|
+| Visión | Cuadro de mando cruzado · Plan de empresa (misión, DAFO, cascada de objetivos macro → micro) · Informe de auditoría completo |
+| Finanzas | Flujo del dinero · Impuestos (calendario de pagos y marco legal de reducción por escenario) · Tesorería por semanas · Presupuesto y desviaciones (mes, trimestre, año) |
+| Comercial | Clientes ABC y ABC′ · Margen de contribución sobre la demanda con palancas y escenarios guardados · Pipeline · Marketing (CAC, LTV) |
+| Operaciones | Compras (Kraljic) · Logística (OTIF, coste por pedido) · Gestor de tiempos (facturable frente a sistema interno) · Lean por sector (takt, OEE, flujo de valor, desperdicios, 5S, kaizen) · Personas |
+| Estrategia | Expansión territorial (enviable al simulador) · Mercado y riesgos 360 con agente sobre fuentes oficiales |
+
+Todas las tablas admiten importar documentos (PDF, Word, Excel, CSV, Markdown), pegar desde Excel y, donde tiene sentido, dictar por voz. Los riesgos, indicadores y hallazgos de cada módulo se suman al cuadro de mando y al informe de auditoría, que incluye un plan de trabajo de los objetivos a las acciones (macro → micro) y de los hallazgos al resultado (micro → macro).
+
+## Asistente
+
+Chat con micrófono y lectura en voz alta (Web Speech API: Chrome, Edge y Safari recientes; requiere https o localhost). Explica conceptos, revisa la situación, dice cómo poner en verde un semáforo y hace cambios («pon la financiación al 80 %», «simula perder un cliente del 10 % en el mes 14», «sube el precio un 3 %»). Con el servidor y una clave de la API de Claude responde con Claude y usa las mismas herramientas; sin ella funciona en modo básico con un intérprete local.
+
+## Puesta en marcha
+
+### Demostración sin servidor
+Abre `index.html` (o sirve la carpeta con `python3 -m http.server`). Todo funciona, pero las cuentas y los datos se guardan solo en ese navegador: es un modo de demostración y no protege nada.
+
+### Producción con servidor
+```bash
+cd atalaya/server
+npm install
+ANTHROPIC_API_KEY=sk-ant-... ADMIN_EMAIL=tu@empresa.es COOKIE_SECURE=1 PORT=8080 node server.mjs
+```
+- Sirve la web y la API en el mismo puerto. Ponlo detrás de un proxy con HTTPS (necesario para el micrófono y para la cookie segura).
+- Datos en `server/data/db.json` (cámbialo con `ATALAYA_DATA`). Haz copias de seguridad de esa carpeta.
+- Contraseñas con scrypt, sesiones con cookie `HttpOnly` y `SameSite=Lax`, límite de intentos de acceso.
+- `ADMIN_EMAIL`: la cuenta con ese correo será administradora (si no se indica, lo es la primera que se registre).
+- `MERCADO_AUTO_DIAS=7`: refresca el análisis de mercado de cada cliente con acceso cada 7 días.
+- Modelo de IA: `claude-opus-5-5` por defecto (`ATALAYA_MODEL` para cambiarlo).
+
+### Pagos
+El control de acceso es real en el servidor: prueba de 14 días, acceso pagado con fecha de vencimiento y bloqueo. El cobro se registra desde el gestor de usuarios («Registrar pago»). Para cobrar con tarjeta de forma automática hay que conectar una pasarela (por ejemplo Stripe) que llame a `PATCH /api/admin/users/:id` al confirmar el pago; no está incluida. Los precios de los planes son de ejemplo: cámbialos en `js/platform.js`.
+
+## Avisos
+- Las cifras son estimaciones a partir de los datos introducidos. La fiscalidad y las decisiones societarias deben confirmarse con los asesores de la empresa; los porcentajes legales cambian con cada reforma.
+- El agente de mercado necesita el servidor con la API de Claude: consulta fuentes oficiales (INE, Banco de España, BCE, Eurostat, FMI, OCDE, ministerios…) y cita fecha y fuente de cada dato. Sin servidor, los indicadores se rellenan a mano.
+- Los PDF escaneados (imágenes) no se pueden leer: hace falta un PDF con texto o la hoja de cálculo original.
 
 ## Archivos
 
 ```
 atalaya/
-├── index.html
-├── css/atalaya.css
-└── js/
-    ├── sectors.js   perfiles sectoriales y datos de ejemplo
-    ├── engine.js    motor financiero, semáforos, riesgos, estructuras y plan
-    ├── charts.js    gráficos SVG
-    ├── scene3d.js   escena 3D (Three.js)
-    ├── report.js    generador de informes
-    └── app.js       interfaz
+├── index.html · acceso.html · app.html · estrategia.html · admin.html
+├── css/atalaya.css · css/site.css
+├── js/
+│   ├── platform.js     cuentas, acceso, uso y datos (servidor o demo local)
+│   ├── sectors.js      perfiles sectoriales y datos de ejemplo
+│   ├── engine.js       motor financiero, semáforos, riesgos, estructuras y plan
+│   ├── content.js      diccionario, escenarios y fichas societarias
+│   ├── docs.js         lectura de PDF, Word, Excel, CSV, Markdown y dictado
+│   ├── financials.js   cuentas de varios años y flujo del dinero
+│   ├── charts.js · scene3d.js · report.js · assistant.js · app.js · site.js · admin.js
+│   └── strategy/       core · finance · commercial · operations · market
+└── server/             server.mjs · package.json
 ```

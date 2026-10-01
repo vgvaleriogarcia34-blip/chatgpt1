@@ -123,7 +123,28 @@ Responde en 3-8 frases salvo que pidan detalle. Tus respuestas pueden leerse en 
     VARS.forEach(([syn, p]) => syn.forEach((s) => { const n = norm(s); if (t.includes(n) && n.length > len) { best = p; len = n.length; } }));
     return best;
   }
+  function localStrategy(text) {
+    const t = norm(text);
+    const S = api.summary();
+    const LEV = [['precio', ['precio', 'precios', 'tarifa']], ['volumen', ['volumen', 'esfuerzo comercial', 'vender mas']], ['costeVariable', ['coste variable', 'compras', 'materia']], ['fijos', ['fijos', 'gastos fijos', 'estructura']], ['mix', ['mix']]];
+    const n = numberIn(t);
+    if (n && /(sube|baja|pon|cambia|reduce|aumenta|prueba)/.test(t)) {
+      const lv = LEV.find(([, syn]) => syn.some((x) => t.includes(x)));
+      if (lv) { let v = n.v; if (/(baja|reduce)/.test(t) && v > 0) v = -v; const r = api.setLever(lv[0], v); return `He puesto la palanca de ${lv[0] === 'costeVariable' ? 'coste variable' : lv[0]} en ${v} %. El resultado operativo pasa de ${r.resultadoAntes} a ${r.resultadoAhora}.`; }
+    }
+    const mod = S.modulos.find((m) => t.includes(norm(m.nombre)) || t.includes(m.id));
+    if (mod && /(abre|ve a|ir a|llevame|muestra|ensena|como va|como esta)/.test(t)) {
+      api.goTo(mod.id);
+      const k = S.indicadores.filter((x) => x.area === mod.nombre);
+      return `Abro ${mod.nombre}. ${k.map((x) => `${x.indicador}: ${x.valor}${x.estado ? ' (' + x.estado.toLowerCase() + ')' : ''}`).join('; ')}`;
+    }
+    if (/(riesgo|preocup|peligro)/.test(t)) return S.riesgos.length ? 'Los riesgos principales son: ' + S.riesgos.slice(0, 4).map((r) => `${r.riesgo.toLowerCase()} (${r.area.toLowerCase()})`).join('; ') + '. Primera medida: ' + S.riesgos[0].mitigacion : 'No veo riesgos altos con los datos actuales.';
+    if (/(mejora|oportunidad|donde gano|ahorro|que hago)/.test(t)) return S.hallazgos.length ? 'Las mayores oportunidades: ' + S.hallazgos.slice(0, 4).map((h) => `${h.hallazgo} (${h.impactoAnual} al año)`).join(' ') : 'Completa los módulos para encontrar oportunidades.';
+    if (/(resumen|como va|como esta|situacion)/.test(t)) { const red = S.indicadores.filter((x) => x.estado === 'Rojo'); return `Estás en ${S.moduloActual}. ${red.length ? 'Indicadores en rojo: ' + red.slice(0, 5).map((x) => `${x.indicador.toLowerCase()} (${x.area.toLowerCase()}): ${x.valor}`).join('; ') + '.' : 'No hay indicadores en rojo.'}`; }
+    return null;
+  }
   function local(text) {
+    if (page !== 'simulador') { const r = localStrategy(text); if (r) return r; const L = lookup(norm(text).replace(/^(que es|que son|que significa|explicame|explica|no entiendo|como funciona|define)\s+(el |la |los |las |un |una )?/, '').replace(/[?¿.!]/g, '').trim()); if (L.diccionario.length) { const d = L.diccionario[0]; return `${d.termino}: ${d.definicion}${d.ejemplo ? ' Por ejemplo: ' + d.ejemplo : ''}`; } if (L.grupo.length) return `${L.grupo[0].tema}: ${L.grupo[0].explicacion}`; return 'Puedo explicarte un concepto («qué es el OEE»), llevarte a un módulo («abre impuestos»), decirte los riesgos o las mejoras principales, o mover palancas («sube el precio un 3 %»).'; }
     const t = norm(text);
     const S = api.summary();
     const fmtL = (l) => `${l.indicador}: ${l.valor}, en ${l.estado.toLowerCase()}. Verde ${l.verde}; ámbar ${l.ambar}; rojo ${l.rojo}.`;
