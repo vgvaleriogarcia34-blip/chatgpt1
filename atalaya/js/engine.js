@@ -91,7 +91,7 @@
     } else if (st === 'filial') {
       p.extraFijos = 18000; p.pctFin = Math.max(0, p.pctFin - 0.1);
     } else if (st === 'patrimonial') {
-      p.alquiler = (importeTotal * 0.075) / 12; p.pctFin = 0; p.depreciable = 0; p.extraFijos = 6000;
+      p.alquiler = (importeTotal * 0.075) / 12; p.pctFin = 0; p.depreciable = 0; p.extraFijos = 6000; p.aportacion = 0;
       p.ownCapex = 0;
     } else if (st === 'socio') {
       p.aportacion += importeTotal * 0.5; p.pctFin = Math.min(p.pctFin, 0.5); p.ownerShare = 0.65; p.extraFijos = 12000;
@@ -170,16 +170,18 @@
       let heads = e.plantilla;
       let staff = (e.personal / 12) * salInfl;
       if (!noInv) {
-        const hireStart = start + delay - inv.anticipo;
+        // Las contrataciones siguen el plan: si la venta se retrasa, el coste de personal ya está dentro
+        const hireStart = start - inv.anticipo;
+        const rPlan = clamp((m - start + 1) / rampa, 0, 1);
         if (m >= hireStart) {
-          const nh = inv.contrataciones * p.share * Math.min(1, 0.5 + 0.5 * r);
+          const nh = inv.contrataciones * p.share * Math.min(1, 0.5 + 0.5 * rPlan);
           heads += nh;
           staff += (nh * inv.salario / 12) * salInfl * (1 + (hum.absentismo || 0) / 100);
         }
       }
       // Coste de selección e incorporación de las nuevas personas (pago único al inicio de la contratación)
       let seleccion = 0;
-      if (!noInv && m === Math.max(1, start + delay - inv.anticipo)) seleccion = inv.contrataciones * p.share * (hum.costeSeleccion || 0);
+      if (!noInv && m === Math.max(1, start - inv.anticipo)) seleccion = inv.contrataciones * p.share * (hum.costeSeleccion || 0);
       let fixed = e.fijos / 12 * Math.pow(1.02, Math.floor((m - 1) / 12));
       if (!noInv && m >= start) fixed += (inv.fijosNuevos * p.share) / 12 + p.extraFijos / 12 + p.alquiler;
       const oneOff = shockAt('puntual', m) > 0 ? shocks.filter((s) => s.tipo === 'puntual' && s.mes === m).reduce((a, s) => a + s.magnitud * 1000, 0) : 0;
@@ -277,12 +279,13 @@
     const inversion = p.importeTotal;
 
     // Retorno del proyecto: flujo operativo incremental acumulado frente a la inversión
-    const inc = w.cfo.map((v, i) => (v - b.cfo[i]) * p.ownerShare - (i === iStart ? 0 : 0));
-    const incAlquiler = 0;
+    // Flujo incremental para quien invierte: en la patrimonial el alquiler se queda en el grupo de los socios;
+    // con socio inversor, los socios actuales ponen su parte y reciben su porcentaje
+    const inc = w.cfo.map((v, i) => (v - b.cfo[i] + (state.estructura === 'patrimonial' && i >= iStart ? p.alquiler * (1 - e.impuesto / 100) : 0)) * p.ownerShare);
     let acc = 0, payback = null;
-    const own = state.estructura === 'patrimonial' ? inversion : inversion; // la patrimonial la pagan los socios
+    const own = state.estructura === 'socio' ? Math.max(0, inversion - (p.aportacion - (inv.aportacion || 0))) : inversion;
     for (let i = iStart; i < H; i++) {
-      acc += inc[i] - incAlquiler;
+      acc += inc[i];
       if (acc >= own && payback === null) payback = i - iStart + 1;
     }
     if (payback === null) {
@@ -303,13 +306,16 @@
     }
 
     // VAN y TIR anuales del flujo incremental (5 años + valor residual contable)
-    const flows = [-inversion * p.ownerShare];
-    for (let y = 0; y < 5; y++) flows.push(sum(inc, iStart + y * 12, iStart + y * 12 + 12));
+    const flows = [-own];
+    const lastAvg = sum(inc, H - 12, H) / 12;
+    const sumExt = (i, j) => sum(inc, i, Math.min(j, H)) + Math.max(0, j - Math.max(i, H)) * lastAvg; // más allá del horizonte se prolonga el último año
+    for (let y = 0; y < 5; y++) flows.push(sumExt(iStart + y * 12, iStart + y * 12 + 12));
     const resid = Math.max(0, p.depreciable * (1 - 5 / inv.vidaUtil)) * p.ownerShare;
     flows[5] += resid + (sum(inc, H - 12, H) * 0.5);
     const wacc = 0.08;
     const van = flows.reduce((a, f, i) => a + f / Math.pow(1 + wacc, i), 0);
-    const tir = irr(flows);
+    const tir = inversion > 0 ? irr(flows) : null;
+    if (!(inversion > 0)) payback = 0;
 
     // Caja
     let cajaMin = Infinity, mesCajaMin = 0;
@@ -355,18 +361,20 @@
     const yr = (arr) => sum(arr, cruise0, cruise0 + 12);
     const yb = (arr) => sum(arr, 0, 12);
     const ventasCrucero = yr(w.sales);
+    // División segura: con ventas o plantilla a cero los ratios valen 0 en lugar de NaN
+    const dv = (a, b) => (b && isFinite(b) && isFinite(a) ? a / b : 0);
     const tamano = {
       antes: {
-        ventas: yb(b.sales), margen: yb(b.gross) / yb(b.sales) * 100, ebitda: yb(b.ebitda),
-        ebitdaPct: yb(b.ebitda) / yb(b.sales) * 100, plantilla: e.plantilla,
-        pesoSalarial: yb(b.staff) / yb(b.sales) * 100, ventasEmpleado: yb(b.sales) / e.plantilla,
-        equilibrio: (yb(b.staff) + yb(b.fixed)) / (yb(b.gross) / yb(b.sales))
+        ventas: yb(b.sales), margen: dv(yb(b.gross), yb(b.sales)) * 100, ebitda: yb(b.ebitda),
+        ebitdaPct: dv(yb(b.ebitda), yb(b.sales)) * 100, plantilla: e.plantilla,
+        pesoSalarial: dv(yb(b.staff), yb(b.sales)) * 100, ventasEmpleado: dv(yb(b.sales), e.plantilla),
+        equilibrio: dv(yb(b.staff) + yb(b.fixed), dv(yb(b.gross), yb(b.sales)))
       },
       despues: {
-        ventas: ventasCrucero, margen: yr(w.gross) / ventasCrucero * 100, ebitda: yr(w.ebitda),
-        ebitdaPct: yr(w.ebitda) / ventasCrucero * 100, plantilla: w.heads[cruise0 + 11],
-        pesoSalarial: yr(w.staff) / ventasCrucero * 100, ventasEmpleado: ventasCrucero / w.heads[cruise0 + 11],
-        equilibrio: (yr(w.staff) + yr(w.fixed)) / (yr(w.gross) / ventasCrucero)
+        ventas: ventasCrucero, margen: dv(yr(w.gross), ventasCrucero) * 100, ebitda: yr(w.ebitda),
+        ebitdaPct: dv(yr(w.ebitda), ventasCrucero) * 100, plantilla: w.heads[cruise0 + 11],
+        pesoSalarial: dv(yr(w.staff), ventasCrucero) * 100, ventasEmpleado: dv(ventasCrucero, w.heads[cruise0 + 11]),
+        equilibrio: dv(yr(w.staff) + yr(w.fixed), dv(yr(w.gross), ventasCrucero))
       },
       mesCrucero: cruise0 + 1
     };
@@ -382,7 +390,7 @@
 
     const dim = {
       inversion,
-      sobreVentas: inversion / e.ventas,
+      sobreVentas: e.ventas > 0 ? inversion / e.ventas : 99,
       sobreEbitda: ebitdaActual > 0 ? inversion / ebitdaActual : 99,
       sobreFondos: inversion / Math.max(1, e.fondosPropios),
       sobreCaja: inversion / Math.max(1, e.caja)

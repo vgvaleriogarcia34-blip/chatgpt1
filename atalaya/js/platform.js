@@ -54,7 +54,6 @@
   /* ---------- Acceso ---------- */
   P.accessOf = function (u) {
     if (!u) return { ok: false, motivo: 'sin-sesion' };
-    if (u.rol === 'admin') return { ok: true, motivo: 'admin' };
     if (u.estado === 'bloqueado') return { ok: false, motivo: 'bloqueado' };
     const now = Date.now();
     if (u.pagado && (!u.venceAcceso || new Date(u.venceAcceso).getTime() > now)) return { ok: true, motivo: 'pagado' };
@@ -65,12 +64,12 @@
 
   /* ---------- Modo local ---------- */
   const L = {
-    users: () => LS.get('atalaya.users') || [],
+    users: () => { const l = LS.get('atalaya.users') || []; if (l.some((u) => u.rol === 'admin')) { l.forEach((u) => { if (u.rol === 'admin') { u.rol = 'cliente'; u.pagado = true; u.venceAcceso = null; u.estado = 'activo'; } }); LS.set('atalaya.users', l); } return l; },
     save: (u) => LS.set('atalaya.users', u),
     session: () => LS.get('atalaya.session'),
     find: (id) => L.users().find((u) => u.id === id)
   };
-  const publicUser = (u) => { if (!u) return null; const c = Object.assign({}, u); delete c.hash; delete c.salt; return c; };
+  const publicUser = (u) => { if (!u) return null; const c = Object.assign({}, u); delete c.hash; delete c.salt; delete c.reset; return c; };
 
   P.register = async function (d) {
     await P.ready;
@@ -81,7 +80,7 @@
     if (users.some((u) => u.email === email)) throw new Error('Ya hay una cuenta con ese correo. Entra con tu contraseña.');
     const salt = uid();
     const u = { id: uid(), nombre: (d.nombre || '').trim(), email, empresa: (d.empresa || '').trim(), telefono: (d.telefono || '').trim(), plan: PLANES[d.plan] ? d.plan : 'profesional',
-      rol: users.length === 0 ? 'admin' : 'cliente', estado: 'prueba', pagado: false, venceAcceso: null, alta: new Date().toISOString(), ultimoAcceso: new Date().toISOString(),
+      rol: 'cliente', estado: 'prueba', pagado: false, venceAcceso: null, alta: new Date().toISOString(), ultimoAcceso: new Date().toISOString(),
       sesiones: 1, uso: {}, salt, hash: await hash(salt + d.password) };
     users.push(u); L.save(users); LS.set('atalaya.session', { id: u.id });
     P.user = publicUser(u);
@@ -115,6 +114,34 @@
     const users = L.users(); const u = users.find((x) => x.id === (L.session() || {}).id); if (!u) return null;
     ['nombre', 'empresa', 'telefono', 'plan'].forEach((k) => { if (patch[k] !== undefined) u[k] = patch[k]; });
     L.save(users); P.user = publicUser(u); return P.user;
+  };
+
+  /* ---------- Contraseñas: cambio y recuperación ---------- */
+  P.changePassword = async function (actual, nueva) {
+    await P.ready;
+    if (String(nueva || '').length < 8) throw new Error('La nueva contraseña debe tener al menos 8 caracteres.');
+    if (P.mode === 'server') return api('/me/password', { method: 'POST', body: JSON.stringify({ actual, nueva }) });
+    const users = L.users(); const u = users.find((x) => x.id === (L.session() || {}).id); if (!u) throw new Error('Inicia sesión.');
+    if (u.hash !== await hash(u.salt + actual)) throw new Error('La contraseña actual no es correcta.');
+    u.salt = uid(); u.hash = await hash(u.salt + nueva); L.save(users); return { ok: true };
+  };
+  /* Pide un enlace de recuperación. En el servidor se envía por correo (o lo ve la administración si no hay correo configurado). */
+  P.forgot = async function (email) {
+    await P.ready;
+    if (P.mode === 'server') return api('/password/olvido', { method: 'POST', body: JSON.stringify({ email }) });
+    const users = L.users(); const u = users.find((x) => x.email === String(email || '').trim().toLowerCase());
+    if (u) { u.solicitudReset = new Date().toISOString(); L.save(users); }
+    return { ok: true, correo: false, local: true };
+  };
+  P.resetPassword = async function (token, password) {
+    await P.ready;
+    if (String(password || '').length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
+    if (P.mode === 'server') { const r = await api('/password/restablecer', { method: 'POST', body: JSON.stringify({ token, password }) }); P.user = r.user; return r.user; }
+    const th = await hash(token); const users = L.users();
+    const u = users.find((x) => x.reset && x.reset.hash === th && new Date(x.reset.exp).getTime() > Date.now());
+    if (!u) throw new Error('El enlace no es válido o ha caducado. Pide uno nuevo.');
+    u.salt = uid(); u.hash = await hash(u.salt + password); delete u.reset; delete u.solicitudReset; L.save(users);
+    LS.set('atalaya.session', { id: u.id }); P.user = publicUser(u); return P.user;
   };
 
   /* Protege las páginas de la aplicación. Devuelve true si se puede seguir. */
@@ -152,18 +179,69 @@
     const s = L.session(); return s ? LS.get(`atalaya.data.${s.id}.${key}`) : null;
   };
 
-  /* ---------- Administración ---------- */
+  /* ---------- Administración ----------
+     El gestor de usuarios tiene su propia contraseña: no pertenece a ninguna cuenta de usuario. */
+  const SS = { get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } }, del(k) { try { sessionStorage.removeItem(k); } catch (e) { /* sin almacenamiento */ } } };
+  const localAdminOk = () => { const s = SS.get('atalaya.adminSession'); return !!(LS.get('atalaya.admin') && s && s.exp > Date.now()); };
+  P.adminAuth = {
+    async status() {
+      await P.ready;
+      if (P.mode === 'server') return api('/admin/estado');
+      return { configurado: !!LS.get('atalaya.admin'), sesion: localAdminOk(), correo: false, local: true };
+    },
+    async setup(codigo, password) {
+      await P.ready;
+      if (String(password || '').length < 10) throw new Error('La contraseña de administración debe tener al menos 10 caracteres.');
+      if (P.mode === 'server') return api('/admin/configurar', { method: 'POST', body: JSON.stringify({ codigo, password }) });
+      if (LS.get('atalaya.admin')) throw new Error('La administración ya está configurada.');
+      const salt = uid(); LS.set('atalaya.admin', { salt, hash: await hash(salt + password) });
+      SS.set('atalaya.adminSession', { exp: Date.now() + 12 * 3600e3 }); return { ok: true };
+    },
+    async login(password) {
+      await P.ready;
+      if (P.mode === 'server') return api('/admin/login', { method: 'POST', body: JSON.stringify({ password }) });
+      const a = LS.get('atalaya.admin');
+      if (!a || a.hash !== await hash(a.salt + password)) throw new Error('Contraseña de administración incorrecta.');
+      SS.set('atalaya.adminSession', { exp: Date.now() + 12 * 3600e3 }); return { ok: true };
+    },
+    async logout() {
+      await P.ready;
+      if (P.mode === 'server') { try { await api('/admin/logout', { method: 'POST' }); } catch (e) { /* ya cerrada */ } }
+      SS.del('atalaya.adminSession');
+    },
+    async change(actual, nueva) {
+      await P.ready;
+      if (String(nueva || '').length < 10) throw new Error('La nueva contraseña debe tener al menos 10 caracteres.');
+      if (P.mode === 'server') return api('/admin/password', { method: 'POST', body: JSON.stringify({ actual, nueva }) });
+      const a = LS.get('atalaya.admin');
+      if (!a || a.hash !== await hash(a.salt + actual)) throw new Error('La contraseña actual no es correcta.');
+      const salt = uid(); LS.set('atalaya.admin', { salt, hash: await hash(salt + nueva) }); return { ok: true };
+    }
+  };
+  const needAdmin = () => { if (P.mode !== 'server' && !localAdminOk()) throw new Error('Entra con la contraseña de administración.'); };
   P.admin = {
+    /* Genera un enlace de recuperación de contraseña para un usuario (caduca en 60 minutos) */
+    async resetLink(id, enviar) {
+      await P.ready;
+      const base = location.href.replace(/[^/]*([?#].*)?$/, '') + 'acceso.html#reset=';
+      if (P.mode === 'server') { const r = await api('/admin/users/' + id + '/reset', { method: 'POST', body: JSON.stringify({ enviar: !!enviar }) }); return { link: base + r.token, minutos: r.minutos, enviado: r.enviado }; }
+      needAdmin();
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(24))).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const users = L.users(); const u = users.find((x) => x.id === id); if (!u) throw new Error('Usuario no encontrado');
+      u.reset = { hash: await hash(token), exp: new Date(Date.now() + 60 * 60e3).toISOString() }; delete u.solicitudReset; L.save(users);
+      return { link: base + token, minutos: 60, enviado: false };
+    },
     async list() {
       await P.ready;
       if (P.mode === 'server') return (await api('/admin/users')).users;
-      return L.users().map(publicUser);
+      needAdmin(); return L.users().map(publicUser);
     },
     async update(id, patch) {
       await P.ready;
       if (P.mode === 'server') return (await api('/admin/users/' + id, { method: 'PATCH', body: JSON.stringify(patch) })).user;
+      needAdmin();
       const users = L.users(); const u = users.find((x) => x.id === id); if (!u) throw new Error('Usuario no encontrado');
-      ['estado', 'pagado', 'plan', 'venceAcceso', 'rol', 'nota'].forEach((k) => { if (patch[k] !== undefined) u[k] = patch[k]; });
+      ['estado', 'pagado', 'plan', 'venceAcceso', 'nota'].forEach((k) => { if (patch[k] !== undefined) u[k] = patch[k]; });
       if (patch.pagado === true && u.estado === 'prueba') u.estado = 'activo';
       if (patch.registrarPago) { u.pagos = u.pagos || []; u.pagos.push(Object.assign({ fecha: new Date().toISOString() }, patch.registrarPago)); }
       L.save(users); return publicUser(u);
@@ -171,7 +249,7 @@
     async remove(id) {
       await P.ready;
       if (P.mode === 'server') return api('/admin/users/' + id, { method: 'DELETE' });
-      L.save(L.users().filter((u) => u.id !== id));
+      needAdmin(); L.save(L.users().filter((u) => u.id !== id));
     }
   };
   P.usageMinutes = (u, days) => {
@@ -189,13 +267,20 @@
     const ini = (u.nombre || u.email).split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase();
     el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${u.email}"><span>${ini}</span></button>
       <div class="acc-menu glass" hidden>
-        <div class="acc-head"><b>${(u.nombre || u.email).replace(/</g, '&lt;')}</b><small>${u.email}</small><small>Plan ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : acc.motivo === 'admin' ? 'administración' : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a>${u.rol === 'admin' ? '<a href="admin.html">Gestor de usuarios</a>' : ''}<a href="index.html">Página de Atalaya</a><button data-logout>Cerrar sesión</button>
+        <div class="acc-head"><b>${(u.nombre || u.email).replace(/</g, '&lt;')}</b><small>${u.email}</small><small>Plan ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
+        <a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="index.html">Página de Atalaya</a><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     const b = el.querySelector('.acc-btn'), m = el.querySelector('.acc-menu');
     b.onclick = (e) => { e.stopPropagation(); m.hidden = !m.hidden; b.setAttribute('aria-expanded', !m.hidden); };
     document.addEventListener('click', (e) => { if (!el.contains(e.target)) m.hidden = true; });
     el.querySelector('[data-logout]').onclick = P.logout;
+    const pf = el.querySelector('[data-pwform]');
+    el.querySelector('[data-pw]').onclick = (e) => { e.stopPropagation(); pf.hidden = !pf.hidden; };
+    pf.onsubmit = async (e) => {
+      e.preventDefault(); const msg = pf.querySelector('[data-pwmsg]');
+      try { await P.changePassword(pf.actual.value, pf.nueva.value); msg.textContent = 'Contraseña cambiada.'; msg.style.color = 'var(--go)'; pf.reset(); } catch (x) { msg.textContent = x.message; msg.style.color = 'var(--stop)'; }
+    };
   };
 
   /* ---------- Fondo animado compartido ---------- */

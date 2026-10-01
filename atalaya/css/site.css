@@ -125,3 +125,41 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .st-panel > .eyebrow { margin-top: 6px; }
 .paper th, .paper td { white-space: normal; }
 .kpi .k { flex-wrap: wrap; }
+.kpi[data-term] .k > span:first-child::after { content: '?'; display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 6px; border-radius: 50%; border: 1px solid var(--line-strong); color: var(--gold); font-size: 10px; vertical-align: 1px; }
+.kpi[data-term]:hover, .kpi[data-term]:focus-visible { border-color: var(--line-strong); outline: none; }
+/* Plan de empresa: DAFO con impacto, sugerencias y CAME */
+.dq { display: grid; align-content: start; }
+.dlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.dlist li { display: grid; grid-template-columns: minmax(0, 1fr) 54px 28px; gap: 4px; align-items: center; }
+.dlist .input { padding: 6px 8px; font-size: var(--t-s); }
+.dlist .icon-btn { width: 26px; height: 26px; }
+.dsug { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; align-items: center; }
+.dsug .vchip { font-size: var(--t-xs); text-align: left; white-space: normal; }
+.came { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cq { padding: 12px; border-radius: 12px; border: 1px solid var(--line); display: grid; gap: 6px; align-content: start; }
+.cq b { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; color: var(--gold-soft); }
+.cprop { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: var(--t-s); color: var(--muted); padding: 6px 0; border-top: 1px solid var(--line); }
+.cprop .btn { padding: 4px 10px; font-size: var(--t-xs); }
+.vfilter select.input { padding: 3px 4px; min-width: 46px; }
+@media (max-width: 640px) { .came { grid-template-columns: 1fr; } }
+.vfilter td:first-child { min-width: 260px; }
+.gcell { width: 100%; min-width: 92px; background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; color: var(--fg); font-family: var(--font-data); font-size: 0.8rem; text-align: right; }
+.gcell:focus { outline: none; border-color: var(--gold); }
+.gyear { text-align: center; font-weight: 600; color: var(--gold-soft); }
+/* Presupuesto */
+.pmethods { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.pm { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; display: grid; gap: 4px; }
+.pm input { position: absolute; opacity: 0; }
+.pm.on, .pm:has(input:checked) { border-color: var(--gold); background: rgba(212, 174, 100, 0.08); }
+.pm small { color: var(--muted); font-size: var(--t-xs); }
+.bgrid .gcell { min-width: 78px; }
+.bgrid .gcell.txt { text-align: left; font-family: var(--font-body); min-width: 200px; }
+.bgrid .gtot { border-color: var(--line-strong); font-weight: 600; }
+.bgrid td.pname, .bdev td.pname { text-align: left; white-space: nowrap; font-family: var(--font-body); position: sticky; left: 0; background: var(--panel-solid, #0b1226); z-index: 1; }
+.bgrid tr.ghead td, .bdev tr.ghead td { text-align: left; color: var(--gold); font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.08em; padding-top: 12px; }
+.bgrid tr.gsum td, .bdev tr.gsum td { background: rgba(212, 174, 100, 0.06); color: var(--gold-soft); font-weight: 500; }
+.bgrid tr.gsum.strong td, .bdev tr.gsum.strong td { font-weight: 700; border-top: 1px solid var(--line-strong); }
+/* Los hijos de rejillas y pilas no deben ensancharse por una tabla con scroll propio */
+.stack > *, .grid > *, .st-panel > * { min-width: 0; }
+.st-panel select.input, .st-panel .row > label { max-width: 100%; }
+.st-panel .row { flex-wrap: wrap; }

@@ -12,14 +12,13 @@
   function estadoDe(u) {
     if (u.estado === 'bloqueado') return { k: 'bloqueado', t: 'Bloqueado', st: 'stop' };
     const acc = P.accessOf(u);
-    if (u.rol === 'admin') return { k: 'admin', t: 'Administración', st: 'ok' };
     if (acc.motivo === 'pagado') return { k: 'activo', t: 'Pagando', st: 'ok' };
     if (acc.motivo === 'prueba') return { k: 'prueba', t: `Prueba · ${acc.diasPrueba} d`, st: 'warn' };
     return { k: 'vencido', t: u.pagado ? 'Plan vencido' : 'Prueba terminada', st: 'stop' };
   }
 
   async function load() {
-    try { users = await P.admin.list(); } catch (e) { $('#utable').innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; return; }
+    try { users = await P.admin.list(); } catch (e) { if (/administraci/i.test(e.message)) return gate(); $('#utable').innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; return; }
     render();
   }
   function render() {
@@ -52,10 +51,12 @@
 
     // Pendientes
     const pend = [];
+    users.filter((u) => u.solicitudReset).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> ha olvidado su contraseña (${fdate(u.solicitudReset)}). <button class="btn ghost" data-reset="${u.id}" style="padding:3px 8px;font-size:.75rem">Generar enlace</button></li>`));
     users.filter((u) => u.solicitudPago && !u.pagado).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> pidió activar el plan ${esc((P.PLANES[u.plan] || {}).nombre || u.plan)} el ${fdate(u.solicitudPago)}.</li>`));
     est.filter((x) => x.e.k === 'prueba' && P.accessOf(x.u).diasPrueba <= 3).forEach((x) => pend.push(`<li>La prueba de <b>${esc(x.u.nombre || x.u.email)}</b> termina en ${P.accessOf(x.u).diasPrueba} días.</li>`));
     users.filter((u) => u.pagado && u.venceAcceso && new Date(u.venceAcceso).getTime() - now < 7 * 864e5 && new Date(u.venceAcceso).getTime() > now).forEach((u) => pend.push(`<li>El plan de <b>${esc(u.nombre || u.email)}</b> vence el ${fdate(u.venceAcceso)}.</li>`));
     $('#pending').innerHTML = pend.length ? `<ul>${pend.join('')}</ul>` : '<p class="muted">Nada pendiente.</p>';
+    $$('#pending [data-reset]').forEach((b) => b.onclick = () => resetDialog(users.find((x) => x.id === b.dataset.reset)));
 
     // Tabla
     const q = ($('#q').value || '').toLowerCase(), fe = $('#fEstado').value;
@@ -104,18 +105,35 @@
   function ficha(u) {
     const dias = Object.keys(u.uso || {}).sort().slice(-14);
     const el = openModal(`<div class="eyebrow">Ficha de usuario</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
-      <div class="mgrid mt"><div><span>Correo</span><b style="font-size:.85rem">${esc(u.email)}</b></div><div><span>Teléfono</span><b>${esc(u.telefono || '—')}</b></div><div><span>Empresa</span><b>${esc(u.empresa || '—')}</b></div><div><span>Rol</span><b>${u.rol === 'admin' ? 'Administración' : 'Cliente'}</b></div></div>
+      <div class="mgrid mt"><div><span>Correo</span><b style="font-size:.85rem">${esc(u.email)}</b></div><div><span>Teléfono</span><b>${esc(u.telefono || '—')}</b></div><div><span>Empresa</span><b>${esc(u.empresa || '—')}</b></div><div><span>Estado</span><b>${estadoDe(u).t}</b></div></div>
       <h4 class="mt">Pagos</h4>${(u.pagos || []).length ? `<table><thead><tr><th>Fecha</th><th>Importe</th><th>Meses</th><th>Referencia</th></tr></thead><tbody>${u.pagos.map((p) => `<tr><td>${fdate(p.fecha)}</td><td>${F.eurFull(p.importe)}</td><td>${p.meses}</td><td>${esc(p.referencia || '')}</td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Sin pagos registrados.</p>'}
       <h4 class="mt">Uso de los últimos días</h4>${dias.length ? `<table><tbody>${dias.map((d) => `<tr><td>${fdate(d)}</td><td>${hm(u.uso[d])}</td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Sin uso registrado.</p>'}
       <h4 class="mt">Nota interna</h4><textarea class="input" id="fNota" rows="3" style="width:100%">${esc(u.nota || '')}</textarea>
-      <div class="row mt"><button class="btn" id="fSave">Guardar nota</button><button class="btn ghost" id="fAdmin">${u.rol === 'admin' ? 'Quitar administración' : 'Hacer administrador'}</button><span class="spacer"></span><button class="btn ghost" id="fDel" style="color:var(--stop)">Eliminar cuenta</button></div><p class="small" id="fMsg"></p>`);
+      <div class="row mt"><button class="btn" id="fSave">Guardar nota</button><button class="btn ghost" id="fReset">Restablecer contraseña</button><span class="spacer"></span><button class="btn ghost" id="fDel" style="color:var(--stop)">Eliminar cuenta</button></div><p class="small" id="fMsg"></p>`);
     $('#fSave', el).onclick = () => upd(u.id, { nota: $('#fNota', el).value }).then(() => { modal.hidden = true; });
-    $('#fAdmin', el).onclick = () => upd(u.id, { rol: u.rol === 'admin' ? 'cliente' : 'admin' }).then(() => { modal.hidden = true; });
+    $('#fReset', el).onclick = () => resetDialog(u);
     let armed = false;
     $('#fDel', el).onclick = async () => {
       if (!armed) { armed = true; $('#fMsg', el).textContent = 'Pulsa otra vez para eliminar definitivamente la cuenta y sus datos.'; $('#fDel', el).textContent = 'Confirmar eliminación'; return; }
       try { await P.admin.remove(u.id); modal.hidden = true; load(); } catch (e) { $('#fMsg', el).textContent = e.message; }
     };
+  }
+  async function resetDialog(u) {
+    const st = await P.adminAuth.status().catch(() => ({}));
+    const el = openModal(`<div class="eyebrow">Recuperar contraseña</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
+      <p class="small muted">Genera un enlace de un solo uso, válido 60 minutos, para que ${esc(u.email)} cree una contraseña nueva. Tú nunca ves ni eliges su contraseña.</p>
+      <div class="row mt"><button class="btn solid" id="rGen">Generar enlace</button>${st.correo ? '<button class="btn" id="rMail">Enviar por correo</button>' : ''}</div>
+      <div id="rOut" class="stack mt"></div>`);
+    const show = (r) => { $('#rOut', el).innerHTML = `${r.enviado ? '<p class="alert info">Enlace enviado a su correo.</p>' : '<p class="small">Envíale este enlace por un canal de confianza (correo, WhatsApp…). Caduca en ' + r.minutos + ' minutos.</p>'}<textarea class="input" rows="3" readonly style="width:100%">${esc(r.link)}</textarea><button class="btn ghost" id="rCopy">Copiar enlace</button>`; $('#rCopy', el).onclick = () => navigator.clipboard && navigator.clipboard.writeText(r.link).then(() => { $('#rCopy', el).textContent = 'Copiado'; }); };
+    $('#rGen', el).onclick = async () => { try { show(await P.admin.resetLink(u.id, false)); load(); } catch (e) { $('#rOut', el).innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; } };
+    const m = $('#rMail', el); if (m) m.onclick = async () => { try { show(await P.admin.resetLink(u.id, true)); load(); } catch (e) { $('#rOut', el).innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; } };
+  }
+  function adminPwDialog() {
+    const el = openModal(`<div class="eyebrow">Administración</div><h2 style="font-size:1.6rem">Cambiar la contraseña de administración</h2>
+      <form class="stack mt" id="apForm"><label class="small">Contraseña actual<input class="input" type="password" name="actual" autocomplete="current-password" required></label>
+      <label class="small">Nueva contraseña (mínimo 10 caracteres)<input class="input" type="password" name="nueva" minlength="10" autocomplete="new-password" required></label>
+      <button class="btn solid">Guardar</button><p class="small" id="apMsg"></p></form>`);
+    $('#apForm', el).onsubmit = async (e) => { e.preventDefault(); const f = e.target; try { await P.adminAuth.change(f.actual.value, f.nueva.value); $('#apMsg', el).innerHTML = '<span style="color:var(--go)">Contraseña cambiada.</span>'; f.reset(); } catch (x) { $('#apMsg', el).innerHTML = `<span style="color:var(--stop)">${esc(x.message)}</span>`; } };
   }
   function csv() {
     const head = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'estado', 'pagado', 'vence', 'alta', 'ultimo_acceso', 'uso_7d_min', 'uso_30d_min', 'uso_total_min', 'sesiones'];
@@ -125,13 +143,50 @@
   }
   function alertBox2(t) { openModal(`<p class="alert info">${esc(t)}</p>`); }
 
+  /* Puerta de administración: contraseña propia, que no pertenece a ninguna cuenta de usuario */
+  async function gate() {
+    const st = await P.adminAuth.status();
+    if (st.sesion) return openPanel();
+    $('#panel').hidden = true; $('#admBar').hidden = true; $('#gate').hidden = false;
+    const card = $('#gateCard');
+    if (!st.configurado) {
+      card.innerHTML = `<div class="eyebrow">Administración</div><h1>Crea la contraseña <em>de administración</em></h1>
+        <p class="small muted">Solo quien tenga esta contraseña podrá entrar al gestor de usuarios. No está ligada a ninguna cuenta de cliente: guárdala en un gestor de contraseñas.</p>
+        ${P.mode === 'server' ? '<p class="alert info">Escribe el código de configuración que aparece en la consola del servidor al arrancarlo (o arranca el servidor con ADMIN_PASSWORD).</p>' : '<p class="alert warn">Modo demostración: la contraseña se guarda solo en este navegador.</p>'}
+        <form id="gForm">${P.mode === 'server' ? '<label>Código de configuración<input class="input" name="codigo" autocomplete="off" required></label>' : ''}
+          <label>Contraseña de administración (mínimo 10 caracteres)<input class="input" type="password" name="pw" minlength="10" autocomplete="new-password" required></label>
+          <label>Repítela<input class="input" type="password" name="pw2" minlength="10" autocomplete="new-password" required></label>
+          <button class="btn solid">Crear y entrar</button><p class="small" id="gMsg"></p></form>`;
+      $('#gForm').onsubmit = async (e) => {
+        e.preventDefault(); const f = e.target;
+        if (f.pw.value !== f.pw2.value) { $('#gMsg').innerHTML = '<span style="color:var(--stop)">Las contraseñas no coinciden.</span>'; return; }
+        try { await P.adminAuth.setup(f.codigo ? f.codigo.value : '', f.pw.value); gate(); } catch (x) { $('#gMsg').innerHTML = `<span style="color:var(--stop)">${esc(x.message)}</span>`; }
+      };
+    } else {
+      card.innerHTML = `<div class="eyebrow">Administración</div><h1>Gestor <em>de usuarios</em></h1>
+        <p class="small muted">Acceso exclusivo con la contraseña de administración.</p>
+        <form id="gForm"><label>Contraseña de administración<input class="input" type="password" name="pw" autocomplete="current-password" required autofocus></label>
+          <button class="btn solid">Entrar</button><p class="small" id="gMsg"></p></form>
+        ${P.mode === 'server' ? '<p class="small muted">¿La has olvidado? Arranca el servidor con <span class="mono">ADMIN_PASSWORD=nueva-contraseña</span> para fijar una nueva.</p>' : ''}`;
+      $('#gForm').onsubmit = async (e) => { e.preventDefault(); try { await P.adminAuth.login(e.target.pw.value); gate(); } catch (x) { $('#gMsg').innerHTML = `<span style="color:var(--stop)">${esc(x.message)}</span>`; } };
+    }
+  }
+  let wired = false;
+  function openPanel() {
+    $('#gate').hidden = true; $('#panel').hidden = false; $('#admBar').hidden = false;
+    if (P.mode === 'local') $('#modeNote').innerHTML = '<div class="alert info">Modo demostración: solo ves las cuentas creadas en este navegador. Con el servidor de Atalaya (carpeta <span class="mono">server/</span>) verás a todos tus clientes, sus pagos y sus horas de uso reales.</div>';
+    if (!wired) {
+      wired = true;
+      $('#q').addEventListener('input', render); $('#fEstado').addEventListener('change', render); $('#csv').onclick = csv;
+      $('#admPw').onclick = adminPwDialog;
+      $('#admOut').onclick = async () => { await P.adminAuth.logout(); gate(); };
+    }
+    load();
+  }
+
   (async function start() {
     A.sky();
-    const ok = await P.guard(); if (!ok) return;
-    if (!P.user || P.user.rol !== 'admin') { document.querySelector('.admin-main').innerHTML = '<div class="glass pad"><h2>Solo para administración</h2><p class="muted">Tu cuenta no tiene permisos para gestionar usuarios.</p><a class="btn" href="app.html">Ir al simulador</a></div>'; return; }
-    P.mountAccount($('#account'));
-    if (P.mode === 'local') $('#modeNote').innerHTML = '<div class="alert info">Modo demostración: solo ves las cuentas creadas en este navegador. Con el servidor de Atalaya (carpeta <span class="mono">server/</span>) verás a todos tus clientes, sus pagos y sus horas de uso reales.</div>';
-    $('#q').addEventListener('input', render); $('#fEstado').addEventListener('change', render); $('#csv').onclick = csv;
-    load();
+    await P.ready;
+    gate();
   })();
 })();

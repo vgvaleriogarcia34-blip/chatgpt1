@@ -21,19 +21,26 @@
     const dpo = L.reduce((a, p) => a + S.num(p.plazo) * S.num(p.compras), 0) / tot;
     return { R, tot, dpo, top: R.slice().sort((a, b) => b.imp - a.imp)[0] };
   }
-  const KQ = { 'Estratégico': 'Alianza a largo plazo, planificación conjunta y plan B documentado.', 'Apalancado': 'Negocia: concentra volumen, pide ofertas y revisa precio cada año.', 'Cuello de botella': 'Asegura el suministro: stock de seguridad, contratos y un segundo proveedor.', 'No crítico': 'Automatiza y simplifica: catálogos, pedidos agrupados, menos tiempo de gestión.' };
+  S.comprasAnalisis = compras;
+  const KQ = S.KQ = { 'Estratégico': 'Alianza a largo plazo, planificación conjunta y plan B documentado.', 'Apalancado': 'Negocia: concentra volumen, pide ofertas y revisa precio cada año.', 'Cuello de botella': 'Asegura el suministro: stock de seguridad, contratos y un segundo proveedor.', 'No crítico': 'Automatiza y simplifica: catálogos, pedidos agrupados, menos tiempo de gestión.' };
+  S.comprasTabla = (el) => { const CO = S.state.compras; S.etable(el, {
+    titulo: 'Proveedores', rows: CO.proveedores, onChange: () => { CO.ejemplo = false; S.save(); S.rerender(); }, nuevo: () => ({ nombre: '', compras: 0, plazo: 60, alternativas: 2, criticidad: 3, calidad: 4, puntualidad: 95 }),
+    cols: [{ k: 'nombre', l: 'Proveedor', type: 'text', syn: ['proveedor', 'nombre', 'acreedor'] }, { k: 'compras', l: 'Compras anuales', type: 'num', syn: ['compras', 'importe', 'gasto'] }, { k: 'plazo', l: 'Días de pago', type: 'num', syn: ['plazo', 'dias'] }, { k: 'alternativas', l: 'Alternativas', type: 'num' }, { k: 'criticidad', l: 'Criticidad 1-5', type: 'num' }, { k: 'calidad', l: 'Calidad 1-5', type: 'num' }, { k: 'puntualidad', l: 'Entregas a tiempo %', type: 'num', syn: ['puntualidad', 'otif'] },
+      { k: 'q', l: 'Kraljic', calc: (r) => { const x = compras().R.find((p) => p.nombre === r.nombre); return x ? x.q : ''; } }]
+  }); };
   S.register({
     id: 'compras', nombre: 'Compras', grupo: 'Operaciones',
     render(host) {
       const c = compras(), CO = S.state.compras;
       const apal = c.R.filter((p) => p.q === 'Apalancado' || p.q === 'Estratégico').reduce((a, p) => a + S.num(p.compras), 0);
       const ahorro = apal * CO.ahorroObjetivo / 100;
-      host.innerHTML = `${S.section('Compras y proveedores', 'Clasificación ABC de proveedores y matriz de Kraljic: cruza cuánto pesa cada proveedor en tu gasto con lo arriesgado que es su suministro, para saber dónde negociar y dónde asegurar.')}
+      host.innerHTML = `${S.section('Compras y proveedores', 'Matriz de Kraljic (el ABC de proveedores y la concentración de compras también están en «ABC y concentración»): cruza cuánto pesa cada proveedor en tu gasto con lo arriesgado que es su suministro, para saber dónde negociar y dónde asegurar.')}
         ${CO.ejemplo ? '<p class="small muted">Datos de ejemplo.</p>' : ''}
         ${S.kpiTiles([
           { k: 'Compras anuales', v: F.eur(c.tot) },
           { k: 'Primer proveedor', v: F.pct(c.top ? c.top.imp * 100 : 0), st: c.top && c.top.imp > 0.3 ? 'warn' : 'ok', d: c.top ? c.top.nombre : '' },
-          { k: 'Plazo medio de pago', v: Math.round(c.dpo) + ' días', info: 'Días de pago' },
+          { k: 'Concentración de compras (HHI)', v: F.num(Math.round(S.hhi ? S.hhi(c.R.map((p) => S.num(p.compras))) : 0)), st: S.hhi ? S.hhiSt(S.hhi(c.R.map((p) => S.num(p.compras)))) : null, info: 'Concentración de compras', exp: S.hhiCtx ? S.hhiCtx(S.hhi(c.R.map((p) => S.num(p.compras))), c.top && c.top.nombre, c.top ? c.top.imp * 100 : 0, 'proveedores') : '' },
+          { k: 'Plazo medio de pago', v: Math.round(c.dpo) + ' días', info: 'Días de pago', exp: 'Media de los días de pago ponderada por lo que compras a cada proveedor.' },
           { k: 'Ahorro alcanzable', v: F.eur(ahorro), d: `negociando un ${CO.ahorroObjetivo} % en apalancados y estratégicos`, st: 'ok' }
         ])}
         <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Matriz de Kraljic</h4><div class="matrix3" style="grid-template-columns:80px repeat(2,minmax(0,1fr))"><div></div><div class="h">Riesgo bajo</div><div class="h">Riesgo alto</div>
@@ -44,11 +51,7 @@
         <div class="glass pad mt" id="prvTable"></div>`;
       $$('[data-q]', host).forEach((b) => b.onclick = () => { const q = b.dataset.q; $('#kqRead', host).innerHTML = `<b>${q}.</b> ${KQ[q]}<br>${c.R.filter((p) => p.q === q).map((p) => esc(p.nombre)).join(', ') || 'Ninguno.'}`; });
       $('#ahObj', host).onchange = (e) => { CO.ahorroObjetivo = S.num(e.target.value); S.save(); S.rerender(); };
-      S.etable($('#prvTable', host), {
-        titulo: 'Proveedores', rows: CO.proveedores, onChange: () => { CO.ejemplo = false; S.save(); S.rerender(); }, nuevo: () => ({ nombre: '', compras: 0, plazo: 60, alternativas: 2, criticidad: 3, calidad: 4, puntualidad: 95 }),
-        cols: [{ k: 'nombre', l: 'Proveedor', type: 'text', syn: ['proveedor', 'nombre', 'acreedor'] }, { k: 'compras', l: 'Compras anuales', type: 'num', syn: ['compras', 'importe', 'gasto'] }, { k: 'plazo', l: 'Días de pago', type: 'num', syn: ['plazo', 'dias'] }, { k: 'alternativas', l: 'Alternativas', type: 'num' }, { k: 'criticidad', l: 'Criticidad 1-5', type: 'num' }, { k: 'calidad', l: 'Calidad 1-5', type: 'num' }, { k: 'puntualidad', l: 'Entregas a tiempo %', type: 'num', syn: ['puntualidad', 'otif'] },
-          { k: 'q', l: 'Kraljic', calc: (r) => { const x = compras().R.find((p) => p.nombre === r.nombre); return x ? x.q : ''; } }]
-      });
+      S.comprasTabla($('#prvTable', host));
     },
     kpis() { const c = compras(); return [{ k: 'Dependencia del primer proveedor', v: F.pct(c.top ? c.top.imp * 100 : 0), st: c.top && c.top.imp > 0.3 ? 'warn' : 'ok' }]; },
     risks() { return compras().R.filter((p) => p.q === 'Cuello de botella' || (p.q === 'Estratégico' && S.num(p.alternativas) <= 1)).map((p) => S.mkRisk(`Suministro de ${p.nombre} sin alternativa`, S.num(p.alternativas) <= 1 ? 4 : 3, Math.min(5, S.num(p.criticidad)), KQ[p.q])); },

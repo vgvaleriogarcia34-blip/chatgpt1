@@ -20,7 +20,9 @@
       const an = A.fin.analyze(H);
       if (!H || !H.anios || H.anios.length < 2) {
         host.innerHTML = `${S.section('Auditoría del flujo del dinero', 'Responde a la pregunta «he ganado dinero, ¿dónde está?». Necesita el balance y la cuenta de resultados de al menos dos años.')}
-          <div class="glass pad stack"><div class="row"><label class="btn solid" for="mfFile">Adjuntar cuentas</label><input type="file" id="mfFile" hidden multiple accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx"><button class="btn" id="mfEx">Cargar ejemplo</button></div><p class="small" id="mfMsg"></p></div>`;
+          <div class="glass pad stack"><p class="small">Tres formas de cargar los datos: escribirlos a mano en la rejilla de abajo (lo más rápido si tienes las cuentas a la vista), adjuntar las cuentas anuales en PDF, Excel o Word, o cargar el ejemplo para ver cómo funciona.</p><div class="row"><label class="btn" for="mfFile">Adjuntar cuentas</label><input type="file" id="mfFile" hidden multiple accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx"><button class="btn ghost" id="mfEx">Cargar ejemplo</button></div><p class="small" id="mfMsg"></p></div>
+          <div class="glass pad mt" id="mfGrid"></div>`;
+        A.fin.mountGrid($('#mfGrid', host), H, { empresa: S.sim.empresa, onSave: (h) => { S.sim.historico = h; S.saveSim(); S.rerender(); } });
         $('#mfEx', host).onclick = () => { S.sim.historico = A.fin.example(); S.saveSim(); S.rerender(); };
         $('#mfFile', host).onchange = async (e) => {
           const anios = [];
@@ -34,7 +36,8 @@
       const tot = (k) => flows.reduce((s, f) => s + (f.items.find((x) => x.k === k) || { v: 0 }).v, 0);
       const bnTot = flows.reduce((s, f) => s + f.beneficio, 0), cajaTot = flows.reduce((s, f) => s + f.cajaReal, 0);
       host.innerHTML = `${S.section('Auditoría del flujo del dinero', 'Dónde ha ido a parar cada euro declarado como beneficio. Se calcula con el estado de origen y aplicación de fondos: lo que genera el negocio, lo que se queda atrapado en clientes y almacén, lo que se invierte, lo que se devuelve a los bancos y lo que se reparte.')}
-        ${H.ejemplo ? '<p class="small muted">Datos de ejemplo.</p>' : ''}
+        <div class="row">${H.ejemplo ? '<span class="small muted">Datos de ejemplo.</span>' : ''}${H.aviso ? `<span class="small" style="color:var(--warn)">${esc(H.aviso)}</span>` : ''}<span class="spacer"></span><button class="btn" id="mfEdit">${H.ejemplo ? 'Escribir mis datos' : 'Editar los datos'}</button><button class="btn ghost" id="mfClear">Borrar y empezar de nuevo</button></div>
+        <div class="glass pad" id="mfGrid" hidden></div>
         ${S.kpiTiles([
           { k: `Beneficio ${flows[0].previo + 1}-${last.anio}`, v: F.eur(bnTot), info: 'Beneficio', d: 'suma de los años analizados' },
           { k: 'Variación de caja', v: F.eur(cajaTot), st: cajaTot < bnTot * 0.25 ? 'warn' : 'ok', d: `${Math.round(S.pct(cajaTot, bnTot))} % del beneficio llegó al banco` },
@@ -49,6 +52,9 @@
         <div class="grid cols-2 mt"><div class="glass pad stack"><h4>De cada 100 € generados en ${last.anio}</h4>${S.hbars(last.destinos.map((d) => ({ n: d.n, v: d.pct })), (v) => Math.round(v) + ' €')}</div>
         <div class="glass pad stack"><h4>Qué hacer</h4><ul class="small">${findingsDinero().map((f) => `<li><b>${esc(f.hallazgo)}</b> ${esc(f.accion)}</li>`).join('') || '<li>El dinero fluye de forma sana.</li>'}</ul></div></div>
         <div class="glass pad mt"><h4>Políticas de gobierno</h4>${an.politicas.map((p) => `<div class="policy"><span class="state st-${p.estado}">${S.stName[p.estado]}</span><div><b>${p.nombre}</b><p class="small">${p.lectura} <span class="muted">${p.recomendacion}</span></p></div></div>`).join('')}</div>`;
+      $('#mfEdit', host).onclick = () => { const g = $('#mfGrid', host); g.hidden = false; A.fin.mountGrid(g, H, { empresa: S.sim.empresa, onSave: (h) => { S.sim.historico = h; S.saveSim(); S.rerender(); }, onCancel: () => { g.hidden = true; } }); g.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+      let armed = false;
+      $('#mfClear', host).onclick = (ev) => { if (!armed) { armed = true; ev.target.textContent = 'Pulsa otra vez para borrar'; return; } S.sim.historico = null; S.saveSim(); S.rerender(); };
     },
     kpis() {
       const mf = A.fin.moneyFlow(S.sim.historico); if (!mf) return [];
@@ -74,7 +80,7 @@
   /* =========================================================
      2. Impuestos: calendario global y marco de reducción
      ========================================================= */
-  S.defaults.impuestos = { tipoIS: 25, iva: 21, pctVentasIVA: 100, pctComprasIVA: 95, pctFijosIVA: 70, irpf: 15, ssEmpresa: 31.5, ssTrabajador: 6.5, alquiler: 3000, ibi: 6000, mesIBI: 9, iae: 4500, mesIAE: 10, mensual: false, cuotaAnterior: null, idi: 0, payout: null, escenario: 'base' };
+  S.defaults.impuestos = { tipoIS: 25, iva: 21, pctVentasIVA: 100, pctComprasIVA: 95, pctFijosIVA: 70, irpf: 15, ssEmpresa: 31.5, ssTrabajador: 6.5, alquiler: 3000, ibi: 6000, mesIBI: 9, iae: 4500, mesIAE: 10, mensual: false, cuotaAnterior: null, idi: 0, payout: null, escenario: 'base', inversiones: null };
   function taxCalc() {
     const T = S.state.impuestos, e = S.sim.empresa;
     const r = S.analysis(T.escenario), w = r.w;
@@ -177,6 +183,65 @@
     const tc = taxCalc();
     return { t, cuota, bi, retenido: Math.max(0, bn * (1 - payout)), dividendos: Math.max(0, bn * payout), ventas: e.ventas, dep: S.sim.inversion.importe / S.sim.inversion.vidaUtil, idi: +T.idi || 0, perdidasProyecto: -inc, dso: e.dso, iva: T.iva / 100, ivaInversion: S.sim.inversion.importe * T.iva / 100, plantilla: e.plantilla, picoImpuestos: Math.max(0, ...tc.pagos.map((p) => p.importe)) };
   }
+  /* ---------- Escenarios fiscales de inversión ----------
+     Compara cómo cambia el Impuesto sobre Sociedades según cómo y cuándo se hace la inversión.
+     Simplificación orientativa de la Ley 27/2014 (LIS): tablas de amortización, art. 103 (amortización acelerada ERD),
+     art. 102 (libertad de amortización con creación de empleo), art. 106 (leasing), art. 35 (I+D+i) y deducibilidad de intereses. */
+  const ACTIVOS = {
+    maquinaria: { n: 'Maquinaria', coef: 12 }, instalaciones: { n: 'Instalaciones', coef: 10 }, edificio: { n: 'Edificio industrial', coef: 3 },
+    informatica: { n: 'Equipos informáticos', coef: 25 }, software: { n: 'Software', coef: 33 }, vehiculos: { n: 'Vehículos', coef: 16 }, mobiliario: { n: 'Mobiliario', coef: 10 }
+  };
+  const METODOS = { lineal: 'Lineal según tablas', acelerada: 'Acelerada ×2 (empresa de reducida dimensión)', libertad: 'Libertad de amortización con empleo' };
+  const FORMAS = { compra: 'Compra (con o sin préstamo)', leasing: 'Leasing', renting: 'Renting' };
+  const nuevoEscFiscal = (n, o) => Object.assign({ nombre: n, importe: S.sim.inversion.importe, activo: 'maquinaria', mes: 6, metodo: 'lineal', forma: 'compra', pctFin: S.sim.inversion.pctFin, tipo: S.sim.inversion.tipo, plazo: S.sim.inversion.plazo, idiPct: 0, empleo: 0 }, o || {});
+  function fiscalInversion(x, ctx) {
+    const t = ctx.t, erd = ctx.ventas < 1e7;
+    const imp = S.num(x.importe), act = ACTIVOS[x.activo] || ACTIVOS.maquinaria, coef = act.coef / 100;
+    // Horizonte: toda la vida fiscal del activo, para que el valor actual compare escenarios completos
+    const H = Math.min(40, Math.max(6, Math.ceil(1 / coef) + 2, Math.ceil(S.num(x.plazo)) + 2));
+    const frac1 = Math.max(1, Math.min(12, 13 - S.num(x.mes))) / 12;
+    const avisos = [];
+    let metodo = x.metodo;
+    if (metodo === 'acelerada' && !erd) { avisos.push('La amortización acelerada solo es para empresas con menos de 10 M€ de cifra de negocios: se calcula lineal.'); metodo = 'lineal'; }
+    if (metodo === 'libertad' && (!erd || !S.num(x.empleo))) { avisos.push('La libertad de amortización con empleo exige ser empresa de reducida dimensión y aumentar la plantilla media (y mantenerla 2 años): se calcula lineal.'); metodo = 'lineal'; }
+    const gasto = Array(H).fill(0), interes = Array(H).fill(0), deduc = Array(H).fill(0);
+    if (x.forma === 'renting') {
+      const r = (S.num(x.tipo) + 1.5) / 100, n = Math.max(1, S.num(x.plazo));
+      const cuota = imp * r / (1 - Math.pow(1 + r, -n));
+      for (let k = 0; k < Math.min(H, n + 1); k++) gasto[k] = cuota * (k === 0 ? frac1 : k === n ? 1 - frac1 : 1);
+    } else {
+      // Amortización fiscal
+      let pend = imp;
+      const ritmo = x.forma === 'leasing' ? coef * (erd ? 3 : 2) : metodo === 'acelerada' ? coef * 2 : coef;
+      if (metodo === 'libertad') { const lib = Math.min(pend, 120000 * S.num(x.empleo)); gasto[0] += lib; pend -= lib; }
+      for (let k = 0; k < H && pend > 0.5; k++) { const a = Math.min(pend, imp * ritmo * (k === 0 ? frac1 : 1)); gasto[k] += a; pend -= a; }
+      // Intereses de la financiación (préstamo o leasing): deducibles mientras no superen 1 M€ o el 30 % del beneficio operativo
+      const fin = x.forma === 'leasing' ? imp : imp * S.num(x.pctFin) / 100, r = S.num(x.tipo) / 100, n = Math.max(1, S.num(x.plazo));
+      if (fin > 0 && r > 0) { let bal = fin; const c = fin * r / (1 - Math.pow(1 + r, -n)); for (let k = 0; k < Math.min(H, n + 1) && bal > 0.5; k++) { const f = k === 0 ? frac1 : 1; const i = bal * r * f; interes[k] = i; bal = Math.max(0, bal - (c * f - i)); } }
+    }
+    // Deducción por I+D+i (25 % I+D; se toma como media prudente el 20 % si mezcla innovación), con límite del 25 % de la cuota
+    let credito = imp * S.num(x.idiPct) / 100 * 0.2;
+    const base0 = ctx.bi, cuota0 = Math.max(0, base0 * t);
+    const filas = [];
+    let acum = 0, bin = 0;
+    for (let k = 0; k < H; k++) {
+      // Si el gasto supera el beneficio, la base negativa se compensa en los años siguientes
+      let bi = base0 - gasto[k] - interes[k];
+      if (bi < 0) { bin -= bi; bi = 0; } else { const c = Math.min(bin, bi); bin -= c; bi -= c; }
+      let cuota = bi * t;
+      const d = Math.min(credito, cuota * 0.25); credito -= d; cuota -= d; deduc[k] = d;
+      const ahorro = cuota0 - cuota; acum += ahorro;
+      filas.push({ anio: y0 + k, gasto: gasto[k], interes: interes[k], deduc: d, cuota, ahorro, acum });
+    }
+    const va = filas.reduce((a, f, k) => a + f.ahorro / Math.pow(1.05, k), 0);
+    if (gasto.some((g, k) => g + interes[k] > base0)) avisos.push('Algún año el gasto deducible supera el beneficio: la base negativa se compensa en los años siguientes (se ahorra igual, pero más tarde).');
+    if (credito > 1) avisos.push(`Quedan ${F.eur(credito)} de deducción de I+D+i pendientes: se pueden aplicar en los 15-18 años siguientes.`);
+    if (x.forma === 'renting') avisos.push('En renting no hay activo en balance: toda la cuota es gasto deducible, pero incluye el margen de la compañía de renting.');
+    if (x.forma === 'leasing') avisos.push(`El leasing permite deducir la recuperación del coste hasta ${erd ? 'el triple' : 'el doble'} del coeficiente de tablas.`);
+    return { filas, va, ahorro5: filas.slice(0, 5).reduce((a, f) => a + f.ahorro, 0), ahorro1: filas[0].ahorro, total: acum, avisos, erd };
+  }
+  S.fiscalInversion = fiscalInversion;
+
   S.register({
     id: 'impuestos', nombre: 'Impuestos', grupo: 'Finanzas',
     render(host) {
@@ -186,6 +251,10 @@
       const ctxs = Object.fromEntries(ESC.map((k) => [k, levelCtx(k)]));
       const byMonth = Array.from({ length: 12 }, (_, k) => { const y = y0 + Math.floor((m0 + k) / 12), m = (m0 + k) % 12; return { l: MESES[m] + ' ' + String(y).slice(2), v: tc.pagos.filter((p) => p.fecha.getFullYear() === y && p.fecha.getMonth() === m).reduce((a, p) => a + p.importe, 0) }; });
       const presion = S.pct(tc.anual, tc.ventas12);
+      if (!Array.isArray(T.inversiones)) T.inversiones = [nuevoEscFiscal('Compra con préstamo · lineal'), nuevoEscFiscal('Compra · amortización acelerada', { metodo: 'acelerada' }), nuevoEscFiscal('Leasing', { forma: 'leasing', mes: 3 }), nuevoEscFiscal('Compra en marzo · 20 % de I+D+i', { mes: 3, metodo: 'acelerada', idiPct: 20 })];
+      const ctxFiscal = levelCtx(T.escenario);
+      const fis = T.inversiones.map((x) => ({ r: fiscalInversion(x, ctxFiscal) }));
+      const bestVA = Math.max(...fis.map((f) => f.r.va)); fis.forEach((f) => { f.best = fis.length > 1 && f.r.va === bestVA && bestVA > 0; });
       host.innerHTML = `${S.section('Impuestos', 'Cuadro global de impuestos y cotizaciones de los próximos 12 meses con sus fechas de pago (calendario general de la Agencia Tributaria y la Seguridad Social), y un marco de movimientos legales para reducir o aplazar la factura fiscal en cada escenario.')}
         ${S.kpiTiles([
           { k: 'Pagos en 12 meses', v: F.eur(tc.anual), d: `${F.pct(presion)} de las ventas` },
@@ -205,7 +274,17 @@
           <div class="table-wrap"><table><thead><tr><th style="text-align:left">Movimiento</th><th>Tipo</th>${ESC.map((k) => `<th>${A.SCENARIOS.find((s) => s.key === k).nombre}</th>`).join('')}<th style="text-align:left">Cómo funciona</th></tr></thead><tbody>
           ${['Resultados', 'Inversión', 'Societario', 'Tesorería fiscal', 'Personas'].map((cat) => `<tr><td colspan="${3 + ESC.length}" style="text-align:left;color:var(--gold)">${cat}</td></tr>` + LEVERS_FISCALES.filter((l) => l.cat === cat).map((l) => `<tr><td style="text-align:left;font-family:var(--font-body)"><b>${l.nombre}</b><br><span class="muted small">${l.ref}</span></td><td style="font-family:var(--font-body)">${l.tipo}</td>${ESC.map((k) => { const v = l.est(ctxs[k]); return `<td>${v > 0 ? F.eur(v) : '—'}</td>`; }).join('')}<td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:280px">${l.como} <span class="muted">Requisito: ${l.req}</span></td></tr>`).join('')).join('')}
           </tbody></table></div>
-          <p class="note">Estimaciones orientativas para preparar la reunión con tu asesor fiscal. Los porcentajes y umbrales cambian con cada reforma: confirma la normativa vigente antes de aplicar cualquier movimiento.</p></div>`;
+          <p class="note">Estimaciones orientativas para preparar la reunión con tu asesor fiscal. Los porcentajes y umbrales cambian con cada reforma: confirma la normativa vigente antes de aplicar cualquier movimiento.</p></div>
+        <div class="glass pad mt stack"><h4>Escenarios fiscales de la inversión</h4>
+          <p class="small">Plantea la misma inversión de varias formas (compra, leasing o renting; amortización lineal, acelerada o con libertad por empleo; fecha de puesta en marcha; parte de I+D+i) y compara cuánto Impuesto sobre Sociedades ahorra cada una año a año. La base de partida es el beneficio previsto del escenario ${esc(T.escenario)} (${F.eur(ctxFiscal.bi)} de base imponible al ${T.tipoIS} %).</p>
+          <div id="txInv"></div>
+          <div class="table-wrap mt"><table><thead><tr><th style="text-align:left">Escenario</th>${[0, 1, 2, 3, 4].map((k) => `<th>${y0 + k}</th>`).join('')}<th>5 años</th><th>Toda la vida</th><th>Valor actual</th></tr></thead><tbody>
+            ${fis.map((f, i) => `<tr><td style="text-align:left;font-family:var(--font-body)">${f.best ? '<span class="state st-ok">Mejor</span> ' : ''}${esc(T.inversiones[i].nombre || 'Escenario ' + (i + 1))}</td>${f.r.filas.slice(0, 5).map((x) => `<td>${F.eur(x.ahorro)}</td>`).join('')}<td><b>${F.eur(f.r.ahorro5)}</b></td><td>${F.eur(f.r.total)}</td><td>${F.eur(f.r.va)}</td></tr>`).join('')}
+          </tbody></table></div>
+          <div class="chart" id="txInvChart"></div>
+          ${fis.some((f) => f.r.avisos.length) ? `<ul class="small">${fis.map((f, i) => f.r.avisos.map((a) => `<li><b>${esc(T.inversiones[i].nombre)}:</b> ${esc(a)}</li>`).join('')).join('')}</ul>` : ''}
+          <p class="note">El ahorro por amortización es sobre todo un adelanto: a lo largo de la vida del activo se deduce lo mismo, pero pagar menos los primeros años mejora la caja justo cuando la inversión la consume. Por eso se compara también en valor actual (descontado al 5 %). La deducción por I+D+i y los intereses sí son ahorro definitivo. ${fis[0] && !fis[0].r.erd ? 'Tu cifra de negocios supera los 10 M€: no aplican los incentivos de empresa de reducida dimensión.' : ''}</p>
+        </div>`;
       S.vbars($('#txChart', host), byMonth.map((x) => x.l), [{ n: 'Impuestos y cotizaciones', data: byMonth.map((x) => x.v), c: css('--gold') }], F.eur, { aria: 'Pagos de impuestos por mes', h: 220 });
       const inputs = [['tipoIS', 'Tipo del Impuesto sobre Sociedades', '%'], ['iva', 'Tipo de IVA', '%'], ['pctVentasIVA', 'Ventas con IVA', '%'], ['pctComprasIVA', 'Compras con IVA', '%'], ['pctFijosIVA', 'Gastos fijos con IVA', '%'], ['irpf', 'Retención media de nóminas', '%'], ['ssEmpresa', 'Seguridad Social a cargo empresa', '%'], ['ssTrabajador', 'Seguridad Social del trabajador', '%'], ['alquiler', 'Alquiler mensual con retención', '€'], ['ibi', 'IBI anual', '€'], ['mesIBI', 'Mes del IBI', '1-12'], ['iae', 'IAE anual', '€'], ['mesIAE', 'Mes del IAE', '1-12'], ['cuotaAnterior', 'Cuota del IS del año anterior', '€'], ['idi', 'Gasto anual en I+D+i', '€'], ['payout', 'Beneficio que se reparte', '%']];
       $('#txIn', host).innerHTML = inputs.map(([k, l, u]) => `<div class="field"><div class="top"><label for="tx_${k}">${l}</label><span class="val"><input class="fnum" id="tx_${k}" value="${T[k] === null ? '' : String(T[k]).replace('.', ',')}" placeholder="auto"><span class="u">${u}</span></span></div></div>`).join('') +
@@ -214,6 +293,11 @@
       inputs.forEach(([k]) => { $('#tx_' + k, host).onchange = (e) => { const v = e.target.value.trim(); T[k] = v === '' ? null : S.num(v); S.save(); S.rerender(); }; });
       $('#tx_esc', host).onchange = (e) => { T.escenario = e.target.value; S.save(); S.rerender(); };
       $('#tx_men', host).onchange = (e) => { T.mensual = e.target.checked; S.save(); S.rerender(); };
+      S.etable($('#txInv', host), { titulo: 'Escenarios', rows: T.inversiones, onChange: () => { S.save(); S.rerender(); }, nuevo: () => nuevoEscFiscal('Escenario ' + (T.inversiones.length + 1)),
+        cols: [{ k: 'nombre', l: 'Nombre', type: 'text' }, { k: 'importe', l: 'Importe €', type: 'num' }, { k: 'activo', l: 'Activo', type: 'select', opts: Object.keys(ACTIVOS).map((k) => ({ v: k, l: ACTIVOS[k].n })) },
+          { k: 'mes', l: 'Mes de puesta en marcha (1-12)', type: 'num' }, { k: 'forma', l: 'Forma', type: 'select', opts: Object.keys(FORMAS).map((k) => ({ v: k, l: FORMAS[k] })) }, { k: 'metodo', l: 'Amortización', type: 'select', opts: Object.keys(METODOS).map((k) => ({ v: k, l: METODOS[k] })) },
+          { k: 'pctFin', l: '% financiado', type: 'num' }, { k: 'tipo', l: 'Interés %', type: 'num' }, { k: 'plazo', l: 'Plazo (años)', type: 'num' }, { k: 'idiPct', l: '% que es I+D+i', type: 'num' }, { k: 'empleo', l: 'Aumento de plantilla', type: 'num' }] });
+      if (fis.length) S.vbars($('#txInvChart', host), [0, 1, 2, 3, 4].map((k) => String(y0 + k)), fis.map((f, i) => ({ n: T.inversiones[i].nombre || 'Escenario ' + (i + 1), data: f.r.filas.slice(0, 5).map((x) => x.ahorro), c: A.seriesColor(i) })), F.eur, { aria: 'Ahorro fiscal por año y escenario', h: 220 });
     },
     kpis() { const tc = taxCalc(); return [{ k: 'Impuestos 12 meses', v: F.eur(tc.anual) }, { k: 'Presión sobre ventas', v: F.pct(S.pct(tc.anual, tc.ventas12)) }]; },
     risks() {
@@ -343,66 +427,210 @@
   /* =========================================================
      4. Presupuesto y desviaciones
      ========================================================= */
-  S.defaults.presupuesto = { anio: y0, reales: null, ajusteVentas: 0 };
-  function budget() {
-    const B = S.state.presupuesto, e = S.sim.empresa, sec = A.SECTORS[S.sim.sector];
-    const seas = (m) => 1 + sec.estacionalidad * Math.cos((2 * Math.PI * (m + 1 - sec.pico)) / 12);
-    const sumS = Array.from({ length: 12 }, (_, m) => seas(m)).reduce((a, b) => a + b, 0);
-    const ventasAnual = e.ventas * (1 + e.crecimiento / 100) * (1 + (B.ajusteVentas || 0) / 100);
-    const ppto = Array.from({ length: 12 }, (_, m) => { const v = ventasAnual * seas(m) / sumS; return { ventas: v, costeVariable: v * (1 - e.margen / 100), personal: e.personal * 1.025 / 12, fijos: e.fijos * 1.02 / 12 }; });
-    if (!B.reales) { // ejemplo: meses ya cerrados con desviaciones verosímiles
-      B.reales = Array.from({ length: 12 }, (_, m) => (m < (B.anio === y0 ? m0 : 12) ? { ventas: Math.round(ppto[m].ventas * (0.9 + ((m * 37) % 11) / 100)), costeVariable: Math.round(ppto[m].costeVariable * (0.93 + ((m * 23) % 9) / 100)), personal: Math.round(ppto[m].personal * 1.03), fijos: Math.round(ppto[m].fijos * (0.97 + ((m * 13) % 7) / 100)) } : {}));
-      B.ejemplo = true;
+  /* Estructura detallada del presupuesto: cada grupo se reparte en partidas con un peso típico */
+  const GRUPOS = { ventas: 'Ventas', variable: 'Costes variables', personal: 'Personal', fijos: 'Gastos fijos' };
+  const PARTIDAS = {
+    variable: [['Compras de materiales y mercaderías', 0.75], ['Transportes y portes', 0.12], ['Subcontratación y trabajos externos', 0.08], ['Comisiones de venta', 0.05]],
+    personal: [['Producción y operaciones', 0.52], ['Comercial y atención al cliente', 0.16], ['Técnico e ingeniería', 0.12], ['Dirección y administración', 0.20]],
+    fijos: [['Alquileres', 0.22], ['Suministros (luz, agua, gas)', 0.17], ['Mantenimiento y reparaciones', 0.12], ['Seguros', 0.06], ['Servicios profesionales (asesoría, auditoría)', 0.10], ['Marketing y publicidad', 0.09], ['Tecnología y software', 0.08], ['Viajes y vehículos', 0.06], ['Otros gastos', 0.10]]
+  };
+  const METODOS_P = {
+    historico: { n: 'Histórico + crecimiento', d: 'Parte del último año (datos del simulador), aplica el crecimiento de ventas, la inflación a los gastos y la revisión salarial al personal.' },
+    escenario: { n: 'Desde un escenario del simulador', d: 'Toma mes a mes las ventas y costes del escenario elegido, con el efecto de la inversión (rampa, contrataciones, nuevos fijos).' },
+    objetivo: { n: 'Para alcanzar un EBITDA objetivo', d: 'Mantiene los gastos (con inflación) y calcula la venta necesaria para llegar al EBITDA que fijes.' },
+    cero: { n: 'Base cero', d: 'Crea la estructura de partidas vacía para justificar cada euro desde cero.' }
+  };
+  S.defaults.presupuesto = { anio: y0, versiones: null, activa: null, reales: null, params: { metodo: 'historico', crecimiento: null, ipc: 3.6, salarios: 3.5, ebitdaObj: 12, escenario: 'base' } };
+  const sum = (a) => a.reduce((x, y) => x + (+y || 0), 0);
+  const uidP = () => 'l' + Math.random().toString(36).slice(2, 8);
+  function seasonality() {
+    const sec = A.SECTORS[S.sim.sector];
+    const w = Array.from({ length: 12 }, (_, m) => 1 + sec.estacionalidad * Math.cos((2 * Math.PI * (m + 1 - sec.pico)) / 12));
+    const t = sum(w); return w.map((x) => x / t);
+  }
+  /* Genera una versión del presupuesto con el método elegido */
+  function generar(prm, anio) {
+    const e = S.sim.empresa, sz = seasonality(), plano = Array(12).fill(1 / 12);
+    const crec = prm.crecimiento === null || prm.crecimiento === '' || prm.crecimiento === undefined ? e.crecimiento : S.num(prm.crecimiento);
+    const ipc = S.num(prm.ipc) / 100, sal = S.num(prm.salarios) / 100;
+    let ventasM, varM, persM, fijM;
+    if (prm.metodo === 'escenario') {
+      const r = S.analysis(prm.escenario || 'base'), w = r.w;
+      const at = (arr, m) => { const i = (anio - y0) * 12 + m - m0; return i >= 0 && i < 60 ? arr[i] : null; };
+      ventasM = sz.map((f, m) => { const v = at(w.sales, m); return v === null ? e.ventas * f : v; });
+      varM = ventasM.map((v, m) => { const g = at(w.gross, m); return g === null ? v * (1 - e.margen / 100) : at(w.sales, m) - g; });
+      persM = plano.map((f, m) => { const v = at(w.staff, m); return v === null ? e.personal * f : v; });
+      fijM = plano.map((f, m) => { const v = at(w.fixed, m); return v === null ? e.fijos * f : v; });
+    } else {
+      const pers = e.personal * (1 + sal), fij = e.fijos * (1 + ipc);
+      let ventas = e.ventas * (1 + crec / 100);
+      const mv = e.margen / 100;
+      if (prm.metodo === 'objetivo') { const obj = S.num(prm.ebitdaObj) / 100; ventas = mv - obj > 0.01 ? (pers + fij) / (mv - obj) : ventas; }
+      ventasM = sz.map((f) => ventas * f); varM = ventasM.map((v) => v * (1 - mv));
+      persM = plano.map((f) => pers * f); fijM = plano.map((f) => fij * f);
     }
-    const rows = ppto.map((p, m) => { const r = B.reales[m] || {}; const has = isFinite(r.ventas) && r.ventas !== null && r.ventas !== ''; return { m, p, r, has, pE: p.ventas - p.costeVariable - p.personal - p.fijos, rE: has ? r.ventas - (r.costeVariable || 0) - (r.personal || 0) - (r.fijos || 0) : null }; });
+    const z = prm.metodo === 'cero';
+    const mk = (grupo, nombre, meses) => ({ id: uidP(), grupo, nombre, meses: meses.map((v) => (z ? 0 : Math.round(v))) });
+    const prods = (S.state.comercial && S.state.comercial.productos) || [];
+    const pv = prods.map((p) => S.num(p.unidades) * S.num(p.precio)), tv = sum(pv);
+    const lineas = [];
+    if (tv > 0 && prods.length <= 8) prods.forEach((p, i) => lineas.push(mk('ventas', 'Ventas · ' + p.nombre, ventasM.map((v) => v * pv[i] / tv))));
+    else lineas.push(mk('ventas', 'Ventas', ventasM));
+    PARTIDAS.variable.forEach(([n, f]) => lineas.push(mk('variable', n, varM.map((v) => v * f))));
+    PARTIDAS.personal.forEach(([n, f]) => lineas.push(mk('personal', n, persM.map((v) => v * f))));
+    PARTIDAS.fijos.forEach(([n, f]) => lineas.push(mk('fijos', n, fijM.map((v) => v * f))));
+    const nombre = `${METODOS_P[prm.metodo].n}${prm.metodo === 'historico' ? ` (${crec >= 0 ? '+' : ''}${String(crec).replace('.', ',')} %)` : prm.metodo === 'objetivo' ? ` (${prm.ebitdaObj} %)` : prm.metodo === 'escenario' ? ` (${(A.SCENARIOS.find((x) => x.key === prm.escenario) || {}).nombre || ''})` : ''}`;
+    return { id: 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), nombre, metodo: prm.metodo, creada: new Date().toISOString(), lineas };
+  }
+  function ensure() {
+    const B = S.state.presupuesto;
+    B.params = Object.assign({ metodo: 'historico', crecimiento: null, ipc: 3.6, salarios: 3.5, ebitdaObj: 12, escenario: 'base' }, B.params || {});
+    if (!Array.isArray(B.versiones) || !B.versiones.length) { const v = generar(B.params, B.anio); v.nombre = 'Presupuesto inicial · ' + v.nombre; B.versiones = [v]; B.activa = v.id; }
+    if (!B.versiones.some((v) => v.id === B.activa)) B.activa = B.versiones[0].id;
+    const V = B.versiones.find((v) => v.id === B.activa);
+    // Reales por partida (se conservan al cambiar de versión, enlazados por nombre de partida)
+    if (!B.reales || Array.isArray(B.reales)) {
+      const old = Array.isArray(B.reales) ? B.reales : null; B.reales = {};
+      const cerrados = B.anio === y0 ? m0 : B.anio < y0 ? 12 : 0;
+      const gk = { ventas: 'ventas', variable: 'costeVariable', personal: 'personal', fijos: 'fijos' };
+      V.lineas.forEach((l, j) => {
+        const totG = (m) => sum(V.lineas.filter((x) => x.grupo === l.grupo).map((x) => x.meses[m]));
+        B.reales[l.nombre] = l.meses.map((v, m) => {
+          if (old && old[m] && old[m][gk[l.grupo]] !== undefined && old[m][gk[l.grupo]] !== null && old[m][gk[l.grupo]] !== '') return Math.round(S.num(old[m][gk[l.grupo]]) * (totG(m) ? v / totG(m) : 0));
+          if (!old && m < cerrados) return Math.round(v * (l.grupo === 'ventas' ? 0.9 + ((m * 37 + j * 7) % 11) / 100 : l.grupo === 'personal' ? 1.03 : 0.95 + ((m * 13 + j * 5) % 9) / 100));
+          return null;
+        });
+      });
+      B.ejemplo = !old;
+    }
+    return V;
+  }
+  function budget() {
+    const B = S.state.presupuesto, V = ensure();
+    const G = (g, src, m) => sum(V.lineas.filter((l) => l.grupo === g).map((l) => (src === 'p' ? l.meses[m] : S.num((B.reales[l.nombre] || [])[m]))));
+    const rows = Array.from({ length: 12 }, (_, m) => {
+      const has = V.lineas.some((l) => l.grupo === 'ventas' && (B.reales[l.nombre] || [])[m] !== null && (B.reales[l.nombre] || [])[m] !== undefined && (B.reales[l.nombre] || [])[m] !== '');
+      const p = { ventas: G('ventas', 'p', m), costeVariable: G('variable', 'p', m), personal: G('personal', 'p', m), fijos: G('fijos', 'p', m) };
+      const r = has ? { ventas: G('ventas', 'r', m), costeVariable: G('variable', 'r', m), personal: G('personal', 'r', m), fijos: G('fijos', 'r', m) } : {};
+      return { m, p, r, has, pE: p.ventas - p.costeVariable - p.personal - p.fijos, rE: has ? r.ventas - r.costeVariable - r.personal - r.fijos : null };
+    });
     const done = rows.filter((x) => x.has);
     const ytd = (k, src) => done.reduce((a, x) => a + (src === 'p' ? (k === 'ebitda' ? x.pE : x.p[k]) : (k === 'ebitda' ? x.rE : S.num(x.r[k]))), 0);
     const ratio = ytd('ventas', 'p') ? ytd('ventas', 'r') / ytd('ventas', 'p') : 1;
     const escEq = ratio >= 1.05 ? 'optimista' : ratio >= 0.97 ? 'base' : ratio >= 0.85 ? 'pesimista' : 'estres';
     const cierreVentas = ytd('ventas', 'r') + rows.filter((x) => !x.has).reduce((a, x) => a + x.p.ventas * ratio, 0);
-    return { rows, done, ytd, ratio, escEq, cierreVentas, ventasAnual };
+    const ventasAnual = sum(rows.map((x) => x.p.ventas));
+    return { V, rows, done, ytd, ratio, escEq, cierreVentas, ventasAnual };
   }
   S.budget = budget;
+  const fmt0 = (v) => (v === null || v === undefined || v === '' ? '' : new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(v));
+  const pctTxt = (v) => (isFinite(v) ? (Math.round(v * 10) / 10).toLocaleString('es-ES') + ' %' : '—');
+
+  /* Rejilla editable de partidas × meses: todas las casillas de partidas se editan; las filas de total se calculan solas */
+  function grid(host, V, getter, setter, opts) {
+    const lin = V.lineas;
+    const venta = (m) => sum(lin.filter((l) => l.grupo === 'ventas').map((l) => S.num(getter(l, m))));
+    const ventaT = sum(MESES.map((_, m) => venta(m)));
+    const tot = (g, m) => sum(lin.filter((l) => l.grupo === g).map((l) => S.num(getter(l, m))));
+    const ebitda = (m) => tot('ventas', m) - tot('variable', m) - tot('personal', m) - tot('fijos', m);
+    const lineRow = (l) => { const t = sum(MESES.map((_, m) => S.num(getter(l, m)))); return `<tr><td class="pname">${opts.editNames ? `<input class="gcell txt" data-name="${l.id}" value="${esc(l.nombre)}">` : esc(l.nombre)}</td>${MESES.map((_, m) => `<td><input class="gcell" data-l="${l.id}" data-m="${m}" inputmode="decimal" value="${fmt0(getter(l, m))}" aria-label="${esc(l.nombre)} ${MESES_L[m]}"></td>`).join('')}<td><input class="gcell gtot" data-tot="${l.id}" value="${fmt0(t)}" title="Escribe un total anual y se reparte entre los meses" aria-label="${esc(l.nombre)} total anual"></td><td class="calc">${l.grupo === 'ventas' ? pctTxt(S.pct(t, ventaT)) + ' del total' : pctTxt(S.pct(t, ventaT))}</td>${opts.editNames ? `<td><button class="icon-btn" data-dell="${l.id}" aria-label="Quitar partida">×</button></td>` : ''}</tr>`; };
+    const totRow = (n, f, strong) => { const t = sum(MESES.map((_, m) => f(m))); return `<tr class="gsum${strong ? ' strong' : ''}"><td class="pname">${n}</td>${MESES.map((_, m) => `<td>${fmt0(f(m))}</td>`).join('')}<td>${fmt0(t)}</td><td>${pctTxt(S.pct(t, ventaT))}</td>${opts.editNames ? '<td></td>' : ''}</tr>`; };
+    host.innerHTML = `<div class="etable table-wrap"><table class="bgrid"><thead><tr><th style="text-align:left">Partida</th>${MESES.map((m) => `<th>${m}</th>`).join('')}<th>Total año</th><th>% s/ventas</th>${opts.editNames ? '<th></th>' : ''}</tr></thead><tbody>
+      ${Object.keys(GRUPOS).map((g) => `<tr class="ghead"><td colspan="${opts.editNames ? 16 : 15}">${GRUPOS[g]}${opts.editNames ? ` <button class="btn ghost" data-addl="${g}" style="padding:2px 8px;font-size:.7rem;margin-left:8px">+ partida</button>` : ''}</td></tr>${lin.filter((l) => l.grupo === g).map(lineRow).join('')}${totRow('Total ' + GRUPOS[g].toLowerCase(), (m) => tot(g, m))}${g === 'variable' ? totRow('Margen bruto', (m) => tot('ventas', m) - tot('variable', m)) : ''}`).join('')}
+      ${totRow('EBITDA', ebitda, true)}</tbody></table></div>
+      <p class="hint">Todas las casillas blancas se pueden escribir, incluido el total anual (se reparte entre los meses con el mismo patrón). Las filas sombreadas son totales y se calculan solas. Puedes pegar un bloque desde Excel en cualquier casilla.</p>`;
+    const L = (id) => lin.find((l) => l.id === id);
+    $$('input[data-l]', host).forEach((inp) => {
+      inp.addEventListener('change', () => { const v = inp.value.trim() === '' ? null : S.num(inp.value); setter(L(inp.dataset.l), +inp.dataset.m, v); opts.onChange(); });
+      inp.addEventListener('paste', (ev) => {
+        const t = (ev.clipboardData || window.clipboardData).getData('text'); if (!/[\t\n]/.test(t.trim())) return;
+        ev.preventDefault();
+        const ids = lin.map((l) => l.id), i0 = ids.indexOf(inp.dataset.l), m0p = +inp.dataset.m;
+        t.split(/\r?\n/).filter((x) => x.trim() !== '').forEach((ln, i) => ln.split('\t').forEach((c, j) => { const l = L(ids[i0 + i]); if (l && m0p + j < 12 && c.trim() !== '') setter(l, m0p + j, S.num(c)); }));
+        opts.onChange();
+      });
+    });
+    $$('input[data-tot]', host).forEach((inp) => inp.addEventListener('change', () => {
+      const l = L(inp.dataset.tot), nuevo = S.num(inp.value), act = sum(MESES.map((_, m) => S.num(getter(l, m))));
+      const pat = act > 0 ? MESES.map((_, m) => S.num(getter(l, m)) / act) : (l.grupo === 'ventas' ? seasonality() : Array(12).fill(1 / 12));
+      MESES.forEach((_, m) => setter(l, m, Math.round(nuevo * pat[m]))); opts.onChange();
+    }));
+    $$('input[data-name]', host).forEach((inp) => inp.addEventListener('change', () => { const l = L(inp.dataset.name); const old = l.nombre; l.nombre = inp.value.trim() || old; if (opts.onRename) opts.onRename(old, l.nombre); opts.onChange(); }));
+    $$('[data-dell]', host).forEach((b) => b.onclick = () => { V.lineas = V.lineas.filter((l) => l.id !== b.dataset.dell); opts.onChange(); });
+    $$('[data-addl]', host).forEach((b) => b.onclick = () => { V.lineas.push({ id: uidP(), grupo: b.dataset.addl, nombre: 'Nueva partida', meses: Array(12).fill(0) }); opts.onChange(); });
+  }
+
   S.register({
     id: 'presupuesto', nombre: 'Presupuesto', grupo: 'Finanzas',
     render(host) {
-      const B = S.state.presupuesto, b = budget();
-      let vista = host.dataset.vista || 'mes';
-      const groups = vista === 'mes' ? b.rows.map((x) => ({ l: MESES[x.m], rows: [x] })) : vista === 'trimestre' ? [0, 1, 2, 3].map((q) => ({ l: 'T' + (q + 1), rows: b.rows.slice(q * 3, q * 3 + 3) })) : [{ l: String(B.anio), rows: b.rows }];
-      const sumG = (g, k, src) => g.rows.reduce((a, x) => a + (src === 'p' ? (k === 'ebitda' ? x.pE : x.p[k]) : x.has ? (k === 'ebitda' ? x.rE : S.num(x.r[k])) : 0), 0);
-      const hasG = (g) => g.rows.some((x) => x.has);
-      const dev = (k, g) => { if (!hasG(g)) return '<td class="calc">—</td>'; const pp = g.rows.filter((x) => x.has).reduce((a, x) => a + (k === 'ebitda' ? x.pE : x.p[k]), 0), rr = sumG(g, k, 'r'); const d = rr - pp; const good = k === 'ventas' || k === 'ebitda' ? d >= 0 : d <= 0; const st = Math.abs(S.pct(d, pp)) < 3 ? 'ok' : good ? 'ok' : Math.abs(S.pct(d, pp)) < 8 ? 'warn' : 'stop'; return `<td><span class="state st-${st}">${d >= 0 ? '+' : ''}${F.pct(S.pct(d, pp))}</span></td>`; };
-      const LIN = [['ventas', 'Ventas'], ['costeVariable', 'Coste variable'], ['personal', 'Personal'], ['fijos', 'Otros fijos'], ['ebitda', 'EBITDA']];
-      host.innerHTML = `${S.section('Presupuesto y desviaciones', 'El presupuesto del año se genera con los datos del simulador y la estacionalidad de tu sector. Cada mes introduces el real (a mano, importando o pegando) y Atalaya mide la desviación por mes, trimestre o año, te dice a qué escenario se parece la realidad y proyecta el cierre.')}
-        ${B.ejemplo ? '<p class="small muted">Los reales son de ejemplo: sustitúyelos por los tuyos.</p>' : ''}
+      const B = S.state.presupuesto, b = budget(), V = b.V, prm = B.params;
+      const tab = host.dataset.tab || 'ppto';
+      const periodo = host.dataset.periodo || 'ytd';
+      // Desviaciones por partida en el periodo elegido
+      const PER = [['ytd', 'Acumulado del año'], ['anio', 'Año completo']].concat([0, 1, 2, 3].map((q) => ['t' + q, 'Trimestre ' + (q + 1)])).concat(MESES_L.map((n, m) => ['m' + m, n[0].toUpperCase() + n.slice(1)]));
+      const meses = periodo === 'ytd' ? b.done.map((x) => x.m) : periodo === 'anio' ? MESES.map((_, m) => m) : periodo[0] === 't' ? [0, 1, 2].map((k) => +periodo[1] * 3 + k) : [+periodo.slice(1)];
+      const conReal = meses.filter((m) => b.rows[m].has);
+      const pL = (l, ms) => sum(ms.map((m) => l.meses[m])), rL = (l, ms) => sum(ms.map((m) => S.num((B.reales[l.nombre] || [])[m])));
+      const vP = sum(V.lineas.filter((l) => l.grupo === 'ventas').map((l) => pL(l, conReal))), vR = sum(V.lineas.filter((l) => l.grupo === 'ventas').map((l) => rL(l, conReal)));
+      const devRow = (n, p, r, ingreso, cls) => { const d = r - p, dp = S.pct(d, Math.abs(p)); const good = ingreso ? d >= 0 : d <= 0; const st = Math.abs(dp) < 3 ? 'ok' : good ? 'ok' : Math.abs(dp) < 8 ? 'warn' : 'stop'; return `<tr class="${cls || ''}"><td class="pname">${n}</td><td>${F.eur(p)}</td><td>${conReal.length ? F.eur(r) : '—'}</td><td style="color:${conReal.length ? A.stateColor(st) : 'inherit'}">${conReal.length ? (d >= 0 ? '+' : '') + F.eur(d) : '—'}</td><td style="color:${conReal.length ? A.stateColor(st) : 'inherit'}">${conReal.length ? (dp >= 0 ? '+' : '') + pctTxt(dp) : '—'}</td><td>${pctTxt(S.pct(p, vP))}</td><td>${conReal.length ? pctTxt(S.pct(r, vR)) : '—'}</td><td>${conReal.length ? ((S.pct(r, vR) - S.pct(p, vP)) >= 0 ? '+' : '') + (Math.round((S.pct(r, vR) - S.pct(p, vP)) * 10) / 10).toLocaleString('es-ES') + ' pp' : '—'}</td></tr>`; };
+      const grp = (g) => V.lineas.filter((l) => l.grupo === g);
+      const gP = (g) => sum(grp(g).map((l) => pL(l, conReal))), gR = (g) => sum(grp(g).map((l) => rL(l, conReal)));
+      const ebP = gP('ventas') - gP('variable') - gP('personal') - gP('fijos'), ebR = gR('ventas') - gR('variable') - gR('personal') - gR('fijos');
+      const devTable = `<div class="table-wrap"><table class="bdev"><thead><tr><th style="text-align:left">Partida</th><th>Presupuesto</th><th>Real</th><th>Desviación €</th><th>Desviación %</th><th>% s/ventas ppto.</th><th>% s/ventas real</th><th>Diferencia de peso</th></tr></thead><tbody>
+        ${Object.keys(GRUPOS).map((g) => `<tr class="ghead"><td colspan="8">${GRUPOS[g]}</td></tr>${grp(g).map((l) => devRow(esc(l.nombre), pL(l, conReal), rL(l, conReal), g === 'ventas')).join('')}${devRow('Total ' + GRUPOS[g].toLowerCase(), gP(g), gR(g), g === 'ventas', 'gsum')}`).join('')}
+        ${devRow('EBITDA', ebP, ebR, true, 'gsum strong')}</tbody></table></div>`;
+      const cmp = B.versiones.map((v) => { const t = (g) => sum(v.lineas.filter((l) => l.grupo === g).map((l) => sum(l.meses))); const ve = t('ventas'); return { v, ve, va: t('variable'), pe: t('personal'), fi: t('fijos'), eb: ve - t('variable') - t('personal') - t('fijos') }; });
+      host.innerHTML = `${S.section('Presupuesto y desviaciones', 'Genera propuestas de presupuesto con distintos métodos, ajústalas partida a partida y compáralas. Después introduce el real de cada mes y Atalaya mide la desviación en euros, en porcentaje y en peso sobre las ventas, por mes, trimestre o año, te dice a qué escenario se parece la realidad y proyecta el cierre.')}
+        ${B.ejemplo ? '<p class="small muted">Los reales son de ejemplo: sustitúyelos por los tuyos en la pestaña «Reales».</p>' : ''}
         ${S.kpiTiles([
-          { k: 'Ventas acumuladas', v: F.eur(b.ytd('ventas', 'r')), d: `presupuesto ${F.eur(b.ytd('ventas', 'p'))}`, st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' },
-          { k: 'EBITDA acumulado', v: F.eur(b.ytd('ebitda', 'r')), d: `presupuesto ${F.eur(b.ytd('ebitda', 'p'))}`, st: b.ytd('ebitda', 'r') >= b.ytd('ebitda', 'p') * 0.95 ? 'ok' : 'warn' },
+          { k: 'Ventas acumuladas', v: F.eur(b.ytd('ventas', 'r')), d: `presupuesto ${F.eur(b.ytd('ventas', 'p'))} · ${pctTxt(S.pct(b.ytd('ventas', 'r') - b.ytd('ventas', 'p'), b.ytd('ventas', 'p')))}`, st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' },
+          { k: 'EBITDA acumulado', v: F.eur(b.ytd('ebitda', 'r')), d: `presupuesto ${F.eur(b.ytd('ebitda', 'p'))}`, st: b.ytd('ebitda', 'r') >= b.ytd('ebitda', 'p') * 0.95 ? 'ok' : 'warn', info: 'EBITDA' },
           { k: 'La realidad se parece a', v: A.SCENARIOS.find((s) => s.key === b.escEq).nombre, d: `ventas al ${Math.round(b.ratio * 100)} % de lo previsto`, st: b.escEq === 'base' || b.escEq === 'optimista' ? 'ok' : b.escEq === 'pesimista' ? 'warn' : 'stop' },
           { k: 'Cierre proyectado', v: F.eur(b.cierreVentas), d: `presupuesto ${F.eur(b.ventasAnual)}` }
         ])}
-        <div class="row mt"><div class="seg" style="margin:0" id="pvV">${['mes', 'trimestre', 'año'].map((v) => `<button data-v="${v}" aria-pressed="${v === vista}">${v[0].toUpperCase() + v.slice(1)}</button>`).join('')}</div>
-          <label class="small">Ajuste del presupuesto de ventas <input class="input" id="pvAj" style="width:70px" value="${B.ajusteVentas || 0}"> %</label>
+        <div class="glass pad mt stack"><div class="row"><h4>Generar una propuesta de presupuesto</h4><span class="spacer"></span><span class="small muted">Cada propuesta se guarda como una versión</span></div>
+          <div class="pmethods">${Object.keys(METODOS_P).map((k) => `<label class="pm ${prm.metodo === k ? 'on' : ''}"><input type="radio" name="pvMet" value="${k}" ${prm.metodo === k ? 'checked' : ''}><b>${METODOS_P[k].n}</b><small>${METODOS_P[k].d}</small></label>`).join('')}</div>
+          <div class="lever-grid">
+            ${prm.metodo === 'historico' ? `<label class="small">Crecimiento de ventas (%)<input class="input" id="pv_crecimiento" value="${prm.crecimiento === null ? '' : String(prm.crecimiento).replace('.', ',')}" placeholder="${String(S.sim.empresa.crecimiento).replace('.', ',')} (del simulador)"></label>` : ''}
+            ${prm.metodo === 'objetivo' ? `<label class="small">EBITDA objetivo (% sobre ventas)<input class="input" id="pv_ebitdaObj" value="${String(prm.ebitdaObj).replace('.', ',')}"></label>` : ''}
+            ${prm.metodo === 'escenario' ? `<label class="small">Escenario<select class="input" id="pv_escenario">${A.SCENARIOS.map((x) => `<option value="${x.key}" ${x.key === prm.escenario ? 'selected' : ''}>${x.nombre}</option>`).join('')}</select></label>` : ''}
+            ${prm.metodo === 'historico' || prm.metodo === 'objetivo' ? `<label class="small">Inflación de gastos (%)<input class="input" id="pv_ipc" value="${String(prm.ipc).replace('.', ',')}" title="Previsión del Banco de España para 2026: 3,6 %"></label><label class="small">Revisión salarial (%)<input class="input" id="pv_salarios" value="${String(prm.salarios).replace('.', ',')}"></label>` : ''}
+          </div>
+          <div class="row"><button class="btn solid" id="pvGen">Generar propuesta</button><span class="small muted">Se añade como versión nueva; la actual no se pierde.</span></div></div>
+
+        <div class="glass pad mt stack"><div class="row"><h4>Versiones</h4><span class="spacer"></span><label class="small">Versión de trabajo <select class="input" id="pvVer">${B.versiones.map((v) => `<option value="${v.id}" ${v.id === B.activa ? 'selected' : ''}>${esc(v.nombre)}</option>`).join('')}</select></label><button class="btn ghost" id="pvDup">Duplicar</button><button class="btn ghost" id="pvRen">Renombrar</button>${B.versiones.length > 1 ? '<button class="btn ghost" id="pvDel">Eliminar</button>' : ''}</div>
+          <div class="table-wrap"><table><thead><tr><th style="text-align:left">Versión</th><th>Ventas</th><th>Costes variables</th><th>Personal</th><th>Gastos fijos</th><th>EBITDA</th><th>% EBITDA</th></tr></thead><tbody>${cmp.map((c) => `<tr${c.v.id === B.activa ? ' style="background:rgba(212,174,100,.06)"' : ''}><td style="text-align:left;font-family:var(--font-body)">${c.v.id === B.activa ? '● ' : ''}${esc(c.v.nombre)}</td><td>${F.eur(c.ve)}</td><td>${F.eur(c.va)}</td><td>${F.eur(c.pe)}</td><td>${F.eur(c.fi)}</td><td>${F.eur(c.eb)}</td><td>${pctTxt(S.pct(c.eb, c.ve))}</td></tr>`).join('')}</tbody></table></div></div>
+
+        <div class="row mt"><div class="seg" style="margin:0" id="pvTab">${[['ppto', 'Presupuesto'], ['real', 'Reales'], ['desv', 'Desviaciones']].map(([k, l]) => `<button data-t="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div><span class="spacer"></span>
           <button class="btn" id="pvSim">Llevar la desviación al escenario «Hipótesis» del simulador</button></div>
-        <div class="glass pad mt"><div class="chart" id="pvChart"></div></div>
-        <div class="glass pad mt stack"><h4>Presupuesto frente a real</h4><div class="table-wrap"><table><thead><tr><th>Línea</th>${groups.map((g) => `<th colspan="3">${g.l}</th>`).join('')}</tr><tr><th></th>${groups.map(() => '<th>Ppto.</th><th>Real</th><th>Desv.</th>').join('')}</tr></thead><tbody>
-          ${LIN.map(([k, n]) => `<tr><td>${n}</td>${groups.map((g) => `<td class="calc">${F.eur(sumG(g, k, 'p'))}</td><td>${hasG(g) ? F.eur(sumG(g, k, 'r')) : '—'}</td>${dev(k, g)}`).join('')}</tr>`).join('')}
-        </tbody></table></div></div>
-        <div class="glass pad mt" id="pvReal"></div>`;
-      host.dataset.vista = vista;
-      S.vbars($('#pvChart', host), MESES, [{ n: 'Presupuesto', data: b.rows.map((x) => x.p.ventas), c: css('--s1') }, { n: 'Real', data: b.rows.map((x) => (x.has ? S.num(x.r.ventas) : 0)), c: css('--gold') }], F.eur, { aria: 'Ventas presupuestadas y reales' });
-      $$('#pvV button', host).forEach((bt) => bt.onclick = () => { host.dataset.vista = bt.dataset.v === 'año' ? 'año' : bt.dataset.v; S.mod('presupuesto').render(host); });
-      $('#pvAj', host).onchange = (e) => { B.ajusteVentas = S.num(e.target.value); S.save(); S.rerender(); };
-      $('#pvSim', host).onclick = () => { S.sim.custom.ventasF = Math.round(b.ratio * 100) / 100; S.sim.escenario = 'hipotesis'; S.saveSim(); A.toast ? A.toast('Escenario hipótesis actualizado') : null; $('#pvSim', host).textContent = 'Hecho: abre el simulador para verlo'; };
-      const rows = B.reales.map((r, m) => Object.assign({ mes: MESES_L[m] }, r));
-      S.etable($('#pvReal', host), {
-        titulo: 'Reales por mes', rows, onChange: () => { B.reales = rows.map((r) => ({ ventas: r.ventas, costeVariable: r.costeVariable, personal: r.personal, fijos: r.fijos })); B.ejemplo = false; S.save(); S.rerender(); },
-        nuevo: () => ({ mes: '' }),
-        cols: [{ k: 'mes', l: 'Mes', type: 'text', syn: ['mes', 'periodo'] }, { k: 'ventas', l: 'Ventas', type: 'num', syn: ['ventas', 'ingresos', 'facturacion'] }, { k: 'costeVariable', l: 'Coste variable', type: 'num', syn: ['coste variable', 'compras', 'aprovisionamientos', 'coste de ventas'] }, { k: 'personal', l: 'Personal', type: 'num', syn: ['personal', 'nominas', 'gastos de personal'] }, { k: 'fijos', l: 'Otros fijos', type: 'num', syn: ['otros gastos', 'fijos', 'gastos generales'] }]
-      });
+        ${tab === 'desv' ? `<div class="glass pad mt stack"><div class="row"><h4>Presupuesto frente a real</h4><span class="spacer"></span><label class="small">Periodo <select class="input" id="pvPer">${PER.map(([k, l]) => `<option value="${k}" ${k === periodo ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+            <p class="small muted">${conReal.length ? `Se comparan los meses con datos reales del periodo (${conReal.map((m) => MESES[m]).join(', ')}).` : 'Este periodo aún no tiene datos reales.'} «% s/ventas» es el peso de cada partida sobre las ventas; la diferencia de peso, en puntos (pp), enseña qué gasto ha crecido más que la venta.</p>${devTable}</div>
+          <div class="glass pad mt"><div class="chart" id="pvChart"></div></div>`
+        : `<div class="glass pad mt stack"><h4>${tab === 'ppto' ? 'Presupuesto · ' + esc(V.nombre) : 'Reales por partida y mes'}</h4><div id="pvGrid"></div></div>`}`;
+      // Generador
+      $$('input[name="pvMet"]', host).forEach((r) => r.onchange = () => { prm.metodo = r.value; S.save(); S.rerender(); });
+      ['crecimiento', 'ebitdaObj', 'ipc', 'salarios'].forEach((k) => { const el = $('#pv_' + k, host); if (el) el.onchange = () => { prm[k] = el.value.trim() === '' && k === 'crecimiento' ? null : S.num(el.value); S.save(); }; });
+      const es = $('#pv_escenario', host); if (es) es.onchange = () => { prm.escenario = es.value; S.save(); };
+      $('#pvGen', host).onclick = () => { const v = generar(prm, B.anio); B.versiones.push(v); B.activa = v.id; host.dataset.tab = 'ppto'; S.save(); S.rerender(); };
+      $('#pvVer', host).onchange = (e) => { B.activa = e.target.value; S.save(); S.rerender(); };
+      $('#pvDup', host).onclick = () => { const c = A.clone(V); c.id = 'v' + Date.now().toString(36); c.nombre = V.nombre + ' (copia)'; c.lineas.forEach((l) => { l.id = uidP(); }); B.versiones.push(c); B.activa = c.id; S.save(); S.rerender(); };
+      $('#pvRen', host).onclick = () => { const h = $('#pvRen', host); const inp = document.createElement('input'); inp.className = 'input'; inp.value = V.nombre; h.replaceWith(inp); inp.focus(); inp.onchange = () => { V.nombre = inp.value.trim() || V.nombre; S.save(); S.rerender(); }; };
+      const dl = $('#pvDel', host); if (dl) { let armed = false; dl.onclick = () => { if (!armed) { armed = true; dl.textContent = 'Pulsa otra vez para eliminar'; return; } B.versiones = B.versiones.filter((v) => v.id !== V.id); B.activa = B.versiones[0].id; S.save(); S.rerender(); }; }
+      $$('#pvTab button', host).forEach((bt) => bt.onclick = () => { host.dataset.tab = bt.dataset.t; S.rerender(); });
+      const per = $('#pvPer', host); if (per) per.onchange = () => { host.dataset.periodo = per.value; S.rerender(); };
+      $('#pvSim', host).onclick = () => { S.sim.custom.ventasF = Math.round(b.ratio * 100) / 100; S.sim.escenario = 'hipotesis'; S.saveSim(); $('#pvSim', host).textContent = 'Hecho: abre el simulador para verlo'; };
+      if (tab === 'desv') S.vbars($('#pvChart', host), MESES, [{ n: 'Ventas presupuestadas', data: b.rows.map((x) => x.p.ventas), c: css('--s1') }, { n: 'Ventas reales', data: b.rows.map((x) => (x.has ? S.num(x.r.ventas) : 0)), c: css('--gold') }], F.eur, { aria: 'Ventas presupuestadas y reales', line: { n: 'EBITDA real', data: b.rows.map((x) => (x.has ? x.rE : 0)), c: css('--s3') } });
+      else if (tab === 'ppto') grid($('#pvGrid', host), V, (l, m) => l.meses[m], (l, m, v) => { l.meses[m] = v === null ? 0 : v; }, { editNames: true, onChange: () => { S.save(); S.rerender(); }, onRename: (o, n) => { if (B.reales[o] && !B.reales[n]) { B.reales[n] = B.reales[o]; } } });
+      else grid($('#pvGrid', host), V, (l, m) => (B.reales[l.nombre] || [])[m], (l, m, v) => { B.reales[l.nombre] = B.reales[l.nombre] || Array(12).fill(null); B.reales[l.nombre][m] = v; }, { onChange: () => { B.ejemplo = false; S.save(); S.rerender(); } });
     },
     kpis() { const b = budget(); return [{ k: 'Ventas frente a presupuesto', v: Math.round(b.ratio * 100) + ' %', st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' }, { k: 'Escenario equivalente', v: A.SCENARIOS.find((s) => s.key === b.escEq).nombre }]; },
-    risks() { const b = budget(); return b.ratio < 0.95 ? [S.mkRisk('Las ventas reales van por debajo del presupuesto', 4, b.ratio < 0.85 ? 5 : 3, 'Revisa el plan comercial y lleva la desviación al simulador para ver el efecto en la inversión.')] : []; },
+    risks() {
+      const b = budget(), B = S.state.presupuesto, R = [];
+      if (b.ratio < 0.95) R.push(S.mkRisk('Las ventas reales van por debajo del presupuesto', 4, b.ratio < 0.85 ? 5 : 3, 'Revisa el plan comercial y lleva la desviación al simulador para ver el efecto en la inversión.'));
+      const ms = b.done.map((x) => x.m);
+      b.V.lineas.filter((l) => l.grupo !== 'ventas').forEach((l) => { const p = sum(ms.map((m) => l.meses[m])), r = sum(ms.map((m) => S.num((B.reales[l.nombre] || [])[m]))); if (p > 0 && r > p * 1.12 && r - p > 5000) R.push(S.mkRisk(`${l.nombre}: ${pctTxt(S.pct(r - p, p))} sobre presupuesto`, 3, r - p > 30000 ? 4 : 2, 'Analiza la causa de la desviación y corrige o actualiza el presupuesto.')); });
+      return R;
+    },
     findings() { const b = budget(); const gap = b.ventasAnual - b.cierreVentas; return gap > 0 ? [{ hallazgo: `El cierre proyectado queda ${F.eur(gap)} por debajo del presupuesto de ventas.`, accion: 'Plan comercial de recuperación en clientes A y oportunidades abiertas.', impactoEUR: gap * (S.sim.empresa.margen / 100), tipo: 'ebitda', plazo: 90 }] : []; }
   });
 })();

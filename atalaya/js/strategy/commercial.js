@@ -76,39 +76,102 @@
     const hhi = L.reduce((a, c) => a + Math.pow((c.ventas / tot) * 100, 2), 0);
     return { L, abcV, abcM, tot, top1, top5, hhi, sorted };
   }
+  /* HHI y su lectura en lenguaje claro */
+  S.hhi = (vals) => { const t = vals.reduce((a, v) => a + Math.max(0, v), 0) || 1; return vals.reduce((a, v) => a + Math.pow((Math.max(0, v) / t) * 100, 2), 0); };
+  S.miles = (n) => Math.round(n).toLocaleString('es-ES', { useGrouping: 'always' });
+  S.hhiSt = (h) => (h > 2500 ? 'stop' : h > 1500 ? 'warn' : 'ok');
+  S.hhiCtx = (h, mayor, pesoMayor, quien) => {
+    const eq = Math.max(1, Math.round(10000 / Math.max(1, h)));
+    const nivel = h > 2500 ? 'alta: dependes de muy pocos' : h > 1500 ? 'moderada: hay dependencia de los mayores' : 'baja: la cartera está repartida';
+    return `Tu índice es ${S.miles(h)}, concentración ${nivel}. Equivale a depender de unos ${eq} ${quien} del mismo tamaño. ${mayor ? `El mayor, ${mayor}, pesa el ${F.pct(pesoMayor)}: ${pesoMayor > 25 ? 'perderlo pondría en riesgo la caja y el margen' : pesoMayor > 15 ? 'su pérdida se notaría mucho; conviene tener un plan de sustitución' : 'su pérdida sería asumible'}.` : ''}`;
+  };
+  /* Pareto genérico: barras por elemento coloreadas por clase ABC y línea de % acumulado */
+  function pareto(host, sorted, val, cls, tip, aria) {
+    const tot = sorted.reduce((s, x) => s + Math.max(0, val(x)), 0) || 1;
+    const W = 520, Hh = 220, m = { l: 50, r: 34, t: 10, b: 40 }, n = sorted.length, bw = (W - m.l - m.r) / Math.max(1, n);
+    const mx = Math.max(1, ...sorted.map(val));
+    let acc = 0; const pts = [];
+    let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(aria)}"><g class="grid">${[0, 0.5, 1].map((k) => `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t + (1 - k) * (Hh - m.t - m.b)}" y2="${m.t + (1 - k) * (Hh - m.t - m.b)}"/><text x="${m.l - 6}" y="${m.t + (1 - k) * (Hh - m.t - m.b) + 3}" text-anchor="end">${F.eur(mx * k)}</text><text x="${W - m.r + 4}" y="${m.t + (1 - k) * (Hh - m.t - m.b) + 3}">${k * 100} %</text>`).join('')}</g>`;
+    sorted.forEach((c, i) => { const h = (Math.max(0, val(c)) / mx) * (Hh - m.t - m.b); const cl = cls(c); svg += `<rect class="pb" data-i="${i}" x="${m.l + i * bw + 1}" y="${Hh - m.b - h}" width="${Math.max(1, bw - 2)}" height="${h}" rx="2" fill="${cl === 'A' ? css('--s3') : cl === 'B' ? css('--s4') : css('--s2')}"/>`; acc += Math.max(0, val(c)); pts.push(`${m.l + i * bw + bw / 2},${m.t + (1 - acc / tot) * (Hh - m.t - m.b)}`); });
+    svg += `<polyline points="${pts.join(' ')}" fill="none" stroke="${css('--gold')}" stroke-width="2"/><line x1="${m.l}" x2="${W - m.r}" y1="${m.t + 0.2 * (Hh - m.t - m.b)}" y2="${m.t + 0.2 * (Hh - m.t - m.b)}" class="target"/></svg>`;
+    host.innerHTML = svg + `<div class="chart-legend small"><span><i style="background:${css('--s3')}"></i> A</span><span><i style="background:${css('--s4')}"></i> B</span><span><i style="background:${css('--s2')}"></i> C</span><span><i style="background:${css('--gold')};height:2px"></i> % acumulado (línea del 80 %)</span></div>`;
+    $$('.pb', host).forEach((b) => { const c = sorted[+b.dataset.i]; b.addEventListener('pointermove', (ev) => A.charts.tip(tip(c), ev.clientX, ev.clientY)); b.addEventListener('pointerleave', A.charts.hideTip); });
+  }
+  const matrix = (items, abcV, abcM, rowLbl, colLbl, val) => `<div class="matrix3"><div></div>${['A', 'B', 'C'].map((m) => `<div class="h">${m}′ ${colLbl}</div>`).join('')}
+    ${['A', 'B', 'C'].map((v) => `<div class="h">${v} ${rowLbl}</div>` + ['A', 'B', 'C'].map((m) => { const l = items.filter((c) => abcV.get(c) === v && abcM.get(c) === m); const k = CROSS[v + m]; return `<div class="c" data-cell="${v}${m}" style="border-color:${v + m === 'AC' || v + m === 'CC' ? 'rgba(224,72,72,.45)' : v + m === 'AA' || v + m === 'CA' || v + m === 'BA' ? 'rgba(47,178,74,.45)' : 'var(--line)'}"><small>${k[0]}</small><b>${l.length}</b><small>${F.eur(l.reduce((s, c) => s + val(c), 0))}</small></div>`; }).join('')).join('')}</div>`;
+
+  function analisisProductos() {
+    const L = C().productos.map((p) => Object.assign(p, { ventas: S.num(p.unidades) * S.num(p.precio), mc: S.num(p.unidades) * (S.num(p.precio) - S.num(p.cv)) }));
+    const tot = L.reduce((a, p) => a + p.ventas, 0) || 1;
+    return { L, tot, abcV: S.abc(L, 'ventas'), abcM: S.abc(L, 'mc'), sorted: L.slice().sort((a, b) => b.ventas - a.ventas), hhi: S.hhi(L.map((p) => p.ventas)) };
+  }
+  function renderProductos(body) {
+    const a = analisisProductos();
+    const mcT = a.L.reduce((s, p) => s + p.mc, 0);
+    body.innerHTML = `<p class="small muted">Los productos se editan en «Margen de contribución». Aquí se ordenan por venta (ABC) y por margen (ABC′).</p>
+      ${S.kpiTiles([
+        { k: 'Ventas por producto', v: F.eur(a.tot), d: `${a.L.length} líneas` },
+        { k: 'Primer producto', v: F.pct(S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot)), d: a.sorted[0] ? a.sorted[0].nombre : '' },
+        { k: 'Concentración (HHI)', v: S.miles(a.hhi), st: S.hhiSt(a.hhi), d: 'toca para ver qué significa', info: 'Concentración (HHI)', exp: S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot), 'productos') },
+        { k: 'Margen de contribución', v: F.pct(S.pct(mcT, a.tot)), info: 'Margen de contribución', exp: `${F.eur(mcT)} al año entre todos los productos.` }
+      ])}
+      <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Matriz ABC (ventas) × ABC′ (margen)</h4>${matrix(a.L, a.abcV, a.abcM, 'ventas', 'margen', (c) => c.ventas)}<p class="small" id="abcRead">Toca una casilla.</p></div>
+        <div class="glass pad stack"><h4>Pareto de ventas por producto</h4><div class="chart" id="abcPareto"></div></div></div>
+      <div class="glass pad mt table-wrap"><table><thead><tr><th style="text-align:left">Producto</th><th>Ventas</th><th>Margen</th><th>MC %</th><th>ABC / ABC′</th><th style="text-align:left">Qué hacer</th></tr></thead><tbody>${a.sorted.map((p) => `<tr><td style="text-align:left">${esc(p.nombre)}</td><td>${F.eur(p.ventas)}</td><td>${F.eur(p.mc)}</td><td>${F.pct(S.pct(p.mc, p.ventas))}</td><td><span class="abc ${a.abcV.get(p)}">${a.abcV.get(p)}</span> <span class="abc ${a.abcM.get(p)}">${a.abcM.get(p)}′</span></td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${CROSS[a.abcV.get(p) + a.abcM.get(p)][1]}</td></tr>`).join('')}</tbody></table></div>`;
+    $$('[data-cell]', body).forEach((c) => c.onclick = () => { const k = c.dataset.cell, l = a.L.filter((x) => a.abcV.get(x) === k[0] && a.abcM.get(x) === k[1]); $('#abcRead', body).innerHTML = `<b>${CROSS[k][0]}.</b> ${CROSS[k][1]}<br>${l.map((x) => esc(x.nombre)).join(', ') || 'Ningún producto.'}`; });
+    pareto($('#abcPareto', body), a.sorted, (c) => c.ventas, (c) => a.abcV.get(c), (c) => `<h5>${esc(c.nombre)}</h5><dl><dt>Ventas</dt><dd>${F.eur(c.ventas)}</dd><dt>Margen</dt><dd>${F.eur(c.mc)}</dd></dl>`, 'Pareto de ventas por producto');
+  }
+  function renderProveedores(body) {
+    if (!S.comprasAnalisis) { body.innerHTML = '<p class="small muted">Módulo de compras no disponible.</p>'; return; }
+    const c = S.comprasAnalisis();
+    const sorted = c.R.slice().sort((a, b) => b.imp - a.imp);
+    const hhi = S.hhi(c.R.map((p) => S.num(p.compras)));
+    const top3 = sorted.slice(0, 3).reduce((a, p) => a + p.imp * 100, 0);
+    const unicos = c.R.filter((p) => S.num(p.alternativas) <= 1);
+    body.innerHTML = `${S.state.compras.ejemplo ? '<p class="small muted">Datos de ejemplo: los proveedores se editan en la tabla de abajo o en el módulo Compras.</p>' : ''}
+      ${S.kpiTiles([
+        { k: 'Compras anuales', v: F.eur(c.tot), d: `${c.R.length} proveedores` },
+        { k: 'Primer proveedor', v: F.pct(sorted[0] ? sorted[0].imp * 100 : 0), st: sorted[0] && sorted[0].imp > 0.3 ? 'stop' : sorted[0] && sorted[0].imp > 0.2 ? 'warn' : 'ok', d: sorted[0] ? sorted[0].nombre : '' },
+        { k: 'Tres primeros', v: F.pct(top3), st: top3 > 75 ? 'warn' : 'ok' },
+        { k: 'Concentración de compras (HHI)', v: S.miles(hhi), st: S.hhiSt(hhi), d: 'toca para ver qué significa', info: 'Concentración de compras', exp: S.hhiCtx(hhi, sorted[0] && sorted[0].nombre, sorted[0] ? sorted[0].imp * 100 : 0, 'proveedores') },
+        { k: 'Sin alternativa', v: unicos.length, st: unicos.length ? 'warn' : 'ok', d: unicos.map((p) => p.nombre).join(', ') || 'todos tienen sustituto' }
+      ])}
+      <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Pareto de compras</h4><div class="chart" id="abcPareto"></div></div>
+        <div class="glass pad stack"><h4>Clase ABC y Kraljic</h4><div class="table-wrap"><table><thead><tr><th style="text-align:left">Proveedor</th><th>Peso</th><th>ABC</th><th style="text-align:left">Kraljic</th><th style="text-align:left">Qué hacer</th></tr></thead><tbody>${sorted.map((p) => `<tr><td style="text-align:left">${esc(p.nombre)}</td><td>${F.pct(p.imp * 100)}</td><td><span class="abc ${p.abc}">${p.abc}</span></td><td style="text-align:left">${p.q}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${S.KQ[p.q]}</td></tr>`).join('')}</tbody></table></div></div></div>
+      <div class="glass pad mt" id="prvTable"></div>`;
+    pareto($('#abcPareto', body), sorted, (p) => S.num(p.compras), (p) => p.abc, (p) => `<h5>${esc(p.nombre)}</h5><dl><dt>Compras</dt><dd>${F.eur(S.num(p.compras))}</dd><dt>Peso</dt><dd>${F.pct(p.imp * 100)}</dd><dt>Kraljic</dt><dd>${p.q}</dd></dl>`, 'Pareto de compras por proveedor');
+    S.comprasTabla($('#prvTable', body));
+  }
+
   S.register({
-    id: 'ventas', nombre: 'Clientes y ABC', grupo: 'Comercial',
+    id: 'ventas', nombre: 'ABC y concentración', grupo: 'Comercial',
     render(host) {
+      const vista = S.state.comercial.vistaABC || 'clientes';
+      host.innerHTML = `${S.section('Análisis ABC y ABC′', 'El ABC ordena por lo que facturan (o por lo que te compras, en proveedores); el ABC′ (ABC prima) por el margen de contribución que dejan. Cruzarlos enseña a quién proteger, con quién renegociar y a quién atender por un canal más barato. Toca cualquier indicador con «?» para ver qué significa y cómo leer tu dato.')}
+        <div class="tabs" role="tablist" id="abcTabs">${[['clientes', 'Clientes'], ['productos', 'Productos'], ['proveedores', 'Proveedores y compras']].map(([k, l]) => `<button role="tab" data-v="${k}" aria-selected="${k === vista}">${l}</button>`).join('')}</div>
+        <div id="abcBody" class="stack"></div>`;
+      $$('#abcTabs button', host).forEach((b) => b.onclick = () => { S.state.comercial.vistaABC = b.dataset.v; S.save(); S.rerender(); });
+      const body = $('#abcBody', host);
+      if (vista === 'productos') return renderProductos(body);
+      if (vista === 'proveedores') return renderProveedores(body);
       const a = analisisClientes();
-      const cell = (v, m) => a.L.filter((c) => a.abcV.get(c) === v && a.abcM.get(c) === m);
-      host.innerHTML = `${S.section('Clientes: ABC y ABC′', 'El ABC ordena a los clientes por lo que facturan; el ABC′ (ABC prima) por el margen de contribución que dejan. Cruzarlos enseña a quién proteger, con quién renegociar y a quién atender por un canal más barato.')}
-        ${C().ejemplo ? '<p class="small muted">Datos de ejemplo: importa tu listado de ventas por cliente (Excel, CSV o PDF) o escríbelo.</p>' : ''}
+      body.innerHTML = `${C().ejemplo ? '<p class="small muted">Datos de ejemplo: importa tu listado de ventas por cliente (Excel, CSV o PDF) o escríbelo en la tabla de abajo.</p>' : ''}
         ${S.kpiTiles([
           { k: 'Ventas de la cartera', v: F.eur(a.tot), d: `${a.L.length} clientes` },
           { k: 'Primer cliente', v: F.pct(a.top1), st: a.top1 > 25 ? 'stop' : a.top1 > 15 ? 'warn' : 'ok', d: 'de la facturación' },
           { k: 'Cinco primeros', v: F.pct(a.top5), st: a.top5 > 70 ? 'warn' : 'ok' },
-          { k: 'Concentración (HHI)', v: Math.round(a.hhi), st: a.hhi > 2500 ? 'stop' : a.hhi > 1500 ? 'warn' : 'ok', d: 'por encima de 1.500 es concentrada', info: 'Análisis ABC' },
-          { k: 'Margen de contribución', v: F.pct(S.pct(a.L.reduce((s, c) => s + c.mc, 0), a.tot)), info: 'Margen de contribución' }
+          { k: 'Concentración (HHI)', v: S.miles(a.hhi), st: S.hhiSt(a.hhi), d: 'toca para ver qué significa', info: 'Concentración (HHI)', exp: S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, a.top1, 'clientes') },
+          { k: 'Margen de contribución', v: F.pct(S.pct(a.L.reduce((s, c) => s + c.mc, 0), a.tot)), info: 'Margen de contribución', exp: 'Margen medio de la cartera después de los costes variables de servir a cada cliente.' }
         ])}
         <div class="grid cols-2 mt">
-          <div class="glass pad stack"><h4>Matriz ABC (ventas) × ABC′ (margen)</h4>
-            <div class="matrix3"><div></div><div class="h">A′ margen</div><div class="h">B′ margen</div><div class="h">C′ margen</div>
-            ${['A', 'B', 'C'].map((v) => `<div class="h">${v} ventas</div>` + ['A', 'B', 'C'].map((m) => { const l = cell(v, m); const k = CROSS[v + m]; return `<div class="c" data-cell="${v}${m}" style="border-color:${v + m === 'AC' || v + m === 'CC' ? 'rgba(224,72,72,.45)' : v + m === 'AA' || v + m === 'CA' || v + m === 'BA' ? 'rgba(47,178,74,.45)' : 'var(--line)'}"><small>${k[0]}</small><b>${l.length}</b><small>${F.eur(l.reduce((s, c) => s + c.ventas, 0))}</small></div>`; }).join('')).join('')}</div>
+          <div class="glass pad stack"><h4>Matriz ABC (ventas) × ABC′ (margen)</h4>${matrix(a.L, a.abcV, a.abcM, 'ventas', 'margen', (c) => c.ventas)}
             <p class="small" id="abcRead">Toca una casilla para ver qué clientes hay y qué hacer con ellos.</p></div>
           <div class="glass pad stack"><h4>Pareto de ventas</h4><div class="chart" id="abcPareto"></div></div>
         </div>
         <div class="glass pad mt" id="cliTable"></div>`;
-      $$('[data-cell]', host).forEach((c) => c.onclick = () => { const k = c.dataset.cell, l = cell(k[0], k[1]); $('#abcRead', host).innerHTML = `<b>${CROSS[k][0]}.</b> ${CROSS[k][1]}<br>${l.map((x) => esc(x.nombre)).join(', ') || 'Ningún cliente.'}`; });
-      // Pareto
-      const W = 520, Hh = 220, m = { l: 50, r: 34, t: 10, b: 40 }, n = a.sorted.length, bw = (W - m.l - m.r) / Math.max(1, n);
-      const mx = Math.max(1, ...a.sorted.map((x) => x.ventas));
-      let acc = 0, pts = [];
-      let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Pareto de ventas por cliente"><g class="grid">${[0, 0.5, 1].map((k) => `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t + (1 - k) * (Hh - m.t - m.b)}" y2="${m.t + (1 - k) * (Hh - m.t - m.b)}"/><text x="${m.l - 6}" y="${m.t + (1 - k) * (Hh - m.t - m.b) + 3}" text-anchor="end">${F.eur(mx * k)}</text><text x="${W - m.r + 4}" y="${m.t + (1 - k) * (Hh - m.t - m.b) + 3}">${k * 100} %</text>`).join('')}</g>`;
-      a.sorted.forEach((c, i) => { const h = (c.ventas / mx) * (Hh - m.t - m.b); const cl = a.abcV.get(c); svg += `<rect class="pb" data-i="${i}" x="${m.l + i * bw + 1}" y="${Hh - m.b - h}" width="${bw - 2}" height="${h}" rx="2" fill="${cl === 'A' ? css('--s3') : cl === 'B' ? css('--s4') : css('--s2')}"/>`; acc += c.ventas; pts.push(`${m.l + i * bw + bw / 2},${m.t + (1 - acc / a.tot) * (Hh - m.t - m.b)}`); });
-      svg += `<polyline points="${pts.join(' ')}" fill="none" stroke="${css('--gold')}" stroke-width="2"/><line x1="${m.l}" x2="${W - m.r}" y1="${m.t + 0.2 * (Hh - m.t - m.b)}" y2="${m.t + 0.2 * (Hh - m.t - m.b)}" class="target"/></svg>`;
-      $('#abcPareto', host).innerHTML = svg + `<div class="chart-legend small"><span><i style="background:${css('--s3')}"></i> A</span><span><i style="background:${css('--s4')}"></i> B</span><span><i style="background:${css('--s2')}"></i> C</span><span><i style="background:${css('--gold')};height:2px"></i> % acumulado (línea del 80 %)</span></div>`;
-      $$('#abcPareto .pb', host).forEach((b) => { const c = a.sorted[+b.dataset.i]; b.addEventListener('pointermove', (ev) => A.charts.tip(`<h5>${esc(c.nombre)}</h5><dl><dt>Ventas</dt><dd>${F.eur(c.ventas)}</dd><dt>Margen</dt><dd>${F.eur(c.mc)} (${F.pct(S.pct(c.mc, c.ventas))})</dd><dt>ABC / ABC′</dt><dd>${a.abcV.get(c)} / ${a.abcM.get(c)}′</dd></dl>`, ev.clientX, ev.clientY)); b.addEventListener('pointerleave', A.charts.hideTip); });
-      S.etable($('#cliTable', host), {
+      $$('[data-cell]', body).forEach((c) => c.onclick = () => { const k = c.dataset.cell, l = a.L.filter((x) => a.abcV.get(x) === k[0] && a.abcM.get(x) === k[1]); $('#abcRead', body).innerHTML = `<b>${CROSS[k][0]}.</b> ${CROSS[k][1]}<br>${l.map((x) => esc(x.nombre)).join(', ') || 'Ningún cliente.'}`; });
+      pareto($('#abcPareto', body), a.sorted, (c) => c.ventas, (c) => a.abcV.get(c), (c) => `<h5>${esc(c.nombre)}</h5><dl><dt>Ventas</dt><dd>${F.eur(c.ventas)}</dd><dt>Margen</dt><dd>${F.eur(c.mc)} (${F.pct(S.pct(c.mc, c.ventas))})</dd><dt>ABC / ABC′</dt><dd>${a.abcV.get(c)} / ${a.abcM.get(c)}′</dd></dl>`, 'Pareto de ventas por cliente');
+      S.etable($('#cliTable', body), {
         titulo: 'Clientes', rows: C().clientes, onChange: () => { C().ejemplo = false; S.save(); S.rerender(); }, nuevo: () => ({ nombre: '', ventas: 0, costeVariable: 0, dias: 60 }),
         cols: [
           { k: 'nombre', l: 'Cliente', type: 'text', syn: ['cliente', 'nombre', 'razon social'] },

@@ -132,7 +132,9 @@ Responde en 3-8 frases salvo que pidan detalle. Tus respuestas pueden leerse en 
       const lv = LEV.find(([, syn]) => syn.some((x) => t.includes(x)));
       if (lv) { let v = n.v; if (/(baja|reduce)/.test(t) && v > 0) v = -v; const r = api.setLever(lv[0], v); return `He puesto la palanca de ${lv[0] === 'costeVariable' ? 'coste variable' : lv[0]} en ${v} %. El resultado operativo pasa de ${r.resultadoAntes} a ${r.resultadoAhora}.`; }
     }
-    const mod = S.modulos.find((m) => t.includes(norm(m.nombre)) || t.includes(m.id));
+    const ALIAS = { clientes: 'ventas', proveedores: 'ventas', abc: 'ventas', concentracion: 'ventas', dafo: 'plan', came: 'plan', valores: 'plan', mision: 'plan' };
+    const al = Object.keys(ALIAS).find((k) => t.includes(k));
+    const mod = S.modulos.find((m) => t.includes(norm(m.nombre)) || t.includes(m.id)) || (al && S.modulos.find((m) => m.id === ALIAS[al]));
     if (mod && /(abre|ve a|ir a|llevame|muestra|ensena|como va|como esta)/.test(t)) {
       api.goTo(mod.id);
       const k = S.indicadores.filter((x) => x.area === mod.nombre);

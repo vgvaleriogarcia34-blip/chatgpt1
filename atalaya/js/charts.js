@@ -21,6 +21,31 @@
     tipEl.style.left = Math.max(8, left) + 'px'; tipEl.style.top = Math.max(8, top) + 'px';
   };
   C.hideTip = () => { if (tipEl) tipEl.hidden = true; };
+  /* El tooltip de hover no debe quedarse pegado en pantallas táctiles ni al desplazarse */
+  addEventListener('scroll', () => C.hideTip(), { passive: true });
+  addEventListener('hashchange', () => { C.hideTip(); C.closePop(); });
+
+  /* ---- Ventana explicativa que se abre al pulsar (con X, Escape o clic fuera) ---- */
+  let popEl, popAt = 0;
+  C.pop = function (html, anchor) {
+    if (!popEl) {
+      popEl = document.createElement('div'); popEl.className = 'float-card pop-card'; popEl.setAttribute('role', 'dialog');
+      document.body.appendChild(popEl);
+      document.addEventListener('pointerdown', (e) => { if (!popEl.hidden && Date.now() - popAt > 80 && !popEl.contains(e.target) && !(e.target.closest && e.target.closest('[data-term]'))) C.closePop(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') C.closePop(); });
+    }
+    popEl.innerHTML = `<button class="icon-btn close" aria-label="Cerrar">×</button>${html}`;
+    popEl.querySelector('.close').onclick = C.closePop;
+    popEl.hidden = false; popAt = Date.now();
+    const r = anchor.getBoundingClientRect(), w = popEl.offsetWidth, h = popEl.offsetHeight;
+    let left = Math.min(innerWidth - w - 12, Math.max(12, r.left));
+    let top = r.bottom + 8;
+    if (top + h > innerHeight - 12) top = Math.max(12, r.top - h - 8);
+    if (top + h > innerHeight - 12) top = Math.max(12, innerHeight - h - 12);
+    popEl.style.left = left + 'px'; popEl.style.top = top + 'px';
+    popEl.querySelector('.close').focus({ preventScroll: true });
+  };
+  C.closePop = () => { if (popEl) popEl.hidden = true; };
 
   const niceTicks = (min, max, n) => {
     const span = max - min || 1;

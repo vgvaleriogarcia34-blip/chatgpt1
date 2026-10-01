@@ -794,6 +794,10 @@
     $('#finPaste').onclick = () => { const t = $('#finText'); t.hidden = !t.hidden; if (!t.hidden) t.focus(); };
     $('#finText').addEventListener('change', (e) => { try { accept(A.fin.fromText(e.target.value), 'Tabla pegada'); } catch (err) { status(err.message, true); } });
     $('#finTemplate').onclick = () => copy(A.fin.templateCSV(), 'Plantilla copiada: pégala en Excel, rellénala y adjúntala o pégala aquí');
+    $('#finManual').onclick = () => {
+      const g = $('#finGrid'); g.hidden = false;
+      A.fin.mountGrid(g, state.historico, { empresa: state.empresa, onSave: (h) => { state.historico = h; g.hidden = true; status('Cuentas guardadas.' + (h.aviso ? ' ' + h.aviso : '')); renderFin(); schedule(); }, onCancel: () => { g.hidden = true; } });
+    };
     $('#finExample').onclick = () => { state.historico = A.fin.example(); status('Ejemplo cargado.'); renderFin(); schedule(); };
     $('#finApply').onclick = () => {
       const an = A.fin.analyze(state.historico);

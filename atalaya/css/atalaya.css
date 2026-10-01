@@ -216,6 +216,13 @@ select option { background: var(--panel-solid); }
   background: rgba(10, 16, 34, 0.96); border: 1px solid var(--line-strong); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(16px); font-size: var(--t-s); animation: pop 0.18s ease-out;
 }
+.float-card.pop-card { width: min(440px, calc(100vw - 24px)); max-height: min(70vh, 560px); overflow-y: auto; }
+.pop-card h6 { margin: 12px 0 2px; font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); font-weight: 600; }
+.pop-card ul { margin: 4px 0 0; padding-left: 18px; color: var(--muted); display: grid; gap: 3px; }
+.pop-card .now { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(212, 174, 100, 0.07); border: 1px solid var(--line-strong); color: var(--fg); }
+.pop-card table { width: 100%; margin-top: 6px; font-size: var(--t-xs); }
+.pop-card td { padding: 3px 6px; border-bottom: 1px solid var(--line); }
+[data-term] { cursor: help; }
 .float-card.hover { pointer-events: none; width: min(280px, calc(100vw - 24px)); padding: 12px 14px; }
 @keyframes pop { from { transform: translateY(6px) scale(0.98); opacity: 0.4; } to { transform: none; opacity: 1; } }
 .float-card h5 { margin: 0 0 2px; font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; color: var(--gold-soft); padding-right: 28px; }

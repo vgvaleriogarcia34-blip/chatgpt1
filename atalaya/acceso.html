@@ -26,6 +26,25 @@
       <label>Contraseña<input class="input" id="inPass" type="password" autocomplete="current-password" required></label>
       <button class="btn solid" type="submit">Entrar</button>
       <p class="small muted" id="inMsg" role="alert"></p>
+      <button class="btn ghost" type="button" id="toForgot">¿Has olvidado tu contraseña?</button>
+    </form>
+
+    <form id="fForgot" novalidate hidden>
+      <h1>Recupera <em>tu acceso</em></h1>
+      <p class="small muted" style="margin:0">Escribe el correo de tu cuenta. Te enviaremos un enlace, válido durante 60 minutos, para crear una contraseña nueva.</p>
+      <label>Correo electrónico<input class="input" id="fgEmail" type="email" autocomplete="email" required></label>
+      <button class="btn solid" type="submit">Enviar enlace</button>
+      <p class="small" id="fgMsg" role="alert"></p>
+      <button class="btn ghost" type="button" data-back>Volver a entrar</button>
+    </form>
+
+    <form id="fReset" novalidate hidden>
+      <h1>Nueva <em>contraseña</em></h1>
+      <label>Contraseña nueva (mínimo 8 caracteres)<input class="input" id="rsPass" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label>Repítela<input class="input" id="rsPass2" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button class="btn solid" type="submit">Guardar y entrar</button>
+      <p class="small" id="rsMsg" role="alert"></p>
+      <button class="btn ghost" type="button" data-back>Volver a entrar</button>
     </form>
 
     <form id="fUp" novalidate hidden>
@@ -59,19 +78,27 @@
   const $ = (s) => document.querySelector(s);
   A.sky();
   const show = (which) => {
-    $('#fIn').hidden = which !== 'in'; $('#fUp').hidden = which !== 'up';
+    $('#fIn').hidden = which !== 'in'; $('#fUp').hidden = which !== 'up'; $('#fForgot').hidden = which !== 'forgot'; $('#fReset').hidden = which !== 'reset';
+    document.querySelector('.tabs').hidden = which === 'forgot' || which === 'reset';
     $('#tabIn').setAttribute('aria-selected', which === 'in'); $('#tabUp').setAttribute('aria-selected', which === 'up');
   };
   $('#tabIn').onclick = () => show('in');
   $('#tabUp').onclick = () => show('up');
-  const h = location.hash.replace('#', '');
+  $('#toForgot').onclick = () => { $('#fgEmail').value = $('#inEmail').value; show('forgot'); };
+  document.querySelectorAll('[data-back]').forEach((b) => b.onclick = () => show('in'));
+  let h = location.hash.replace('#', '');
+  // Enlace de recuperación: se lee el código y se quita de la barra de direcciones
+  const resetToken = (h.match(/^reset=([a-f0-9]{20,})$/) || [])[1];
+  if (resetToken) { h = ''; try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } }
   const planSel = (h.match(/^alta-(\w+)/) || [])[1] || 'profesional';
   $('#planPick').innerHTML = Object.keys(P.PLANES).map((k) => `<label><input type="radio" name="plan" value="${k}" ${k === planSel ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.PLANES[k].precio} €/mes</small></label>`).join('');
-  if (h.startsWith('alta')) show('up');
-  addEventListener('hashchange', () => { if (location.hash.startsWith('#alta')) show('up'); });
+  if (resetToken) show('reset');
+  else if (h.startsWith('alta')) show('up');
+  addEventListener('hashchange', () => { if (location.hash.startsWith('#reset=')) location.reload(); else if (location.hash.startsWith('#alta')) show('up'); });
 
   P.ready.then(async (mode) => {
-    if (mode === 'local') $('#notice').innerHTML = '<div class="alert info">Modo demostración: no hay servidor conectado, así que las cuentas se guardan solo en este navegador. La primera cuenta que crees será la de administración.</div>';
+    if (mode === 'local') $('#notice').innerHTML = '<div class="alert info">Modo demostración: no hay servidor conectado, así que las cuentas se guardan solo en este navegador. </div>';
+    if (resetToken) return;
     const u = await P.me();
     const acc = P.accessOf(u);
     if (u && acc.ok) { location.href = 'app.html'; return; }
@@ -80,7 +107,7 @@
   });
 
   function payScreen(u, motivo) {
-    $('#fIn').hidden = true; $('#fUp').hidden = true; document.querySelector('.tabs').hidden = true;
+    ['#fIn', '#fUp', '#fForgot', '#fReset'].forEach((x) => { $(x).hidden = true; }); document.querySelector('.tabs').hidden = true;
     $('#payBox').hidden = false;
     const pl = P.PLANES[u.plan] || P.PLANES.profesional;
     $('#payTxt').innerHTML = motivo === 'bloqueado'
@@ -97,6 +124,28 @@
     $('#payOut').onclick = P.logout;
   }
 
+  $('#fForgot').onsubmit = async (e) => {
+    e.preventDefault();
+    if (!$('#fgEmail').value.includes('@')) { $('#fgMsg').textContent = 'Escribe un correo válido.'; return; }
+    $('#fgMsg').textContent = 'Enviando…';
+    try {
+      const r = await P.forgot($('#fgEmail').value);
+      $('#fgMsg').innerHTML = r.local ? '<span class="muted">Modo demostración: no se envían correos. Hemos avisado a la administración, que puede generarte un enlace desde el gestor de usuarios.</span>'
+        : r.correo ? '<span style="color:var(--go)">Si el correo corresponde a una cuenta, recibirás un enlace en unos minutos. Revisa también el correo no deseado.</span>'
+        : '<span style="color:var(--go)">Solicitud recibida. Si el correo corresponde a una cuenta, la administración de Atalaya te enviará un enlace para restablecerla.</span>';
+    } catch (err) { $('#fgMsg').textContent = err.message; }
+  };
+  $('#fReset').onsubmit = async (e) => {
+    e.preventDefault();
+    if ($('#rsPass').value.length < 8) { $('#rsMsg').textContent = 'Mínimo 8 caracteres.'; return; }
+    if ($('#rsPass').value !== $('#rsPass2').value) { $('#rsMsg').textContent = 'Las contraseñas no coinciden.'; return; }
+    $('#rsMsg').textContent = 'Guardando…';
+    try {
+      const u = await P.resetPassword(resetToken, $('#rsPass').value);
+      const acc = P.accessOf(u);
+      if (acc.ok) location.href = 'app.html'; else { $('#rsMsg').textContent = ''; payScreen(u, acc.motivo); }
+    } catch (err) { $('#rsMsg').textContent = err.message; }
+  };
   $('#fIn').onsubmit = async (e) => {
     e.preventDefault(); $('#inMsg').textContent = 'Comprobando…';
     try {

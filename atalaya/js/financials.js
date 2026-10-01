@@ -292,4 +292,57 @@
     if (an.rows.length > 1) e.crecimiento = Math.round(Math.max(-10, Math.min(30, an.cagr)) * 10) / 10;
     return state;
   };
+
+  /* ---------- Carga manual: rejilla de conceptos × años ----------
+     host: contenedor; hist: histórico actual (o null); opts: { empresa, onSave(hist), onCancel } */
+  FIN.mountGrid = function (host, hist, opts) {
+    opts = opts || {};
+    const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const fmt = (v) => (v === '' || v == null || !isFinite(v) ? '' : new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(v));
+    const y = new Date().getFullYear();
+    let anios = hist && hist.anios && hist.anios.length && !hist.ejemplo ? JSON.parse(JSON.stringify(hist.anios)) : [y - 3, y - 2, y - 1].map((anio) => ({ anio }));
+    const e = opts.empresa;
+    if (e && !(hist && hist.anios && hist.anios.length && !hist.ejemplo)) {
+      // El último año se precarga con los datos del simulador para no partir de cero
+      Object.assign(anios[anios.length - 1], { ventas: e.ventas, costeVentas: Math.round(e.ventas * (1 - e.margen / 100)), personal: e.personal, otrosGastos: e.fijos, plantilla: e.plantilla, tesoreria: e.caja, fondosPropios: e.fondosPropios, deudaLP: e.deudaViva, deudaCP: e.polizaDispuesta || 0, clientes: Math.round(e.ventas * e.dso / 365), existencias: Math.round(e.ventas * (1 - e.margen / 100) * e.dio / 365), proveedores: Math.round(e.ventas * (1 - e.margen / 100) * e.dpo / 365) });
+    }
+    const resultado = (a) => ['ventas'].reduce((s, k) => s + (+a[k] || 0), 0) - ['costeVentas', 'personal', 'otrosGastos', 'amortizacion', 'gastosFinancieros', 'impuestos'].reduce((s, k) => s + (+a[k] || 0), 0);
+    function draw(msg) {
+      anios.sort((a, b) => a.anio - b.anio);
+      const row = (c) => `<tr><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(c.l)}</td>${anios.map((a, j) => `<td><input class="gcell" data-j="${j}" data-k="${c.k}" inputmode="decimal" value="${fmt(a[c.k])}" placeholder="${c.k === 'beneficio' && a.ventas ? fmt(resultado(a)) : ''}" aria-label="${esc(c.l)} ${a.anio}"></td>`).join('')}</tr>`;
+      host.innerHTML = `<div class="row" style="margin-bottom:8px"><h4>Carga manual de las cuentas</h4><span class="spacer"></span>
+          <button class="btn ghost" data-g="prev">Añadir año anterior</button><button class="btn ghost" data-g="next">Añadir año siguiente</button>${anios.length > 2 ? '<button class="btn ghost" data-g="del">Quitar el primer año</button>' : ''}</div>
+        <p class="small muted">Copia las cifras de las cuentas anuales (o del cierre de la gestoría), en euros. Bastan dos años. Si dejas vacío el resultado, se calcula solo. Puedes pegar una columna entera desde Excel en la primera casilla.</p>
+        <div class="etable table-wrap"><table><thead><tr><th style="text-align:left">Concepto</th>${anios.map((a, j) => `<th><input class="gcell gyear" data-year="${j}" value="${a.anio}" aria-label="Año"></th>`).join('')}</tr></thead><tbody>
+          <tr><td colspan="${anios.length + 1}" class="hint" style="text-align:left">Cuenta de resultados</td></tr>${FIN.CONCEPTS.filter((c) => c.g === 'PyG').map(row).join('')}
+          <tr><td colspan="${anios.length + 1}" class="hint" style="text-align:left">Balance a cierre del año</td></tr>${FIN.CONCEPTS.filter((c) => c.g === 'Balance').map(row).join('')}
+        </tbody></table></div>
+        <div class="row mt"><button class="btn solid" data-g="save">Guardar y analizar</button>${opts.onCancel ? '<button class="btn ghost" data-g="cancel">Cancelar</button>' : ''}<span class="small" data-gmsg>${msg || ''}</span></div>`;
+      host.querySelectorAll('input[data-k]').forEach((inp) => {
+        inp.addEventListener('change', () => { const a = anios[+inp.dataset.j]; const v = parseNum(inp.value); if (inp.value.trim() === '') delete a[inp.dataset.k]; else if (isFinite(v)) a[inp.dataset.k] = v; inp.value = fmt(a[inp.dataset.k]); });
+        inp.addEventListener('paste', (ev) => {
+          const t = (ev.clipboardData || window.clipboardData).getData('text'); const lines = t.split(/\r?\n/).filter((x) => x.trim() !== '');
+          if (lines.length < 2 && !/\t/.test(t)) return;
+          ev.preventDefault();
+          const keys = FIN.CONCEPTS.map((c) => c.k); const k0 = keys.indexOf(inp.dataset.k), j0 = +inp.dataset.j;
+          lines.forEach((ln, i) => ln.split('\t').forEach((cell, dj) => { const a = anios[j0 + dj], k = keys[k0 + i]; const v = parseNum(cell); if (a && k && isFinite(v)) a[k] = v; }));
+          draw('Datos pegados.');
+        });
+      });
+      host.querySelectorAll('input[data-year]').forEach((inp) => inp.addEventListener('change', () => { const v = parseInt(inp.value, 10); if (v > 1950 && v < 2100) anios[+inp.dataset.year].anio = v; draw(); }));
+      const act = (k, fn) => { const b = host.querySelector(`[data-g="${k}"]`); if (b) b.onclick = fn; };
+      act('prev', () => { anios.unshift({ anio: anios[0].anio - 1 }); draw(); });
+      act('next', () => { anios.push({ anio: anios[anios.length - 1].anio + 1 }); draw(); });
+      act('del', () => { anios.shift(); draw(); });
+      act('cancel', () => opts.onCancel());
+      act('save', () => {
+        const llenos = anios.filter((a) => (+a.ventas || 0) > 0);
+        if (llenos.length < 2) { draw('<span style="color:var(--stop)">Hacen falta al menos dos años con ventas.</span>'); return; }
+        llenos.forEach((a) => { if (a.beneficio === undefined || a.beneficio === '') a.beneficio = resultado(a); });
+        const faltan = ['tesoreria', 'clientes', 'fondosPropios'].filter((k) => llenos.some((a) => a[k] === undefined));
+        opts.onSave({ anios: llenos, manual: true, aviso: faltan.length ? 'Faltan datos de balance: el flujo del dinero será aproximado.' : '' });
+      });
+    }
+    draw();
+  };
 })();

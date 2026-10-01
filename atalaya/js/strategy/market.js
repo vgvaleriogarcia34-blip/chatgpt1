@@ -27,6 +27,42 @@
     tipologias: [{ tipologia: 'Producto estándar', peso: 50, ciclo: 4, riesgo: 3 }, { tipologia: 'Producto premium', peso: 25, ciclo: 2, riesgo: 2 }, { tipologia: 'Recambios y servicio', peso: 25, ciclo: 1, riesgo: 1 }],
     competidores: [{ nombre: '', posicion: 'líder', amenaza: 3 }]
   };
+  /* Datos de referencia macro 2026, recogidos de fuentes oficiales y prensa económica (consulta del 1 de octubre de 2026).
+     Sirven de punto de partida sin el agente; conviene revisarlos cuando se publiquen datos nuevos. */
+  S.MACRO_2026 = {
+    fecha: '2026-10-01',
+    resumen: 'La economía española sigue creciendo por encima de la zona euro (en torno al 2,2 % en 2026), pero el shock energético ligado al conflicto en Oriente Medio y el estrecho de Ormuz ha devuelto la inflación a cerca del 5 % y el BCE ha subido tipos dos veces en el año. Para una pyme esto significa: la demanda aguanta, pero los costes (energía, compras, salarios) y la financiación se encarecen. El empleo sigue mejorando, lo que también hace más difícil y caro contratar.',
+    indicadores: [
+      { ambito: 'Global', indicador: 'Crecimiento mundial (PIB)', valor: '3,0 % en 2026 · 3,4 % en 2027', tendencia: 'estable', impacto: 'neutro', palanca: 'ventas', fuente: 'FMI · Perspectivas de la economía mundial, julio 2026', fecha: 'jul 2026', url: 'https://www.imf.org/en/publications/weo/issues/2026/07/08/world-economic-outlook-update-july-2026' },
+      { ambito: 'Global', indicador: 'Inflación mundial', valor: '4,7 % en 2026 · 3,9 % en 2027 (shock energético)', tendencia: 'sube', impacto: 'negativo', palanca: 'costes', fuente: 'FMI · julio 2026', fecha: 'jul 2026', url: 'https://www.imf.org/en/publications/weo/issues/2026/07/08/world-economic-outlook-update-july-2026' },
+      { ambito: 'Zona euro', indicador: 'Tipo de interés del BCE (facilidad de depósito)', valor: '2,50 % (+0,25 el 10 sep 2026; refinanciación 2,65 %)', tendencia: 'sube', impacto: 'negativo', palanca: 'tipos', fuente: 'BCE', fecha: '10 sep 2026', url: 'https://www.raisin.com/es-es/noticias/el-bce-sube-tipos-y-situa-el-tipo-de-interes-de-la-facilidad-de-deposito-en-el-2-50/' },
+      { ambito: 'Zona euro', indicador: 'Euríbor a 12 meses', valor: '3,251 % (media de septiembre; 2,954 % en agosto; 2,172 % hace un año)', tendencia: 'sube', impacto: 'negativo', palanca: 'tipos', fuente: 'Banco de España', fecha: 'sep 2026', url: 'https://www.euribor.com.es/2026/09/26/euribor-de-septiembre-2026-el-banco-de-espana-certifica-el-3251-y-marca-el-mes-mas-caro-del-ano-para-las-hipotecas-variables/' },
+      { ambito: 'España', indicador: 'Crecimiento del PIB', valor: '2,2 % previsto para 2026', tendencia: 'estable', impacto: 'positivo', palanca: 'ventas', fuente: 'Banco de España · proyecciones', fecha: 'sep 2026', url: 'https://www.servimedia.es/noticias/banco-espana-dispara-nueve-decimas-proyecciones-inflacion-mejora-una-decima-pib-2026/1412806089' },
+      { ambito: 'España', indicador: 'Inflación (IPC)', valor: '4,9 % interanual en septiembre (avance); subyacente 3,1 %', tendencia: 'sube', impacto: 'negativo', palanca: 'costes', fuente: 'INE · IPC indicador adelantado', fecha: '29 sep 2026', url: 'https://www.ine.es/dyngs/Prensa/adIPC0926.htm' },
+      { ambito: 'España', indicador: 'Previsión de inflación media 2026', valor: '3,6 %', tendencia: 'sube', impacto: 'negativo', palanca: 'costes', fuente: 'Banco de España · proyecciones', fecha: 'sep 2026', url: 'https://www.cronista.com/espana/economia-finanzas/alerta-inflacion-el-banco-de-espana-mantiene-el-crecimiento-economico-pero-eleva-la-subida-de-precios-hasta-el-36-en-2026/' },
+      { ambito: 'España', indicador: 'Tasa de paro (EPA)', valor: '9,87 % en el 2.º trimestre; +486.000 ocupados en un año', tendencia: 'baja', impacto: 'negativo', palanca: 'personas', fuente: 'INE · EPA 2T 2026', fecha: 'jul 2026', url: 'https://www.ine.es/dyngs/Prensa/EPA2T26.htm' }
+    ],
+    ajustesEscenario: { ventasF: 0.95, tipoDelta: 0.75, margenDelta: -1.5, dsoDelta: 5, justificacion: 'Euríbor +1,1 puntos en un año y BCE subiendo; inflación cercana al 5 % que presiona compras y salarios; demanda que sigue creciendo pero con más cautela de los clientes.' },
+    implicaciones: [
+      { plan: 'Financiero', accion: 'Pedir ofertas a tipo fijo o con cobertura para la financiación nueva; con el Euríbor en el 3,25 % y subiendo, cada punto encarece la cuota.', prioridad: 'alta' },
+      { plan: 'Compras', accion: 'Cerrar precios a plazo con los proveedores A de materiales y energía; revisar cláusulas de revisión de precios.', prioridad: 'alta' },
+      { plan: 'Comercial', accion: 'Trasladar la inflación a tarifas de forma escalonada, empezando por los clientes de margen bajo (ABC′ = C).', prioridad: 'alta' },
+      { plan: 'Personas', accion: 'Presupuestar revisiones salariales cercanas a la inflación y reforzar la retención: con el paro bajando cuesta más contratar.', prioridad: 'media' },
+      { plan: 'Tesorería', accion: 'Vigilar los días de cobro: con tipos altos los clientes tienden a pagar más tarde. Revisar el límite de la póliza.', prioridad: 'media' }
+    ],
+    sector: {
+      industria: 'Industria: la energía y las materias primas son el principal riesgo; revisa contratos de suministro eléctrico y gas.',
+      distribucion: 'Distribución: margen estrecho ante la inflación de compras; traslada precios rápido y vigila el stock.',
+      hosteleria: 'Hostelería: costes de energía y alimentos al alza y dificultad para contratar; la demanda turística sigue fuerte.',
+      retail: 'Retail: el consumidor nota la inflación; cuida el precio de entrada y la rotación del stock.',
+      construccion: 'Construcción: tipos más altos frenan la demanda financiada y encarecen la obra; revisa fórmulas de revisión de precios.',
+      servicios: 'Servicios profesionales: el riesgo principal es el coste salarial; ajusta tarifas y tiempo facturable.',
+      tecnologia: 'Tecnología: la demanda de IA impulsa la inversión; el coste de financiación pesa en las empresas con caja negativa.',
+      agro: 'Agroalimentario: energía, fertilizantes y transporte encarecen la producción; cubre precios con contratos.',
+      salud: 'Salud: demanda estable; vigila salarios del personal sanitario y coste de suministros.',
+      logistica: 'Logística: el combustible y los tipos (flota financiada) son los dos riesgos principales; incluye cláusulas de gasóleo.'
+    }
+  };
   const M = () => S.state.mercado;
   function marketRisks() {
     const m = M(), R = [];
@@ -58,13 +94,14 @@
         <div class="grid cols-2">
           <div class="glass pad stack"><h4>Perfil para el análisis</h4>
             <div class="lever-grid">${[['actividad', 'Actividad concreta'], ['region', 'Ámbito geográfico'], ['productos', 'Tipologías de producto'], ['clientes', 'Tipos de cliente']].map(([k, n]) => `<label class="small">${n}<input class="input" id="mp_${k}" value="${esc(m.perfil[k] || '')}" placeholder="${k === 'actividad' ? A.SECTORS[S.sim.sector].nombre : ''}"></label>`).join('')}</div>
-            <div class="row"><button class="btn solid" id="mkAgent">Actualizar con el agente</button><span class="small muted" id="mkMsg">${an ? 'Último análisis: ' + new Date(an.fecha).toLocaleString('es-ES') : 'Sin análisis todavía.'}</span></div>
+            <div class="row"><button class="btn solid" id="mkRef">Cargar datos macro 2026</button><button class="btn" id="mkAgent">Actualizar con el agente</button><span class="small muted" id="mkMsg">${an ? (an.origen === 'referencia' ? 'Datos de referencia del ' : 'Último análisis: ') + new Date(an.fecha).toLocaleDateString('es-ES') : 'Sin análisis todavía. Pulsa «Cargar datos macro 2026» para partir de los últimos datos oficiales.'}</span></div>
             <p class="small muted" id="mkMode"></p></div>
           <div class="glass pad stack"><h4>Fuentes oficiales</h4><p class="small">El agente consulta prioritariamente estas fuentes y cita fecha y origen de cada dato. También puedes consultarlas tú y anotar los valores en la tabla de indicadores.</p><div class="chips">${FUENTES.map(([n, u]) => `<a class="vchip static" href="${u}" target="_blank" rel="noopener">${n}</a>`).join('')}</div></div>
         </div>
-        ${an ? `<div class="glass pad mt stack"><h4>Resumen del agente</h4><p>${esc(an.resumen || '')}</p>
+        ${an ? `<div class="glass pad mt stack"><h4>${an.origen === 'referencia' ? 'Datos de referencia 2026 · consulta del ' + new Date(an.fecha).toLocaleDateString('es-ES') : 'Resumen del agente'}</h4><p>${esc(an.resumen || '')}</p>
           ${an.sector ? `<div class="grid cols-3"><div><h4>Sector</h4><p class="small">${esc(an.sector.situacion || '')} ${an.sector.crecimiento ? '· ' + esc(an.sector.crecimiento) : ''}</p><ul class="small">${(an.sector.tendencias || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div><div><h4>Riesgos</h4><ul class="small">${(an.sector.riesgos || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div><div><h4>Oportunidades</h4><ul class="small">${(an.sector.oportunidades || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></div>` : ''}
           ${(an.implicaciones || []).length ? `<h4>Cómo afecta a tus planes</h4><div class="table-wrap"><table><thead><tr><th>Plan</th><th style="text-align:left">Acción</th><th>Prioridad</th></tr></thead><tbody>${an.implicaciones.map((x) => `<tr><td>${esc(x.plan)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(x.accion)}</td><td>${esc(x.prioridad || '')}</td></tr>`).join('')}</tbody></table></div>` : ''}
+          ${(an.fuentes || []).length ? `<p class="small muted">Fuentes: ${an.fuentes.filter((f, i, arr) => arr.findIndex((x) => x.url === f.url) === i).map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.fuente)}</a>`).join(' · ')}</p>` : ''}
           ${scen ? `<div class="row"><span class="small">Ajuste sugerido de escenario: ${scen.ventasF ? 'venta nueva × ' + scen.ventasF + ' · ' : ''}${scen.tipoDelta ? 'tipos ' + scen.tipoDelta + ' pp · ' : ''}${scen.margenDelta ? 'margen ' + scen.margenDelta + ' pp · ' : ''}${scen.dsoDelta ? 'cobros ' + scen.dsoDelta + ' días' : ''} <span class="muted">${esc(scen.justificacion || '')}</span></span><button class="btn" id="mkApply">Aplicar al escenario «Hipótesis»</button></div>` : ''}</div>` : ''}
         <div class="glass pad mt" id="mkInd"></div>
         <div class="grid cols-2 mt"><div class="glass pad" id="mkTg"></div><div class="glass pad" id="mkTp"></div></div>
@@ -94,6 +131,13 @@
           S.save(); S.rerender();
         } catch (e) { $('#mkMsg', host).textContent = e.message; b.disabled = false; }
       };
+      $('#mkRef', host).onclick = () => {
+        const R = S.MACRO_2026;
+        const propios = m.indicadores.filter((i) => i.ambito === 'Sector' || i.ambito === 'Región').filter((i) => i.valor);
+        m.indicadores = A.clone(R.indicadores).concat(propios);
+        m.analisis = { fecha: new Date(R.fecha).toISOString(), origen: 'referencia', resumen: R.resumen + ' ' + (R.sector[S.sim.sector] || ''), implicaciones: R.implicaciones, ajustesEscenario: R.ajustesEscenario, fuentes: R.indicadores.map((i) => ({ fuente: i.fuente, url: i.url })) };
+        S.save(); S.rerender();
+      };
       const ap = $('#mkApply', host);
       if (ap) ap.onclick = () => { const c = S.sim.custom; if (scen.ventasF) c.ventasF = +scen.ventasF; if (scen.tipoDelta) c.tipoDelta = +scen.tipoDelta; if (scen.margenDelta) c.margenDelta = +scen.margenDelta; if (scen.dsoDelta) c.dsoDelta = +scen.dsoDelta; S.saveSim(); ap.textContent = 'Aplicado: ábrelo en el simulador'; };
       S.etable($('#mkInd', host), { titulo: 'Indicadores macro y sectoriales', rows: m.indicadores, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ ambito: 'España', indicador: '', valor: '', tendencia: 'estable', impacto: 'neutro', palanca: 'ventas', fuente: '', fecha: '' }),
@@ -106,46 +150,7 @@
     risks: marketRisks
   });
 
-  /* =========================================================
-     Plan de empresa: misión, DAFO y cascada de objetivos (macro → micro)
-     ========================================================= */
-  S.defaults.plan = {
-    mision: 'Fabricar soluciones fiables para nuestros clientes industriales con plazos que la competencia no alcanza.',
-    vision: 'Ser en 2030 el proveedor de referencia del norte peninsular, con un 15 % de EBITDA y un equipo que funcione sin depender de una persona.',
-    propuesta: 'Plazo corto, servicio técnico propio y piezas a medida.',
-    dafo: { d: 'Dependencia del fundador\nProcesos sin documentar\nCliente principal concentra demasiado', a: 'Subida de costes de materias primas\nCompetidor con precios agresivos', f: 'Calidad reconocida\nServicio técnico propio\nEquipo estable en producción', o: 'Nueva línea de producción\nExpansión a Portugal\nDigitalizar pedidos' },
-    objetivos: [{ id: 'o1', nombre: 'Crecer de forma rentable', indicador: 'EBITDA sobre ventas', actual: 9, meta: 13, fecha: '2027-12-31' }, { id: 'o2', nombre: 'Tesorería sin tensiones', indicador: 'Meses de colchón mínimos', actual: 2, meta: 3, fecha: '2027-06-30' }],
-    areas: [{ macro: 'o1', area: 'Comercial', objetivo: 'Subir margen en clientes A', kpi: 'Margen de contribución clientes A (%)', actual: 33, meta: 37 }, { macro: 'o1', area: 'Operaciones', objetivo: 'Productividad en planta', kpi: 'OEE medio (%)', actual: 62, meta: 75 }, { macro: 'o2', area: 'Finanzas', objetivo: 'Cobrar antes', kpi: 'Días de cobro', actual: 75, meta: 60 }],
-    acciones: [{ area: 'Comercial', accion: 'Renegociar tarifas con Distribuciones Norte', responsable: 'Dirección comercial', inicio: '', fin: '', estado: 'Pendiente' }, { area: 'Operaciones', accion: 'Plan de mantenimiento preventivo en montaje', responsable: 'Jefe de planta', inicio: '', fin: '', estado: 'En marcha' }, { area: 'Finanzas', accion: 'Política de crédito y reclamación de vencidos', responsable: 'Administración', inicio: '', fin: '', estado: 'Pendiente' }]
-  };
   const PL = () => S.state.plan;
-  S.register({
-    id: 'plan', nombre: 'Plan de empresa', grupo: 'Visión',
-    render(host) {
-      const p = PL();
-      const prog = (area) => { const l = p.acciones.filter((a) => a.area === area); return l.length ? Math.round(l.filter((a) => a.estado === 'Hecha').length / l.length * 100) : 0; };
-      host.innerHTML = `${S.section('Plan de empresa', 'Hacia dónde va la empresa y cómo se baja a tierra: de los objetivos generales (macro) a los objetivos de cada área, sus indicadores y las acciones concretas (micro). Los hallazgos de todos los módulos pueden convertirse en acciones con un clic.')}
-        <div class="grid cols-3"><label class="small">Misión<textarea class="input" id="plM">${esc(p.mision)}</textarea></label><label class="small">Visión<textarea class="input" id="plV">${esc(p.vision)}</textarea></label><label class="small">Propuesta de valor<textarea class="input" id="plP">${esc(p.propuesta)}</textarea></label></div>
-        <div class="glass pad mt stack"><h4>DAFO</h4><div class="dafo">${[['d', 'Debilidades'], ['a', 'Amenazas'], ['f', 'Fortalezas'], ['o', 'Oportunidades']].map(([k, n]) => `<div><b>${n}</b><textarea class="input" id="pl_${k}">${esc(p.dafo[k])}</textarea></div>`).join('')}</div></div>
-        <div class="glass pad mt stack"><div class="row"><h4>Cascada de objetivos</h4><span class="spacer"></span><button class="btn" id="plFind">Crear acciones desde los hallazgos</button></div>
-          <div class="cascade">${p.objetivos.map((o) => `<div class="cobj"><div class="row"><b>${esc(o.nombre)}</b><span class="spacer"></span><span class="small muted">${esc(o.indicador)}: ${o.actual} → ${o.meta}${o.fecha ? ' · ' + esc(o.fecha) : ''}</span></div>
-            ${p.areas.filter((a) => a.macro === o.id).map((a) => `<div class="carea"><div class="row"><span>${esc(a.area)} · ${esc(a.objetivo)}</span><span class="spacer"></span><span class="small muted">${esc(a.kpi)}: ${a.actual} → ${a.meta}</span><span class="state st-${prog(a.area) >= 60 ? 'ok' : prog(a.area) >= 25 ? 'warn' : 'stop'}">${prog(a.area)} %</span></div>
-              <ul class="small">${p.acciones.filter((x) => x.area === a.area).map((x) => `<li>${esc(x.accion)} <span class="muted">· ${esc(x.responsable)} · ${esc(x.estado)}</span></li>`).join('')}</ul></div>`).join('')}</div>`).join('')}</div><p class="small" id="plMsg"></p></div>
-        <div class="glass pad mt" id="plO"></div><div class="glass pad mt" id="plA"></div><div class="glass pad mt" id="plX"></div>`;
-      const bind = (id, fn) => { $(id, host).onchange = (e) => { fn(e.target.value); S.save(); }; };
-      bind('#plM', (v) => { p.mision = v; }); bind('#plV', (v) => { p.vision = v; }); bind('#plP', (v) => { p.propuesta = v; });
-      ['d', 'a', 'f', 'o'].forEach((k) => bind('#pl_' + k, (v) => { p.dafo[k] = v; }));
-      $('#plFind', host).onclick = () => {
-        const Fi = S.allFindings(); let n = 0;
-        Fi.forEach((f) => { if (!p.acciones.some((a) => a.accion === f.accion)) { p.acciones.push({ area: f.area, accion: f.accion, responsable: '', inicio: '', fin: new Date(Date.now() + (f.plazo || 90) * 864e5).toISOString().slice(0, 10), estado: 'Pendiente' }); n++; } if (!p.areas.some((a) => a.area === f.area)) p.areas.push({ macro: p.objetivos[0] ? p.objetivos[0].id : '', area: f.area, objetivo: 'Capturar las mejoras identificadas', kpi: 'Impacto anual (€)', actual: 0, meta: Math.round(Fi.filter((x) => x.area === f.area).reduce((s, x) => s + (x.impactoEUR || 0), 0)) }); });
-        S.save(); S.rerender(); $('#plMsg').textContent = n + ' acciones añadidas desde los hallazgos.';
-      };
-      S.etable($('#plO', host), { titulo: 'Objetivos generales (macro)', rows: p.objetivos, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ id: 'o' + Date.now().toString(36), nombre: '', indicador: '', actual: 0, meta: 0, fecha: '' }), cols: [{ k: 'nombre', l: 'Objetivo', type: 'text' }, { k: 'indicador', l: 'Indicador', type: 'text' }, { k: 'actual', l: 'Actual', type: 'num' }, { k: 'meta', l: 'Meta', type: 'num' }, { k: 'fecha', l: 'Fecha', type: 'date' }] });
-      S.etable($('#plA', host), { titulo: 'Objetivos de área', rows: p.areas, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ macro: p.objetivos[0] ? p.objetivos[0].id : '', area: '', objetivo: '', kpi: '', actual: 0, meta: 0 }), cols: [{ k: 'macro', l: 'Contribuye a', type: 'select', opts: p.objetivos.map((o) => ({ v: o.id, l: o.nombre })) }, { k: 'area', l: 'Área', type: 'text' }, { k: 'objetivo', l: 'Objetivo', type: 'text' }, { k: 'kpi', l: 'Indicador', type: 'text' }, { k: 'actual', l: 'Actual', type: 'num' }, { k: 'meta', l: 'Meta', type: 'num' }] });
-      S.etable($('#plX', host), { titulo: 'Acciones', rows: p.acciones, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ area: p.areas[0] ? p.areas[0].area : '', accion: '', responsable: '', inicio: '', fin: '', estado: 'Pendiente' }), cols: [{ k: 'area', l: 'Área', type: 'text' }, { k: 'accion', l: 'Acción', type: 'text' }, { k: 'responsable', l: 'Responsable', type: 'text' }, { k: 'inicio', l: 'Inicio', type: 'date' }, { k: 'fin', l: 'Fin', type: 'date' }, { k: 'estado', l: 'Estado', type: 'select', opts: ['Pendiente', 'En marcha', 'Hecha', 'Bloqueada'] }], dictar: (t) => ({ area: p.areas[0] ? p.areas[0].area : '', accion: t, responsable: '', inicio: '', fin: '', estado: 'Pendiente' }) });
-    },
-    kpis() { const a = PL().acciones; return a.length ? [{ k: 'Acciones del plan hechas', v: Math.round(a.filter((x) => x.estado === 'Hecha').length / a.length * 100) + ' %', st: a.some((x) => x.estado === 'Bloqueada') ? 'warn' : 'ok' }] : []; }
-  });
 
   /* =========================================================
      Informe de auditoría completo
@@ -188,6 +193,7 @@
     h += `<h2>5. Presupuesto y desviaciones</h2><p>Ventas acumuladas al ${Math.round(b.ratio * 100)} % de lo presupuestado: la realidad se parece al escenario <b>${A.SCENARIOS.find((s) => s.key === b.escEq).nombre.toLowerCase()}</b>. Cierre proyectado ${F.eur(b.cierreVentas)} frente a ${F.eur(b.ventasAnual)}.</p>`;
     h += `<h2>6. Riesgos y mercado</h2><table><thead><tr><th style="text-align:left">Riesgo</th><th>Área</th><th>Nivel</th><th style="text-align:left">Mitigación</th></tr></thead><tbody>${d.R.slice(0, 15).map((x) => `<tr><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(x.nombre)}</td><td>${esc(x.fuente)}</td><td>${pill(x.estado, x.nivel)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(x.mitigacion || '')}</td></tr>`).join('')}</tbody></table>`;
     const an = S.state.mercado.analisis; if (an && an.resumen) h += `<p><b>Contexto de mercado (${new Date(an.fecha).toLocaleDateString('es-ES')}).</b> ${esc(an.resumen)}</p>`;
+    if (S.planReportHTML) h += S.planReportHTML();
     // Macro → micro
     const p = d.p;
     h += `<h2>7. Plan de trabajo: de los objetivos a las acciones (macro → micro)</h2>${p.objetivos.map((o) => `<h3>${esc(o.nombre)} · ${esc(o.indicador)} ${o.actual} → ${o.meta}${o.fecha ? ' (' + esc(o.fecha) + ')' : ''}</h3><table><thead><tr><th>Área</th><th style="text-align:left">Objetivo</th><th>Indicador</th><th style="text-align:left">Acciones</th></tr></thead><tbody>${p.areas.filter((a) => a.macro === o.id).map((a) => `<tr><td>${esc(a.area)}</td><td style="text-align:left;font-family:var(--font-body)">${esc(a.objetivo)}</td><td>${esc(a.kpi)}: ${a.actual} → ${a.meta}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${p.acciones.filter((x) => x.area === a.area).map((x) => `${esc(x.accion)} (${esc(x.responsable || 'sin responsable')}, ${esc(x.estado)})`).join('; ')}</td></tr>`).join('')}</tbody></table>`).join('')}`;

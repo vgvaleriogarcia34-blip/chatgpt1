@@ -79,7 +79,8 @@
     <p class="lede">Adjunta el balance y la cuenta de resultados de varios años en PDF, Word, Excel, CSV o Markdown, pégalos o díctalos. Atalaya calcula la evolución, audita dónde está cada euro del beneficio, proyecta tres años y lee las políticas de gobierno que hay detrás de los números.</p>
     <div class="glass pad mt stack">
       <div class="row">
-        <label class="btn solid" for="finFile">Adjuntar documentos</label>
+        <button class="btn solid" id="finManual">Escribir a mano</button>
+        <label class="btn" for="finFile">Adjuntar documentos</label>
         <input type="file" id="finFile" accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx" multiple hidden>
         <button class="btn" id="finPaste">Pegar tabla</button>
         <button class="btn" id="finVoice">Dictar un dato</button>
@@ -92,6 +93,7 @@
       <textarea id="finText" class="input" rows="6" hidden placeholder="Pega aquí la tabla copiada de Excel: primera columna con los conceptos y una columna por año."></textarea>
       <div id="finStatus" class="small muted"></div>
     </div>
+    <div class="glass pad mt" id="finGrid" hidden></div>
     <div id="finOut" class="mt"></div>
   </section>
 

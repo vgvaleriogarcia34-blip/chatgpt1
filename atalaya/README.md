@@ -7,10 +7,10 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | Página | Para qué |
 |---|---|
 | `index.html` | Página comercial: propuesta, demo en vivo con el motor real, planes y preguntas. |
-| `acceso.html` | Alta con 14 días de prueba, inicio de sesión y solicitud de activación al terminar la prueba. |
+| `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (18 módulos). |
-| `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos y horas de uso. |
+| `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso y enlaces de recuperación. Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
 
 ## Simulador (`app.html`)
 
@@ -29,13 +29,13 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 
 | Grupo | Módulos |
 |---|---|
-| Visión | Cuadro de mando cruzado · Plan de empresa (misión, DAFO, cascada de objetivos macro → micro) · Informe de auditoría completo |
-| Finanzas | Flujo del dinero · Impuestos (calendario de pagos y marco legal de reducción por escenario) · Tesorería por semanas · Presupuesto y desviaciones (mes, trimestre, año) |
-| Comercial | Clientes ABC y ABC′ · Margen de contribución sobre la demanda con palancas y escenarios guardados · Pipeline · Marketing (CAC, LTV) |
+| Visión | Cuadro de mando cruzado · Plan de empresa (misión, visión, valores con peso, DAFO contextualizado con tus datos, CAME, filtro de valores, riesgos ponderados por valores y cascada de objetivos macro → micro) · Informe de auditoría completo |
+| Finanzas | Flujo del dinero (con carga manual por años) · Impuestos (calendario de pagos, marco legal de reducción por escenario y escenarios fiscales de la inversión) · Tesorería por semanas · Presupuesto (generador con cuatro métodos, partidas detalladas, versiones, reales por partida y desviaciones en €, % y peso sobre ventas) |
+| Comercial | ABC y concentración de clientes, productos y proveedores (HHI explicado) · Margen de contribución sobre la demanda con palancas y escenarios guardados · Pipeline · Marketing (CAC, LTV) |
 | Operaciones | Compras (Kraljic) · Logística (OTIF, coste por pedido) · Gestor de tiempos (facturable frente a sistema interno) · Lean por sector (takt, OEE, flujo de valor, desperdicios, 5S, kaizen) · Personas |
-| Estrategia | Expansión territorial (enviable al simulador) · Mercado y riesgos 360 con agente sobre fuentes oficiales |
+| Estrategia | Expansión territorial (enviable al simulador) · Mercado y riesgos 360 con datos macro de referencia 2026 y agente sobre fuentes oficiales |
 
-Todas las tablas admiten importar documentos (PDF, Word, Excel, CSV, Markdown), pegar desde Excel y, donde tiene sentido, dictar por voz. Los riesgos, indicadores y hallazgos de cada módulo se suman al cuadro de mando y al informe de auditoría, que incluye un plan de trabajo de los objetivos a las acciones (macro → micro) y de los hallazgos al resultado (micro → macro).
+Cada indicador con «?» abre una ficha que explica qué es, cómo se calcula, cómo leer tu dato y cómo mejorarlo (se cierra con la X, Escape o tocando fuera). Todas las tablas admiten importar documentos (PDF, Word, Excel, CSV, Markdown), pegar desde Excel y, donde tiene sentido, dictar por voz. Los riesgos, indicadores y hallazgos de cada módulo se suman al cuadro de mando y al informe de auditoría, que incluye un plan de trabajo de los objetivos a las acciones (macro → micro) y de los hallazgos al resultado (micro → macro).
 
 ## Asistente
 
@@ -50,12 +50,14 @@ Abre `index.html` (o sirve la carpeta con `python3 -m http.server`). Todo funcio
 ```bash
 cd atalaya/server
 npm install
-ANTHROPIC_API_KEY=sk-ant-... ADMIN_EMAIL=tu@empresa.es COOKIE_SECURE=1 PORT=8080 node server.mjs
+ANTHROPIC_API_KEY=sk-ant-... ADMIN_PASSWORD='una-clave-larga' APP_URL=https://atalaya.tudominio.es COOKIE_SECURE=1 PORT=8080 node server.mjs
 ```
 - Sirve la web y la API en el mismo puerto. Ponlo detrás de un proxy con HTTPS (necesario para el micrófono y para la cookie segura).
 - Datos en `server/data/db.json` (cámbialo con `ATALAYA_DATA`). Haz copias de seguridad de esa carpeta.
 - Contraseñas con scrypt, sesiones con cookie `HttpOnly` y `SameSite=Lax`, límite de intentos de acceso.
-- `ADMIN_EMAIL`: la cuenta con ese correo será administradora (si no se indica, lo es la primera que se registre).
+- **Administración**: el gestor de usuarios usa una contraseña propia (mínimo 10 caracteres), separada de las cuentas de cliente. Fíjala con `ADMIN_PASSWORD` o, si no, el servidor muestra al arrancar un código de un solo uso para crearla en `admin.html`. Para cambiarla si la olvidas, arranca con `ADMIN_PASSWORD=nueva`. La sesión de administración dura 12 horas.
+- **Recuperación de contraseña**: el usuario pide un enlace en «¿Has olvidado tu contraseña?». Con correo configurado (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SECURE=1` para el puerto 465) se le envía; sin correo, la solicitud aparece en el gestor de usuarios, que genera el enlace para enviárselo. Los enlaces son de un solo uso y caducan en 60 minutos. `APP_URL` es la dirección pública que se pone en los enlaces.
+- Las cuentas que eran administradoras en versiones anteriores pasan a ser clientes con acceso sin vencimiento.
 - `MERCADO_AUTO_DIAS=7`: refresca el análisis de mercado de cada cliente con acceso cada 7 días.
 - Modelo de IA: `claude-opus-5-5` por defecto (`ATALAYA_MODEL` para cambiarlo).
 
@@ -64,7 +66,8 @@ El control de acceso es real en el servidor: prueba de 14 días, acceso pagado c
 
 ## Avisos
 - Las cifras son estimaciones a partir de los datos introducidos. La fiscalidad y las decisiones societarias deben confirmarse con los asesores de la empresa; los porcentajes legales cambian con cada reforma.
-- El agente de mercado necesita el servidor con la API de Claude: consulta fuentes oficiales (INE, Banco de España, BCE, Eurostat, FMI, OCDE, ministerios…) y cita fecha y fuente de cada dato. Sin servidor, los indicadores se rellenan a mano.
+- El agente de mercado necesita el servidor con la API de Claude: consulta fuentes oficiales (INE, Banco de España, BCE, Eurostat, FMI, OCDE, ministerios…) y cita fecha y fuente de cada dato. Sin servidor, «Cargar datos macro 2026» rellena los indicadores con datos de referencia consultados el 1 de octubre de 2026 (con su fuente), y se pueden editar a mano.
+- Los escenarios fiscales de la inversión son una simplificación orientativa de la Ley del Impuesto sobre Sociedades (tablas de amortización, arts. 35, 102, 103 y 106): sirven para preparar la conversación con el asesor, no para liquidar.
 - Los PDF escaneados (imágenes) no se pueden leer: hace falta un PDF con texto o la hoja de cálculo original.
 
 ## Archivos
@@ -81,6 +84,6 @@ atalaya/
 │   ├── docs.js         lectura de PDF, Word, Excel, CSV, Markdown y dictado
 │   ├── financials.js   cuentas de varios años y flujo del dinero
 │   ├── charts.js · scene3d.js · report.js · assistant.js · app.js · site.js · admin.js
-│   └── strategy/       core · finance · commercial · operations · market
+│   └── strategy/       core · finance · commercial · operations · plan · market
 └── server/             server.mjs · package.json
 ```

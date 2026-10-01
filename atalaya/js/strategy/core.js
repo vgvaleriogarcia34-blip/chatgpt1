@@ -33,7 +33,7 @@
   };
 
   /* ---------- Componentes ---------- */
-  S.kpiTiles = (list) => `<div class="kpis" style="margin-top:0">${list.map((t) => `<div class="kpi" ${t.info ? `data-term="${esc(t.info)}"` : ''}><div class="k"><span>${t.k}</span>${t.st ? `<span class="state st-${t.st}">${stName[t.st]}</span>` : ''}</div><div class="v">${t.v}</div>${t.d ? `<div class="d">${t.d}</div>` : ''}</div>`).join('')}</div>`;
+  S.kpiTiles = (list) => `<div class="kpis" style="margin-top:0">${list.map((t) => `<div class="kpi" ${t.info ? `data-term="${esc(t.info)}" data-val="${esc(String(t.v).replace(/<[^>]+>/g, ''))}" data-st="${t.st || ''}" data-ctx="${esc(t.exp || '')}" tabindex="0" role="button" aria-label="${esc(t.k)}: qué significa"` : ''}><div class="k"><span>${t.k}</span>${t.st ? `<span class="state st-${t.st}">${stName[t.st]}</span>` : ''}</div><div class="v">${t.v}</div>${t.d ? `<div class="d">${t.d}</div>` : ''}</div>`).join('')}</div>`;
   S.note = (html) => `<div class="note">${html}</div>`;
   S.section = (title, lede, inner) => `<div class="eyebrow">${title}</div>${lede ? `<p class="lede">${lede}</p>` : ''}${inner || ''}`;
 
@@ -120,6 +120,21 @@
   S.riskBlock = (risks) => (risks.length ? `<div class="risklist">${risks.map((r) => `<div class="risk"><span class="state st-${r.estado}">${r.nivel}</span><div><b>${esc(r.nombre)}</b><p>${esc(r.mitigacion || '')}</p></div><span class="src">${esc(r.fuente || '')}</span></div>`).join('')}</div>` : '<p class="small muted">Sin riesgos relevantes con los datos actuales.</p>');
   S.mkRisk = (nombre, prob, impacto, mitigacion, fuente) => { const nivel = prob * impacto; return { nombre, prob, impacto, nivel, estado: nivel >= 15 ? 'stop' : nivel >= 8 ? 'warn' : 'ok', mitigacion, fuente }; };
 
+  /* Ficha explicativa de un término: qué es, cómo se calcula, cómo se lee, tu dato y cómo mejorarlo */
+  S.termHTML = (g, cur) => {
+    cur = cur || {};
+    const list = (a) => `<ul>${a.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+    const vars = (a) => a.map((k) => esc(A.fieldLabel(k))).join(', ');
+    return `<h5>${esc(g.t)}</h5><span class="hint">${esc(g.cat || '')}</span>
+      <p>${esc(g.d)}</p>
+      ${g.f ? `<h6>Cómo se calcula</h6><div class="formula" style="margin-top:2px;border:0;padding:0">${esc(g.f)}</div>` : ''}
+      ${g.lee ? `<h6>Cómo se lee</h6>${Array.isArray(g.lee) ? list(g.lee) : `<p>${esc(g.lee)}</p>`}` : ''}
+      ${cur.valor ? `<div class="now"><b>Tu dato: ${esc(cur.valor)}</b>${cur.st ? ` · <span class="state st-${cur.st}">${stName[cur.st]}</span>` : ''}${cur.ctx ? `<p style="margin-top:6px">${esc(cur.ctx)}</p>` : ''}</div>` : ''}
+      ${g.ej ? `<h6>Ejemplo</h6><p>${esc(g.ej)}</p>` : ''}
+      ${g.mejora ? `<h6>Cómo mejorarlo</h6>${list(g.mejora)}` : ''}
+      ${(g.dir && g.dir.length) || (g.ind && g.ind.length) ? `<h6>Qué lo mueve</h6><p>${g.dir && g.dir.length ? `Directas: ${vars(g.dir)}. ` : ''}${g.ind && g.ind.length ? `Indirectas: ${vars(g.ind)}.` : ''}</p>` : ''}`;
+  };
+
   /* ---------- Navegación ---------- */
   const GROUPS = ['Visión', 'Finanzas', 'Comercial', 'Operaciones', 'Estrategia'];
   let current = 'tablero';
@@ -135,6 +150,7 @@
     const sel = $(`#stTabs button[data-t="${id}"]`); if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
     const panel = $('#stPanel');
     panel.innerHTML = '';
+    A.charts.hideTip(); A.charts.closePop();
     const m = S.mod(id);
     try { m.render(panel); } catch (e) { panel.innerHTML = `<div class="alert stop">No se pudo mostrar este módulo: ${esc(e.message)}</div>`; console.error(e); }
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
@@ -212,10 +228,12 @@
     show(S.mod(h) ? h : 'tablero');
     addEventListener('hashchange', () => { const k = location.hash.replace('#', ''); if (S.mod(k) && k !== current) show(k); });
     if (A.assistant) A.assistant.init({ api: apiFor(), page: 'estrategia' });
-    document.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-term]'); if (!t) return;
-      const g = A.GLOSSARY.find((x) => x.t.toLowerCase().startsWith(t.dataset.term.toLowerCase()));
-      if (g) A.charts.tip(`<h5>${esc(g.t)}</h5><p>${esc(g.d)}</p>${g.f ? `<div class="formula">${esc(g.f)}</div>` : ''}`, e.clientX, e.clientY);
-    });
+    const openTerm = (t) => {
+      const key = t.dataset.term.toLowerCase();
+      const g = A.GLOSSARY.find((x) => x.t.toLowerCase() === key) || A.GLOSSARY.find((x) => x.t.toLowerCase().startsWith(key)) || A.GLOSSARY.find((x) => x.t.toLowerCase().includes(key));
+      if (g) A.charts.pop(S.termHTML(g, { valor: t.dataset.val, st: t.dataset.st, ctx: t.dataset.ctx }), t);
+    };
+    document.addEventListener('click', (e) => { const t = e.target.closest('[data-term]'); if (t) openTerm(t); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.term) openTerm(e.target); });
   };
 })();

@@ -19,15 +19,20 @@ const PORT = +process.env.PORT || 8080;
 const COOKIE = 'atalaya_sid';
 const SESSION_DAYS = 30;
 const MODEL = process.env.ATALAYA_MODEL || 'claude-opus-5-5';
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase();
+const ADMIN_COOKIE = 'atalaya_adm';
+const ADMIN_HOURS = 12;
+const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const PRUEBA_DIAS = 14;
 const PLANES = ['esencial', 'profesional', 'consultora'];
 const MAX_BODY = 4 * 1024 * 1024;
 
 /* ---------- Base de datos en un fichero JSON (escritura atómica) ---------- */
 fs.mkdirSync(DATA_DIR, { recursive: true });
-let db = { users: [], sessions: {}, data: {}, mercado: {} };
+let db = { users: [], sessions: {}, data: {}, mercado: {}, admin: null, adminSessions: {}, resets: {} };
 try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))); } catch { /* base nueva */ }
+db.adminSessions = db.adminSessions || {}; db.resets = db.resets || {};
+// La administración ya no es una cuenta de usuario: las cuentas que lo eran pasan a cliente con acceso de cortesía
+db.users.forEach((u) => { if (u.rol === 'admin') { u.rol = 'cliente'; u.pagado = true; u.venceAcceso = null; u.estado = 'activo'; u.nota = ((u.nota || '') + ' Antigua cuenta de administración: acceso sin vencimiento.').trim(); } });
 let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
@@ -46,7 +51,6 @@ const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
 const pub = (u) => { if (!u) return null; const { hash, salt, ...rest } = u; return rest; };
 function access(u) {
   if (!u) return { ok: false, motivo: 'sin-sesion' };
-  if (u.rol === 'admin') return { ok: true, motivo: 'admin' };
   if (u.estado === 'bloqueado') return { ok: false, motivo: 'bloqueado' };
   if (u.pagado && (!u.venceAcceso || Date.parse(u.venceAcceso) > Date.now())) return { ok: true, motivo: 'pagado' };
   if (!u.pagado && Date.parse(u.alta) + PRUEBA_DIAS * 864e5 > Date.now()) return { ok: true, motivo: 'prueba' };
@@ -67,6 +71,53 @@ function startSession(res, u) {
   const secure = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
   res.setHeader('Set-Cookie', `${COOKIE}=${sid}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_DAYS * 86400}${secure}`);
 }
+/* ---------- Administración: contraseña propia, separada de las cuentas de usuario ---------- */
+const sha = (t) => crypto.createHash('sha256').update(t).digest('hex');
+const safeEq = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
+function setAdminPassword(pw) { const salt = crypto.randomBytes(16).toString('hex'); db.admin = { salt, hash: hashPw(pw, salt), cambiado: now() }; db.adminSessions = {}; save(); }
+if (process.env.ADMIN_PASSWORD) {
+  const pw = process.env.ADMIN_PASSWORD;
+  if (pw.length < 10) console.warn('ADMIN_PASSWORD debe tener al menos 10 caracteres; se ignora.');
+  else if (!db.admin || !safeEq(hashPw(pw, db.admin.salt), db.admin.hash)) setAdminPassword(pw);
+}
+// Sin contraseña de administración: código de configuración de un solo uso que solo ve quien arranca el servidor
+let setupCode = null;
+if (!db.admin) { setupCode = crypto.randomBytes(5).toString('hex').toUpperCase(); console.log(`\n  Configura la administración en ${APP_URL}/admin.html con este código: ${setupCode}\n  (o arranca con ADMIN_PASSWORD=...)\n`); }
+function isAdmin(req) {
+  const sid = cookies(req)[ADMIN_COOKIE];
+  const s = sid && db.adminSessions[sid];
+  return !!(db.admin && s && Date.parse(s.exp) > Date.now());
+}
+function startAdminSession(res) {
+  const sid = crypto.randomBytes(32).toString('hex');
+  db.adminSessions[sid] = { exp: new Date(Date.now() + ADMIN_HOURS * 3600e3).toISOString() };
+  Object.keys(db.adminSessions).forEach((k) => { if (Date.parse(db.adminSessions[k].exp) < Date.now()) delete db.adminSessions[k]; });
+  const secure = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=${sid}; HttpOnly; SameSite=Strict; Path=/api/; Max-Age=${ADMIN_HOURS * 3600}${secure}`);
+  save();
+}
+/* ---------- Recuperación de contraseña ---------- */
+const RESET_MIN = 60;
+function newResetToken(u, por) {
+  Object.keys(db.resets).forEach((k) => { if (db.resets[k].userId === u.id || Date.parse(db.resets[k].exp) < Date.now()) delete db.resets[k]; });
+  const token = crypto.randomBytes(32).toString('hex');
+  db.resets[sha(token)] = { userId: u.id, exp: new Date(Date.now() + RESET_MIN * 60e3).toISOString(), por, creado: now() };
+  save();
+  return token;
+}
+let mailer = null;
+async function sendMail(to, subject, text) {
+  if (!process.env.SMTP_HOST) return false;
+  try {
+    if (!mailer) {
+      const { default: nodemailer } = await import('nodemailer');
+      mailer = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: +process.env.SMTP_PORT || 587, secure: process.env.SMTP_SECURE === '1', auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined });
+    }
+    await mailer.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to, subject, text });
+    return true;
+  } catch (e) { console.error('Correo:', e.message); return false; }
+}
+
 function send(res, code, body) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(body));
@@ -167,7 +218,7 @@ route('POST', /^\/api\/register$/, async (req, res, body) => {
   const salt = crypto.randomBytes(16).toString('hex');
   const u = {
     id: uid(), nombre: String(body.nombre || '').slice(0, 120), email, empresa: String(body.empresa || '').slice(0, 160), telefono: String(body.telefono || '').slice(0, 40),
-    plan: PLANES.includes(body.plan) ? body.plan : 'profesional', rol: (db.users.length === 0 && !ADMIN_EMAIL) || email === ADMIN_EMAIL ? 'admin' : 'cliente',
+    plan: PLANES.includes(body.plan) ? body.plan : 'profesional', rol: 'cliente',
     estado: 'prueba', pagado: false, venceAcceso: null, alta: now(), ultimoAcceso: now(), sesiones: 1, uso: {}, pagos: [], salt, hash: hashPw(body.password, salt)
   };
   db.users.push(u); save(); startSession(res, u);
@@ -197,6 +248,75 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
   save(); return { user: pub(u) };
 }, { noAccess: true });
 route('POST', /^\/api\/me\/solicitar-pago$/, async (req, res, body, u) => { u.solicitudPago = now(); save(); return { ok: true }; }, { noAccess: true });
+route('POST', /^\/api\/me\/password$/, async (req, res, body, u) => {
+  if (!safeEq(hashPw(String(body.actual || ''), u.salt), u.hash)) throw Object.assign(new Error('La contraseña actual no es correcta'), { code: 400 });
+  if (String(body.nueva || '').length < 8) throw Object.assign(new Error('La nueva contraseña debe tener al menos 8 caracteres'), { code: 400 });
+  u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(body.nueva, u.salt);
+  const sid = cookies(req)[COOKIE]; Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === u.id && k !== sid) delete db.sessions[k]; });
+  save(); return { ok: true };
+}, { noAccess: true });
+
+// «He olvidado mi contraseña»: siempre responde igual para no revelar qué correos existen
+route('POST', /^\/api\/password\/olvido$/, async (req, res, body) => {
+  const ip = req.socket.remoteAddress;
+  if (rateLimited(ip)) throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 429 });
+  attempts.get(ip).push(Date.now());
+  const u = db.users.find((x) => x.email === String(body.email || '').trim().toLowerCase());
+  let correo = !!process.env.SMTP_HOST;
+  if (u) {
+    const token = newResetToken(u, 'usuario');
+    const link = `${APP_URL}/acceso.html#reset=${token}`;
+    const sent = await sendMail(u.email, 'Atalaya · Restablecer tu contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abre este enlace (caduca en ${RESET_MIN} minutos):\n${link}\n\nSi no lo has pedido tú, ignora este mensaje.`);
+    if (!sent) { u.solicitudReset = now(); save(); console.log(`Recuperación de contraseña para ${u.email}: ${link}`); }
+  }
+  return { ok: true, correo };
+}, { public: true });
+route('POST', /^\/api\/password\/restablecer$/, async (req, res, body) => {
+  const r = db.resets[sha(String(body.token || ''))];
+  if (!r || Date.parse(r.exp) < Date.now()) throw Object.assign(new Error('El enlace no es válido o ha caducado. Pide uno nuevo.'), { code: 400 });
+  if (String(body.password || '').length < 8) throw Object.assign(new Error('La contraseña debe tener al menos 8 caracteres'), { code: 400 });
+  const u = db.users.find((x) => x.id === r.userId); if (!u) throw Object.assign(new Error('Usuario no encontrado'), { code: 404 });
+  u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(body.password, u.salt); delete u.solicitudReset;
+  delete db.resets[sha(String(body.token))];
+  Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === u.id) delete db.sessions[k]; });
+  u.ultimoAcceso = now(); save(); startSession(res, u);
+  return { user: pub(u) };
+}, { public: true });
+
+// Acceso de administración
+route('GET', /^\/api\/admin\/estado$/, async (req) => ({ configurado: !!db.admin, sesion: isAdmin(req), correo: !!process.env.SMTP_HOST }), { public: true });
+route('POST', /^\/api\/admin\/configurar$/, async (req, res, body) => {
+  if (db.admin) throw Object.assign(new Error('La administración ya está configurada'), { code: 409 });
+  const ip = req.socket.remoteAddress;
+  if (rateLimited(ip)) throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 429 });
+  if (!setupCode || String(body.codigo || '').trim().toUpperCase() !== setupCode) { attempts.get(ip).push(Date.now()); throw Object.assign(new Error('Código de configuración incorrecto (se muestra en la consola del servidor)'), { code: 401 }); }
+  if (String(body.password || '').length < 10) throw Object.assign(new Error('La contraseña de administración debe tener al menos 10 caracteres'), { code: 400 });
+  setAdminPassword(String(body.password)); setupCode = null; startAdminSession(res);
+  return { ok: true };
+}, { public: true });
+route('POST', /^\/api\/admin\/login$/, async (req, res, body) => {
+  const ip = req.socket.remoteAddress;
+  if (rateLimited(ip)) throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 429 });
+  if (!db.admin || !safeEq(hashPw(String(body.password || ''), db.admin.salt), db.admin.hash)) { attempts.get(ip).push(Date.now()); throw Object.assign(new Error('Contraseña de administración incorrecta'), { code: 401 }); }
+  startAdminSession(res); return { ok: true };
+}, { public: true });
+route('POST', /^\/api\/admin\/logout$/, async (req, res) => {
+  const sid = cookies(req)[ADMIN_COOKIE]; if (sid) { delete db.adminSessions[sid]; save(); }
+  res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=; HttpOnly; SameSite=Strict; Path=/api/; Max-Age=0`);
+  return { ok: true };
+}, { public: true });
+route('POST', /^\/api\/admin\/password$/, async (req, res, body) => {
+  if (!safeEq(hashPw(String(body.actual || ''), db.admin.salt), db.admin.hash)) throw Object.assign(new Error('La contraseña actual no es correcta'), { code: 400 });
+  if (String(body.nueva || '').length < 10) throw Object.assign(new Error('La nueva contraseña debe tener al menos 10 caracteres'), { code: 400 });
+  setAdminPassword(String(body.nueva)); startAdminSession(res); return { ok: true };
+}, { admin: true });
+route('POST', /^\/api\/admin\/users\/([\w-]+)\/reset$/, async (req, res, body, me, m) => {
+  const u = db.users.find((x) => x.id === m[1]); if (!u) throw Object.assign(new Error('Usuario no encontrado'), { code: 404 });
+  const token = newResetToken(u, 'administración');
+  const enviado = body.enviar ? await sendMail(u.email, 'Atalaya · Restablecer tu contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abre este enlace (caduca en ${RESET_MIN} minutos):\n${APP_URL}/acceso.html#reset=${token}`) : false;
+  delete u.solicitudReset; save();
+  return { token, minutos: RESET_MIN, enviado };
+}, { admin: true });
 
 route('POST', /^\/api\/heartbeat$/, async (req, res, body, u) => {
   u.uso = u.uso || {}; u.uso[today()] = (u.uso[today()] || 0) + 1; u.ultimoAcceso = now(); save();
@@ -215,17 +335,15 @@ route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) 
   if (typeof body.pagado === 'boolean') u.pagado = body.pagado;
   if (PLANES.includes(body.plan)) u.plan = body.plan;
   if (body.venceAcceso === null || (typeof body.venceAcceso === 'string' && !isNaN(Date.parse(body.venceAcceso)))) u.venceAcceso = body.venceAcceso;
-  if (['admin', 'cliente'].includes(body.rol) && u.id !== me.id) u.rol = body.rol;
   if (typeof body.nota === 'string') u.nota = body.nota.slice(0, 2000);
   if (body.registrarPago && typeof body.registrarPago === 'object') {
     u.pagos = u.pagos || [];
-    u.pagos.push({ fecha: now(), importe: +body.registrarPago.importe || 0, meses: +body.registrarPago.meses || 0, referencia: String(body.registrarPago.referencia || '').slice(0, 200), por: me.email });
+    u.pagos.push({ fecha: now(), importe: +body.registrarPago.importe || 0, meses: +body.registrarPago.meses || 0, referencia: String(body.registrarPago.referencia || '').slice(0, 200), por: 'administración' });
     delete u.solicitudPago;
   }
   save(); return { user: pub(u) };
 }, { admin: true });
 route('DELETE', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) => {
-  if (m[1] === me.id) throw Object.assign(new Error('No puedes eliminar tu propia cuenta'), { code: 400 });
   db.users = db.users.filter((u) => u.id !== m[1]); delete db.data[m[1]]; delete db.mercado[m[1]];
   Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === m[1]) delete db.sessions[k]; });
   save(); return { ok: true };
@@ -290,10 +408,11 @@ http.createServer(async (req, res) => {
     if (req.method !== 'GET' && !(req.headers['content-type'] || '').includes('application/json')) return send(res, 415, { error: 'Se esperaba JSON' });
     const body = req.method === 'GET' ? {} : await readBody(req);
     const u = currentUser(req);
-    if (!r.opts.public) {
+    if (r.opts.admin) {
+      if (!isAdmin(req)) return send(res, 401, { error: 'Entra con la contraseña de administración' });
+    } else if (!r.opts.public) {
       if (!u) return send(res, 401, { error: 'Inicia sesión' });
-      if (r.opts.admin && u.rol !== 'admin') return send(res, 403, { error: 'Solo para administración' });
-      if (!r.opts.noAccess && !r.opts.admin && !access(u).ok) return send(res, 402, { error: 'Tu acceso necesita activarse' });
+      if (!r.opts.noAccess && !access(u).ok) return send(res, 402, { error: 'Tu acceso necesita activarse' });
     }
     const out = await r.fn(req, res, body, u, url.pathname.match(r.re));
     send(res, 200, out);
