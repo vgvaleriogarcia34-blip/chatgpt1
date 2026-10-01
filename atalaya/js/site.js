@@ -1,5 +1,8 @@
 /* Atalaya · Página comercial: demo en vivo y planes */
 (function () {
+  // Acceso oculto a la administración: dirección de la página terminada en #admin (no hay enlace visible)
+  const goAdmin = () => { if (location.hash === '#admin') location.replace('admin.html'); };
+  goAdmin(); addEventListener('hashchange', goAdmin);
   const A = window.Atalaya, F = A.fmt;
   const $ = (s) => document.querySelector(s);
   A.sky();

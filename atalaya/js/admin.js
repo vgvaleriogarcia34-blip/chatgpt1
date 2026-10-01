@@ -51,12 +51,13 @@
 
     // Pendientes
     const pend = [];
-    users.filter((u) => u.solicitudReset).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> ha olvidado su contraseña (${fdate(u.solicitudReset)}). <button class="btn ghost" data-reset="${u.id}" style="padding:3px 8px;font-size:.75rem">Generar enlace</button></li>`));
+    users.filter((u) => u.solicitudReset).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> ha olvidado su contraseña (${fdate(u.solicitudReset)}). <button class="btn ghost" data-pwset="${u.id}" style="padding:3px 8px;font-size:.75rem">Cambiar contraseña</button> <button class="btn ghost" data-reset="${u.id}" style="padding:3px 8px;font-size:.75rem">Generar enlace</button></li>`));
     users.filter((u) => u.solicitudPago && !u.pagado).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> pidió activar el plan ${esc((P.PLANES[u.plan] || {}).nombre || u.plan)} el ${fdate(u.solicitudPago)}.</li>`));
     est.filter((x) => x.e.k === 'prueba' && P.accessOf(x.u).diasPrueba <= 3).forEach((x) => pend.push(`<li>La prueba de <b>${esc(x.u.nombre || x.u.email)}</b> termina en ${P.accessOf(x.u).diasPrueba} días.</li>`));
     users.filter((u) => u.pagado && u.venceAcceso && new Date(u.venceAcceso).getTime() - now < 7 * 864e5 && new Date(u.venceAcceso).getTime() > now).forEach((u) => pend.push(`<li>El plan de <b>${esc(u.nombre || u.email)}</b> vence el ${fdate(u.venceAcceso)}.</li>`));
     $('#pending').innerHTML = pend.length ? `<ul>${pend.join('')}</ul>` : '<p class="muted">Nada pendiente.</p>';
     $$('#pending [data-reset]').forEach((b) => b.onclick = () => resetDialog(users.find((x) => x.id === b.dataset.reset)));
+    $$('#pending [data-pwset]').forEach((b) => b.onclick = () => pwDialog(users.find((x) => x.id === b.dataset.pwset)));
 
     // Tabla
     const q = ($('#q').value || '').toLowerCase(), fe = $('#fEstado').value;
@@ -66,7 +67,7 @@
         <td><select data-plan>${Object.keys(P.PLANES).map((k) => `<option value="${k}" ${k === u.plan ? 'selected' : ''}>${P.PLANES[k].nombre}</option>`).join('')}</select></td>
         <td><span class="state st-${e.st}">${e.t}</span></td><td>${u.pagado ? fdate(u.venceAcceso) : '—'}</td><td>${fdate(u.alta)}</td><td>${fdate(u.ultimoAcceso)}</td>
         <td>${hm(P.usageMinutes(u, 7))}</td><td>${hm(P.usageMinutes(u, 30))}</td><td>${hm(P.usageMinutes(u))}</td><td>${u.sesiones || 0}</td>
-        <td><div class="uactions"><button class="btn" data-pay>Registrar pago</button>${u.estado === 'bloqueado' ? '<button class="btn ghost" data-unblock>Desbloquear</button>' : '<button class="btn ghost" data-block>Bloquear</button>'}<button class="btn ghost" data-more>Ficha</button></div></td></tr>`).join('') + '</tbody></table>'
+        <td><div class="uactions"><button class="btn" data-pay>Registrar pago</button>${u.estado === 'bloqueado' ? '<button class="btn ghost" data-unblock>Desbloquear</button>' : '<button class="btn ghost" data-block>Bloquear</button>'}<button class="btn ghost" data-pwrow>Contraseña</button><button class="btn ghost" data-more>Ficha</button></div></td></tr>`).join('') + '</tbody></table>'
       : '<p class="muted">No hay usuarios con ese filtro.</p>';
     $$('#utable tr[data-id]').forEach((tr) => {
       const id = tr.dataset.id, u = users.find((x) => x.id === id);
@@ -75,6 +76,7 @@
       const bl = $('[data-block]', tr); if (bl) bl.onclick = () => upd(id, { estado: 'bloqueado' });
       const ub = $('[data-unblock]', tr); if (ub) ub.onclick = () => upd(id, { estado: u.pagado ? 'activo' : 'prueba' });
       $('[data-more]', tr).onclick = () => ficha(u);
+      $('[data-pwrow]', tr).onclick = () => pwDialog(u);
     });
   }
   async function upd(id, patch) {
@@ -109,13 +111,28 @@
       <h4 class="mt">Pagos</h4>${(u.pagos || []).length ? `<table><thead><tr><th>Fecha</th><th>Importe</th><th>Meses</th><th>Referencia</th></tr></thead><tbody>${u.pagos.map((p) => `<tr><td>${fdate(p.fecha)}</td><td>${F.eurFull(p.importe)}</td><td>${p.meses}</td><td>${esc(p.referencia || '')}</td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Sin pagos registrados.</p>'}
       <h4 class="mt">Uso de los últimos días</h4>${dias.length ? `<table><tbody>${dias.map((d) => `<tr><td>${fdate(d)}</td><td>${hm(u.uso[d])}</td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Sin uso registrado.</p>'}
       <h4 class="mt">Nota interna</h4><textarea class="input" id="fNota" rows="3" style="width:100%">${esc(u.nota || '')}</textarea>
-      <div class="row mt"><button class="btn" id="fSave">Guardar nota</button><button class="btn ghost" id="fReset">Restablecer contraseña</button><span class="spacer"></span><button class="btn ghost" id="fDel" style="color:var(--stop)">Eliminar cuenta</button></div><p class="small" id="fMsg"></p>`);
+      <div class="row mt"><button class="btn" id="fSave">Guardar nota</button><button class="btn" id="fPw">Cambiar contraseña</button><button class="btn ghost" id="fReset">Enviar enlace de recuperación</button><span class="spacer"></span><button class="btn ghost" id="fDel" style="color:var(--stop)">Eliminar cuenta</button></div><p class="small" id="fMsg"></p>`);
     $('#fSave', el).onclick = () => upd(u.id, { nota: $('#fNota', el).value }).then(() => { modal.hidden = true; });
     $('#fReset', el).onclick = () => resetDialog(u);
+    $('#fPw', el).onclick = () => pwDialog(u);
     let armed = false;
     $('#fDel', el).onclick = async () => {
       if (!armed) { armed = true; $('#fMsg', el).textContent = 'Pulsa otra vez para eliminar definitivamente la cuenta y sus datos.'; $('#fDel', el).textContent = 'Confirmar eliminación'; return; }
       try { await P.admin.remove(u.id); modal.hidden = true; load(); } catch (e) { $('#fMsg', el).textContent = e.message; }
+    };
+  }
+  function pwDialog(u) {
+    const gen = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const r = crypto.getRandomValues(new Uint32Array(12)); return Array.from(r, (x) => c[x % c.length]).join(''); };
+    const el = openModal(`<div class="eyebrow">Cambiar contraseña</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
+      <p class="small muted">Escribe una contraseña nueva para ${esc(u.email)} o genera una segura. Al guardarla se cierran las sesiones que tenga abiertas; dásela por un canal de confianza y pídele que la cambie desde su menú («Cambiar contraseña»).</p>
+      <form class="stack mt" id="pwF"><label class="small">Contraseña nueva (mínimo 8 caracteres)<div class="row"><input class="input" id="pwN" type="text" autocomplete="off" minlength="8" style="flex:1" value="${gen()}"><button type="button" class="btn ghost" id="pwG">Generar otra</button><button type="button" class="btn ghost" id="pwC">Copiar</button></div></label>
+        <button class="btn solid">Guardar contraseña</button><p class="small" id="pwM"></p></form>`);
+    $('#pwG', el).onclick = () => { $('#pwN', el).value = gen(); };
+    $('#pwC', el).onclick = () => { const v = $('#pwN', el).value; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => { $('#pwC', el).textContent = 'Copiada'; }, () => { $('#pwN', el).select(); }); };
+    $('#pwF', el).onsubmit = async (e) => {
+      e.preventDefault();
+      try { await P.admin.setPassword(u.id, $('#pwN', el).value); $('#pwM', el).innerHTML = `<span style="color:var(--go)">Contraseña cambiada. ${esc(u.email)} ya puede entrar con ella.</span>`; load(); }
+      catch (x) { $('#pwM', el).innerHTML = `<span style="color:var(--stop)">${esc(x.message)}</span>`; }
     };
   }
   async function resetDialog(u) {

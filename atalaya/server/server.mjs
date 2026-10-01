@@ -310,6 +310,15 @@ route('POST', /^\/api\/admin\/password$/, async (req, res, body) => {
   if (String(body.nueva || '').length < 10) throw Object.assign(new Error('La nueva contraseña debe tener al menos 10 caracteres'), { code: 400 });
   setAdminPassword(String(body.nueva)); startAdminSession(res); return { ok: true };
 }, { admin: true });
+// La administración pone directamente una contraseña nueva a un usuario (se cierran sus sesiones abiertas)
+route('POST', /^\/api\/admin\/users\/([\w-]+)\/password$/, async (req, res, body, me, m) => {
+  const u = db.users.find((x) => x.id === m[1]); if (!u) throw Object.assign(new Error('Usuario no encontrado'), { code: 404 });
+  if (String(body.password || '').length < 8) throw Object.assign(new Error('La contraseña debe tener al menos 8 caracteres'), { code: 400 });
+  u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(String(body.password), u.salt); delete u.solicitudReset; u.passwordCambiada = now();
+  Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === u.id) delete db.sessions[k]; });
+  Object.keys(db.resets).forEach((k) => { if (db.resets[k].userId === u.id) delete db.resets[k]; });
+  save(); return { ok: true };
+}, { admin: true });
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/reset$/, async (req, res, body, me, m) => {
   const u = db.users.find((x) => x.id === m[1]); if (!u) throw Object.assign(new Error('Usuario no encontrado'), { code: 404 });
   const token = newResetToken(u, 'administración');

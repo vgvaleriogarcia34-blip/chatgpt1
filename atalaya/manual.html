@@ -388,7 +388,7 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <section id="admin">
 <h2><span class="num">7</span>Gestor de usuarios</h2>
-<p>En <span class="path">admin.html</span>. Es para quien comercializa Atalaya. No aparece en el menú de los clientes y se entra con una <b>contraseña de administración propia</b>, que no pertenece a ninguna cuenta de usuario.</p>
+<p>Es para quien comercializa Atalaya. <b>No tiene ningún enlace visible</b>: se entra escribiendo en la barra de direcciones <span class="path">tu-dominio/admin.html</span>, o añadiendo <span class="path">#admin</span> al final de la dirección de la página principal. Pide una <b>contraseña de administración propia</b>, que no pertenece a ninguna cuenta de usuario.</p>
 <h3>Primera vez</h3>
 <ul>
   <li><b>Con servidor:</b> arranca el servidor con <span class="path">ADMIN_PASSWORD=…</span> (mínimo 10 caracteres), o arráncalo sin ella y escribe en <span class="path">admin.html</span> el <b>código de configuración</b> que aparece en la consola del servidor junto con la contraseña nueva.</li>
@@ -400,10 +400,11 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Indicadores:</b> usuarios, pagando, en prueba, sin acceso, ingreso mensual y uso de los últimos 30 días.</li>
   <li><b>Pendiente de atender:</b> solicitudes de activación, contraseñas olvidadas (con botón para generar el enlace), pruebas que terminan en 3 días y planes que vencen en 7.</li>
   <li><b>Tabla de usuarios:</b> buscar y filtrar, cambiar plan, <b>Registrar pago</b> (1, 3 o 12 meses; amplía el acceso desde el vencimiento vigente), bloquear y desbloquear.</li>
-  <li><b>Ficha:</b> datos, pagos, uso por día, nota interna, <b>Restablecer contraseña</b> (genera un enlace de un solo uso, válido 60 minutos, que envías tú o se envía por correo si está configurado) y eliminar la cuenta con sus datos (pide confirmación).</li>
+  <li><b>Cambiar contraseña</b> (en la fila del usuario, en su ficha o en «Pendiente de atender»): escribes una contraseña nueva o generas una segura, la copias y se la das al usuario por un canal de confianza. Se cierran las sesiones que tuviera abiertas. Después puede cambiarla él desde su menú.</li>
+  <li><b>Ficha:</b> datos, pagos, uso por día, nota interna, <b>Enviar enlace de recuperación</b> (un enlace de un solo uso, válido 60 minutos, para que el propio usuario elija su contraseña) y eliminar la cuenta con sus datos (pide confirmación).</li>
   <li><b>Copiar CSV</b> para llevar los usuarios a Excel.</li>
 </ul>
-<div class="box tip"><b class="lbl">Nunca ves contraseñas</b>Ni la administración ni nadie puede ver la contraseña de un usuario: se guardan cifradas. Lo que se hace es darle un enlace para que él mismo cree una nueva.</div>
+<div class="box tip"><b class="lbl">Nunca ves contraseñas guardadas</b>Las contraseñas se guardan cifradas: nadie puede ver la que tiene un usuario. La administración solo puede ponerle una nueva o enviarle un enlace para que la elija él.</div>
 </section>
 
 <section id="servidor">

@@ -220,6 +220,16 @@
   };
   const needAdmin = () => { if (P.mode !== 'server' && !localAdminOk()) throw new Error('Entra con la contraseña de administración.'); };
   P.admin = {
+    /* La administración pone una contraseña nueva a un usuario */
+    async setPassword(id, password) {
+      await P.ready;
+      if (String(password || '').length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
+      if (P.mode === 'server') return api('/admin/users/' + id + '/password', { method: 'POST', body: JSON.stringify({ password }) });
+      needAdmin();
+      const users = L.users(); const u = users.find((x) => x.id === id); if (!u) throw new Error('Usuario no encontrado');
+      u.salt = uid(); u.hash = await hash(u.salt + password); delete u.reset; delete u.solicitudReset; u.passwordCambiada = new Date().toISOString(); L.save(users);
+      return { ok: true };
+    },
     /* Genera un enlace de recuperación de contraseña para un usuario (caduca en 60 minutos) */
     async resetLink(id, enviar) {
       await P.ready;

@@ -12,7 +12,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `estrategia.html` | Sistema estratégico integrado (18 módulos). |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
 | `manual.html` | Manual de uso completo, con buscador. Es parte del área de clientes: solo se abre con sesión y acceso vigente (o con la sesión de administración). |
-| `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso y enlaces de recuperación. Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
+| `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso, cambio de contraseña de los usuarios y enlaces de recuperación. Sin enlace visible: se entra por la barra de direcciones (`admin.html` o `#admin` en la página principal). Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
 
 ## Simulador (`app.html`)
 
