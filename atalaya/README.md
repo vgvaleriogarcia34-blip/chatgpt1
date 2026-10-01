@@ -10,6 +10,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (18 módulos). |
+| `manual.html` | Manual de uso completo, con buscador. |
 | `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso y enlaces de recuperación. Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
 
 ## Simulador (`app.html`)
@@ -85,5 +86,6 @@ atalaya/
 │   ├── financials.js   cuentas de varios años y flujo del dinero
 │   ├── charts.js · scene3d.js · report.js · assistant.js · app.js · site.js · admin.js
 │   └── strategy/       core · finance · commercial · operations · plan · market
+├── manual.html         manual de uso
 └── server/             server.mjs · package.json
 ```

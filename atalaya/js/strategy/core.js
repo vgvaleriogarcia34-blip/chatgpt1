@@ -143,7 +143,7 @@
     host.innerHTML = GROUPS.map((g) => S.modules.filter((m) => m.grupo === g).map((m) => `<button role="tab" data-t="${m.id}" aria-selected="${m.id === current}">${m.nombre}</button>`).join('')).join('<span class="tabsep" aria-hidden="true"></span>');
     $$('button', host).forEach((b) => b.onclick = () => show(b.dataset.t));
   }
-  function show(id) {
+  function show(id, keep) {
     if (!S.mod(id)) return;
     current = id;
     $$('#stTabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.t === id));
@@ -154,10 +154,12 @@
     const m = S.mod(id);
     try { m.render(panel); } catch (e) { panel.innerHTML = `<div class="alert stop">No se pudo mostrar este módulo: ${esc(e.message)}</div>`; console.error(e); }
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
-    scrollTo({ top: 0 });
+    // Al recalcular el mismo módulo se conserva la posición: solo se sube al cambiar de módulo
+    if (keep) { const y = keep.y; scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
   }
   S.show = show;
-  S.rerender = () => show(current);
+  S.rerender = () => { const ae = document.activeElement; const fid = ae && ae.id && host0().contains(ae) ? ae.id : null; show(current, { y: scrollY }); if (fid) { const el = document.getElementById(fid); if (el) el.focus({ preventScroll: true }); } };
+  const host0 = () => $('#stPanel');
   S.refreshKpis = () => { /* el cuadro de mando se recalcula al abrirse */ };
 
   /* ---------- Cuadro de mando cruzado ---------- */

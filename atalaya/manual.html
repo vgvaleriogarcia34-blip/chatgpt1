@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Manual de Atalaya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Manual de consulta: índice fijo a la izquierda y una columna de lectura; misma identidad que Atalaya (azul noche y oro) */
+:root {
+  --bg: #070c1a; --panel: #0d1428; --raise: #141d36; --line: rgba(212, 174, 100, 0.16); --line-strong: rgba(212, 174, 100, 0.36);
+  --fg: #e9e4d8; --muted: #a8adbd; --faint: #737a8e; --gold: #d4ae64; --gold-soft: #ecd6a6;
+  --go: #2fb24a; --warn: #fab219; --stop: #e04848; --code: #10182f;
+  --font-display: 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
+  --font-body: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --bg: #f6f3ec; --panel: #ffffff; --raise: #efe9dc; --line: rgba(120, 90, 30, 0.18); --line-strong: rgba(120, 90, 30, 0.4); --fg: #1a1f2e; --muted: #4f5566; --faint: #7a7f8c; --gold: #9a7224; --gold-soft: #7a5a18; --go: #1d8a37; --warn: #a86f00; --stop: #c02f2f; --code: #efe9dc; color-scheme: light; }
+}
+:root[data-theme="light"] { --bg: #f6f3ec; --panel: #ffffff; --raise: #efe9dc; --line: rgba(120, 90, 30, 0.18); --line-strong: rgba(120, 90, 30, 0.4); --fg: #1a1f2e; --muted: #4f5566; --faint: #7a7f8c; --gold: #9a7224; --gold-soft: #7a5a18; --go: #1d8a37; --warn: #a86f00; --stop: #c02f2f; --code: #efe9dc; color-scheme: light; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.65; }
+a { color: var(--gold); }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.brand { font-family: var(--font-display); font-size: 1.35rem; color: var(--gold-soft); text-decoration: none; white-space: nowrap; }
+.brand small { font-family: var(--font-body); font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-left: 8px; }
+.top input { margin-left: auto; width: min(320px, 46vw); padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--fg); font: inherit; font-size: 0.9rem; }
+.tocbtn { display: none; border: 1px solid var(--line-strong); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 0.85rem; }
+.wrap { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 48px; max-width: 1220px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 80px; }
+nav.toc { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; font-size: 0.88rem; padding-right: 6px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; }
+nav.toc > ol > li { margin-bottom: 10px; }
+nav.toc a { color: var(--muted); text-decoration: none; display: block; padding: 3px 8px; border-radius: 6px; }
+nav.toc a:hover, nav.toc a.on { color: var(--fg); background: var(--raise); }
+nav.toc > ol > li > a { color: var(--gold-soft); font-weight: 600; }
+nav.toc ol ol a { padding-left: 18px; }
+main { min-width: 0; max-width: 74ch; }
+.hero { padding-block: 10px 26px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.kicker { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+h1 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.3rem, 5vw, 3.4rem); line-height: 1.08; margin: 10px 0 12px; text-wrap: balance; }
+h1 em, h2 em { color: var(--gold-soft); font-style: italic; }
+h2 { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.2rem); line-height: 1.15; margin: 54px 0 8px; text-wrap: balance; }
+h2 .num { font-family: var(--font-data); font-size: 0.8rem; color: var(--gold); letter-spacing: 0.1em; display: block; margin-bottom: 4px; }
+h3 { font-size: 1.12rem; margin: 30px 0 6px; color: var(--fg); text-wrap: balance; }
+h4 { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin: 20px 0 4px; }
+p, li { color: var(--fg); }
+.lede { font-size: 1.12rem; color: var(--muted); }
+.muted { color: var(--muted); }
+ul, ol.steps { padding-left: 22px; }
+li { margin: 4px 0; }
+ol.steps { counter-reset: s; list-style: none; padding-left: 0; }
+ol.steps > li { counter-increment: s; position: relative; padding-left: 40px; margin: 10px 0; }
+ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line-strong); display: grid; place-items: center; font-family: var(--font-data); font-size: 0.78rem; color: var(--gold); }
+.path { font-family: var(--font-data); font-size: 0.82rem; background: var(--code); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+kbd { font-family: var(--font-data); font-size: 0.78rem; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; }
+.box { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 14px 16px; margin: 16px 0; }
+.box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+.box.tip { border-left: 3px solid var(--gold); }
+.box.warn { border-left: 3px solid var(--warn); }
+.box b.lbl { display: block; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+.tw { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--raise); }
+tr:last-child td { border-bottom: 0; }
+td.n { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 0.82rem; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.dot.ok { background: var(--go); } .dot.warn { background: var(--warn); } .dot.stop { background: var(--stop); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; margin: 14px 0; }
+.grid2 .box { margin: 0; }
+.grid2 .box h3 { margin-top: 0; font-size: 1rem; }
+.grid2 .box p { margin: 4px 0 0; font-size: 0.92rem; color: var(--muted); }
+section.hide { display: none; }
+.noresults { display: none; color: var(--muted); }
+footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--faint); font-size: 0.85rem; }
+@media (max-width: 900px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .tocbtn { display: inline-block; }
+  nav.toc { display: none; position: fixed; inset: 60px 0 0 0; max-height: none; background: var(--bg); padding: 16px; z-index: 9; }
+  nav.toc.open { display: block; }
+  .top input { width: 100%; }
+  .brand small { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">Atalaya<small>Manual de uso</small></a>
+  <button class="tocbtn" id="tocBtn" aria-expanded="false" aria-controls="toc">Índice</button>
+  <input type="search" id="q" placeholder="Buscar en el manual (p. ej. HHI, póliza, DAFO)" aria-label="Buscar en el manual">
+</header>
+
+<div class="wrap">
+<nav class="toc" id="toc" aria-label="Índice del manual">
+  <ol>
+    <li><a href="#que-es">1. Qué es Atalaya</a></li>
+    <li><a href="#empezar">2. Empezar</a>
+      <ol><li><a href="#cuenta">Crear la cuenta y entrar</a></li><li><a href="#contrasena">Contraseñas</a></li><li><a href="#modos">Demostración o servidor</a></li><li><a href="#navegar">Moverse por la aplicación</a></li></ol></li>
+    <li><a href="#simulador">3. Simulador de inversión</a>
+      <ol><li><a href="#sim-empresa">I. Punto de partida</a></li><li><a href="#sim-historia">II. Historia</a></li><li><a href="#sim-inversion">III. El movimiento</a></li><li><a href="#sim-horizonte">IV. Horizonte 3D</a></li><li><a href="#sim-escenarios">V. Escenarios</a></li><li><a href="#sim-semaforos">VI. Semáforos y riesgos</a></li><li><a href="#sim-tamano">VII. Nuevo tamaño</a></li><li><a href="#sim-humano">VIII. Sistema humano</a></li><li><a href="#sim-estructuras">IX. Estructuras</a></li><li><a href="#sim-plan">X. Meta y plan</a></li><li><a href="#sim-dicc">XI. Diccionario</a></li><li><a href="#sim-informe">XII. Informe</a></li></ol></li>
+    <li><a href="#estrategia">4. Sistema estratégico</a>
+      <ol><li><a href="#est-vision">Visión</a></li><li><a href="#est-finanzas">Finanzas</a></li><li><a href="#est-comercial">Comercial</a></li><li><a href="#est-operaciones">Operaciones</a></li><li><a href="#est-estrategia">Estrategia</a></li></ol></li>
+    <li><a href="#datos">5. Cargar datos</a></li>
+    <li><a href="#asistente">6. El asistente</a></li>
+    <li><a href="#admin">7. Gestor de usuarios</a></li>
+    <li><a href="#servidor">8. Servidor e instalación</a></li>
+    <li><a href="#glosario">9. Conceptos clave</a></li>
+    <li><a href="#faq">10. Problemas frecuentes</a></li>
+    <li><a href="#avisos">11. Límites y avisos</a></li>
+  </ol>
+</nav>
+
+<main id="main">
+<div class="hero">
+  <div class="kicker">Manual de uso · octubre de 2026</div>
+  <h1>Atalaya, <em>de principio a fin</em></h1>
+  <p class="lede">Cómo usar el simulador de inversión y el sistema estratégico para decidir si tu empresa puede pagar su crecimiento con su propia rentabilidad, sin romper la tesorería, y cómo gobernar el día a día con los mismos números.</p>
+</div>
+<p class="noresults" id="noRes">No hay apartados que contengan esa búsqueda.</p>
+
+<section id="que-es">
+<h2><span class="num">1</span>Qué es Atalaya</h2>
+<p>Atalaya responde a una pregunta concreta: <b>¿puede mi empresa afrontar esta inversión pagándola con lo que genera, sin quedarse sin caja por el camino?</b> Para responderla proyecta la empresa mes a mes durante cinco años, con la inversión y sin ella, en cinco escenarios, y lo traduce a semáforos con horquillas claras.</p>
+<p>Alrededor del simulador hay un sistema estratégico completo con 18 módulos (finanzas, comercial, operaciones, estrategia) que comparten los mismos datos, de modo que una desviación del presupuesto o una subida de tipos se puede llevar al simulador con un clic.</p>
+<div class="grid2">
+  <div class="box"><h3>Simulador de inversión</h3><p>Dimensión de la inversión, cuotas, retorno, liquidez mes a mes, pólizas, escenarios, semáforos, equipo, estructuras societarias, plan de corrección e informe.</p></div>
+  <div class="box"><h3>Sistema estratégico</h3><p>Cuadro de mando, plan de empresa, flujo del dinero, impuestos, tesorería semanal, presupuesto, ABC, márgenes, compras, Lean, mercado e informe de auditoría.</p></div>
+  <div class="box"><h3>Asistente</h3><p>Un chat con voz que explica cada concepto, revisa la situación y cambia datos o escenarios cuando se lo pides.</p></div>
+  <div class="box"><h3>Gestor de usuarios</h3><p>Para quien comercializa Atalaya: altas, pruebas, pagos, vencimientos, horas de uso y recuperación de contraseñas.</p></div>
+</div>
+<div class="box tip"><b class="lbl">Para quién</b>Pensado para empresarios y directivos sin formación financiera. Cada número tiene su explicación al pulsarlo, y el diccionario corporativo cuenta qué es, cómo se calcula y qué variables lo mueven.</div>
+</section>
+
+<section id="empezar">
+<h2><span class="num">2</span>Empezar</h2>
+<h3 id="cuenta">Crear la cuenta y entrar</h3>
+<ol class="steps">
+  <li>Abre la página de Atalaya y pulsa <b>Empezar la prueba</b> (o ve a <span class="path">acceso.html</span> → pestaña <b>Crear cuenta</b>).</li>
+  <li>Escribe nombre, empresa, correo, una contraseña de al menos 8 caracteres y elige plan (Esencial, Profesional o Consultora). Acepta las condiciones.</li>
+  <li>Entras directamente al simulador con <b>14 días de prueba</b> y todas las funciones.</li>
+  <li>Al terminar la prueba, la pantalla de acceso te ofrece <b>Solicitar la activación</b>. La administración registra el pago y tu acceso vuelve con todos tus datos.</li>
+</ol>
+<h3 id="contrasena">Contraseñas</h3>
+<ul>
+  <li><b>Cambiarla:</b> menú de tu cuenta (círculo con tus iniciales, arriba a la derecha) → <b>Cambiar contraseña</b>. Escribe la actual y la nueva.</li>
+  <li><b>La he olvidado:</b> en <span class="path">acceso.html</span>, pulsa <b>¿Has olvidado tu contraseña?</b> y escribe tu correo. Si el servidor tiene correo configurado, recibirás un enlace; si no, la administración verá tu petición y te enviará el enlace. El enlace sirve <b>una sola vez</b> y caduca en <b>60 minutos</b>. Al abrirlo eliges la contraseña nueva y entras.</li>
+</ul>
+<div class="box tip"><b class="lbl">Seguridad</b>Por seguridad, la pantalla de recuperación responde igual exista o no el correo, y al restablecer la contraseña se cierran las demás sesiones abiertas de esa cuenta.</div>
+<h3 id="modos">Demostración o servidor</h3>
+<div class="tw"><table>
+  <thead><tr><th>Modo</th><th>Cuándo ocurre</th><th>Qué implica</th></tr></thead>
+  <tbody>
+    <tr><td><b>Demostración</b></td><td>Abres los ficheros sin el servidor de Atalaya (o en una vista previa).</td><td>Todo funciona, pero cuentas y datos se guardan solo en ese navegador. No protege nada: sirve para enseñar la herramienta. Lo indica el menú de la cuenta.</td></tr>
+    <tr><td><b>Servidor</b></td><td>Atalaya se sirve con su servidor (carpeta <span class="path">server/</span>).</td><td>Cuentas, sesiones, pagos, horas de uso y datos se guardan en el servidor. Con la clave de la API de Claude se activan el asistente con IA, la lectura inteligente de documentos y el agente de mercado.</td></tr>
+  </tbody>
+</table></div>
+<h3 id="navegar">Moverse por la aplicación</h3>
+<ul>
+  <li><b>Barra lateral (dock)</b> del simulador: un icono por capítulo; el capítulo visible se ilumina. El último icono abre el <b>Sistema estratégico</b>.</li>
+  <li><b>Caja de herramientas</b> (icono de la llave): cambia escenario activo, sector y estructura societaria; añade campos hipotéticos; guarda y carga escenarios de trabajo; copia y pega todos los datos; carga el ejemplo; abre el asistente; genera el informe.</li>
+  <li><b>Tarjetas flotantes:</b> casi todo es pulsable. Un semáforo, un anillo, un escenario o una estructura abren su explicación. En el sistema estratégico, los indicadores con <b>?</b> abren una ficha que se cierra con la <b>X</b>, con <kbd>Esc</kbd> o pulsando fuera; también se cierra sola al cambiar de módulo.</li>
+  <li><b>Pestañas</b> del sistema estratégico, agrupadas en Visión, Finanzas, Comercial, Operaciones y Estrategia. Cada módulo tiene su dirección propia (por ejemplo <span class="path">estrategia.html#presupuesto</span>) para enlazarlo.</li>
+</ul>
+</section>
+
+<section id="simulador">
+<h2><span class="num">3</span>Simulador de inversión</h2>
+<p>El simulador (<span class="path">app.html</span>) se recorre de arriba abajo como un informe. Arriba está <b>El puente</b>: el veredicto (avanzar, avanzar con condiciones o rediseñar), los indicadores principales y el camino más corto para mejorarlo. Todo se recalcula al momento mientras escribes o mueves una barra.</p>
+<div class="box tip"><b class="lbl">Escribir o deslizar</b>Puedes mover la barra o escribir el número (con puntos de miles y coma decimal, como en España: <span class="path">1.250.000</span> o <span class="path">5,5</span>). Si escribes un valor mayor que el tope de la barra, la barra se amplía.</div>
+
+<h3 id="sim-empresa">I. Punto de partida · la empresa hoy</h3>
+<ol class="steps">
+  <li><b>Elige el sector.</b> Carga sus rasgos típicos: margen, peso salarial, días de cobro, stock y pago, estacionalidad, velocidad de rampa, vida útil de los activos y endeudamiento razonable. Hay diez sectores: industria, distribución, hostelería, retail, construcción, servicios profesionales, tecnología, agroalimentario, salud y logística.</li>
+  <li><b>Cuenta de resultados:</b> ventas anuales, margen bruto, coste de personal, plantilla, otros gastos fijos y crecimiento orgánico.</li>
+  <li><b>Balance y ciclo de caja:</b> caja disponible, deuda viva y su cuota mensual, fondos propios, días de cobro (DSO), de stock (DIO) y de pago (DPO).</li>
+  <li><b>Póliza de crédito:</b> límite, parte ya dispuesta, tipo de interés y comisión de no disposición. La póliza se dispone sola cuando la caja baja de medio mes de gastos y se devuelve con los excedentes.</li>
+</ol>
+
+<h3 id="sim-historia">II. Historia · de dónde viene la empresa</h3>
+<p>Con las cuentas de dos o más años, Atalaya calcula ratios y su evolución, proyecta tres años, lee las <b>políticas de gobierno</b> que hay detrás (cobro, stock, endeudamiento, reparto de dividendos) y audita <b>dónde está cada euro del beneficio</b>.</p>
+<ul>
+  <li><b>Escribir a mano:</b> abre una rejilla con los conceptos de la cuenta de resultados y del balance por años. El último año se precarga con los datos del simulador. Si dejas vacío el resultado, se calcula solo. Puedes pegar una columna entera desde Excel.</li>
+  <li><b>Adjuntar documentos</b> (PDF con texto, Word, Excel, CSV, Markdown), <b>Pegar tabla</b>, <b>Dictar un dato</b> («ventas 2025 4,2 millones»), <b>Copiar plantilla</b> para rellenar en Excel, o <b>Cargar ejemplo</b>.</li>
+  <li><b>Usar el último año en el simulador</b> traslada ventas, margen, personal, fijos, caja, deuda y días de cobro y pago al capítulo I.</li>
+</ul>
+
+<h3 id="sim-inversion">III. El movimiento · la inversión y su dimensión</h3>
+<p>Tres bloques: <b>importe y financiación</b> (importe, parte financiada, tipo, plazo, carencia, mes en que se invierte, aportación de los socios), <b>actividad nueva</b> (venta nueva como % de la actual, margen, meses de rampa hasta la venta plena, fijos nuevos, vida útil) y <b>personas</b> (contrataciones, coste por persona y meses de anticipo con que se contrata antes de arrancar).</p>
+<p>Los anillos comparan la inversión con lo que la empresa ya es: sobre ventas, sobre EBITDA, sobre fondos propios y sobre caja. Según el peso sobre ventas se clasifica como <b>táctica</b> (menos del 15 %), <b>relevante</b> (15-40 %), <b>estratégica</b> (40-80 %) o <b>transformacional</b>.</p>
+
+<h3 id="sim-horizonte">IV. Horizonte 3D · el terreno antes de pisarlo</h3>
+<p>Un relieve que muestra cómo cambia un resultado al mover dos variables a la vez. Eliges los ejes (venta nueva, margen nuevo, % financiado, plazo del préstamo, meses de rampa, días de cobro, inversión, contrataciones) y la métrica (liquidez mínima, recuperación, cobertura de deuda o VAN). Las zonas verdes cumplen tus metas; las rojas no. Las trayectorias marcan dónde cae cada escenario.</p>
+<p>Debajo, la <b>lectura del terreno</b> explica en palabras qué zona pisas y cuál es el <b>camino más corto al verde</b>: la variable que menos hay que mover para cumplir.</p>
+
+<h3 id="sim-escenarios">V. Escenarios</h3>
+<div class="tw"><table>
+  <thead><tr><th>Escenario</th><th>Qué supone</th><th>Para qué sirve</th></tr></thead>
+  <tbody>
+    <tr><td><b>Estrés</b></td><td>Mitad de la venta prevista, rampa 6 meses tarde, sobrecoste del 20 %, cobros 30 días más tarde y tipos +2 puntos.</td><td>Prueba de resistencia: si sobrevive, la decisión es robusta.</td></tr>
+    <tr><td><b>Pesimista</b></td><td>70 % de la venta, 3 meses de retraso, 3 puntos menos de margen, 10 % de sobrecoste.</td><td>Con este conviene dimensionar la financiación.</td></tr>
+    <tr><td><b>Base</b></td><td>Exactamente lo que has introducido.</td><td>El plan de la dirección.</td></tr>
+    <tr><td><b>Optimista</b></td><td>15 % más de venta, rampa un mes antes, mejor margen.</td><td>El techo razonable.</td></tr>
+    <tr><td><b>Hipótesis</b></td><td>Tus propias palancas.</td><td>Para probar ideas o llevar aquí desviaciones del presupuesto o datos de mercado.</td></tr>
+  </tbody>
+</table></div>
+<p>En los escenarios con retraso, las contrataciones y los fijos nuevos siguen el plan: el coste entra aunque la venta llegue tarde, que es lo que suele ocurrir.</p>
+<ul>
+  <li><b>Sucesos hipotéticos:</b> pérdida de un cliente relevante, caída temporal de ventas, subida de materias primas, subida de tipos, alargamiento de cobros, revisión salarial y gasto extraordinario. Cada uno con mes de inicio, duración y magnitud; se activan y desactivan con un clic.</li>
+  <li><b>Caja o liquidez:</b> el gráfico puede mostrar la caja neta o la liquidez (caja más póliza libre).</li>
+  <li><b>Meses de colchón:</b> cuántos meses de nóminas, fijos y cuotas cubre la liquidez de cada mes, con su mínimo, su máximo, la caja máxima y el uso de la póliza.</li>
+</ul>
+
+<h3 id="sim-semaforos">VI. Semáforos y riesgos</h3>
+<p>Diez semáforos. Al pulsar uno ves su horquilla por color, por qué está así, las <b>variables directas</b> (lo mueven al instante) e <b>indirectas</b> (lo mueven a través de otra magnitud) y el efecto de mover cada una un 10 %. Los umbrales de la tabla son los de partida; varios dependen de tus metas del capítulo X.</p>
+<div class="tw"><table>
+  <thead><tr><th>Semáforo</th><th>Qué mide</th><th><span class="dot ok"></span>Verde</th><th><span class="dot warn"></span>Ámbar</th><th><span class="dot stop"></span>Rojo</th></tr></thead>
+  <tbody>
+    <tr><td><b>Liquidez</b></td><td>Punto más bajo de dinero disponible en 60 meses</td><td class="n">≥ caja mínima (150.000 €) y ≥ 2 meses de gastos</td><td class="n">≥ 0 €</td><td class="n">&lt; 0 €</td></tr>
+    <tr><td><b>Cobertura de deuda</b></td><td>Veces que lo generado paga las cuotas en el peor año (DSCR)</td><td class="n">≥ 1,25×</td><td class="n">≥ 1×</td><td class="n">&lt; 1×</td></tr>
+    <tr><td><b>Endeudamiento</b></td><td>Deuda neta ÷ EBITDA tras invertir</td><td class="n">≤ 3×</td><td class="n">≤ 4×</td><td class="n">&gt; 4×</td></tr>
+    <tr><td><b>Retorno</b></td><td>Meses para recuperar lo invertido</td><td class="n">≤ 5 años</td><td class="n">≤ vida útil</td><td class="n">&gt; vida útil</td></tr>
+    <tr><td><b>Rentabilidad</b></td><td>TIR del proyecto</td><td class="n">≥ tipo + 4 pp</td><td class="n">≥ 8 %</td><td class="n">&lt; 8 %</td></tr>
+    <tr><td><b>Dimensión</b></td><td>Inversión ÷ EBITDA actual</td><td class="n">≤ 4×</td><td class="n">≤ 7×</td><td class="n">&gt; 7×</td></tr>
+    <tr><td><b>Circulante</b></td><td>Dinero extra atrapado en clientes y stock</td><td class="n">≤ 50 % de caja + póliza</td><td class="n">≤ 100 %</td><td class="n">&gt; 100 %</td></tr>
+    <tr><td><b>Peso salarial</b></td><td>Personal ÷ ventas en el año de crucero</td><td class="n">≤ máximo (26 %)</td><td class="n">≤ máximo + 4 pp</td><td class="n">más</td></tr>
+    <tr><td><b>Margen bruto</b></td><td>Cambio del margen total con la actividad nueva</td><td class="n">≥ −1 pp</td><td class="n">≥ −4 pp</td><td class="n">&lt; −4 pp</td></tr>
+    <tr><td><b>Sistema humano</b></td><td>Preparación de la organización (capítulo VIII)</td><td class="n">≥ 70/100</td><td class="n">≥ 50</td><td class="n">&lt; 50</td></tr>
+  </tbody>
+</table></div>
+<p>Debajo: la <b>matriz de riesgos</b> (probabilidad × impacto, con su mitigación) y el <b>análisis de sensibilidad</b> (tornado). El tornado dice cuánto cambia la liquidez mínima si cada variable sale peor o mejor de lo previsto; las barras más largas son las variables que más vigilar. Un valor negativo significa que en ese caso la liquidez mínima baja de cero: faltaría dinero.</p>
+
+<h3 id="sim-tamano">VII. Nuevo tamaño operativo</h3>
+<p>Compara la empresa de hoy con la del <b>año de crucero</b> (el primer año completo tras la rampa): ventas, margen, EBITDA y su porcentaje, plantilla, peso salarial, ventas por persona y punto de equilibrio. También la cuota mensual total y su peso sobre el EBITDA mensual.</p>
+
+<h3 id="sim-humano">VIII. Sistema operativo humano</h3>
+<p>Nueve dimensiones de preparación para crecer, a partir de catorce variables: mandos intermedios y su formación, dependencia del fundador, procesos documentados, rotación, clima (eNPS), meses para contratar, coste de selección, curva de aprendizaje, formación, puestos con sustituto, polivalencia, absentismo y horas extra. Algunas afectan a los números: el absentismo encarece cada contratación, el coste de selección sale de la caja y una curva de aprendizaje larga frena la rampa. El resultado incluye un <b>plan de preparación</b> con qué hacer, cuándo y cuánto cuesta.</p>
+
+<h3 id="sim-estructuras">IX. Estructuras societarias</h3>
+<p>La misma inversión con seis vehículos, comparados en liquidez, retorno, control, aislamiento del riesgo, complejidad y fiscalidad: <b>inversión directa</b>, <b>leasing o renting</b>, <b>nueva filial</b>, <b>patrimonial con alquiler</b>, <b>entrada de socio inversor</b> y <b>joint venture industrial</b>. Al pulsar una se abre su ficha: cómo funciona, flujo entre sociedades, ventajas e inconvenientes, fiscalidad orientativa, requisitos, plazos, costes y pasos.</p>
+
+<h3 id="sim-plan">X. Meta y plan de corrección</h3>
+<p>Fija tus metas: caja mínima, recuperación máxima, cobertura mínima, endeudamiento máximo, peso salarial máximo y plazo para conseguirlo. Decide si la póliza cuenta como liquidez. Atalaya propone el <b>plan de corrección</b>: las palancas más eficaces por esfuerzo (primero póliza, financiación, plazo y carencia; después cobros, pagos, contrataciones y fijos; luego margen y fases; por último aportación de los socios), con el valor de cada una. Si una meta es inalcanzable con las palancas razonables, lo dice.</p>
+
+<h3 id="sim-dicc">XI. Diccionario corporativo</h3>
+<p>Casi ochenta términos por categorías (cuenta de resultados, liquidez, financiación, rentabilidad, personas, balance, gobierno, societario, impuestos, operaciones, estrategia), con definición, fórmula, ejemplo y las variables del simulador que lo mueven. Tiene buscador.</p>
+
+<h3 id="sim-informe">XII. Informe</h3>
+<p>Informe de decisión con el veredicto, la dimensión, los escenarios, los semáforos con su horquilla, los riesgos, el equipo, la estructura elegida y el plan de corrección. Se puede copiar como texto o imprimir/guardar en PDF desde el navegador.</p>
+</section>
+
+<section id="estrategia">
+<h2><span class="num">4</span>Sistema estratégico</h2>
+<p>En <span class="path">estrategia.html</span>. Usa los datos del simulador (sector, empresa, inversión) y añade los suyos. Todo lo que cambias se guarda solo. Los indicadores, riesgos y hallazgos de cada módulo se suman al cuadro de mando y al informe de auditoría.</p>
+
+<h3 id="est-vision">Visión</h3>
+<h4>Cuadro de mando</h4>
+<p>Salud global (0-100), riesgos altos, mejora identificada en euros y veredicto de la inversión; una tarjeta por área con sus indicadores (toca para ir al módulo); mapa de todos los riesgos y las mayores oportunidades de mejora con su impacto anual.</p>
+<h4>Plan de empresa</h4>
+<ol class="steps">
+  <li><b>Misión, visión y propuesta de valor:</b> por qué existís, dónde queréis estar y por qué os eligen.</li>
+  <li><b>Valores:</b> escribe de 3 a 6 valores, la conducta concreta que significan, su <b>ámbito</b> (solidez financiera, clientes, personas, calidad, innovación, ética) y su <b>peso</b> de 1 a 5.</li>
+  <li><b>DAFO contextualizado:</b> cada cuadrante tiene una pregunta guía y puntos con impacto de 1 a 5. Las <b>sugerencias desde tus datos</b> salen de los indicadores en rojo o ámbar (debilidades), en verde (fortalezas), del mercado y la competencia (amenazas y oportunidades), de la expansión y de las mejoras detectadas. Pulsa una sugerencia para añadirla.</li>
+  <li><b>CAME:</b> cruza los puntos de mayor impacto y propone acciones de cuatro tipos: <b>Explotar</b> (fortalezas × oportunidades, estrategia ofensiva), <b>Mantener</b> (fortalezas × amenazas, defensiva), <b>Corregir</b> (debilidades × oportunidades, reorientación) y <b>Afrontar</b> (debilidades × amenazas, supervivencia). Añade las que tengan sentido y reescríbelas.</li>
+  <li><b>Filtro de valores:</b> marca si cada acción refuerza (+), es neutra (·) o choca (−) con cada valor. La puntuación va de −100 a +100; si choca con un valor de peso 4 o 5, queda marcada para revisar. <b>Pasar al plan</b> la convierte en acción con responsable y fechas.</li>
+  <li><b>Riesgos según tus valores:</b> todos los riesgos de la empresa reordenados; uno sube si amenaza un ámbito al que has dado mucho peso.</li>
+  <li><b>Cascada de objetivos:</b> objetivos generales (macro) → objetivos de área con su indicador → acciones con responsable, fechas y estado. <b>Crear acciones desde los hallazgos</b> trae las mejoras detectadas en todos los módulos.</li>
+</ol>
+<h4>Informe de auditoría</h4>
+<p>Diagnóstico 360 por áreas, flujo del dinero, impuestos, tesorería, presupuesto, riesgos y mercado, estrategia (valores, DAFO y CAME), y dos planes de trabajo: <b>macro → micro</b> (de los objetivos a las acciones) y <b>micro → macro</b> (de cada hallazgo a su efecto en la cuenta de resultados), más una hoja de ruta a 30, 90, 180 y 365 días.</p>
+
+<h3 id="est-finanzas">Finanzas</h3>
+<h4>Flujo del dinero</h4>
+<p>Responde a «he ganado dinero, ¿dónde está?». Con dos o más años de cuentas muestra, año a año, cuánto del beneficio llegó al banco y cuánto se quedó en clientes, stock, inversiones, devolución de deuda o dividendos. Si no tienes los documentos a mano, <b>escribe los datos en la rejilla</b> que aparece en el propio módulo; con datos cargados, <b>Editar los datos</b> la vuelve a abrir.</p>
+<h4>Impuestos</h4>
+<ul>
+  <li><b>Calendario de 12 meses</b> con fecha, modelo e importe: IVA (303), retenciones (111 y 115), Seguridad Social, pagos fraccionados del Impuesto sobre Sociedades (202 en abril, octubre y diciembre), declaración anual (200 en julio), IAE, IBI e informativas. Ajusta los supuestos (tipos, porcentajes con IVA, alquiler, escenario).</li>
+  <li><b>Marco estratégico:</b> movimientos legales por tipo (ahorro definitivo, diferimiento, liquidez) con su estimación en cada escenario: reservas de capitalización y nivelación, amortización acelerada, I+D+i, consolidación fiscal, holding, patrimonial, IVA de caja, REDEME, aplazamientos, retribución flexible y bonificaciones.</li>
+  <li><b>Escenarios fiscales de la inversión:</b> plantea la misma inversión de varias formas (compra, leasing o renting; amortización lineal, acelerada o libertad por creación de empleo; mes de puesta en marcha; parte que es I+D+i) y compara el ahorro del Impuesto sobre Sociedades año a año, en cinco años, en toda la vida del activo y en <b>valor actual</b>. La mejor opción se marca.</li>
+</ul>
+<div class="box tip"><b class="lbl">Cómo leer los escenarios fiscales</b>Amortizar más rápido no reduce el impuesto total: lo adelanta, y eso mejora la caja justo cuando la inversión la consume. Por eso la comparación buena es el valor actual. La deducción por I+D+i y los intereses sí son ahorro definitivo.</div>
+<h4>Tesorería semanal</h4>
+<p>Entradas y salidas semana a semana a 13, 26 o 52 semanas. Se construye sola con los datos del simulador (cobros según tus días de cobro, pagos a proveedores, nóminas, Seguridad Social, impuestos del calendario, cuotas de préstamos) y le añades los movimientos que conozcas. Marca las semanas por debajo del colchón y la más tensa.</p>
+<h4>Presupuesto</h4>
+<ol class="steps">
+  <li><b>Genera una propuesta</b> con uno de cuatro métodos: <b>histórico + crecimiento</b> (último año, crecimiento de ventas, inflación de gastos y revisión salarial), <b>desde un escenario del simulador</b> (mes a mes, con el efecto de la inversión), <b>para alcanzar un EBITDA objetivo</b> (calcula la venta necesaria) o <b>base cero</b> (estructura vacía para justificar cada euro). Cada propuesta se guarda como una <b>versión</b>.</li>
+  <li><b>Ajusta partida a partida:</b> ventas por producto; costes variables (materiales, transportes, subcontratación, comisiones); personal por áreas (producción, comercial, técnico, dirección y administración); gastos fijos (alquileres, suministros, mantenimiento, seguros, servicios profesionales, marketing, tecnología, viajes y otros). <b>Todas las casillas blancas se escriben</b>, también el total anual, que se reparte entre los meses con el mismo patrón. Las filas sombreadas son totales y se calculan solas. Puedes añadir, renombrar y quitar partidas, y pegar bloques desde Excel.</li>
+  <li><b>Compara versiones</b> en la tabla de versiones (ventas, costes, EBITDA y % de EBITDA), duplica, renombra o elimina.</li>
+  <li><b>Reales:</b> introduce el real de cada partida y mes en la pestaña Reales.</li>
+  <li><b>Desviaciones:</b> elige periodo (acumulado, año, trimestre o mes) y verás, por partida, presupuesto, real, desviación en euros, <b>desviación en %</b>, <b>peso sobre ventas</b> presupuestado y real, y la <b>diferencia de peso</b> en puntos, que enseña qué gasto ha crecido más que la venta.</li>
+</ol>
+<p>Arriba, Atalaya te dice a qué escenario se parece la realidad y proyecta el cierre. <b>Llevar la desviación al escenario «Hipótesis»</b> traslada al simulador el ritmo real de ventas.</p>
+
+<h3 id="est-comercial">Comercial</h3>
+<h4>ABC y concentración</h4>
+<p>Tres vistas: <b>Clientes</b>, <b>Productos</b> y <b>Proveedores y compras</b>. El ABC ordena por lo que facturan (o lo que les compras): A son los pocos que suman el 80 %, B el siguiente 15 % y C el resto. El ABC′ (ABC prima) ordena por margen de contribución. La matriz cruza ambos: pulsa una casilla para ver quién hay y qué hacer (proteger, renegociar, atender por un canal más barato).</p>
+<p>La <b>concentración (HHI)</b> mide cuánto dependes de pocos clientes, productos o proveedores. Pulsa el indicador para ver tu lectura concreta: cuántos clientes «equivalentes» tienes y qué pasaría si perdieras al mayor.</p>
+<h4>Margen y demanda</h4>
+<p>El margen de contribución de cada producto frente a la demanda. Mueve las palancas (precio, volumen, coste variable, fijos, mix): el volumen reacciona al precio según la elasticidad y se limita a la capacidad. El efecto se descompone en precio, volumen, mix y coste. Puedes guardar escenarios de palancas.</p>
+<h4>Pipeline comercial</h4>
+<p>Oportunidades abiertas por etapa con su probabilidad, previsión ponderada frente al objetivo de venta nueva, y tablero por etapas.</p>
+<h4>Marketing</h4>
+<p>Por canal: inversión, contactos, oportunidades, clientes, ticket, margen y recurrencia. Calcula el <b>CAC</b> (coste de conseguir un cliente) y el <b>LTV</b> (margen que deja durante la relación). Un canal con LTV de más de 3 veces el CAC merece más presupuesto.</p>
+
+<h3 id="est-operaciones">Operaciones</h3>
+<h4>Compras</h4>
+<p>Matriz de Kraljic (peso en el gasto × riesgo de suministro): estratégicos, apalancados, cuello de botella y no críticos, con qué hacer en cada caso, ahorro alcanzable negociando y concentración de compras.</p>
+<h4>Logística</h4>
+<p>Coste logístico mensual y por pedido, OTIF (a tiempo y completo), rotación del stock y rendimiento por ruta.</p>
+<h4>Gestor de tiempos</h4>
+<p>Dónde se va el tiempo del equipo: el ligado a lo que se factura frente al que consume el sistema interno (gestión, reuniones, errores, esperas), comparado con la referencia de tu sector. Registra tareas con cronómetro, a mano, dictando o importando.</p>
+<h4>Lean</h4>
+<p>Mapa del flujo de valor del proceso principal con plantilla de tu sector: takt time (el ritmo que pide la demanda), cuello de botella, OEE de las máquinas, tiempo total del flujo y cuánto añade valor; los 8 desperdicios, auditoría 5S y propuestas kaizen.</p>
+<h4>Personas</h4>
+<p>Plantilla por áreas con coste, absentismo, rotación y vacantes, y la preparación para crecer que calcula el simulador.</p>
+
+<h3 id="est-estrategia">Estrategia</h3>
+<h4>Expansión territorial</h4>
+<p>Compara zonas por mercado, cuota alcanzable, competencia, inversión de apertura, fijos, margen y rampa. La mejor se puede <b>enviar al simulador</b> para ver si la empresa la soporta.</p>
+<h4>Mercado y riesgos</h4>
+<ul>
+  <li><b>Cargar datos macro 2026:</b> rellena los indicadores con datos de referencia de fuentes oficiales (Banco de España, BCE, INE, FMI, Euríbor), con fecha y enlace, y un ajuste sugerido de escenario. Puedes <b>aplicarlo al escenario «Hipótesis»</b> del simulador.</li>
+  <li><b>Actualizar con el agente</b> (requiere servidor con la API de Claude): busca en fuentes oficiales los datos más recientes, la situación de tu sector y tu competencia, y lo traslada a los planes y a los escenarios.</li>
+  <li>Indicadores editables (ámbito, valor, tendencia, impacto para ti, palanca a la que afecta), riesgo por tipo de cliente y por tipología de producto, competencia principal, implicaciones por plan y matriz de riesgos de toda la empresa.</li>
+</ul>
+<div class="box"><b class="lbl">Datos de referencia cargados (consulta del 1 de octubre de 2026)</b>
+<div class="tw" style="margin:6px 0 0"><table><tbody>
+<tr><td>PIB de España 2026 (previsión)</td><td class="n">2,2 %</td><td>Banco de España</td></tr>
+<tr><td>IPC septiembre (avance) · subyacente</td><td class="n">4,9 % · 3,1 %</td><td>INE</td></tr>
+<tr><td>Inflación media 2026 (previsión)</td><td class="n">3,6 %</td><td>Banco de España</td></tr>
+<tr><td>Tipo de depósito del BCE</td><td class="n">2,50 %</td><td>BCE, 10 sep 2026</td></tr>
+<tr><td>Euríbor 12 meses (media de septiembre)</td><td class="n">3,251 %</td><td>Banco de España</td></tr>
+<tr><td>Paro (EPA 2.º trimestre)</td><td class="n">9,87 %</td><td>INE</td></tr>
+<tr><td>Crecimiento mundial 2026 · inflación mundial</td><td class="n">3,0 % · 4,7 %</td><td>FMI, julio 2026</td></tr>
+</tbody></table></div></div>
+</section>
+
+<section id="datos">
+<h2><span class="num">5</span>Cargar datos</h2>
+<p>Todas las tablas aceptan las mismas vías:</p>
+<div class="tw"><table>
+  <thead><tr><th>Vía</th><th>Cómo</th><th>Notas</th></tr></thead>
+  <tbody>
+    <tr><td><b>Escribir</b></td><td>En las casillas, con formato español (1.234,5).</td><td>Se guarda al salir de la casilla.</td></tr>
+    <tr><td><b>Importar documento</b></td><td>PDF con texto, Word (.docx), Excel (.xlsx, .xls, .ods), CSV, TSV, TXT o Markdown.</td><td>Reconoce las columnas por sus nombres habituales y sinónimos («facturación», «importe neto», «deudores»…). Si no la reconoce y hay IA en el servidor, la extrae con IA.</td></tr>
+    <tr><td><b>Pegar</b></td><td>Copia en Excel con la cabecera y pégalo en el recuadro, o directamente en una casilla de las rejillas.</td><td>Las rejillas rellenan hacia la derecha y hacia abajo.</td></tr>
+    <tr><td><b>Dictar</b></td><td>Pulsa Dictar y di la fila: «Grupo Levante, ventas 640.000, coste 380.000».</td><td>Necesita Chrome, Edge o Safari, y https.</td></tr>
+  </tbody>
+</table></div>
+<div class="box warn"><b class="lbl">PDF escaneados</b>Un PDF que es una foto no contiene texto y no se puede leer. Usa el PDF original de la gestoría o la hoja de cálculo.</div>
+</section>
+
+<section id="asistente">
+<h2><span class="num">6</span>El asistente</h2>
+<p>El botón <b>Asistente</b> abre un chat en cualquier página. Puedes escribir o usar el micrófono, y activar la lectura en voz alta. Con el servidor y una clave de la API de Claude responde con Claude; sin ella funciona en modo básico con un intérprete local de órdenes.</p>
+<div class="grid2">
+  <div class="box"><h3>Preguntar</h3><p>«¿Qué es el DSCR?» · «¿Cómo pongo en verde la liquidez?» · «¿Dónde está el mayor riesgo?» · «Resumen de la situación».</p></div>
+  <div class="box"><h3>Cambiar el simulador</h3><p>«Pon la financiación al 80 %» · «Alarga el plazo a 9 años» · «Simula perder un cliente del 10 % en el mes 14» · «Cambia a escenario pesimista».</p></div>
+  <div class="box"><h3>Sistema estratégico</h3><p>«Sube el precio un 3 %» · «Abre impuestos» · «Abre clientes» · «¿Cómo va el presupuesto?» · «¿Qué clientes me hacen grande pero no rico?».</p></div>
+</div>
+</section>
+
+<section id="admin">
+<h2><span class="num">7</span>Gestor de usuarios</h2>
+<p>En <span class="path">admin.html</span>. Es para quien comercializa Atalaya. No aparece en el menú de los clientes y se entra con una <b>contraseña de administración propia</b>, que no pertenece a ninguna cuenta de usuario.</p>
+<h3>Primera vez</h3>
+<ul>
+  <li><b>Con servidor:</b> arranca el servidor con <span class="path">ADMIN_PASSWORD=…</span> (mínimo 10 caracteres), o arráncalo sin ella y escribe en <span class="path">admin.html</span> el <b>código de configuración</b> que aparece en la consola del servidor junto con la contraseña nueva.</li>
+  <li><b>En demostración:</b> la primera visita a <span class="path">admin.html</span> pide crear la contraseña; se guarda en ese navegador.</li>
+</ul>
+<p>La sesión de administración dura 12 horas. <b>Salir</b> la cierra y <b>Contraseña de administración</b> la cambia. Si la olvidas, vuelve a arrancar el servidor con <span class="path">ADMIN_PASSWORD=nueva</span>.</p>
+<h3>Qué puedes hacer</h3>
+<ul>
+  <li><b>Indicadores:</b> usuarios, pagando, en prueba, sin acceso, ingreso mensual y uso de los últimos 30 días.</li>
+  <li><b>Pendiente de atender:</b> solicitudes de activación, contraseñas olvidadas (con botón para generar el enlace), pruebas que terminan en 3 días y planes que vencen en 7.</li>
+  <li><b>Tabla de usuarios:</b> buscar y filtrar, cambiar plan, <b>Registrar pago</b> (1, 3 o 12 meses; amplía el acceso desde el vencimiento vigente), bloquear y desbloquear.</li>
+  <li><b>Ficha:</b> datos, pagos, uso por día, nota interna, <b>Restablecer contraseña</b> (genera un enlace de un solo uso, válido 60 minutos, que envías tú o se envía por correo si está configurado) y eliminar la cuenta con sus datos (pide confirmación).</li>
+  <li><b>Copiar CSV</b> para llevar los usuarios a Excel.</li>
+</ul>
+<div class="box tip"><b class="lbl">Nunca ves contraseñas</b>Ni la administración ni nadie puede ver la contraseña de un usuario: se guardan cifradas. Lo que se hace es darle un enlace para que él mismo cree una nueva.</div>
+</section>
+
+<section id="servidor">
+<h2><span class="num">8</span>Servidor e instalación</h2>
+<p>La carpeta <span class="path">server/</span> sirve la web y la API en el mismo puerto (Node 18 o superior).</p>
+<div class="tw"><table>
+  <thead><tr><th>Variable</th><th>Para qué</th></tr></thead>
+  <tbody>
+    <tr><td class="n">PORT</td><td>Puerto (8080 por defecto).</td></tr>
+    <tr><td class="n">ADMIN_PASSWORD</td><td>Contraseña de administración (mínimo 10 caracteres).</td></tr>
+    <tr><td class="n">APP_URL</td><td>Dirección pública, para los enlaces de recuperación.</td></tr>
+    <tr><td class="n">COOKIE_SECURE=1</td><td>Cookies solo por https (recomendado en producción).</td></tr>
+    <tr><td class="n">ANTHROPIC_API_KEY</td><td>Activa el asistente con IA, la lectura inteligente y el agente de mercado.</td></tr>
+    <tr><td class="n">SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_SECURE</td><td>Correo para enviar los enlaces de recuperación.</td></tr>
+    <tr><td class="n">ATALAYA_DATA</td><td>Carpeta de datos (por defecto <span class="path">server/data</span>). Haz copias de seguridad.</td></tr>
+    <tr><td class="n">MERCADO_AUTO_DIAS</td><td>Refresco automático del análisis de mercado cada N días.</td></tr>
+  </tbody>
+</table></div>
+<p>Ponlo detrás de un proxy con https: lo necesitan el micrófono y las cookies seguras. El cobro con tarjeta automático no está incluido: el pago se registra desde el gestor de usuarios o conectando una pasarela.</p>
+</section>
+
+<section id="glosario">
+<h2><span class="num">9</span>Conceptos clave</h2>
+<p>El diccionario completo está en el simulador (capítulo XI). Estos son los que más se consultan:</p>
+<div class="tw"><table>
+  <thead><tr><th>Concepto</th><th>Qué es</th><th>Cómo se lee</th></tr></thead>
+  <tbody>
+    <tr><td><b>Liquidez disponible</b></td><td>Caja en el banco más la parte libre de la póliza.</td><td>Por debajo de cero, falta dinero ese mes.</td></tr>
+    <tr><td><b>Meses de colchón</b></td><td>Meses de nóminas, fijos y cuotas que cubre la liquidez.</td><td>Menos de 1 es zona de riesgo; 2-3 es cómodo.</td></tr>
+    <tr><td><b>EBITDA</b></td><td>Beneficio operativo antes de intereses, impuestos y amortizaciones.</td><td>Lo que genera el negocio para pagar deuda e invertir.</td></tr>
+    <tr><td><b>DSCR</b></td><td>(EBITDA − impuestos) ÷ cuotas de deuda del año.</td><td>≥ 1,25 sano; &lt; 1 no se pagan las cuotas con el negocio.</td></tr>
+    <tr><td><b>Deuda neta / EBITDA</b></td><td>Años de EBITDA para devolver la deuda neta.</td><td>≤ 3 cómodo para el banco; &gt; 4 tenso.</td></tr>
+    <tr><td><b>Payback</b></td><td>Tiempo para recuperar lo invertido con el flujo que genera.</td><td>Debe ser menor que la vida útil del activo.</td></tr>
+    <tr><td><b>VAN y TIR</b></td><td>Valor de hoy de los flujos futuros; rentabilidad anual del proyecto.</td><td>VAN positivo y TIR por encima del coste del dinero más un margen.</td></tr>
+    <tr><td><b>Circulante</b></td><td>Dinero atrapado en clientes y stock menos lo que financian los proveedores.</td><td>Crecer en ventas lo aumenta: es caja que se inmoviliza.</td></tr>
+    <tr><td><b>HHI</b></td><td>Suma de los cuadrados de las cuotas (en %) de cada cliente o proveedor.</td><td>&lt; 1.500 repartido; 1.500-2.500 moderado; &gt; 2.500 dependencia alta. 10.000 ÷ HHI ≈ número de clientes «equivalentes».</td></tr>
+    <tr><td><b>ABC y ABC′</b></td><td>Clasificación por venta (o compra) y por margen.</td><td>Un cliente A en venta y C en margen te hace grande pero no rico.</td></tr>
+    <tr><td><b>DAFO y CAME</b></td><td>Diagnóstico interno y externo; y las acciones que lo convierten en estrategia.</td><td>Corregir, Afrontar, Mantener y Explotar.</td></tr>
+    <tr><td><b>Takt time y OEE</b></td><td>Ritmo que pide la demanda; eficiencia global de una máquina.</td><td>OEE ≥ 85 % es clase mundial; &lt; 60 % hay mucho margen.</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<section id="faq">
+<h2><span class="num">10</span>Problemas frecuentes</h2>
+<h3>Una ventana explicativa no se cierra</h3>
+<p>Las fichas tienen una <b>X</b> arriba a la derecha; también se cierran con <kbd>Esc</kbd>, pulsando fuera o al cambiar de módulo.</p>
+<h3>El micrófono no funciona</h3>
+<p>El dictado y la voz necesitan Chrome, Edge o Safari recientes, una conexión https (o localhost) y permiso del navegador para el micrófono. Dentro de algunas vistas previas el micrófono está bloqueado.</p>
+<h3>He cambiado de ordenador y no veo mis datos</h3>
+<p>En modo demostración los datos están solo en el navegador donde los creaste. Con el servidor, tus datos te siguen al entrar con tu cuenta.</p>
+<h3>Un documento no se lee bien</h3>
+<p>Prueba con la hoja de cálculo original, con <b>Pegar tabla</b> o con la rejilla de carga manual. Si el servidor tiene IA, usa <b>Releer con IA</b>.</p>
+<h3>Un número parece raro</h3>
+<p>Revisa el formato: en Atalaya el punto separa miles y la coma, decimales. Pulsa el indicador para ver cómo se calcula y qué variables lo mueven.</p>
+<h3>Mi acceso ha caducado</h3>
+<p>En la pantalla de acceso pulsa <b>Solicitar la activación</b>. Cuando la administración registra el pago, vuelves a entrar con todos tus datos.</p>
+</section>
+
+<section id="avisos">
+<h2><span class="num">11</span>Límites y avisos</h2>
+<ul>
+  <li>Las cifras son estimaciones a partir de los datos introducidos. Sirven para decidir con criterio y preparar las conversaciones con banco, asesor y socios, no sustituyen la contabilidad.</li>
+  <li>La fiscalidad (calendario, movimientos de reducción y escenarios fiscales de la inversión) es orientativa y simplificada; los porcentajes cambian con cada reforma. Confírmala con tu asesor antes de aplicar nada.</li>
+  <li>Las fichas societarias describen el funcionamiento general; cada operación necesita su análisis jurídico y fiscal.</li>
+  <li>Los datos macro de referencia son de la consulta del 1 de octubre de 2026; actualízalos cuando se publiquen datos nuevos o usa el agente de mercado.</li>
+</ul>
+<footer>Atalaya · Manual de uso. Fuentes de los datos macro: <a href="https://www.bde.es" target="_blank" rel="noopener">Banco de España</a>, <a href="https://www.ine.es/dyngs/Prensa/adIPC0926.htm" target="_blank" rel="noopener">INE (IPC)</a>, <a href="https://www.ine.es/dyngs/Prensa/EPA2T26.htm" target="_blank" rel="noopener">INE (EPA)</a>, <a href="https://www.imf.org/en/publications/weo/issues/2026/07/08/world-economic-outlook-update-july-2026" target="_blank" rel="noopener">FMI</a>, <a href="https://www.ecb.europa.eu" target="_blank" rel="noopener">BCE</a>.</footer>
+</section>
+</main>
+</div>
+
+<script>
+(function () {
+  const q = document.getElementById('q'), main = document.getElementById('main'), toc = document.getElementById('toc'), noRes = document.getElementById('noRes');
+  const secs = Array.from(main.querySelectorAll('section'));
+  const norm = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const idx = secs.map((s) => norm(s.textContent));
+  q.addEventListener('input', () => {
+    const v = norm(q.value.trim());
+    let n = 0;
+    secs.forEach((s, i) => { const hit = !v || idx[i].includes(v); s.classList.toggle('hide', !hit); if (hit) n++; });
+    noRes.style.display = n ? 'none' : 'block';
+  });
+  const btn = document.getElementById('tocBtn');
+  btn.addEventListener('click', () => { const o = toc.classList.toggle('open'); btn.setAttribute('aria-expanded', o); });
+  toc.addEventListener('click', (e) => { if (e.target.closest('a')) { toc.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); if (q.value) { q.value = ''; q.dispatchEvent(new Event('input')); } } });
+  const links = Array.from(toc.querySelectorAll('a'));
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) links.forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-20% 0px -70% 0px' });
+    main.querySelectorAll('section, h3[id]').forEach((el) => io.observe(el));
+  }
+})();
+</script>
+</body>
+</html>
