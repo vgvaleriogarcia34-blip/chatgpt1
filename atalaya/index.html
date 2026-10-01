@@ -4,101 +4,192 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Atalaya</title>
-<meta name="description" content="Atalaya: anticipa si tu empresa puede pagar su crecimiento. Simulador de inversión, escenarios 3D, semáforos, equipo, estructuras societarias y sistema estratégico.">
+<meta name="description" content="Atalaya: el sistema de decisión para empresas que crecen. Simula inversiones sin romper la caja y gobierna ventas, márgenes, presupuesto, impuestos y equipo desde un único cuadro de mando.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/atalaya.css">
 <link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/landing.css">
 </head>
-<body class="site">
+<body class="site lp">
 <canvas id="sky" aria-hidden="true"></canvas>
 <div class="veil" aria-hidden="true"></div>
+<div class="glow-cursor" id="glow" aria-hidden="true"></div>
 
 <header class="topbar site-nav">
-  <a class="brand" href="index.html"><b>Atalaya</b><span>Anticipa tu crecimiento</span></a>
-  <nav class="links" aria-label="Secciones"><a href="#producto">Producto</a><a href="#como">Cómo funciona</a><a href="#planes">Planes</a><a href="#preguntas">Preguntas</a></nav>
+  <a class="brand" href="index.html"><b>Atalaya</b><span>Sistema de decisión</span></a>
+  <nav class="links" aria-label="Secciones"><a href="#producto">Producto</a><a href="#demo">Pruébalo</a><a href="#sistema">Sistema estratégico</a><a href="#planes">Planes</a><a href="#preguntas">Preguntas</a></nav>
   <a class="btn ghost" href="acceso.html">Entrar</a>
   <a class="btn solid" href="acceso.html#alta">Probar 14 días</a>
 </header>
 
-<main class="site-main">
-  <section class="s-hero">
-    <div>
-      <div class="eyebrow">Para empresas que van a dar un salto</div>
-      <h1>Antes de invertir, <em>mira el terreno</em>.</h1>
-      <p class="lede">Atalaya te dice si tu empresa puede pagar una inversión con lo que ya gana, sin romper la tesorería, y si tu equipo está preparado para el tamaño que viene. Lo ves en cinco escenarios a la vez, en 3D, con semáforos que te dicen qué tocar para ponerlos en verde.</p>
-      <div class="row mt"><a class="btn solid big" href="acceso.html#alta">Empezar la prueba gratuita</a><a class="btn big" href="#demo">Probarlo aquí mismo</a></div>
-      <p class="small muted mt">14 días gratis. Sin tarjeta. Pensado para empresarios, no para financieros.</p>
+<main class="site-main lp-main">
+  <!-- Portada -->
+  <section class="lp-hero">
+    <div class="lp-hero-copy">
+      <div class="lp-kicker"><span class="pulse"></span> Sistema de decisión para empresas que crecen</div>
+      <h1 class="lp-h1">Ve el futuro de tu empresa <em>antes de jugártelo</em>.</h1>
+      <p class="lp-lede">Atalaya simula cada inversión mes a mes para que sepas si la pagas con lo que ganas sin romper la caja, y gobierna el día a día con un sistema estratégico completo: ventas, márgenes, presupuesto, impuestos, equipo y mercado en un solo cuadro de mando.</p>
+      <div class="lp-ctas">
+        <a class="btn solid big magnetic" href="acceso.html#alta">Empezar gratis 14 días</a>
+        <a class="btn big ghost" href="#demo">Probarlo aquí mismo ↓</a>
+      </div>
+      <ul class="lp-trust">
+        <li>Sin tarjeta</li><li>Para empresarios, no para financieros</li><li>Asistente con voz incluido</li>
+      </ul>
     </div>
-    <div class="glass demo" id="demo">
-      <div class="row"><h4>Pruébalo con una empresa de ejemplo</h4><span class="spacer"></span><span class="tag">en vivo</span></div>
-      <p class="small muted" style="margin:6px 0 12px">Industria de 4,2 M€ de ventas que estudia una línea nueva. Mueve la inversión y la financiación.</p>
-      <div class="field"><div class="top"><label for="dInv">Inversión</label><span class="num" id="dInvV"></span></div><input type="range" id="dInv" min="300000" max="3000000" step="50000" value="1500000"></div>
-      <div class="field"><div class="top"><label for="dFin">Parte financiada</label><span class="num" id="dFinV"></span></div><input type="range" id="dFin" min="0" max="100" step="5" value="70"></div>
-      <div class="field"><div class="top"><label for="dVen">Venta nueva esperada</label><span class="num" id="dVenV"></span></div><input type="range" id="dVen" min="5" max="120" step="5" value="45"></div>
-      <div class="demo-out" id="demoOut"></div>
-    </div>
-  </section>
-
-  <section class="s-band">
-    <div class="pain"><b>El crecimiento se come la caja.</b><p>Vender más obliga a financiar más clientes, más stock y más personas antes de cobrar. Muchas empresas rentables se quedan sin tesorería justo al crecer.</p></div>
-    <div class="pain"><b>Las hojas de cálculo no avisan.</b><p>Un plan en Excel enseña el escenario que quieres ver. Atalaya ensaya cinco futuros a la vez y te dice en qué mes y por cuánto se rompe.</p></div>
-    <div class="pain"><b>El equipo también tiene un límite.</b><p>Más tamaño exige mandos, procesos y personas preparadas. Atalaya mide si tu organización llega a tiempo y qué le falta.</p></div>
-  </section>
-
-  <section class="chapter" id="producto">
-    <div class="eyebrow">Producto</div>
-    <h2>Todo lo que hay que mirar <em>antes de mover ficha</em></h2>
-    <div class="mods mt">
-      <article class="glass mod"><h3>Simulador de inversión</h3><p>Proyección mensual a cinco años con y sin la inversión: cuota, pólizas, impuestos, circulante y meses de colchón.</p></article>
-      <article class="glass mod"><h3>Horizonte 3D</h3><p>El terreno de todas las empresas que podrías ser al cruzar dos variables, y la trayectoria de tu caja en cada escenario.</p></article>
-      <article class="glass mod"><h3>Semáforos con horquillas</h3><p>Diez indicadores con su rango verde, ámbar y rojo, y las variables directas e indirectas que los corrigen.</p></article>
-      <article class="glass mod"><h3>Escenarios e hipótesis</h3><p>Del estrés al optimista, con sucesos que puedes activar: perder un cliente, subir los tipos, cobrar más tarde.</p></article>
-      <article class="glass mod"><h3>Sistema operativo humano</h3><p>Nueve dimensiones de preparación del equipo y un calendario de lo que necesita para sostener el nuevo tamaño.</p></article>
-      <article class="glass mod"><h3>Estructuras societarias</h3><p>Directa, leasing, filial, patrimonial, socio inversor o joint venture: el mismo objetivo con otros vehículos y otros tiempos.</p></article>
-      <article class="glass mod"><h3>Plan de corrección</h3><p>Fijas tu posición meta y Atalaya busca el mínimo cambio que la alcanza, de la palanca más fácil a la más costosa.</p></article>
-      <article class="glass mod"><h3>Sistema estratégico</h3><p>ABC y ABC′ de clientes, productos y proveedores, margen de contribución sobre la demanda, presupuesto y desviaciones.</p></article>
-      <article class="glass mod"><h3>Asistente con voz</h3><p>Cuéntale lo que te preocupa o lo que no entiendes. Te lo explica en llano y ajusta los escenarios por ti.</p></article>
+    <div class="lp-hero-art" id="heroArt" aria-label="Vista del cuadro de mando de Atalaya">
+      <div class="h3d" id="h3d">
+        <div class="h3d-card h-main">
+          <div class="hc-head"><span class="hc-lbl">Liquidez · 60 meses</span><span class="verdict-pill v-go" id="hVerdict"><span class="dot"></span><span>Avanzar vigilando</span></span></div>
+          <div class="hc-chart" id="hChart"></div>
+          <div class="hc-legend"><span><i style="background:var(--s1)"></i>Base</span><span><i style="background:var(--s2)"></i>Pesimista</span><span><i style="background:var(--s3)"></i>Optimista</span></div>
+        </div>
+        <div class="h3d-card h-lights"><span class="hc-lbl">Semáforos</span><div class="hc-dots" id="hLights"></div></div>
+        <div class="h3d-card h-hhi"><span class="hc-lbl">Concentración clientes</span><div class="hc-big" id="hHhi">1.180</div><span class="hc-sub"><span class="state st-ok">Verde</span> 8 clientes equivalentes</span></div>
+        <div class="h3d-card h-budget"><span class="hc-lbl">Presupuesto</span><div class="hc-bar"><b style="width:95%"></b></div><span class="hc-sub">Ventas al 95 % · cierre 4,1 M€</span></div>
+        <div class="h3d-card h-chat"><span class="hc-lbl">Asistente</span><p>«Si alargo el préstamo a 9 años, ¿qué pasa con la caja?»</p></div>
+      </div>
     </div>
   </section>
 
-  <section class="chapter" id="como">
+  <!-- Cifras -->
+  <section class="lp-stats" aria-label="Atalaya en cifras">
+    <div><b data-count="60">60</b><span>meses proyectados, mes a mes</span></div>
+    <div><b data-count="5">5</b><span>escenarios ensayados a la vez</span></div>
+    <div><b data-count="10">10</b><span>semáforos con horquilla y palancas</span></div>
+    <div><b data-count="18">18</b><span>módulos del sistema estratégico</span></div>
+    <div><b data-count="79">79</b><span>conceptos explicados en llano</span></div>
+  </section>
+
+  <!-- Problema -->
+  <section class="lp-sec" id="producto">
+    <div class="eyebrow">El problema</div>
+    <h2 class="lp-h2">Las empresas rentables también <em>se quedan sin caja</em>.</h2>
+    <div class="lp-pains">
+      <article class="tilt lp-card" data-tilt><span class="lp-num">01</span><h3>Crecer consume dinero antes de darlo</h3><p>Más ventas son más clientes que financiar, más stock y más personas que pagar antes de cobrar. El beneficio llega, pero la tesorería se rompe por el camino.</p></article>
+      <article class="tilt lp-card" data-tilt><span class="lp-num">02</span><h3>Una hoja de cálculo enseña lo que quieres ver</h3><p>El plan en Excel tiene un solo escenario y ninguna alarma. Atalaya ensaya cinco futuros a la vez y te dice en qué mes y por cuánto se rompe cada uno.</p></article>
+      <article class="tilt lp-card" data-tilt><span class="lp-num">03</span><h3>Decidir sin ver el conjunto</h3><p>Ventas, márgenes, presupuesto, impuestos y equipo viven en sitios distintos. Atalaya los cruza en un cuadro de mando y te enseña dónde está cada euro y cada riesgo.</p></article>
+    </div>
+  </section>
+
+  <!-- Dos herramientas -->
+  <section class="lp-sec">
+    <div class="eyebrow">La solución</div>
+    <h2 class="lp-h2">Dos herramientas, <em>una sola verdad</em>.</h2>
+    <div class="lp-duo">
+      <article class="tilt lp-card lp-big" data-tilt>
+        <div class="lp-tag">Simulador de inversión</div>
+        <h3>¿Puedo pagarlo con lo que gano?</h3>
+        <p>Proyecta tu empresa con y sin la inversión durante cinco años y responde con un veredicto claro.</p>
+        <ul class="lp-list"><li>Cuotas, carencia, pólizas y meses de colchón</li><li>Cinco escenarios y sucesos: perder un cliente, subir los tipos, cobrar tarde</li><li>Horizonte 3D: el terreno antes de pisarlo</li><li>Diez semáforos con las palancas para ponerlos en verde</li><li>Equipo, estructuras societarias y plan de corrección</li></ul>
+        <div class="lp-mini" id="miniSim"></div>
+      </article>
+      <article class="tilt lp-card lp-big" data-tilt>
+        <div class="lp-tag gold">Sistema estratégico</div>
+        <h3>¿Cómo gobierno el día a día?</h3>
+        <p>Dieciocho módulos que comparten los mismos datos y suman sus riesgos y oportunidades en un cuadro de mando.</p>
+        <ul class="lp-list"><li>Plan de empresa con valores, DAFO y CAME</li><li>Flujo del dinero, impuestos, tesorería semanal y presupuesto</li><li>ABC de clientes, productos y proveedores, márgenes y pipeline</li><li>Compras, Lean, reloj de tareas y organigrama</li><li>Mercado 2026 con datos oficiales e informe de auditoría</li></ul>
+        <div class="lp-mini" id="miniStrat"></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- Demo interactiva -->
+  <section class="lp-sec" id="demo">
+    <div class="eyebrow">Pruébalo ahora</div>
+    <h2 class="lp-h2">Mueve una palanca y <em>mira cómo cambia el futuro</em>.</h2>
+    <p class="lp-sub">Una industria de 4,2 M€ de ventas estudia una línea nueva. Es el mismo motor que usarás dentro: cada cambio recalcula 60 meses en cinco escenarios.</p>
+    <div class="lp-demo glass">
+      <div class="lp-controls">
+        <div class="field"><div class="top"><label for="dInv">Inversión</label><span class="num" id="dInvV"></span></div><input type="range" id="dInv" min="300000" max="3000000" step="50000" value="1500000"></div>
+        <div class="field"><div class="top"><label for="dFin">Parte financiada</label><span class="num" id="dFinV"></span></div><input type="range" id="dFin" min="0" max="100" step="5" value="70"></div>
+        <div class="field"><div class="top"><label for="dVen">Venta nueva esperada</label><span class="num" id="dVenV"></span></div><input type="range" id="dVen" min="5" max="120" step="5" value="45"></div>
+        <div class="field"><div class="top"><label for="dDso">Días que tardan en pagarte</label><span class="num" id="dDsoV"></span></div><input type="range" id="dDso" min="15" max="150" step="5" value="75"></div>
+        <div class="field"><div class="top"><label for="dPla">Plazo del préstamo</label><span class="num" id="dPlaV"></span></div><input type="range" id="dPla" min="2" max="12" step="1" value="7"></div>
+        <div class="lp-verdict" id="dVerdict"></div>
+      </div>
+      <div class="lp-out">
+        <div class="lp-kpis" id="dKpis"></div>
+        <div class="lp-chartbox"><div class="row"><b class="small">Liquidez mes a mes en cada escenario</b><span class="spacer"></span><span class="small muted">Pasa el ratón por el gráfico</span></div><div id="dChart" class="lp-chart"></div><div class="hc-legend" id="dLegend"></div></div>
+        <div class="row" style="margin-top:4px"><b class="small">Semáforos del escenario</b><div class="seg" id="dScen" style="margin-left:auto"></div></div>
+        <div class="lp-lights" id="dLights"></div>
+        <p class="small muted" id="dLightRead">Pasa por encima de un semáforo para ver su horquilla.</p>
+      </div>
+    </div>
+    <div class="lp-demo-cta"><span>Dentro tienes tu empresa real, el 3D, las hipótesis y el plan para ponerlo todo en verde.</span><a class="btn solid magnetic" href="acceso.html#alta">Probar con mis datos</a></div>
+  </section>
+
+  <!-- Sistema estratégico: explorador -->
+  <section class="lp-sec" id="sistema">
+    <div class="eyebrow">Sistema estratégico</div>
+    <h2 class="lp-h2">Toda la empresa <em>en un cuadro de mando</em>.</h2>
+    <p class="lp-sub">Elige un área y pasa por encima de cada módulo. Las cifras son de la empresa de ejemplo.</p>
+    <div class="seg lp-groups" id="grpSeg" role="tablist"></div>
+    <div class="lp-modules" id="mods"></div>
+  </section>
+
+  <!-- Cómo funciona -->
+  <section class="lp-sec" id="como">
     <div class="eyebrow">Cómo funciona</div>
-    <h2>De tus cuentas a una decisión <em>en una tarde</em></h2>
-    <ol class="steps-site mt">
-      <li><b>Carga tu empresa.</b> Elige tu sector y escribe tus cifras, o adjunta el balance y la cuenta de resultados de los últimos años.</li>
-      <li><b>Describe el movimiento.</b> Importe, financiación, venta esperada, margen y personas que necesitas.</li>
-      <li><b>Lee los semáforos y ensaya.</b> Cinco escenarios, hipótesis, 3D y el plan de corrección para llegar a tu meta.</li>
-      <li><b>Decide con un informe.</b> Un dossier con veredicto, riesgos, equipo, estructura recomendada y hoja de ruta.</li>
+    <h2 class="lp-h2">De tus cuentas a una decisión <em>en una tarde</em>.</h2>
+    <ol class="lp-steps">
+      <li class="tilt" data-tilt><b>Carga tu empresa</b><span>Elige tu sector y escribe tus cifras, o adjunta las cuentas en PDF, Excel o Word. También puedes dictarlas.</span></li>
+      <li class="tilt" data-tilt><b>Describe el movimiento</b><span>Importe, financiación, venta esperada, margen y personas que necesitas.</span></li>
+      <li class="tilt" data-tilt><b>Ensaya y corrige</b><span>Cinco escenarios, sucesos, 3D y el plan que busca el mínimo cambio para llegar a tu meta.</span></li>
+      <li class="tilt" data-tilt><b>Decide y gobierna</b><span>Informe de decisión y, después, presupuesto, márgenes y riesgos vigilados cada mes.</span></li>
     </ol>
   </section>
 
-  <section class="chapter" id="planes">
-    <div class="eyebrow">Planes</div>
-    <h2>Elige cómo <em>mirar lejos</em></h2>
-    <div class="plans mt" id="plans"></div>
-    <p class="small muted mt">Precios sin IVA. Todos los planes empiezan con 14 días de prueba.</p>
+  <!-- Comparativa -->
+  <section class="lp-sec">
+    <div class="eyebrow">Por qué Atalaya</div>
+    <h2 class="lp-h2">Lo que no te da <em>ni una hoja de cálculo ni un informe</em>.</h2>
+    <div class="table-wrap lp-compare glass"><table>
+      <thead><tr><th></th><th>Hoja de cálculo</th><th>Informe de consultoría</th><th class="hl">Atalaya</th></tr></thead>
+      <tbody>
+        <tr><td>Escenarios a la vez</td><td>Uno</td><td>Dos o tres, fijos</td><td class="hl">Cinco y los que quieras, en vivo</td></tr>
+        <tr><td>Avisa de cuándo falta caja</td><td>No</td><td>A veces</td><td class="hl">Mes a mes, con pólizas y colchón</td></tr>
+        <tr><td>Te dice qué tocar</td><td>No</td><td>Una vez</td><td class="hl">Siempre: palancas y plan de corrección</td></tr>
+        <tr><td>Equipo y estructura societaria</td><td>No</td><td>Por separado</td><td class="hl">Integrados en la misma decisión</td></tr>
+        <tr><td>Gobierno del día a día</td><td>Archivos sueltos</td><td>No</td><td class="hl">18 módulos conectados</td></tr>
+        <tr><td>Se actualiza cuando cambian los datos</td><td>A mano</td><td>Nuevo encargo</td><td class="hl">Al instante</td></tr>
+      </tbody>
+    </table></div>
   </section>
 
-  <section class="chapter" id="preguntas">
+  <!-- Planes -->
+  <section class="lp-sec" id="planes">
+    <div class="eyebrow">Planes</div>
+    <h2 class="lp-h2">Elige cómo <em>mirar lejos</em>.</h2>
+    <div class="plans mt" id="plans"></div>
+    <p class="small muted mt">Precios sin IVA. Todos los planes empiezan con 14 días de prueba sin tarjeta.</p>
+  </section>
+
+  <!-- Preguntas -->
+  <section class="lp-sec" id="preguntas">
     <div class="eyebrow">Preguntas</div>
-    <h2>Lo que suelen <em>preguntarnos</em></h2>
+    <h2 class="lp-h2">Lo que suelen <em>preguntarnos</em>.</h2>
     <div class="faq mt">
-      <details class="glass"><summary>¿Necesito saber de finanzas?</summary><p>No. Cada indicador viene con su explicación, su horquilla y los datos que lo mueven. Hay un diccionario corporativo y un asistente al que puedes hablarle.</p></details>
-      <details class="glass"><summary>¿Sustituye a mi asesor?</summary><p>No. Atalaya te prepara para la conversación con el banco, tu asesor fiscal y tu equipo: llegas con los escenarios hechos y las preguntas correctas.</p></details>
-      <details class="glass"><summary>¿Sirve para mi sector?</summary><p>Incluye diez perfiles (industria, distribución, hostelería, retail, construcción, servicios, tecnología, agroalimentario, salud y logística) con sus márgenes, plazos de cobro, estacionalidad y ritmo de arranque. Todos los datos son editables.</p></details>
-      <details class="glass"><summary>¿Dónde se guardan mis datos?</summary><p>En tu cuenta de Atalaya. Puedes exportarlos cuando quieras.</p></details>
+      <details class="glass"><summary>¿Necesito saber de finanzas?</summary><p>No. Cada indicador tiene su explicación, su horquilla verde, ámbar y roja, y los datos que lo mueven. Hay un diccionario corporativo y un asistente al que puedes hablarle.</p></details>
+      <details class="glass"><summary>¿Sustituye a mi asesor?</summary><p>No. Te prepara para la conversación con el banco, tu asesor fiscal y tu equipo: llegas con los escenarios hechos y las preguntas correctas.</p></details>
+      <details class="glass"><summary>¿Sirve para mi sector?</summary><p>Incluye diez perfiles (industria, distribución, hostelería, retail, construcción, servicios, tecnología, agroalimentario, salud y logística) con sus márgenes, plazos de cobro, estacionalidad y ritmo de arranque. Todo es editable.</p></details>
+      <details class="glass"><summary>¿Y si no voy a invertir ahora?</summary><p>El sistema estratégico sirve igual: presupuesto y desviaciones, flujo del dinero, impuestos, márgenes, clientes, compras, tiempos del equipo y riesgos de mercado, todo conectado.</p></details>
+      <details class="glass"><summary>¿Cómo cargo mis datos?</summary><p>Escribiéndolos, adjuntando las cuentas en PDF, Excel o Word, pegando desde Excel o dictándolos por voz.</p></details>
       <details class="glass"><summary>¿Puedo usarlo con varias empresas?</summary><p>Sí, según el plan: una, tres o hasta quince empresas para consultoras.</p></details>
     </div>
   </section>
 
-  <section class="s-cta glass">
-    <h2>Tu próxima inversión <em>ya tiene un mapa</em>.</h2>
-    <a class="btn solid big" href="acceso.html#alta">Empezar ahora</a>
+  <section class="lp-final tilt" data-tilt>
+    <div class="eyebrow">Empieza hoy</div>
+    <h2 class="lp-h2">Tu próxima decisión <em>ya tiene un mapa</em>.</h2>
+    <p class="lp-sub">Catorce días con todas las funciones. Sin tarjeta.</p>
+    <a class="btn solid big magnetic" href="acceso.html#alta">Crear mi cuenta gratis</a>
   </section>
-  <footer class="site-foot small muted">Atalaya · simulador de inversión y crecimiento · <a href="acceso.html">Acceso clientes</a></footer>
+  <footer class="site-foot small muted">Atalaya · sistema de decisión para empresas · <a href="acceso.html">Acceso clientes</a></footer>
 </main>
+<div class="lp-sticky"><span>14 días gratis, sin tarjeta</span><a class="btn solid" href="acceso.html#alta">Empezar</a></div>
 
 <script src="js/platform.js"></script>
 <script src="js/sectors.js"></script>
