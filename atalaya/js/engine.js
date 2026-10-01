@@ -112,7 +112,7 @@
     const shocks = (state.hipotesis || []).filter((h) => h.activo);
     const start = inv.mesInicio + p.setup;
     const delay = mods.retraso || 0;
-    const rampa = Math.max(1, inv.rampa * p.rampaF);
+    const rampa = Math.max(1, inv.rampa * p.rampaF, ((state.humano || {}).curva || 0) * 0.75);
     const mgBase = e.margen / 100;
     const mgNew = (inv.margenNuevo + (mods.margenDelta || 0)) / 100;
     const t = e.impuesto / 100;
@@ -136,12 +136,18 @@
     const shockFrom = (tipo, m) => shocks.filter((s) => s.tipo === tipo && m >= s.mes).reduce((a, s) => a + s.magnitud, 0);
 
     const out = { sales: [], newSales: [], gross: [], staff: [], fixed: [], ebitda: [], tax: [], dwc: [], wc: [],
-      cfo: [], debt: [], newDebtPay: [], interestNew: [], cash: [], heads: [], loanBal: [], debtTotal: [], dep: [], capex: [] };
+      cfo: [], debt: [], newDebtPay: [], interestNew: [], cash: [], heads: [], loanBal: [], debtTotal: [], dep: [], capex: [],
+      banco: [], poliza: [], liquidez: [], costePoliza: [], fijoMes: [] };
 
     const wcOf = (sales, cogs, dso) => (sales * 12 * dso) / 365 + (cogs * 12 * e.dio) / 365 - (cogs * 12 * e.dpo) / 365;
     const s0 = (e.ventas / 12) * seas(12) / Math.pow(1 + e.crecimiento / 100, 1 / 12);
     let wcPrev = wcOf(s0, s0 * (1 - mgBase), e.dso);
     let cash = e.caja;
+    // Póliza de crédito: se dispone cuando la caja baja del mínimo operativo y se devuelve con los excedentes
+    const polLim = Math.max(0, e.polizaLimite || 0);
+    let polD = Math.min(polLim, Math.max(0, e.polizaDispuesta || 0));
+    const minOp = (e.personal + e.fijos) / 24;
+    const hum = state.humano || {};
     let loanBal = 0;
     let loanMonth = 0;
     let ebtYTD = 0, taxPaidYTD = 0;
@@ -168,13 +174,18 @@
         if (m >= hireStart) {
           const nh = inv.contrataciones * p.share * Math.min(1, 0.5 + 0.5 * r);
           heads += nh;
-          staff += (nh * inv.salario / 12) * salInfl;
+          staff += (nh * inv.salario / 12) * salInfl * (1 + (hum.absentismo || 0) / 100);
         }
       }
+      // Coste de selección e incorporación de las nuevas personas (pago único al inicio de la contratación)
+      let seleccion = 0;
+      if (!noInv && m === Math.max(1, start + delay - inv.anticipo)) seleccion = inv.contrataciones * p.share * (hum.costeSeleccion || 0);
       let fixed = e.fijos / 12 * Math.pow(1.02, Math.floor((m - 1) / 12));
       if (!noInv && m >= start) fixed += (inv.fijosNuevos * p.share) / 12 + p.extraFijos / 12 + p.alquiler;
       const oneOff = shockAt('puntual', m) > 0 ? shocks.filter((s) => s.tipo === 'puntual' && s.mes === m).reduce((a, s) => a + s.magnitud * 1000, 0) : 0;
-      const ebitda = gross - staff - fixed - oneOff;
+      const ebitda = gross - staff - fixed - oneOff - seleccion;
+      // Coste de la póliza del mes (intereses sobre lo dispuesto + comisión sobre lo no dispuesto)
+      const costePol = polD * ((e.polizaTipo || 0) / 100 / 12) + (polLim - polD) * ((e.polizaComision || 0) / 100 / 12);
 
       // Amortización contable
       const dep = !noInv && m >= start ? p.depreciable / (inv.vidaUtil * 12) : 0;
@@ -205,7 +216,7 @@
 
       // Impuesto de sociedades (devengo anual liquidado mes a mes sobre la base acumulada)
       if ((m - 1) % 12 === 0) { ebtYTD = 0; taxPaidYTD = 0; }
-      ebtYTD += ebitda - dep - intNew - intE;
+      ebtYTD += ebitda - dep - intNew - intE - costePol;
       const taxDue = Math.max(0, ebtYTD) * t;
       const tax = taxDue - taxPaidYTD;
       taxPaidYTD = taxDue;
@@ -218,11 +229,15 @@
 
       const cfo = ebitda - tax - dwc;
       const debt = intNew + prinNew + intE + prinE;
-      cash += cfo - debt - capex + inflow;
+      cash += cfo - debt - capex + inflow - costePol;
+      if (cash < minOp && polD < polLim) { const d = Math.min(minOp - cash, polLim - polD); polD += d; cash += d; }
+      else if (cash > minOp && polD > 0) { const d = Math.min(polD, cash - minOp); polD -= d; cash -= d; }
 
       out.sales.push(sales); out.newSales.push(nw); out.gross.push(gross); out.staff.push(staff); out.fixed.push(fixed + oneOff);
-      out.ebitda.push(ebitda); out.tax.push(tax); out.dwc.push(dwc); out.wc.push(wc); out.cfo.push(cfo); out.debt.push(debt);
-      out.newDebtPay.push(intNew + prinNew); out.interestNew.push(intNew); out.cash.push(cash); out.heads.push(heads);
+      out.ebitda.push(ebitda); out.tax.push(tax); out.dwc.push(dwc); out.wc.push(wc); out.cfo.push(cfo - costePol); out.debt.push(debt);
+      out.newDebtPay.push(intNew + prinNew); out.interestNew.push(intNew); out.cash.push(cash - polD); out.heads.push(heads);
+      out.banco.push(cash); out.poliza.push(polD); out.liquidez.push(cash + polLim - polD); out.costePoliza.push(costePol);
+      out.fijoMes.push(staff + fixed + debt);
       out.loanBal.push(loanBal); out.debtTotal.push(loanBal + balE); out.dep.push(dep); out.capex.push(capex - inflow);
     }
     out.params = p;
@@ -230,6 +245,7 @@
     out.cuotaNueva = cuotaFr;
     out.cuotaCarencia = L * rBase;
     out.loan = L;
+    out.polLim = polLim;
     out.mods = mods;
     return out;
   };
@@ -300,6 +316,20 @@
     w.cash.forEach((c, i) => { if (c < cajaMin) { cajaMin = c; mesCajaMin = i + 1; } });
     const mesesNegativos = w.cash.filter((c) => c < 0).length;
     const colchon = 2 * (e.personal + e.fijos) / 12;
+    // Liquidez disponible = caja en banco + parte libre de la póliza
+    let liquidezMin = Infinity, mesLiqMin = 0, cajaMax = -Infinity, mesCajaMax = 0, polizaMax = 0, mesPolMax = 0;
+    w.liquidez.forEach((c, i) => { if (c < liquidezMin) { liquidezMin = c; mesLiqMin = i + 1; } });
+    w.cash.forEach((c, i) => { if (c > cajaMax) { cajaMax = c; mesCajaMax = i + 1; } });
+    w.poliza.forEach((c, i) => { if (c > polizaMax) { polizaMax = c; mesPolMax = i + 1; } });
+    const contarPoliza = state.meta.contarPoliza !== false;
+    const cajaRef = contarPoliza ? liquidezMin : cajaMin;
+    const mesCajaRef = contarPoliza ? mesLiqMin : mesCajaMin;
+    // Meses de colchón: cuántos meses de nóminas, fijos y cuotas cubre la liquidez de cada mes
+    const colchonSerie = w.fijoMes.map((f, i) => (contarPoliza ? w.liquidez[i] : w.cash[i]) / Math.max(1, f));
+    let colMin = Infinity, mesColMin = 0, colMax = -Infinity, mesColMax = 0;
+    colchonSerie.forEach((c, i) => { if (c < colMin) { colMin = c; mesColMin = i + 1; } if (c > colMax) { colMax = c; mesColMax = i + 1; } });
+    const mesesBajoUno = colchonSerie.filter((c) => c < 1).length;
+    const costePolizaTotal = sum(w.costePoliza, 0, H);
 
     // DSCR por año desde el arranque
     const dscrYears = [];
@@ -362,6 +392,8 @@
     const res = {
       w, b, p, start, dim, payback, paybackCaja, van, tir, flows, cajaMin, mesCajaMin, mesesNegativos, colchon,
       cajaFinal: w.cash[H - 1], cajaFinalSin: b.cash[H - 1], dscrYears, dscrMin, deudaEbitda, deudaEbitdaPre,
+      liquidezMin, mesLiqMin, cajaMax, mesCajaMax, polizaMax, mesPolMax, polLim: w.polLim, cajaRef, mesCajaRef, contarPoliza,
+      colchonSerie, colMin, mesColMin, colMax, mesColMax, mesesBajoUno, costePolizaTotal,
       tamano, wcPeak, cuotaNueva: w.cuotaNueva, cuotaCarencia: w.cuotaCarencia, cuotaTotal, cuotaSobreEbitda,
       ebitdaActual, loan: w.loan, ownOutlay: p.capexOperativa - w.loan - p.aportacion
     };
@@ -372,9 +404,29 @@
     return res;
   };
 
-  /* ---------- Sistema operativo humano ---------- */
+  /* ---------- Sistema operativo humano ----------
+   * Nueve dimensiones. Cada una explica qué mide, por qué importa al crecer y su referencia sana.
+   */
+  A.HUMAN_VARS = [
+    { p: 'humano.mandos', l: 'Mandos intermedios', min: 0, max: 60, step: 1, u: 'pers.', d: 'Personas que dirigen equipos y deciden sin consultar al fundador. Un responsable sostiene bien entre 7 y 14 personas según el sector.' },
+    { p: 'humano.mandosFormados', l: 'Mandos formados en gestión', min: 0, max: 100, step: 5, u: '%', d: 'Parte de los mandos con formación en dirección de personas. Un buen técnico ascendido sin formación suele convertirse en cuello de botella.' },
+    { p: 'humano.dependencia', l: 'Dependencia del fundador', min: 0, max: 100, step: 5, u: '/100', d: '0: la organización decide sola. 100: todo pasa por una persona. Por encima de 60, la agenda del fundador marca la velocidad de crecimiento.' },
+    { p: 'humano.procesos', l: 'Procesos documentados', min: 0, max: 100, step: 5, u: '%', d: 'Parte de los procesos críticos escritos y transmisibles. Por debajo del 50 %, cada incorporación depende de quién le enseñe.' },
+    { p: 'humano.rotacion', l: 'Rotación anual', min: 0, max: 60, step: 1, u: '%', d: 'Personas que se van al año sobre la plantilla. Por encima del 15 %, el conocimiento se escapa más rápido de lo que se documenta.' },
+    { p: 'humano.clima', l: 'Clima laboral (eNPS)', min: -100, max: 100, step: 5, u: 'pts', d: 'Recomendarían trabajar aquí: % promotores menos % detractores. Positivo es sano; negativo anticipa rotación.' },
+    { p: 'humano.tiempoContratacion', l: 'Meses para contratar', min: 0, max: 12, step: 1, u: 'meses', d: 'Tiempo medio desde que abres un proceso hasta que la persona se incorpora.' },
+    { p: 'humano.costeSeleccion', l: 'Coste de selección por persona', min: 0, max: 20000, step: 250, u: '€', d: 'Anuncios, consultora, horas de entrevista y alta. Se paga una vez al incorporar y entra en la caja.' },
+    { p: 'humano.curva', l: 'Meses hasta productividad plena', min: 0, max: 18, step: 1, u: 'meses', d: 'Tiempo que tarda una persona nueva en rendir al 100 %. Si es más largo que la rampa comercial, frena la rampa.' },
+    { p: 'humano.formacion', l: 'Formación anual por persona', min: 0, max: 80, step: 2, u: 'horas', d: 'Horas de formación al año. Menos de 20 horas suele indicar que se aprende solo por imitación.' },
+    { p: 'humano.sucesion', l: 'Puestos clave con sustituto', min: 0, max: 100, step: 5, u: '%', d: 'Parte de los puestos críticos con una segunda persona capaz de cubrirlos. Por debajo del 50 %, una baja larga para la operación.' },
+    { p: 'humano.polivalencia', l: 'Polivalencia', min: 0, max: 100, step: 5, u: '%', d: 'Parte de la plantilla capaz de hacer al menos dos puestos. Amortigua picos y ausencias sin contratar.' },
+    { p: 'humano.absentismo', l: 'Absentismo', min: 0, max: 20, step: 0.5, u: '%', d: 'Horas pagadas no trabajadas. Encarece cada contratación nueva en la misma proporción.' },
+    { p: 'humano.horasExtra', l: 'Horas extra sobre jornada', min: 0, max: 30, step: 1, u: '%', d: 'Señal de saturación. Por encima del 8 %, el equipo actual no tiene holgura para absorber más trabajo ni para formar a los nuevos.' }
+  ];
+
   A.humanReadiness = function (state, res) {
-    const e = state.empresa, inv = state.inversion, h = state.humano, sec = A.SECTORS[state.sector];
+    const e = state.empresa, inv = state.inversion, sec = A.SECTORS[state.sector];
+    const h = Object.assign({ mandosFormados: 50, clima: 10, costeSeleccion: 3000, curva: 4, formacion: 16, sucesion: 40, polivalencia: 30, absentismo: 4, horasExtra: 5 }, state.humano);
     const nuevas = Math.round(inv.contrataciones * (res ? res.p.share : 1));
     const total = e.plantilla + nuevas;
     const mandosNecesarios = Math.ceil(total / sec.span);
@@ -383,62 +435,158 @@
     const start = res ? res.start : inv.mesInicio;
     const hireStart = start - inv.anticipo;
     const mesReclutar = hireStart - h.tiempoContratacion;
+    const rampa = inv.rampa;
+    const C = (v) => clamp(v, 0, 100);
     const dims = [
-      { key: 'mando', corto: 'Mando', nombre: 'Estructura de mando', score: clamp(100 - gapMandos * 28, 0, 100),
-        lectura: gapMandos ? `Con ${total} personas y una amplitud razonable de ${sec.span} por responsable necesitas ${mandosNecesarios} mandos; tienes ${h.mandos}.` : `${h.mandos} mandos cubren ${total} personas con holgura.` },
-      { key: 'absorcion', corto: 'Absorción', nombre: 'Capacidad de absorción', score: clamp(100 - Math.max(0, crec - 0.12) * 220, 0, 100),
-        lectura: `La plantilla crece un ${Math.round(crec * 100)} %. Por encima del 30 % la cultura y la calidad se resienten si no hay acogida estructurada.` },
-      { key: 'fundador', corto: 'Fundador', nombre: 'Independencia del fundador', score: clamp(100 - h.dependencia, 0, 100),
-        lectura: h.dependencia > 60 ? 'Las decisiones pasan por una sola persona: será el cuello de botella del crecimiento.' : 'Hay delegación real; el crecimiento no depende de una agenda.' },
-      { key: 'procesos', corto: 'Procesos', nombre: 'Procesos documentados', score: clamp(h.procesos, 0, 100),
-        lectura: h.procesos < 50 ? 'Gran parte del cómo se hace vive en la cabeza de las personas. Los nuevos tardarán más en rendir.' : 'Los procesos están escritos: la incorporación es replicable.' },
-      { key: 'rotacion', corto: 'Estabilidad', nombre: 'Estabilidad del equipo', score: clamp(100 - Math.max(0, h.rotacion - 6) * 4, 0, 100),
-        lectura: `Rotación anual del ${h.rotacion} %. Cada salida en plena rampa retrasa la curva de aprendizaje.` },
-      { key: 'reclutamiento', corto: 'Reclutamiento', nombre: 'Tiempo de reclutamiento', score: mesReclutar >= 1 ? 100 : clamp(100 + (mesReclutar - 1) * 25, 0, 100),
-        lectura: mesReclutar >= 1 ? `Debes abrir los procesos de selección en el mes ${mesReclutar}.` : `Para tener a la gente en el mes ${hireStart} tendrías que haber empezado a reclutar hace ${1 - mesReclutar} meses.` }
+      { key: 'mando', corto: 'Mando', nombre: 'Estructura de mando', vars: ['humano.mandos', 'humano.mandosFormados'],
+        score: C(100 - gapMandos * 28 - Math.max(0, 50 - h.mandosFormados) * 0.6),
+        lectura: (gapMandos ? `Con ${total} personas y ${sec.span} por responsable necesitas ${mandosNecesarios} mandos; tienes ${h.mandos}. ` : `${h.mandos} mandos cubren ${total} personas. `) + `${h.mandosFormados} % formados en gestión.` },
+      { key: 'absorcion', corto: 'Absorción', nombre: 'Capacidad de absorción', vars: ['inversion.contrataciones', 'humano.horasExtra'],
+        score: C(100 - Math.max(0, crec - 0.12) * 220 - Math.max(0, h.horasExtra - 8) * 4),
+        lectura: `La plantilla crece un ${Math.round(crec * 100)} % con un equipo que hoy hace un ${h.horasExtra} % de horas extra. Quien está saturado no puede formar a quien llega.` },
+      { key: 'fundador', corto: 'Fundador', nombre: 'Independencia del fundador', vars: ['humano.dependencia'],
+        score: C(100 - h.dependencia),
+        lectura: h.dependencia > 60 ? 'Las decisiones pasan por una sola persona: será el cuello de botella del crecimiento.' : 'Hay delegación real: el crecimiento no depende de una agenda.' },
+      { key: 'procesos', corto: 'Procesos', nombre: 'Procesos documentados', vars: ['humano.procesos'],
+        score: C(h.procesos * 1.15),
+        lectura: h.procesos < 50 ? 'Gran parte del «cómo se hace» vive en la cabeza de las personas. Los nuevos tardarán más en rendir.' : 'Los procesos están escritos: la incorporación es replicable.' },
+      { key: 'estabilidad', corto: 'Estabilidad', nombre: 'Estabilidad y clima', vars: ['humano.rotacion', 'humano.clima'],
+        score: C(100 - Math.max(0, h.rotacion - 6) * 4 + Math.min(0, h.clima) * 0.4),
+        lectura: `Rotación del ${h.rotacion} % y eNPS de ${h.clima}. Cada salida en plena rampa reinicia una curva de aprendizaje.` },
+      { key: 'reclutamiento', corto: 'Reclutamiento', nombre: 'Tiempo de reclutamiento', vars: ['humano.tiempoContratacion', 'inversion.anticipo'],
+        score: mesReclutar >= 1 ? 100 : C(100 + (mesReclutar - 1) * 25),
+        lectura: mesReclutar >= 1 ? `Debes abrir los procesos de selección en el mes ${mesReclutar}.` : `Para tener a la gente en el mes ${hireStart} tendrías que haber empezado hace ${1 - mesReclutar} meses.` },
+      { key: 'aprendizaje', corto: 'Aprendizaje', nombre: 'Aprendizaje y formación', vars: ['humano.curva', 'humano.formacion'],
+        score: C(100 - Math.max(0, h.curva - rampa) * 10 - Math.max(0, 20 - h.formacion) * 2),
+        lectura: h.curva > rampa ? `Las personas nuevas tardan ${h.curva} meses en rendir y la rampa comercial es de ${rampa}: la rampa real se alarga.` : `La curva de aprendizaje (${h.curva} meses) cabe dentro de la rampa.` },
+      { key: 'sucesion', corto: 'Sucesión', nombre: 'Sucesión y polivalencia', vars: ['humano.sucesion', 'humano.polivalencia'],
+        score: C(h.sucesion * 0.65 + h.polivalencia * 0.55),
+        lectura: `${h.sucesion} % de puestos clave con sustituto y ${h.polivalencia} % de polivalencia. Una baja larga en un puesto sin sustituto para la operación.` },
+      { key: 'carga', corto: 'Carga', nombre: 'Carga y absentismo', vars: ['humano.absentismo', 'humano.horasExtra'],
+        score: C(100 - Math.max(0, h.absentismo - 3) * 7 - Math.max(0, h.horasExtra - 5) * 4),
+        lectura: `Absentismo del ${h.absentismo} %: cada contratación cuesta un ${h.absentismo} % más. ${h.horasExtra > 8 ? 'El equipo está saturado.' : 'Hay holgura razonable.'}` }
     ];
-    const weights = { mando: 0.22, absorcion: 0.16, fundador: 0.2, procesos: 0.18, rotacion: 0.1, reclutamiento: 0.14 };
+    const weights = { mando: 0.16, absorcion: 0.12, fundador: 0.14, procesos: 0.13, estabilidad: 0.09, reclutamiento: 0.1, aprendizaje: 0.1, sucesion: 0.09, carga: 0.07 };
     const score = dims.reduce((a, d) => a + d.score * weights[d.key], 0);
     const acciones = [];
     if (gapMandos) acciones.push({ que: `Incorporar o promocionar ${gapMandos} mando${gapMandos > 1 ? 's' : ''} intermedio${gapMandos > 1 ? 's' : ''}`, cuando: Math.max(1, hireStart - 3), coste: gapMandos * inv.salario * 1.35 });
+    if (h.mandosFormados < 50) acciones.push({ que: 'Programa de formación en dirección de equipos para los mandos', cuando: 1, coste: h.mandos * 1800 });
     if (h.dependencia > 60) acciones.push({ que: 'Mapa de decisiones: qué decide quién, con qué límites de importe', cuando: 1, coste: 0 });
     if (h.procesos < 50) acciones.push({ que: `Documentar los procesos críticos hasta el 60 % (hoy ${h.procesos} %)`, cuando: 1, coste: 12000 });
     if (crec > 0.3) acciones.push({ que: 'Plan de acogida de 30-60-90 días con tutor asignado', cuando: Math.max(1, hireStart - 1), coste: 4000 });
-    if (h.rotacion > 15) acciones.push({ que: 'Plan de retención de perfiles clave antes del arranque', cuando: 1, coste: 15000 });
+    if (h.rotacion > 15 || h.clima < 0) acciones.push({ que: 'Plan de retención de perfiles clave antes del arranque', cuando: 1, coste: 15000 });
+    if (h.sucesion < 50) acciones.push({ que: 'Nombrar y formar sustitutos para los puestos críticos', cuando: 2, coste: 6000 });
+    if (h.horasExtra > 8) acciones.push({ que: 'Reducir horas extra antes de crecer: contratar el primer refuerzo antes del arranque', cuando: Math.max(1, hireStart - 2), coste: inv.salario / 4 });
+    if (h.curva > rampa) acciones.push({ que: `Acortar la curva de aprendizaje de ${h.curva} a ${rampa} meses con manuales y formación en puesto`, cuando: Math.max(1, hireStart - 1), coste: 5000 });
     if (mesReclutar < 1) acciones.push({ que: `Abrir ya la selección o retrasar el arranque ${1 - mesReclutar} meses`, cuando: 1, coste: 0 });
-    else acciones.push({ que: `Abrir selección de ${nuevas} perfiles`, cuando: mesReclutar, coste: nuevas * 2500 });
-    return { score, dims, acciones, total, nuevas, mandosNecesarios, gapMandos, crec, mesReclutar, hireStart };
+    else acciones.push({ que: `Abrir selección de ${nuevas} perfiles`, cuando: mesReclutar, coste: nuevas * h.costeSeleccion });
+    const costePreparacion = acciones.reduce((a, x) => a + x.coste, 0);
+    return { score, dims, acciones, total, nuevas, mandosNecesarios, gapMandos, crec, mesReclutar, hireStart, costePreparacion, h };
   };
 
-  /* ---------- Semáforos ---------- */
+  /* ---------- Semáforos ----------
+   * Cada indicador define su valor, su sentido (mejor alto o bajo), los umbrales de verde y ámbar,
+   * y las variables con las que se corrige: directas (lo mueven al instante) e indirectas (lo mueven a través de otra magnitud).
+   */
+  const V = (path, nombre) => ({ path, nombre });
+  A.LIGHT_DEFS = [
+    { key: 'liquidez', nombre: 'Liquidez', better: 1,
+      value: (r) => r.cajaRef, fmt: (v) => A.fmt.eur(v),
+      ok: (s, r) => Math.max(s.meta.cajaMin, r.colchon), warn: () => 0,
+      que: 'El punto más bajo de dinero disponible en los próximos 60 meses (caja más póliza libre si así lo has elegido).',
+      lectura: (r) => r.cajaRef < 0 ? `En el mes ${r.mesCajaRef} faltarían ${A.fmt.eur(-r.cajaRef)}: la inversión rompe la tesorería si no se refuerza la financiación.` : `El punto más bajo llega en el mes ${r.mesCajaRef}, con ${A.fmt.num(Math.max(0, r.colMin))} meses de colchón.`,
+      directas: [V('empresa.caja', 'Caja disponible'), V('empresa.polizaLimite', 'Límite de la póliza'), V('inversion.pctFin', 'Parte financiada'), V('inversion.aportacion', 'Aportación de socios'), V('inversion.carencia', 'Carencia'), V('inversion.plazo', 'Plazo del préstamo')],
+      indirectas: [V('empresa.dso', 'Días de cobro'), V('empresa.dio', 'Días de stock'), V('empresa.dpo', 'Días de pago'), V('inversion.incVentas', 'Venta nueva (más venta inmoviliza más circulante)'), V('inversion.anticipo', 'Anticipo de contratación'), V('inversion.importe', 'Importe de la inversión')],
+      consejo: 'Primero alarga plazo y carencia o amplía la póliza (no cuesta margen). Si no basta, cobra antes y paga más tarde. Solo después recorta o fasea la inversión.' },
+    { key: 'cobertura', nombre: 'Cobertura de deuda', better: 1,
+      value: (r) => r.dscrMin, fmt: (v) => A.fmt.x(v),
+      ok: (s) => s.meta.dscrMin, warn: () => 1,
+      que: 'Cuántas veces lo que genera el negocio paga las cuotas de todos los préstamos en el peor año.',
+      lectura: (r) => r.dscrMin < 1 ? 'En algún año el negocio no genera lo suficiente para pagar las cuotas: habría que tirar de caja o de póliza.' : 'El negocio genera lo suficiente para pagar las cuotas.',
+      directas: [V('inversion.plazo', 'Plazo del préstamo'), V('inversion.carencia', 'Carencia'), V('inversion.tipo', 'Tipo de interés'), V('inversion.pctFin', 'Parte financiada')],
+      indirectas: [V('inversion.margenNuevo', 'Margen de la actividad nueva'), V('inversion.incVentas', 'Venta nueva'), V('inversion.fijosNuevos', 'Fijos nuevos'), V('inversion.contrataciones', 'Contrataciones')],
+      consejo: 'Un plazo más largo baja la cuota de inmediato. Mejorar margen o contener fijos sube lo que genera el negocio.' },
+    { key: 'endeudamiento', nombre: 'Endeudamiento', better: -1,
+      value: (r) => r.deudaEbitda, fmt: (v) => A.fmt.x(v) + ' EBITDA',
+      ok: (s) => s.meta.deudaEbitdaMax, warn: (s) => s.meta.deudaEbitdaMax + 1,
+      que: 'Años de beneficio operativo que harían falta para devolver toda la deuda neta.',
+      lectura: (r) => `La deuda neta equivale a ${A.fmt.x(r.deudaEbitda)} el EBITDA en los dos primeros años tras invertir.`,
+      directas: [V('inversion.pctFin', 'Parte financiada'), V('inversion.aportacion', 'Aportación de socios'), V('inversion.importe', 'Importe de la inversión'), V('empresa.deudaViva', 'Deuda actual')],
+      indirectas: [V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.incVentas', 'Venta nueva'), V('empresa.personal', 'Coste de personal')],
+      consejo: 'Menos deuda (más aportación o inversión por fases) o más EBITDA. Cuidado: bajar la deuda suele castigar la liquidez.' },
+    { key: 'retorno', nombre: 'Retorno', better: -1,
+      value: (r) => Math.min(r.payback, 600), fmt: (v) => A.fmt.months(v),
+      ok: (s) => s.meta.paybackMax * 12, warn: (s) => s.inversion.vidaUtil * 12,
+      que: 'Tiempo que tarda el flujo que genera la inversión en devolver lo invertido.',
+      lectura: (r, s) => r.payback > s.inversion.vidaUtil * 12 ? 'No se recupera dentro de la vida útil del activo: el proyecto destruye valor.' : `Se recupera en ${A.fmt.months(r.payback)}.`,
+      directas: [V('inversion.importe', 'Importe'), V('inversion.incVentas', 'Venta nueva'), V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.fijosNuevos', 'Fijos nuevos'), V('inversion.contrataciones', 'Contrataciones')],
+      indirectas: [V('inversion.rampa', 'Meses de rampa'), V('empresa.dso', 'Días de cobro'), V('inversion.salario', 'Coste por persona')],
+      consejo: 'La financiación no acorta el retorno: solo lo hacen más margen, más venta, menos coste o menos inversión.' },
+    { key: 'rentabilidad', nombre: 'Rentabilidad', better: 1,
+      value: (r) => (r.tir === null ? -1 : r.tir * 100), fmt: (v) => (v <= -1 ? 'TIR n/d' : 'TIR ' + A.fmt.pct(v)),
+      ok: (s) => s.inversion.tipo + 4, warn: () => 8,
+      que: 'Rentabilidad anual del proyecto (TIR) comparada con lo que cuesta el dinero.',
+      lectura: (r, s) => `Verde exige superar el tipo del préstamo más 4 puntos (${A.fmt.pct(s.inversion.tipo + 4)}); por debajo del 8 % el proyecto no cubre el coste de oportunidad.`,
+      directas: [V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.incVentas', 'Venta nueva'), V('inversion.importe', 'Importe')],
+      indirectas: [V('inversion.rampa', 'Meses de rampa'), V('inversion.vidaUtil', 'Vida útil'), V('inversion.fijosNuevos', 'Fijos nuevos')],
+      consejo: 'Revisa el precio y el mix de la actividad nueva antes que la financiación.' },
+    { key: 'dimension', nombre: 'Dimensión', better: -1,
+      value: (r) => r.dim.sobreEbitda, fmt: (v) => A.fmt.x(v) + ' EBITDA',
+      ok: () => 4, warn: () => 7,
+      que: 'Cuántos años de beneficio operativo actual cuesta la inversión.',
+      lectura: (r) => `Inversión ${r.dim.clase.toLowerCase()}: ${A.fmt.pct(r.dim.sobreVentas * 100)} de la venta actual.`,
+      directas: [V('inversion.importe', 'Importe de la inversión')],
+      indirectas: [V('empresa.personal', 'Coste de personal (sube el EBITDA si baja)'), V('empresa.margen', 'Margen actual'), V('empresa.fijos', 'Otros gastos fijos')],
+      consejo: 'Si la dimensión está en rojo, divide la inversión en fases que se paguen unas con otras.' },
+    { key: 'circulante', nombre: 'Circulante', better: -1,
+      value: (r) => r.wcPeak, fmt: (v) => A.fmt.eur(v),
+      ok: (s, r) => 0.5 * Math.max(1, s.empresa.caja + (r.polLim || 0)), warn: (s, r) => Math.max(1, s.empresa.caja + (r.polLim || 0)),
+      que: 'Dinero extra que se queda atrapado en clientes y almacén por vender más.',
+      lectura: (r) => `En el pico, el crecimiento inmoviliza ${A.fmt.eur(r.wcPeak)} en clientes y stock.`,
+      directas: [V('empresa.dso', 'Días de cobro'), V('empresa.dio', 'Días de stock'), V('empresa.dpo', 'Días de pago')],
+      indirectas: [V('inversion.incVentas', 'Venta nueva'), V('inversion.rampa', 'Meses de rampa'), V('inversion.margenNuevo', 'Margen nuevo')],
+      consejo: 'Cada 10 días menos de cobro libera aproximadamente la venta de 10 días. Es la palanca más barata.' },
+    { key: 'salarial', nombre: 'Peso salarial', better: -1,
+      value: (r) => r.tamano.despues.pesoSalarial, fmt: (v) => A.fmt.pct(v),
+      ok: (s) => s.meta.pesoSalarialMax, warn: (s) => s.meta.pesoSalarialMax + 4,
+      que: 'Coste de personal sobre ventas en el año de crucero.',
+      lectura: (r, s) => `Referencia del sector: ${A.SECTORS[s.sector].pesoSalarialMax} %.`,
+      directas: [V('inversion.contrataciones', 'Contrataciones'), V('inversion.salario', 'Coste por persona'), V('empresa.personal', 'Coste de personal actual')],
+      indirectas: [V('inversion.incVentas', 'Venta nueva'), V('humano.absentismo', 'Absentismo'), V('humano.curva', 'Curva de aprendizaje')],
+      consejo: 'Contrata al ritmo de la venta real, no del plan, y mide ventas por persona cada trimestre.' },
+    { key: 'margen', nombre: 'Margen bruto', better: 1,
+      value: (r) => r.tamano.despues.margen - r.tamano.antes.margen, fmt: (v) => (v >= 0 ? '+' : '') + A.fmt.pp(v),
+      ok: () => -1, warn: () => -4,
+      que: 'Cuánto cambia el margen bruto total al sumar la actividad nueva.',
+      lectura: (r) => `Margen en crucero ${A.fmt.pct(r.tamano.despues.margen)} frente a ${A.fmt.pct(r.tamano.antes.margen)} hoy.`,
+      directas: [V('inversion.margenNuevo', 'Margen de la actividad nueva'), V('empresa.margen', 'Margen actual')],
+      indirectas: [V('inversion.incVentas', 'Peso de la venta nueva en el total')],
+      consejo: 'Crecer con menos margen solo compensa si la venta adicional cubre de sobra los fijos nuevos.' },
+    { key: 'humano', nombre: 'Sistema humano', better: 1,
+      value: (r) => r.humano.score, fmt: (v) => Math.round(v) + '/100',
+      ok: () => 70, warn: () => 50,
+      que: 'Preparación de la organización para sostener el nuevo tamaño.',
+      lectura: (r) => r.humano.dims.slice().sort((a, b) => a.score - b.score).slice(0, 2).map((d) => `${d.nombre}: ${Math.round(d.score)}`).join(' · ') + ' son los puntos débiles.',
+      directas: [V('humano.mandos', 'Mandos intermedios'), V('humano.procesos', 'Procesos documentados'), V('humano.dependencia', 'Dependencia del fundador'), V('humano.sucesion', 'Puestos clave con sustituto')],
+      indirectas: [V('inversion.contrataciones', 'Contrataciones'), V('inversion.anticipo', 'Anticipo de contratación'), V('humano.rotacion', 'Rotación'), V('humano.formacion', 'Horas de formación')],
+      consejo: 'Nombra responsables antes del arranque y escribe los procesos críticos: son baratos y decisivos.' }
+  ];
+  A.lightState = (def, v, s, r) => {
+    const ok = def.ok(s, r), wr = def.warn(s, r);
+    if (def.better > 0) return v >= ok ? 'ok' : v >= wr ? 'warn' : 'stop';
+    return v <= ok ? 'ok' : v <= wr ? 'warn' : 'stop';
+  };
+  /* Texto de la horquilla de cada color */
+  A.lightRanges = (def, s, r) => {
+    const ok = def.ok(s, r), wr = def.warn(s, r), f = def.fmt;
+    if (def.better > 0) return { ok: `≥ ${f(ok)}`, warn: `de ${f(wr)} a ${f(ok)}`, stop: `< ${f(wr)}` };
+    return { ok: `≤ ${f(ok)}`, warn: `de ${f(ok)} a ${f(wr)}`, stop: `> ${f(wr)}` };
+  };
   A.lights = function (state, r) {
-    const meta = state.meta, sec = A.SECTORS[state.sector], inv = state.inversion;
-    const L = [];
-    const add = (key, nombre, estado, valor, lectura) => L.push({ key, nombre, estado, valor, lectura });
-    const fmt = A.fmt;
-    add('liquidez', 'Liquidez', r.cajaMin >= Math.max(meta.cajaMin, r.colchon) ? 'ok' : r.cajaMin >= 0 ? 'warn' : 'stop',
-      fmt.eur(r.cajaMin), r.cajaMin < 0 ? `La caja entra en negativo en el mes ${r.mesCajaMin}: sin financiación adicional, la inversión rompe la tesorería.` : `El punto más bajo de caja llega en el mes ${r.mesCajaMin}.`);
-    add('cobertura', 'Cobertura de deuda', r.dscrMin >= meta.dscrMin ? 'ok' : r.dscrMin >= 1 ? 'warn' : 'stop',
-      `DSCR ${fmt.x(r.dscrMin)}`, r.dscrMin < 1 ? 'El negocio no genera suficiente para pagar la deuda en al menos un año.' : 'El flujo operativo cubre el servicio de la deuda.');
-    add('endeudamiento', 'Endeudamiento', r.deudaEbitda <= meta.deudaEbitdaMax ? 'ok' : r.deudaEbitda <= meta.deudaEbitdaMax + 1 ? 'warn' : 'stop',
-      `${fmt.x(r.deudaEbitda)} EBITDA`, 'Deuda financiera neta sobre EBITDA en los dos primeros años tras el arranque.');
-    add('retorno', 'Retorno', r.payback <= meta.paybackMax * 12 ? 'ok' : r.payback <= inv.vidaUtil * 12 ? 'warn' : 'stop',
-      fmt.months(r.payback), r.payback > inv.vidaUtil * 12 ? 'La inversión no se recupera dentro de su vida útil.' : 'Meses para recuperar la inversión con el flujo operativo que genera.');
-    add('rentabilidad', 'Rentabilidad', r.tir !== null && r.tir > (inv.tipo / 100) + 0.04 ? 'ok' : r.van > 0 ? 'warn' : 'stop',
-      r.tir === null ? 'TIR n/d' : `TIR ${fmt.pct(r.tir * 100)}`, 'Compara la rentabilidad del proyecto con el coste de la deuda más una prima de riesgo.');
-    add('dimension', 'Dimensión', r.dim.sobreVentas < 0.4 && r.dim.sobreEbitda < 4 ? 'ok' : r.dim.sobreVentas < 0.8 && r.dim.sobreEbitda < 7 ? 'warn' : 'stop',
-      `${fmt.x(r.dim.sobreEbitda)} EBITDA`, `Inversión ${r.dim.clase.toLowerCase()}: ${fmt.pct(r.dim.sobreVentas * 100)} de la venta actual.`);
-    add('circulante', 'Circulante', r.wcPeak < 0.5 * Math.max(1, state.empresa.caja) ? 'ok' : r.wcPeak < state.empresa.caja ? 'warn' : 'stop',
-      fmt.eur(r.wcPeak), 'Caja extra que se queda atrapada en clientes y stock por vender más.');
-    const ps = r.tamano.despues.pesoSalarial;
-    add('salarial', 'Peso salarial', ps <= meta.pesoSalarialMax ? 'ok' : ps <= meta.pesoSalarialMax + 4 ? 'warn' : 'stop',
-      fmt.pct(ps), `Personal sobre ventas en el año de crucero. Referencia del sector: ${sec.pesoSalarialMax} %.`);
-    const dm = r.tamano.despues.margen - r.tamano.antes.margen;
-    add('margen', 'Margen bruto', dm >= -1 ? 'ok' : dm >= -4 ? 'warn' : 'stop',
-      fmt.pct(r.tamano.despues.margen), dm < 0 ? `Baja ${fmt.pp(-dm)} respecto a hoy: el crecimiento diluye margen.` : 'El crecimiento no diluye el margen.');
-    add('humano', 'Sistema humano', r.humano.score >= 70 ? 'ok' : r.humano.score >= 50 ? 'warn' : 'stop',
-      `${Math.round(r.humano.score)}/100`, 'Preparación de la organización para absorber el nuevo tamaño.');
-    return L;
+    return A.LIGHT_DEFS.map((d) => {
+      const v = d.value(r, state);
+      return { key: d.key, nombre: d.nombre, estado: A.lightState(d, v, state, r), valor: d.fmt(v), v, lectura: d.lectura(r, state), rangos: A.lightRanges(d, state, r), def: d };
+    });
   };
 
   A.verdict = function (lights) {
@@ -455,7 +603,7 @@
   A.checkTargets = function (state, r) {
     const m = state.meta;
     return [
-      { key: 'cajaMin', nombre: 'Caja mínima', objetivo: m.cajaMin, valor: r.cajaMin, ok: r.cajaMin >= m.cajaMin, gap: (m.cajaMin - r.cajaMin) / Math.max(50000, Math.abs(m.cajaMin)), f: A.fmt.eur },
+      { key: 'cajaMin', nombre: r.contarPoliza ? 'Liquidez mínima' : 'Caja mínima', objetivo: m.cajaMin, valor: r.cajaRef, ok: r.cajaRef >= m.cajaMin, gap: (m.cajaMin - r.cajaRef) / Math.max(50000, Math.abs(m.cajaMin)), f: A.fmt.eur },
       { key: 'payback', nombre: 'Recuperación', objetivo: m.paybackMax * 12, valor: r.payback, ok: r.payback <= m.paybackMax * 12, gap: (Math.min(r.payback, 240) - m.paybackMax * 12) / (m.paybackMax * 12), f: A.fmt.months },
       { key: 'dscr', nombre: 'Cobertura deuda', objetivo: m.dscrMin, valor: r.dscrMin, ok: r.dscrMin >= m.dscrMin, gap: (m.dscrMin - r.dscrMin) / m.dscrMin, f: A.fmt.x },
       { key: 'deuda', nombre: 'Deuda / EBITDA', objetivo: m.deudaEbitdaMax, valor: r.deudaEbitda, ok: r.deudaEbitda <= m.deudaEbitdaMax, gap: (Math.min(r.deudaEbitda, 20) - m.deudaEbitdaMax) / m.deudaEbitdaMax, f: A.fmt.x },
@@ -475,7 +623,7 @@
   ];
 
   A.sensitivity = function (state, mods, metric) {
-    metric = metric || 'cajaMin';
+    metric = metric || 'cajaRef';
     const baseR = A.analyze(state, mods);
     const pick = (r) => r[metric];
     const apply = (d) => {
@@ -529,7 +677,7 @@
       const enPlazo = mesPleno <= state.meta.plazoObjetivo;
       const metasOk = r.metas.filter((t) => t.ok).length;
       const score = clamp(
-        (r.cajaMin >= state.meta.cajaMin ? 25 : r.cajaMin >= 0 ? 12 : 0) +
+        (r.cajaRef >= state.meta.cajaMin ? 25 : r.cajaRef >= 0 ? 12 : 0) +
         (enPlazo ? 20 : 8) + st.control * 0.15 + st.aislamiento * 0.15 + (100 - st.complejidad) * 0.1 +
         metasOk * 3, 0, 100);
       return { key: k, ...st, r, mesPleno, enPlazo, metasOk, score };
@@ -538,6 +686,7 @@
 
   /* ---------- Plan de corrección (búsqueda de palancas) ---------- */
   A.LEVERS = [
+    { key: 'polizaLimite', step: 10000, path: ['empresa', 'polizaLimite'], nombre: 'Contratar o ampliar la póliza de crédito', esfuerzo: 1, max: (s) => Math.max(150000, Math.round((s.empresa.polizaLimite || 0) * 2)), unidad: '€', resp: 'Dirección financiera', soloPoliza: true },
     { key: 'pctFin', step: 1, path: ['inversion', 'pctFin'], nombre: 'Financiar más parte de la inversión', esfuerzo: 1, max: (s) => 90, unidad: '%', resp: 'Dirección financiera' },
     { key: 'plazo', step: 0.5, path: ['inversion', 'plazo'], nombre: 'Alargar el plazo del préstamo', esfuerzo: 1, max: (s) => 12, unidad: 'años', resp: 'Dirección financiera' },
     { key: 'carencia', step: 1, path: ['inversion', 'carencia'], nombre: 'Negociar carencia alineada con la rampa', esfuerzo: 1, max: (s) => 24, unidad: 'meses', resp: 'Dirección financiera' },
@@ -560,7 +709,7 @@
 
     // Primero: ¿qué metas son alcanzables moviendo todas las palancas a la vez?
     const tope = clone(state);
-    A.LEVERS.forEach((lv) => setP(tope, lv.path, lv.max(state)));
+    A.LEVERS.forEach((lv) => { if (!(lv.soloPoliza && state.meta.contarPoliza === false)) setP(tope, lv.path, lv.max(state)); });
     const rTope = A.analyze(tope, mods);
     const inalcanzables = rTope.metas.filter((t) => !t.ok).map((t) => t.key);
     const cuenta = (metas) => metas.filter((t) => inalcanzables.indexOf(t.key) < 0);
@@ -574,7 +723,7 @@
     };
 
     // Cada palanca por separado: ¿basta sola?
-    const individuales = A.LEVERS.map((lv) => {
+    const individuales = A.LEVERS.filter((lv) => !(lv.soloPoliza && state.meta.contarPoliza === false)).map((lv) => {
       const cur = getP(state, lv.path);
       if (Math.abs(lv.max(state) - cur) < 1e-6) return null;
       let best = null;
@@ -591,7 +740,7 @@
     let s = clone(state);
     let cur = evalS(s);
     const usadas = [];
-    const libres = A.LEVERS.filter((lv) => Math.abs(lv.max(state) - getP(state, lv.path)) > 1e-6);
+    const libres = A.LEVERS.filter((lv) => !(lv.soloPoliza && state.meta.contarPoliza === false)).filter((lv) => Math.abs(lv.max(state) - getP(state, lv.path)) > 1e-6);
     for (let ronda = 0; ronda < A.LEVERS.length && !cur.ok; ronda++) {
       let best = null;
       for (const lv of libres) {
@@ -652,7 +801,7 @@
     contrataciones: { nombre: 'Contrataciones', path: ['inversion', 'contrataciones'], min: 0, max: (s) => Math.max(10, s.inversion.contrataciones * 2.5), unidad: 'pers.' }
   };
   A.METRICS = {
-    cajaMin: { nombre: 'Caja mínima', f: (r) => r.cajaMin, fmt: (v) => A.fmt.eur(v), better: 1, threshold: (s) => s.meta.cajaMin, warn: () => 0 },
+    cajaMin: { nombre: 'Liquidez mínima', f: (r) => r.cajaRef, fmt: (v) => A.fmt.eur(v), better: 1, threshold: (s) => s.meta.cajaMin, warn: () => 0 },
     payback: { nombre: 'Recuperación (meses)', f: (r) => Math.min(r.payback, 180), fmt: (v) => A.fmt.months(v), better: -1, threshold: (s) => s.meta.paybackMax * 12, warn: (s) => s.inversion.vidaUtil * 12 },
     dscrMin: { nombre: 'Cobertura de deuda', f: (r) => Math.min(r.dscrMin, 6), fmt: (v) => A.fmt.x(v), better: 1, threshold: (s) => s.meta.dscrMin, warn: () => 1 },
     van: { nombre: 'VAN del proyecto', f: (r) => r.van, fmt: (v) => A.fmt.eur(v), better: 1, threshold: (s) => s.inversion.importe * 0.1, warn: () => 0 }
@@ -680,7 +829,7 @@
         const r = A.analyze(s, mods);
         const v = M.f(r);
         mn = Math.min(mn, v); mx = Math.max(mx, v);
-        row.push({ x: xv, y: yv, v, estado: r.verdict.key, cajaMin: r.cajaMin, payback: r.payback, dscr: r.dscrMin });
+        row.push({ x: xv, y: yv, v, estado: r.verdict.key, cajaMin: r.cajaRef, payback: r.payback, dscr: r.dscrMin });
       }
       grid.push(row);
     }

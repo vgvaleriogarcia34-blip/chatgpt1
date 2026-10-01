@@ -13,9 +13,11 @@
     const e = state.empresa;
     const parts = [];
     parts.push(`En el escenario ${scName.toLowerCase()}, la inversión de ${F.eur(r.dim.inversion)} es ${r.dim.clase.toLowerCase()} para una empresa que hoy factura ${F.eur(e.ventas)}: equivale a ${F.x(r.dim.sobreEbitda)} su EBITDA actual y al ${F.pct(r.dim.sobreFondos * 100)} de sus fondos propios.`);
-    parts.push(r.cajaMin < 0
-      ? `La tesorería se rompe: la caja cae hasta ${F.eur(r.cajaMin)} en el mes ${r.mesCajaMin}. La empresa no puede afrontar el movimiento solo con su rentabilidad tal como está planteado.`
-      : `La caja no se rompe: su punto más bajo es ${F.eur(r.cajaMin)} en el mes ${r.mesCajaMin}${r.cajaMin < state.meta.cajaMin ? `, por debajo del colchón exigido de ${F.eur(state.meta.cajaMin)}` : ''}.`);
+    const liq = r.contarPoliza ? 'liquidez (caja más póliza disponible)' : 'caja';
+    parts.push(r.cajaRef < 0
+      ? `La tesorería se rompe: la ${liq} cae hasta ${F.eur(r.cajaRef)} en el mes ${r.mesCajaRef}. La empresa no puede afrontar el movimiento solo con su rentabilidad tal como está planteado.`
+      : `La tesorería no se rompe: el punto más bajo de ${liq} es ${F.eur(r.cajaRef)} en el mes ${r.mesCajaRef}, con ${String(Math.round(r.colMin * 10) / 10).replace('.', ',')} meses de colchón${r.cajaRef < state.meta.cajaMin ? `, por debajo del mínimo exigido de ${F.eur(state.meta.cajaMin)}` : ''}.`);
+    if (r.polLim) parts.push(`La póliza de crédito de ${F.eur(r.polLim)} llega a usarse hasta ${F.eur(r.polizaMax)} (mes ${r.mesPolMax}) y cuesta ${F.eur(r.costePolizaTotal)} en cinco años.`);
     parts.push(`La cuota del préstamo nuevo será de ${F.eur(r.cuotaNueva)} al mes${r.cuotaCarencia > 0 && state.inversion.carencia > 0 ? ` (${F.eur(r.cuotaCarencia)} durante la carencia)` : ''}; junto a la deuda existente consume el ${F.pct(r.cuotaSobreEbitda)} del EBITDA mensual en crucero.`);
     parts.push(`El proyecto recupera la inversión en ${F.months(r.payback)} con su flujo operativo, y la caja de la propiedad vuelve al nivel que habría tenido sin invertir en ${F.months(r.paybackCaja)}.`);
     const d = r.tamano;
@@ -48,16 +50,16 @@
       <div><span>Préstamo</span><b>${F.eur(r.loan)}</b></div>
       <div><span>Cuota mensual</span><b>${F.eur(r.cuotaNueva)}</b></div></div>`;
 
-    h += `<h2>3. Escenarios</h2><div class="table-wrap"><table><thead><tr><th>Escenario</th><th>Caja mínima</th><th>Mes</th><th>Caja a 5 años</th><th>Recuperación</th><th>DSCR mín.</th><th>Deuda/EBITDA</th><th>VAN</th><th>Veredicto</th></tr></thead><tbody>`;
+    h += `<h2>3. Escenarios</h2><div class="table-wrap"><table><thead><tr><th>Escenario</th><th>Liquidez mín.</th><th>Mes</th><th>Colchón mín.</th><th>Caja a 5 años</th><th>Recuperación</th><th>DSCR mín.</th><th>Deuda/EBITDA</th><th>VAN</th><th>Veredicto</th></tr></thead><tbody>`;
     ctx.all.filter((x) => inc.indexOf(x.key) >= 0).forEach((x) => {
       const q = x.r;
-      h += `<tr><td>${x.nombre}</td><td>${F.eur(q.cajaMin)}</td><td>${q.mesCajaMin}</td><td>${F.eur(q.cajaFinal)}</td><td>${F.months(q.payback)}</td><td>${F.x(q.dscrMin)}</td><td>${F.x(q.deudaEbitda)}</td><td>${F.eur(q.van)}</td><td>${pill(vKey[q.verdict.key], q.verdict.titulo)}</td></tr>`;
+      h += `<tr><td>${x.nombre}</td><td>${F.eur(q.cajaRef)}</td><td>${q.mesCajaRef}</td><td>${String(Math.round(q.colMin * 10) / 10).replace('.', ',')} m</td><td>${F.eur(q.cajaFinal)}</td><td>${F.months(q.payback)}</td><td>${F.x(q.dscrMin)}</td><td>${F.x(q.deudaEbitda)}</td><td>${F.eur(q.van)}</td><td>${pill(vKey[q.verdict.key], q.verdict.titulo)}</td></tr>`;
     });
     h += `</tbody></table></div><div class="chart" id="repCash" style="margin-top:14px"></div>`;
     ctx.all.filter((x) => inc.indexOf(x.key) >= 0).forEach((x) => { h += `<p><b>${x.nombre}.</b> ${x.desc}</p>`; });
 
-    h += `<h2>4. Semáforos de movimiento</h2><div class="table-wrap"><table><thead><tr><th>Indicador</th><th>Lectura</th><th>Estado</th><th style="text-align:left">Qué significa</th></tr></thead><tbody>`;
-    r.lights.forEach((l) => { h += `<tr><td>${l.nombre}</td><td>${l.valor}</td><td>${pill(l.estado, stTxt[l.estado])}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${l.lectura}</td></tr>`; });
+    h += `<h2>4. Semáforos de movimiento</h2><div class="table-wrap"><table><thead><tr><th>Indicador</th><th>Lectura</th><th>Estado</th><th>Verde</th><th>Ámbar</th><th>Rojo</th><th style="text-align:left">Cómo corregirlo</th></tr></thead><tbody>`;
+    r.lights.forEach((l) => { h += `<tr><td>${l.nombre}</td><td>${l.valor}</td><td>${pill(l.estado, stTxt[l.estado])}</td><td>${l.rangos.ok}</td><td>${l.rangos.warn}</td><td>${l.rangos.stop}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:200px">${l.lectura} ${l.def.consejo}</td></tr>`; });
     h += `</tbody></table></div>`;
 
     const t = r.tamano;
@@ -81,8 +83,8 @@
     hu.acciones.slice().sort((a, b) => a.cuando - b.cuando).forEach((a) => { h += `<li>Mes ${a.cuando}: ${a.que}${a.coste ? ` (coste estimado ${F.eur(a.coste)})` : ''}.</li>`; });
     h += `</ul>`;
 
-    h += `<h2>8. Estructura societaria</h2><div class="table-wrap"><table><thead><tr><th>Vehículo</th><th>Encaje</th><th>Caja mínima</th><th>Recuperación</th><th>Tamaño pleno</th><th>Control</th><th>Metas</th></tr></thead><tbody>`;
-    ctx.structs.forEach((s) => { h += `<tr><td>${s.nombre}${s.key === state.estructura ? ' (actual)' : ''}</td><td>${Math.round(s.score)}</td><td>${F.eur(s.r.cajaMin)}</td><td>${F.months(s.r.payback)}</td><td>mes ${s.mesPleno} ${s.enPlazo ? '' : '(fuera de plazo)'}</td><td>${s.control} %</td><td>${s.metasOk}/5</td></tr>`; });
+    h += `<h2>8. Estructura societaria</h2><div class="table-wrap"><table><thead><tr><th>Vehículo</th><th>Encaje</th><th>Liquidez mínima</th><th>Recuperación</th><th>Tamaño pleno</th><th>Control</th><th>Metas</th></tr></thead><tbody>`;
+    ctx.structs.forEach((s) => { h += `<tr><td>${s.nombre}${s.key === state.estructura ? ' (actual)' : ''}</td><td>${Math.round(s.score)}</td><td>${F.eur(s.r.cajaRef)}</td><td>${F.months(s.r.payback)}</td><td>mes ${s.mesPleno} ${s.enPlazo ? '' : '(fuera de plazo)'}</td><td>${s.control} %</td><td>${s.metasOk}/5</td></tr>`; });
     h += `</tbody></table></div><p>Mejor encaje para tus objetivos: <b>${ctx.structs[0].nombre}</b>. ${ctx.structs[0].desc}</p>`;
 
     const P = ctx.plan;
@@ -94,7 +96,7 @@
     else {
       if (P.acciones.length) {
         h += `<h3>Acciones, de la más sencilla a la más costosa</h3><ol>`;
-        P.acciones.forEach((a) => { h += `<li><b>${a.lv.nombre}:</b> de ${R.lv(a.lv, a.desde)} a ${R.lv(a.lv, a.hasta)}. Responsable: ${a.lv.resp}. Caja mínima ${F.eur(a.antes.cajaMin)} → ${F.eur(a.despues.cajaMin)}.</li>`; });
+        P.acciones.forEach((a) => { h += `<li><b>${a.lv.nombre}:</b> de ${R.lv(a.lv, a.desde)} a ${R.lv(a.lv, a.hasta)}. Responsable: ${a.lv.resp}. Liquidez mínima ${F.eur(a.antes.cajaRef)} → ${F.eur(a.despues.cajaRef)}.</li>`; });
         h += `</ol>`;
       }
       if (P.inalcanzables && P.inalcanzables.length) h += `<p><b>No alcanzable solo con palancas:</b> ${P.inalcanzables.map((m) => m.nombre.toLowerCase()).join(', ')}. Exige rediseñar el proyecto (otra estructura, otro tamaño de inversión o revisar la tesis comercial).</p>`;

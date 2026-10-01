@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atalaya · Usuarios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/atalaya.css">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body class="site">
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<header class="topbar"><a class="brand" href="index.html"><b>Atalaya</b><span>Gestor de usuarios</span></a><span class="spacer"></span><a class="btn ghost" href="app.html">Simulador</a><div class="account" id="account"></div></header>
+<main class="admin-main">
+  <div class="eyebrow">Administración</div>
+  <h2>Usuarios, <em>pagos y uso</em></h2>
+  <p class="lede">Controla quién tiene acceso, quién ha pagado, cuándo vence cada plan y cuántas horas usa cada cliente Atalaya.</p>
+  <div id="modeNote" class="mt"></div>
+  <div class="kpis" id="akpis"></div>
+  <div class="grid cols-2 mt">
+    <div class="glass pad stack"><h4>Horas de uso · últimos 30 días</h4><div class="chart" id="usageChart"></div></div>
+    <div class="glass pad stack"><h4>Pendiente de atender</h4><div id="pending" class="small"></div></div>
+  </div>
+  <div class="glass pad mt stack">
+    <div class="row"><h4>Usuarios</h4><span class="spacer"></span><input class="input" id="q" placeholder="Buscar por nombre, correo o empresa" style="min-width:240px"><select id="fEstado"><option value="">Todos</option><option value="prueba">En prueba</option><option value="activo">Pagando</option><option value="vencido">Vencidos o impagados</option><option value="bloqueado">Bloqueados</option></select><button class="btn ghost" id="csv">Copiar CSV</button></div>
+    <div class="table-wrap" id="utable"></div>
+  </div>
+</main>
+<div class="modal-back" id="modal" hidden><div class="modal" role="dialog" aria-modal="true" id="modalBody"></div></div>
+<script src="js/platform.js"></script>
+<script src="js/sectors.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

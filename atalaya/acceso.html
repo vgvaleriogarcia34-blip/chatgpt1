@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atalaya · Acceso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/atalaya.css">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body class="site">
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<header class="topbar site-nav"><a class="brand" href="index.html"><b>Atalaya</b><span>Acceso</span></a><span class="spacer"></span><a class="btn ghost" href="index.html">Volver</a></header>
+
+<main class="auth">
+  <section class="glass auth-card">
+    <div class="tabs" role="tablist"><button role="tab" id="tabIn" aria-selected="true">Entrar</button><button role="tab" id="tabUp" aria-selected="false">Crear cuenta</button></div>
+    <div id="notice"></div>
+
+    <form id="fIn" novalidate>
+      <h1>Bienvenido <em>de nuevo</em></h1>
+      <label>Correo electrónico<input class="input" id="inEmail" type="email" autocomplete="email" required></label>
+      <label>Contraseña<input class="input" id="inPass" type="password" autocomplete="current-password" required></label>
+      <button class="btn solid" type="submit">Entrar</button>
+      <p class="small muted" id="inMsg" role="alert"></p>
+    </form>
+
+    <form id="fUp" novalidate hidden>
+      <h1>Empieza tu <em>prueba</em></h1>
+      <p class="small muted" style="margin:0">14 días con todas las funciones. Sin tarjeta.</p>
+      <label>Nombre y apellidos<input class="input" id="upName" autocomplete="name" required></label>
+      <label>Empresa<input class="input" id="upCo" autocomplete="organization"></label>
+      <label>Correo electrónico<input class="input" id="upEmail" type="email" autocomplete="email" required></label>
+      <label>Teléfono (opcional)<input class="input" id="upTel" type="tel" autocomplete="tel"></label>
+      <label>Contraseña (mínimo 8 caracteres)<input class="input" id="upPass" type="password" autocomplete="new-password" minlength="8" required></label>
+      <div class="planpick" id="planPick"></div>
+      <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="upOk" required> Acepto las condiciones de uso y el tratamiento de mis datos para prestar el servicio.</label>
+      <button class="btn solid" type="submit">Crear cuenta y entrar</button>
+      <p class="small muted" id="upMsg" role="alert"></p>
+    </form>
+
+    <div id="payBox" hidden>
+      <h1>Activa <em>tu plan</em></h1>
+      <p id="payTxt"></p>
+      <button class="btn solid" id="payReq">Solicitar la activación</button>
+      <p class="small muted" id="payMsg"></p>
+      <button class="btn ghost" id="payOut">Cerrar sesión</button>
+    </div>
+  </section>
+</main>
+
+<script src="js/platform.js"></script>
+<script>
+(function () {
+  const A = window.Atalaya, P = A.platform;
+  const $ = (s) => document.querySelector(s);
+  A.sky();
+  const show = (which) => {
+    $('#fIn').hidden = which !== 'in'; $('#fUp').hidden = which !== 'up';
+    $('#tabIn').setAttribute('aria-selected', which === 'in'); $('#tabUp').setAttribute('aria-selected', which === 'up');
+  };
+  $('#tabIn').onclick = () => show('in');
+  $('#tabUp').onclick = () => show('up');
+  const h = location.hash.replace('#', '');
+  const planSel = (h.match(/^alta-(\w+)/) || [])[1] || 'profesional';
+  $('#planPick').innerHTML = Object.keys(P.PLANES).map((k) => `<label><input type="radio" name="plan" value="${k}" ${k === planSel ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.PLANES[k].precio} €/mes</small></label>`).join('');
+  if (h.startsWith('alta')) show('up');
+  addEventListener('hashchange', () => { if (location.hash.startsWith('#alta')) show('up'); });
+
+  P.ready.then(async (mode) => {
+    if (mode === 'local') $('#notice').innerHTML = '<div class="alert info">Modo demostración: no hay servidor conectado, así que las cuentas se guardan solo en este navegador. La primera cuenta que crees será la de administración.</div>';
+    const u = await P.me();
+    const acc = P.accessOf(u);
+    if (u && acc.ok) { location.href = 'app.html'; return; }
+    if (u && !acc.ok) payScreen(u, acc.motivo);
+    else if (h === 'pago' || h === 'bloqueado') $('#notice').insertAdjacentHTML('beforeend', '<div class="alert warn">Entra con tu cuenta para continuar.</div>');
+  });
+
+  function payScreen(u, motivo) {
+    $('#fIn').hidden = true; $('#fUp').hidden = true; document.querySelector('.tabs').hidden = true;
+    $('#payBox').hidden = false;
+    const pl = P.PLANES[u.plan] || P.PLANES.profesional;
+    $('#payTxt').innerHTML = motivo === 'bloqueado'
+      ? 'Tu acceso está suspendido. Escríbenos para revisarlo.'
+      : `Tu periodo de prueba ha terminado. Para seguir usando Atalaya activa el plan <b>${pl.nombre}</b> (${pl.precio} € al mes). Te enviaremos los datos de pago y, en cuanto se confirme, tu acceso se reactiva con todos tus datos.`;
+    $('#payReq').hidden = motivo === 'bloqueado';
+    $('#payReq').onclick = async () => {
+      try {
+        if (P.mode === 'server') await P.api('/me/solicitar-pago', { method: 'POST' });
+        else { const users = JSON.parse(localStorage.getItem('atalaya.users') || '[]'); const x = users.find((y) => y.id === u.id); if (x) { x.solicitudPago = new Date().toISOString(); localStorage.setItem('atalaya.users', JSON.stringify(users)); } }
+        $('#payMsg').textContent = 'Solicitud enviada. Te contactaremos con los datos de pago.';
+      } catch (e) { $('#payMsg').textContent = e.message; }
+    };
+    $('#payOut').onclick = P.logout;
+  }
+
+  $('#fIn').onsubmit = async (e) => {
+    e.preventDefault(); $('#inMsg').textContent = 'Comprobando…';
+    try {
+      const u = await P.login($('#inEmail').value, $('#inPass').value);
+      const acc = P.accessOf(u);
+      if (acc.ok) location.href = 'app.html'; else { $('#inMsg').textContent = ''; payScreen(u, acc.motivo); }
+    } catch (err) { $('#inMsg').textContent = err.message; }
+  };
+  $('#fUp').onsubmit = async (e) => {
+    e.preventDefault();
+    if (!$('#upOk').checked) { $('#upMsg').textContent = 'Acepta las condiciones para crear la cuenta.'; return; }
+    if (!$('#upName').value.trim() || !$('#upEmail').value.includes('@')) { $('#upMsg').textContent = 'Escribe tu nombre y un correo válido.'; return; }
+    $('#upMsg').textContent = 'Creando tu cuenta…';
+    try {
+      await P.register({ nombre: $('#upName').value, empresa: $('#upCo').value, email: $('#upEmail').value, telefono: $('#upTel').value, password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value });
+      location.href = 'app.html';
+    } catch (err) { $('#upMsg').textContent = err.message; }
+  };
+})();
+</script>
+</body>
+</html>

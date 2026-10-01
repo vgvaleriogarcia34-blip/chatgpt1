@@ -1,0 +1,17 @@
+{
+  "name": "atalaya-server",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Servidor de Atalaya: cuentas, control de acceso, uso, datos, asistente y agente de mercado",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0"
+  }
+}

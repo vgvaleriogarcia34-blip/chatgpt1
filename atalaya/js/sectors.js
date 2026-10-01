@@ -89,7 +89,7 @@
       empresa: {
         ventas: 4200000, margen: 38, personal: 882000, plantilla: 28,
         fijos: 336000, caja: 780000, deudaViva: 480000, cuotaDeuda: 11000,
-        fondosPropios: 1600000, dso: 75, dio: 60, dpo: 60, crecimiento: 3, impuesto: 25
+        fondosPropios: 1600000, polizaLimite: 250000, polizaDispuesta: 0, polizaTipo: 5.5, polizaComision: 0.6, dso: 75, dio: 60, dpo: 60, crecimiento: 3, impuesto: 25
       },
       inversion: {
         importe: 1500000, pctFin: 70, tipo: 5.2, plazo: 7, carencia: 6,
@@ -97,11 +97,12 @@
         contrataciones: 7, salario: 34000, anticipo: 2, fijosNuevos: 110000, vidaUtil: 10
       },
       humano: {
-        mandos: 3, dependencia: 70, procesos: 35, rotacion: 12, tiempoContratacion: 3, formacion: 2
+        mandos: 3, mandosFormados: 35, dependencia: 70, procesos: 35, rotacion: 12, clima: 5, tiempoContratacion: 3,
+        costeSeleccion: 3500, curva: 5, formacion: 14, sucesion: 30, polivalencia: 25, absentismo: 4.5, horasExtra: 9
       },
       meta: {
         cajaMin: 150000, paybackMax: 5, dscrMin: 1.25, deudaEbitdaMax: 3.0,
-        pesoSalarialMax: 26, plazoObjetivo: 24
+        pesoSalarialMax: 26, plazoObjetivo: 24, contarPoliza: true
       },
       estructura: 'directa',
       escenario: 'base',
