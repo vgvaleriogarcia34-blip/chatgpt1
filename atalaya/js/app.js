@@ -854,6 +854,7 @@
     diccionario: '<path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M4 17a3 3 0 0 1 3-3h11"/>',
     informe: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/>',
     estrategia: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+    manual: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/><path d="M8 7h7M8 11h7"/>',
     tools: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>'
   };
   const NAV = [['puente', 'Puente de mando'], ['empresa', 'La empresa hoy'], ['historia', 'Historia y cuentas'], ['inversion', 'La inversión'], ['horizonte', 'Horizonte 3D'], ['escenarios', 'Escenarios'], ['riesgos', 'Semáforos y riesgos'], ['tamano', 'Nuevo tamaño'], ['humano', 'Sistema humano'], ['estructuras', 'Estructuras'], ['plan', 'Meta y plan'], ['diccionario', 'Diccionario'], ['informe', 'Informe']];
@@ -862,7 +863,7 @@
   function buildDock() {
     const d = $('#dock');
     d.innerHTML = NAV.map(([k, n]) => `<button data-nav="${k}" aria-label="${n}">${svgI(k)}<span class="tip">${n}</span></button>`).join('') +
-      `<hr><a class="dbtn" href="estrategia.html" aria-label="Sistema estratégico">${svgI('estrategia')}<span class="tip">Sistema estratégico</span></a><button class="tool" id="toolBtn" aria-label="Caja de herramientas" aria-expanded="false">${svgI('tools')}<span class="tip">Caja de herramientas</span></button>`;
+      `<hr><a class="dbtn" href="estrategia.html" aria-label="Sistema estratégico">${svgI('estrategia')}<span class="tip">Sistema estratégico</span></a><a class="dbtn" href="manual.html" aria-label="Manual de uso">${svgI('manual')}<span class="tip">Manual de uso</span></a><button class="tool" id="toolBtn" aria-label="Caja de herramientas" aria-expanded="false">${svgI('tools')}<span class="tip">Caja de herramientas</span></button>`;
     $$('[data-nav]', d).forEach((b) => b.addEventListener('click', () => document.getElementById(b.dataset.nav).scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })));
     $('#toolBtn').addEventListener('click', toggleTools);
     if ('IntersectionObserver' in window) {

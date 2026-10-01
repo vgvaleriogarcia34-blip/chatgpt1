@@ -93,7 +93,7 @@ function startAdminSession(res) {
   db.adminSessions[sid] = { exp: new Date(Date.now() + ADMIN_HOURS * 3600e3).toISOString() };
   Object.keys(db.adminSessions).forEach((k) => { if (Date.parse(db.adminSessions[k].exp) < Date.now()) delete db.adminSessions[k]; });
   const secure = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=${sid}; HttpOnly; SameSite=Strict; Path=/api/; Max-Age=${ADMIN_HOURS * 3600}${secure}`);
+  res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=${sid}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ADMIN_HOURS * 3600}${secure}`);
   save();
 }
 /* ---------- Recuperación de contraseña ---------- */
@@ -302,7 +302,7 @@ route('POST', /^\/api\/admin\/login$/, async (req, res, body) => {
 }, { public: true });
 route('POST', /^\/api\/admin\/logout$/, async (req, res) => {
   const sid = cookies(req)[ADMIN_COOKIE]; if (sid) { delete db.adminSessions[sid]; save(); }
-  res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=; HttpOnly; SameSite=Strict; Path=/api/; Max-Age=0`);
+  res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
   return { ok: true };
 }, { public: true });
 route('POST', /^\/api\/admin\/password$/, async (req, res, body) => {
@@ -385,9 +385,12 @@ route('POST', /^\/api\/mercado\/actualizar$/, async (req, res, body, u) => {
 
 /* ---------- Ficheros estáticos ---------- */
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.csv': 'text/csv; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.md': 'text/markdown; charset=utf-8' };
+// Páginas del área de clientes que el servidor no entrega sin sesión con acceso (o sesión de administración)
+const PRIVADAS = new Set(['/manual.html']);
 function serveStatic(req, res) {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (p === '/') p = '/index.html';
+  if (PRIVADAS.has(p) && !access(currentUser(req)).ok && !isAdmin(req)) { res.writeHead(302, { Location: '/acceso.html', 'Cache-Control': 'no-store' }); return res.end(); }
   const file = path.resolve(ROOT, '.' + p);
   const rel = path.relative(ROOT, file);
   if (rel.startsWith('..') || path.isAbsolute(rel) || rel.split(path.sep)[0] === 'server') { res.writeHead(404); return res.end('No encontrado'); }

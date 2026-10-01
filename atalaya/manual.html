@@ -34,6 +34,10 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .top input { margin-left: auto; width: min(320px, 46vw); padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--fg); font: inherit; font-size: 0.9rem; }
 .tocbtn { display: none; border: 1px solid var(--line-strong); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 0.85rem; }
 .wrap { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 48px; max-width: 1220px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 80px; }
+.toplinks { display: flex; gap: 4px; }
+.toplinks a { color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 999px; font-size: 0.85rem; white-space: nowrap; }
+.toplinks a:hover { color: var(--fg); background: var(--raise); }
+.gatemsg { text-align: center; color: var(--muted); padding: 80px 16px; }
 nav.toc { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; font-size: 0.88rem; padding-right: 6px; }
 nav.toc ol { list-style: none; margin: 0; padding: 0; }
 nav.toc > ol > li { margin-bottom: 10px; }
@@ -87,17 +91,20 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
   nav.toc.open { display: block; }
   .top input { width: 100%; }
   .brand small { display: none; }
+  .toplinks { display: none; }
 }
 </style>
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="index.html">Atalaya<small>Manual de uso</small></a>
+  <a class="brand" href="app.html">Atalaya<small>Manual de uso</small></a>
   <button class="tocbtn" id="tocBtn" aria-expanded="false" aria-controls="toc">Índice</button>
+  <nav class="toplinks" aria-label="Volver a la aplicación"><a href="app.html">Simulador</a><a href="estrategia.html">Sistema estratégico</a></nav>
   <input type="search" id="q" placeholder="Buscar en el manual (p. ej. HHI, póliza, DAFO)" aria-label="Buscar en el manual">
 </header>
 
-<div class="wrap">
+<p class="gatemsg" id="gateMsg">Comprobando tu acceso…</p>
+<div class="wrap" id="wrap" hidden>
 <nav class="toc" id="toc" aria-label="Índice del manual">
   <ol>
     <li><a href="#que-es">1. Qué es Atalaya</a></li>
@@ -469,7 +476,22 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
 </main>
 </div>
 
+<script src="js/platform.js"></script>
 <script>
+/* El manual es parte del área de clientes: solo se muestra con una sesión con acceso vigente (o con la administración) */
+(async function () {
+  const P = window.Atalaya && window.Atalaya.platform;
+  if (P) {
+    await P.ready;
+    const u = await P.me();
+    const ok = P.accessOf(u).ok || (await P.adminAuth.status().catch(() => ({}))).sesion;
+    if (!ok) { location.replace('acceso.html'); return; }
+    if (u && P.accessOf(u).ok) P.guard();
+  }
+  document.getElementById('gateMsg').remove();
+  document.getElementById('wrap').hidden = false;
+  if (location.hash) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
+})();
 (function () {
   const q = document.getElementById('q'), main = document.getElementById('main'), toc = document.getElementById('toc'), noRes = document.getElementById('noRes');
   const secs = Array.from(main.querySelectorAll('section'));
