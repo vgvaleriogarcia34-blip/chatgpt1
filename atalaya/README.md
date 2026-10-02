@@ -109,7 +109,8 @@ atalaya/
 ├── manual.html         manual de uso
 ├── PLAN-GRUPOS.md      plan Grupos, precios por tramos, pago anual y lo construido
 ├── PUESTA-EN-MARCHA.md comprobaciones al subir al servidor y opciones de cobro
-├── AUDITORIA-MODULOS.md auditoría de consultor de cada módulo y mejoras propuestas
+├── AUDITORIA-MODULOS.md hoja de ruta de diagnóstico: auditoría de consultor de cada módulo, hecho y aprobado
+├── PLAN-MONETIZACION.md propuesta de packs de diagnóstico y crecimiento de ingresos
 └── server/             server.mjs · package.json
 ```
 
