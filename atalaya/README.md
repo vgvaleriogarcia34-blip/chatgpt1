@@ -9,12 +9,24 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `index.html` | Página comercial en un espacio 3D (fondo de galaxias por el que se avanza al bajar, tarjetas y titulares que flotan, se inclinan y se acercan al cursor): propuesta, el ecosistema en 3D (los dos mundos y el abanico de pantallas de cada uno), demo en vivo con el motor real, planes y preguntas. |
 | `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
 | `grupo.html` | Vista de grupo (plan Grupos) o cartera de clientes (plan Consultora): sociedades, consolidado con eliminaciones intragrupo, comparativa, riesgos cruzados, objetivos en cascada e informe. |
-| `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con dos mundos (simulador de inversión y sistema estratégico) por la que se navega y desde la que se entra en cada herramienta. |
+| `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con tres mundos (simulador de inversión, sistema estratégico y personas y equipos) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (21 módulos). |
+| `personas.html` | Personas y equipos (todos los planes): DISC, roles de equipo, eneagrama, puestos, encaje persona-puesto, organigrama, mapa de talento, equipos, tablillas de entrenamiento e informes. |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
 | `manual.html` | Manual de uso completo, con buscador. Es parte del área de clientes: solo se abre con sesión y acceso vigente (o con la sesión de administración). |
 | `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso, cambio de contraseña de los usuarios y enlaces de recuperación. Sin enlace visible: se entra por la barra de direcciones (`admin.html` o `#admin` en la página principal). Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
+
+## Personas y equipos (`personas.html`)
+
+Tercer mundo, incluido en todos los planes. Análisis, auditoría y estructura de las personas: sin control horario, nóminas ni seguimiento del día a día. Datos por empresa (`atalaya.personas.v1`, en el servidor `personas` / `personas--id`).
+
+- **Herramientas**: DISC (12 bloques de «más» y «menos», o valores de un test externo), roles de equipo (27 frases, inspirado en Belbin, no el inventario oficial) y eneagrama (27 frases: tipo, ala y centro). Cuestionarios propios con su lectura: qué aporta, qué necesita, cómo comunicarse, bajo presión, cómo liderarle.
+- **Consentimiento**: no se pasa un cuestionario sin marcarlo; aviso de uso responsable (no son diagnósticos ni criterio único para decisiones sobre personas).
+- **Estructura**: puestos con perfil ideal (9 plantillas), encaje persona-puesto (60 % DISC + 40 % roles clave) con brechas y ranking por puesto, organigrama con auditoría (amplitud de mando, niveles, áreas de una persona, puestos críticos sin sucesor) y mapa de talento 9-box.
+- **Equipos**: rueda de estilos, roles cubiertos, centros del eneagrama, fricciones probables entre estilos y perfil a incorporar.
+- **Tablillas de entrenamiento** (28) que se proponen solas según estilo, puesto, eneatipo y equipo; informes de persona, tablillas, equipo y organización.
+- Se puede traer la plantilla del organigrama del sistema estratégico. Código: `js/personas/datos.js` (contenido), `core.js` (cálculos y navegación), `modulos.js` (pantallas e informes).
 
 ## Simulador (`app.html`)
 

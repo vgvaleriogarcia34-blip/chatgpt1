@@ -193,3 +193,7 @@
 .plan .tramos li { display: flex; justify-content: space-between; gap: 8px; font-size: var(--t-s); color: var(--muted); }
 .plan .tramos b { color: var(--fg); font-family: var(--font-data); font-weight: 500; }
 .plan .tramos b { white-space: nowrap; }
+.lp-per { margin-top: 18px; border-color: rgba(171, 123, 255, 0.35); }
+.lp-per .lp-list { display: block; columns: 2 280px; column-gap: 28px; margin-top: 12px; }
+.lp-per .lp-list li { margin-bottom: 7px; break-inside: avoid; }
+.lp-tag.violet { color: #e3d4ff; background: rgba(171, 123, 255, 0.14); border-color: rgba(171, 123, 255, 0.45); }

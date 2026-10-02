@@ -36,6 +36,7 @@ body.portal { margin: 0; height: 100%; min-height: 100vh; overflow: hidden; back
 .pt-dock i { width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; }
 .pt-dock .d-sim { background: radial-gradient(circle at 35% 35%, #fff1c9, #d4ae64 45%, #6b4c16); box-shadow: 0 0 18px rgba(212, 174, 100, 0.7); }
 .pt-dock .d-est { background: radial-gradient(circle at 35% 35%, #e6f1ff, #3987e5 45%, #1b2f6b); box-shadow: 0 0 18px rgba(57, 135, 229, 0.7); }
+.pt-dock .d-per { background: radial-gradient(circle at 35% 35%, #f1e7ff, #ab7bff 45%, #3d2370); box-shadow: 0 0 18px rgba(171, 123, 255, 0.7); }
 .pt-dock span { display: grid; }
 .pt-dock small { color: var(--muted); font-size: var(--t-xs); }
 .pt-dock kbd { font-family: var(--font-data); font-size: 0.7rem; color: var(--faint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
@@ -79,3 +80,11 @@ body.paso-emp { overflow-y: auto; }
 @media (max-width: 640px) { .pt-empbar > span:nth-of-type(2) { display: none; } .pt-empbar { top: 64px; } }
 .pt-lock { opacity: 0.6; }
 .pt-lock b::after { content: ' · Profesional'; font-size: 0.7em; color: var(--gold-soft); font-weight: 400; }
+
+/* Mundo 3: personas y equipos */
+.pt-world.pt-per .pt-w-kicker { color: #c9a8ff; }
+.pt-world.pt-per .pt-go { background: #ab7bff; }
+.pt-world.pt-per.on, .pt-world.pt-per:hover, .pt-world.pt-per:focus-visible { border-color: #ab7bff; box-shadow: 0 0 0 1px #ab7bff, 0 30px 70px -20px rgba(171, 123, 255, 0.45); }
+.pt-dock button[data-w="per"]:hover, .pt-dock button[data-w="per"].on { border-color: #ab7bff; }
+/* Con la barra de empresa visible, el saludo se aparta para no montarse encima */
+body:has(#empBar:not([hidden])) .pt-intro .pt-kicker { display: none; }

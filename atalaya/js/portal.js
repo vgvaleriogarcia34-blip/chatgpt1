@@ -1,6 +1,7 @@
 /* Atalaya · Puesto de mando 3D
-   Una galaxia con dos mundos: el simulador de inversión (planeta dorado con cinco lunas, una por escenario)
-   y el sistema estratégico (núcleo azul con 21 módulos en órbita, agrupados por áreas). Se navega arrastrando,
+   Una galaxia con tres mundos: el simulador de inversión (planeta dorado con cinco lunas, una por escenario),
+   el sistema estratégico (núcleo azul con 21 módulos en órbita, agrupados por áreas) y personas y equipos
+   (planeta violeta con cuatro equipos de personas, uno por estilo DISC, unidos en red). Se navega arrastrando,
    con la rueda, pellizcando o con el teclado; al elegir un mundo la cámara vuela hacia él y se abre la herramienta. */
 (function () {
   const A = window.Atalaya, P = A.platform;
@@ -8,8 +9,8 @@
   const $$ = (s) => Array.from(document.querySelectorAll(s));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const small = Math.min(innerWidth, innerHeight) < 700;
-  const DEST = { sim: 'app.html', est: 'estrategia.html', man: 'manual.html' };
-  const NOMBRE = { sim: 'Simulador de inversión', est: 'Sistema estratégico', man: 'Manual' };
+  const DEST = { sim: 'app.html', est: 'estrategia.html', per: 'personas.html', man: 'manual.html' };
+  const NOMBRE = { sim: 'Simulador de inversión', est: 'Sistema estratégico', per: 'Personas y equipos', man: 'Manual' };
   const LS = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
 
   let entering = false;
@@ -135,7 +136,8 @@
   const W = {};
   // En pantallas verticales (móvil) los mundos se apilan; en horizontales quedan a izquierda y derecha
   const portrait = innerHeight > innerWidth * 1.1;
-  const SIM_POS = portrait ? new T.Vector3(0, 7.5, 0) : new T.Vector3(-10, 0.5, 0), EST_POS = portrait ? new T.Vector3(0, -8.5, 0) : new T.Vector3(10, -0.5, 0);
+  const SIM_POS = portrait ? new T.Vector3(0, 12, 0) : new T.Vector3(-11, 2.5, 0), EST_POS = portrait ? new T.Vector3(0, -1, 0) : new T.Vector3(11, 1.5, 0);
+  const PER_POS = portrait ? new T.Vector3(0, -13.5, 0) : new T.Vector3(0, -7.5, 3);
   {
     const g = new T.Group(); g.position.copy(SIM_POS);
     const map = tex(512, (x, s) => {
@@ -198,6 +200,35 @@
     W.est = { g, core, shell, shells, nodes, lines, lp, hit, atm, label: $('.pt-world[data-w="est"]'), r: 2.6, side: 1, ringOrbits };
   }
 
+  /* ---------- Mundo 3: personas y equipos ---------- */
+  {
+    const g = new T.Group(); g.position.copy(PER_POS);
+    const map = tex(256, (x, s) => {
+      const gr = x.createLinearGradient(0, 0, s, s); gr.addColorStop(0, '#3d2370'); gr.addColorStop(0.5, '#ab7bff'); gr.addColorStop(1, '#2a1650'); x.fillStyle = gr; x.fillRect(0, 0, s, s);
+      for (let i = 0; i < 160; i++) { x.fillStyle = `rgba(241,231,255,${Math.random() * 0.18})`; x.beginPath(); x.arc(Math.random() * s, Math.random() * s, 1 + Math.random() * 4, 0, 7); x.fill(); }
+    });
+    const core = new T.Mesh(new T.SphereGeometry(1.9, 48, 36), new T.MeshStandardMaterial({ map, roughness: 0.5, metalness: 0.2, emissive: 0x3d2370, emissiveIntensity: 0.8 })); g.add(core);
+    const atm = sprite(glow(171, 123, 255), 0xffffff, 10, 0.6); g.add(atm);
+    // Cuatro equipos (uno por estilo DISC) con sus personas, en órbita y unidos en red
+    const DISC = [0xe04848, 0xfab219, 0x2fb24a, 0x3987e5];
+    const teams = DISC.map((c, i) => {
+      const pivot = new T.Group(); pivot.rotation.x = 0.25 * (i % 2 ? 1 : -1); g.add(pivot);
+      const hub = new T.Mesh(new T.IcosahedronGeometry(0.34, 0), new T.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.9, flatShading: true }));
+      const r = 4.3; hub.position.set(r, 0, 0); pivot.add(hub);
+      const hg = sprite(glow(255, 255, 255), c, 1.5, 0.7); hg.position.copy(hub.position); pivot.add(hg);
+      const cl = new T.Group(); cl.position.copy(hub.position); pivot.add(cl);
+      const people = Array.from({ length: 5 }, (_, j) => { const m = new T.Mesh(new T.SphereGeometry(0.13, 12, 10), new T.MeshStandardMaterial({ color: 0xf1e7ff, emissive: c, emissiveIntensity: 0.6 })); const a = (j / 5) * Math.PI * 2; m.position.set(Math.cos(a) * 1.05, Math.sin(a * 2) * 0.3, Math.sin(a) * 1.05); cl.add(m); return m; });
+      return { pivot, hub, cl, people, a0: (i / DISC.length) * Math.PI * 2 };
+    });
+    const segs = teams.length * (1 + 5 + 1);
+    const lineGeo = new T.BufferGeometry(); const lp = new Float32Array(segs * 6); lineGeo.setAttribute('position', new T.BufferAttribute(lp, 3));
+    const lines = new T.LineSegments(lineGeo, new T.LineBasicMaterial({ color: 0xc9a8ff, transparent: true, opacity: 0.25, blending: T.AdditiveBlending })); g.add(lines);
+    const orbit = new T.Mesh(new T.TorusGeometry(4.3, 0.01, 6, 160), new T.MeshBasicMaterial({ color: 0xc9a8ff, transparent: true, opacity: 0.18 })); orbit.rotation.x = Math.PI / 2; g.add(orbit);
+    const hit = new T.Mesh(new T.SphereGeometry(5.6, 16, 12), new T.MeshBasicMaterial({ visible: false })); g.add(hit);
+    scene.add(g);
+    W.per = { g, core, teams, lines, lp, hit, atm, label: $('.pt-world[data-w="per"]'), r: 1.9, side: 1 };
+  }
+
   /* Luna del manual */
   {
     const g = new T.Group();
@@ -209,7 +240,7 @@
   }
 
   /* Corriente de datos entre los dos mundos: comparten la misma información */
-  const curve = portrait ? new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(0, -3, 0)), new T.Vector3(4.5, -0.5, -3), EST_POS.clone().add(new T.Vector3(0, 3, 0))]) : new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(3, 0, 0)), new T.Vector3(0, 4.5, -3), EST_POS.clone().add(new T.Vector3(-3, 0, 0))]);
+  const curve = portrait ? new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(0, -3, 0)), SIM_POS.clone().lerp(EST_POS, 0.5).add(new T.Vector3(4.5, 0, -3)), EST_POS.clone().add(new T.Vector3(0, 3, 0))]) : new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(3, 0, 0)), new T.Vector3(0, 4.5, -3), EST_POS.clone().add(new T.Vector3(-3, 0, 0))]);
   const flowN = 220, flowPos = new Float32Array(flowN * 3), flowCol = new Float32Array(flowN * 3), flowT = new Float32Array(flowN);
   for (let i = 0; i < flowN; i++) { flowT[i] = Math.random(); const gold = Math.random() < 0.5; flowCol.set(gold ? [1, 0.85, 0.55] : [0.55, 0.72, 1], i * 3); }
   const flowGeo = new T.BufferGeometry(); flowGeo.setAttribute('position', new T.BufferAttribute(flowPos, 3)); flowGeo.setAttribute('color', new T.BufferAttribute(flowCol, 3));
@@ -223,14 +254,14 @@
   scene.add(new T.Points(dustGeo, pointsMat(0.18, 0.45)));
 
   /* ---------- Cámara: órbita con inercia ---------- */
-  const view = { theta: 0, phi: 1.32, radius: portrait ? 50 : small ? 44 : 34, tTheta: 0, tPhi: 1.32, tRadius: portrait ? 50 : small ? 44 : 34, target: new T.Vector3(0, 0, 0), tTarget: new T.Vector3(0, 0, 0) };
+  const view = { theta: 0, phi: 1.32, radius: portrait ? 58 : small ? 46 : 38, tTheta: 0, tPhi: 1.32, tRadius: portrait ? 58 : small ? 46 : 38, target: new T.Vector3(0, 0, 0), tTarget: new T.Vector3(0, 0, 0) };
   let focus = null, hover = null, drag = null, lastMove = performance.now(), flying = null;
   const setFocus = (w) => {
     focus = w;
     $$('.pt-world').forEach((el) => el.classList.toggle('on', el.dataset.w === w));
     $$('.pt-dock button').forEach((el) => el.classList.toggle('on', el.dataset.w === w));
     view.tTarget.copy(w ? W[w].g.position.clone().multiplyScalar(0.45) : new T.Vector3());
-    if (w && !portrait) view.tTheta = w === 'sim' ? -0.32 : w === 'est' ? 0.32 : view.tTheta;
+    if (w && !portrait) view.tTheta = w === 'sim' ? -0.32 : w === 'est' ? 0.32 : w === 'per' ? 0 : view.tTheta;
   };
   canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, th: view.tTheta, ph: view.tPhi, moved: false }; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
   canvas.addEventListener('pointermove', (e) => {
@@ -255,6 +286,7 @@
     else if (e.key === 'Enter' && focus) enter(focus);
     else if (e.key === '1') enter('sim');
     else if (e.key === '2') enter('est');
+    else if (e.key === '3') enter('per');
     else return;
     lastMove = performance.now();
   });
@@ -284,7 +316,7 @@
     const narrow = innerWidth < 760;
     let lx, ly;
     if (w === 'man') { lx = x - o.label.offsetWidth / 2; ly = y + 18; }
-    else if (narrow) { lx = w === 'sim' ? x + 30 : x - o.label.offsetWidth - 30; ly = y - o.label.offsetHeight / 2; }
+    else if (narrow) { lx = w !== 'est' ? x + 30 : x - o.label.offsetWidth - 30; ly = y - o.label.offsetHeight / 2; }
     else { lx = x + offX * (Math.min(220, 2600 / d) + (offX < 0 ? o.label.offsetWidth : 0)); ly = y - o.label.offsetHeight / 2; }
     lx = Math.max(12, Math.min(innerWidth - o.label.offsetWidth - 12, lx)); ly = Math.max(narrow ? 200 : 140, Math.min(innerHeight - o.label.offsetHeight - (narrow ? 150 : 130), ly));
     o.label.style.transform = `translate(${lx}px, ${ly}px)`;
@@ -314,14 +346,20 @@
     }
     const sp = reduce ? 0.2 : 1;
     // Animación de los mundos
-    const S = W.sim, E = W.est;
+    const S = W.sim, E = W.est, PE = W.per;
     S.planet.rotation.y = t * 0.12 * sp; S.ring.rotation.z = 0.25 + t * 0.03 * sp;
     S.moons.forEach((m) => { m.hold.rotation.y = t * m.speed * sp; });
     E.core.rotation.y = t * 0.3 * sp; E.core.rotation.x = t * 0.12 * sp; E.shell.rotation.y = -t * 0.08 * sp;
     E.shells.forEach((s, i) => { s.rotation.y = i * 0.9 + t * (0.12 + i * 0.05) * sp * (i % 2 ? -1 : 1); });
     E.nodes.forEach((n, i) => { n.m.rotation.y = t * 1.2; n.m.getWorldPosition(tmp); E.g.worldToLocal(tmp); E.lp.set([0, 0, 0, tmp.x, tmp.y, tmp.z], i * 6); });
     E.lines.geometry.attributes.position.needsUpdate = true;
-    if (portrait) W.man.g.position.set(-7 + Math.cos(t * 0.15 * sp) * 1.5, -0.5 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 3 - 4);
+    PE.core.rotation.y = t * 0.1 * sp;
+    PE.teams.forEach((q, i) => { q.pivot.rotation.y = q.a0 + t * 0.16 * sp; q.cl.rotation.y = -t * (0.5 + i * 0.08) * sp; q.cl.rotation.x = Math.sin(t * 0.3 + i) * 0.4; });
+    let li = 0; const put = (a, b) => { PE.lp.set([a.x, a.y, a.z, b.x, b.y, b.z], li * 6); li++; };
+    const hub = new T.Vector3(), pp = new T.Vector3();
+    PE.teams.forEach((q, i) => { q.hub.getWorldPosition(hub); PE.g.worldToLocal(hub); put(new T.Vector3(), hub); q.people.forEach((m) => { m.getWorldPosition(pp); PE.g.worldToLocal(pp); put(hub, pp); }); const nx = PE.teams[(i + 1) % PE.teams.length]; nx.hub.getWorldPosition(pp); PE.g.worldToLocal(pp); put(hub, pp); });
+    PE.lines.geometry.attributes.position.needsUpdate = true;
+    if (portrait) W.man.g.position.set(-7 + Math.cos(t * 0.15 * sp) * 1.5, 5.5 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 3 - 4);
     else W.man.g.position.set(Math.cos(t * 0.15 * sp) * 4, 7 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 4 - 6);
     for (let i = 0; i < flowN; i++) { flowT[i] = (flowT[i] + 0.0016 * sp * (0.6 + (i % 5) * 0.15)) % 1; const p = curve.getPoint(flowT[i]); flowPos.set([p.x + Math.sin(i) * 0.25, p.y + Math.cos(i * 1.3) * 0.25, p.z], i * 3); }
     flowGeo.attributes.position.needsUpdate = true;
@@ -332,17 +370,17 @@
     // Selección con el ratón
     if (!flying) {
       ray.setFromCamera(mouse, camera);
-      const hits = ray.intersectObjects([S.hit, E.hit, W.man.hit]);
-      const h = hits.length ? (hits[0].object === S.hit ? 'sim' : hits[0].object === E.hit ? 'est' : 'man') : null;
+      const hits = ray.intersectObjects([S.hit, E.hit, PE.hit, W.man.hit]);
+      const h = hits.length ? (hits[0].object === S.hit ? 'sim' : hits[0].object === E.hit ? 'est' : hits[0].object === PE.hit ? 'per' : 'man') : null;
       hover = hoverLabel || h;
       canvas.classList.toggle('hover', !!h && !drag);
-      ['sim', 'est'].forEach((w) => {
+      ['sim', 'est', 'per'].forEach((w) => {
         const on = hover === w || focus === w;
         const target = on ? 1.14 : 1; const g = W[w].g; g.scale.setScalar(g.scale.x + (target - g.scale.x) * 0.1);
-        W[w].atm.material.opacity += ((on ? 0.95 : w === 'sim' ? 0.55 : 0.65) - W[w].atm.material.opacity) * 0.1;
+        W[w].atm.material.opacity += ((on ? 0.95 : w === 'sim' ? 0.55 : 0.6) - W[w].atm.material.opacity) * 0.1;
         W[w].label.classList.toggle('on', on);
       });
-      placeLabel('sim', -1); placeLabel('est', 1); placeLabel('man', 0);
+      placeLabel('sim', -1); placeLabel('est', 1); placeLabel('per', 1); placeLabel('man', 0);
     }
     renderer.render(scene, camera);
     requestAnimationFrame(frame);

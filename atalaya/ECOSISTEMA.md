@@ -21,6 +21,7 @@ Objetivo: que cada plan prometa lo que da, que se pueda subir o bajar de plan si
 | Precio | 49 €/mes | 129 €/mes | 349 €/mes | A medida: «Contactar con nuestro equipo» |
 | Simulador de inversión | Sí | Sí | Sí | Sí |
 | Sistema estratégico (21 módulos, origen, informes 360) | No: se ve y se ofrece | Sí | Sí | Sí |
+| Personas y equipos (DISC, roles, eneagrama, encaje, equipos, estructura, tablillas) | Sí | Sí | Sí | Sí, en cada sociedad |
 | Empresas | 1 | 1 | Hasta 15 empresas cliente, independientes | Sociedades sin límite |
 | Mapa de empresas | Ficha de su empresa | Ficha de su empresa | Empresas cliente en tarjetas | Holding arriba, filiales debajo con su % |
 | Vista de conjunto | — | — | Cartera de clientes | Vista de grupo: consolidado, intragrupo, tesorería, objetivos en cascada |
@@ -31,7 +32,7 @@ La regla en el código está en un solo sitio (`P.puede` y `P.PLAN_RESUMEN` en `
 
 1. **Alta** con el plan elegido en la página comercial: 14 días de prueba de ese plan.
 2. **Paso 1 · mapa de empresas** en el puesto de mando: la ficha de la empresa (o el mapa de clientes o del grupo) y, si el plan lo permite, el alta de nuevas.
-3. **Paso 2 · mundos**: simulador y sistema estratégico (este, desde Profesional). La barra superior dice con qué empresa se trabaja.
+3. **Paso 2 · mundos**: simulador, sistema estratégico (este, desde Profesional) y personas y equipos (todos los planes). La barra superior dice con qué empresa se trabaja.
 4. **Mi plan** (menú de la cuenta, mapa de empresas, vista de grupo, pantalla de bloqueo del sistema estratégico, página comercial con sesión abierta):
    - en la prueba, cambio libre y al momento; los 14 días siguen contando desde el alta;
    - con el acceso activado, cambio al momento y ajuste de cuota en el siguiente cobro (queda registrado y aparece en los avisos de administración durante un mes);

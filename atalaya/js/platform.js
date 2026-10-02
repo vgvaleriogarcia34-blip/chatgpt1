@@ -20,7 +20,7 @@
   /* Planes. «empresas» es el límite de empresas o sociedades de la cuenta; Grupos cobra por tramos según cuántas tenga.
      Pago anual: un 30 % de descuento sobre el precio mensual, pagando el año por adelantado. */
   const PLANES = {
-    esencial: { nombre: 'Esencial', precio: 49, periodo: 'mes', empresas: 1, para: 'Para estudiar una inversión', incluye: ['Simulador de inversión y crecimiento', 'Horizonte 3D y cinco escenarios', 'Semáforos con horquillas y plan de corrección', 'Informe de decisión', '1 empresa'] },
+    esencial: { nombre: 'Esencial', precio: 49, periodo: 'mes', empresas: 1, para: 'Para estudiar una inversión', incluye: ['Simulador de inversión y crecimiento', 'Horizonte 3D y cinco escenarios', 'Semáforos con horquillas y plan de corrección', 'Informe de decisión', 'Personas y equipos: DISC, roles de equipo, eneagrama, encaje persona-puesto y tablillas', '1 empresa'] },
     profesional: { nombre: 'Profesional', precio: 129, periodo: 'mes', empresas: 1, destacado: true, para: 'Para diagnosticar tu empresa y decidir', incluye: ['Todo lo de Esencial', 'Sistema estratégico completo: 21 módulos, zona de origen de datos e informes 360', 'Análisis de cuentas de varios años', 'Asistente con voz', '1 empresa'] },
     consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
     // Grupos se contrata a medida con el equipo: no se publica precio. Los tramos quedan como referencia interna de administración
@@ -196,7 +196,7 @@
      anteriores siguen donde estaban; las demás llevan su identificador: atalaya.v1@id en el navegador y simulador--id
      en el servidor. El registro de empresas se guarda como un dato más de la cuenta («empresas»). */
   const ACT = 'atalaya.empresa.activa';
-  const SCOPED = ['simulador', 'estrategia'];
+  const SCOPED = ['simulador', 'estrategia', 'personas'];
   P.empresaId = () => LS.get(ACT) || 'principal';
   P.k = (base, id) => { id = id || P.empresaId(); return id === 'principal' ? base : base + '@' + id; };
   const dk = (key, id) => { id = id || P.empresaId(); return SCOPED.includes(key) && id !== 'principal' ? key + '--' + id : key; };
@@ -230,7 +230,7 @@
       await P.empresas.cargar();
       if (id === 'principal') throw new Error('La empresa principal no se puede borrar.');
       REG.lista = REG.lista.filter((x) => x.id !== id); await P.empresas.guardar();
-      for (const k of SCOPED) { await P.saveData(k + '--' + id, null); LS.del(P.k(k === 'simulador' ? 'atalaya.v1' : 'atalaya.estrategia.v1', id)); }
+      for (const k of SCOPED) { await P.saveData(k + '--' + id, null); LS.del(P.k({ simulador: 'atalaya.v1', estrategia: 'atalaya.estrategia.v1', personas: 'atalaya.personas.v1' }[k], id)); }
       if (P.empresaId() === id) LS.set(ACT, 'principal');
     },
     cambiar(id) { LS.set(ACT, id); location.reload(); }
@@ -363,10 +363,10 @@
     return true;
   };
   P.PLAN_RESUMEN = {
-    esencial: { mundos: 'Simulador de inversión', empresas: '1 empresa', vista: '—' },
-    profesional: { mundos: 'Simulador y sistema estratégico', empresas: '1 empresa', vista: '—' },
-    consultora: { mundos: 'Simulador y sistema estratégico', empresas: 'Hasta 15 empresas cliente', vista: 'Cartera de clientes' },
-    grupos: { mundos: 'Simulador y sistema estratégico', empresas: 'Sociedades sin límite', vista: 'Vista de grupo con consolidado' }
+    esencial: { mundos: 'Simulador de inversión y personas y equipos', empresas: '1 empresa', vista: '—' },
+    profesional: { mundos: 'Simulador, sistema estratégico y personas y equipos', empresas: '1 empresa', vista: '—' },
+    consultora: { mundos: 'Simulador, sistema estratégico y personas y equipos', empresas: 'Hasta 15 empresas cliente', vista: 'Cartera de clientes' },
+    grupos: { mundos: 'Simulador, sistema estratégico y personas y equipos', empresas: 'Sociedades sin límite', vista: 'Vista de grupo con consolidado' }
   };
   P.cambiarPlan = async function (plan, periodo) {
     if (!PLANES[plan]) throw new Error('Plan no válido');
@@ -647,7 +647,7 @@
     el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${u.email}"><span>${ini}</span></button>
       <div class="acc-menu glass" hidden>
         <div class="acc-head"><b>${(u.nombre || u.email).replace(/</g, '&lt;')}</b><small>${u.email}</small><small>Plan ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="portal.html">Inicio · elegir herramienta</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-planes>Mi plan: ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <a href="portal.html">Inicio · elegir herramienta</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-planes>Mi plan: ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
