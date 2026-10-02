@@ -138,10 +138,6 @@
     $('#grpSeg').innerHTML = Object.keys(MODS).map((g) => `<button role="tab" data-g="${g}" aria-pressed="${g === grp}">${g}</button>`).join('');
     $$('#grpSeg button').forEach((b) => b.onclick = () => { grp = b.dataset.g; drawMods(); });
     $('#mods').innerHTML = MODS[grp].map(([n, d, k]) => `<article class="tilt lp-mod" data-tilt><h3>${n}</h3><p>${d}</p><span class="lp-kpi">${k}</span></article>`).join('');
-    if (fino && !reduce) $$('#mods [data-tilt]').forEach((el) => {
-      el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; el.style.transform = `perspective(700px) rotateX(${(0.5 - y) * 10}deg) rotateY(${(x - 0.5) * 10}deg) translateZ(18px) translateY(-8px)`; el.style.setProperty('--mx', x * 100 + '%'); el.style.setProperty('--my', y * 100 + '%'); el.classList.add('lifted'); });
-      el.addEventListener('pointerleave', () => { el.style.transform = ''; el.classList.remove('lifted'); });
-    });
   };
   drawMods();
 
