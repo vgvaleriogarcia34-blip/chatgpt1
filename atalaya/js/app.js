@@ -960,6 +960,7 @@
 
   /* ---------------- API para el asistente ---------------- */
   const SETTABLE = Object.values(FIELDS).flat().map((f) => f.p).concat(['meta.cajaMin', 'meta.paybackMax', 'meta.dscrMin', 'meta.deudaEbitdaMax', 'meta.pesoSalarialMax', 'meta.plazoObjetivo']);
+  A.appCtx = () => ({ state, ctx });
   A.appApi = {
     settable: SETTABLE,
     getState: () => state,

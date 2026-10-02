@@ -17,6 +17,8 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 
 ## Simulador (`app.html`)
 
+- **Mapa de capas y hoja de ruta**: al entrar, los capítulos aparecen como ventanas flotantes en 3D (pila, abanico, círculo o línea) con un fragmento real y su estado; dentro se trabaja un capítulo cada vez, guiado por seis fases. «Ver todo seguido» recupera la página completa.
+
 - Proyección mensual a 60 meses con y sin la inversión, en cinco escenarios (estrés, pesimista, base, optimista, hipótesis) y sucesos activables (pérdida de cliente, tipos, cobros, convenio…).
 - **Pólizas de crédito** en la tesorería: se disponen solas cuando la caja baja de medio mes de gastos, con intereses y comisión de no disposición. Liquidez = caja + póliza libre.
 - **Meses de colchón** mes a mes, con mínimo, máximo, caja máxima y uso de la póliza.
