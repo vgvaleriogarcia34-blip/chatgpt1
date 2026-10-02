@@ -255,6 +255,14 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
   if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
   save(); return { user: pub(u) };
 }, { noAccess: true });
+// Comprueba la contraseña antes de una acción irreversible (borrar una empresa)
+route('POST', /^\/api\/me\/verificar$/, async (req, res, body, u) => {
+  const ip = req.socket.remoteAddress;
+  if (rateLimited(ip)) throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 429 });
+  const ok = crypto.timingSafeEqual(Buffer.from(hashPw(String(body.password || ''), u.salt), 'hex'), Buffer.from(u.hash, 'hex'));
+  if (!ok) attempts.get(ip).push(Date.now());
+  return { ok };
+}, { noAccess: true });
 route('POST', /^\/api\/me\/solicitar-pago$/, async (req, res, body, u) => { u.solicitudPago = now(); save(); return { ok: true }; }, { noAccess: true });
 route('POST', /^\/api\/me\/password$/, async (req, res, body, u) => {
   if (!safeEq(hashPw(String(body.actual || ''), u.salt), u.hash)) throw Object.assign(new Error('La contraseña actual no es correcta'), { code: 400 });

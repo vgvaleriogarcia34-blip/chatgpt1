@@ -399,7 +399,7 @@
             ${(() => { const c = P.cuota(pr); return `<div class="pl-precio">${pl.tramos && n <= 1 ? '<small>desde </small>' : ''}${P.eur(c.importe)}<small>${c.unidad}</small></div>${c.detalle ? `<div class="small muted">${c.detalle}</div>` : ''}`; })()}
             <div class="small muted">${pl.para || ''}</div>
             <ul class="small"><li>${r.mundos}</li><li>${r.empresas}</li>${r.vista !== '—' ? `<li>${r.vista}</li>` : ''}</ul>
-            ${cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es tu plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas: borra las que sobran para pasar a este plan.</p>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
+            ${cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es tu plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas y este plan admite ${pl.empresas}. Para bajar, antes hay que borrar ${n - pl.empresas}.</p><a class="btn ghost small" href="portal.html#empresas">Ir al mapa de empresas</a>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
           </div>`;
         }).join('')}</div>
         <p class="small" data-msg style="margin:0"></p>
@@ -492,6 +492,68 @@
       };
     });
   };
+  /* ---------- Borrado seguro de una empresa ----------
+     Dos pasos: un aviso de todo lo que se pierde y, si se confirma, la contraseña de la cuenta.
+     No usa las ventanas del navegador (confirm), que algunos entornos bloquean sin avisar. */
+  P.verificarPassword = async function (pw) {
+    await P.ready;
+    if (P.mode === 'server') { const r = await api('/me/verificar', { method: 'POST', body: JSON.stringify({ password: pw }) }); return !!(r && r.ok); }
+    const u = L.find((L.session() || {}).id); return !!(u && u.hash === await hash(u.salt + pw));
+  };
+  P.borrarEmpresaSeguro = function (e) {
+    return new Promise((resolve) => {
+      const lista = P.empresas.lista(), hijas = lista.filter((x) => x.matriz === e.id);
+      const grupo = !!(PLANES[(P.user || {}).plan] || {}).grupo;
+      const back = document.createElement('div'); back.className = 'ef-back';
+      const close = (v) => { back.remove(); removeEventListener('keydown', onKey); resolve(v); };
+      const onKey = (ev) => { if (ev.key === 'Escape') close(false); };
+      addEventListener('keydown', onKey);
+      const paso1 = () => {
+        back.innerHTML = `<div class="ef-card del-card glass" role="alertdialog" aria-modal="true" aria-label="Borrar empresa">
+          <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
+          <div class="eyebrow" style="color:var(--stop)">Borrado definitivo</div>
+          <h3 class="del-t">¿Seguro que quieres borrar «${escH(e.nombre)}»?</h3>
+          <p>Si sigues adelante <b>perderás toda la información de esta ${grupo ? 'sociedad' : 'empresa'}</b> y no se podrá recuperar:</p>
+          <ul class="small"><li>su ficha (forma jurídica, CIF, socios…);</li><li>sus datos del simulador de inversión: cifras, inversiones, escenarios e hipótesis;</li><li>su sistema estratégico: módulos, zona de origen, diagnósticos 360, objetivos, planes de acción y cortes de evolución;</li><li>su lugar en ${grupo ? 'la vista de grupo, los préstamos entre sociedades y los objetivos en cascada' : 'la cartera de clientes'}.</li></ul>
+          ${hijas.length ? `<p class="small" style="color:var(--warn)">Es la sociedad dominante de ${hijas.map((h) => '«' + escH(h.nombre) + '»').join(', ')}: quedarán sin sociedad dominante hasta que les asignes otra.</p>` : ''}
+          <p class="small muted">Piénsalo dos veces. Si solo quieres bajar de plan, recuerda que el plan Consultora o Grupos conserva todas tus empresas.</p>
+          <div class="row"><button class="btn solid" data-no>No, conservarla</button><button class="btn del-btn" data-si>Sí, quiero borrarla</button></div>
+        </div>`;
+        back.querySelector('.ef-x').onclick = () => close(false);
+        back.querySelector('[data-no]').onclick = () => close(false);
+        back.querySelector('[data-si]').onclick = paso2;
+        setTimeout(() => back.querySelector('[data-no]').focus(), 30);
+      };
+      const paso2 = () => {
+        back.innerHTML = `<form class="ef-card del-card glass" role="alertdialog" aria-modal="true" aria-label="Confirmar con la contraseña">
+          <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
+          <div class="eyebrow" style="color:var(--stop)">Último paso</div>
+          <h3 class="del-t">Confirma con tu contraseña</h3>
+          <p class="small">Para borrar «${escH(e.nombre)}» y todos sus datos, escribe la contraseña con la que entras en Atalaya.</p>
+          <input class="input" type="password" name="pw" autocomplete="current-password" placeholder="Contraseña" required>
+          <p class="small" data-msg style="color:var(--stop);margin:0"></p>
+          <div class="row"><button type="button" class="btn solid" data-no>Cancelar</button><button type="submit" class="btn del-btn">Borrar definitivamente</button></div>
+        </form>`;
+        const f = back.querySelector('form');
+        back.querySelector('.ef-x').onclick = () => close(false);
+        f.querySelector('[data-no]').onclick = () => close(false);
+        setTimeout(() => f.pw.focus(), 30);
+        f.onsubmit = async (ev) => {
+          ev.preventDefault();
+          const msg = f.querySelector('[data-msg]'); msg.textContent = '';
+          try {
+            if (!(await P.verificarPassword(f.pw.value))) { msg.textContent = 'La contraseña no es correcta. No se ha borrado nada.'; f.pw.select(); return; }
+            await P.empresas.borrar(e.id);
+            for (const h of hijas) { try { await P.empresas.editar(h.id, { matriz: '' }); } catch (x) { /* se corrige en la ficha */ } }
+            close(true);
+          } catch (x) { msg.textContent = x.message; }
+        };
+      };
+      back.addEventListener('click', (ev) => { if (ev.target === back) close(false); });
+      document.body.appendChild(back); paso1();
+    });
+  };
+
   P.mapaEmpresas = function (host, opts) {
     opts = opts || {};
     const u = P.user, plan = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional, grupo = !!plan.grupo, lim = P.limiteEmpresas(u);
@@ -529,7 +591,7 @@
     const redraw = () => P.mapaEmpresas(host, opts);
     host.querySelectorAll('[data-enter]').forEach((b) => b.onclick = () => { const id = b.dataset.enter; if (opts.onEnter) opts.onEnter(id); else P.empresas.cambiar(id); });
     host.querySelectorAll('[data-ficha]').forEach((b) => b.onclick = async () => { const r = await P.fichaEmpresa(lista.find((x) => x.id === b.dataset.ficha)); if (r) redraw(); });
-    host.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { const e = lista.find((x) => x.id === b.dataset.del); if (!confirm(`¿Borrar «${e.nombre}» y todos sus datos? No se puede deshacer.`)) return; await P.empresas.borrar(e.id); if (e.id === act.id) location.reload(); else redraw(); });
+    host.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { const e = lista.find((x) => x.id === b.dataset.del); if (!(await P.borrarEmpresaSeguro(e))) return; if (e.id === act.id) location.reload(); else redraw(); });
     const nb = host.querySelector('[data-new]'); if (nb) nb.onclick = async () => { const r = await P.fichaEmpresa(null, { nuevo: true }); if (r) redraw(); };
     const cb = host.querySelector('[data-cerrar]'); if (cb && opts.onCerrar) cb.onclick = opts.onCerrar;
   };
@@ -573,7 +635,7 @@
       document.addEventListener('click', () => { em.hidden = true; });
       sel.querySelectorAll('[data-emp]').forEach((x) => x.onclick = () => { if (x.dataset.emp !== act.id) P.empresas.cambiar(x.dataset.emp); });
       sel.querySelectorAll('[data-empren]').forEach((x) => x.onclick = async () => { em.hidden = true; const e = lista.find((y) => y.id === x.dataset.empren); const r = await P.fichaEmpresa(e); if (r) P.mountAccount(el); });
-      sel.querySelectorAll('[data-empdel]').forEach((x) => x.onclick = async () => { const e = lista.find((y) => y.id === x.dataset.empdel); if (!confirm(`¿Borrar «${e.nombre}» y todos sus datos? No se puede deshacer.`)) return; await P.empresas.borrar(e.id); if (e.id === act.id) location.reload(); else P.mountAccount(el); });
+      sel.querySelectorAll('[data-empdel]').forEach((x) => x.onclick = async () => { const e = lista.find((y) => y.id === x.dataset.empdel); em.hidden = true; if (!(await P.borrarEmpresaSeguro(e))) return; if (e.id === act.id) location.reload(); else P.mountAccount(el); });
       const nf = sel.querySelector('[data-empnew]');
       if (nf) nf.onsubmit = async (e) => { e.preventDefault(); try { const ne = await P.empresas.crear({ nombre: nf.nombre.value, rol: nf.rol ? nf.rol.value : undefined, participacion: nf.participacion ? nf.participacion.value : undefined }); P.empresas.cambiar(ne.id); } catch (x) { nf.querySelector('[data-empmsg]').textContent = x.message; } };
     }

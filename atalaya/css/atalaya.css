@@ -728,3 +728,8 @@ body.con-lineas .field[data-p="inversion.vidaUtil"] { display: none; }
 .pl-precio { font-family: var(--font-data); font-size: 1.4rem; }
 .pl-precio small { font-size: 0.7rem; color: var(--muted); margin-left: 3px; }
 .acc-menu button[data-planes] { color: var(--gold-soft); }
+.del-card { width: min(560px, 100%); border-color: rgba(224, 72, 72, 0.5); }
+.del-t { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: 1.45rem; }
+.del-card ul { margin: 0; padding-left: 18px; }
+.btn.del-btn { border-color: var(--stop); color: var(--stop); }
+.btn.del-btn:hover { background: rgba(224, 72, 72, 0.12); }
