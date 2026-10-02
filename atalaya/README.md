@@ -20,6 +20,12 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 
 - **Mapa de capas y hoja de ruta**: al entrar, los capítulos aparecen como ventanas flotantes en 3D (pila, abanico, círculo o línea) con un fragmento real y su estado; dentro se trabaja un capítulo cada vez, guiado por seis fases. «Ver todo seguido» recupera la página completa.
 
+- **Ficha de la empresa y punto cero** en el puente (nombre, proyecto, sector y vehículo editables, aviso de datos de ejemplo, empezar de cero) y **preguntas guiadas** en lenguaje llano para la empresa, la inversión y el equipo (`js/preguntas-sim.js`): cada respuesta marca sus datos y lo que no se sabe queda con el valor típico del sector.
+- **Carga de cuentas desde «La empresa hoy»** con la lista de documentos a subir; sector en desplegable que no pisa las cifras propias.
+- **Mapa de la inversión por líneas** (maquinaria, vehículos, nave, obra, tecnología…) con importe, mes, vida útil y financiación propia por línea: el motor simula un préstamo por línea. **Opciones de inversión** guardadas y comparadas (también en el pesimista).
+- **Punto de equilibrio** por volumen y mes a mes (gasto fijo, costes totales, costes con cuotas, ventas, zona de beneficio) y paisaje 3D guiado por preguntas, con modo experto.
+- Semáforos con **qué mover para subir de escalón**: valor exacto de cada dato para pasar a ámbar y a verde. Escenario propio con preguntas «¿y si…?» y leyenda completa del gráfico de liquidez.
+- «La empresa que serás» explicada tarjeta a tarjeta (de dónde sale cada cifra y qué hacer); estructuras con encaje desglosado, control, tamaño pleno, metas y «en tu caso» con cifras; metas con referencias del sector y palancas explicadas en llano.
 - Proyección mensual a 60 meses con y sin la inversión, en cinco escenarios (estrés, pesimista, base, optimista, hipótesis) y sucesos activables (pérdida de cliente, tipos, cobros, convenio…).
 - **Pólizas de crédito** en la tesorería: se disponen solas cuando la caja baja de medio mes de gastos, con intereses y comisión de no disposición. Liquidez = caja + póliza libre.
 - **Meses de colchón** mes a mes, con mínimo, máximo, caja máxima y uso de la póliza.

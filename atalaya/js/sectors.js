@@ -83,7 +83,7 @@
   /* Estado de ejemplo: una industria familiar de 4,2 M€ que estudia una nueva línea. */
   A.defaultState = function () {
     return {
-      empresaNombre: 'Empresa de ejemplo, S.L.',
+      empresaNombre: 'Empresa de ejemplo, S.L.', ejemplo: true,
       proyecto: 'Nueva línea de producción',
       sector: 'industria',
       empresa: {
@@ -94,8 +94,9 @@
       inversion: {
         importe: 1500000, pctFin: 70, tipo: 5.2, plazo: 7, carencia: 6,
         mesInicio: 3, aportacion: 0, incVentas: 45, rampa: 9, margenNuevo: 37,
-        contrataciones: 7, salario: 34000, anticipo: 2, fijosNuevos: 110000, vidaUtil: 10
+        contrataciones: 7, salario: 34000, anticipo: 2, fijosNuevos: 110000, vidaUtil: 10, lineas: []
       },
+      opciones: [],
       humano: {
         mandos: 3, mandosFormados: 35, dependencia: 70, procesos: 35, rotacion: 12, clima: 5, tiempoContratacion: 3,
         costeSeleccion: 3500, curva: 5, formacion: 14, sucesion: 30, polivalencia: 25, absentismo: 4.5, horasExtra: 9

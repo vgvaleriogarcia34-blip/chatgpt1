@@ -37,10 +37,15 @@
         <div class="eyebrow">Puente de mando</div>
         <h1 class="mt">¿Puede la empresa <em>pagar su crecimiento</em> con lo que ya gana?</h1>
         <p class="lede">Atalaya proyecta mes a mes la empresa con y sin la inversión, en cinco escenarios a la vez, y te dice si la estructura financiera y el equipo están listos para el movimiento, o qué les falta para estarlo.</p>
-        <div class="company">
-          <label>Empresa <input id="empresaNombre" class="input-inline"></label>
-          <label>Proyecto <input id="proyecto" class="input-inline"></label>
-          <span id="sectorLabel"></span>
+        <div class="glass id-card" id="idCard">
+          <label class="id-name"><span>Empresa</span><input id="empresaNombre" placeholder="Escribe el nombre de tu empresa" autocomplete="organization"></label>
+          <div class="id-grid">
+            <label><span>Proyecto</span><input id="proyecto" placeholder="Qué quieres hacer"></label>
+            <label><span>Sector</span><select id="heroSector"></select></label>
+            <label><span>Cómo se hace la inversión</span><select id="heroEstr"></select></label>
+          </div>
+          <p class="id-ejemplo small" id="idEjemplo" hidden></p>
+          <div class="row id-actions"><button class="btn solid" id="qEmpresa">Responder preguntas</button><button class="btn" id="goCargar">Cargar mis cuentas</button><button class="btn ghost" id="nuevaSim">Empezar de cero</button></div>
         </div>
       </div>
       <div class="glass verdict-card" id="verdictCard"></div>
@@ -62,12 +67,23 @@
   <section class="chapter" id="empresa">
     <div class="eyebrow"><span class="roman">I</span> Punto de partida</div>
     <h2>La empresa <em>hoy</em></h2>
-    <p class="lede">Elige el sector para cargar sus idiosincrasias (márgenes, peso salarial, ciclo de cobro y pago, estacionalidad, velocidad de rampa) y ajusta después tus cifras reales. Puedes escribir el dato o mover la barra; si escribes un valor mayor que el tope, la barra se amplía.</p>
-    <div class="glass pad mt stack">
-      <h4>Perfil sectorial</h4>
-      <div class="sectors" id="sectors"></div>
-      <p class="small muted" id="sectorNote"></p>
+    <p class="lede">Tres formas de cargar tu empresa: subir tus cuentas, responder unas preguntas o escribir las cifras en las casillas. Puedes combinarlas: lo que no venga en un sitio lo completas en otro.</p>
+    <div class="grid cols-2 mt">
+      <div class="glass pad stack" id="cargaBox">
+        <h4>Cargar desde tus documentos</h4>
+        <p class="small">Sube las <b>cuentas anuales de los dos o tres últimos años</b>: la <b>cuenta de pérdidas y ganancias</b> y el <b>balance</b>. Sirve el PDF que depositas en el Registro Mercantil, el Excel que te prepara la gestoría o un balance de sumas y saldos.</p>
+        <p class="small muted">Con ellas relleno ventas, margen, personal, gastos fijos, caja, deuda, fondos propios, días de cobro, stock y pago y el crecimiento. Lo que no viene en las cuentas (póliza de crédito, cuota mensual de los préstamos, plantilla) te lo pregunto después.</p>
+        <div class="row"><label class="btn solid" for="empFile">Adjuntar cuentas</label><input type="file" id="empFile" accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx" multiple hidden><button class="btn" id="qEmpresa2">Responder preguntas</button><a class="btn ghost" href="#historia">Ver el análisis de varios años</a></div>
+        <div class="small" id="empCarga"></div>
+      </div>
+      <div class="glass pad stack">
+        <h4>Perfil sectorial</h4>
+        <label class="field-sel"><span class="small muted">Sector principal</span><select class="input" id="sectorSel"></select></label>
+        <p class="small muted" id="sectorNote"></p>
+        <div class="small" id="sectorTipico"></div>
+      </div>
     </div>
+    <p class="small muted mt">Puedes escribir cada dato o mover la barra; si escribes un valor mayor que el tope, la barra se amplía.</p>
     <div class="grid cols-3 mt">
       <div class="glass pad"><h4>Cuenta de resultados</h4><div class="fields" id="f-pyg"></div></div>
       <div class="glass pad"><h4>Balance y ciclo de caja</h4><div class="fields" id="f-balance"></div></div>
@@ -79,7 +95,16 @@
   <section class="chapter" id="historia">
     <div class="eyebrow"><span class="roman">II</span> Historia</div>
     <h2>De dónde viene <em>la empresa</em></h2>
-    <p class="lede">Adjunta el balance y la cuenta de resultados de varios años en PDF, Word, Excel, CSV o Markdown, pégalos o díctalos. Atalaya calcula la evolución, audita dónde está cada euro del beneficio, proyecta tres años y lee las políticas de gobierno que hay detrás de los números.</p>
+    <p class="lede">Atalaya calcula la evolución de la empresa, audita dónde está cada euro del beneficio, proyecta tres años y lee las políticas de gobierno que hay detrás de los números.</p>
+    <div class="glass pad mt docs-need">
+      <h4>Qué documentos adjuntar</h4>
+      <ul class="small">
+        <li><b>Cuenta de pérdidas y ganancias</b> de los dos o tres últimos años cerrados (ventas, aprovisionamientos, personal, otros gastos, amortizaciones, gastos financieros, impuesto y resultado).</li>
+        <li><b>Balance de situación</b> de los mismos años (tesorería, clientes, existencias, proveedores, deudas con bancos a corto y largo plazo y patrimonio neto).</li>
+        <li>Si el año en curso va avanzado, el <b>avance del año</b> o el balance de sumas y saldos a la última fecha cerrada.</li>
+      </ul>
+      <p class="small muted">Valen el PDF de las cuentas depositadas en el Registro Mercantil, el Excel o el informe de la gestoría, un CSV, Word o Markdown, o la tabla pegada desde Excel. Con más de un año se calcula la evolución y el flujo del dinero.</p>
+    </div>
     <p class="small muted">¿Tienes más documentación (ventas, compras, plantilla, extractos, informes)? Súbela toda junta en la <a href="estrategia.html#origen">zona de origen de datos</a>: se reparte sola a todos los módulos y las cuentas llegan también aquí.</p>
     <div class="glass pad mt stack">
       <div class="row">
@@ -105,8 +130,10 @@
   <section class="chapter" id="inversion">
     <div class="eyebrow"><span class="roman">III</span> El movimiento</div>
     <h2>La inversión y su <em>dimensión</em></h2>
-    <p class="lede">Cuánto pesa la inversión frente a lo que la empresa ya es. Toca cualquier anillo para ver cómo se lee.</p>
+    <p class="lede">Qué compras, cuánto pesa frente a lo que la empresa ya es y cómo lo pagas. Toca cualquier anillo para ver cómo se lee.</p>
     <div class="glass pad mt"><div class="dimension" id="dimension"></div></div>
+    <div class="glass pad mt stack" id="lineasBox"></div>
+    <div class="glass pad mt stack" id="opcionesBox"></div>
     <div class="grid cols-3 mt">
       <div class="glass pad"><h4>Importe y financiación</h4><div class="fields" id="f-fin"></div></div>
       <div class="glass pad"><h4>Actividad nueva</h4><div class="fields" id="f-act"></div></div>
@@ -118,15 +145,14 @@
   <section class="chapter" id="horizonte">
     <div class="eyebrow"><span class="roman">IV</span> Horizonte</div>
     <h2>El terreno <em>antes de pisarlo</em></h2>
+    <p class="lede">Dos miradas antes de decidir: cuándo empieza a ganar dinero la empresa con lo nuevo (el punto de equilibrio) y qué pasa si cambian a la vez dos cosas que no controlas del todo.</p>
+    <div class="glass pad mt stack" id="peBox"></div>
+    <h3 class="mt hz-h3">El paisaje de las decisiones</h3>
     <div class="grid cols-2 mt">
       <div class="stack">
-        <p class="lede" style="margin:0">Es un mapa de todas las empresas que podrías ser si cambias dos datos a la vez. Cada punto de la superficie es una combinación de esos dos datos; su altura es el resultado (por ejemplo, la liquidez mínima) y su color, el semáforo.</p>
-        <ol class="howto small">
-          <li><b>Elige los dos ejes</b>: las dos variables que dudas cómo fijar (por ejemplo, cuánto financiar y cuánta venta nueva esperas).</li>
-          <li><b>Elige la altura</b>: el resultado que quieres proteger.</li>
-          <li><b>Busca la esfera dorada</b>: es tu plan actual. Si está en rojo o ámbar, mira hacia dónde se vuelve verde la superficie.</li>
-          <li><b>Pasa el cursor</b> para leer cada combinación y <b>haz clic</b> para aplicarla.</li>
-        </ol>
+        <p style="margin:0">Elige la pregunta que te preocupa. El mapa prueba cientos de combinaciones de dos datos y pinta cada una con su resultado: <b>verde</b> cumple tu meta, <b>ámbar</b> aguanta justo y <b>rojo</b> rompe. La <b>esfera dorada</b> es tu plan de hoy.</p>
+        <div class="hz-preg" id="horizPreg"></div>
+        <button class="btn ghost" id="hzExperto" style="justify-self:start">Elegir yo los ejes (modo experto)</button>
       </div>
       <div class="glass pad stack"><h4>Lectura de tu posición</h4><div id="terrainRead" class="small"></div></div>
     </div>
@@ -134,7 +160,7 @@
       <canvas id="three" aria-label="Vista 3D de escenarios"></canvas>
       <div class="hud">
         <div class="glass"><div class="seg" id="viewSeg" style="margin:0"></div></div>
-        <div class="glass" id="surfaceCtl">
+        <div class="glass" id="surfaceCtl" hidden>
           <label for="axX">Eje X</label><select id="axX"></select>
           <label for="axY">Eje Y</label><select id="axY"></select>
           <label for="metricSel">Altura</label><select id="metricSel"></select>
@@ -173,7 +199,9 @@
         <div class="row"><h4>Campos hipotéticos</h4><span class="spacer"></span><button class="btn" id="addHyp">Añadir hipótesis</button></div>
         <p class="small muted" style="margin:0">Sucesos que pueden ocurrir durante el despliegue. Actívalos para ver cómo mueven todos los escenarios.</p>
         <div id="hypList"></div>
-        <h4 class="mt">Tu escenario de hipótesis</h4>
+        <h4 class="mt">Tu escenario: ¿y si…?</h4>
+        <p class="small muted" style="margin:0">Contesta a cada pregunta moviendo la barra. Es tu ensayo propio, el quinto escenario («Hipótesis»).</p>
+        <div id="customRes" class="stack"></div>
         <div class="fields" id="f-custom"></div>
       </div>
     </div>
@@ -199,7 +227,8 @@
     <h2>La empresa <em>que serás</em></h2>
     <p class="lede" id="sizeLede">Hoy frente al año de crucero, cuando la actividad nueva ha completado su rampa.</p>
     <div class="size-grid mt" id="sizeGrid"></div>
-    <div class="glass pad mt"><h4>Cuota mensual y EBITDA mensual</h4><div class="chart mt" id="debtChart"></div></div>
+    <div class="glass pad mt stack" id="sizeRead"></div>
+    <div class="glass pad mt"><h4>¿Paga el negocio sus cuotas cada mes?</h4><p class="small muted" style="margin:4px 0 0">Cada barra es el EBITDA de un mes: lo que genera el negocio antes de intereses, impuestos y amortizaciones. La línea dorada es lo que pagas de préstamos ese mes (capital e intereses, de los viejos y de los nuevos). Si una barra queda por debajo de la línea, ese mes la cuota se paga con caja o con la póliza. Pasa el cursor para ver cada mes.</p><div class="chart mt" id="debtChart"></div></div>
   </section>
 
   <!-- VIII. Sistema humano -->
@@ -219,7 +248,7 @@
         <div class="glass pad"><h4>Lo que necesita para estarlo</h4><div class="timeline mt" id="humanPlan"></div></div>
       </div>
     </div>
-    <div class="glass pad mt"><h4>Variables del equipo</h4><div class="fields human-fields" id="f-human"></div></div>
+    <div class="glass pad mt stack"><div class="row"><h4>Variables del equipo</h4><span class="spacer"></span><button class="btn solid" id="qHumano">Responder preguntas sobre el equipo</button></div><p class="small muted" style="margin:0">Mejor que estimar cada casilla: catorce preguntas de la vida diaria («si te fueras un mes, ¿qué pasaría?») que colocan cada dato y te dicen cómo va quedando la foto.</p><div class="fields human-fields" id="f-human"></div></div>
   </section>
 
   <!-- IX. Estructuras -->
@@ -277,6 +306,7 @@
 <script src="js/informe.js"></script>
 <script src="js/report.js"></script>
 <script src="js/assistant.js"></script>
+<script src="js/preguntas-sim.js"></script>
 <script src="js/app.js"></script>
 <script src="js/ruta.js"></script>
 </body>

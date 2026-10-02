@@ -38,6 +38,7 @@
     h += I.cover({ tipo: 'Informe de decisión', kicker: 'Decisión de inversión', titulo: state.proyecto, subtitulo: `Estructura: ${A.STRUCTURES[state.estructura].nombre} · Escenario de referencia: ${sc.nombre}`, empresa: state.empresaNombre, sector: sec.nombre });
     h += I.summary('Veredicto', `<h3 class="rp-verdict">${esc(r.verdict.titulo)} ${pill(vKey[r.verdict.key], stTxt[vKey[r.verdict.key]])}</h3><p>${r.verdict.texto}</p>`, vKey[r.verdict.key]);
 
+    h += `<p class="rp-muted" style="font-size:0.8rem">Unidades: k€ son miles de euros (150 k€ = 150.000 €) y M€, millones (4,2 M€ = 4.200.000 €). Los meses se cuentan desde hoy (mes 1 = el mes que viene).</p>`;
     h += `<h2><span class="rp-n">01</span>Resumen ejecutivo</h2>`;
     h += R.narrative(state, r, sc.nombre).map((p) => `<p>${p}</p>`).join('');
 
@@ -84,10 +85,13 @@
 
     h += `<h2><span class="rp-n">08</span>Estructura societaria</h2><div class="table-wrap"><table><thead><tr><th>Vehículo</th><th>Encaje</th><th>Liquidez mínima</th><th>Recuperación</th><th>Tamaño pleno</th><th>Control</th><th>Metas</th></tr></thead><tbody>`;
     ctx.structs.forEach((s) => { h += `<tr><td>${s.nombre}${s.key === state.estructura ? ' (actual)' : ''}</td><td>${Math.round(s.score)}</td><td>${F.eur(s.r.cajaRef)}</td><td>${F.months(s.r.payback)}</td><td>mes ${s.mesPleno} ${s.enPlazo ? '' : '(fuera de plazo)'}</td><td>${s.control} %</td><td>${s.metasOk}/5</td></tr>`; });
-    h += `</tbody></table></div><p>Mejor encaje para tus objetivos: <b>${ctx.structs[0].nombre}</b>. ${ctx.structs[0].desc}</p>`;
+    const best = ctx.structs[0];
+    h += `</tbody></table></div><p>Mejor encaje para tus objetivos: <b>${best.nombre}</b>${best.key === state.estructura ? ' (es la que tienes elegida)' : ` (la elegida en la simulación es ${A.STRUCTURES[state.estructura].nombre.toLowerCase()})`}. ${A.structCaso ? A.structCaso(state, best) : best.desc}</p>
+      <p class="rp-muted"><b>Cómo leer la tabla.</b> <b>Encaje</b>: ${A.STRUCT_GLOSA.encaje} <b>Control</b>: ${A.STRUCT_GLOSA.control} <b>Tamaño pleno</b>: ${A.STRUCT_GLOSA.pleno} <b>Metas</b>: ${A.STRUCT_GLOSA.metas}</p>`;
 
     const P = ctx.plan;
     h += `<h2><span class="rp-n">09</span>Plan de corrección hacia la posición meta</h2>`;
+    h += `<p class="rp-muted">El plan se calcula sobre el vehículo elegido en la simulación (${A.STRUCTURES[state.estructura].nombre.toLowerCase()}) y el escenario ${sc.nombre.toLowerCase()}. No incluye cambiar de vehículo: «tras el plan» es cómo quedaría la empresa aplicando las acciones de abajo con ese mismo vehículo.</p>`;
     h += `<div class="table-wrap"><table><thead><tr><th>Meta</th><th>Objetivo</th><th>Hoy</th><th>Tras el plan</th></tr></thead><tbody>`;
     P.antes.metas.forEach((m, i) => { const d = P.despues.metas[i]; h += `<tr><td>${m.nombre}</td><td>${m.f(m.objetivo)}</td><td>${pill(m.ok ? 'ok' : 'stop', m.f(m.valor))}</td><td>${pill(d.ok ? 'ok' : 'stop', d.f(d.valor))}</td></tr>`; });
     h += `</tbody></table></div>`;

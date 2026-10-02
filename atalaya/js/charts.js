@@ -82,6 +82,13 @@
       }
       svg += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="${s.active ? 2.6 : 1.6}" stroke-linejoin="round" opacity="${s.active ? 1 : 0.75}"/>`;
     });
+    // Punto más bajo del escenario activo, marcado y rotulado
+    const act = visible.find((sr) => sr.active);
+    if (act) {
+      let im = 0; act.data.forEach((v, i) => { if (v < act.data[im]) im = i; });
+      const vx = x(im), vy = y(act.data[im]), izq = vx > W * 0.6;
+      svg += `<circle cx="${vx}" cy="${vy}" r="6" fill="none" stroke="${act.data[im] < 0 ? css('--stop') : css('--gold')}" stroke-width="2.5"/><text x="${vx + (izq ? -10 : 10)}" y="${vy + 18}" text-anchor="${izq ? 'end' : 'start'}" style="fill:${css('--fg')};font-weight:600">mínimo: ${A.fmt.eur(act.data[im])} · mes ${im + 1}</text>`;
+    }
     // etiquetas directas al final (con separación mínima)
     const ends = visible.map((s) => ({ s, yy: y(s.data[n - 1]) })).sort((a, b) => a.yy - b.yy);
     for (let i = 1; i < ends.length; i++) if (ends[i].yy - ends[i - 1].yy < 13) ends[i].yy = ends[i - 1].yy + 13;
@@ -102,8 +109,9 @@
     hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); C.hideTip(); });
     if (legendEl) {
       legendEl.innerHTML = series.map((sr, i) => `<button aria-pressed="${!sr.hidden}" data-i="${i}"><i style="background:${sr.color}"></i>${sr.name}</button>`).join('') +
-        `<span class="small"><i style="background:${css('--stop')};width:14px;height:2px;display:inline-block;vertical-align:middle"></i> suelo 0 €</span>` +
-        (opts.target ? `<span class="small"><i style="background:${css('--gold')};width:14px;height:2px;display:inline-block;vertical-align:middle"></i> caja mínima objetivo</span>` : '');
+        `<span class="small"><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${css('--stop')}" stroke-width="2" stroke-dasharray="3 4"/></svg> línea roja de puntos: 0 €. Por debajo falta dinero, aun usando la póliza</span>` +
+        (opts.target ? `<span class="small"><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${css('--gold')}" stroke-width="2" stroke-dasharray="6 4"/></svg> línea dorada discontinua: la liquidez mínima que exiges (${A.fmt.eur(opts.target)}), tu meta</span>` : '') +
+        `<span class="small"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="${css('--gold')}" stroke-width="2"/></svg> círculo: el mes más tenso del escenario activo</span>`;
       legendEl.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { opts.onToggle && opts.onToggle(+b.dataset.i); }));
     }
   };
@@ -214,7 +222,7 @@
     el.querySelector('.hit').addEventListener('pointermove', (ev) => {
       const r = s.getBoundingClientRect();
       const i = Math.max(0, Math.min(n - 1, Math.floor((((ev.clientX - r.left) / r.width) * W - m.l) / bw)));
-      C.tip(`<h5>Mes ${i + 1}</h5><dl><dt>EBITDA</dt><dd>${A.fmt.eur(eb[i])}</dd><dt>Servicio de deuda</dt><dd>${A.fmt.eur(debt[i])}</dd><dt>Plantilla</dt><dd>${A.fmt.num(res.w.heads[i])}</dd><dt>Caja</dt><dd>${A.fmt.eur(res.w.cash[i])}</dd></dl>`, ev.clientX, ev.clientY);
+      C.tip(`<h5>Mes ${i + 1}</h5><dl><dt>EBITDA</dt><dd>${A.fmt.eur(eb[i])}</dd><dt>Servicio de deuda</dt><dd>${A.fmt.eur(debt[i])}</dd><dt>Personas en plantilla</dt><dd>${A.fmt.num(res.w.heads[i])}</dd><dt>Caja</dt><dd>${A.fmt.eur(res.w.cash[i])}</dd></dl>`, ev.clientX, ev.clientY);
     });
     el.querySelector('.hit').addEventListener('pointerleave', C.hideTip);
   };

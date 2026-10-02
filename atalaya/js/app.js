@@ -81,12 +81,12 @@
     ],
     'f-human': A.HUMAN_VARS,
     'f-custom': [
-      { p: 'custom.ventasF', l: 'Venta nueva lograda', min: 0.2, max: 1.6, step: 0.05, u: '× plan' },
-      { p: 'custom.retraso', l: 'Retraso de la rampa', min: -3, max: 18, step: 1, u: 'meses' },
-      { p: 'custom.margenDelta', l: 'Desvío de margen', min: -12, max: 6, step: 0.5, u: 'pp' },
-      { p: 'custom.sobrecoste', l: 'Sobrecoste de inversión', min: -10, max: 60, step: 1, u: '%' },
-      { p: 'custom.dsoDelta', l: 'Desvío en días de cobro', min: -40, max: 90, step: 1, u: 'días' },
-      { p: 'custom.tipoDelta', l: 'Desvío de tipos', min: -3, max: 6, step: 0.1, u: 'pp' }
+      { p: 'custom.ventasF', l: '¿Qué parte de la venta nueva llega?', min: 0.2, max: 1.6, step: 0.05, u: '× lo previsto', d: '1 = lo que has previsto; 0,7 = el 70 %; 1,2 = un 20 % más.' },
+      { p: 'custom.retraso', l: '¿Cuántos meses tarde arranca?', min: -3, max: 18, step: 1, u: 'meses', d: 'Retraso de la puesta en marcha y de la rampa comercial.' },
+      { p: 'custom.margenDelta', l: '¿Cuánto cambia el margen de lo nuevo?', min: -12, max: 6, step: 0.5, u: 'puntos', d: 'Negativo si suben las materias primas o hay que bajar precio.' },
+      { p: 'custom.sobrecoste', l: '¿Cuánto más cuesta la inversión?', min: -10, max: 60, step: 1, u: '%', d: 'Desvío del presupuesto de la obra o del equipo.' },
+      { p: 'custom.dsoDelta', l: '¿Cuántos días más tardan en pagarte?', min: -40, max: 90, step: 1, u: 'días', d: 'Solo en la venta nueva: los clientes nuevos suelen pagar peor.' },
+      { p: 'custom.tipoDelta', l: '¿Cuánto suben los tipos de interés?', min: -3, max: 6, step: 0.1, u: 'puntos', d: 'Sobre el tipo de los préstamos nuevos.' }
     ]
   };
   const getPath = (p) => p.split('.').reduce((o, k) => (o ? o[k] : undefined), state);
@@ -112,7 +112,7 @@
         bounds[id] = { min: Math.min(resolve(f.min), getPath(f.p) || 0), max: Math.max(resolve(f.max), getPath(f.p) || 0) };
         const commit = (v, src) => {
           if (!isFinite(v)) return;
-          setPath(f.p, v);
+          setPath(f.p, v); state.ejemplo = false;
           syncFields(src);
           schedule();
         };
@@ -227,6 +227,7 @@
     clearTimeout(tQuick); clearTimeout(tHeavy);
     gen++;
     const g = gen;
+    normalizeInv();
     tQuick = setTimeout(computeQuick, 40);
     tHeavy = setTimeout(() => computeHeavy(g), 450);
     store.set(STORE, state);
@@ -236,7 +237,7 @@
     const all = A.SCENARIOS.map((sc, i) => ({ key: sc.key, nombre: sc.nombre, desc: sc.desc, i, r: A.analyze(state, A.scenarioMods(state, sc.key)) }));
     const active = all.find((x) => x.key === state.escenario).r;
     ctx = Object.assign(ctx || {}, { all, active, mods: A.scenarioMods(state, state.escenario) });
-    renderTop(); renderHero(); renderDimension(); renderScenarios(); renderLights(); renderSize(); renderHuman();
+    renderTop(); renderHero(); renderDimension(); renderLineas(); renderEquilibrio(); renderScenarios(); renderLights(); renderSize(); renderHuman();
     if (view.mode === 'traj') render3D();
   }
   const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -249,6 +250,8 @@
     ctx.structs = A.compareStructures(state, mods); renderStructs();
     await tick(); if (g !== gen) return;
     ctx.plan = A.correctionPlan(state, mods); renderPlan();
+    await tick(); if (g !== gen) return;
+    renderOpciones();
     await tick(); if (g !== gen) return;
     if (view.mode === 'surface') {
       const sf = await surfaceAsync(state, mods, view.ax, view.ay, view.metric, 20, g);
@@ -295,7 +298,7 @@
   const fmtMeses = (m) => (!isFinite(m) ? '—' : m < 0 ? 'negativo' : (Math.round(m * 10) / 10).toString().replace('.', ',') + ' meses');
   function renderHero() {
     const r = ctx.active, v = r.verdict, sc = A.SCENARIOS.find((s) => s.key === state.escenario);
-    $('#sectorLabel').textContent = A.SECTORS[state.sector].nombre + ' · ' + A.STRUCTURES[state.estructura].nombre;
+    renderIdCard();
     $('#verdictCard').innerHTML = `<div class="row"><h4>Veredicto · escenario ${sc.nombre.toLowerCase()}</h4><span class="spacer"></span><span class="state ${stCls(vMap[v.key])}">${stName[vMap[v.key]]}</span></div>
       <div class="big">${v.titulo}</div><p class="muted small" style="margin:0">${v.texto}</p>
       <div class="bar" aria-label="Semáforos">${r.lights.map((l) => `<span data-light="${l.key}" style="background:${A.stateColor(l.estado)};opacity:${l.estado === 'ok' ? 0.55 : 0.95}" title="${l.nombre}: ${l.valor}"></span>`).join('')}</div>
@@ -366,6 +369,17 @@
       <p>${aguantan.length} de 4 escenarios mantienen liquidez positiva. El peor es <b>${peor.nombre.toLowerCase()}</b>, con ${F.eur(peor.r.cajaRef)} en el mes ${peor.r.mesCajaRef}.</p>
       <p>${rob ? 'La decisión es <b>robusta</b>: aguanta el escenario pesimista sin quedarse sin liquidez y pagando sus cuotas.' : 'La decisión es <b>frágil</b>: en el escenario pesimista la empresa se queda sin liquidez o no paga sus cuotas con lo que genera. Dimensiona la financiación (póliza, plazo, carencia) para el pesimista, no para el base.'}</p>`;
     renderHyp();
+    renderCustomRes();
+  }
+  // Tu escenario: partir de uno de los cuatro y ver el resultado al momento
+  function renderCustomRes() {
+    const host = $('#customRes'); if (!host) return;
+    const x = ctx.all.find((a) => a.key === 'hipotesis'), r = x.r;
+    host.innerHTML = `<div class="row small"><span class="muted">Partir de:</span>${A.SCENARIOS.filter((a) => a.mods).map((a) => `<button class="btn ghost small" data-from="${a.key}">${a.nombre}</button>`).join('')}</div>
+      <div class="qz-foto"><div><span>Liquidez mínima</span><b style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</b><small>mes ${r.mesCajaRef}</small></div><div><span>Recuperación</span><b>${F.months(r.payback)}</b></div><div><span>Cobertura</span><b>${F.x(r.dscrMin)}</b></div><div><span>Veredicto</span><b style="font-size:.95rem;color:${A.stateColor(vMap[r.verdict.key])}">${r.verdict.titulo}</b></div></div>
+      ${state.escenario !== 'hipotesis' ? '<button class="btn" id="customAct">Ver este escenario en todo el simulador</button>' : '<p class="small muted" style="margin:0">Es el escenario activo: todo el simulador lo está mostrando.</p>'}`;
+    $$('[data-from]', host).forEach((b) => b.onclick = () => { state.custom = Object.assign({}, A.SCENARIOS.find((a) => a.key === b.dataset.from).mods); syncFields(); schedule(); toast('Tu escenario parte del ' + b.textContent.toLowerCase()); });
+    const ca = $('#customAct'); if (ca) ca.onclick = () => setScenario('hipotesis');
   }
   function renderCushion() {
     const r = ctx.active, s = r.colchonSerie;
@@ -466,8 +480,53 @@
       <h4 class="mt">Variables indirectas</h4><p class="small muted">Lo cambian a través de otra magnitud (circulante, EBITDA, rampa…).</p><div class="chips">${d.indirectas.map((v) => `<button class="vchip ind" data-go="${v.path}">${esc(v.nombre)}${isFinite(getPath(v.path)) ? ` <b>${fmtVar(v.path)}</b>` : ''}</button>`).join('')}</div>
       ${efectos.length ? `<h4 class="mt">Si mueves cada variable directa un 10 %</h4><table class="mini"><tbody>${efectos.map((e) => `<tr><td>${e.best.dir === 'subir' ? 'Subir' : 'Bajar'} ${esc(e.v.nombre.toLowerCase())}</td><td>${l.valor} → <b>${d.fmt(e.best.v)}</b></td><td><span class="state ${stCls(e.best.st)}">${stName[e.best.st]}</span></td></tr>`).join('')}</tbody></table>` : ''}
       <h4 class="mt">Cómo corregirlo</h4><p>${d.consejo}</p>
+      ${l.estado !== 'ok' ? `<h4 class="mt">Qué mover para subir de escalón</h4><p class="small muted">Valor exacto de cada dato, tocando solo ese, para pasar ${l.estado === 'stop' ? 'de rojo a ámbar y de rojo a verde' : 'de ámbar a verde'} en el escenario ${A.SCENARIOS.find((x) => x.key === state.escenario).nombre.toLowerCase()}. Normalmente lo más sensato es combinar dos o tres: eso lo calcula el <a href="#plan" id="ltPlan">plan de corrección</a>.</p><div id="ltSaltos" class="small muted">Calculando…</div>` : ''}
       <div class="row mt"><button class="btn" id="askLight">Preguntar al asistente</button></div>`);
+    if (l.estado !== 'ok') setTimeout(() => pintarSaltos(l), 30);
+    const lp = $('#ltPlan'); if (lp) lp.onclick = () => closeModal();
     $('#askLight').onclick = () => { closeModal(); A.assistant && A.assistant.ask(`¿Qué hago para poner en verde el semáforo de ${l.nombre.toLowerCase()}?`); };
+  }
+
+  /* Para cada dato que mueve un semáforo: el valor mínimo (tocando solo ese) que lo sube a ámbar y a verde */
+  const ORD = { stop: 0, warn: 1, ok: 2 };
+  const fieldDef = (p) => Object.values(FIELDS).flat().find((f) => f.p === p);
+  function saltosDe(l) {
+    const d = l.def, cur = ORD[l.estado];
+    const metas = ['warn', 'ok'].filter((k) => ORD[k] > cur);
+    const vistos = new Set();
+    const vars = d.directas.map((v) => ({ v, dir: true })).concat(d.indirectas.map((v) => ({ v, dir: false }))).filter((x) => { if (vistos.has(x.v.path) || !fieldDef(x.v.path) || !isFinite(getPath(x.v.path))) return false; vistos.add(x.v.path); return true; });
+    return vars.map(({ v, dir }) => {
+      const f = fieldDef(v.path), x0 = getPath(v.path);
+      const lo = Math.min(resolve(f.min), x0), hi = Math.max(resolve(f.max), f.u === '€' || f.u === '€/año' ? x0 * 3 : x0);
+      const at = (x) => { const s2 = A.clone(state); const [a, b] = v.path.split('.'); s2[a][b] = x; const r = A.analyze(s2, ctx.mods); return ORD[A.lightState(d, d.value(r, s2), s2, r)]; };
+      const out = {};
+      metas.forEach((k) => {
+        const need = ORD[k]; let best = null;
+        [hi, lo].forEach((end) => {
+          if (Math.abs(end - x0) < 1e-9) return;
+          let prev = x0, hit = null;
+          for (let i = 1; i <= 16; i++) { const x = x0 + (end - x0) * (i / 16); if (at(x) >= need) { hit = x; break; } prev = x; }
+          if (hit === null) return;
+          let a = prev, b = hit; for (let j = 0; j < 9; j++) { const mid = (a + b) / 2; if (at(mid) >= need) b = mid; else a = mid; }
+          const st = f.step || 1; let xr = end > x0 ? Math.ceil(b / st) * st : Math.floor(b / st) * st;
+          if (at(xr) < need) xr = b;
+          if (best === null || Math.abs(xr - x0) < Math.abs(best - x0)) best = xr;
+        });
+        out[k] = best;
+      });
+      return { v, dir, f, x0, out };
+    });
+  }
+  function pintarSaltos(l) {
+    const host = $('#ltSaltos'); if (!host) return;
+    const R = saltosDe(l), metas = ['warn', 'ok'].filter((k) => ORD[k] > ORD[l.estado]);
+    const fv = (f, v) => `${fmtField(f, v)} ${f.u}`;
+    const celda = (x, v) => { if (v == null) return '<span class="muted">sola no basta</span>'; const dv = v - x.x0; const dtxt = x.f.u.indexOf('€') === 0 ? ` (${dv > 0 ? '+' : '−'}${F.eur(Math.abs(dv))})` : ''; return `${dv > 0 ? 'subir a' : 'bajar a'} <b>${fv(x.f, v)}</b>${dtxt}`; };
+    const rows = R.filter((x) => metas.some((k) => x.out[k] != null)).concat(R.filter((x) => metas.every((k) => x.out[k] == null)));
+    const r = ctx.active;
+    const cab = l.key === 'liquidez' ? `<p style="color:var(--fg)">Hoy el punto más bajo es <b>${F.eur(r.cajaRef)}</b> en el mes ${r.mesCajaRef}. ${r.cajaRef < 0 ? `Para salir del rojo necesitas <b>${F.eur(-r.cajaRef)}</b> más de liquidez en ese mes` : ''}${l.estado !== 'ok' ? `${r.cajaRef < 0 ? ' y, para el verde, ' : 'Para el verde necesitas '}<b>${F.eur(l.def.ok(state, r) - r.cajaRef)}</b> más (verde desde ${F.eur(l.def.ok(state, r))}).` : ''}</p>` : '';
+    host.classList.remove('muted');
+    host.innerHTML = cab + `<div class="table-wrap"><table class="mini"><thead><tr><th style="text-align:left">Dato</th><th>Hoy</th>${metas.map((k) => `<th>Para ${k === 'warn' ? 'ámbar' : 'verde'}</th>`).join('')}</tr></thead><tbody>${rows.map((x) => `<tr><td style="text-align:left">${esc(x.v.nombre)}${x.dir ? '' : ' <span class="muted">(indirecta)</span>'}</td><td>${fv(x.f, x.x0)}</td>${metas.map((k) => `<td>${celda(x, x.out[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
 
   function renderRisks() {
@@ -485,28 +544,77 @@
   }
 
   /* ---------------- Tamaño operativo ---------------- */
+  function sizeData() {
+    const r = ctx.active, t = r.tamano, w = r.w, b = r.b, e = state.empresa, inv = state.inversion, c0 = t.mesCrucero - 1;
+    const Y = (a) => A.sum(a, c0, c0 + 12), Y0 = (a) => A.sum(a, 0, 12);
+    return { r, t, e, inv, c0, baseCru: Y(b.sales), nuevaCru: Y(w.newSales), grossA: Y0(b.gross), staffA: Y0(b.staff), fixedA: Y0(b.fixed), grossB: Y(w.gross), staffB: Y(w.staff), fixedB: Y(w.fixed), debtB: Y(w.debt) };
+  }
+  const SIZE = [
+    { n: 'Ventas', k: 'ventas', f: (v) => F.eur(v), up: 1 },
+    { n: 'EBITDA', k: 'ebitda', f: (v) => F.eur(v), up: 1, sub: (t) => `${F.pct(t.antes.ebitdaPct)} → ${F.pct(t.despues.ebitdaPct)} sobre ventas` },
+    { n: 'Margen bruto', k: 'margen', f: (v) => F.pct(v), up: 1 },
+    { n: 'Plantilla', k: 'plantilla', f: (v) => F.num(v) + ' pers.', up: 0 },
+    { n: 'Peso salarial', k: 'pesoSalarial', f: (v) => F.pct(v), up: -1 },
+    { n: 'Ventas por persona', k: 'ventasEmpleado', f: (v) => F.eur(v), up: 1 },
+    { n: 'Punto de equilibrio', k: 'equilibrio', f: (v) => F.eur(v), up: -1, sub: () => 'ventas al año para no perder' },
+    { n: 'Circulante extra', k: 'wc', f: (v) => F.eur(v), up: -1, sub: () => 'caja atrapada en clientes y stock en el pico' }
+  ];
+  function sizeVals(it, t) { return it.k === 'wc' ? [0, ctx.active.wcPeak] : [t.antes[it.k], t.despues[it.k]]; }
   function renderSize() {
     const t = ctx.active.tamano;
-    $('#sizeLede').textContent = `Los próximos doce meses sin el proyecto frente al año de crucero, que empieza en el mes ${t.mesCrucero}, cuando la actividad nueva ha completado su rampa.`;
-    const items = [
-      { n: 'Ventas', a: t.antes.ventas, b: t.despues.ventas, f: F.eur, up: 1 },
-      { n: 'EBITDA', a: t.antes.ebitda, b: t.despues.ebitda, f: F.eur, up: 1, sub: `${F.pct(t.antes.ebitdaPct)} → ${F.pct(t.despues.ebitdaPct)} sobre ventas` },
-      { n: 'Margen bruto', a: t.antes.margen, b: t.despues.margen, f: F.pct, up: 1 },
-      { n: 'Plantilla', a: t.antes.plantilla, b: t.despues.plantilla, f: F.num, up: 0 },
-      { n: 'Peso salarial', a: t.antes.pesoSalarial, b: t.despues.pesoSalarial, f: F.pct, up: -1, info: 'salarial' },
-      { n: 'Ventas por persona', a: t.antes.ventasEmpleado, b: t.despues.ventasEmpleado, f: F.eur, up: 1 },
-      { n: 'Punto de equilibrio', a: t.antes.equilibrio, b: t.despues.equilibrio, f: F.eur, up: -1 },
-      { n: 'Circulante extra', a: 0, b: ctx.active.wcPeak, f: F.eur, up: -1, sub: 'caja atrapada en clientes y stock en el pico' }
-    ];
-    $('#sizeGrid').innerHTML = items.map((it) => {
-      const mx = Math.max(Math.abs(it.a), Math.abs(it.b)) || 1;
-      const d = it.b - it.a, good = it.up === 0 ? null : (d * it.up >= 0);
-      const rel = it.a ? (d / Math.abs(it.a)) * 100 : null;
-      return `<div class="glass size" ${it.info ? `data-info="${it.info}"` : ''}><h4>${it.n}</h4><div class="from-to"><span class="a">${it.f(it.a)}</span><span class="muted">→</span><span class="b">${it.f(it.b)}</span></div>
-        <div class="bars"><span style="width:${(Math.abs(it.a) / mx) * 100}%"></span><span class="after" style="width:${(Math.abs(it.b) / mx) * 100}%"></span></div>
-        <div class="delta ${good === null ? '' : good ? 'up' : 'down'}">${it.sub || (rel !== null ? `${rel >= 0 ? '+' : ''}${F.pct(rel)}` : '')}</div></div>`;
+    $('#sizeLede').innerHTML = `A la izquierda, los <b>próximos doce meses sin el proyecto</b>; a la derecha, el <b>año de crucero</b> (meses ${t.mesCrucero} a ${t.mesCrucero + 11}), cuando lo nuevo ha terminado su rampa y vende lo previsto. Toca una tarjeta para ver de dónde sale cada cifra y qué hacer con ella.`;
+    $('#sizeGrid').innerHTML = SIZE.map((it, i) => {
+      const [a, b] = sizeVals(it, t);
+      const mx = Math.max(Math.abs(a), Math.abs(b)) || 1;
+      const d = b - a, good = it.up === 0 ? null : (d * it.up >= 0);
+      const rel = a ? (d / Math.abs(a)) * 100 : null;
+      return `<button class="glass size" data-sz="${i}"><h4>${it.n}</h4><div class="from-to"><span class="a">${it.f(a)}</span><span class="muted">→</span><span class="b">${it.f(b)}</span></div>
+        <div class="bars"><span style="width:${(Math.abs(a) / mx) * 100}%"></span><span class="after" style="width:${(Math.abs(b) / mx) * 100}%"></span></div>
+        <div class="delta ${good === null ? '' : good ? 'up' : 'down'}">${it.sub ? it.sub(t) : rel !== null ? `${rel >= 0 ? '+' : ''}${F.pct(rel)}` : ''}</div><div class="mas">De dónde sale →</div></button>`;
     }).join('');
+    $$('#sizeGrid [data-sz]').forEach((b) => b.onclick = () => openSize(+b.dataset.sz));
     C.debt($('#debtChart'), ctx.active);
+    renderSizeRead();
+  }
+  function sizeExplain(k) {
+    const d = sizeData(), { t, e, inv, r } = d, sec = A.SECTORS[state.sector], m = ctx.mods, mesA = d.c0 + 1, mesB = d.c0 + 12;
+    const vNueva = e.ventas * inv.incVentas / 100;
+    const X = {
+      ventas: { que: 'Lo que factura la empresa en un año.', de: `<b>Hoy (${F.eur(t.antes.ventas)})</b>: tus ventas actuales, ${F.eur(e.ventas)}, con el crecimiento orgánico del ${String(e.crecimiento).replace('.', ',')} % durante los próximos doce meses.<br><b>Con el proyecto (${F.eur(t.despues.ventas)})</b>: en los meses ${mesA} a ${mesB} el negocio de hoy, que sigue creciendo hasta entonces, vende ${F.eur(d.baseCru)}, y lo nuevo suma ${F.eur(d.nuevaCru)}. Esa venta nueva sale de tu dato «Venta nueva en crucero»: el ${String(inv.incVentas).replace('.', ',')} % de tus ventas, ${F.eur(vNueva)} al año${m.ventasF !== 1 ? `, por ${String(m.ventasF).replace('.', ',')} en el escenario ${A.SCENARIOS.find((x) => x.key === state.escenario).nombre.toLowerCase()}` : ''}${r.p.share < 1 ? ', y solo la mitad es tuya en una joint venture' : ''}.`, hacer: 'Es la cifra más incierta de todo el plan. Compruébala con pedidos o clientes comprometidos y mira qué pasa en el escenario pesimista. Puedes bajarla aquí mismo con la barra de venta nueva.', vars: ['inversion.incVentas', 'empresa.crecimiento', 'inversion.rampa'] },
+      ebitda: { que: 'Lo que gana el negocio con su actividad antes de pagar intereses, impuestos y amortizaciones. Es el dinero con el que se pagan las cuotas.', de: `<table class="mini"><tbody><tr><td></td><td>Hoy</td><td>Crucero</td></tr><tr><td>Margen bruto (ventas − compras)</td><td>${F.eur(d.grossA)}</td><td>${F.eur(d.grossB)}</td></tr><tr><td>− Personal</td><td>${F.eur(d.staffA)}</td><td>${F.eur(d.staffB)}</td></tr><tr><td>− Otros gastos fijos</td><td>${F.eur(d.fixedA)}</td><td>${F.eur(d.fixedB)}</td></tr><tr><td><b>= EBITDA</b></td><td><b>${F.eur(t.antes.ebitda)}</b></td><td><b>${F.eur(t.despues.ebitda)}</b></td></tr><tr><td class="muted">Cuotas de préstamos en ese año</td><td></td><td class="muted">${F.eur(d.debtB)}</td></tr></tbody></table>`, hacer: t.despues.ebitda < d.debtB ? 'En crucero el EBITDA no cubre las cuotas: hay que alargar plazos, bajar la parte financiada o mejorar el margen de lo nuevo.' : `El EBITDA de crucero cubre ${F.x(t.despues.ebitda / Math.max(1, d.debtB))} las cuotas de ese año.`, vars: ['inversion.margenNuevo', 'inversion.fijosNuevos', 'inversion.contrataciones'] },
+      margen: { que: 'De cada 100 € vendidos, lo que queda tras pagar compras y materia prima.', de: `Hoy, ${F.pct(e.margen)}. Lo nuevo tiene un margen de ${F.pct(inv.margenNuevo + (m.margenDelta || 0))}; mezclado con lo de hoy según lo que pesa cada parte en las ventas, queda en ${F.pct(t.despues.margen)}.`, hacer: t.despues.margen < t.antes.margen - 1 ? 'Lo nuevo diluye el margen: cada euro de venta nueva deja menos. Solo compensa si cubre de sobra los fijos y el personal nuevos.' : 'Lo nuevo no empeora el margen de la empresa.', vars: ['inversion.margenNuevo', 'empresa.margen'] },
+      plantilla: { que: 'Personas en nómina.', de: `Hoy ${e.plantilla} personas. Con el proyecto se suman ${Math.round(inv.contrataciones * r.p.share)} contrataciones (tu dato «Contrataciones»), hasta ${F.num(t.despues.plantilla)}. Con ${sec.span} personas por responsable, necesitarás ${r.humano.mandosNecesarios} mandos; hoy tienes ${state.humano.mandos}.`, hacer: r.humano.gapMandos ? `Faltan ${r.humano.gapMandos} mandos: nómbralos o contrátalos antes del arranque (ver «¿Está el equipo listo?»).` : 'La estructura de mando cubre la nueva plantilla.', vars: ['inversion.contrataciones', 'inversion.anticipo', 'humano.mandos'] },
+      pesoSalarial: { que: 'Coste de personal sobre ventas. Mide cuánto de lo que vendes se va en sueldos.', de: `Hoy ${F.pct(t.antes.pesoSalarial)} (${F.eur(d.staffA)} de personal sobre ${F.eur(t.antes.ventas)} de ventas). En crucero ${F.pct(t.despues.pesoSalarial)}. En ${sec.nombre.toLowerCase()} lo sano es no pasar del ${sec.pesoSalarialMax} %.`, hacer: t.despues.pesoSalarial > sec.pesoSalarialMax ? 'Por encima de la referencia del sector: contrata al ritmo de la venta real, no del plan.' : 'Dentro de la referencia del sector.', vars: ['inversion.contrataciones', 'inversion.salario', 'empresa.personal'] },
+      ventasEmpleado: { que: 'Productividad: ventas divididas entre personas.', de: `Hoy ${F.eur(t.antes.ventasEmpleado)} por persona; en crucero ${F.eur(t.despues.ventasEmpleado)}.`, hacer: t.despues.ventasEmpleado < t.antes.ventasEmpleado ? 'Cada persona nueva vende menos que las de hoy: o sobran contrataciones o la venta nueva está corta.' : 'Lo nuevo es más productivo por persona que lo de hoy.', vars: ['inversion.contrataciones', 'inversion.incVentas'] },
+      equilibrio: { que: 'Lo que hay que vender al año para cubrir personal y gastos fijos sin perder dinero (sin contar las cuotas).', de: `Hoy ${F.eur(t.antes.equilibrio)}; con el proyecto ${F.eur(t.despues.equilibrio)}, porque suben los fijos y el personal. Lo verás en gráfico, con y sin cuotas, en «El terreno antes de pisarlo».`, hacer: `Vendes un ${F.pct((t.despues.ventas / Math.max(1, t.despues.equilibrio) - 1) * 100)} por encima del equilibrio en crucero. Por debajo del 10 % la empresa vive al límite.`, vars: ['inversion.fijosNuevos', 'inversion.contrataciones', 'inversion.margenNuevo'] },
+      wc: { que: 'Dinero que se queda atrapado en clientes (facturas por cobrar) y en almacén al vender más. Sale de la caja aunque la cuenta de resultados diga que ganas.', de: `En el peor momento, el crecimiento inmoviliza ${F.eur(r.wcPeak)}: cobras a ${e.dso} días, el stock dura ${e.dio} y pagas a ${e.dpo}. Cada día menos de cobro libera unos ${F.eur(t.despues.ventas / 365)}.`, hacer: `Cobrar 15 días antes liberaría unos ${F.eur(t.despues.ventas / 365 * 15)}. Otras palancas: anticipos de clientes, factoring o confirming, y pagar a proveedores algo más tarde.`, vars: ['empresa.dso', 'empresa.dio', 'empresa.dpo'] }
+    };
+    return X[k];
+  }
+  function openSize(i) {
+    const it = SIZE[i], t = ctx.active.tamano, [a, b] = sizeVals(it, t), x = sizeExplain(it.k);
+    openModal(`<div class="eyebrow">La empresa que serás</div><h2 style="font-size:1.8rem">${it.n}</h2>
+      <div class="row mt"><span class="num" style="font-size:1.3rem">${it.f(a)}</span><span class="muted">→</span><span class="num" style="font-size:1.3rem;color:var(--gold-soft)">${it.f(b)}</span></div>
+      <p>${x.que}</p><h4>De dónde sale</h4><div>${x.de}</div><h4 class="mt">Qué hacer</h4><p>${x.hacer}</p>
+      <h4>Se mueve con</h4><div class="chips">${x.vars.map((p) => varChip(p)).join('')}</div>`);
+  }
+  function renderSizeRead() {
+    const host = $('#sizeRead'); if (!host) return;
+    const d = sizeData(), t = d.t, sec = A.SECTORS[state.sector];
+    const notas = [];
+    notas.push(`Pasas de vender ${F.eur(t.antes.ventas)} a ${F.eur(t.despues.ventas)} (${F.pct((t.despues.ventas / Math.max(1, t.antes.ventas) - 1) * 100)} más): ${F.eur(d.nuevaCru)} son de lo nuevo.`);
+    notas.push(t.despues.ebitda > t.antes.ebitda ? `El EBITDA sube de ${F.eur(t.antes.ebitda)} a ${F.eur(t.despues.ebitda)}: lo nuevo aporta ${F.eur(t.despues.ebitda - t.antes.ebitda)} al año antes de cuotas.` : `El EBITDA baja de ${F.eur(t.antes.ebitda)} a ${F.eur(t.despues.ebitda)}: lo nuevo cuesta más de lo que deja incluso en crucero.`);
+    if (t.despues.pesoSalarial > sec.pesoSalarialMax) notas.push(`El peso salarial (${F.pct(t.despues.pesoSalarial)}) supera la referencia del sector (${sec.pesoSalarialMax} %).`);
+    if (t.despues.ventasEmpleado < t.antes.ventasEmpleado) notas.push('La productividad por persona baja: revisa si todas las contrataciones son necesarias desde el principio.');
+    notas.push(`El crecimiento atrapará hasta ${F.eur(ctx.active.wcPeak)} en clientes y stock: tenlo financiado antes de arrancar.`);
+    host.innerHTML = `<h4>Lectura</h4><ul class="small">${notas.map((n) => `<li>${n}</li>`).join('')}</ul>
+      <p class="small muted" style="margin:0">Mueve lo nuevo y mira cómo cambia la empresa que serás:</p>
+      <div class="pe-mueve" style="border:0;padding-top:0">${[['inversion.incVentas', 'Venta nueva', 0, 150, 1, (v) => F.eur(state.empresa.ventas * v / 100) + '/año'], ['inversion.margenNuevo', 'Margen de lo nuevo', 5, 90, 0.5, (v) => F.pct(v)], ['inversion.contrataciones', 'Contrataciones', 0, Math.max(20, state.inversion.contrataciones * 2), 1, (v) => v + ' pers.'], ['inversion.salario', 'Coste por persona', 12000, 120000, 500, (v) => F.eur(v) + '/año'], ['inversion.fijosNuevos', 'Fijos nuevos', 0, Math.max(300000, state.inversion.fijosNuevos * 2), 1000, (v) => F.eur(v) + '/año'], ['inversion.rampa', 'Meses de rampa', 1, 36, 1, (v) => v + ' meses']].map(([p, l, a, z, st, f]) => `<label><span>${l} <b data-szv="${p}">${f(getPath(p))}</b></span><input type="range" data-sz-p="${p}" min="${a}" max="${z}" step="${st}" value="${getPath(p)}"></label>`).join('')}</div>`;
+    const fm = { 'inversion.incVentas': (v) => F.eur(state.empresa.ventas * v / 100) + '/año', 'inversion.margenNuevo': (v) => F.pct(v), 'inversion.contrataciones': (v) => v + ' pers.', 'inversion.salario': (v) => F.eur(v) + '/año', 'inversion.fijosNuevos': (v) => F.eur(v) + '/año', 'inversion.rampa': (v) => v + ' meses' };
+    $$('[data-sz-p]', host).forEach((r) => {
+      r.addEventListener('input', () => { const tt = host.querySelector(`[data-szv="${r.dataset.szP}"]`); if (tt) tt.textContent = fm[r.dataset.szP](parseFloat(r.value)); });
+      r.addEventListener('change', () => { setPath(r.dataset.szP, parseFloat(r.value)); state.ejemplo = false; syncFields(); schedule(); });
+    });
   }
 
   /* ---------------- Sistema humano ---------------- */
@@ -529,16 +637,17 @@
   /* ---------------- Estructuras ---------------- */
   function renderStructs() {
     const S = ctx.structs;
+    ['encaje', 'control', 'pleno', 'metas', 'marcha'].forEach((k) => { INFO['st-' + k] = { t: { encaje: 'Encaje', control: 'Control', pleno: 'Tamaño pleno', metas: 'Metas cumplidas', marcha: 'Puesta en marcha' }[k], d: A.STRUCT_GLOSA[k] }; });
     $('#structLede').innerHTML = `Seis formas de hacer la misma inversión con la meta de alcanzar el tamaño pleno antes del <b>mes ${state.meta.plazoObjetivo}</b>. Cada una cambia la liquidez, el retorno para la propiedad, el control y el tiempo. <b>Toca una</b> para ver cómo funciona, sus ventajas, su fiscalidad y los pasos para ponerla en marcha.`;
     $('#structs').innerHTML = S.map((s, i) => {
       const r = s.r;
       const attr = (n, v, inv) => `<div class="attr"><span>${n}</span><span class="track"><b style="width:${v}%;background:${inv ? css('--s2') : css('--s1')}"></b></span><span>${v}</span></div>`;
       return `<button class="glass struct ${s.key === state.estructura ? 'current' : ''}" data-k="${s.key}">
-        <div class="head"><span class="name">${s.nombre}</span><span class="score">${i === 0 ? '★ ' : ''}${Math.round(s.score)}</span></div>
+        <div class="head"><span class="name">${s.nombre}</span><span class="score" title="Encaje de 0 a 100">${i === 0 ? '★ ' : ''}${Math.round(s.score)}<small>/100 encaje</small></span></div>
         <div class="small muted">${s.desc}</div>
         <div class="stats"><div>Liquidez mínima<b style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</b></div><div>Recuperación<b>${F.months(r.payback)}</b></div><div>Tamaño pleno<b style="color:${s.enPlazo ? 'inherit' : 'var(--warn)'}">mes ${s.mesPleno}</b></div></div>
         <div class="attrs">${attr('Control', s.control)}${attr('Aislamiento', s.aislamiento)}${attr('Complejidad', s.complejidad, true)}</div>
-        <div class="row small"><span class="state ${stCls(s.enPlazo ? 'ok' : 'warn')}">${s.enPlazo ? 'En plazo' : 'Fuera de plazo'}</span><span class="state ${stCls(s.metasOk >= 4 ? 'ok' : s.metasOk >= 2 ? 'warn' : 'stop')}">${s.metasOk}/5 metas</span>${s.key === state.estructura ? '<span class="muted">· actual</span>' : ''}<span class="spacer"></span><span class="more">Ver ficha →</span></div>
+        <div class="row small"><span class="state ${stCls(s.enPlazo ? 'ok' : 'warn')}">${s.enPlazo ? 'En plazo' : 'Fuera de plazo'}</span><span class="state ${stCls(s.metasOk >= 4 ? 'ok' : s.metasOk >= 2 ? 'warn' : 'stop')}">${s.metasOk} de 5 metas</span>${s.key === state.estructura ? '<span class="muted">· actual</span>' : ''}<span class="spacer"></span><span class="more">Ver ficha →</span></div>
       </button>`;
     }).join('');
     $$('#structs .struct').forEach((b) => b.addEventListener('click', () => openStruct(b.dataset.k)));
@@ -554,17 +663,32 @@
     fl.nodos.forEach((n, i) => { s += `<rect x="${xs[i] - 78}" y="${Hh - 52}" width="156" height="40" rx="10" fill="${css('--panel-solid')}" stroke="${css('--line-strong')}"/><text x="${xs[i]}" y="${Hh - 27}" text-anchor="middle" style="fill:${css('--fg')};font-size:12px;font-family:var(--font-body)">${n}</text>`; });
     return s + '</svg>';
   }
+  // Bajada a tierra de cada relación de grupo, con las cifras de la simulación
+  const GT_CASO = {
+    'Holding': (st, x) => `los socios aportarían sus acciones de ${esc(st.empresaNombre || 'la empresa')}${x.key === 'patrimonial' ? ' y de la patrimonial' : x.key === 'filial' ? ' y la filial colgaría de ella' : ''} a una sociedad cabecera. Los dividendos suben a la holding casi sin impuestos y desde ahí se reinvierten en otra sociedad del grupo.`,
+    'Préstamos intragrupo': (st, x) => `si la operativa tiene caja de sobra y la otra sociedad la necesita, puede prestársela con un contrato por escrito, a un interés de mercado (en torno al ${String(st.inversion.tipo).replace('.', ',')} % que te cobra el banco) y con calendario de devolución.`,
+    'Gestión centralizada de tesorería': (st, x) => `las cuentas de las sociedades se barren cada día a una cuenta central: lo que sobra en una cubre lo que falta en otra sin tirar de póliza. Hoy tu punto más bajo de liquidez es ${F.eur(x.r.cajaRef)} en el mes ${x.r.mesCajaRef}.`,
+    'Consolidación fiscal': (st, x) => `si lo nuevo pierde dinero el primer año y la operativa gana, las pérdidas de una restan del beneficio de la otra ese mismo año: se paga menos impuesto de sociedades (hoy un ${st.empresa.impuesto} %) mientras lo nuevo arranca.`,
+    'Garantías cruzadas': (st, x) => `el banco pedirá seguramente que ${esc(st.empresaNombre || 'la empresa actual')} avale el préstamo de ${F.eur(x.r.loan || st.inversion.importe * st.inversion.pctFin / 100)}. Si lo hace, buena parte del aislamiento del riesgo se pierde: negocia el aval limitado a un importe o a un plazo.`,
+    'Operaciones vinculadas': (st, x) => (x.key === 'patrimonial' ? `el alquiler de unos ${F.eur(x.r.p.alquiler)} al mes entre la patrimonial y la operativa tiene que estar a precio de mercado y documentado en un contrato; si no, Hacienda puede ajustarlo.` : 'cualquier servicio, alquiler o préstamo entre sociedades del grupo se factura a precio de mercado y se documenta.'),
+    'Dividendos dentro del grupo': () => 'la filial reparte beneficio a la matriz o a la holding prácticamente sin tributar, y ese dinero puede financiar la siguiente inversión sin pasar por el bolsillo de los socios.',
+    'Sucesión en la empresa familiar': () => 'separar el patrimonio (naves, terrenos) en una patrimonial y el negocio en la operativa facilita repartir entre herederos: quien trabaja en la empresa se queda con la operativa y el resto recibe rentas del alquiler.'
+  };
   function openStruct(key) {
     const s = (ctx.structs || A.compareStructures(state, ctx.mods)).find((x) => x.key === key), I = A.STRUCTURE_INFO[key], r = s.r;
     const list = (a) => `<ul>${a.map((x) => `<li>${x}</li>`).join('')}</ul>`;
     const el = openModal(`<div class="eyebrow">Vehículo societario</div><h2 style="font-size:1.9rem">${s.nombre}</h2>
       <p class="lede" style="margin-top:8px">${I.como}</p>
       <div class="chart mt">${flowSVG(I.flujo)}</div>
+      <h4 class="mt">En tu caso</h4><p>${A.structCaso(state, s)}</p>
       <div class="mgrid mt">
-        <div><span>Liquidez mínima</span><b>${F.eur(r.cajaRef)}</b></div><div><span>Recuperación</span><b>${F.months(r.payback)}</b></div>
-        <div><span>Tamaño pleno</span><b>mes ${s.mesPleno}${s.enPlazo ? '' : ' (fuera de plazo)'}</b></div><div><span>Metas cumplidas</span><b>${s.metasOk}/5</b></div>
-        <div><span>Control</span><b>${s.control} %</b></div><div><span>Puesta en marcha</span><b>${I.plazo}</b></div>
+        <div><span>Liquidez mínima</span><b>${F.eur(r.cajaRef)}</b><small>el punto más bajo de dinero disponible, mes ${r.mesCajaRef}</small></div><div><span>Recuperación</span><b>${F.months(r.payback)}</b><small>lo que tarda lo nuevo en devolver lo invertido</small></div>
+        <div><span>Tamaño pleno <button class="info-i" data-info="st-pleno" aria-label="Qué es">?</button></span><b>mes ${s.mesPleno}${s.enPlazo ? '' : ' (fuera de plazo)'}</b><small>cuando lo nuevo vende el 100 % previsto</small></div><div><span>Metas cumplidas <button class="info-i" data-info="st-metas" aria-label="Qué es">?</button></span><b>${s.metasOk} de 5</b><small>${r.metas.map((m) => `${m.ok ? '✓' : '✗'} ${m.nombre.toLowerCase()}`).join(' · ')}</small></div>
+        <div><span>Control <button class="info-i" data-info="st-control" aria-label="Qué es">?</button></span><b>${s.control} %</b><small>${s.control === 100 ? 'decidís solo los socios actuales' : s.control >= 65 ? 'entra un socio minoritario' : 'lo compartes a medias'}</small></div><div><span>Puesta en marcha <button class="info-i" data-info="st-marcha" aria-label="Qué es">?</button></span><b>${I.plazo}</b></div>
       </div>
+      <h4 class="mt">Por qué tiene un encaje de ${Math.round(s.score)} sobre 100 <button class="info-i" data-info="st-encaje" aria-label="Qué es">?</button></h4>
+      <div class="stack small">${s.desglose.map((x) => `<div class="mfrow"><span>${x.n}</span><span class="track"><b style="width:${x.v / x.max * 100}%"></b></span><span class="num">${Math.round(x.v)} / ${x.max}</span></div><p class="muted" style="margin:-4px 0 4px">${x.d}</p>`).join('')}</div>
+      <p class="small muted">${s.score >= 70 ? 'Encaja bien con tus objetivos.' : s.score >= 50 ? 'Encaja con matices: mira los criterios con la barra más corta.' : 'No encaja con tus objetivos tal como están.'} El óptimo sería 100: liquidez por encima de la meta, en plazo, control total, riesgo aislado, sencillo y las cinco metas cumplidas; ningún vehículo lo tiene todo.</p>
       <div class="grid cols-2 mt">
         <div><h4>Ventajas</h4>${list(I.ventajas)}</div>
         <div><h4>Inconvenientes</h4>${list(I.inconvenientes)}</div>
@@ -574,10 +698,10 @@
       <div class="grid cols-2"><div><h4>Coste</h4><p>${I.coste}</p></div><div><h4>Cuándo conviene</h4><p>${I.conviene}</p></div></div>
       <h4>Riesgos</h4>${list(I.riesgos)}
       <h4>Pasos para ponerla en marcha</h4><ol>${I.pasos.map((x) => `<li>${x}</li>`).join('')}</ol>
-      <h4>Relaciones dentro del grupo</h4><div class="chips">${A.GROUP_TOPICS.map((g, i) => `<button class="vchip ind" data-gt="${i}">${g.t}</button>`).join('')}</div><p class="small" id="gtText"></p>
+      <h4>Si formas un grupo de sociedades</h4><p class="small muted" style="margin-top:0">Cuestiones que aparecen cuando hay más de una sociedad (por ejemplo, la operativa y la patrimonial). Toca una para ver qué significa en la práctica.</p><div class="chips">${A.GROUP_TOPICS.map((g, i) => `<button class="vchip ind" data-gt="${i}">${g.t}</button>`).join('')}</div><p class="small" id="gtText"></p>
       <p class="note">Orientativo para preparar la conversación con asesores fiscal y legal. No sustituye su dictamen.</p>
       <div class="row mt"><button class="btn solid" id="stAdopt">${key === state.estructura ? 'Es la estructura actual' : 'Adoptar esta estructura'}</button><button class="btn" id="stAsk">Preguntar al asistente</button></div>`);
-    $$('[data-gt]', el).forEach((b) => b.onclick = () => { const g = A.GROUP_TOPICS[+b.dataset.gt]; $('#gtText', el).innerHTML = `<b>${g.t}.</b> ${g.d}`; });
+    $$('[data-gt]', el).forEach((b) => b.onclick = () => { const g = A.GROUP_TOPICS[+b.dataset.gt]; $('#gtText', el).innerHTML = `<b>${g.t}.</b> ${g.d}${GT_CASO[g.t] ? ` <br><span class="muted">En la práctica: ${GT_CASO[g.t](state, s)}</span>` : ''}`; });
     $('#stAdopt', el).onclick = () => { state.estructura = key; closeModal(); toast('Estructura adoptada: ' + s.nombre); schedule(); };
     $('#stAsk', el).onclick = () => { closeModal(); A.assistant && A.assistant.ask(`Explícame la estructura «${s.nombre}» aplicada a mi caso y cómo se relacionan las sociedades del grupo.`); };
   }
@@ -586,19 +710,33 @@
   const TARGETS = [
     { p: 'meta.cajaMin', n: 'Liquidez mínima', key: 'cajaMin', min: 0, max: 1500000, step: 10000, f: F.eur },
     { p: 'meta.paybackMax', n: 'Recuperación máx.', key: 'payback', min: 1, max: 12, step: 0.5, f: (v) => String(v).replace('.', ',') + ' años' },
-    { p: 'meta.dscrMin', n: 'Cobertura mínima', key: 'dscr', min: 1, max: 3, step: 0.05, f: F.x },
+    { p: 'meta.dscrMin', n: 'Cobertura mínima', key: 'dscr', min: 1, max: 3, step: 0.05, f: (v) => (Math.round(v * 100) / 100).toString().replace('.', ',') + '×' },
     { p: 'meta.deudaEbitdaMax', n: 'Deuda/EBITDA máx.', key: 'deuda', min: 1, max: 6, step: 0.1, f: F.x },
     { p: 'meta.pesoSalarialMax', n: 'Peso salarial máx.', key: 'salarial', min: 5, max: 70, step: 0.5, f: F.pct },
     { p: 'meta.plazoObjetivo', n: 'Tamaño pleno antes de', key: null, min: 6, max: 60, step: 1, f: (v) => 'mes ' + v }
   ];
+  // Referencia de cada meta: lo que se considera sano para una empresa de este sector y tamaño
+  function refMeta(t) {
+    const sec = A.SECTORS[state.sector], r = ctx.active, inv = state.inversion;
+    return {
+      'meta.cajaMin': { v: Math.round(r.colchon / 10000) * 10000, txt: `Al menos dos meses de gastos fijos y personal: ${F.eur(r.colchon)}. Es el colchón para pagar nóminas si un cliente grande se retrasa.` },
+      'meta.paybackMax': { v: Math.min(7, Math.max(2, Math.round(inv.vidaUtil / 2 * 2) / 2)), txt: `Menos de la mitad de la vida útil de lo que compras (${String(inv.vidaUtil).replace('.', ',')} años). Las pymes suelen pedir entre 3 y 5 años.` },
+      'meta.dscrMin': { v: 1.25, txt: 'La banca pide que el negocio genere al menos 1,25 veces lo que pagas de cuotas; 1,5 es holgado y por debajo de 1 no llega.' },
+      'meta.deudaEbitdaMax': { v: sec.deudaEbitdaMax, txt: `En ${sec.nombre.toLowerCase()}, hasta ${String(sec.deudaEbitdaMax).replace('.', ',')} veces el EBITDA. Por encima de 3, la banca endurece condiciones.` },
+      'meta.pesoSalarialMax': { v: sec.pesoSalarialMax, txt: `En ${sec.nombre.toLowerCase()}, el personal no debería pasar del ${sec.pesoSalarialMax} % de las ventas.` },
+      'meta.plazoObjetivo': { v: Math.max(12, Math.min(36, state.inversion.mesInicio + sec.rampa + 6)), txt: `En tu sector la rampa típica es de ${sec.rampa} meses: tamaño pleno hacia el mes ${state.inversion.mesInicio + sec.rampa} si todo va bien; la referencia deja seis meses de margen.` }
+    }[t.p];
+  }
   function renderPlan() {
     const Pl = ctx.plan, metas = Pl.antes.metas;
     $('#targets').innerHTML = TARGETS.map((t, i) => {
       const m = t.key ? metas.find((x) => x.key === t.key) : null;
       const now = m ? m.f(m.valor) : `mes ${ctx.active.tamano.mesCrucero}`;
       const ok = m ? m.ok : ctx.active.tamano.mesCrucero <= state.meta.plazoObjetivo;
-      return `<div class="target-tile"><div class="t"><span>${t.n}</span></div><div class="now"><span>${now}</span><span class="state ${stCls(ok ? 'ok' : 'stop')}">${ok ? 'Cumple' : 'Falla'}</span></div><div class="obj">meta: <b id="tv${i}">${t.f(getPath(t.p))}</b></div><input type="range" id="tg${i}" min="${t.min}" max="${t.max}" step="${t.step}" value="${getPath(t.p)}" aria-label="${t.n}"></div>`;
-    }).join('');
+      const rf = refMeta(t);
+      return `<div class="target-tile"><div class="t"><span>${t.n}</span></div><div class="now"><span>${now}</span><span class="state ${stCls(ok ? 'ok' : 'stop')}">${ok ? 'Cumple' : 'Falla'}</span></div><div class="obj">meta: <b id="tv${i}">${t.f(getPath(t.p))}</b> · referencia: ${t.f(rf.v)}</div><input type="range" id="tg${i}" min="${t.min}" max="${t.max}" step="${t.step}" value="${getPath(t.p)}" aria-label="${t.n}"><div class="ref">${rf.txt}</div></div>`;
+    }).join('') + `<div class="target-tile" style="display:grid;align-content:center;gap:8px"><p class="small" style="margin:0">¿No sabes qué meta poner? Usa las referencias de tu sector y tamaño y ajústalas después.</p><button class="btn" id="usarRefs">Usar las referencias</button></div>`;
+    $('#usarRefs').onclick = () => { TARGETS.forEach((t) => setPath(t.p, refMeta(t).v)); toast('Metas puestas con las referencias del sector'); schedule(); };
     TARGETS.forEach((t, i) => {
       const r = $('#tg' + i);
       r.style.setProperty('--p', ((getPath(t.p) - t.min) / (t.max - t.min)) * 100 + '%');
@@ -610,13 +748,32 @@
     else if (Pl.alcanzado) sum = `<div class="note">Con ${Pl.acciones.length} palanca${Pl.acciones.length > 1 ? 's' : ''} el escenario ${sc.nombre.toLowerCase()} alcanza todas las metas.</div>`;
     else sum = `<div class="note">${Pl.acciones.length ? 'Estas palancas corrigen lo corregible. ' : ''}${Pl.inalcanzables && Pl.inalcanzables.length ? `<b>${Pl.inalcanzables.map((m) => m.nombre).join(', ')}</b> no se alcanza${Pl.inalcanzables.length > 1 ? 'n' : ''} solo con palancas en el escenario ${sc.nombre.toLowerCase()}: hay que rediseñar el proyecto (estructura, tamaño o tesis comercial).` : ''}</div>`;
     if (!Pl.ok && Pl.acciones.length) sum += `<div class="row mt"><button class="btn solid" id="applyPlan">Aplicar el plan al simulador</button><button class="btn ghost" data-info="plan-help">Cómo se calcula</button></div>`;
+    sum = `<p class="small muted" style="margin:0 0 8px">El plan se calcula sobre el escenario ${sc.nombre.toLowerCase()} y el vehículo actual (${esc(A.STRUCTURES[state.estructura].nombre.toLowerCase())}). No cambia de vehículo: eso se compara en «Estructuras». Si adoptas otro, el plan se recalcula.</p>` + sum;
     $('#planSummary').innerHTML = sum;
     INFO['plan-help'] = { t: 'Cómo se calcula el plan', d: 'En cada ronda Atalaya prueba todas las palancas y elige la que más acerca a la meta por unidad de esfuerzo (negociar con el banco cuesta menos que aportar capital). Después repasa el plan hacia atrás y devuelve cada palanca al mínimo imprescindible.' };
-    $('#planSteps').innerHTML = Pl.acciones.map((a) => `<div class="step"><div><div class="what">${a.lv.nombre}</div><div class="how">De ${A.report.lv(a.lv, a.desde)} a <b style="color:var(--fg)">${A.report.lv(a.lv, a.hasta)}</b> · ${a.lv.resp}</div></div><div class="eff">${F.eur(a.antes.cajaRef)} → ${F.eur(a.despues.cajaRef)}<small>liquidez mínima</small></div></div>`).join('');
+    $('#planSteps').innerHTML = Pl.acciones.map((a) => `<div class="step"><div><div class="what">${a.lv.nombre}</div><div class="how">${lvTxt(a.lv, a.desde, a.hasta)} · ${a.lv.resp}</div></div><div class="eff">${F.eur(a.antes.cajaRef)} → ${F.eur(a.despues.cajaRef)}<small>liquidez mínima</small></div></div>`).join('');
     const ap = $('#applyPlan');
     if (ap) ap.onclick = applyPlan;
-    $('#leverTable').innerHTML = Pl.ok ? '<p class="small muted">Sin metas que corregir.</p>' : `<table><thead><tr><th>Palanca</th><th>Hoy</th><th>Necesario</th><th>¿Basta?</th></tr></thead><tbody>` +
-      Pl.individuales.map((x) => `<tr><td>${x.lv.nombre}</td><td>${A.report.lv(x.lv, x.desde)}</td><td>${A.report.lv(x.lv, x.hasta)}</td><td><span class="state ${stCls(x.basta ? 'ok' : 'warn')}">${x.basta ? 'Sí' : 'No'}</span></td></tr>`).join('') + '</tbody></table>';
+    $('#leverTable').innerHTML = Pl.ok ? '<p class="small muted">Sin metas que corregir.</p>' : `<p class="small muted" style="margin:0">Moviendo una sola palanca, ¿cuánto haría falta para cumplir todas las metas? «Sí» significa que esa palanca sola basta; «No», que llegaría hasta ahí y aún faltaría.</p><table><thead><tr><th style="text-align:left">Palanca</th><th>Hoy</th><th>Hasta</th><th style="text-align:left">Qué significa</th><th>¿Basta sola?</th></tr></thead><tbody>` +
+      Pl.individuales.map((x) => `<tr><td style="text-align:left">${x.lv.nombre}</td><td>${A.report.lv(x.lv, x.desde)}</td><td>${A.report.lv(x.lv, x.hasta)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:200px" class="small">${lvTxt(x.lv, x.desde, x.hasta)}</td><td><span class="state ${stCls(x.basta ? 'ok' : 'warn')}">${x.basta ? 'Sí' : 'No'}</span></td></tr>`).join('') + '</tbody></table>';
+  }
+  // Cada palanca en lenguaje llano: qué hay que hacer exactamente
+  function lvTxt(lv, a, b) {
+    const L = (v) => A.report.lv(lv, v), d = Math.abs(b - a), eu = (v) => F.eurFull(v);
+    switch (lv.key) {
+      case 'polizaLimite': return a ? `Ampliar la póliza de ${eu(a)} a <b>${eu(b)}</b> (${eu(d)} más de límite)` : `Contratar una póliza de <b>${eu(b)}</b>`;
+      case 'pctFin': return `Pedir al banco el <b>${L(b)}</b> de la inversión en lugar del ${L(a)} (${F.eur(state.inversion.importe * d / 100)} más de préstamo)`;
+      case 'plazo': return `Pedir el préstamo a <b>${L(b)}</b> en lugar de ${L(a)}: cuota más baja`;
+      case 'carencia': return `Negociar <b>${L(b)}</b> de carencia (solo intereses) en lugar de ${L(a)}`;
+      case 'dso': return `Cobrar a <b>${L(b)}</b> en lugar de ${L(a)}`;
+      case 'dpo': return `Pagar a proveedores a <b>${L(b)}</b> en lugar de ${L(a)}`;
+      case 'anticipo': return `Contratar con <b>${L(b)}</b> en lugar de ${L(a)}: escalonar las incorporaciones`;
+      case 'fijosNuevos': return `Dejar los fijos nuevos en <b>${L(b)}</b> en lugar de ${L(a)}`;
+      case 'margenNuevo': return `Subir el margen de lo nuevo al <b>${L(b)}</b> (precio o compras)`;
+      case 'importe': return `Invertir ahora <b>${L(b)}</b> y dejar ${F.eur(d)} para una segunda fase`;
+      case 'aportacion': return `Que los socios aporten <b>${L(b)}</b>`;
+      default: return `De ${L(a)} a <b>${L(b)}</b>`;
+    }
   }
   function applyPlan() {
     if (!ctx.plan || ctx.plan.ok || !ctx.plan.acciones.length) return false;
@@ -646,8 +803,10 @@
     ['axX', 'axY', 'metricSel'].forEach((id) => $('#' + id).addEventListener('change', () => {
       view.ax = $('#axX').value; view.ay = $('#axY').value; view.metric = $('#metricSel').value;
       if (view.ax === view.ay) { view.ay = Object.keys(A.AXES).find((k) => k !== view.ax); $('#axY').value = view.ay; }
-      gen++; computeHeavy(gen);
+      renderHorizPreg(); gen++; computeHeavy(gen);
     }));
+    $('#hzExperto').onclick = () => { const c = $('#surfaceCtl'); c.hidden = !c.hidden; $('#hzExperto').textContent = c.hidden ? 'Elegir yo los ejes (modo experto)' : 'Ocultar el modo experto'; };
+    renderHorizPreg();
   }
   function applyCell(axk, ayk, c) {
     const ax = A.AXES[axk], ay = A.AXES[ayk];
@@ -658,7 +817,7 @@
   }
   function render3D() {
     $$('#viewSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.m === view.mode));
-    $('#surfaceCtl').hidden = view.mode !== 'surface';
+    if (view.mode !== 'surface') $('#surfaceCtl').hidden = true;
     const lg = $('#legend3d');
     if (view.mode === 'surface') {
       lg.innerHTML = `<span><i style="background:var(--go)"></i>Cumple la meta</span><span><i style="background:var(--warn)"></i>Zona de vigilancia</span><span><i style="background:var(--stop)"></i>Rompe el límite</span><span><i style="background:var(--gold);height:2px"></i>Plano de la meta · esfera: tu plan</span>`;
@@ -809,6 +968,348 @@
     renderFin();
   }
 
+  /* ---------------- Punto de partida: ficha, cuentas, preguntas ---------------- */
+  const NOMBRE_EJEMPLO = 'Empresa de ejemplo, S.L.';
+  const esEjemplo = () => state.ejemplo !== false && state.empresa.ventas === 4200000 && state.proyecto === 'Nueva línea de producción';
+  function renderIdCard() {
+    const opt = (o, sel) => Object.keys(o).map((k) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${o[k].nombre}</option>`).join('');
+    if (document.activeElement !== $('#heroSector')) $('#heroSector').innerHTML = opt(A.SECTORS, state.sector);
+    if (document.activeElement !== $('#heroEstr')) $('#heroEstr').innerHTML = opt(A.STRUCTURES, state.estructura);
+    const ej = $('#idEjemplo'), e = esEjemplo();
+    ej.hidden = !e;
+    if (e) ej.innerHTML = '<b>Estás viendo una empresa de ejemplo</b> (una industria de 4,2 M€ que estudia una línea de producción). Pulsa «Empezar de cero», responde las preguntas o carga tus cuentas para trabajar con la tuya.';
+    $('#idCard').classList.toggle('vacia', !state.empresaNombre);
+  }
+  function nuevaSimulacion() {
+    const el = openModal(`<div class="eyebrow">Punto cero</div><h2 style="font-size:1.8rem">Empezar una simulación nueva</h2>
+      <p>Se borra lo que hay ahora en el simulador (nombre, cifras, inversión, escenarios propios e hipótesis). Si quieres conservarlo, guárdalo antes en la caja de herramientas.</p>
+      <p>Después te haré unas preguntas para cargar tu empresa. Lo que no respondas se queda con el valor típico de tu sector y te lo marco como estimado.</p>
+      <label class="field-sel"><span class="small muted">Sector principal</span><select class="input" id="ncSector">${Object.keys(A.SECTORS).map((k) => `<option value="${k}" ${k === state.sector ? 'selected' : ''}>${A.SECTORS[k].nombre}</option>`).join('')}</select></label>
+      <div class="row mt"><button class="btn solid" id="ncGo">Empezar de cero</button><button class="btn" id="ncSave">Guardar la actual y empezar</button><button class="btn ghost" id="ncNo">Cancelar</button></div>`);
+    const go = () => {
+      const k = $('#ncSector', el).value;
+      state = A.defaultState(); A.applySector(state, k);
+      Object.assign(state, { empresaNombre: '', proyecto: '', ejemplo: false, hipotesis: [], opciones: [] });
+      state.historico = undefined; delete state.historico;
+      afterLoad(); closeModal(); openQuiz('empresa');
+    };
+    $('#ncGo', el).onclick = go;
+    $('#ncSave', el).onclick = () => { const list = store.get(SNAP) || []; list.unshift({ name: state.proyecto || state.empresaNombre || 'Simulación', date: new Date().toLocaleDateString('es-ES'), state: A.clone(state) }); store.set(SNAP, list.slice(0, 12)); toast('Guardada en la caja de herramientas'); go(); };
+    $('#ncNo', el).onclick = closeModal;
+  }
+  // Cuentas adjuntadas desde «La empresa hoy»: se guardan en la historia y se aplican al punto de partida
+  async function cargarCuentas(files) {
+    const out = $('#empCarga');
+    const antes = A.clone(state.empresa);
+    for (const f of files) {
+      out.innerHTML = `<span class="muted">Leyendo ${esc(f.name)}…</span>`;
+      try {
+        const r = await A.fin.fromFile(f);
+        const prev = state.historico && !state.historico.ejemplo && state.historico.anios ? state.historico.anios : [];
+        r.anios.forEach((a) => { const t = prev.find((x) => x.anio === a.anio); if (t) Object.assign(t, a); else prev.push(a); });
+        prev.sort((a, b) => a.anio - b.anio); state.historico = { anios: prev, ejemplo: false };
+      } catch (err) { out.innerHTML = `<span style="color:var(--stop)">${esc(f.name)}: ${esc(err.message)}</span>`; return; }
+    }
+    const an = A.fin.analyze(state.historico);
+    if (!an) { out.innerHTML = '<span style="color:var(--stop)">No he encontrado cifras de cuentas en esos archivos. Revisa que tengan los conceptos en una columna y los años en otra.</span>'; return; }
+    A.fin.applyToState(state, an); state.ejemplo = false;
+    if (state.empresaNombre === NOMBRE_EJEMPLO) state.empresaNombre = '';
+    if (state.proyecto === 'Nueva línea de producción') state.proyecto = '';
+    const campos = Object.values(FIELDS).flat().filter((f) => f.p.startsWith('empresa.'));
+    const cambiados = campos.filter((f) => getPath(f.p) !== antes[f.p.split('.')[1]]);
+    const noVienen = ['empresa.polizaLimite', 'empresa.cuotaDeuda', 'empresa.plantilla'].filter((p) => !cambiados.some((f) => f.p === p));
+    renderFin(); syncFields(); schedule();
+    out.innerHTML = `<p style="color:var(--go);margin:0">Cuentas de ${an.rows.map((x) => x.anio).join(', ')} cargadas. El punto de partida es ${an.last.anio}.</p>
+      <p class="muted" style="margin:4px 0">He rellenado: ${cambiados.map((f) => f.l.toLowerCase()).join(', ') || 'nada nuevo'}.</p>
+      ${noVienen.length ? `<div class="row"><span>Falta lo que no viene en las cuentas: ${noVienen.map((p) => A.fieldLabel(p).toLowerCase()).join(', ')}.</span><button class="btn" id="empFalta">Preguntármelo</button></div>` : ''}`;
+    const b = $('#empFalta'); if (b) b.onclick = () => openQuiz('empresa', { solo: ['nombre', 'plantilla', 'cuota', 'poliza', 'polizaDisp'] });
+  }
+
+  /* Preguntas guiadas: cada respuesta marca los datos y la foto se actualiza al momento */
+  function openQuiz(key, opts) {
+    opts = opts || {};
+    const Q = A.PREGUNTAS_SIM[key];
+    let i = 0; const est = new Set(), resp = new Set();
+    const lista = () => Q.lista(state).filter((q) => (!opts.solo || opts.solo.indexOf(q.id) >= 0) && (!q.cuando || q.cuando(state)));
+    const fmtV = (q, v) => (v == null || v === '' ? '' : q.tipo === 'num' ? nfField.format(Math.round(v * 100) / 100) : v);
+    const foto = () => {
+      const r = ctx.active, e = state.empresa;
+      if (key === 'empresa') {
+        const eb = e.ventas * e.margen / 100 - e.personal - e.fijos;
+        return `<div class="qz-foto"><div><span>Ventas</span><b>${F.eur(e.ventas)}</b></div><div><span>EBITDA hoy</span><b style="color:${eb < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(eb)}</b><small>${F.pct(e.ventas ? eb / e.ventas * 100 : 0)} de las ventas</small></div><div><span>Caja</span><b>${F.eur(e.caja)}</b><small>${fmtMeses(e.caja / Math.max(1, (e.personal + e.fijos) / 12))} de gastos</small></div><div><span>Deuda neta</span><b>${F.eur(e.deudaViva - e.caja)}</b><small>${eb > 0 ? F.x(Math.max(0, (e.deudaViva - e.caja) / eb)) + ' el EBITDA' : ''}</small></div></div>`;
+      }
+      if (key === 'humano') {
+        const h = r.humano, st = h.score >= 70 ? 'ok' : h.score >= 50 ? 'warn' : 'stop';
+        const peor = h.dims.slice().sort((a, b) => a.score - b.score)[0];
+        return `<div class="qz-foto"><div><span>Tu equipo hoy</span><b style="color:${A.stateColor(st)}">${Math.round(h.score)}/100</b><small>${st === 'ok' ? 'preparado para crecer' : st === 'warn' ? 'preparado a medias' : 'todavía no está listo'}</small></div><div><span>Punto más débil</span><b style="font-size:1rem">${esc(peor.nombre)}</b><small>${Math.round(peor.score)}/100</small></div><div><span>Mandos necesarios</span><b>${h.mandosNecesarios}</b><small>tienes ${state.humano.mandos}</small></div></div>`;
+      }
+      const tot = A.lineasActivas(state).length;
+      return `<div class="qz-foto"><div><span>Inversión</span><b>${F.eur(state.inversion.importe)}</b><small>${tot ? tot + ' línea' + (tot > 1 ? 's' : '') : 'un solo bloque'}</small></div><div><span>Liquidez mínima</span><b style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</b><small>mes ${r.mesCajaRef}</small></div><div><span>Recuperación</span><b>${F.months(r.payback)}</b></div><div><span>Veredicto</span><b style="font-size:1rem;color:${A.stateColor(vMap[r.verdict.key])}">${r.verdict.titulo}</b></div></div>`;
+    };
+    const progreso = (n, N) => {
+      if (key !== 'humano') return '';
+      const h = ctx.active.humano;
+      const msg = n === 0 ? 'Empecemos: cada respuesta coloca una pieza de la foto de tu equipo.' : n < N / 2 ? `Vas por buen camino: ${n} de ${N}. La foto empieza a tomar forma.` : n < N ? `Te vas acercando a tu foto general: ${n} de ${N}.` : 'Foto completa.';
+      return `<p class="qz-msg">${msg} Hoy tu equipo puntúa <b>${Math.round(h.score)}/100</b>.</p>`;
+    };
+    const fin = () => {
+      const L = Q.lista(state).filter((q) => (!opts.solo || opts.solo.indexOf(q.id) >= 0));
+      const marcados = L.filter((q) => resp.has(q.id)).flatMap((q) => q.marca || []);
+      const sig = key === 'empresa' ? ['inversion', 'Seguir con la inversión'] : key === 'inversion' ? ['humano', 'Seguir con el equipo'] : null;
+      const el = openModal(`<div class="eyebrow">${Q.titulo}</div><h2 style="font-size:1.8rem">Listo</h2>${foto()}
+        <p>${resp.size} respuesta${resp.size === 1 ? '' : 's'}${est.size ? ` y ${est.size} dato${est.size > 1 ? 's' : ''} estimado${est.size > 1 ? 's' : ''} con el valor típico del sector (${L.filter((q) => est.has(q.id)).map((q) => (q.marca || [q.id])[0].toLowerCase()).join(', ')})` : ''}.</p>
+        ${marcados.length ? `<p class="small muted">Datos marcados: ${marcados.join(', ')}.</p>` : ''}
+        <div class="row mt">${sig ? `<button class="btn solid" id="qzSig">${sig[1]}</button>` : ''}<button class="btn" id="qzSem">Ver los semáforos</button><button class="btn ghost" id="qzClose">Cerrar</button></div>`);
+      if (sig) $('#qzSig', el).onclick = () => openQuiz(sig[0]);
+      $('#qzSem', el).onclick = () => { closeModal(); document.getElementById('riesgos').scrollIntoView({ behavior: 'smooth' }); };
+      $('#qzClose', el).onclick = closeModal;
+    };
+    const aplicar = () => { state.ejemplo = false; normalizeInv(); syncFields(); computeQuick(); store.set(STORE, state); };
+    const draw = () => {
+      const L = lista(); if (i >= L.length) { schedule(); fin(); return; }
+      const q = L[i], v = q.get(state), ops = typeof q.opciones === 'function' ? q.opciones() : (q.opciones || []);
+      const multiSel = q.tipo === 'multi' ? new Set(v || []) : null;
+      let entrada = '';
+      if (q.tipo === 'texto') entrada = `<input class="input qz-in" id="qzIn" value="${esc(v || '')}">`;
+      else if (q.tipo === 'num') entrada = `<div class="row"><input class="input qz-in qz-num" id="qzIn" inputmode="decimal" value="${esc(fmtV(q, v))}"><span class="muted">${esc(q.u || '')}</span></div>`;
+      const chips = ops.length ? `<div class="qz-ops">${ops.map((o) => `<button class="chip" data-v="${esc(JSON.stringify(o.v))}" aria-pressed="${q.tipo === 'multi' ? multiSel.has(o.v) : JSON.stringify(o.v) === JSON.stringify(v)}">${esc(o.t)}</button>`).join('')}</div>` : '';
+      const el = openModal(`<div class="eyebrow">${Q.titulo}</div>
+        <div class="qz-prog" aria-hidden="true"><b style="width:${(i / L.length) * 100}%"></b></div>
+        <p class="small muted" style="margin:6px 0 0">Pregunta ${i + 1} de ${L.length}${i === 0 && Q.lede ? ' · ' + Q.lede : ''}</p>
+        ${progreso(i, L.length)}
+        <h3 class="qz-q">${esc(q.q)}</h3>${q.ayuda ? `<p class="small muted">${esc(q.ayuda)}</p>` : ''}
+        ${entrada}${chips}
+        <p class="small qz-marca">Esto marca: ${(q.marca || []).join(', ')}${est.has(q.id) ? ' · <span style="color:var(--warn)">estimado</span>' : ''}</p>
+        ${foto()}
+        <div class="row mt"><button class="btn ghost" id="qzBack" ${i ? '' : 'disabled'}>Atrás</button><button class="btn ghost" id="qzNs">${q.estimar ? 'No lo sé: usar el típico' : 'Saltar'}</button><span class="spacer"></span><button class="btn ghost" id="qzEnd">Terminar</button><button class="btn solid" id="qzNext">Siguiente</button></div>`);
+      const inp = $('#qzIn', el); if (inp) { inp.focus(); inp.select && inp.select(); inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); next(); } }); }
+      const next = () => {
+        if (q.tipo === 'multi') { q.set(state, Array.from(multiSel)); }
+        else if (inp) {
+          const raw = inp.value.trim();
+          if (q.tipo === 'texto') q.set(state, raw);
+          else { const n = parseInput(raw); if (!isFinite(n)) { inp.classList.add('err'); inp.focus(); return; } q.set(state, n); }
+        }
+        resp.add(q.id); est.delete(q.id); aplicar(); i++; draw();
+      };
+      $$('.qz-ops .chip', el).forEach((b) => b.onclick = () => {
+        const val = JSON.parse(b.dataset.v);
+        if (q.tipo === 'multi') { if (multiSel.has(val)) multiSel.delete(val); else multiSel.add(val); b.setAttribute('aria-pressed', multiSel.has(val)); return; }
+        if (inp) { inp.value = fmtV(q, val); next(); return; }
+        q.set(state, val); resp.add(q.id); est.delete(q.id); aplicar(); i++; draw();
+      });
+      $('#qzNext', el).onclick = () => { if (!inp && q.tipo !== 'multi') { i++; draw(); } else next(); };
+      $('#qzBack', el).onclick = () => { if (i) { i--; draw(); } };
+      $('#qzNs', el).onclick = () => { if (q.estimar) { q.set(state, q.estimar(state)); est.add(q.id); resp.delete(q.id); aplicar(); } i++; draw(); };
+      $('#qzEnd', el).onclick = () => { schedule(); fin(); };
+    };
+    draw();
+  }
+
+  /* ---------------- Líneas de la inversión y opciones ---------------- */
+  // El importe total y las líneas se mantienen cuadrados: si cambian las líneas manda su suma; si cambia el total
+  // (una palanca, el paisaje 3D o la casilla), las líneas se reescalan en proporción
+  function normalizeInv() {
+    const inv = state.inversion, L = A.lineasActivas(state);
+    if (!L.length) { delete inv._sumL; return; }
+    const sum = L.reduce((a, l) => a + l.importe, 0);
+    if (inv._sumL != null && Math.abs(sum - inv._sumL) < 1 && Math.abs(inv.importe - sum) > 1) {
+      const k = inv.importe / sum; L.forEach((l) => { l.importe = Math.round(l.importe * k / 100) * 100; });
+    }
+    const s2 = L.reduce((a, l) => a + l.importe, 0);
+    inv.importe = s2; inv._sumL = s2;
+    inv.vidaUtil = Math.max(1, Math.round(L.reduce((a, l) => a + l.importe * (l.vida || inv.vidaUtil), 0) / s2 * 10) / 10);
+  }
+  const finTxt = (f) => (f ? `${f.pctFin} % a ${String(f.plazo).replace('.', ',')} años, ${String(f.tipo).replace('.', ',')} %${f.carencia ? `, ${f.carencia} m de carencia` : ''}` : 'la general');
+  function renderLineas() {
+    const host = $('#lineasBox'); if (!host) return;
+    const inv = state.inversion, L = inv.lineas || [], T = (ctx && ctx.active.w.tramos) || [];
+    document.body.classList.toggle('con-lineas', A.lineasActivas(state).length > 0);
+    const tip = (k) => Object.keys(A.LINEA_TIPOS).map((t) => `<option value="${t}" ${t === k ? 'selected' : ''}>${A.LINEA_TIPOS[t].n}</option>`).join('');
+    const cuotaDe = (l) => { const t = T.find((x) => x.nombre === l.nombre); return t ? t.cuota : null; };
+    host.innerHTML = `<div class="row"><h4>Mapa de la inversión</h4><span class="spacer"></span><button class="btn" id="lnAdd">Añadir línea</button><button class="btn solid" id="qInv">Responder preguntas</button></div>
+      <p class="small muted" style="margin:0">${L.length ? 'Cada activo con su importe, el mes en que se paga, los años que dura y su financiación. Lo que no tenga financiación propia usa la general (casillas de abajo).' : 'Ahora la inversión es un único bloque. Si lleva varias cosas (una máquina, un vehículo, una nave), añade una línea por cada una: cada activo tiene su precio, su fecha, su vida útil y su forma de pagarlo.'}</p>
+      ${L.length ? `<div class="table-wrap"><table class="ln-tab"><thead><tr><th></th><th style="text-align:left">Línea</th><th style="text-align:left">Tipo</th><th>Importe</th><th>Mes</th><th>Vida útil</th><th style="text-align:left">Financiación</th><th>Cuota/mes</th><th></th></tr></thead><tbody>
+        ${L.map((l, i) => `<tr data-i="${i}" class="${l.activa === false ? 'off' : ''}"><td><button class="switch" role="switch" aria-checked="${l.activa !== false}" aria-label="Incluir esta línea" data-k="activa"></button></td>
+          <td style="text-align:left"><input class="input" data-k="nombre" value="${esc(l.nombre)}" style="min-width:140px"></td>
+          <td style="text-align:left"><select class="input" data-k="tipo">${tip(l.tipo)}</select></td>
+          <td><input class="input num" data-k="importe" value="${nfField.format(l.importe)}" style="width:110px"></td>
+          <td><input class="input num" data-k="mes" value="${l.mes || inv.mesInicio}" style="width:56px"></td>
+          <td><input class="input num" data-k="vida" value="${l.vida || ''}" style="width:56px"> <span class="small muted">años</span></td>
+          <td style="text-align:left"><button class="btn ghost small" data-fin="${i}">${esc(finTxt(l.fin))}</button></td>
+          <td>${l.activa === false ? '—' : cuotaDe(l) == null ? '—' : F.eur(cuotaDe(l))}</td>
+          <td><button class="icon-btn" data-del="${i}" aria-label="Quitar línea">×</button></td></tr>`).join('')}
+        <tr class="tot"><td></td><td style="text-align:left"><b>Total</b></td><td></td><td><b>${F.eur(inv.importe)}</b></td><td></td><td class="small muted">media ${String(inv.vidaUtil).replace('.', ',')} años</td><td class="small muted" style="text-align:left">préstamos ${F.eur(ctx ? ctx.active.loan : 0)}</td><td><b>${F.eur(ctx ? ctx.active.cuotaNueva : 0)}</b></td><td></td></tr>
+      </tbody></table></div>
+      <p class="small muted" style="margin:0">La cuota de cada línea es la de después de la carencia, en el escenario activo y con el vehículo elegido (${esc(A.STRUCTURES[state.estructura].nombre.toLowerCase())}). Apaga una línea para ver la inversión sin ella.</p>` : ''}`;
+    $('#lnAdd', host).onclick = () => {
+      const tipos = Object.keys(A.LINEA_TIPOS);
+      const used = new Set(L.map((l) => l.tipo)), t = tipos.find((k) => !used.has(k)) || 'otro';
+      if (!L.length) inv.lineas = [{ id: 'l' + Date.now(), tipo: 'maquinaria', nombre: state.proyecto || 'Inversión principal', importe: inv.importe, mes: inv.mesInicio, vida: inv.vidaUtil, activa: true, fin: null }];
+      inv.lineas.push({ id: 'l' + Date.now() + 'b', tipo: t, nombre: A.LINEA_TIPOS[t].n, importe: 50000, mes: inv.mesInicio, vida: A.LINEA_TIPOS[t].vida, activa: true, fin: null });
+      state.ejemplo = false; schedule();
+    };
+    $('#qInv', host).onclick = () => openQuiz('inversion');
+    $$('tr[data-i]', host).forEach((tr) => {
+      const l = L[+tr.dataset.i];
+      $$('[data-k]', tr).forEach((x) => {
+        if (x.dataset.k === 'activa') { x.onclick = () => { l.activa = l.activa === false; schedule(); }; return; }
+        x.onchange = () => {
+          const k = x.dataset.k;
+          if (k === 'nombre') l.nombre = x.value.trim() || A.LINEA_TIPOS[l.tipo].n;
+          else if (k === 'tipo') { l.tipo = x.value; if (!l.vida) l.vida = A.LINEA_TIPOS[l.tipo].vida; }
+          else { const n = parseInput(x.value); if (isFinite(n) && n >= 0) l[k] = k === 'mes' ? Math.max(1, Math.round(n)) : n; }
+          state.ejemplo = false; schedule();
+        };
+      });
+    });
+    $$('[data-del]', host).forEach((b) => b.onclick = () => { inv.lineas.splice(+b.dataset.del, 1); if (!inv.lineas.length) delete inv._sumL; schedule(); });
+    $$('[data-fin]', host).forEach((b) => b.onclick = () => editFin(L[+b.dataset.fin]));
+  }
+  function editFin(l) {
+    const inv = state.inversion, f = l.fin || { pctFin: inv.pctFin, plazo: inv.plazo, tipo: inv.tipo, carencia: inv.carencia };
+    const el = openModal(`<div class="eyebrow">Financiación de una línea</div><h2 style="font-size:1.6rem">${esc(l.nombre)}</h2>
+      <p class="small muted">Por ejemplo, una nave suele ir con un préstamo hipotecario a 15 o 20 años y un vehículo con leasing a 5. Si la dejas en «la general», usa las casillas de «Importe y financiación».</p>
+      <div class="lever-grid">${[['pctFin', 'Parte financiada (%)'], ['plazo', 'Plazo (años)'], ['tipo', 'Tipo de interés (%)'], ['carencia', 'Carencia (meses)']].map(([k, n]) => `<label class="field-sel"><span class="small muted">${n}</span><input class="input" data-f="${k}" value="${String(f[k]).replace('.', ',')}"></label>`).join('')}</div>
+      <div class="row mt"><button class="btn solid" id="lfOk">Usar esta financiación</button><button class="btn" id="lfGen">Volver a la general</button><button class="btn ghost" id="lfNo">Cancelar</button></div>`);
+    $('#lfOk', el).onclick = () => { const o = {}; $$('[data-f]', el).forEach((x) => { const n = parseInput(x.value); o[x.dataset.f] = isFinite(n) ? n : f[x.dataset.f]; }); l.fin = o; closeModal(); schedule(); };
+    $('#lfGen', el).onclick = () => { l.fin = null; closeModal(); schedule(); };
+    $('#lfNo', el).onclick = closeModal;
+  }
+  /* Opciones: varias formas de plantear la inversión, guardadas y comparadas con los mismos datos de empresa */
+  function renderOpciones() {
+    const host = $('#opcionesBox'); if (!host || !ctx) return;
+    const O = state.opciones || [];
+    const mods = ctx.mods;
+    const evalInv = (inv) => { const s = A.clone(state); s.inversion = A.clone(inv); const r = A.analyze(s, mods); const rp = A.analyze(s, A.scenarioMods(s, 'pesimista')); return { r, rp }; };
+    const filas = [{ nombre: 'Lo que hay ahora en el simulador', inv: state.inversion, actual: true }].concat(O.map((o, i) => ({ nombre: o.nombre, inv: o.inversion, i })));
+    const R = filas.map((f) => Object.assign(f, evalInv(f.inv)));
+    // Mejor equilibrio: primero el veredicto, luego que aguante el pesimista, luego la recuperación
+    const rank = (x) => ({ go: 0, warn: 1, stop: 2 }[x.r.verdict.key]) * 10 + (x.rp.cajaRef < 0 ? 5 : 0);
+    const best = R.length > 1 ? R.slice().sort((a, b) => rank(a) - rank(b) || a.r.payback - b.r.payback)[0] : null;
+    const lin = (inv) => ((inv.lineas || []).filter((l) => l.activa !== false).map((l) => l.nombre).join(' + ')) || 'un solo bloque';
+    host.innerHTML = `<div class="row"><h4>Opciones de inversión</h4><span class="spacer"></span><input class="input" id="opNombre" placeholder="Nombre de esta opción" style="max-width:240px"><button class="btn" id="opSave">Guardar la actual como opción</button></div>
+      <p class="small muted" style="margin:0">Guarda varias formas de hacer el proyecto (solo la máquina; máquina y nave; nave en alquiler; por fases…) y compáralas con la misma empresa y el mismo escenario (${esc(A.SCENARIOS.find((x) => x.key === state.escenario).nombre.toLowerCase())}). La columna del pesimista dice cuál aguanta mejor si las cosas se tuercen.</p>
+      ${O.length ? `<div class="table-wrap"><table><thead><tr><th style="text-align:left">Opción</th><th>Inversión</th><th>Préstamos</th><th>Cuota/mes</th><th>Liquidez mínima</th><th>En el pesimista</th><th>Recuperación</th><th>TIR</th><th>Veredicto</th><th></th></tr></thead><tbody>
+        ${R.map((x) => `<tr class="${x === best ? 'active' : ''}"><td style="text-align:left"><b>${esc(x.nombre)}</b>${x === best ? ' <span class="state st-ok">mejor equilibrio</span>' : ''}<br><span class="small muted">${esc(lin(x.inv))}</span></td><td>${F.eur(x.r.dim.inversion)}</td><td>${F.eur(x.r.loan)}</td><td>${F.eur(x.r.cuotaNueva)}</td><td style="color:${x.r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(x.r.cajaRef)}</td><td style="color:${x.rp.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(x.rp.cajaRef)}</td><td>${F.months(x.r.payback)}</td><td>${x.r.tir == null ? '—' : F.pct(x.r.tir * 100)}</td><td><span class="state ${stCls(vMap[x.r.verdict.key])}">${x.r.verdict.titulo}</span></td><td>${x.actual ? '<span class="small muted">actual</span>' : `<button class="btn ghost" data-use="${x.i}">Usar</button><button class="icon-btn" data-delop="${x.i}" aria-label="Borrar opción">×</button>`}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="small">${best ? `<b>Lectura:</b> «${esc(best.nombre)}» es la que mejor equilibra veredicto, aguante en el pesimista y recuperación.${best.r.verdict.key === 'stop' ? ' Aun así está en rojo: ninguna opción se sostiene tal como está; mira el plan de corrección o fasea.' : best.rp.cajaRef < 0 ? ' Ojo: en el pesimista se queda sin liquidez; dimensiona la financiación para ese caso.' : ''}` : ''}</p>` : '<p class="small muted">Todavía no hay opciones guardadas.</p>'}`;
+    $('#opSave', host).onclick = () => { state.opciones = O.concat([{ nombre: $('#opNombre', host).value.trim() || `Opción ${O.length + 1}`, inversion: A.clone(state.inversion) }]); schedule(); toast('Opción guardada'); };
+    $$('[data-use]', host).forEach((b) => b.onclick = () => { state.inversion = A.clone(O[+b.dataset.use].inversion); afterLoad(); toast('Opción cargada en el simulador'); });
+    $$('[data-delop]', host).forEach((b) => b.onclick = () => { O.splice(+b.dataset.delop, 1); state.opciones = O; schedule(); });
+  }
+
+  /* ---------------- Punto de equilibrio ---------------- */
+  // La figura clásica: el gasto fijo es una línea plana; los costes totales nacen de ella y suben con lo que vendes;
+  // donde la venta corta a los costes está el punto de equilibrio y, por encima, el beneficio
+  let peModo = 'volumen';
+  function datosEquilibrio() {
+    const r = ctx.active, w = r.w, b = r.b, c0 = r.tamano.mesCrucero - 1;
+    const S = (a, i, j) => A.sum(a, i, j);
+    const hoy = { ventas: S(b.sales, 0, 12) / 12, fijos: (S(b.staff, 0, 12) + S(b.fixed, 0, 12)) / 12, cuotas: S(b.debt, 0, 12) / 12 };
+    hoy.mg = S(b.gross, 0, 12) / Math.max(1, S(b.sales, 0, 12));
+    const cru = { ventas: S(w.sales, c0, c0 + 12) / 12, fijos: (S(w.staff, c0, c0 + 12) + S(w.fixed, c0, c0 + 12)) / 12, cuotas: S(w.debt, c0, c0 + 12) / 12 };
+    cru.mg = S(w.gross, c0, c0 + 12) / Math.max(1, S(w.sales, c0, c0 + 12));
+    [hoy, cru].forEach((x) => { x.eq = x.mg > 0 ? x.fijos / x.mg : Infinity; x.eqC = x.mg > 0 ? (x.fijos + x.cuotas) / x.mg : Infinity; x.seg = isFinite(x.eq) ? (x.ventas / x.eq - 1) * 100 : -100; x.segC = isFinite(x.eqC) ? (x.ventas / x.eqC - 1) * 100 : -100; });
+    // Mes en que la media de tres meses de ventas cubre costes y cuotas, y ya no vuelve a caer por debajo
+    const n = w.sales.length, cubre = (i, conCuotas) => { const a = Math.max(0, i - 2); const v = S(w.sales, a, i + 1), c = S(w.staff, a, i + 1) + S(w.fixed, a, i + 1) + (S(w.sales, a, i + 1) - S(w.gross, a, i + 1)) + (conCuotas ? S(w.debt, a, i + 1) : 0); return v >= c; };
+    const mesDesde = (conCuotas) => { let m = null; for (let i = n - 1; i >= r.start - 1; i--) { if (cubre(i, conCuotas)) m = i + 1; else break; } return m; };
+    return { hoy, cru, mesOp: mesDesde(false), mesCuotas: mesDesde(true), start: r.start, mesCrucero: r.tamano.mesCrucero };
+  }
+  function renderEquilibrio() {
+    const host = $('#peBox'); if (!host || !ctx) return;
+    const d = datosEquilibrio(), h = d.hoy, c = d.cru;
+    const W = 620, Hh = 420, m = { l: 62, r: 16, t: 18, b: 40 };
+    let svg = '';
+    if (peModo === 'volumen') {
+      const xmax = Math.max(c.ventas, h.ventas, isFinite(c.eqC) ? c.eqC : 0) * 1.35 || 1;
+      const ymax = xmax;
+      const x = (v) => m.l + (v / xmax) * (W - m.l - m.r), y = (v) => m.t + (1 - v / ymax) * (Hh - m.t - m.b);
+      const coste = (o, v, cuotas) => o.fijos + (cuotas ? o.cuotas : 0) + (1 - o.mg) * v;
+      svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Punto de equilibrio"><g class="grid">`;
+      [0, 0.25, 0.5, 0.75, 1].forEach((k) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(ymax * k)}" y2="${y(ymax * k)}"/><text x="${m.l - 8}" y="${y(ymax * k) + 3}" text-anchor="end">${F.eur(ymax * k)}</text><text x="${x(xmax * k)}" y="${Hh - 22}" text-anchor="middle">${F.eur(xmax * k)}</text>`; });
+      svg += `<text x="${(m.l + W - m.r) / 2}" y="${Hh - 6}" text-anchor="middle">ventas al mes</text></g>`;
+      // Zonas de pérdida y beneficio entre la venta y los costes del año de crucero
+      if (isFinite(c.eq)) {
+        svg += `<polygon points="${x(0)},${y(coste(c, 0))} ${x(c.eq)},${y(c.eq)} ${x(0)},${y(0)}" fill="${css('--stop')}" opacity="0.12"/>`;
+        svg += `<polygon points="${x(c.eq)},${y(c.eq)} ${x(xmax)},${y(xmax)} ${x(xmax)},${y(coste(c, xmax))}" fill="${css('--go')}" opacity="0.14"/>`;
+        svg += `<text x="${x(xmax * 0.86)}" y="${y((xmax + coste(c, xmax)) / 2) + 4}" text-anchor="middle" style="fill:${css('--go')};font-weight:600">beneficio</text><text x="${x(c.eq * 0.35)}" y="${y(coste(c, c.eq * 0.35) * 0.55)}" text-anchor="middle" style="fill:${css('--stop')};font-weight:600">pérdida</text>`;
+      }
+      const line = (o, cuotas, col, dash, wdt) => `<line x1="${x(0)}" y1="${y(coste(o, 0, cuotas))}" x2="${x(xmax)}" y2="${y(coste(o, xmax, cuotas))}" stroke="${col}" stroke-width="${wdt || 2}" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+      svg += `<line x1="${x(0)}" y1="${y(c.fijos)}" x2="${x(xmax)}" y2="${y(c.fijos)}" stroke="${css('--s3')}" stroke-width="2"/>`;
+      svg += line(h, false, css('--faint'), '5 5', 1.5) + line(c, true, css('--warn'), '7 4', 1.8) + line(c, false, css('--s2'), '', 2.4);
+      svg += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(xmax)}" y2="${y(xmax)}" stroke="${css('--s1')}" stroke-width="2.6"/>`;
+      const dot = (v, col, lbl, dy) => (isFinite(v) && v <= xmax ? `<circle cx="${x(v)}" cy="${y(v)}" r="6" fill="${col}" stroke="${css('--deep')}" stroke-width="2"/><text x="${x(v) + 9}" y="${y(v) + (dy || -8)}" style="fill:${css('--fg')}">${lbl}</text>` : '');
+      const dotL = (v, col, lbl) => (isFinite(v) && v <= xmax ? `<circle cx="${x(v)}" cy="${y(v)}" r="6" fill="${col}" stroke="${css('--deep')}" stroke-width="2"/><text x="${x(v) - 10}" y="${y(v) - 10}" text-anchor="end" style="fill:${css('--fg')}">${lbl}</text>` : '');
+      svg += dotL(c.eq, css('--gold'), 'equilibrio ' + F.eur(c.eq)) + dot(c.eqC, css('--warn'), 'con cuotas ' + F.eur(c.eqC), 18) + dot(h.eq, css('--faint'), 'hoy ' + F.eur(h.eq), 18);
+      const vline = (v, lbl, col) => `<line x1="${x(v)}" x2="${x(v)}" y1="${m.t}" y2="${Hh - m.b}" stroke="${col}" stroke-dasharray="2 4"/><text x="${x(v) + 4}" y="${m.t + 12}" style="fill:${col}">${lbl}</text>`;
+      svg += vline(h.ventas, 'vendes hoy', css('--faint')) + vline(c.ventas, 'venderás en crucero', css('--gold'));
+      svg += '</svg>';
+      svg += `<div class="chart-legend small"><span><i style="background:${css('--s3')}"></i>gasto fijo (personal y estructura)</span><span><i style="background:${css('--s2')}"></i>costes totales: fijos + compras</span><span><i style="background:${css('--warn')}"></i>costes + cuotas de los préstamos</span><span><i style="background:${css('--s1')}"></i>ventas</span><span><i style="background:${css('--faint')}"></i>costes de hoy, sin el proyecto</span></div>`;
+    } else {
+      const w = ctx.active.w, n = w.sales.length;
+      const cost = w.sales.map((v, i) => w.staff[i] + w.fixed[i] + (v - w.gross[i]));
+      const costC = cost.map((v, i) => v + w.debt[i]);
+      const fij = w.staff.map((v, i) => v + w.fixed[i]);
+      const mx = Math.max(...w.sales, ...costC) * 1.08, mn = 0;
+      const x = (i) => m.l + (i / (n - 1)) * (W - m.l - m.r), y = (v) => m.t + (1 - (v - mn) / (mx - mn)) * (Hh - m.t - m.b);
+      const pl = (a) => a.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+      svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Ventas y costes mes a mes"><g class="grid">`;
+      [0, 0.25, 0.5, 0.75, 1].forEach((k) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(mx * k)}" y2="${y(mx * k)}"/><text x="${m.l - 8}" y="${y(mx * k) + 3}" text-anchor="end">${F.eur(mx * k)}</text>`; });
+      for (let yr = 0; yr <= 5; yr++) svg += `<text x="${x(Math.min(n - 1, yr * 12))}" y="${Hh - 18}" text-anchor="middle">${yr === 0 ? 'mes 1' : 'año ' + yr}</text>`;
+      svg += '</g>';
+      // Relleno entre ventas y costes totales: verde si gana, rojo si pierde
+      for (let i = 0; i < n - 1; i++) { const gana = w.sales[i] + w.sales[i + 1] >= cost[i] + cost[i + 1]; svg += `<polygon points="${x(i)},${y(w.sales[i])} ${x(i + 1)},${y(w.sales[i + 1])} ${x(i + 1)},${y(cost[i + 1])} ${x(i)},${y(cost[i])}" fill="${gana ? css('--go') : css('--stop')}" opacity="0.13"/>`; }
+      svg += `<polyline points="${pl(fij)}" fill="none" stroke="${css('--s3')}" stroke-width="2"/><polyline points="${pl(cost)}" fill="none" stroke="${css('--s2')}" stroke-width="2.2"/><polyline points="${pl(costC)}" fill="none" stroke="${css('--warn')}" stroke-width="1.6" stroke-dasharray="6 4"/><polyline points="${pl(w.sales)}" fill="none" stroke="${css('--s1')}" stroke-width="2.6"/>`;
+      svg += `<line x1="${x(d.start - 1)}" x2="${x(d.start - 1)}" y1="${m.t}" y2="${Hh - m.b}" stroke="${css('--line-strong')}" stroke-dasharray="2 4"/><text x="${x(d.start - 1) + 4}" y="${m.t + 12}">arranque</text>`;
+      if (d.mesCuotas) svg += `<line x1="${x(d.mesCuotas - 1)}" x2="${x(d.mesCuotas - 1)}" y1="${m.t}" y2="${Hh - m.b}" stroke="${css('--gold')}" stroke-dasharray="4 3"/><text x="${x(d.mesCuotas - 1) + 4}" y="${m.t + 26}" style="fill:${css('--gold')}">cubre todo desde el mes ${d.mesCuotas}</text>`;
+      svg += '</svg>';
+      svg += `<div class="chart-legend small"><span><i style="background:${css('--s1')}"></i>ventas del mes</span><span><i style="background:${css('--s2')}"></i>costes totales</span><span><i style="background:${css('--warn')}"></i>costes + cuotas</span><span><i style="background:${css('--s3')}"></i>gasto fijo</span><span><i style="background:${css('--go')};opacity:.5"></i>gana</span><span><i style="background:${css('--stop')};opacity:.5"></i>pierde</span></div>`;
+    }
+    const segTxt = (v) => (v >= 0 ? `${F.pct(v)} por encima` : `${F.pct(-v)} por debajo`);
+    const inc = state.inversion;
+    host.innerHTML = `<div class="row"><h4>Punto de equilibrio: cuándo empieza a ganar dinero</h4><span class="spacer"></span><div class="seg" style="margin:0"><button data-pe="volumen" aria-pressed="${peModo === 'volumen'}">Por volumen de venta</button><button data-pe="tiempo" aria-pressed="${peModo === 'tiempo'}">Mes a mes</button></div></div>
+      <div class="pe-grid">
+        <div class="chart">${svg}</div>
+        <div class="stack small">
+          <p style="margin:0"><b>Cómo se lee.</b> La línea plana es el gasto fijo: se paga vendas o no. Los costes totales nacen de ella y suben con cada venta (las compras). Donde la línea de ventas corta a la de costes está el <b>punto de equilibrio</b>; a la derecha, cada euro vendido deja beneficio.</p>
+          <div class="pe-kpis"><div><span>Hoy necesitas vender</span><b>${F.eur(h.eq)}<small>/mes</small></b><em>vendes ${F.eur(h.ventas)}: ${segTxt(h.seg)}</em></div>
+            <div><span>Con el proyecto</span><b>${F.eur(c.eq)}<small>/mes</small></b><em>en crucero venderás ${F.eur(c.ventas)}: ${segTxt(c.seg)}</em></div>
+            <div><span>Y pagando las cuotas</span><b style="color:${c.segC < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(c.eqC)}<small>/mes</small></b><em>${segTxt(c.segC)}</em></div></div>
+          <p style="margin:0">${d.mesCuotas ? `Las ventas cubren costes y cuotas de forma estable desde el <b>mes ${d.mesCuotas}</b>${d.mesCuotas > d.mesCrucero ? ', después de terminar la rampa' : ''}.` : 'Con estos datos, las ventas no llegan a cubrir costes y cuotas de forma estable en cinco años.'} ${c.fijos > h.fijos ? `Los fijos suben de ${F.eur(h.fijos)} a ${F.eur(c.fijos)} al mes: cada euro de fijo nuevo exige vender ${F.eur(1 / Math.max(0.01, c.mg))} más.` : ''}</p>
+          <p class="muted" style="margin:0">El <b>margen de seguridad</b> es cuánto pueden caer las ventas antes de perder dinero. Por debajo del 10 % la empresa vive al límite; por encima del 25 % aguanta un mal año.</p>
+        </div>
+      </div>
+      <div class="pe-mueve"><span class="small muted">Mueve lo nuevo y mira cómo se desplaza el equilibrio:</span>
+        ${[['inversion.incVentas', 'Venta nueva', 0, 150, 1, (v) => F.eur(state.empresa.ventas * v / 100) + '/año'], ['inversion.margenNuevo', 'Margen de lo nuevo', 5, 90, 0.5, (v) => F.pct(v)], ['inversion.fijosNuevos', 'Fijos nuevos', 0, Math.max(300000, inc.fijosNuevos * 2), 1000, (v) => F.eur(v) + '/año'], ['inversion.contrataciones', 'Contrataciones', 0, Math.max(20, inc.contrataciones * 2), 1, (v) => v + ' pers.']].map(([p, l, a, z, st, f]) => `<label><span>${l} <b data-pev="${p}">${f(getPath(p))}</b></span><input type="range" data-pe-p="${p}" min="${a}" max="${z}" step="${st}" value="${getPath(p)}"></label>`).join('')}
+      </div>`;
+    $$('[data-pe]', host).forEach((b) => b.onclick = () => { peModo = b.dataset.pe; renderEquilibrio(); });
+    const fmts = { 'inversion.incVentas': (v) => F.eur(state.empresa.ventas * v / 100) + '/año', 'inversion.margenNuevo': (v) => F.pct(v), 'inversion.fijosNuevos': (v) => F.eur(v) + '/año', 'inversion.contrataciones': (v) => v + ' pers.' };
+    $$('[data-pe-p]', host).forEach((r) => r.addEventListener('change', () => { setPath(r.dataset.peP, parseFloat(r.value)); state.ejemplo = false; syncFields(); schedule(); }));
+    $$('[data-pe-p]', host).forEach((r) => r.addEventListener('input', () => { const t = host.querySelector(`[data-pev="${r.dataset.peP}"]`); if (t) t.textContent = fmts[r.dataset.peP](parseFloat(r.value)); }));
+  }
+
+  /* Paisaje 3D guiado por preguntas: cada pregunta fija los dos ejes y la altura adecuados */
+  const HZ = [
+    { q: '¿Cuánto financiar y a qué plazo?', ax: 'pctFin', ay: 'plazo', m: 'cajaMin', lee: 'Cada punto es una combinación de parte financiada y años de préstamo; la altura es la liquidez mínima. Busca el verde más cercano a la esfera: es la financiación mínima que mantiene la caja por encima de tu meta.' },
+    { q: '¿Y si vendo menos o tardo más en arrancar?', ax: 'incVentas', ay: 'rampa', m: 'cajaMin', lee: 'Hacia la izquierda vendes menos; hacia el fondo tardas más en llegar. Si tu esfera está cerca del borde rojo, un pequeño retraso o un poco menos de venta rompe la tesorería.' },
+    { q: '¿Y si los clientes pagan más tarde?', ax: 'dso', ay: 'incVentas', m: 'cajaMin', lee: 'Cobrar más tarde inmoviliza caja justo cuando más vendes. Mira cuántos días de cobro aguantas antes de entrar en rojo.' },
+    { q: '¿Cuánto puedo invertir?', ax: 'importe', ay: 'pctFin', m: 'cajaMin', lee: 'De izquierda a derecha, inversiones más grandes; al fondo, más financiada. La frontera entre verde y rojo es lo máximo que puedes invertir con cada nivel de financiación.' },
+    { q: '¿Cuándo recupero lo invertido?', ax: 'incVentas', ay: 'margenNuevo', m: 'payback', lee: 'La altura son los meses que tardas en recuperar la inversión (más bajo es mejor). La financiación no acorta este plazo: solo vender más o con más margen.' },
+    { q: '¿Podré pagar las cuotas?', ax: 'plazo', ay: 'importe', m: 'dscrMin', lee: 'La altura es cuántas veces el negocio cubre las cuotas en el peor año. Por debajo de 1 no llega; la banca suele pedir 1,25 o más.' }
+  ];
+  function renderHorizPreg() {
+    const host = $('#horizPreg'); if (!host) return;
+    const cur = HZ.findIndex((h) => h.ax === view.ax && h.ay === view.ay && h.m === view.metric);
+    host.innerHTML = HZ.map((h, i) => `<button class="hz-q" data-hz="${i}" aria-pressed="${i === cur}">${h.q}</button>`).join('') + (cur >= 0 ? `<p class="small muted" style="margin:6px 0 0">${HZ[cur].lee}</p>` : '<p class="small muted" style="margin:6px 0 0">Ejes elegidos a mano en el modo experto.</p>');
+    $$('[data-hz]', host).forEach((b) => b.onclick = () => {
+      const h = HZ[+b.dataset.hz]; view.ax = h.ax; view.ay = h.ay; view.metric = h.m;
+      $('#axX').value = h.ax; $('#axY').value = h.ay; $('#metricSel').value = h.m;
+      if (view.mode !== 'surface') { view.mode = 'surface'; render3D(); }
+      renderHorizPreg(); gen++; computeHeavy(gen);
+    });
+  }
+
   /* ---------------- Diccionario ---------------- */
   let glossCat = 'Todas';
   const slug = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-');
@@ -831,13 +1332,23 @@
   }
 
   /* ---------------- Sectores ---------------- */
+  // Desplegable: con datos propios, cambiar de sector solo cambia las referencias (estacionalidad, horquillas);
+  // las cifras típicas del sector se cargan si las pides
   function renderSectors() {
-    $('#sectors').innerHTML = Object.keys(A.SECTORS).map((k) => `<button class="chip" data-k="${k}" aria-pressed="${k === state.sector}">${A.SECTORS[k].nombre}</button>`).join('');
-    $('#sectorNote').textContent = A.SECTORS[state.sector].nota;
-    $$('#sectors .chip').forEach((b) => b.addEventListener('click', () => applySector(b.dataset.k)));
+    const opts = Object.keys(A.SECTORS).map((k) => `<option value="${k}" ${k === state.sector ? 'selected' : ''}>${A.SECTORS[k].nombre}</option>`).join('');
+    $('#sectorSel').innerHTML = opts; $('#heroSector').innerHTML = opts;
+    const S = A.SECTORS[state.sector];
+    $('#sectorNote').textContent = S.nota;
+    $('#sectorTipico').innerHTML = `<p class="muted" style="margin:0 0 6px">Lo típico del sector, sobre tus ventas:</p><div class="chips">${[['Margen bruto', S.margen + ' %'], ['Personal', S.personal + ' % de ventas'], ['Otros fijos', S.fijos + ' % de ventas'], ['Cobro', S.dso + ' días'], ['Stock', S.dio + ' días'], ['Pago', S.dpo + ' días'], ['Rampa', S.rampa + ' meses'], ['Peso salarial máx.', S.pesoSalarialMax + ' %']].map(([k, v]) => `<span class="vchip static">${k} <b>${v}</b></span>`).join('')}</div>
+      <div class="row mt"><button class="btn ghost" id="sectorCargar">Usar estas cifras típicas</button><span class="small muted">Sustituye margen, personal, fijos y plazos por los del sector.</span></div>`;
+    $('#sectorCargar').onclick = () => { A.applySector(state, state.sector); syncFields(); toast('Cifras típicas cargadas: ' + S.nombre); schedule(); };
   }
   function applySector(k) {
-    A.applySector(state, k); renderSectors(); syncFields(); toast('Perfil cargado: ' + A.SECTORS[k].nombre); schedule();
+    const propios = !esEjemplo();
+    if (propios) { state.sector = k; Object.assign(state.meta, { pesoSalarialMax: A.SECTORS[k].pesoSalarialMax, deudaEbitdaMax: A.SECTORS[k].deudaEbitdaMax }); }
+    else A.applySector(state, k);
+    renderSectors(); syncFields(); schedule();
+    toast(propios ? `Sector: ${A.SECTORS[k].nombre}. Tus cifras no cambian; si quieres las típicas, pulsa «Usar estas cifras típicas»` : 'Perfil cargado: ' + A.SECTORS[k].nombre);
   }
 
   /* ---------------- Dock y caja de herramientas ---------------- */
@@ -1003,8 +1514,16 @@
     buildFields();
     renderSectors();
     syncFields();
-    $('#empresaNombre').addEventListener('input', (e) => { state.empresaNombre = e.target.value; store.set(STORE, state); });
+    $('#empresaNombre').addEventListener('input', (e) => { state.empresaNombre = e.target.value; state.ejemplo = false; store.set(STORE, state); renderIdCard(); });
     $('#proyecto').addEventListener('input', (e) => { state.proyecto = e.target.value; store.set(STORE, state); });
+    $('#heroSector').addEventListener('change', (e) => applySector(e.target.value));
+    $('#sectorSel').addEventListener('change', (e) => applySector(e.target.value));
+    $('#heroEstr').addEventListener('change', (e) => { state.estructura = e.target.value; toast('Vehículo: ' + A.STRUCTURES[state.estructura].nombre); schedule(); });
+    ['#qEmpresa', '#qEmpresa2'].forEach((id) => $(id).addEventListener('click', () => openQuiz('empresa')));
+    $('#qHumano').addEventListener('click', () => openQuiz('humano'));
+    $('#nuevaSim').addEventListener('click', nuevaSimulacion);
+    $('#goCargar').addEventListener('click', () => { const b = $('#cargaBox'); b.scrollIntoView({ behavior: 'smooth', block: 'center' }); b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); });
+    $('#empFile').addEventListener('change', async (e) => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (fs.length) await cargarCuentas(fs); });
     $('#contarPoliza').addEventListener('click', () => { state.meta.contarPoliza = state.meta.contarPoliza === false; syncFields(); schedule(); });
     $('#addHyp').addEventListener('click', (e) => {
       openCard(null, e.target, { t: 'Nueva hipótesis', d: 'Elige el suceso que quieres simular. Podrás ajustar mes, duración e intensidad.', html: `<div class="actions">${Object.keys(A.SHOCKS).map((k) => `<button class="btn ghost" data-shock="${k}">${A.SHOCKS[k].nombre}</button>`).join('')}</div>` });

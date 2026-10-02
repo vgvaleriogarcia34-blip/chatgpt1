@@ -76,30 +76,54 @@
     }
   };
 
+  /* Líneas de la inversión: cada activo (máquina, vehículo, nave…) con su importe, su mes, su vida útil y,
+     si se quiere, su propia financiación. Sin líneas, la inversión es un único bloque. El importe total
+     (inversion.importe) manda: las líneas se reparten en proporción, así las palancas que lo escalan siguen valiendo. */
+  A.LINEA_TIPOS = {
+    maquinaria: { n: 'Maquinaria o equipos', vida: 10 },
+    vehiculo: { n: 'Vehículos', vida: 6 },
+    nave: { n: 'Nave, local o terreno', vida: 30 },
+    obra: { n: 'Obra o reforma', vida: 15 },
+    tecnologia: { n: 'Tecnología y software', vida: 4 },
+    otro: { n: 'Otro activo', vida: 8 }
+  };
+  A.lineasActivas = (state) => ((state.inversion && state.inversion.lineas) || []).filter((l) => l.activa !== false && l.importe > 0);
   function structureParams(state, mods) {
     const inv = state.inversion;
     const st = state.estructura;
-    const importeTotal = inv.importe * (1 + (mods.sobrecoste || 0) / 100);
+    const sob = 1 + (mods.sobrecoste || 0) / 100;
+    const importeTotal = inv.importe * sob;
     const p = {
       importeTotal, share: 1, setup: A.STRUCTURES[st].setup, rampaF: 1,
       pctFin: inv.pctFin / 100, tipo: inv.tipo + (mods.tipoDelta || 0), plazo: inv.plazo, carencia: inv.carencia,
       aportacion: inv.aportacion || 0, alquiler: 0, extraFijos: 0, depreciable: importeTotal, ownerShare: 1,
       depositoInicial: 0
     };
-    if (st === 'leasing') {
-      p.pctFin = 1; p.tipo += 1.5; p.plazo = Math.min(inv.plazo, 7); p.carencia = 0;
-    } else if (st === 'filial') {
-      p.extraFijos = 18000; p.pctFin = Math.max(0, p.pctFin - 0.1);
-    } else if (st === 'patrimonial') {
-      p.alquiler = (importeTotal * 0.075) / 12; p.pctFin = 0; p.depreciable = 0; p.extraFijos = 6000; p.aportacion = 0;
-      p.ownCapex = 0;
-    } else if (st === 'socio') {
-      p.aportacion += importeTotal * 0.5; p.pctFin = Math.min(p.pctFin, 0.5); p.ownerShare = 0.65; p.extraFijos = 12000;
-    } else if (st === 'jv') {
-      p.share = 0.5; p.rampaF = 0.7; p.extraFijos = 15000; p.importeTotal = importeTotal * 0.5; p.depreciable = p.importeTotal;
-    }
-    if (st === 'patrimonial') p.capexOperativa = 0; else p.capexOperativa = p.importeTotal;
-    p.loan = st === 'patrimonial' ? 0 : p.capexOperativa * p.pctFin;
+    if (st === 'patrimonial') { p.alquiler = (importeTotal * 0.075) / 12; p.pctFin = 0; p.depreciable = 0; p.extraFijos = 6000; p.aportacion = 0; }
+    else if (st === 'filial') p.extraFijos = 18000;
+    else if (st === 'socio') { p.aportacion += importeTotal * 0.5; p.ownerShare = 0.65; p.extraFijos = 12000; }
+    else if (st === 'jv') { p.share = 0.5; p.rampaF = 0.7; p.extraFijos = 15000; p.importeTotal = importeTotal * 0.5; p.depreciable = p.importeTotal; }
+    // Tramos: uno por línea (o uno solo con los datos generales)
+    const L = A.lineasActivas(state), base = L.reduce((a, l) => a + l.importe, 0);
+    const src = L.length ? L.map((l) => ({ nombre: l.nombre, peso: l.importe / base, mes: l.mes || inv.mesInicio, vida: l.vida || inv.vidaUtil, fin: l.fin || null }))
+      : [{ nombre: 'Inversión', peso: 1, mes: inv.mesInicio, vida: inv.vidaUtil, fin: null }];
+    const jv = st === 'jv' ? 0.5 : 1;
+    p.tramos = src.map((t) => {
+      const f = t.fin || {};
+      let pct = (f.pctFin != null ? f.pctFin : inv.pctFin) / 100, tipo = (f.tipo != null ? f.tipo : inv.tipo) + (mods.tipoDelta || 0);
+      let plazo = f.plazo != null ? f.plazo : inv.plazo, car = f.carencia != null ? f.carencia : inv.carencia;
+      if (st === 'leasing') { pct = 1; tipo += 1.5; plazo = Math.min(plazo, 7); car = 0; }
+      else if (st === 'filial') pct = Math.max(0, pct - 0.1);
+      else if (st === 'socio') pct = Math.min(pct, 0.5);
+      const capex = st === 'patrimonial' ? 0 : inv.importe * sob * t.peso * jv;
+      return { nombre: t.nombre, mes: Math.max(1, Math.round(t.mes)) + p.setup, vida: Math.max(1, t.vida), capex, loan: capex * pct, pct, tipo, plazo, carencia: car, dep: st === 'patrimonial' ? 0 : capex };
+    });
+    p.capexOperativa = p.tramos.reduce((a, t) => a + t.capex, 0);
+    p.loan = p.tramos.reduce((a, t) => a + t.loan, 0);
+    if (st !== 'patrimonial') p.depreciable = p.capexOperativa;
+    p.pctFin = p.capexOperativa ? p.loan / p.capexOperativa : 0;
+    // Valor contable que queda a los cinco años (para el valor residual del proyecto)
+    p.resid5 = p.tramos.reduce((a, t) => a + Math.max(0, t.dep * (1 - 5 / t.vida)), 0);
     return p;
   }
 
@@ -120,13 +144,15 @@
     const seas = (m) => 1 + amp * Math.cos((2 * Math.PI * (((m - 1) % 12) + 1 - pico)) / 12);
     const growth = (m) => Math.pow(1 + e.crecimiento / 100, (m - 1) / 12);
 
-    // Préstamo nuevo: calendario francés con carencia de intereses
-    const L = noInv ? 0 : p.loan;
-    const n = Math.max(1, Math.round(p.plazo * 12));
-    const car = clamp(Math.round(p.carencia), 0, n - 1);
-    const rBase = p.tipo / 100 / 12;
-    const amortN = n - car;
-    const cuotaFr = L > 0 ? (rBase > 0 ? (L * rBase) / (1 - Math.pow(1 + rBase, -amortN)) : L / amortN) : 0;
+    // Préstamos nuevos (uno por línea): calendario francés con carencia de intereses
+    const T = (noInv ? [] : p.tramos).map((t) => {
+      const n = Math.max(1, Math.round(t.plazo * 12)), car = clamp(Math.round(t.carencia), 0, n - 1), rBase = t.tipo / 100 / 12, amortN = n - car;
+      const cuota = t.loan > 0 ? (rBase > 0 ? (t.loan * rBase) / (1 - Math.pow(1 + rBase, -amortN)) : t.loan / amortN) : 0;
+      return Object.assign({}, t, { n, car, rBase, cuota, bal: 0, mesesPagados: 0 });
+    });
+    const L = T.reduce((a, t) => a + t.loan, 0);
+    const cuotaFr = T.reduce((a, t) => a + t.cuota, 0);
+    const mesAport = T.length ? Math.min(...T.map((t) => t.mes)) : start;
     // Deuda existente
     const rE = 0.045 / 12;
     let balE = e.deudaViva;
@@ -149,7 +175,6 @@
     const minOp = (e.personal + e.fijos) / 24;
     const hum = state.humano || {};
     let loanBal = 0;
-    let loanMonth = 0;
     let ebtYTD = 0, taxPaidYTD = 0;
 
     for (let m = 1; m <= H; m++) {
@@ -189,25 +214,24 @@
       // Coste de la póliza del mes (intereses sobre lo dispuesto + comisión sobre lo no dispuesto)
       const costePol = polD * ((e.polizaTipo || 0) / 100 / 12) + (polLim - polD) * ((e.polizaComision || 0) / 100 / 12);
 
-      // Amortización contable
-      const dep = !noInv && m >= start ? p.depreciable / (inv.vidaUtil * 12) : 0;
+      // Amortización contable de cada línea desde que entra en servicio
+      let dep = 0;
+      T.forEach((t) => { if (m >= t.mes) dep += t.dep / (t.vida * 12); });
 
-      // Préstamo nuevo
+      // Préstamos nuevos
       let intNew = 0, prinNew = 0, capex = 0, inflow = 0;
-      if (!noInv && m === start) {
-        capex = p.capexOperativa;
-        inflow = L + p.aportacion;
-        loanBal = L;
-      }
-      if (!noInv && m > start && loanBal > 0.5) {
-        loanMonth++;
-        const rm = (p.tipo + shockFrom('tipos', m)) / 100 / 12;
-        intNew = loanBal * rm;
-        if (loanMonth > car) {
-          prinNew = Math.min(loanBal, cuotaFr - loanBal * rBase);
+      if (!noInv && m === mesAport) inflow += p.aportacion;
+      T.forEach((t) => {
+        if (m === t.mes) { capex += t.capex; inflow += t.loan; t.bal = t.loan; }
+        else if (m > t.mes && t.bal > 0.5) {
+          t.mesesPagados++;
+          const i = t.bal * (t.tipo + shockFrom('tipos', m)) / 100 / 12;
+          let pr = 0;
+          if (t.mesesPagados > t.car) pr = Math.min(t.bal, t.cuota - t.bal * t.rBase);
+          t.bal -= pr; intNew += i; prinNew += pr;
         }
-        loanBal -= prinNew;
-      }
+      });
+      loanBal = T.reduce((a, t) => a + t.bal, 0);
       // Deuda existente
       let intE = 0, prinE = 0;
       if (balE > 0.5) {
@@ -245,7 +269,8 @@
     out.params = p;
     out.start = start;
     out.cuotaNueva = cuotaFr;
-    out.cuotaCarencia = L * rBase;
+    out.cuotaCarencia = T.reduce((a, t) => a + t.loan * t.rBase, 0);
+    out.tramos = T.map((t) => ({ nombre: t.nombre, mes: t.mes, capex: t.capex, loan: t.loan, cuota: t.cuota, plazo: t.plazo, tipo: t.tipo, carencia: t.carencia, vida: t.vida }));
     out.loan = L;
     out.polLim = polLim;
     out.mods = mods;
@@ -310,7 +335,7 @@
     const lastAvg = sum(inc, H - 12, H) / 12;
     const sumExt = (i, j) => sum(inc, i, Math.min(j, H)) + Math.max(0, j - Math.max(i, H)) * lastAvg; // más allá del horizonte se prolonga el último año
     for (let y = 0; y < 5; y++) flows.push(sumExt(iStart + y * 12, iStart + y * 12 + 12));
-    const resid = Math.max(0, p.depreciable * (1 - 5 / inv.vidaUtil)) * p.ownerShare;
+    const resid = (p.resid5 != null ? p.resid5 : Math.max(0, p.depreciable * (1 - 5 / inv.vidaUtil))) * p.ownerShare;
     flows[5] += resid + (sum(inc, H - 12, H) * 0.5);
     const wacc = 0.08;
     const van = flows.reduce((a, f, i) => a + f / Math.pow(1 + wacc, i), 0);
@@ -684,12 +709,41 @@
       const mesPleno = r.tamano.mesCrucero;
       const enPlazo = mesPleno <= state.meta.plazoObjetivo;
       const metasOk = r.metas.filter((t) => t.ok).length;
-      const score = clamp(
-        (r.cajaRef >= state.meta.cajaMin ? 25 : r.cajaRef >= 0 ? 12 : 0) +
-        (enPlazo ? 20 : 8) + st.control * 0.15 + st.aislamiento * 0.15 + (100 - st.complejidad) * 0.1 +
-        metasOk * 3, 0, 100);
-      return { key: k, ...st, r, mesPleno, enPlazo, metasOk, score };
+      // Encaje: de 0 a 100, la suma de seis criterios con su peso máximo
+      const desglose = [
+        { n: 'Liquidez', d: 'mantiene la caja por encima de tu meta (25), solo por encima de cero (12) o se queda sin ella (0)', v: r.cajaRef >= state.meta.cajaMin ? 25 : r.cajaRef >= 0 ? 12 : 0, max: 25 },
+        { n: 'Plazo', d: `llega al tamaño pleno antes del mes ${state.meta.plazoObjetivo} (20) o después (8)`, v: enPlazo ? 20 : 8, max: 20 },
+        { n: 'Control', d: 'parte del negocio nuevo que sigue en manos de los socios actuales', v: st.control * 0.15, max: 15 },
+        { n: 'Aislamiento del riesgo', d: 'cuánto protege a la empresa actual si lo nuevo sale mal', v: st.aislamiento * 0.15, max: 15 },
+        { n: 'Sencillez', d: 'menos sociedades, trámites y costes de gestión', v: (100 - st.complejidad) * 0.1, max: 10 },
+        { n: 'Metas cumplidas', d: 'cada una de tus cinco metas que cumple suma 3', v: metasOk * 3, max: 15 }
+      ];
+      const score = clamp(desglose.reduce((a, x) => a + x.v, 0), 0, 100);
+      return { key: k, ...st, r, mesPleno, enPlazo, metasOk, score, desglose };
     }).sort((a, b) => b.score - a.score);
+  };
+
+  /* Qué significa cada vehículo para esta empresa, con sus cifras */
+  A.STRUCT_GLOSA = {
+    encaje: 'Puntuación de 0 a 100 de lo bien que encaja el vehículo con tus objetivos: liquidez (hasta 25), plazo (20), control (15), aislamiento del riesgo (15), sencillez (10) y metas cumplidas (15). Por encima de 70 encaja bien; entre 50 y 70, con matices; por debajo de 50, no conviene. La estrella marca el de mejor encaje.',
+    control: 'Parte del negocio nuevo, y de las decisiones sobre él, que sigue en manos de los socios actuales. 100 % es que decides tú solo; 65 % es que entra un socio con el 35 %; 50 % es que lo compartes a medias.',
+    pleno: 'Mes en que lo nuevo llega al 100 % de la venta prevista: el arranque, más el tiempo de montar el vehículo (notaría, registro, negociación con el socio) y la rampa comercial. No es el mes en que se recupera la inversión.',
+    metas: 'Cuántas de tus cinco metas (liquidez mínima, recuperación, cobertura de la deuda, deuda sobre EBITDA y peso salarial) cumple este vehículo en el escenario activo. Las fijas en «Meta y plan».',
+    marcha: 'Tiempo orientativo para tener el vehículo funcionando: constituir sociedades, escrituras, registro y financiación.'
+  };
+  A.structCaso = function (state, s) {
+    const F = A.fmt, r = s.r, p = r.p, inv = state.inversion;
+    const L = A.lineasActivas(state), que = L.length ? L.map((l) => l.nombre.toLowerCase()).join(', ') : 'el activo';
+    const cuota = r.cuotaNueva, pl = (y) => String(y).replace('.', ',');
+    switch (s.key) {
+      case 'directa': return `Tu empresa compra ${que} por ${F.eur(p.capexOperativa)}, pide ${F.eur(r.loan)} al banco a ${pl(inv.plazo)} años (cuota de ${F.eur(cuota)} al mes tras ${inv.carencia} meses de carencia) y pone ${F.eur(Math.max(0, p.capexOperativa - r.loan - p.aportacion))} de su caja.`;
+      case 'leasing': return `Una entidad compra ${que} y te lo cede: no pagas entrada, pagas ${F.eur(cuota)} al mes durante ${pl(Math.min(inv.plazo, 7))} años desde el primer mes. Al final puedes quedártelo por el valor residual. Cuesta algo más que un préstamo, pero no consume caja de entrada.`;
+      case 'filial': return `Creáis una sociedad filial, 100 % de tu empresa, que compra ${que} por ${F.eur(p.capexOperativa)} y pide ${F.eur(r.loan)} de préstamo. Si lo nuevo sale mal, el golpe se queda en la filial; a cambio, son unos ${F.eur(p.extraFijos)} al año más de gestión y conviene pactar bien las garantías que pida el banco.`;
+      case 'patrimonial': return `Una sociedad patrimonial de los socios compra ${que} por ${F.eur(inv.importe)} (con su propio préstamo o con aportaciones de los socios) y se lo alquila a tu empresa por unos ${F.eur(p.alquiler)} al mes (un 7,5 % anual del valor). Tu empresa no compra ni se endeuda: solo paga el alquiler, que es gasto. El activo queda fuera del riesgo del negocio.`;
+      case 'socio': return `Un inversor aporta la mitad de la inversión (${F.eur(inv.importe * 0.5)}) a cambio del 35 % del negocio nuevo. Necesitas menos deuda y menos caja, pero repartes beneficio y decisiones: los socios actuales conservan el 65 %.`;
+      case 'jv': return `Un socio del sector pone la mitad (${F.eur(inv.importe * 0.5)}) y compartís al 50 % ventas, beneficios y decisiones. Aporta clientes y oficio, por eso la rampa es más corta; a cambio, solo te quedas con la mitad de lo nuevo.`;
+      default: return '';
+    }
   };
 
   /* ---------- Plan de corrección (búsqueda de palancas) ---------- */
@@ -801,8 +855,8 @@
   A.AXES = {
     incVentas: { nombre: 'Venta nueva', path: ['inversion', 'incVentas'], min: 5, max: 100, unidad: '%' },
     margenNuevo: { nombre: 'Margen nuevo', path: ['inversion', 'margenNuevo'], min: (s) => Math.max(5, s.inversion.margenNuevo - 15), max: (s) => Math.min(90, s.inversion.margenNuevo + 15), unidad: '%' },
-    pctFin: { nombre: '% financiado', path: ['inversion', 'pctFin'], min: 0, max: 100, unidad: '%' },
-    plazo: { nombre: 'Plazo préstamo', path: ['inversion', 'plazo'], min: 2, max: 12, unidad: 'años' },
+    pctFin: { nombre: 'Parte financiada', path: ['inversion', 'pctFin'], min: 0, max: 100, unidad: '%' },
+    plazo: { nombre: 'Plazo del préstamo', path: ['inversion', 'plazo'], min: 2, max: 12, unidad: 'años' },
     rampa: { nombre: 'Meses de rampa', path: ['inversion', 'rampa'], min: 2, max: 24, unidad: 'meses' },
     dso: { nombre: 'Días de cobro', path: ['empresa', 'dso'], min: 0, max: 150, unidad: 'días' },
     importe: { nombre: 'Inversión', path: ['inversion', 'importe'], min: (s) => s.inversion.importe * 0.3, max: (s) => s.inversion.importe * 1.8, unidad: '€' },
