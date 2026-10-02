@@ -207,13 +207,16 @@
     },
     lista: () => (REG ? REG.lista : []),
     activa: () => (REG ? REG.lista.find((e) => e.id === P.empresaId()) || REG.lista[0] : null),
-    async guardar() { await P.saveData('empresas', REG); },
+    // En el servidor el alta de empresas se comprueba: si el plan no lo permite, el error llega aquí
+    async guardar() { await P.ready; if (P.mode === 'server') { await api('/data/empresas', { method: 'PUT', body: JSON.stringify(REG) }); return; } await P.saveData('empresas', REG); },
     async crear(d) {
       await P.empresas.cargar();
       const lim = P.limiteEmpresas();
       if (REG.lista.length >= lim) throw new Error(lim === 1 ? 'Tu plan incluye una empresa. Para trabajar con varias, pasa a Consultora (empresas cliente) o a Grupos (sociedades de un grupo).' : `Tu plan incluye hasta ${lim} empresas.`);
       const e = { id: 'e' + Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 4), nombre: (d.nombre || '').trim() || 'Nueva empresa', rol: d.rol || (P.user && PLANES[P.user.plan] && PLANES[P.user.plan].grupo ? 'filial' : 'cliente'), participacion: d.participacion != null ? +d.participacion : 100, alta: new Date().toISOString() };
-      REG.lista.push(e); await P.empresas.guardar(); return e;
+      REG.lista.push(e);
+      try { await P.empresas.guardar(); } catch (x) { REG.lista = REG.lista.filter((y) => y.id !== e.id); throw x; }
+      return e;
     },
     async editar(id, cambios) { await P.empresas.cargar(); const e = REG.lista.find((x) => x.id === id); if (!e) return; Object.assign(e, cambios); await P.empresas.guardar(); return e; },
     async borrar(id) {

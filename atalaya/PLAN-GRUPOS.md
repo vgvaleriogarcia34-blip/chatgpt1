@@ -1,6 +1,6 @@
 # Atalaya Grupos · propuesta de cuarto plan para grupos empresariales y pago anual
 
-Estado: **decidido y construido** (fases 1 a 4). Pendiente: tesorería de grupo e intragrupo (fase 5) y cobro automático (fase 6).
+Estado: **decidido y construido** (fases 1 a 5). Pendiente: cobro automático (fase 6), ver opciones en `PUESTA-EN-MARCHA.md`.
 
 ## Decisiones tomadas
 
@@ -24,6 +24,8 @@ Estado: **decidido y construido** (fases 1 a 4). Pendiente: tesorería de grupo 
 - Página comercial con interruptor mensual/anual y cuarta tarjeta Grupos con sus tramos; alta con plan y forma de pago; administración con forma de pago, número de empresas y cuota de cada cliente (el ingreso mensual cuenta los anuales a su precio con descuento).
 - Vista de grupo (`grupo.html`): constelación de sociedades, tabla y consolidado con eliminaciones intragrupo, atribuible a la holding, comparativa, riesgos cruzados (clientes y proveedores comunes, sociedades en rojo o sin liquidez, dependencia de una sociedad, endeudamiento), objetivos de la holding en cascada con reparto por peso, e informe del grupo. En Consultora la misma página es la cartera de clientes, sin consolidado.
 - Acceso a la vista de grupo desde el puesto de mando 3D y desde el menú de la cuenta.
+- Tesorería del grupo: «¿quién financia a quién?» como pregunta pendiente hasta responderla, registro de préstamos entre sociedades, posición de cada una, propuesta de financiación interna, tres preguntas de gobierno y su reflejo en riesgos, consolidado e informe.
+- Límite de empresas comprobado también en el servidor.
 
 ---
 

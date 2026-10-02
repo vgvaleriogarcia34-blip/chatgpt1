@@ -108,6 +108,8 @@ atalaya/
 │   └── strategy/       core · finance · commercial · operations · orgchart · plan · market · consultor-data · origen · consultor · ruta-est
 ├── manual.html         manual de uso
 ├── PLAN-GRUPOS.md      plan Grupos, precios por tramos, pago anual y lo construido
+├── PUESTA-EN-MARCHA.md comprobaciones al subir al servidor y opciones de cobro
+├── AUDITORIA-MODULOS.md auditoría de consultor de cada módulo y mejoras propuestas
 └── server/             server.mjs · package.json
 ```
 

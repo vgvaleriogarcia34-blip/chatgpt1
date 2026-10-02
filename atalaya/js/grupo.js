@@ -70,6 +70,12 @@
     const c = consolidado(); const top = L.slice().sort((a, b) => b.m.ventas - a.m.ventas)[0];
     if (top && L.length > 1 && top.m.ventas / Math.max(1, c.bruto.ventas) > 0.6) out.push({ t: 'El grupo depende de una sociedad', d: `${top.e.nombre} aporta el ${F.pct(top.m.ventas / c.bruto.ventas * 100)} de las ventas del grupo.`, st: 'warn' });
     if (c.deudaEbitda != null && c.deudaEbitda > 3.5) out.push({ t: 'Endeudamiento del grupo alto', d: `Deuda neta de ${c.deudaEbitda.toFixed(1).replace('.', ',')} veces el EBITDA consolidado.`, st: c.deudaEbitda > 5 ? 'stop' : 'warn' });
+    if (grupo && G.tes) {
+      const t = tesoreria();
+      t.prop.filter((r) => !r.de).forEach((r) => out.push({ t: `${r.a.e.nombre} necesita caja que el grupo no tiene`, d: `Le faltan ${F.eur(r.importe)} según su previsión y ninguna sociedad puede prestárselos sin bajar de su colchón.`, st: 'stop' }));
+      const sinC = t.T.prestamos.filter((p) => !p.contrato).length; if (sinC) out.push({ t: `${sinC} préstamo${sinC > 1 ? 's' : ''} entre sociedades sin contrato`, d: 'Son operaciones vinculadas: deben estar por escrito y a valor de mercado. Sin documentar, Hacienda puede ajustarlas.', st: 'warn' });
+      TQ.filter(([k, , malo]) => t.T.resp[k] === malo && !(k === 'contrato' && sinC)).forEach(([, q, , a]) => out.push({ t: 'Tesorería del grupo: ' + a.split(':')[0].toLowerCase(), d: a, st: 'warn' }));
+    }
     E.filter((x) => !x.ok).forEach((x) => out.push({ t: `${x.e.nombre} sin datos`, d: 'Entra en esta empresa y carga sus cifras (o súbelas en la zona de origen) para que cuente en el grupo.', st: 'warn' }));
     return out;
   }
@@ -77,13 +83,67 @@
   const actualGrupo = (ind) => { const c = consolidado(); return { ventas: c.ventas, ebitda: c.ebitda, ebitdaPct: c.ebitdaPct, caja: c.caja, liquidezMin: c.liquidezMin, dso: E.filter((x) => x.ok).reduce((a, x) => a + x.m.dso * x.m.ventas, 0) / Math.max(1, c.bruto.ventas), deudaEbitda: c.deudaEbitda, ventasEmpleado: c.ventas / Math.max(1, c.plantilla) }[ind]; };
   const cumple = (v, meta, dir) => (v == null || meta === '' || meta == null ? null : dir === 'bajar' ? v <= +meta : v >= +meta);
 
+  /* ---------- Tesorería del grupo: ¿quién financia a quién? ----------
+     Registro de préstamos entre sociedades, posición de cada una (lo que presta, lo que debe y su neto),
+     qué sociedad tiene caja de sobra y cuál la necesita según su previsión, y una propuesta de quién podría
+     financiar a quién. Tres preguntas de gobierno: contrato escrito, interés de mercado y caja centralizada. */
+  const TQ = [
+    ['contrato', '¿Cada préstamo entre sociedades tiene un contrato escrito (importe, plazo, interés, garantías)?', 'no', 'Formalizar por escrito cada préstamo intragrupo: importe, plazo, interés y calendario de devolución.'],
+    ['mercado', '¿Los préstamos entre sociedades llevan un interés de mercado y está documentado?', 'no', 'Fijar un interés de mercado y documentarlo: son operaciones vinculadas y Hacienda puede ajustarlas (consúltalo con tu asesor).'],
+    ['pool', '¿Hay una política para mover caja entre sociedades (quién decide, límites, colchón de cada una)?', 'no', 'Acordar una política de tesorería del grupo: quién decide los movimientos, límites por sociedad y caja mínima de cada una.']
+  ];
+  const colchon = (x) => { const em = (x.sim || {}).empresa || {}; return ((+em.personal || 0) + (+em.fijos || 0)) / 12; };
+  function tesoreria() {
+    const T = G.tes || (G.tes = { prestamos: [], resp: {} });
+    T.prestamos = T.prestamos || []; T.resp = T.resp || {};
+    const L = E.filter((x) => x.ok), pos = {};
+    L.forEach((x) => { const sobra = Math.max(0, x.m.caja - colchon(x)), falta = Math.max(0, -(x.m.liquidezMin || 0)); pos[x.e.id] = { x, presta: 0, debe: 0, sobra, falta, colchon: colchon(x) }; });
+    T.prestamos.forEach((p) => { if (pos[p.de]) pos[p.de].presta += +p.importe || 0; if (pos[p.a]) pos[p.a].debe += +p.importe || 0; });
+    // Propuesta: la caja que sobra en unas cubre lo que les falta a otras, de mayor a mayor
+    const donantes = Object.values(pos).filter((p) => p.sobra > 0).map((p) => ({ p, q: p.sobra })).sort((a, b) => b.q - a.q);
+    const prop = [];
+    Object.values(pos).filter((p) => p.falta > 0).sort((a, b) => b.falta - a.falta).forEach((n) => {
+      let resto = n.falta;
+      donantes.forEach((d) => { if (resto <= 0 || d.q <= 0 || d.p === n) return; const m = Math.min(resto, d.q); prop.push({ de: d.p.x, a: n.x, importe: m }); d.q -= m; resto -= m; });
+      if (resto > 0) prop.push({ de: null, a: n.x, importe: resto });
+    });
+    const sinResp = TQ.filter(([k]) => T.resp[k] == null);
+    return { T, pos, prop, sinResp, total: T.prestamos.reduce((a, p) => a + (+p.importe || 0), 0) };
+  }
+  function tesoreriaHTML() {
+    const { T, pos, prop, total } = tesoreria(), L = E.filter((x) => x.ok);
+    const opt = (sel) => L.map((x) => `<option value="${x.e.id}" ${x.e.id === sel ? 'selected' : ''}>${esc(x.e.nombre)}</option>`).join('');
+    return `<section class="glass pad stack mt gr-tes" id="gTes"><div class="row"><h4>Tesorería del grupo</h4><span class="spacer"></span><span class="small muted">${T.prestamos.length} préstamo${T.prestamos.length === 1 ? '' : 's'} entre sociedades · ${F.eur(total)}</span></div>
+      <div class="gr-q"><b>¿Quién financia a quién dentro del grupo?</b><span class="small muted">Apunta cada préstamo entre sociedades: quién presta, a quién, cuánto y a qué interés. Con eso se ve la posición de cada sociedad, se elimina del consolidado y se detecta qué sociedad necesita caja y cuál puede dársela.</span></div>
+      <div class="table-wrap"><table class="gr-tab"><thead><tr><th style="text-align:left">Presta</th><th style="text-align:left">Recibe</th><th>Importe</th><th>Interés %</th><th>Vencimiento</th><th>Contrato</th><th></th></tr></thead><tbody>
+      ${T.prestamos.map((p, i) => `<tr><td style="text-align:left"><select class="input" data-pl="${i}" data-pk="de">${opt(p.de)}</select></td><td style="text-align:left"><select class="input" data-pl="${i}" data-pk="a">${opt(p.a)}</select></td><td><input class="input" data-pl="${i}" data-pk="importe" value="${p.importe ? F.num(p.importe) : ''}" style="width:120px;text-align:right"></td><td><input class="input" data-pl="${i}" data-pk="interes" value="${p.interes == null ? '' : String(p.interes).replace('.', ',')}" style="width:70px;text-align:right"></td><td><input class="input" type="date" data-pl="${i}" data-pk="vence" value="${esc(p.vence || '')}"></td><td><input type="checkbox" data-pl="${i}" data-pk="contrato" ${p.contrato ? 'checked' : ''} aria-label="Tiene contrato escrito"></td><td><button class="icon-btn" data-pdel="${i}" aria-label="Quitar préstamo">×</button></td></tr>`).join('') || '<tr><td colspan="7" class="small muted" style="text-align:left">Sin préstamos apuntados. Si unas sociedades financian a otras, añádelos.</td></tr>'}
+      </tbody></table></div>
+      <div class="row"><button class="btn ghost" id="gNewLoan" ${L.length < 2 ? 'disabled' : ''}>Añadir préstamo</button>${total ? `<button class="btn ghost" id="gLoanElim">Usar ${F.eur(total)} en el consolidado</button>` : ''}</div>
+      <div class="table-wrap"><table class="gr-tab"><thead><tr><th style="text-align:left">Sociedad</th><th>Caja</th><th>Colchón (1 mes de gastos)</th><th>Caja que sobra</th><th>Le falta según su previsión</th><th>Ha prestado</th><th>Debe al grupo</th><th>Neto</th></tr></thead><tbody>
+      ${Object.values(pos).map((p) => `<tr><td style="text-align:left">${esc(p.x.e.nombre)}</td><td>${F.eur(p.x.m.caja)}</td><td>${F.eur(p.colchon)}</td><td>${p.sobra ? F.eur(p.sobra) : '—'}</td><td style="color:${p.falta ? 'var(--stop)' : 'inherit'}">${p.falta ? F.eur(p.falta) : '—'}</td><td>${p.presta ? F.eur(p.presta) : '—'}</td><td>${p.debe ? F.eur(p.debe) : '—'}</td><td>${F.eur(p.presta - p.debe)}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${prop.length ? `<div class="gr-prop"><b class="small">Propuesta de financiación interna</b>${prop.map((r) => r.de ? `<p class="small"><span class="state st-ok">Posible</span> <b>${esc(r.de.e.nombre)}</b> podría prestar <b>${F.eur(r.importe)}</b> a <b>${esc(r.a.e.nombre)}</b> sin bajar de su colchón.</p>` : `<p class="small"><span class="state st-stop">Sin cubrir</span> A <b>${esc(r.a.e.nombre)}</b> le faltan <b>${F.eur(r.importe)}</b> que el grupo no puede cubrir con su caja: hace falta financiación bancaria o capital.</p>`).join('')}</div>` : '<p class="small muted">Ninguna sociedad necesita caja según su previsión.</p>'}
+      <div class="gr-tq"><b class="small">Gobierno de la tesorería del grupo</b>${TQ.map(([k, q]) => `<div class="gr-tqi"><span class="small">${q}</span><span class="c3-a">${['si', 'no'].map((v) => `<button data-tq="${k}" data-v="${v}" aria-pressed="${T.resp[k] === v}">${v === 'si' ? 'Sí' : 'No'}</button>`).join('')}</span></div>`).join('')}</div>
+    </section>`;
+  }
+  function wireTesoreria(main) {
+    const T = G.tes, L = E.filter((x) => x.ok);
+    const nb = $('#gNewLoan', main); if (nb) nb.onclick = () => { T.prestamos.push({ de: L[0].e.id, a: (L[1] || L[0]).e.id, importe: 0, interes: '', vence: '', contrato: false }); guardar(); render(true); };
+    $$('[data-pl]', main).forEach((inp) => inp.onchange = () => { const p = T.prestamos[+inp.dataset.pl], k = inp.dataset.pk; p[k] = k === 'contrato' ? inp.checked : k === 'importe' ? A.fin.parseNum(inp.value) || 0 : k === 'interes' ? (inp.value.trim() === '' ? '' : A.fin.parseNum(inp.value)) : inp.value; guardar(); render(true); });
+    $$('[data-pdel]', main).forEach((b) => b.onclick = () => { T.prestamos.splice(+b.dataset.pdel, 1); guardar(); render(true); });
+    const le = $('#gLoanElim', main); if (le) le.onclick = () => { G.elim = G.elim || {}; G.elim.prestamos = T.prestamos.reduce((a, p) => a + (+p.importe || 0), 0); guardar(); render(true); };
+    $$('[data-tq]', main).forEach((b) => b.onclick = () => { T.resp[b.dataset.tq] = T.resp[b.dataset.tq] === b.dataset.v ? null : b.dataset.v; guardar(); render(true); });
+  }
+
   /* ---------- Pantalla ---------- */
-  function render() {
+  function render(keep) {
+    const yKeep = keep ? scrollY : null;
     const main = $('#gMain'), L = E.filter((x) => x.ok), c = consolidado(), cr = cruzados();
     const kind = grupo ? 'grupo' : 'cartera';
     const pr = P.precio(user.plan, user.periodo, lista.length);
     const holding = E.find((x) => x.e.rol === 'holding') || E[0];
     main.innerHTML = `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${grupo ? 'Plan Grupos' : 'Plan Consultora'} · ${lista.length} ${grupo ? 'sociedades' : 'empresas'}${grupo ? ` · tramo ${pr.tramo ? pr.tramo.n.toLowerCase() : ''}: ${P.eur(pr.mes)}/mes${pr.periodo === 'anual' ? ' (anual)' : ''}` : ''}</span><h2 class="st-title">${grupo ? 'Vista de grupo' : 'Cartera de clientes'}</h2><p class="st-q">${grupo ? '¿Cómo está el grupo en conjunto y cada sociedad dentro de él?' : '¿Cómo están todas las empresas que acompaño?'}</p></div><span class="spacer"></span><button class="btn solid" id="gRep">${grupo ? 'Informe del grupo' : 'Informe de la cartera'}</button></div>
+      ${grupo && (tesoreria().sinResp.length || (!G.tes.prestamos.length && !G.tes.sinPrestamos)) && E.filter((x) => x.ok).length > 1 ? `<div class="gr-ask glass"><span class="c3-orb" aria-hidden="true"></span><div><b>Pregunta pendiente: ¿quién financia a quién dentro del grupo?</b><span class="small muted">${!G.tes.prestamos.length ? 'No hay préstamos entre sociedades apuntados. ' : ''}${tesoreria().sinResp.length ? `Faltan ${tesoreria().sinResp.length} respuesta${tesoreria().sinResp.length > 1 ? 's' : ''} sobre cómo se gobierna la caja del grupo.` : ''}</span></div><span class="spacer"></span><button class="btn solid" data-goto="#gTes">Responder</button>${!G.tes.prestamos.length ? '<button class="btn ghost" data-noloans>No hay préstamos entre sociedades</button>' : ''}</div>` : ''}
       <section class="glass pad gr-const"><div class="gr-sky">${constelacion(holding)}</div>
         <div class="gr-legend small muted">El tamaño es la venta de cada ${grupo ? 'sociedad' : 'empresa'}; el color, su veredicto en el simulador. Pulsa una para entrar en ella.</div></section>
       ${grupo ? S_kpis(c) : ''}
@@ -95,14 +155,18 @@
         </tbody></table></div></section>
       ${grupo ? `<section class="glass pad stack mt"><h4>Operaciones dentro del grupo</h4><p class="small muted">Lo que unas sociedades venden o prestan a otras no es venta ni deuda del grupo: se elimina al consolidar. Escribe los importes anuales (los encontrarás en la contabilidad de cada sociedad, cuentas de empresas del grupo).</p>
         <div class="gr-elim">${[['ventas', 'Ventas entre sociedades del grupo', 'se restan de las ventas'], ['margen', 'Margen de esas ventas aún no vendido fuera', 'se resta del EBITDA'], ['prestamos', 'Préstamos entre sociedades del grupo', 'se restan de la deuda']].map(([k, l, d]) => `<label class="field"><span>${l}</span><input class="input" data-elim="${k}" value="${(G.elim || {})[k] ? F.num(G.elim[k]) : ''}" placeholder="0"><small class="muted">${d}</small></label>`).join('')}</div></section>` : ''}
+      ${grupo ? tesoreriaHTML() : ''}
       <section class="glass pad stack mt"><h4>Comparativa</h4><div class="gr-cmp">${['ebitdaPct', 'ventasEmpleado', 'dso', 'liquidezMin'].map((k) => barras(k)).join('')}</div></section>
       <section class="glass pad stack mt"><h4>Riesgos que solo se ven en conjunto</h4>${cr.length ? `<div class="risklist">${cr.map((r) => `<div class="risk"><span class="state st-${r.st}">${r.st === 'stop' ? 'Alto' : 'Medio'}</span><div><b>${esc(r.t)}</b><p>${esc(r.d)}</p></div><span></span></div>`).join('')}</div>` : '<p class="small muted">Sin riesgos cruzados con los datos actuales.</p>'}</section>
       ${grupo ? objetivosHTML() : ''}`;
     $$('[data-go]', main).forEach((b) => b.onclick = () => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(b.dataset.go)); location.href = 'estrategia.html'; });
     $$('.gr-planet', main).forEach((g) => g.addEventListener('click', () => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(g.dataset.id)); location.href = 'estrategia.html'; }));
-    $$('[data-elim]', main).forEach((inp) => inp.onchange = () => { G.elim = G.elim || {}; G.elim[inp.dataset.elim] = A.fin ? A.fin.parseNum(inp.value) || 0 : +inp.value || 0; guardar(); render(); });
+    $$('[data-elim]', main).forEach((inp) => inp.onchange = () => { G.elim = G.elim || {}; G.elim[inp.dataset.elim] = A.fin ? A.fin.parseNum(inp.value) || 0 : +inp.value || 0; guardar(); render(true); });
     $('#gRep', main).onclick = informe;
-    if (grupo) wireObjetivos(main);
+    if (grupo) { wireObjetivos(main); wireTesoreria(main); }
+    $$('[data-goto]', main).forEach((b) => b.onclick = () => { const t = $(b.dataset.goto); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    const nl = $('[data-noloans]', main); if (nl) nl.onclick = () => { G.tes.sinPrestamos = true; guardar(); render(true); };
+    if (yKeep != null) scrollTo({ top: yKeep });
     if (A.cosmos) A.cosmos.type3d(main);
   }
   function S_kpis(c) {
@@ -143,11 +207,11 @@
   }
   function wireObjetivos(main) {
     G.objetivos = G.objetivos || [];
-    const nb = $('#gNewObj', main); if (nb) nb.onclick = () => { G.objetivos.push({ ind: 'ebitdaPct', meta: '', fecha: '', metas: {} }); guardar(); render(); };
-    $$('[data-oi]', main).forEach((inp) => inp.onchange = () => { const o = G.objetivos[+inp.dataset.oi]; const k = inp.dataset.ok; o[k] = k === 'meta' ? (inp.value.trim() === '' ? '' : A.fin.parseNum(inp.value)) : inp.value; guardar(); render(); });
-    $$('[data-om]', main).forEach((inp) => inp.onchange = () => { const o = G.objetivos[+inp.dataset.om]; o.metas = o.metas || {}; o.metas[inp.dataset.emp] = inp.value.trim() === '' ? '' : A.fin.parseNum(inp.value); guardar(); render(); });
-    $$('[data-odel]', main).forEach((b) => b.onclick = () => { G.objetivos.splice(+b.dataset.odel, 1); guardar(); render(); });
-    $$('[data-split]', main).forEach((b) => b.onclick = () => { const o = G.objetivos[+b.dataset.split]; const L = E.filter((x) => x.ok), tot = L.reduce((a, x) => a + Math.max(0, actualDe(x, o.ind) || 0), 0); if (!tot || o.meta === '' || o.meta == null) return; o.metas = {}; L.forEach((x) => { o.metas[x.e.id] = Math.round(o.meta * Math.max(0, actualDe(x, o.ind) || 0) / tot); }); guardar(); render(); });
+    const nb = $('#gNewObj', main); if (nb) nb.onclick = () => { G.objetivos.push({ ind: 'ebitdaPct', meta: '', fecha: '', metas: {} }); guardar(); render(true); };
+    $$('[data-oi]', main).forEach((inp) => inp.onchange = () => { const o = G.objetivos[+inp.dataset.oi]; const k = inp.dataset.ok; o[k] = k === 'meta' ? (inp.value.trim() === '' ? '' : A.fin.parseNum(inp.value)) : inp.value; guardar(); render(true); });
+    $$('[data-om]', main).forEach((inp) => inp.onchange = () => { const o = G.objetivos[+inp.dataset.om]; o.metas = o.metas || {}; o.metas[inp.dataset.emp] = inp.value.trim() === '' ? '' : A.fin.parseNum(inp.value); guardar(); render(true); });
+    $$('[data-odel]', main).forEach((b) => b.onclick = () => { G.objetivos.splice(+b.dataset.odel, 1); guardar(); render(true); });
+    $$('[data-split]', main).forEach((b) => b.onclick = () => { const o = G.objetivos[+b.dataset.split]; const L = E.filter((x) => x.ok), tot = L.reduce((a, x) => a + Math.max(0, actualDe(x, o.ind) || 0), 0); if (!tot || o.meta === '' || o.meta == null) return; o.metas = {}; L.forEach((x) => { o.metas[x.e.id] = Math.round(o.meta * Math.max(0, actualDe(x, o.ind) || 0) / tot); }); guardar(); render(true); });
   }
   let gt; const guardar = () => { clearTimeout(gt); gt = setTimeout(() => P.saveData('grupo', G), 500); };
 
@@ -168,11 +232,13 @@
     cr.filter((r) => /común/.test(r.t)).slice(0, 3).forEach((r) => pasos.push(`Medir la exposición total del grupo a <b>${esc(r.t.split(': ')[1])}</b> y fijar un límite común.`));
     if (grupo && !(G.elim && (G.elim.ventas || G.elim.prestamos))) pasos.push('Marcar las ventas y los préstamos entre sociedades del grupo para que el consolidado sea fiel.');
     if (grupo && !objs.length) pasos.push('Fijar los objetivos de la holding y repartirlos a cada sociedad.');
+    if (grupo) { const t = tesoreria(); t.prop.filter((r) => r.de).slice(0, 3).forEach((r) => pasos.push(`Valorar un préstamo de <b>${esc(r.de.e.nombre)}</b> a <b>${esc(r.a.e.nombre)}</b> de ${F.eur(r.importe)}, por escrito y a interés de mercado.`)); if (t.sinResp.length) pasos.push('Responder cómo se gobierna la caja del grupo: contratos, interés de mercado y política de movimientos.'); }
     E.filter((x) => !x.ok).forEach((x) => pasos.push(`Cargar los datos de <b>${esc(x.e.nombre)}</b>.`));
     const html = I.cover({ tipo: grupo ? 'Informe del grupo' : 'Informe de la cartera', kicker: grupo ? 'Plan Grupos · visión consolidada' : 'Plan Consultora · cartera de clientes', titulo: grupo ? ((E.find((x) => x.e.rol === 'holding') || E[0]).e.nombre + ' y sociedades') : 'Cartera de clientes', subtitulo: grupo ? '¿Cómo está el grupo en conjunto y cada sociedad dentro de él?' : '¿Cómo están todas las empresas que acompaño?', empresa: user.empresa || user.nombre, sector: `${E.length} ${grupo ? 'sociedades' : 'empresas'}` })
       + I.summary('Resumen ejecutivo', resumen, st)
       + I.section(grupo ? 'Sociedades del grupo' : 'Empresas de la cartera', tabla, 'Cifras del último año cargado de cada una y previsión de su escenario activo en el simulador.')
       + (grupo ? I.section('Consolidado', cons, 'Lo que unas sociedades venden o prestan a otras no es venta ni deuda del grupo y se elimina.') : '')
+      + (grupo ? I.section('Tesorería del grupo: quién financia a quién', (() => { const t = tesoreria(); return (t.T.prestamos.length ? I.table(['Presta', 'Recibe', 'Importe', 'Interés', 'Vencimiento', 'Contrato'], t.T.prestamos.map((p) => [(E.find((x) => x.e.id === p.de) || { e: { nombre: '—' } }).e.nombre, (E.find((x) => x.e.id === p.a) || { e: { nombre: '—' } }).e.nombre, F.eur(+p.importe || 0), p.interes === '' || p.interes == null ? '—' : String(p.interes).replace('.', ',') + ' %', p.vence ? new Date(p.vence).toLocaleDateString('es-ES') : '—', p.contrato ? 'Sí' : { h: I.pill('warn', 'No') }]), { num: [2, 3] }) : '<p class="rp-muted">No hay préstamos entre sociedades apuntados.</p>') + I.table(['Sociedad', 'Caja', 'Caja que sobra', 'Le falta', 'Neto con el grupo'], Object.values(t.pos).map((p) => [p.x.e.nombre, F.eur(p.x.m.caja), p.sobra ? F.eur(p.sobra) : '—', p.falta ? F.eur(p.falta) : '—', F.eur(p.presta - p.debe)]), { num: [1, 2, 3, 4] }) + (t.prop.length ? `<h3>Propuesta de financiación interna</h3><ul>${t.prop.map((r) => r.de ? `<li>${esc(r.de.e.nombre)} podría prestar ${F.eur(r.importe)} a ${esc(r.a.e.nombre)}.</li>` : `<li>${esc(r.a.e.nombre)}: ${F.eur(r.importe)} sin cubrir dentro del grupo.</li>`).join('')}</ul>` : '') + `<h3>Gobierno de la tesorería</h3>` + I.table(['Pregunta', 'Respuesta'], TQ.map(([k, q, malo]) => [q, { h: t.T.resp[k] == null ? '<span class="rp-muted">Sin responder</span>' : I.pill(t.T.resp[k] === malo ? 'warn' : 'ok', t.T.resp[k] === 'si' ? 'Sí' : 'No') }])); })(), 'Préstamos entre sociedades, posición de cada una y quién puede financiar a quién sin bajar de su colchón.') : '')
       + I.section('Comparativa', cmp)
       + I.section('Riesgos que solo se ven en conjunto', cr.length ? I.table(['Riesgo', 'Nivel', 'Por qué importa'], cr.map((r) => [r.t, { h: I.pill(r.st, r.st === 'stop' ? 'Alto' : 'Medio') }, r.d])) : '<p class="rp-muted">Sin riesgos cruzados con los datos actuales.</p>')
       + (grupo ? I.section('Objetivos del grupo en cascada', objT) : '')
@@ -195,6 +261,7 @@
       return;
     }
     G = (await P.loadData('grupo')) || { elim: {}, objetivos: [] };
+    G.tes = G.tes || { prestamos: [], resp: {} };
     E = await Promise.all(lista.map(cargarEmpresa));
     render();
   })();

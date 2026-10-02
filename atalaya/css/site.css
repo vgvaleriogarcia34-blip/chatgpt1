@@ -319,3 +319,12 @@ body.rj-window { margin: 0; padding: 14px; background: var(--abyss, #070c1a); co
 .gr-bar em { font-style: normal; font-family: var(--font-data); color: var(--fg); }
 .gr-obj { padding: 12px; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 8px; }
 .gr-obj .row { gap: 8px; align-items: center; }
+/* Tesorería del grupo y preguntas pendientes */
+.gr-ask { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 14px 18px; border-color: rgba(250, 178, 25, 0.5); background: linear-gradient(120deg, rgba(250, 178, 25, 0.08), rgba(8, 13, 28, 0.6)); }
+.gr-ask > div { display: grid; gap: 2px; min-width: 0; flex: 1 1 320px; } .gr-ask b { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; }
+.gr-q { display: grid; gap: 4px; padding: 12px 14px; border-left: 3px solid var(--gold); background: rgba(212, 174, 100, 0.05); border-radius: 0 10px 10px 0; }
+.gr-q b { font-family: var(--font-display); font-weight: 500; font-size: 1.2rem; }
+.gr-tes select.input { min-width: 140px; padding: 6px 8px; }
+.gr-prop { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; } .gr-prop p { margin: 0; }
+.gr-tq { display: grid; gap: 8px; } .gr-tqi { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); }
+.gr-tqi .c3-a { margin: 0; }

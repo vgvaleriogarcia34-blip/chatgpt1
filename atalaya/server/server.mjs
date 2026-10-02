@@ -335,8 +335,25 @@ route('POST', /^\/api\/heartbeat$/, async (req, res, body, u) => {
 });
 
 route('GET', /^\/api\/data\/([a-z0-9_-]{1,40})$/i, async (req, res, body, u, m) => ({ data: (db.data[u.id] || {})[m[1]] || null }));
+// Empresas por plan: el servidor también lo comprueba (no basta con el navegador)
+const LIMITE_EMPRESAS = { esencial: 1, profesional: 1, consultora: 15, grupos: Infinity };
 route('PUT', /^\/api\/data\/([a-z0-9_-]{1,40})$/i, async (req, res, body, u, m) => {
-  db.data[u.id] = db.data[u.id] || {}; db.data[u.id][m[1]] = body; save(); return { ok: true };
+  db.data[u.id] = db.data[u.id] || {};
+  const key = m[1], mine = db.data[u.id];
+  if (key === 'empresas') {
+    const lista = body && Array.isArray(body.lista) ? body.lista : null;
+    if (!lista || !lista.length || lista.length > 500 || !lista.some((e) => e && e.id === 'principal')) throw Object.assign(new Error('Registro de empresas no válido'), { code: 400 });
+    const lim = LIMITE_EMPRESAS[u.plan] != null ? LIMITE_EMPRESAS[u.plan] : 1;
+    const antes = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.length : 1;
+    // Se puede quedar igual o bajar aunque se esté por encima (p. ej. tras cambiar a un plan menor), pero no subir del límite
+    if (lista.length > lim && lista.length > antes) throw Object.assign(new Error(lim === 1 ? 'Tu plan incluye una empresa. Para varias, pasa a Consultora o a Grupos.' : `Tu plan incluye hasta ${lim} empresas.`), { code: 403 });
+  }
+  const sub = key.match(/^(simulador|estrategia)--([a-z0-9_-]+)$/i);
+  if (sub && body !== null) {
+    const ids = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.map((e) => e && e.id) : [];
+    if (!ids.includes(sub[2])) throw Object.assign(new Error('Esa empresa no está dada de alta en tu cuenta'), { code: 403 });
+  }
+  mine[key] = body; save(); return { ok: true };
 });
 
 // Cada usuario con el número de empresas o sociedades que tiene dadas de alta (para el precio de Grupos)
