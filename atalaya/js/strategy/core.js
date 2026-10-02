@@ -313,6 +313,10 @@
     }
     if (!S.sim || !S.sim.empresa) { S.sim = A.defaultState(); const ea = P && P.empresas && P.empresas.activa(); if (ea) S.sim.empresaNombre = ea.nombre; }
     S.sim = Object.assign(A.defaultState(), S.sim);
+    // El nombre de la empresa sale de su ficha (mapa de empresas o menú de la cuenta)
+    const fichaA = P && P.empresas && P.empresas.activa();
+    if (fichaA && fichaA.nombre && fichaA.nombre !== 'Mi empresa') S.sim.empresaNombre = fichaA.nombre;
+    if (P) addEventListener('atalaya:empresa', (ev) => { if (ev.detail && ev.detail.id === P.empresaId() && ev.detail.nombre) { S.sim.empresaNombre = ev.detail.nombre; S.saveSim(); } });
     S.state = LS.get(LSK) || null;
     if (P) { const remote = await P.loadData('estrategia'); if (remote) S.state = remote; }
     S.state = Object.assign({}, A.clone(S.defaults), S.state || {});

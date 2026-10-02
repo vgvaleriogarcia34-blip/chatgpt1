@@ -1582,7 +1582,7 @@
     buildFields();
     renderSectors();
     syncFields();
-    $('#empresaNombre').addEventListener('input', (e) => { state.empresaNombre = e.target.value; state.ejemplo = false; store.set(STORE, state); renderIdCard(); });
+    $('#empresaNombre').addEventListener('input', (e) => { state.empresaNombre = e.target.value; state.ejemplo = false; store.set(STORE, state); renderIdCard(); nombreAFicha(); });
     $('#proyecto').addEventListener('input', (e) => { state.proyecto = e.target.value; store.set(STORE, state); });
     $('#heroSector').addEventListener('change', (e) => applySector(e.target.value));
     $('#sectorSel').addEventListener('change', (e) => applySector(e.target.value));
@@ -1612,8 +1612,29 @@
       const remote = await P.loadData('simulador');
       if (remote && remote.empresa) { state = loadState(remote); afterLoad(); }
       else if (!store.get(STORE) && P.empresas && P.empresas.activa()) { state.empresaNombre = P.empresas.activa().nombre; store.set(STORE, state); afterLoad(); }
+      aplicarFicha(P.empresas && P.empresas.activa());
+      // Si la ficha cambia (desde el menú de la cuenta), el simulador se pone al día
+      addEventListener('atalaya:empresa', (ev) => { if (ev.detail && ev.detail.id === P.empresaId()) aplicarFicha(ev.detail); });
     }
     followHash();
+  }
+  // La ficha de la empresa (portal y menú de la cuenta) manda en el nombre; si la simulación aún es de ejemplo,
+  // también se toman de ella el sector y la plantilla
+  function aplicarFicha(ea) {
+    if (!ea) return;
+    let cambio = false;
+    if (ea.nombre && ea.nombre !== 'Mi empresa' && ea.nombre !== state.empresaNombre) { state.empresaNombre = ea.nombre; cambio = true; }
+    if (esEjemplo()) {
+      if (ea.sector && A.SECTORS[ea.sector] && ea.sector !== state.sector) { A.applySector(state, ea.sector); cambio = true; }
+      if (ea.plantilla > 0 && ea.plantilla !== state.empresa.plantilla) { state.empresa.plantilla = +ea.plantilla; cambio = true; }
+    }
+    if (cambio) { store.set(STORE, state); renderSectors(); syncFields(); schedule(); }
+  }
+  // Al escribir el nombre en el simulador, se guarda también en la ficha
+  let fichaT = null;
+  function nombreAFicha() {
+    if (!P || !P.empresas || !P.empresas.activa()) return;
+    clearTimeout(fichaT); fichaT = setTimeout(() => { const n = state.empresaNombre.trim(); if (n) P.empresas.editar(P.empresaId(), { nombre: n }).then(() => P.mountAccount($('#account'))).catch(() => {}); }, 1200);
   }
   /* Enlaces directos a un capítulo (app.html#humano): la página crece mientras se dibujan gráficos y 3D,
      así que se recoloca varias veces hasta que el diseño se estabiliza, salvo que el usuario ya se haya movido */

@@ -213,7 +213,7 @@
       await P.empresas.cargar();
       const lim = P.limiteEmpresas();
       if (REG.lista.length >= lim) throw new Error(lim === 1 ? 'Tu plan incluye una empresa. Para trabajar con varias, pasa a Consultora (empresas cliente) o a Grupos (sociedades de un grupo).' : `Tu plan incluye hasta ${lim} empresas.`);
-      const e = { id: 'e' + Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 4), nombre: (d.nombre || '').trim() || 'Nueva empresa', rol: d.rol || (P.user && PLANES[P.user.plan] && PLANES[P.user.plan].grupo ? 'filial' : 'cliente'), participacion: d.participacion != null ? +d.participacion : 100, alta: new Date().toISOString() };
+      const e = Object.assign({}, d, { id: 'e' + Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 4), nombre: (d.nombre || '').trim() || 'Nueva empresa', rol: d.rol || (P.user && PLANES[P.user.plan] && PLANES[P.user.plan].grupo ? 'filial' : 'cliente'), participacion: d.participacion != null && d.participacion !== '' ? +d.participacion : 100, alta: new Date().toISOString() });
       REG.lista.push(e);
       try { await P.empresas.guardar(); } catch (x) { REG.lista = REG.lista.filter((y) => y.id !== e.id); throw x; }
       return e;
@@ -340,6 +340,119 @@
   };
 
   /* ---------- Cabecera de cuenta ---------- */
+  /* ---------- Ficha y mapa de empresas ----------
+     Cada empresa de la cuenta tiene una ficha (forma jurídica, CIF, año de constitución, sector, actividad,
+     provincia, plantilla, socios y su porcentaje y, en un grupo, de qué sociedad depende y con qué participación).
+     El mapa es el primer paso del puesto de mando: se elige la empresa y después se entra en los mundos. */
+  P.FORMAS = ['Sociedad limitada (S.L.)', 'Sociedad anónima (S.A.)', 'Autónomo', 'Sociedad cooperativa', 'Sociedad laboral', 'Comunidad de bienes', 'Otra'];
+  const escH = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const PAL = ['#d4ae64', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
+  const sectores = () => ((window.Atalaya || {}).SECTORS) || null;
+  P.fichaCompleta = (e) => {
+    const k = ['forma', 'cif', 'constitucion', 'sector', 'actividad', 'provincia', 'plantilla'];
+    const ok = k.filter((x) => e[x] != null && e[x] !== '').length + (e.socios && e.socios.length ? 1 : 0) + (e.nombre && e.nombre !== 'Mi empresa' && e.nombre !== 'Nueva empresa' ? 1 : 0);
+    return Math.round(ok / (k.length + 2) * 100);
+  };
+  P.fichaEmpresa = function (e, opts) {
+    opts = opts || {};
+    const u = P.user, plan = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional, grupo = !!plan.grupo;
+    const d = Object.assign({ nombre: '', forma: P.FORMAS[0], cif: '', constitucion: '', sector: '', actividad: '', provincia: '', plantilla: '', socios: [], rol: grupo ? 'filial' : (e && e.id === 'principal' ? 'holding' : 'cliente'), matriz: '', participacion: 100, contacto: '' }, e || {});
+    const S = sectores(), lista = P.empresas.lista();
+    const holdings = lista.filter((x) => x.rol === 'holding' && (!e || x.id !== e.id));
+    return new Promise((resolve) => {
+      const back = document.createElement('div'); back.className = 'ef-back';
+      const socioRow = (s) => `<div class="ef-socio"><input class="input" data-sn placeholder="Nombre del socio o sociedad" value="${escH(s.nombre)}"><input class="input" data-sp type="number" min="0" max="100" step="0.01" value="${s.pct != null ? s.pct : ''}" placeholder="%"><button type="button" class="icon-btn" data-sdel aria-label="Quitar socio">×</button></div>`;
+      back.innerHTML = `<form class="ef-card glass" role="dialog" aria-modal="true" aria-label="Ficha de la empresa">
+        <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
+        <div class="eyebrow">${opts.nuevo ? (grupo ? 'Nueva sociedad' : 'Nueva empresa') : 'Ficha de la empresa'}</div>
+        <label class="ef-name"><span>Nombre o razón social</span><input name="nombre" required value="${escH(d.nombre === 'Mi empresa' ? '' : d.nombre)}" placeholder="Por ejemplo: Transportes Ruiz, S.L."></label>
+        <div class="ef-grid">
+          <label><span>Forma jurídica</span><select class="input" name="forma">${P.FORMAS.map((f) => `<option ${f === d.forma ? 'selected' : ''}>${f}</option>`).join('')}</select></label>
+          <label><span>CIF o NIF</span><input class="input" name="cif" value="${escH(d.cif)}" placeholder="B12345678"></label>
+          <label><span>Año de constitución</span><input class="input" name="constitucion" type="number" min="1850" max="${new Date().getFullYear()}" value="${escH(d.constitucion)}" placeholder="2008"></label>
+          <label><span>Sector</span>${S ? `<select class="input" name="sector"><option value="">Elegir…</option>${Object.keys(S).map((k) => `<option value="${k}" ${k === d.sector ? 'selected' : ''}>${S[k].nombre}</option>`).join('')}</select>` : `<input class="input" name="sector" value="${escH(d.sector)}">`}</label>
+          <label class="ef-wide"><span>A qué se dedica</span><input class="input" name="actividad" value="${escH(d.actividad)}" placeholder="Fabricación de envases de cartón para la industria alimentaria"></label>
+          <label><span>Provincia</span><input class="input" name="provincia" value="${escH(d.provincia)}" placeholder="Valencia"></label>
+          <label><span>Personas en plantilla</span><input class="input" name="plantilla" type="number" min="0" value="${escH(d.plantilla)}"></label>
+          ${!grupo && d.rol === 'cliente' ? `<label class="ef-wide"><span>Persona de contacto</span><input class="input" name="contacto" value="${escH(d.contacto)}" placeholder="Nombre, cargo y teléfono"></label>` : ''}
+        </div>
+        ${grupo ? `<h4>En el grupo</h4><div class="ef-grid">
+          <label><span>Papel</span><select class="input" name="rol"><option value="holding" ${d.rol === 'holding' ? 'selected' : ''}>Holding · sociedad dominante</option><option value="filial" ${d.rol !== 'holding' ? 'selected' : ''}>Filial o participada</option></select></label>
+          <label data-fil><span>Depende de</span><select class="input" name="matriz"><option value="">${holdings.length ? 'Elegir la sociedad dominante…' : 'Primero da de alta la holding'}</option>${holdings.map((h) => `<option value="${h.id}" ${h.id === d.matriz ? 'selected' : ''}>${escH(h.nombre)}</option>`).join('')}</select></label>
+          <label data-fil><span>% que tiene la dominante</span><input class="input" name="participacion" type="number" min="0" max="100" step="0.01" value="${escH(d.participacion)}"></label>
+        </div>` : ''}
+        <h4>Socios y porcentaje</h4>
+        <p class="small muted" style="margin:0">Quién es dueño de la empresa y en qué proporción: personas, familias o sociedades. Sirve para la valoración, la sucesión y la vista de grupo.</p>
+        <div class="ef-socios">${(d.socios.length ? d.socios : [{ nombre: '', pct: '' }]).map(socioRow).join('')}</div>
+        <div class="row"><button type="button" class="btn ghost small" data-sadd>Añadir socio</button><span class="small" data-stot></span></div>
+        <p class="small" data-msg style="color:var(--stop)"></p>
+        <div class="row"><button class="btn solid" type="submit">${opts.nuevo ? 'Dar de alta' : 'Guardar la ficha'}</button><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
+      </form>`;
+      document.body.appendChild(back);
+      const f = back.querySelector('form');
+      const tot = () => { const t = Array.from(f.querySelectorAll('[data-sp]')).reduce((a, x) => a + (parseFloat(x.value) || 0), 0); const el = f.querySelector('[data-stot]'); el.textContent = t ? `Suman ${String(Math.round(t * 100) / 100).replace('.', ',')} %${Math.abs(t - 100) > 0.01 ? ' (deberían sumar 100 %)' : ''}` : ''; el.style.color = t && Math.abs(t - 100) > 0.01 ? 'var(--warn)' : 'var(--muted)'; };
+      const bindSoc = () => { f.querySelectorAll('[data-sdel]').forEach((b) => b.onclick = () => { b.parentElement.remove(); tot(); }); f.querySelectorAll('[data-sp]').forEach((x) => x.oninput = tot); };
+      bindSoc(); tot();
+      f.querySelector('[data-sadd]').onclick = () => { f.querySelector('.ef-socios').insertAdjacentHTML('beforeend', socioRow({ nombre: '', pct: '' })); bindSoc(); };
+      const filVis = () => { const r = f.rol; f.querySelectorAll('[data-fil]').forEach((x) => { x.hidden = r && r.value === 'holding'; }); };
+      if (f.rol) { f.rol.onchange = filVis; filVis(); }
+      const close = (v) => { back.remove(); resolve(v); };
+      back.querySelector('.ef-x').onclick = () => close(null); f.querySelector('[data-cancel]').onclick = () => close(null);
+      back.addEventListener('click', (ev) => { if (ev.target === back) close(null); });
+      setTimeout(() => f.nombre.focus(), 30);
+      f.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const socios = Array.from(f.querySelectorAll('.ef-socio')).map((r) => ({ nombre: r.querySelector('[data-sn]').value.trim(), pct: parseFloat(r.querySelector('[data-sp]').value) })).filter((s) => s.nombre || isFinite(s.pct)).map((s) => ({ nombre: s.nombre || 'Socio', pct: isFinite(s.pct) ? s.pct : null }));
+        const v = (n) => (f[n] ? f[n].value.trim() : undefined);
+        const datos = { nombre: v('nombre'), forma: v('forma'), cif: v('cif').toUpperCase(), constitucion: v('constitucion') ? +v('constitucion') : '', sector: v('sector'), actividad: v('actividad'), provincia: v('provincia'), plantilla: v('plantilla') ? +v('plantilla') : '', socios };
+        if (f.contacto) datos.contacto = v('contacto');
+        if (f.rol) { datos.rol = v('rol'); datos.matriz = datos.rol === 'holding' ? '' : v('matriz'); datos.participacion = datos.rol === 'holding' ? 100 : +(v('participacion') || 100); }
+        try { const r = opts.nuevo ? await P.empresas.crear(datos) : await P.empresas.editar(e.id, datos); try { window.dispatchEvent(new CustomEvent('atalaya:empresa', { detail: r })); } catch (x) { /* sin eventos */ } close(r); }
+        catch (x) { f.querySelector('[data-msg]').textContent = x.message; }
+      };
+    });
+  };
+  P.mapaEmpresas = function (host, opts) {
+    opts = opts || {};
+    const u = P.user, plan = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional, grupo = !!plan.grupo, lim = P.limiteEmpresas(u);
+    const lista = P.empresas.lista(), act = P.empresas.activa(), S = sectores();
+    const anio = new Date().getFullYear();
+    const card = (e) => {
+      const i = lista.indexOf(e), pc = P.fichaCompleta(e);
+      const soc = (e.socios || []).filter((s) => s.pct > 0);
+      return `<div class="em-card ${e.id === act.id ? 'on' : ''}" data-id="${e.id}">
+        <div class="em-top"><i style="background:${PAL[i % PAL.length]}"></i><b>${escH(e.nombre)}</b>${e.id === act.id ? '<span class="em-act">activa</span>' : ''}</div>
+        <div class="em-meta">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.cif].filter(Boolean).map(escH).join(' · ') || '<span class="muted">Sin forma jurídica ni CIF</span>'}</div>
+        <div class="em-meta">${e.constitucion ? `Constituida en ${e.constitucion} · ${anio - e.constitucion} años` : '<span class="muted">Año de constitución sin indicar</span>'}</div>
+        <div class="em-meta">${[e.sector && S && S[e.sector] ? S[e.sector].nombre : e.sector, e.provincia, e.plantilla !== '' && e.plantilla != null ? e.plantilla + ' personas' : ''].filter(Boolean).map(escH).join(' · ') || '<span class="muted">Sector y plantilla sin indicar</span>'}</div>
+        ${grupo && e.rol !== 'holding' ? `<div class="em-meta">Filial · ${e.participacion != null ? e.participacion : 100} % de ${escH((lista.find((x) => x.id === e.matriz) || {}).nombre || 'la holding')}</div>` : ''}
+        ${soc.length ? `<div class="em-socios" title="${escH(soc.map((s) => `${s.nombre}: ${s.pct} %`).join(' · '))}">${soc.map((s, k) => `<span style="width:${s.pct}%;background:${PAL[(k + 2) % PAL.length]}"></span>`).join('')}</div><div class="em-meta small">${soc.slice(0, 3).map((s) => `${escH(s.nombre)} ${String(s.pct).replace('.', ',')} %`).join(' · ')}${soc.length > 3 ? ' …' : ''}</div>` : '<div class="em-meta muted">Socios sin indicar</div>'}
+        <div class="em-prog" title="Ficha completa al ${pc} %"><span style="width:${pc}%"></span></div>
+        <div class="em-btns"><button class="btn solid small" data-enter="${e.id}">${e.id === act.id ? 'Seguir con esta' : 'Entrar con esta'}</button><button class="btn ghost small" data-ficha="${e.id}">Ficha${pc < 100 ? ` · ${pc} %` : ''}</button>${e.id !== 'principal' ? `<button class="icon-btn" data-del="${e.id}" aria-label="Borrar ${escH(e.nombre)}" title="Borrar">×</button>` : ''}</div>
+      </div>`;
+    };
+    const nueva = lista.length < lim ? `<button class="em-card em-new" data-new><b>+</b><span>${grupo ? 'Añadir una sociedad' : lim > 1 ? 'Dar de alta una empresa cliente' : ''}</span><small>${isFinite(lim) ? `${lista.length} de ${lim}` : `${lista.length} sociedades`}</small></button>` : (lim === 1 ? '' : `<div class="em-card em-new" style="cursor:default"><span class="small muted">Has llegado a las ${lim} empresas de tu plan.</span></div>`);
+    let cuerpo;
+    if (grupo) {
+      const hold = lista.filter((e) => e.rol === 'holding');
+      const sueltas = lista.filter((e) => e.rol !== 'holding' && !hold.some((h) => h.id === e.matriz));
+      cuerpo = hold.map((h, i) => {
+        const hijos = lista.filter((e) => e.rol !== 'holding' && (e.matriz === h.id || (i === 0 && sueltas.includes(e))));
+        return `<div class="em-arbol"><div class="em-raiz">${card(h)}</div>${hijos.length ? `<div class="em-hijos">${hijos.map(card).join('')}</div>` : ''}</div>`;
+      }).join('') + (hold.length ? '' : `<div class="em-grid">${lista.map(card).join('')}</div>`) + `<div class="em-grid">${nueva}</div>`;
+    } else cuerpo = `<div class="em-grid">${lista.map(card).join('')}${nueva}</div>`;
+    const titulo = grupo ? 'Mapa del grupo' : lim > 1 ? 'Tus empresas cliente' : 'Tu empresa';
+    const lede = grupo ? 'Cada sociedad con su ficha: la holding arriba y sus filiales debajo, con el porcentaje que tiene. Elige con cuál quieres trabajar.' : lim > 1 ? 'Cada empresa cliente con su ficha y sus datos separados. Elige con cuál quieres trabajar o da de alta una nueva.' : 'Revisa la ficha de tu empresa: el nombre, la forma jurídica, el año de constitución y los socios aparecen en todo Atalaya y en los informes.';
+    host.innerHTML = `<div class="em-head"><div><div class="eyebrow">${opts.paso ? 'Paso 1 · ' : ''}${titulo}</div><p class="small muted" style="margin:4px 0 0">${lede}</p></div>${opts.cerrar ? '<button class="btn ghost small" data-cerrar>Ir a los mundos →</button>' : ''}</div>${cuerpo}
+      ${lim === 1 ? '<p class="small muted" style="margin:0">¿Trabajas con varias empresas? <a href="index.html#planes">Consultora</a> (empresas cliente) o <a href="index.html#planes">Grupos</a> (holding y filiales).</p>' : ''}`;
+    const redraw = () => P.mapaEmpresas(host, opts);
+    host.querySelectorAll('[data-enter]').forEach((b) => b.onclick = () => { const id = b.dataset.enter; if (opts.onEnter) opts.onEnter(id); else P.empresas.cambiar(id); });
+    host.querySelectorAll('[data-ficha]').forEach((b) => b.onclick = async () => { const r = await P.fichaEmpresa(lista.find((x) => x.id === b.dataset.ficha)); if (r) redraw(); });
+    host.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { const e = lista.find((x) => x.id === b.dataset.del); if (!confirm(`¿Borrar «${e.nombre}» y todos sus datos? No se puede deshacer.`)) return; await P.empresas.borrar(e.id); if (e.id === act.id) location.reload(); else redraw(); });
+    const nb = host.querySelector('[data-new]'); if (nb) nb.onclick = async () => { const r = await P.fichaEmpresa(null, { nuevo: true }); if (r) redraw(); };
+    const cb = host.querySelector('[data-cerrar]'); if (cb && opts.onCerrar) cb.onclick = opts.onCerrar;
+  };
+
   P.mountAccount = function (el) {
     if (!el) return;
     const u = P.user; if (!u) { el.innerHTML = ''; return; }
@@ -355,13 +468,20 @@
     const lista = P.empresas.lista(), act = P.empresas.activa(), lim = P.limiteEmpresas(u);
     const plan = PLANES[u.plan] || PLANES.profesional, grupo = !!plan.grupo;
     const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    if (act && lim === 1 && lista.length <= 1) {
+      const sel = document.createElement('div'); sel.className = 'emp';
+      sel.innerHTML = `<button class="emp-btn" title="Ficha de la empresa"><i style="background:#d4ae64"></i><span>${esc(act.nombre === 'Mi empresa' ? 'Ficha de mi empresa' : act.nombre)}</span><b>✎</b></button>`;
+      el.prepend(sel);
+      sel.querySelector('.emp-btn').onclick = async (e) => { e.stopPropagation(); const r = await P.fichaEmpresa(act); if (r) P.mountAccount(el); };
+    }
     if (act && (lim > 1 || lista.length > 1)) {
       const sel = document.createElement('div'); sel.className = 'emp';
       const pal = ['#d4ae64', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
       sel.innerHTML = `<button class="emp-btn" aria-haspopup="true" title="Cambiar de ${grupo ? 'sociedad' : 'empresa'}"><i style="background:${pal[lista.indexOf(act) % pal.length]}"></i><span>${esc(act.nombre)}</span><b>▾</b></button>
         <div class="emp-menu glass" hidden>
           <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : 'Empresas cliente'}</b><small>${lista.length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ` · tramo actual ${P.eur(P.precio('grupos', u.periodo, lista.length).base)}/mes` : ''}</small></div>
-          <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${e.id}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.rol === 'holding' ? 'Holding · sociedad dominante' : e.rol === 'filial' ? `Filial · ${e.participacion != null ? e.participacion : 100} %` : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' ? `<button class="icon-btn" data-empdel="${e.id}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${e.id}" title="Cambiar el nombre" aria-label="Cambiar el nombre de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
+          <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${e.id}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.rol === 'holding' ? 'Holding · sociedad dominante' : e.rol === 'filial' ? `Filial · ${e.participacion != null ? e.participacion : 100} %` : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' ? `<button class="icon-btn" data-empdel="${e.id}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${e.id}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
+          <a class="emp-group" href="portal.html#empresas">Mapa de ${grupo ? 'sociedades' : 'empresas'} y fichas →</a>
           ${lista.length < lim ? `<form class="emp-new stack" data-empnew><input class="input" name="nombre" placeholder="Nombre de la ${grupo ? 'sociedad' : 'empresa'}" required>${grupo ? '<div class="row"><select class="input" name="rol"><option value="filial">Filial</option><option value="holding">Holding</option></select><input class="input" name="participacion" type="number" min="0" max="100" value="100" title="% de participación" style="width:90px"></div>' : ''}<button class="btn solid" type="submit">Añadir ${grupo ? 'sociedad' : 'empresa'}</button><small class="muted" data-empmsg></small></form>` : `<p class="small muted" style="padding:8px 12px">Has llegado al máximo de tu plan.</p>`}
           <a class="emp-group" href="grupo.html">${grupo ? 'Vista de grupo →' : 'Cartera de clientes →'}</a>
         </div>`;
@@ -371,7 +491,7 @@
       em.addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { em.hidden = true; });
       sel.querySelectorAll('[data-emp]').forEach((x) => x.onclick = () => { if (x.dataset.emp !== act.id) P.empresas.cambiar(x.dataset.emp); });
-      sel.querySelectorAll('[data-empren]').forEach((x) => x.onclick = async () => { const e = lista.find((y) => y.id === x.dataset.empren); const n = prompt('Nuevo nombre', e.nombre); if (n && n.trim()) { await P.empresas.editar(e.id, { nombre: n.trim() }); P.mountAccount(el); } });
+      sel.querySelectorAll('[data-empren]').forEach((x) => x.onclick = async () => { em.hidden = true; const e = lista.find((y) => y.id === x.dataset.empren); const r = await P.fichaEmpresa(e); if (r) P.mountAccount(el); });
       sel.querySelectorAll('[data-empdel]').forEach((x) => x.onclick = async () => { const e = lista.find((y) => y.id === x.dataset.empdel); if (!confirm(`¿Borrar «${e.nombre}» y todos sus datos? No se puede deshacer.`)) return; await P.empresas.borrar(e.id); if (e.id === act.id) location.reload(); else P.mountAccount(el); });
       const nf = sel.querySelector('[data-empnew]');
       if (nf) nf.onsubmit = async (e) => { e.preventDefault(); try { const ne = await P.empresas.crear({ nombre: nf.nombre.value, rol: nf.rol ? nf.rol.value : undefined, participacion: nf.participacion ? nf.participacion.value : undefined }); P.empresas.cambiar(ne.id); } catch (x) { nf.querySelector('[data-empmsg]').textContent = x.message; } };

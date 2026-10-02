@@ -677,3 +677,43 @@ body.con-lineas .field[data-p="inversion.vidaUtil"] { display: none; }
 .fe-ctl label { display: flex; gap: 8px; align-items: center; }
 .fe-ctl select { padding: 4px 8px; }
 .fe-ctl b { font-family: var(--font-data); color: var(--gold-soft); }
+
+/* Ficha de empresa (ventana) */
+.ef-back { position: fixed; inset: 0; z-index: 200; background: rgba(4, 8, 20, 0.72); backdrop-filter: blur(6px); display: grid; place-items: start center; overflow-y: auto; padding: 4vh 12px; }
+.ef-card { position: relative; width: min(720px, 100%); padding: 22px 22px 18px; display: grid; gap: 12px; background: var(--panel-solid, #0b1226); border: 1px solid var(--line-strong); border-radius: 18px; }
+.ef-card h4 { margin: 6px 0 0; }
+.ef-x { position: absolute; top: 12px; right: 12px; }
+.ef-card label > span { display: block; font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+.ef-name input { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--line-strong); color: var(--fg); font-family: var(--font-display); font-size: 1.6rem; padding: 2px 0 6px; }
+.ef-name input:focus { outline: none; border-bottom-color: var(--gold); }
+.ef-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 14px; }
+.ef-grid .input { width: 100%; }
+.ef-wide { grid-column: 1 / -1; }
+.ef-socios { display: grid; gap: 6px; }
+.ef-socio { display: grid; grid-template-columns: 1fr 90px auto; gap: 6px; align-items: center; }
+
+/* Mapa de empresas */
+.em-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.em-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.em-card { display: grid; gap: 5px; align-content: start; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); text-align: left; color: var(--fg); font: inherit; }
+.em-card.on { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(212, 174, 100, 0.35), 0 10px 30px rgba(0, 0, 0, 0.3); }
+.em-top { display: flex; align-items: center; gap: 8px; }
+.em-top i { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 10px currentColor; }
+.em-top b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; }
+.em-act { margin-left: auto; font-size: var(--t-xs); color: var(--gold); border: 1px solid var(--gold); border-radius: 999px; padding: 1px 8px; }
+.em-meta { font-size: var(--t-s); color: var(--fg); }
+.em-meta.small { font-size: var(--t-xs); color: var(--muted); }
+.em-socios { display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: var(--line); margin-top: 4px; }
+.em-prog { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 6px; }
+.em-prog span { display: block; height: 100%; background: var(--gold); }
+.em-btns { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.em-btns .icon-btn { margin-left: auto; }
+.em-new { place-items: center; justify-content: center; min-height: 140px; border-style: dashed; cursor: pointer; text-align: center; }
+.em-new b { font-size: 2rem; color: var(--gold); font-weight: 300; }
+.em-new:hover { border-color: var(--gold); }
+.em-arbol { display: grid; justify-items: center; gap: 0; }
+.em-raiz { width: min(320px, 100%); position: relative; padding-bottom: 20px; }
+.em-raiz::after { content: ''; position: absolute; left: 50%; bottom: 0; height: 20px; border-left: 1px solid var(--line-strong); }
+.em-hijos { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; border-top: 1px solid var(--line-strong); padding-top: 18px; width: fit-content; max-width: 100%; }
+.em-hijos .em-card { width: min(260px, 100%); position: relative; }
+.em-hijos .em-card::before { content: ''; position: absolute; left: 50%; top: -19px; height: 18px; border-left: 1px solid var(--line-strong); }

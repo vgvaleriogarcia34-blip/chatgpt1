@@ -31,6 +31,24 @@
       const g = !!(P.PLANES[P.user.plan] || {}).grupo, ea = P.empresas.activa();
       $('.pt-dock').insertAdjacentHTML('beforeend', `<a class="pt-grp" href="grupo.html"><i class="d-grp"></i><span><b>${g ? 'Vista de grupo' : 'Cartera de clientes'}</b><small>${P.empresas.lista().length} ${g ? 'sociedades' : 'empresas'}${ea ? ' · ahora en ' + ea.nombre.replace(/</g, '&lt;') : ''}</small></span></a>`);
     }
+    // Paso 1: el mapa de empresas. En planes con varias empresas se elige antes de entrar en los mundos;
+    // con una sola, se enseña mientras la ficha esté a medias. Siempre se puede volver desde la barra de empresa.
+    const SS = { get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
+    const act = P.empresas.activa(), multi = P.limiteEmpresas() > 1 || P.empresas.lista().length > 1;
+    const cerrarPaso = () => { document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; SS.set('atalaya.emp.elegida', P.empresaId()); pintarBarra(); };
+    const abrirPaso = () => {
+      document.body.classList.add('paso-emp'); $('#empPaso').hidden = false; $('#empBar').hidden = true;
+      P.mapaEmpresas($('#empMapa'), { paso: true, cerrar: true, onCerrar: cerrarPaso, onEnter: (id) => { SS.set('atalaya.emp.elegida', id); if (id !== P.empresaId()) P.empresas.cambiar(id); else cerrarPaso(); } });
+    };
+    function pintarBarra() {
+      const e = P.empresas.activa(), b = $('#empBar'); if (!e) return;
+      const g = !!(P.PLANES[P.user.plan] || {}).grupo;
+      b.hidden = false;
+      b.innerHTML = `<span class="small muted">Trabajando en</span><b>${e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ')}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : 'Ver la ficha'}</button>`;
+      b.querySelector('[data-cambiar]').onclick = abrirPaso;
+    }
+    addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); if (!$('#empPaso').hidden) return; pintarBarra(); });
+    if (location.hash === '#empresas' || (multi && !SS.get('atalaya.emp.elegida')) || (!multi && P.fichaCompleta(act) < 40 && !SS.get('atalaya.emp.elegida'))) abrirPaso(); else pintarBarra();
     const n = (P.user && (P.user.nombre || '').split(/\s+/)[0]) || '';
     if (n) $('#hello').textContent = 'Hola, ' + n;
     const u = LS.get('atalaya.ultimo');

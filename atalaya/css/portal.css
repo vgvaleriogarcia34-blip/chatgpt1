@@ -68,3 +68,12 @@ body.portal.no3d .pt-moon { display: none; }
 .pt-dock .pt-grp span { display: grid; } .pt-dock .pt-grp small { color: var(--muted); font-size: var(--t-xs); }
 .pt-dock .d-grp { width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; background: radial-gradient(circle at 50% 50%, #fff1c9 0 18%, transparent 19%), radial-gradient(circle at 20% 30%, #3987e5 0 14%, transparent 15%), radial-gradient(circle at 80% 70%, #199e70 0 14%, transparent 15%), radial-gradient(circle at 78% 22%, #d55181 0 11%, transparent 12%); border: 1px solid rgba(134, 180, 255, 0.5); }
 @media (max-width: 760px) { .pt-dock .pt-grp small { display: none; } }
+
+/* Paso 1: mapa de empresas sobre el espacio */
+.pt-emp { position: relative; z-index: 6; padding: 96px 16px 40px; display: grid; justify-items: center; }
+.em-panel { width: min(1100px, 100%); padding: 22px; max-height: none; }
+body.paso-emp .pt-intro, body.paso-emp .pt-labels, body.paso-emp .pt-dock, body.paso-emp .pt-hint, body.paso-emp .pt-last { display: none !important; }
+body.paso-emp { overflow-y: auto; }
+.pt-empbar { position: fixed; z-index: 7; top: 74px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 16px; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(11, 18, 38, 0.82); backdrop-filter: blur(8px); max-width: calc(100vw - 24px); white-space: nowrap; overflow: hidden; }
+.pt-empbar b { font-family: var(--font-display); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 640px) { .pt-empbar > span:nth-of-type(2) { display: none; } .pt-empbar { top: 64px; } }
