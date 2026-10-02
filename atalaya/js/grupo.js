@@ -258,8 +258,9 @@
     document.title = 'Atalaya · ' + (grupo ? 'Vista de grupo' : 'Cartera de clientes');
     lista = P.empresas.lista();
     if (!P.esGrupo(user)) {
-      $('#gMain').innerHTML = `<div class="glass pad stack"><h2>Varias empresas, <em>una sola mirada</em></h2><p>Tu plan (${esc(plan.nombre)}) incluye una empresa. Con <b>Consultora</b> llevas hasta quince empresas cliente por separado y con <b>Grupos</b> reúnes las sociedades de un grupo con su consolidado, la comparativa y los objetivos de la holding en cascada.</p><p class="small muted">Grupos: de 1 a 5 sociedades, 690 €/mes; de 6 a 10, 970 €; más de 10, 1.790 €. Con pago anual, un 30 % menos.</p><div class="row"><button class="btn solid" id="gPlanes">Cambiar de plan</button></div></div>`;
+      $('#gMain').innerHTML = `<div class="glass pad stack"><h2>Varias empresas, <em>una sola mirada</em></h2><p>Tu plan (${esc(plan.nombre)}) incluye una empresa. Con <b>Consultora</b> llevas hasta quince empresas cliente por separado y con <b>Grupos</b> reúnes las sociedades de un grupo con su consolidado, la comparativa y los objetivos de la holding en cascada.</p><p class="small muted">El plan Grupos se prepara a medida con nuestro equipo, según tus sociedades y tu estructura.</p><div class="row"><button class="btn solid" id="gCont">Contactar con nuestro equipo</button><button class="btn" id="gPlanes">Ver los planes</button></div></div>`;
       const gp = document.getElementById('gPlanes'); if (gp) gp.onclick = () => P.panelPlanes({ destacar: 'grupos' });
+      const gc = document.getElementById('gCont'); if (gc) gc.onclick = () => P.formContacto({ plan: 'grupos', origen: 'vista-grupo' });
       return;
     }
     G = (await P.loadData('grupo')) || { elim: {}, objetivos: [] };

@@ -18,7 +18,7 @@ Objetivo: que cada plan prometa lo que da, que se pueda subir o bajar de plan si
 
 | | Esencial | Profesional | Consultora | Grupos |
 |---|---|---|---|---|
-| Precio mensual | 49 € | 129 € | 349 € | 690 / 970 / 1.790 € por tramos |
+| Precio | 49 €/mes | 129 €/mes | 349 €/mes | A medida: «Contactar con nuestro equipo» |
 | Simulador de inversión | Sí | Sí | Sí | Sí |
 | Sistema estratégico (21 módulos, origen, informes 360) | No: se ve y se ofrece | Sí | Sí | Sí |
 | Empresas | 1 | 1 | Hasta 15 empresas cliente, independientes | Sociedades sin límite |

@@ -7,7 +7,7 @@
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const hm = (min) => `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
   const fdate = (d) => (d ? new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
-  let users = [];
+  let users = [], contactos = [];
 
   function estadoDe(u) {
     if (u.estado === 'bloqueado') return { k: 'bloqueado', t: 'Bloqueado', st: 'stop' };
@@ -18,6 +18,7 @@
   }
 
   async function load() {
+    try { contactos = await P.admin.contactos(); } catch (e) { contactos = []; }
     try { users = await P.admin.list(); } catch (e) { if (/administraci/i.test(e.message)) return gate(); $('#utable').innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; return; }
     render();
   }
@@ -52,6 +53,8 @@
     // Pendientes
     const pend = [];
     users.filter((u) => u.solicitudReset).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> ha olvidado su contraseña (${fdate(u.solicitudReset)}). <button class="btn ghost" data-pwset="${u.id}" style="padding:3px 8px;font-size:.75rem">Cambiar contraseña</button> <button class="btn ghost" data-reset="${u.id}" style="padding:3px 8px;font-size:.75rem">Generar enlace</button></li>`));
+    // Solicitudes de contacto para el plan Grupos (precio a medida)
+    contactos.slice(0, 20).forEach((c) => pend.push(`<li><b>${esc(c.nombre || c.email)}</b> pide información del plan ${esc((P.PLANES[c.plan] || {}).nombre || c.plan)} (${fdate(c.fecha)}): ${esc(c.email)}${c.telefono ? ' · ' + esc(c.telefono) : ''}${c.empresa ? ' · ' + esc(c.empresa) : ''}${c.sociedades ? ' · ' + esc(c.sociedades) + ' sociedades' : ''}${c.mensaje ? `<br><span class="muted">${esc(c.mensaje)}</span>` : ''}</li>`));
     // Cambios de plan hechos por el cliente en el último mes (para ajustar la cuota en el siguiente cobro)
     users.forEach((u) => (u.cambiosPlan || []).filter((c) => Date.now() - new Date(c.fecha).getTime() < 31 * 864e5).forEach((c) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> cambió de ${esc((P.PLANES[c.de] || {}).nombre || c.de)} a ${esc((P.PLANES[c.a] || {}).nombre || c.a)} el ${fdate(c.fecha)}${u.pagado ? ': ajusta la cuota en el siguiente cobro' : ' (en prueba)'}.</li>`)));
     users.filter((u) => u.solicitudPago && !u.pagado).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> pidió activar el plan ${esc((P.PLANES[u.plan] || {}).nombre || u.plan)} el ${fdate(u.solicitudPago)}.</li>`));

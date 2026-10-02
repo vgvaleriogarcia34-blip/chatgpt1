@@ -1,5 +1,7 @@
 # Atalaya Grupos · propuesta de cuarto plan para grupos empresariales y pago anual
 
+Actualización: **Grupos ya no publica precio**. Se contrata a medida con el equipo (formulario «Contactar con nuestro equipo», que llega a administración); los tramos de abajo quedan como referencia interna.
+
 Estado: **decidido y construido** (fases 1 a 5). Pendiente: cobro automático (fase 6), ver opciones en `PUESTA-EN-MARCHA.md`.
 
 ## Decisiones tomadas

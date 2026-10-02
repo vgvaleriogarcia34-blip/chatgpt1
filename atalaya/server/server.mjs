@@ -255,6 +255,19 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
   if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
   save(); return { user: pub(u) };
 }, { noAccess: true });
+// Solicitudes de contacto para el plan Grupos (a medida): públicas, con límite de intentos
+route('POST', /^\/api\/contacto$/, async (req, res, body) => {
+  const ip = req.socket.remoteAddress;
+  if (rateLimited(ip)) throw Object.assign(new Error('Demasiados envíos. Espera unos minutos.'), { code: 429 });
+  attempts.get(ip).push(Date.now());
+  const t = (k, n) => String(body[k] || '').slice(0, n || 160);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(t('email'))) throw Object.assign(new Error('Escribe un correo válido'), { code: 400 });
+  db.contactos = db.contactos || [];
+  db.contactos.unshift({ fecha: now(), plan: t('plan', 20), nombre: t('nombre'), email: t('email'), telefono: t('telefono', 40), empresa: t('empresa'), sociedades: t('sociedades', 6), mensaje: t('mensaje', 2000), origen: t('origen', 40) });
+  db.contactos = db.contactos.slice(0, 500); save();
+  return { ok: true };
+}, { public: true });
+route('GET', /^\/api\/admin\/contactos$/, async () => ({ contactos: db.contactos || [] }), { admin: true });
 // Comprueba la contraseña antes de una acción irreversible (borrar una empresa)
 route('POST', /^\/api\/me\/verificar$/, async (req, res, body, u) => {
   const ip = req.socket.remoteAddress;

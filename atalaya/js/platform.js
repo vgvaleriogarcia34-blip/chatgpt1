@@ -23,7 +23,8 @@
     esencial: { nombre: 'Esencial', precio: 49, periodo: 'mes', empresas: 1, para: 'Para estudiar una inversión', incluye: ['Simulador de inversión y crecimiento', 'Horizonte 3D y cinco escenarios', 'Semáforos con horquillas y plan de corrección', 'Informe de decisión', '1 empresa'] },
     profesional: { nombre: 'Profesional', precio: 129, periodo: 'mes', empresas: 1, destacado: true, para: 'Para diagnosticar tu empresa y decidir', incluye: ['Todo lo de Esencial', 'Sistema estratégico completo: 21 módulos, zona de origen de datos e informes 360', 'Análisis de cuentas de varios años', 'Asistente con voz', '1 empresa'] },
     consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
-    grupos: { nombre: 'Grupos', precio: 690, periodo: 'mes', empresas: Infinity, grupo: true, para: 'Para holdings y grupos familiares', tramos: [{ hasta: 5, precio: 690, n: 'De 1 a 5 sociedades' }, { hasta: 10, precio: 970, n: 'De 6 a 10 sociedades' }, { hasta: Infinity, precio: 1790, n: 'Más de 10 sociedades' }], incluye: ['Todo lo de Profesional', 'Todas las sociedades del grupo, cada una con sus datos', 'Vista de grupo: consolidado, comparativa entre sociedades y operaciones intragrupo', 'Objetivos de la holding en cascada a cada sociedad', 'Informe del grupo'] }
+    // Grupos se contrata a medida con el equipo: no se publica precio. Los tramos quedan como referencia interna de administración
+    grupos: { nombre: 'Grupos', precio: 690, periodo: 'mes', empresas: Infinity, grupo: true, aMedida: true, para: 'Para holdings y grupos familiares', tramos: [{ hasta: 5, precio: 690, n: 'De 1 a 5 sociedades' }, { hasta: 10, precio: 970, n: 'De 6 a 10 sociedades' }, { hasta: Infinity, precio: 1790, n: 'Más de 10 sociedades' }], incluye: ['Todo lo de Profesional, en cada sociedad del grupo', 'Estructuras de holding: sociedad dominante, filiales y participaciones, con su mapa', 'Vista de grupo: consolidado con eliminaciones intragrupo, comparativa y tesorería entre sociedades', 'Informes del grupo e informe 360 de cada sociedad', 'Plan estratégico de toda la corporación: objetivos de la holding en cascada a cada sociedad', 'Sociedades sin límite y acompañamiento de nuestro equipo'] }
   };
   const DTO_ANUAL = 0.30;
   const PRUEBA_DIAS = 14;
@@ -296,6 +297,8 @@
   };
   const needAdmin = () => { if (P.mode !== 'server' && !localAdminOk()) throw new Error('Entra con la contraseña de administración.'); };
   P.admin = {
+    /* Solicitudes de contacto (plan Grupos a medida) */
+    async contactos() { await P.ready; if (P.mode === 'server') return (await api('/admin/contactos')).contactos || []; needAdmin(); return LS.get('atalaya.contactos') || []; },
     /* La administración pone una contraseña nueva a un usuario */
     async setPassword(id, password) {
       await P.ready;
@@ -376,6 +379,45 @@
     if (PLANES[plan].grupo !== (PLANES[antes] || {}).grupo) { const pr = P.empresas.lista().find((e) => e.id === 'principal'); if (pr && !pr.rolFijado) { pr.rol = PLANES[plan].grupo ? 'holding' : (plan === 'consultora' ? 'cliente' : 'holding'); try { await P.empresas.guardar(); } catch (x) { /* se corrige en el mapa */ } } }
     return u;
   };
+  /* ---------- Contactar con el equipo (planes a medida) ---------- */
+  P.contactar = async function (d) {
+    await P.ready;
+    const c = Object.assign({ fecha: new Date().toISOString() }, d);
+    if (P.mode === 'server') return api('/contacto', { method: 'POST', body: JSON.stringify(c) });
+    const l = LS.get('atalaya.contactos') || []; l.unshift(c); LS.set('atalaya.contactos', l.slice(0, 300)); return { ok: true };
+  };
+  P.formContacto = function (opts) {
+    opts = opts || {};
+    const u = P.user || {};
+    const back = document.createElement('div'); back.className = 'ef-back';
+    back.innerHTML = `<form class="ef-card glass" role="dialog" aria-modal="true" aria-label="Contactar con nuestro equipo" style="width:min(600px,100%)">
+      <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
+      <div class="eyebrow">Plan Grupos · a medida</div>
+      <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.5rem">Hablemos de tu grupo</h3>
+      <p class="small muted" style="margin:0">El plan Grupos se ajusta a cada holding o grupo familiar: número de sociedades, estructura y acompañamiento. Déjanos tus datos y nuestro equipo te llama para preparar la propuesta.</p>
+      <div class="ef-grid">
+        <label><span>Nombre</span><input class="input" name="nombre" required value="${escH(u.nombre || '')}"></label>
+        <label><span>Correo</span><input class="input" name="email" type="email" required value="${escH(u.email || '')}"></label>
+        <label><span>Teléfono</span><input class="input" name="telefono" value="${escH(u.telefono || '')}"></label>
+        <label><span>Grupo o sociedad dominante</span><input class="input" name="empresa" value="${escH(u.empresa || '')}"></label>
+        <label><span>Número de sociedades</span><input class="input" name="sociedades" type="number" min="1" placeholder="Por ejemplo, 4"></label>
+        <label class="ef-wide"><span>Qué necesitas</span><textarea class="input" name="mensaje" rows="3" placeholder="Estructura del grupo, qué quieres consolidar, plazos…"></textarea></label>
+      </div>
+      <p class="small" data-msg style="margin:0"></p>
+      <div class="row"><button class="btn solid" type="submit">Enviar a nuestro equipo</button><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
+    </form>`;
+    document.body.appendChild(back);
+    const f = back.querySelector('form'), close = () => back.remove();
+    back.querySelector('.ef-x').onclick = close; f.querySelector('[data-cancel]').onclick = close;
+    back.addEventListener('click', (ev) => { if (ev.target === back) close(); });
+    f.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const d = { plan: opts.plan || 'grupos', origen: opts.origen || location.pathname.split('/').pop(), cuenta: u.id || null };
+      ['nombre', 'email', 'telefono', 'empresa', 'sociedades', 'mensaje'].forEach((k) => { d[k] = f[k].value.trim(); });
+      try { await P.contactar(d); f.innerHTML = `<button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button><div class="eyebrow">Recibido</div><h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.5rem">Gracias, ${escH(d.nombre.split(' ')[0])}</h3><p>Nuestro equipo te contactará en ${escH(d.email)}${d.telefono ? ' o en el ' + escH(d.telefono) : ''} para preparar la propuesta del plan Grupos.</p><div class="row"><button type="button" class="btn solid" data-ok>Cerrar</button></div>`; f.querySelector('.ef-x').onclick = close; f.querySelector('[data-ok]').onclick = close; }
+      catch (x) { f.querySelector('[data-msg]').textContent = x.message; }
+    };
+  };
   P.panelPlanes = function (opts) {
     opts = opts || {};
     const u = P.user; if (!u) return;
@@ -396,10 +438,10 @@
           const bloq = n > pl.empresas;
           return `<div class="pl-it ${cur ? 'on' : ''} ${opts.destacar === k ? 'dest' : ''}">
             <div class="row"><b>${pl.nombre}</b>${cur ? '<span class="em-act">tu plan</span>' : ''}</div>
-            ${(() => { const c = P.cuota(pr); return `<div class="pl-precio">${pl.tramos && n <= 1 ? '<small>desde </small>' : ''}${P.eur(c.importe)}<small>${c.unidad}</small></div>${c.detalle ? `<div class="small muted">${c.detalle}</div>` : ''}`; })()}
+            ${pl.aMedida ? '<div class="pl-precio" style="font-size:1.1rem">Precio a medida</div><div class="small muted">Lo preparamos con nuestro equipo según tus sociedades</div>' : (() => { const c = P.cuota(pr); return `<div class="pl-precio">${pl.tramos && n <= 1 ? '<small>desde </small>' : ''}${P.eur(c.importe)}<small>${c.unidad}</small></div>${c.detalle ? `<div class="small muted">${c.detalle}</div>` : ''}`; })()}
             <div class="small muted">${pl.para || ''}</div>
             <ul class="small"><li>${r.mundos}</li><li>${r.empresas}</li>${r.vista !== '—' ? `<li>${r.vista}</li>` : ''}</ul>
-            ${cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es tu plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas y este plan admite ${pl.empresas}. Para bajar, antes hay que borrar ${n - pl.empresas}.</p><a class="btn ghost small" href="portal.html#empresas">Ir al mapa de empresas</a>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
+            ${pl.aMedida && !cur ? '<button class="btn solid small" data-contacto>Contactar con nuestro equipo</button>' : cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es tu plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas y este plan admite ${pl.empresas}. Para bajar, antes hay que borrar ${n - pl.empresas}.</p><a class="btn ghost small" href="portal.html#empresas">Ir al mapa de empresas</a>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
           </div>`;
         }).join('')}</div>
         <p class="small" data-msg style="margin:0"></p>
@@ -407,6 +449,7 @@
       </div>`;
       back.querySelector('.ef-x').onclick = () => back.remove();
       back.querySelectorAll('[data-per]').forEach((b) => b.onclick = () => { periodo = b.dataset.per; draw(); });
+      back.querySelectorAll('[data-contacto]').forEach((b) => b.onclick = () => { back.remove(); P.formContacto({ plan: 'grupos', origen: 'mi-plan' }); });
       back.querySelectorAll('[data-plan]').forEach((b) => b.onclick = async () => {
         const k = b.dataset.plan, msg = back.querySelector('[data-msg]');
         try { await P.cambiarPlan(k, periodo); const c = P.cuota(P.precio(k, periodo, n)); msg.style.color = 'var(--go)'; msg.textContent = `Hecho: ahora tienes ${PLANES[k].nombre} con pago ${periodo}: ${P.eur(c.importe)}${c.unidad}.`; setTimeout(() => { if (opts.onCambio) opts.onCambio(k); else location.reload(); }, 700); }
@@ -622,7 +665,7 @@
       const pal = ['#d4ae64', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
       sel.innerHTML = `<button class="emp-btn" aria-haspopup="true" title="Cambiar de ${grupo ? 'sociedad' : 'empresa'}"><i style="background:${pal[lista.indexOf(act) % pal.length]}"></i><span>${esc(act.nombre)}</span><b>▾</b></button>
         <div class="emp-menu glass" hidden>
-          <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : 'Empresas cliente'}</b><small>${lista.length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ` · tramo actual ${P.eur(P.precio('grupos', u.periodo, lista.length).base)}/mes` : ''}</small></div>
+          <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : 'Empresas cliente'}</b><small>${lista.length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ' · plan a medida' : ''}</small></div>
           <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${e.id}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.rol === 'holding' ? 'Holding · sociedad dominante' : e.rol === 'filial' ? `Filial · ${e.participacion != null ? e.participacion : 100} %` : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' ? `<button class="icon-btn" data-empdel="${e.id}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${e.id}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
           <a class="emp-group" href="portal.html#empresas">Mapa de ${grupo ? 'sociedades' : 'empresas'} y fichas →</a>
           ${lista.length < lim ? `<form class="emp-new stack" data-empnew><input class="input" name="nombre" placeholder="Nombre de la ${grupo ? 'sociedad' : 'empresa'}" required>${grupo ? '<div class="row"><select class="input" name="rol"><option value="filial">Filial</option><option value="holding">Holding</option></select><input class="input" name="participacion" type="number" min="0" max="100" value="100" title="% de participación" style="width:90px"></div>' : ''}<button class="btn solid" type="submit">Añadir ${grupo ? 'sociedad' : 'empresa'}</button><small class="muted" data-empmsg></small></form>` : `<p class="small muted" style="padding:8px 12px">Has llegado al máximo de tu plan.</p>`}

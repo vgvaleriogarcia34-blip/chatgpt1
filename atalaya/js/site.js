@@ -164,13 +164,13 @@
       return `<article class="glass plan tilt ${p.destacado ? 'top' : ''} ${p.grupo ? 'grp' : ''}" data-tilt>
         ${p.destacado ? '<span class="tag">El más elegido</span>' : p.grupo ? '<span class="tag">Holdings y grupos</span>' : ''}
         <h3>${p.nombre}</h3><p class="small muted plan-para">${p.para || ''}</p>
-        <div class="price">${p.tramos ? '<small>desde</small>' : ''}<b>${A.platform.eur(A.platform.cuota(pr).importe)}</b><span>${A.platform.cuota(pr).unidad}</span></div>
-        <p class="small plan-bill">${periodo === 'anual' ? A.platform.cuota(pr).detalle : '&nbsp;'}</p>
-        ${p.tramos ? `<ul class="tramos">${p.tramos.map((t) => `<li><span>${t.n}</span><b>${A.platform.eur(A.platform.cuota(A.platform.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta)).importe)}${periodo === 'anual' ? '/año' : ''}</b></li>`).join('')}</ul>` : ''}
+        ${p.aMedida ? '<div class="price"><b style="font-size:1.9rem;font-family:var(--font-display);font-weight:500">A medida</b></div><p class="small plan-bill">El precio se prepara con nuestro equipo según tus sociedades y tu estructura.</p>' : `<div class="price"><b>${A.platform.eur(A.platform.cuota(pr).importe)}</b><span>${A.platform.cuota(pr).unidad}</span></div>
+        <p class="small plan-bill">${periodo === 'anual' ? A.platform.cuota(pr).detalle : '&nbsp;'}</p>`}
         <ul>${p.incluye.map((x) => `<li>${x}</li>`).join('')}</ul>
-        <a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">${conSesion ? (conSesion === k ? 'Es tu plan · entrar' : `Cambiar a ${p.nombre}`) : `Probar ${p.nombre}`}</a></article>`;
+        ${p.aMedida && conSesion !== k ? '<button class="btn solid" data-contacto>Contactar con nuestro equipo</button>' : `<a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">${conSesion ? (conSesion === k ? 'Es tu plan · entrar' : `Cambiar a ${p.nombre}`) : `Probar ${p.nombre}`}</a>`}</article>`;
     }).join('');
     $$('#perSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
+    $$('#plans [data-contacto]').forEach((b) => b.onclick = () => A.platform.formContacto({ plan: 'grupos', origen: 'pagina-planes' }));
   };
   $$('#perSeg button').forEach((b) => b.onclick = () => { periodo = b.dataset.per; drawPlans(); });
   drawPlans();
