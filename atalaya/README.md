@@ -8,6 +8,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 |---|---|
 | `index.html` | Página comercial en un espacio 3D (fondo de galaxias por el que se avanza al bajar, tarjetas y titulares que flotan, se inclinan y se acercan al cursor): propuesta, el ecosistema en 3D (los dos mundos y el abanico de pantallas de cada uno), demo en vivo con el motor real, planes y preguntas. |
 | `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
+| `grupo.html` | Vista de grupo (plan Grupos) o cartera de clientes (plan Consultora): sociedades, consolidado con eliminaciones intragrupo, comparativa, riesgos cruzados, objetivos en cascada e informe. |
 | `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con dos mundos (simulador de inversión y sistema estratégico) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (18 módulos). |
@@ -102,9 +103,14 @@ atalaya/
 │   ├── space.js        espacio 3D de la página comercial: fondo, piezas flotantes y titulares con volumen
 │   ├── portal.js       puesto de mando en 3D tras entrar
 │   ├── cosmos.js       universo 3D detrás de cada pantalla de la aplicación
+│   ├── grupo.js        vista de grupo y cartera de clientes
 │   ├── reloj.js        reloj de tareas (módulo, flotante, ventana aparte)
 │   └── strategy/       core · finance · commercial · operations · orgchart · plan · market · consultor-data · origen · consultor · ruta-est
 ├── manual.html         manual de uso
-├── PLAN-GRUPOS.md      propuesta del plan para grupos empresariales y pago anual
+├── PLAN-GRUPOS.md      plan Grupos, precios por tramos, pago anual y lo construido
 └── server/             server.mjs · package.json
 ```
+
+## Planes y varias empresas
+
+Esencial 49 €/mes y Profesional 129 €/mes (una empresa), Consultora 349 €/mes (hasta 15 empresas cliente) y Grupos por tramos de sociedades: 690 € (1-5), 970 € (6-10) y 1.790 € (más de 10). Pago anual con un 30 % de descuento. Cada empresa guarda sus datos aparte: en el servidor, las claves `simulador` y `estrategia` llevan el sufijo `--<id>` salvo la empresa principal; el registro de empresas es la clave `empresas` y los datos del grupo, `grupo`. Detalle en `PLAN-GRUPOS.md`.

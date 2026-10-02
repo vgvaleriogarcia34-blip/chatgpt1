@@ -64,7 +64,10 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .alert.warn { color: var(--warn); border-color: rgba(250, 178, 25, 0.4); background: rgba(250, 178, 25, 0.06); }
 .alert.stop { color: var(--stop); border-color: rgba(224, 72, 72, 0.4); background: rgba(224, 72, 72, 0.06); }
 .alert.info { color: var(--gold-soft); border-color: var(--line-strong); background: rgba(212, 174, 100, 0.06); }
-.planpick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.planpick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.periodpick { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; margin: 0; }
+.periodpick b { color: var(--go); font-weight: 600; }
+@media (max-width: 420px) { .planpick { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .planpick label { border: 1px solid var(--line); border-radius: 10px; padding: 8px; cursor: pointer; text-align: center; color: var(--fg); }
 .planpick input { position: absolute; opacity: 0; }
 .planpick label:has(input:checked) { border-color: var(--gold); background: rgba(212, 174, 100, 0.1); }
@@ -294,3 +297,25 @@ body.rj-window { margin: 0; padding: 14px; background: var(--abyss, #070c1a); co
 .or-file.err b { color: #ffa3a3; }
 .or-doc summary { cursor: pointer; padding: 6px 0; }
 @media (prefers-reduced-motion: reduce) { .or-orb i { animation: none; } }
+
+/* ---------- Vista de grupo y cartera de clientes ---------- */
+.gr-main { display: grid; gap: 14px; }
+.gr-const { padding: 10px 14px 12px; background: radial-gradient(ellipse at 50% 45%, rgba(30, 44, 96, 0.55), rgba(6, 10, 23, 0.6) 70%); }
+.gr-svg { width: 100%; height: auto; display: block; max-height: 380px; }
+.gr-planet { cursor: pointer; } .gr-planet:hover circle:nth-child(2), .gr-planet:focus circle:nth-child(2) { stroke-width: 4; } .gr-planet:focus { outline: none; }
+.gr-pn { fill: var(--fg); font-family: var(--font-display); font-size: 15px; } .gr-ps { fill: var(--muted); font-family: var(--font-data); font-size: 11px; }
+.gr-legend { text-align: center; }
+.gr-tab td, .gr-tab th { white-space: nowrap; }
+.gr-tab tr.gr-tot td { border-top: 1px solid var(--line-strong); background: rgba(212, 174, 100, 0.06); }
+.gr-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; }
+.gr-elim { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.gr-elim .field { display: grid; gap: 4px; font-size: var(--t-s); }
+.gr-cmp { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 18px; }
+.gr-bars { display: grid; gap: 6px; align-content: start; }
+.gr-bar { display: grid; grid-template-columns: minmax(70px, 120px) minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: var(--t-xs); color: var(--muted); }
+.gr-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-bar i { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; display: block; }
+.gr-bar i b { display: block; height: 100%; border-radius: 4px; }
+.gr-bar em { font-style: normal; font-family: var(--font-data); color: var(--fg); }
+.gr-obj { padding: 12px; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 8px; }
+.gr-obj .row { gap: 8px; align-items: center; }

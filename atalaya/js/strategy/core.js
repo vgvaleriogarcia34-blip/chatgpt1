@@ -10,7 +10,9 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   S.$ = $; S.$$ = $$; S.esc = esc; S.css = css;
-  const LSK = 'atalaya.estrategia.v1', SIMK = 'atalaya.v1';
+  // Claves de la empresa activa (la principal conserva las de siempre)
+  const PK = (k) => (A.platform && A.platform.k ? A.platform.k(k) : k);
+  const LSK = PK('atalaya.estrategia.v1'), SIMK = PK('atalaya.v1');
   const LS = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } } };
   const stName = { ok: 'Verde', warn: 'Ámbar', stop: 'Rojo' };
   S.stName = stName;
@@ -309,7 +311,7 @@
       P.mountAccount($('#account'));
       const remoteSim = await P.loadData('simulador'); if (remoteSim && remoteSim.empresa) S.sim = remoteSim;
     }
-    if (!S.sim || !S.sim.empresa) S.sim = A.defaultState();
+    if (!S.sim || !S.sim.empresa) { S.sim = A.defaultState(); const ea = P && P.empresas && P.empresas.activa(); if (ea) S.sim.empresaNombre = ea.nombre; }
     S.sim = Object.assign(A.defaultState(), S.sim);
     S.state = LS.get(LSK) || null;
     if (P) { const remote = await P.loadData('estrategia'); if (remote) S.state = remote; }

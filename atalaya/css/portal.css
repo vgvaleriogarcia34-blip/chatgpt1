@@ -63,3 +63,8 @@ body.portal.no3d .pt-moon { display: none; }
   .pt-last { top: auto; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); right: 50%; transform: translateX(50%); }
 }
 @media (prefers-reduced-motion: reduce) { .pt-world, .pt-warp, .pt-dock button { transition: none; } }
+.pt-dock .pt-grp { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 14px 10px 12px; border-radius: 16px; border: 1px solid rgba(57, 135, 229, 0.5); background: rgba(6, 10, 23, 0.65); backdrop-filter: blur(10px); color: var(--fg); text-decoration: none; transition: border-color 0.2s, transform 0.2s; }
+.pt-dock .pt-grp:hover { border-color: #3987e5; transform: translateY(-3px); }
+.pt-dock .pt-grp span { display: grid; } .pt-dock .pt-grp small { color: var(--muted); font-size: var(--t-xs); }
+.pt-dock .d-grp { width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; background: radial-gradient(circle at 50% 50%, #fff1c9 0 18%, transparent 19%), radial-gradient(circle at 20% 30%, #3987e5 0 14%, transparent 15%), radial-gradient(circle at 80% 70%, #199e70 0 14%, transparent 15%), radial-gradient(circle at 78% 22%, #d55181 0 11%, transparent 12%); border: 1px solid rgba(134, 180, 255, 0.5); }
+@media (max-width: 760px) { .pt-dock .pt-grp small { display: none; } }

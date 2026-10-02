@@ -18,7 +18,7 @@
 /* Reloj de tareas en una ventana aparte. Comparte los datos del sistema estratégico (mismo almacenamiento y,
    con servidor, la misma cuenta): solo escribe la parte de tiempos para no pisar otros módulos. */
 (async function () {
-  const A = window.Atalaya, P = A.platform, LSK = 'atalaya.estrategia.v1';
+  const A = window.Atalaya, P = A.platform, LSK = P.k('atalaya.estrategia.v1');
   const read = () => { try { return JSON.parse(localStorage.getItem(LSK)) || {}; } catch (e) { return {}; } };
   const ok = await P.guard(); if (!ok) return;
   let st = read();

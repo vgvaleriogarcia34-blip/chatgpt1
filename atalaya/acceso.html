@@ -56,7 +56,9 @@
       <label>Correo electrónico<input class="input" id="upEmail" type="email" autocomplete="email" required></label>
       <label>Teléfono (opcional)<input class="input" id="upTel" type="tel" autocomplete="tel"></label>
       <label>Contraseña (mínimo 8 caracteres)<input class="input" id="upPass" type="password" autocomplete="new-password" minlength="8" required></label>
+      <div class="periodpick seg" id="perPick" role="group" aria-label="Forma de pago"><button type="button" data-per="mensual" aria-pressed="true">Pago mensual</button><button type="button" data-per="anual" aria-pressed="false">Pago anual <b>−30 %</b></button></div>
       <div class="planpick" id="planPick"></div>
+      <p class="small muted" id="planNote" style="margin:0"></p>
       <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="upOk" required> Acepto las condiciones de uso y el tratamiento de mis datos para prestar el servicio.</label>
       <button class="btn solid" type="submit">Crear cuenta y entrar</button>
       <p class="small muted" id="upMsg" role="alert"></p>
@@ -92,8 +94,19 @@
   // Enlace de recuperación: se lee el código y se quita de la barra de direcciones
   const resetToken = (h.match(/^reset=([a-f0-9]{20,})$/) || [])[1];
   if (resetToken) { h = ''; try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } }
-  const planSel = (h.match(/^alta-(\w+)/) || [])[1] || 'profesional';
-  $('#planPick').innerHTML = Object.keys(P.PLANES).map((k) => `<label><input type="radio" name="plan" value="${k}" ${k === planSel ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.PLANES[k].precio} €/mes</small></label>`).join('');
+  const planSel = (h.match(/^alta-(esencial|profesional|consultora|grupos)/) || [])[1] || 'profesional';
+  // Planes y forma de pago: el anual lleva un 30 % de descuento sobre el precio mensual
+  let periodo = /anual/.test(h) ? 'anual' : 'mensual';
+  const drawPlans = () => {
+    const cur = (document.querySelector('input[name="plan"]:checked') || {}).value || planSel;
+    $('#planPick').innerHTML = Object.keys(P.PLANES).map((k) => { const pr = P.precio(k, periodo, 1); return `<label><input type="radio" name="plan" value="${k}" ${k === cur ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.eur(pr.mes)}/mes${P.PLANES[k].tramos ? ' desde' : ''}</small></label>`; }).join('');
+    document.querySelectorAll('#perPick button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
+    const k = (document.querySelector('input[name="plan"]:checked') || {}).value || 'profesional', pr = P.precio(k, periodo, 1), pl = P.PLANES[k];
+    $('#planNote').innerHTML = `${pl.para || ''}${pl.tramos ? ` · ${pl.tramos.map((t) => `${t.n.toLowerCase()}: ${P.eur(P.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta).mes)}/mes`).join(' · ')}` : ''}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}${pl.tramos ? ' (primer tramo)' : ''}, ahorras ${P.eur(pr.ahorro)}` : ''}. Los 14 días de prueba son gratis en todos.`;
+    document.querySelectorAll('input[name="plan"]').forEach((r) => r.onchange = drawPlans);
+  };
+  document.querySelectorAll('#perPick button').forEach((b) => b.onclick = () => { periodo = b.dataset.per; drawPlans(); });
+  drawPlans();
   if (resetToken) show('reset');
   else if (h.startsWith('alta')) show('up');
   addEventListener('hashchange', () => { if (location.hash.startsWith('#reset=')) location.reload(); else if (location.hash.startsWith('#alta')) show('up'); });
@@ -111,10 +124,10 @@
   function payScreen(u, motivo) {
     ['#fIn', '#fUp', '#fForgot', '#fReset'].forEach((x) => { $(x).hidden = true; }); document.querySelector('.tabs').hidden = true;
     $('#payBox').hidden = false;
-    const pl = P.PLANES[u.plan] || P.PLANES.profesional;
+    const pl = P.PLANES[u.plan] || P.PLANES.profesional, pr = P.precio(u.plan, u.periodo, u.empresas);
     $('#payTxt').innerHTML = motivo === 'bloqueado'
       ? 'Tu acceso está suspendido. Escríbenos para revisarlo.'
-      : `Tu periodo de prueba ha terminado. Para seguir usando Atalaya activa el plan <b>${pl.nombre}</b> (${pl.precio} € al mes). Te enviaremos los datos de pago y, en cuanto se confirme, tu acceso se reactiva con todos tus datos.`;
+      : `Tu periodo de prueba ha terminado. Para seguir usando Atalaya activa el plan <b>${pl.nombre}</b> (${pr.periodo === 'anual' ? `${P.eur(pr.total)} al año, ${P.eur(pr.mes)} al mes con el 30 % de descuento` : `${P.eur(pr.mes)} al mes`}). Te enviaremos los datos de pago y, en cuanto se confirme, tu acceso se reactiva con todos tus datos.`;
     $('#payReq').hidden = motivo === 'bloqueado';
     $('#payReq').onclick = async () => {
       try {
@@ -162,7 +175,7 @@
     if (!$('#upName').value.trim() || !$('#upEmail').value.includes('@')) { $('#upMsg').textContent = 'Escribe tu nombre y un correo válido.'; return; }
     $('#upMsg').textContent = 'Creando tu cuenta…';
     try {
-      await P.register({ nombre: $('#upName').value, empresa: $('#upCo').value, email: $('#upEmail').value, telefono: $('#upTel').value, password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value });
+      await P.register({ nombre: $('#upName').value, empresa: $('#upCo').value, email: $('#upEmail').value, telefono: $('#upTel').value, password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value, periodo });
       location.href = 'portal.html';
     } catch (err) { $('#upMsg').textContent = err.message; }
   };

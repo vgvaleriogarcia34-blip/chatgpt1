@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atalaya · Vista de grupo</title>
+<meta name="description" content="Vista de grupo de Atalaya: todas las sociedades del grupo, consolidado, comparativa, objetivos de la holding en cascada e informe del grupo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/atalaya.css">
+<link rel="stylesheet" href="css/cosmos.css">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<header class="topbar">
+  <a class="brand" href="portal.html"><b>Atalaya</b><span id="gKind">Vista de grupo</span></a>
+  <span class="spacer"></span>
+  <a class="btn ghost" href="estrategia.html">Sistema estratégico</a>
+  <a class="btn ghost" href="app.html">Simulador</a>
+  <div class="account" id="account"></div>
+</header>
+<main class="st-main gr-main" id="gMain" aria-live="polite"><p class="muted">Cargando las empresas…</p></main>
+<div class="report-overlay" id="report" hidden></div>
+<script src="js/platform.js"></script>
+<script src="js/cosmos.js"></script>
+<script src="js/sectors.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/content.js"></script>
+<script src="js/financials.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/informe.js"></script>
+<script src="js/grupo.js"></script>
+</body>
+</html>

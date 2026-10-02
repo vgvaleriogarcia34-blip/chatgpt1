@@ -4,7 +4,9 @@
   const F = A.fmt, C = A.charts;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-  const STORE = 'atalaya.v1', SNAP = 'atalaya.snapshots.v1';
+  // Cada empresa de la cuenta tiene su propio almacenamiento (la principal, el de siempre)
+  const PK = (k) => (A.platform && A.platform.k ? A.platform.k(k) : k);
+  const STORE = PK('atalaya.v1'), SNAP = PK('atalaya.snapshots.v1');
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const P = A.platform;
@@ -1022,6 +1024,7 @@
       P.mountAccount($('#account'));
       const remote = await P.loadData('simulador');
       if (remote && remote.empresa) { state = loadState(remote); afterLoad(); }
+      else if (!store.get(STORE) && P.empresas && P.empresas.activa()) { state.empresaNombre = P.empresas.activa().nombre; store.set(STORE, state); afterLoad(); }
     }
     followHash();
   }

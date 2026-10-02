@@ -25,7 +25,7 @@
     const now = Date.now();
     const est = users.map((u) => ({ u, e: estadoDe(u) }));
     const pagando = est.filter((x) => x.e.k === 'activo');
-    const mrr = pagando.reduce((a, x) => a + ((P.PLANES[x.u.plan] || {}).precio || 0), 0);
+    const mrr = pagando.reduce((a, x) => a + P.precio(x.u.plan, x.u.periodo, x.u.empresas).mes, 0); // ingreso mensual equivalente (los anuales, a su precio con descuento)
     const uso30 = users.reduce((a, u) => a + P.usageMinutes(u, 30), 0);
     const activos7 = users.filter((u) => u.ultimoAcceso && now - new Date(u.ultimoAcceso).getTime() < 7 * 864e5).length;
     $('#akpis').innerHTML = [
@@ -62,9 +62,12 @@
     // Tabla
     const q = ($('#q').value || '').toLowerCase(), fe = $('#fEstado').value;
     const rows = est.filter((x) => (!q || `${x.u.nombre} ${x.u.email} ${x.u.empresa}`.toLowerCase().includes(q)) && (!fe || x.e.k === fe));
-    $('#utable').innerHTML = rows.length ? `<table><thead><tr><th>Usuario</th><th>Empresa</th><th>Plan</th><th>Estado</th><th>Vence</th><th>Alta</th><th>Último acceso</th><th>Uso 7 d</th><th>Uso 30 d</th><th>Uso total</th><th>Sesiones</th><th></th></tr></thead><tbody>` +
+    $('#utable').innerHTML = rows.length ? `<table><thead><tr><th>Usuario</th><th>Empresa</th><th>Plan</th><th>Pago</th><th>Empresas</th><th>Cuota</th><th>Estado</th><th>Vence</th><th>Alta</th><th>Último acceso</th><th>Uso 7 d</th><th>Uso 30 d</th><th>Uso total</th><th>Sesiones</th><th></th></tr></thead><tbody>` +
       rows.map(({ u, e }) => `<tr data-id="${u.id}"><td><b>${esc(u.nombre || '—')}</b><br><span class="muted">${esc(u.email)}</span></td><td>${esc(u.empresa || '—')}</td>
         <td><select data-plan>${Object.keys(P.PLANES).map((k) => `<option value="${k}" ${k === u.plan ? 'selected' : ''}>${P.PLANES[k].nombre}</option>`).join('')}</select></td>
+        <td><select data-per><option value="mensual" ${u.periodo !== 'anual' ? 'selected' : ''}>Mensual</option><option value="anual" ${u.periodo === 'anual' ? 'selected' : ''}>Anual −30 %</option></select></td>
+        <td>${u.empresas || 1}${isFinite((P.PLANES[u.plan] || {}).empresas) ? ' / ' + P.PLANES[u.plan].empresas : ''}</td>
+        <td>${(() => { const pr = P.precio(u.plan, u.periodo, u.empresas); return pr.periodo === 'anual' ? `${P.eur(pr.total)}/año<br><span class="muted">${P.eur(pr.mes)}/mes</span>` : `${P.eur(pr.mes)}/mes`; })()}</td>
         <td><span class="state st-${e.st}">${e.t}</span></td><td>${u.pagado ? fdate(u.venceAcceso) : '—'}</td><td>${fdate(u.alta)}</td><td>${fdate(u.ultimoAcceso)}</td>
         <td>${hm(P.usageMinutes(u, 7))}</td><td>${hm(P.usageMinutes(u, 30))}</td><td>${hm(P.usageMinutes(u))}</td><td>${u.sesiones || 0}</td>
         <td><div class="uactions"><button class="btn" data-pay>Registrar pago</button>${u.estado === 'bloqueado' ? '<button class="btn ghost" data-unblock>Desbloquear</button>' : '<button class="btn ghost" data-block>Bloquear</button>'}<button class="btn ghost" data-pwrow>Contraseña</button><button class="btn ghost" data-more>Ficha</button></div></td></tr>`).join('') + '</tbody></table>'
@@ -72,6 +75,7 @@
     $$('#utable tr[data-id]').forEach((tr) => {
       const id = tr.dataset.id, u = users.find((x) => x.id === id);
       $('[data-plan]', tr).onchange = (ev) => upd(id, { plan: ev.target.value });
+      $('[data-per]', tr).onchange = (ev) => upd(id, { periodo: ev.target.value });
       $('[data-pay]', tr).onclick = () => payDialog(u);
       const bl = $('[data-block]', tr); if (bl) bl.onclick = () => upd(id, { estado: 'bloqueado' });
       const ub = $('[data-unblock]', tr); if (ub) ub.onclick = () => upd(id, { estado: u.pagado ? 'activo' : 'prueba' });
@@ -88,16 +92,17 @@
   function alertBox(t) { openModal(`<p class="alert stop">${esc(t)}</p>`); }
   function payDialog(u) {
     const pl = P.PLANES[u.plan] || P.PLANES.profesional;
+    const pr = P.precio(u.plan, u.periodo, u.empresas);
     const base = u.venceAcceso && new Date(u.venceAcceso).getTime() > Date.now() ? new Date(u.venceAcceso) : new Date();
     const el = openModal(`<div class="eyebrow">Registrar pago</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
-      <p class="small muted">Plan ${pl.nombre} · ${pl.precio} €/mes. El acceso se amplía desde ${fdate(base)}.</p>
+      <p class="small muted">Plan ${pl.nombre}${pr.tramo ? ' · ' + pr.tramo.n.toLowerCase() : ''} · ${pr.periodo === 'anual' ? `pago anual: ${P.eur(pr.total)} (${P.eur(pr.mes)}/mes, −30 %)` : `${P.eur(pr.mes)}/mes`}. El acceso se amplía desde ${fdate(base)}.</p>
       <div class="stack mt">
-        <label class="small">Periodo<select id="pPer" class="input"><option value="1">1 mes</option><option value="3">3 meses</option><option value="12">12 meses</option></select></label>
-        <label class="small">Importe cobrado (€)<input class="input" id="pImp" value="${pl.precio}"></label>
+        <label class="small">Periodo<select id="pPer" class="input"><option value="1" ${pr.periodo !== 'anual' ? 'selected' : ''}>1 mes</option><option value="3">3 meses</option><option value="12" ${pr.periodo === 'anual' ? 'selected' : ''}>12 meses</option></select></label>
+        <label class="small">Importe cobrado (€)<input class="input" id="pImp" value="${pr.periodo === 'anual' ? pr.total : pr.mes}"></label>
         <label class="small">Método y referencia<input class="input" id="pRef" placeholder="Transferencia, tarjeta, recibo…"></label>
         <button class="btn solid" id="pOk">Registrar y activar</button>
       </div>`);
-    $('#pPer', el).onchange = (e) => { $('#pImp', el).value = pl.precio * +e.target.value; };
+    $('#pPer', el).onchange = (e) => { const m = +e.target.value; $('#pImp', el).value = m === 12 && pr.periodo === 'anual' ? pr.total : Math.round(pr.mes * m * 100) / 100; };
     $('#pOk', el).onclick = async () => {
       const meses = +$('#pPer', el).value; const v = new Date(base); v.setMonth(v.getMonth() + meses);
       await upd(u.id, { pagado: true, estado: 'activo', venceAcceso: v.toISOString(), registrarPago: { importe: parseFloat(String($('#pImp', el).value).replace(',', '.')) || 0, meses, referencia: $('#pRef', el).value } });
@@ -153,8 +158,8 @@
     $('#apForm', el).onsubmit = async (e) => { e.preventDefault(); const f = e.target; try { await P.adminAuth.change(f.actual.value, f.nueva.value); $('#apMsg', el).innerHTML = '<span style="color:var(--go)">Contraseña cambiada.</span>'; f.reset(); } catch (x) { $('#apMsg', el).innerHTML = `<span style="color:var(--stop)">${esc(x.message)}</span>`; } };
   }
   function csv() {
-    const head = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'estado', 'pagado', 'vence', 'alta', 'ultimo_acceso', 'uso_7d_min', 'uso_30d_min', 'uso_total_min', 'sesiones'];
-    const rows = users.map((u) => [u.nombre, u.email, u.empresa, u.telefono, u.plan, estadoDe(u).t, u.pagado ? 'sí' : 'no', u.venceAcceso || '', u.alta, u.ultimoAcceso, P.usageMinutes(u, 7), P.usageMinutes(u, 30), P.usageMinutes(u), u.sesiones || 0]);
+    const head = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'empresas', 'cuota_mes', 'estado', 'pagado', 'vence', 'alta', 'ultimo_acceso', 'uso_7d_min', 'uso_30d_min', 'uso_total_min', 'sesiones'];
+    const rows = users.map((u) => [u.nombre, u.email, u.empresa, u.telefono, u.plan, u.periodo || 'mensual', u.empresas || 1, P.precio(u.plan, u.periodo, u.empresas).mes, estadoDe(u).t, u.pagado ? 'sí' : 'no', u.venceAcceso || '', u.alta, u.ultimoAcceso, P.usageMinutes(u, 7), P.usageMinutes(u, 30), P.usageMinutes(u), u.sesiones || 0]);
     const txt = [head].concat(rows).map((r) => r.map((c) => `"${String(c == null ? '' : c).replace(/"/g, '""')}"`).join(';')).join('\n');
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => alertBox2('CSV copiado: pégalo en Excel.'), () => openModal(`<textarea class="input" rows="12" style="width:100%">${esc(txt)}</textarea>`));
   }

@@ -26,6 +26,11 @@
   (async () => {
     const ok = await P.guard(); if (!ok) return;
     P.mountAccount($('#account'));
+    // Planes con varias empresas: acceso a la vista de grupo o a la cartera desde el puesto de mando
+    if (P.esGrupo && P.esGrupo()) {
+      const g = !!(P.PLANES[P.user.plan] || {}).grupo, ea = P.empresas.activa();
+      $('.pt-dock').insertAdjacentHTML('beforeend', `<a class="pt-grp" href="grupo.html"><i class="d-grp"></i><span><b>${g ? 'Vista de grupo' : 'Cartera de clientes'}</b><small>${P.empresas.lista().length} ${g ? 'sociedades' : 'empresas'}${ea ? ' · ahora en ' + ea.nombre.replace(/</g, '&lt;') : ''}</small></span></a>`);
+    }
     const n = (P.user && (P.user.nombre || '').split(/\s+/)[0]) || '';
     if (n) $('#hello').textContent = 'Hola, ' + n;
     const u = LS.get('atalaya.ultimo');

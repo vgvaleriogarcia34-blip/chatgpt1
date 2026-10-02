@@ -1,6 +1,33 @@
 # Atalaya Grupos · propuesta de cuarto plan para grupos empresariales y pago anual
 
-Estado: propuesta para decidir. No está construido todavía.
+Estado: **decidido y construido** (fases 1 a 4). Pendiente: tesorería de grupo e intragrupo (fase 5) y cobro automático (fase 6).
+
+## Decisiones tomadas
+
+- **Grupos por tramos de sociedades:** de 1 a 5, 690 €/mes; de 6 a 10, 970 €/mes; más de 10, 1.790 €/mes.
+- **Pago anual:** 30 % de descuento para todos los planes, pagando el año por adelantado. Sin descuento general aparte ni promoción de lanzamiento.
+- **Profesional pasa a 1 empresa.** Consultora: hasta 15 empresas cliente por separado. Grupos: sociedades sin límite, con visión de grupo.
+
+| Plan | Mensual | Anual (−30 %) |
+|---|---|---|
+| Esencial | 49 € | 34,30 €/mes · 411,60 €/año |
+| Profesional | 129 € | 90,30 €/mes · 1.083,60 €/año |
+| Consultora | 349 € | 244,30 €/mes · 2.931,60 €/año |
+| Grupos, 1-5 sociedades | 690 € | 483 €/mes · 5.796 €/año |
+| Grupos, 6-10 sociedades | 970 € | 679 €/mes · 8.148 €/año |
+| Grupos, más de 10 | 1.790 € | 1.253 €/mes · 15.036 €/año |
+
+## Lo construido
+
+- Selector de empresa o sociedad en la cabecera de todas las pantallas, con alta, cambio de nombre y baja; cada empresa con sus datos separados (simulador, sistema estratégico, zona de origen, informes). La empresa que ya tenía cada cuenta pasa a ser la principal sin perder nada.
+- Límites por plan al dar de alta empresas.
+- Página comercial con interruptor mensual/anual y cuarta tarjeta Grupos con sus tramos; alta con plan y forma de pago; administración con forma de pago, número de empresas y cuota de cada cliente (el ingreso mensual cuenta los anuales a su precio con descuento).
+- Vista de grupo (`grupo.html`): constelación de sociedades, tabla y consolidado con eliminaciones intragrupo, atribuible a la holding, comparativa, riesgos cruzados (clientes y proveedores comunes, sociedades en rojo o sin liquidez, dependencia de una sociedad, endeudamiento), objetivos de la holding en cascada con reparto por peso, e informe del grupo. En Consultora la misma página es la cartera de clientes, sin consolidado.
+- Acceso a la vista de grupo desde el puesto de mando 3D y desde el menú de la cuenta.
+
+---
+
+_Propuesta original:_
 
 ## 1. Punto de partida (lo que hay hoy)
 

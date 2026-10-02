@@ -584,3 +584,25 @@ table.guide td:nth-child(n+3):not(:last-child) { font-size: 0.8rem; }
 .rp-bar i { height: 8px; border-radius: 4px; background: #ece5d6; overflow: hidden; display: block; }
 .rp-bar i b { display: block; height: 100%; background: linear-gradient(90deg, #b88a32, #d4ae64); }
 .rp-bar em { font-style: normal; font-family: var(--font-data); text-align: right; }
+
+/* Selector de empresa o sociedad */
+.account { display: flex; align-items: center; gap: 8px; }
+.emp { position: relative; }
+.emp-btn { display: flex; align-items: center; gap: 8px; max-width: 230px; height: 36px; padding: 0 12px 0 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(212, 174, 100, 0.06); color: var(--fg); font-size: var(--t-s); }
+.emp-btn i, .emp-it i { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 8px currentColor; }
+.emp-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emp-btn b { color: var(--gold); font-weight: 400; font-size: 0.7rem; }
+.emp-btn:hover { border-color: var(--gold); }
+.emp-menu { position: absolute; right: 0; top: calc(100% + 8px); width: min(330px, calc(100vw - 24px)); z-index: 90; padding: 6px 0; background: var(--panel-solid, #0b1226); border-radius: 14px; box-shadow: var(--shadow); }
+.emp-list { display: grid; max-height: 50vh; overflow-y: auto; }
+.emp-it { display: flex; align-items: center; gap: 2px; padding: 0 8px 0 4px; }
+.emp-it > button[data-emp] { flex: 1; display: flex; gap: 10px; align-items: center; text-align: left; padding: 8px; border: 0; background: none; color: var(--fg); border-radius: 10px; min-width: 0; }
+.emp-it > button[data-emp]:hover { background: var(--raise); }
+.emp-it.on > button[data-emp] { background: rgba(212, 174, 100, 0.1); }
+.emp-it span { display: grid; min-width: 0; } .emp-it span b { font-weight: 600; font-size: var(--t-s); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .emp-it span small { color: var(--muted); font-size: var(--t-xs); }
+.emp-it .icon-btn { width: 26px; height: 26px; font-size: 0.8rem; }
+.emp-new { padding: 10px 12px; border-top: 1px solid var(--line); gap: 6px; }
+.emp-new .row { gap: 6px; flex-wrap: nowrap; } .emp-new select { flex: 1; }
+.emp-group { display: block; padding: 10px 14px; border-top: 1px solid var(--line); color: var(--gold-soft); text-decoration: none; font-size: var(--t-s); }
+.emp-group:hover { background: var(--raise); }
+@media (max-width: 760px) { .emp-btn { max-width: 120px; padding: 0 10px; } .emp-btn b { display: none; } }

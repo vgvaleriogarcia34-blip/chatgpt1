@@ -23,7 +23,8 @@ const ADMIN_COOKIE = 'atalaya_adm';
 const ADMIN_HOURS = 12;
 const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const PRUEBA_DIAS = 14;
-const PLANES = ['esencial', 'profesional', 'consultora'];
+const PLANES = ['esencial', 'profesional', 'consultora', 'grupos'];
+const PERIODOS = ['mensual', 'anual'];
 const MAX_BODY = 4 * 1024 * 1024;
 
 /* ---------- Base de datos en un fichero JSON (escritura atómica) ---------- */
@@ -218,7 +219,7 @@ route('POST', /^\/api\/register$/, async (req, res, body) => {
   const salt = crypto.randomBytes(16).toString('hex');
   const u = {
     id: uid(), nombre: String(body.nombre || '').slice(0, 120), email, empresa: String(body.empresa || '').slice(0, 160), telefono: String(body.telefono || '').slice(0, 40),
-    plan: PLANES.includes(body.plan) ? body.plan : 'profesional', rol: 'cliente',
+    plan: PLANES.includes(body.plan) ? body.plan : 'profesional', periodo: PERIODOS.includes(body.periodo) ? body.periodo : 'mensual', rol: 'cliente',
     estado: 'prueba', pagado: false, venceAcceso: null, alta: now(), ultimoAcceso: now(), sesiones: 1, uso: {}, pagos: [], salt, hash: hashPw(body.password, salt)
   };
   db.users.push(u); save(); startSession(res, u);
@@ -245,6 +246,7 @@ route('GET', /^\/api\/me$/, async (req, res, body, u) => ({ user: pub(u) }), { n
 route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
   ['nombre', 'empresa', 'telefono'].forEach((k) => { if (typeof body[k] === 'string') u[k] = body[k].slice(0, 160); });
   if (PLANES.includes(body.plan)) u.plan = body.plan;
+  if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
   save(); return { user: pub(u) };
 }, { noAccess: true });
 route('POST', /^\/api\/me\/solicitar-pago$/, async (req, res, body, u) => { u.solicitudPago = now(); save(); return { ok: true }; }, { noAccess: true });
@@ -337,12 +339,15 @@ route('PUT', /^\/api\/data\/([a-z0-9_-]{1,40})$/i, async (req, res, body, u, m) 
   db.data[u.id] = db.data[u.id] || {}; db.data[u.id][m[1]] = body; save(); return { ok: true };
 });
 
-route('GET', /^\/api\/admin\/users$/, async () => ({ users: db.users.map(pub) }), { admin: true });
+// Cada usuario con el número de empresas o sociedades que tiene dadas de alta (para el precio de Grupos)
+const nEmpresas = (u) => { const r = (db.data[u.id] || {}).empresas; return r && Array.isArray(r.lista) ? r.lista.length : 1; };
+route('GET', /^\/api\/admin\/users$/, async () => ({ users: db.users.map((u) => Object.assign(pub(u), { empresas: nEmpresas(u) })) }), { admin: true });
 route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) => {
   const u = db.users.find((x) => x.id === m[1]); if (!u) throw Object.assign(new Error('Usuario no encontrado'), { code: 404 });
   if (['prueba', 'activo', 'bloqueado'].includes(body.estado)) u.estado = body.estado;
   if (typeof body.pagado === 'boolean') u.pagado = body.pagado;
   if (PLANES.includes(body.plan)) u.plan = body.plan;
+  if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
   if (body.venceAcceso === null || (typeof body.venceAcceso === 'string' && !isNaN(Date.parse(body.venceAcceso)))) u.venceAcceso = body.venceAcceso;
   if (typeof body.nota === 'string') u.nota = body.nota.slice(0, 2000);
   if (body.registrarPago && typeof body.registrarPago === 'object') {

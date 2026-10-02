@@ -154,11 +154,24 @@
 
   /* ---------- Planes ---------- */
   const P = A.platform.PLANES;
-  $('#plans').innerHTML = Object.keys(P).map((k) => `<article class="glass plan tilt ${P[k].destacado ? 'top' : ''}" data-tilt>
-    ${P[k].destacado ? '<span class="tag">El más elegido</span>' : ''}
-    <h3>${P[k].nombre}</h3><div class="price"><b>${P[k].precio} €</b><span>/${P[k].periodo}</span></div>
-    <ul>${P[k].incluye.map((x) => `<li>${x}</li>`).join('')}</ul>
-    <a class="btn ${P[k].destacado ? 'solid' : ''}" href="acceso.html#alta-${k}">Probar ${P[k].nombre}</a></article>`).join('');
+  // Precio mensual o anual (−30 %); Grupos, por tramos de sociedades
+  let periodo = 'mensual';
+  const drawPlans = () => {
+    $('#plans').innerHTML = Object.keys(P).map((k) => {
+      const p = P[k], pr = A.platform.precio(k, periodo, 1);
+      return `<article class="glass plan tilt ${p.destacado ? 'top' : ''} ${p.grupo ? 'grp' : ''}" data-tilt>
+        ${p.destacado ? '<span class="tag">El más elegido</span>' : p.grupo ? '<span class="tag">Holdings y grupos</span>' : ''}
+        <h3>${p.nombre}</h3><p class="small muted plan-para">${p.para || ''}</p>
+        <div class="price">${p.tramos ? '<small>desde</small>' : ''}<b>${A.platform.eur(pr.mes)}</b><span>/mes</span></div>
+        <p class="small plan-bill">${periodo === 'anual' ? `${A.platform.eur(pr.total)} al año · ahorras ${A.platform.eur(pr.ahorro)}` : '&nbsp;'}</p>
+        ${p.tramos ? `<ul class="tramos">${p.tramos.map((t) => `<li><span>${t.n}</span><b>${A.platform.eur(A.platform.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta).mes)}</b></li>`).join('')}</ul>` : ''}
+        <ul>${p.incluye.map((x) => `<li>${x}</li>`).join('')}</ul>
+        <a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">Probar ${p.nombre}</a></article>`;
+    }).join('');
+    $$('#perSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
+  };
+  $$('#perSeg button').forEach((b) => b.onclick = () => { periodo = b.dataset.per; drawPlans(); });
+  drawPlans();
 
   // Barra fija en móvil a partir de la portada
   const sticky = $('.lp-sticky');
