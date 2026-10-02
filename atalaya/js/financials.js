@@ -188,7 +188,8 @@
 
   /* ---------- Análisis ---------- */
   const g = (a, k) => (isFinite(a[k]) ? a[k] : 0);
-  FIN.analyze = function (hist) {
+  FIN.analyze = function (hist, opts) {
+    opts = opts || {};
     const Y = (hist && hist.anios) || [];
     if (!Y.length) return null;
     const rows = Y.map((a, i) => {
@@ -230,7 +231,8 @@
     const crecSostenible = roeAvg !== null ? roeAvg * (1 - (payoutAvg || 0) / 100) : null;
 
     // Proyección a 3 años: ventas al ritmo histórico (acotado), márgenes y días con su tendencia suavizada
-    const growth = Math.max(-15, Math.min(25, cagr)) / 100;
+    // El crecimiento proyectado puede fijarlo el usuario; si no, el histórico acotado
+    const growth = (opts.crec != null && isFinite(opts.crec) ? opts.crec : Math.max(-15, Math.min(25, cagr))) / 100;
     const slope = (k) => (n > 0 ? trend(k) / n : 0) * 0.5;
     const proj = [1, 2, 3].map((k) => {
       const ventas = last.ventas * Math.pow(1 + growth, k);
@@ -271,7 +273,7 @@
       `Margen bruto del ${A.fmt.pct(last.margenPct)}${n > 0 ? ` (${trend('margenPct') >= 0 ? '+' : ''}${A.fmt.pp(trend('margenPct'))} en el periodo)` : ''}.`,
       n > 0 && trend('margenPct') < -1 ? 'El margen se erosiona: revisa precios y compras antes de añadir volumen.' : 'El margen se mantiene.');
 
-    return { rows, proj, cagr, crecSostenible, payoutAvg, last, first, politicas: P };
+    return { rows, proj, cagr, crecProj: growth * 100, crecSostenible, payoutAvg, last, first, politicas: P };
   };
 
   /* Traslada el último año al punto de partida del simulador */

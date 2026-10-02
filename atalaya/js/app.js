@@ -867,7 +867,7 @@
         <div class="kpi"><div class="k"><span>Payout medio</span></div><div class="v">${an.payoutAvg === null ? '—' : F.pct(an.payoutAvg)}</div><div class="d">beneficio repartido</div></div>
       </div>
       <div class="grid cols-2 mt">
-        <div class="glass pad stack"><h4>Evolución y proyección a tres años</h4><div class="chart" id="finChart"></div><p class="small muted">Las columnas claras son proyección: ventas al ritmo histórico (acotado) y márgenes con la mitad de su tendencia.</p></div>
+        <div class="glass pad stack" id="finEvo"></div>
         <div class="glass pad stack"><h4>Políticas de gobierno que reflejan los números</h4>${an.politicas.map((p) => `<div class="policy"><span class="state ${stCls(p.estado)}">${stName[p.estado]}</span><div><b>${p.nombre}</b><p class="small">${p.lectura}</p><p class="small muted">${p.recomendacion}</p></div></div>`).join('')}</div>
       </div>
       <div class="glass pad mt stack" id="moneyFlow"></div>
@@ -878,20 +878,88 @@
         ${line('Liquidez (AC/PC)', 'liquidez', F.x)}${line('Deuda neta / EBITDA', 'dfnEbitda', (v) => (v < 0 ? 'caja neta' : F.x(v)))}${line('Deuda / fondos propios', 'endeudamiento', F.x)}
         ${line('ROE', 'roe', F.pct)}${line('ROA', 'roa', F.pct)}${line('Payout', 'payout', F.pct)}${line('Reinversión / amortización', 'reinversion', F.x)}${line('Autofinanciación', 'autofinanciacion', F.eur)}
       </tbody></table></div></div>`;
-    const all = R.map((r) => ({ anio: r.anio, v: r.ventas, e: r.ebitda })).concat(an.proj.map((p) => ({ anio: p.anio, v: p.ventas, e: p.ebitda, p: true })));
-    const W = 520, Hh = 220, m = { l: 56, r: 10, t: 10, b: 26 }, mx = Math.max(...all.map((a) => a.v)) * 1.08, bw = (W - m.l - m.r) / all.length;
-    const y = (v) => m.t + (1 - Math.max(0, v) / mx) * (Hh - m.t - m.b);
-    let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Ventas y EBITDA por año"><g class="grid">`;
-    [0, 0.25, 0.5, 0.75, 1].forEach((k) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(mx * k)}" y2="${y(mx * k)}"/><text x="${m.l - 6}" y="${y(mx * k) + 3}" text-anchor="end">${F.eur(mx * k)}</text>`; });
-    svg += '</g>';
-    all.forEach((a, i) => {
-      const x = m.l + i * bw;
-      svg += `<rect x="${x + bw * 0.12}" y="${y(a.v)}" width="${bw * 0.42}" height="${Hh - m.b - y(a.v)}" rx="3" fill="${css('--s1')}" opacity="${a.p ? 0.4 : 0.9}"/>`;
-      svg += `<rect x="${x + bw * 0.56}" y="${y(a.e)}" width="${bw * 0.3}" height="${Math.max(1, Hh - m.b - y(a.e))}" rx="3" fill="${css('--gold')}" opacity="${a.p ? 0.4 : 0.95}"/>`;
-      svg += `<text x="${x + bw / 2}" y="${Hh - 8}" text-anchor="middle">${a.anio}</text>`;
-    });
-    $('#finChart').innerHTML = svg + `</svg><div class="chart-legend small"><span><i style="background:${css('--s1')}"></i> ventas</span><span><i style="background:${css('--gold')}"></i> EBITDA</span></div>`;
+    renderFinEvo();
     renderMoneyFlow();
+  }
+  /* Evolución y proyección: tantos años como cuentas haya cargadas, con la magnitud, el horizonte y el
+     crecimiento proyectado que elija el usuario. Pasar el cursor da el detalle; pulsar un año abre su flujo del dinero */
+  const finView = { metric: 'ventas', horiz: null, crec: null };
+  const FIN_METRICS = {
+    ventas: { n: 'Ventas y EBITDA', u: '€', series: [{ k: 'ventas', n: 'Ventas', c: '--s1', t: 'bar', p: true }, { k: 'ebitda', n: 'EBITDA', c: '--gold', t: 'bar', p: true }] },
+    margenes: { n: 'Márgenes', u: '%', series: [{ k: 'margenPct', n: 'Margen bruto', c: '--s1', t: 'line', p: true }, { k: 'ebitdaPct', n: 'EBITDA sobre ventas', c: '--gold', t: 'line', p: true }, { k: 'pesoSalarial', n: 'Peso salarial', c: '--s2', t: 'line', p: true }] },
+    beneficio: { n: 'Beneficio y autofinanciación', u: '€', series: [{ k: 'bn', n: 'Beneficio neto', c: '--s3', t: 'bar' }, { k: 'autofinanciacion', n: 'Autofinanciación', c: '--s1', t: 'bar' }] },
+    deuda: { n: 'Deuda y fondo de maniobra', u: '€', series: [{ k: 'dfn', n: 'Deuda neta', c: '--s2', t: 'bar' }, { k: 'fondoManiobra', n: 'Fondo de maniobra', c: '--s1', t: 'bar' }] },
+    ciclo: { n: 'Días de cobro, stock y pago', u: 'días', series: [{ k: 'dso', n: 'Cobro', c: '--s2', t: 'line', p: true }, { k: 'dio', n: 'Stock', c: '--s4', t: 'line' }, { k: 'dpo', n: 'Pago', c: '--s3', t: 'line' }] },
+    personas: { n: 'Productividad', u: '€', series: [{ k: 'ventasPersona', n: 'Ventas por persona', c: '--s5', t: 'bar' }] }
+  };
+  function renderFinEvo() {
+    const host = $('#finEvo'); if (!host) return;
+    const an = A.fin.analyze(state.historico, { crec: finView.crec });
+    if (!an) { host.innerHTML = ''; return; }
+    const R = an.rows, nR = R.length, M = FIN_METRICS[finView.metric];
+    const conProj = M.series.some((x) => x.p);
+    const horiz = conProj ? (finView.horiz != null ? finView.horiz : Math.min(3, nR)) : 0;
+    const cols = R.map((r) => ({ anio: r.anio, d: r, p: false })).concat(an.proj.slice(0, horiz).map((p) => ({ anio: p.anio, d: p, p: true })));
+    const fmt = M.u === '€' ? F.eur : M.u === '%' ? (v) => F.pct(v) : (v) => Math.round(v) + ' d';
+    const val = (c, sr) => { const v = c.d[sr.k]; return c.p && !sr.p ? null : v == null || !isFinite(v) ? null : v; };
+    const vals = cols.flatMap((c) => M.series.map((sr) => val(c, sr))).filter((v) => v != null);
+    const W = 560, Hh = 250, m = { l: 62, r: 12, t: 22, b: 30 };
+    let mn = Math.min(0, ...vals), mx = Math.max(0, ...vals); if (mx === mn) mx = mn + 1; mx += (mx - mn) * 0.1;
+    const y = (v) => m.t + (1 - (v - mn) / (mx - mn)) * (Hh - m.t - m.b);
+    const cw = (W - m.l - m.r) / Math.max(1, cols.length), bars = M.series.filter((x) => x.t === 'bar'), bw = (cw * 0.72) / Math.max(1, bars.length);
+    const cx = (i) => m.l + i * cw + cw / 2;
+    let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${M.n} por año"><g class="grid">`;
+    [0, 0.25, 0.5, 0.75, 1].forEach((k) => { const v = mn + (mx - mn) * k; svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 6}" y="${y(v) + 3}" text-anchor="end">${fmt(v)}</text>`; });
+    svg += '</g>';
+    if (horiz) svg += `<rect x="${m.l + nR * cw}" y="${m.t - 16}" width="${horiz * cw}" height="${Hh - m.b - m.t + 16}" fill="${css('--gold')}" opacity="0.05"/><text x="${m.l + nR * cw + 6}" y="${m.t - 5}" style="fill:${css('--gold-soft')}">proyección</text>`;
+    if (mn < 0) svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" stroke="${css('--line-strong')}"/>`;
+    const etiquetas = cols.length <= 7;
+    cols.forEach((c, i) => {
+      bars.forEach((sr, j) => {
+        const v = val(c, sr); if (v == null) return;
+        const x0 = m.l + i * cw + cw * 0.14 + j * bw, top = y(Math.max(0, v)), bot = y(Math.min(0, v));
+        svg += `<rect x="${x0}" y="${top}" width="${Math.max(2, bw - 3)}" height="${Math.max(1, bot - top)}" rx="3" fill="${css(sr.c)}" opacity="${c.p ? 0.4 : 0.92}" ${c.p ? `stroke="${css(sr.c)}" stroke-dasharray="3 2"` : ''}/>`;
+        if (etiquetas) svg += `<text x="${x0 + (bw - 3) / 2}" y="${v >= 0 ? top - 4 : bot + 11}" text-anchor="middle" style="font-size:9px;fill:${css('--fg')}">${fmt(v)}</text>`;
+      });
+      svg += `<text x="${cx(i)}" y="${Hh - 10}" text-anchor="middle" style="${c.p ? `fill:${css('--gold-soft')}` : ''}">${c.anio}${c.p ? '*' : ''}</text>`;
+    });
+    M.series.filter((x) => x.t === 'line').forEach((sr) => {
+      const pts = cols.map((c, i) => ({ i, v: val(c, sr), p: c.p })).filter((q) => q.v != null);
+      const real = pts.filter((q) => !q.p), proj = pts.filter((q, k) => q.p || (k + 1 < pts.length && pts[k + 1].p));
+      const pl = (a) => a.map((q) => `${cx(q.i)},${y(q.v)}`).join(' ');
+      if (real.length > 1) svg += `<polyline points="${pl(real)}" fill="none" stroke="${css(sr.c)}" stroke-width="2.4"/>`;
+      if (proj.length > 1) svg += `<polyline points="${pl(proj)}" fill="none" stroke="${css(sr.c)}" stroke-width="2" stroke-dasharray="5 4" opacity="0.8"/>`;
+      pts.forEach((q) => { svg += `<circle cx="${cx(q.i)}" cy="${y(q.v)}" r="4" fill="${css(sr.c)}" opacity="${q.p ? 0.55 : 1}"/>${etiquetas ? `<text x="${cx(q.i)}" y="${y(q.v) - 8}" text-anchor="middle" style="font-size:9px;fill:${css('--fg')}">${fmt(q.v)}</text>` : ''}`; });
+    });
+    cols.forEach((c, i) => { svg += `<rect class="fy" data-i="${i}" x="${m.l + i * cw}" y="${m.t - 16}" width="${cw}" height="${Hh - m.b - m.t + 16}" fill="transparent" style="cursor:${c.p ? 'default' : 'pointer'}"/>`; });
+    svg += '</svg>';
+    // Lectura automática: cómo se ha movido cada serie entre el primer y el último año real
+    const lect = M.series.map((sr) => {
+      const a = R[0][sr.k], b = R[nR - 1][sr.k];
+      if (nR < 2 || a == null || b == null || !isFinite(a) || !isFinite(b)) return null;
+      const d = M.u === '€' ? (a ? `${b >= a ? '+' : ''}${F.pct((b / Math.abs(a) - 1) * 100)}` : '') : `${b >= a ? '+' : ''}${M.u === '%' ? F.pp(b - a) : Math.round(b - a) + ' días'}`;
+      return `<b>${sr.n}</b>: ${fmt(a)} en ${R[0].anio} → ${fmt(b)} en ${R[nR - 1].anio} (${d})`;
+    }).filter(Boolean);
+    host.innerHTML = `<div class="row"><h4>Evolución${horiz ? ` y proyección a ${horiz} año${horiz > 1 ? 's' : ''}` : ''}</h4><span class="spacer"></span><select class="input" id="feMetric" style="max-width:240px">${Object.keys(FIN_METRICS).map((k) => `<option value="${k}" ${k === finView.metric ? 'selected' : ''}>${FIN_METRICS[k].n}</option>`).join('')}</select></div>
+      <p class="small muted" style="margin:0">${nR} año${nR > 1 ? 's' : ''} con cuentas (${R.map((r) => r.anio).join(', ')})${nR < 2 ? '. Con un segundo año verás la evolución.' : ''}. Pasa el cursor por un año para el detalle; púlsalo para ver a dónde fue su dinero.</p>
+      <div class="chart" id="finChart">${svg}</div>
+      <div class="chart-legend small">${M.series.map((sr) => `<span><i style="background:${css(sr.c)}"></i>${sr.n}</span>`).join('')}${horiz ? '<span class="muted">* proyección (más clara y discontinua)</span>' : ''}</div>
+      ${lect.length ? `<p class="small" style="margin:0">${lect.join(' · ')}.</p>` : ''}
+      ${conProj ? `<div class="fe-ctl small"><label>Años de proyección <select class="input" id="feHoriz">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${k === horiz ? 'selected' : ''}>${k ? k : 'sin proyección'}</option>`).join('')}</select></label>
+        <label>Crecimiento proyectado <b id="feCrecV">${F.pct(an.crecProj)}</b>/año<input type="range" id="feCrec" min="-15" max="30" step="0.5" value="${Math.round(an.crecProj * 2) / 2}"></label>
+        ${finView.crec != null ? '<button class="btn ghost small" id="feCrecReset">Volver al histórico</button>' : ''}</div>
+        <p class="small muted" style="margin:0">Proyección: ventas al ${F.pct(an.crecProj)} anual (${finView.crec != null ? 'fijado por ti; ' : ''}el histórico es ${nR > 1 ? F.pct(an.cagr) : 'desconocido con un solo año'}) y márgenes con la mitad de su tendencia.</p>` : '<p class="small muted" style="margin:0">Esta magnitud no se proyecta: se muestran solo los años reales.</p>'}`;
+    $('#feMetric', host).onchange = (e) => { finView.metric = e.target.value; renderFinEvo(); };
+    const fh = $('#feHoriz', host); if (fh) fh.onchange = (e) => { finView.horiz = +e.target.value; renderFinEvo(); };
+    const fc = $('#feCrec', host);
+    if (fc) { fc.oninput = () => { $('#feCrecV', host).textContent = F.pct(+fc.value); }; fc.onchange = () => { finView.crec = +fc.value; renderFinEvo(); }; }
+    const fr = $('#feCrecReset', host); if (fr) fr.onclick = () => { finView.crec = null; renderFinEvo(); };
+    $$('#finChart .fy', host).forEach((b) => {
+      const c = cols[+b.dataset.i], i = +b.dataset.i, prev = i > 0 ? cols[i - 1] : null;
+      b.addEventListener('pointermove', (ev) => C.tip(`<h5>${c.anio}${c.p ? ' · proyección' : ''}</h5><dl>${M.series.map((sr) => { const v = val(c, sr); if (v == null) return ''; const pv = prev ? val(prev, sr) : null; const dd = pv != null && M.u === '€' && pv ? ` <small>(${v >= pv ? '+' : ''}${F.pct((v / Math.abs(pv) - 1) * 100)})</small>` : ''; return `<dt>${sr.n}</dt><dd>${fmt(v)}${dd}</dd>`; }).join('')}</dl>`, ev.clientX, ev.clientY));
+      b.addEventListener('pointerleave', C.hideTip);
+      if (!c.p) b.addEventListener('click', () => { C.hideTip(); if (i >= 1) { mfIdx = i; renderMoneyFlow(); } const mf = $('#moneyFlow'); if (mf) mf.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    });
   }
   let mfIdx = null;
   function renderMoneyFlow() {

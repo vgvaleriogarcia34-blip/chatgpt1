@@ -673,3 +673,7 @@ body.con-lineas .field[data-p="inversion.vidaUtil"] { display: none; }
 .target-tile .ref { font-size: var(--t-xs); color: var(--muted); margin-top: 6px; line-height: 1.4; }
 .pe-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 820px) { .pe-grid { grid-template-columns: 1fr; } }
+.fe-ctl { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.fe-ctl label { display: flex; gap: 8px; align-items: center; }
+.fe-ctl select { padding: 4px 8px; }
+.fe-ctl b { font-family: var(--font-data); color: var(--gold-soft); }
