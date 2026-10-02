@@ -77,3 +77,5 @@ body.paso-emp { overflow-y: auto; }
 .pt-empbar { position: fixed; z-index: 7; top: 74px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 16px; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(11, 18, 38, 0.82); backdrop-filter: blur(8px); max-width: calc(100vw - 24px); white-space: nowrap; overflow: hidden; }
 .pt-empbar b { font-family: var(--font-display); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 640px) { .pt-empbar > span:nth-of-type(2) { display: none; } .pt-empbar { top: 64px; } }
+.pt-lock { opacity: 0.6; }
+.pt-lock b::after { content: ' · Profesional'; font-size: 0.7em; color: var(--gold-soft); font-weight: 400; }

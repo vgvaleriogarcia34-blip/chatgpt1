@@ -52,6 +52,8 @@
     // Pendientes
     const pend = [];
     users.filter((u) => u.solicitudReset).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> ha olvidado su contraseña (${fdate(u.solicitudReset)}). <button class="btn ghost" data-pwset="${u.id}" style="padding:3px 8px;font-size:.75rem">Cambiar contraseña</button> <button class="btn ghost" data-reset="${u.id}" style="padding:3px 8px;font-size:.75rem">Generar enlace</button></li>`));
+    // Cambios de plan hechos por el cliente en el último mes (para ajustar la cuota en el siguiente cobro)
+    users.forEach((u) => (u.cambiosPlan || []).filter((c) => Date.now() - new Date(c.fecha).getTime() < 31 * 864e5).forEach((c) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> cambió de ${esc((P.PLANES[c.de] || {}).nombre || c.de)} a ${esc((P.PLANES[c.a] || {}).nombre || c.a)} el ${fdate(c.fecha)}${u.pagado ? ': ajusta la cuota en el siguiente cobro' : ' (en prueba)'}.</li>`)));
     users.filter((u) => u.solicitudPago && !u.pagado).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> pidió activar el plan ${esc((P.PLANES[u.plan] || {}).nombre || u.plan)} el ${fdate(u.solicitudPago)}.</li>`));
     est.filter((x) => x.e.k === 'prueba' && P.accessOf(x.u).diasPrueba <= 3).forEach((x) => pend.push(`<li>La prueba de <b>${esc(x.u.nombre || x.u.email)}</b> termina en ${P.accessOf(x.u).diasPrueba} días.</li>`));
     users.filter((u) => u.pagado && u.venceAcceso && new Date(u.venceAcceso).getTime() - now < 7 * 864e5 && new Date(u.venceAcceso).getTime() > now).forEach((u) => pend.push(`<li>El plan de <b>${esc(u.nombre || u.email)}</b> vence el ${fdate(u.venceAcceso)}.</li>`));

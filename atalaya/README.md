@@ -116,6 +116,7 @@ atalaya/
 ├── PLAN-GRUPOS.md      plan Grupos, precios por tramos, pago anual y lo construido
 ├── PUESTA-EN-MARCHA.md comprobaciones al subir al servidor y opciones de cobro
 ├── AUDITORIA-MODULOS.md hoja de ruta de diagnóstico: auditoría de consultor de cada módulo, hecho y aprobado
+├── ECOSISTEMA.md       coherencia de los planes: qué da cada uno, recorrido y cambio de plan
 ├── PLAN-MONETIZACION.md propuesta de packs de diagnóstico y crecimiento de ingresos
 └── server/             server.mjs · package.json
 ```

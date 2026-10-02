@@ -245,7 +245,13 @@ route('POST', /^\/api\/logout$/, async (req, res) => {
 route('GET', /^\/api\/me$/, async (req, res, body, u) => ({ user: pub(u) }), { noAccess: true });
 route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
   ['nombre', 'empresa', 'telefono'].forEach((k) => { if (typeof body[k] === 'string') u[k] = body[k].slice(0, 160); });
-  if (PLANES.includes(body.plan)) u.plan = body.plan;
+  if (PLANES.includes(body.plan) && body.plan !== u.plan) {
+    // Bajar a un plan con menos empresas exige borrar antes las que sobran
+    const lim = LIMITE_EMPRESAS[body.plan];
+    if (nEmpresas(u) > lim) throw Object.assign(new Error(`Tienes ${nEmpresas(u)} empresas y ese plan admite ${lim}. Borra antes las que sobran.`), { code: 400 });
+    (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: body.plan, fecha: now() });
+    u.plan = body.plan;
+  }
   if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
   save(); return { user: pub(u) };
 }, { noAccess: true });

@@ -22,7 +22,7 @@
   const PLANES = {
     esencial: { nombre: 'Esencial', precio: 49, periodo: 'mes', empresas: 1, para: 'Para estudiar una inversión', incluye: ['Simulador de inversión y crecimiento', 'Horizonte 3D y cinco escenarios', 'Semáforos con horquillas y plan de corrección', 'Informe de decisión', '1 empresa'] },
     profesional: { nombre: 'Profesional', precio: 129, periodo: 'mes', empresas: 1, destacado: true, para: 'Para diagnosticar tu empresa y decidir', incluye: ['Todo lo de Esencial', 'Sistema estratégico completo: 21 módulos, zona de origen de datos e informes 360', 'Análisis de cuentas de varios años', 'Asistente con voz', '1 empresa'] },
-    consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Hasta 15 empresas cliente, cada una por separado', 'Vista de cartera de clientes', 'Gestor de usuarios para tu equipo', 'Acompañamiento en la puesta en marcha'] },
+    consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
     grupos: { nombre: 'Grupos', precio: 690, periodo: 'mes', empresas: Infinity, grupo: true, para: 'Para holdings y grupos familiares', tramos: [{ hasta: 5, precio: 690, n: 'De 1 a 5 sociedades' }, { hasta: 10, precio: 970, n: 'De 6 a 10 sociedades' }, { hasta: Infinity, precio: 1790, n: 'Más de 10 sociedades' }], incluye: ['Todo lo de Profesional', 'Todas las sociedades del grupo, cada una con sus datos', 'Vista de grupo: consolidado, comparativa entre sociedades y operaciones intragrupo', 'Objetivos de la holding en cascada a cada sociedad', 'Informe del grupo'] }
   };
   const DTO_ANUAL = 0.30;
@@ -127,7 +127,9 @@
     await P.ready;
     if (P.mode === 'server') { const r = await api('/me', { method: 'PATCH', body: JSON.stringify(patch) }); P.user = r.user; return r.user; }
     const users = L.users(); const u = users.find((x) => x.id === (L.session() || {}).id); if (!u) return null;
-    ['nombre', 'empresa', 'telefono', 'plan'].forEach((k) => { if (patch[k] !== undefined) u[k] = patch[k]; });
+    ['nombre', 'empresa', 'telefono'].forEach((k) => { if (patch[k] !== undefined) u[k] = patch[k]; });
+    if (patch.plan && PLANES[patch.plan] && patch.plan !== u.plan) { (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: patch.plan, fecha: new Date().toISOString() }); u.plan = patch.plan; }
+    if (patch.periodo === 'mensual' || patch.periodo === 'anual') u.periodo = patch.periodo;
     L.save(users); P.user = publicUser(u); return P.user;
   };
 
@@ -340,6 +342,78 @@
   };
 
   /* ---------- Cabecera de cuenta ---------- */
+  /* ---------- Qué incluye cada plan y cambio de plan ----------
+     Una sola fuente para toda la aplicación: qué mundos abre cada plan, cuántas empresas admite y qué vista
+     de conjunto tiene. El cambio de plan se hace dentro de la aplicación (no desde la página comercial):
+     en la prueba es libre y al momento; con el acceso activado también es inmediato y la diferencia de cuota
+     se ajusta en el siguiente cobro. Para bajar a un plan con menos empresas, antes hay que borrar las que sobran. */
+  P.puede = (f, u) => {
+    u = u || P.user; const k = (u && u.plan) || 'profesional', pl = PLANES[k] || PLANES.profesional;
+    if (f === 'estrategia') return k !== 'esencial';
+    if (f === 'varias') return pl.empresas > 1;
+    if (f === 'grupo') return !!pl.grupo;
+    if (f === 'cartera') return k === 'consultora';
+    return true;
+  };
+  P.PLAN_RESUMEN = {
+    esencial: { mundos: 'Simulador de inversión', empresas: '1 empresa', vista: '—' },
+    profesional: { mundos: 'Simulador y sistema estratégico', empresas: '1 empresa', vista: '—' },
+    consultora: { mundos: 'Simulador y sistema estratégico', empresas: 'Hasta 15 empresas cliente', vista: 'Cartera de clientes' },
+    grupos: { mundos: 'Simulador y sistema estratégico', empresas: 'Sociedades sin límite', vista: 'Vista de grupo con consolidado' }
+  };
+  P.cambiarPlan = async function (plan, periodo) {
+    if (!PLANES[plan]) throw new Error('Plan no válido');
+    await P.empresas.cargar();
+    const n = P.empresas.lista().length, lim = PLANES[plan].empresas;
+    if (n > lim) throw new Error(`Tienes ${n} empresas dadas de alta y ${PLANES[plan].nombre} admite ${lim}. Borra antes las que no necesites (desde el mapa de empresas) y vuelve a intentarlo.`);
+    const antes = P.user && P.user.plan;
+    const u = await P.updateMe({ plan, periodo: periodo || (P.user && P.user.periodo) || 'mensual' });
+    // La principal pasa a holding o a cliente según el nuevo plan, para que el mapa tenga sentido
+    if (PLANES[plan].grupo !== (PLANES[antes] || {}).grupo) { const pr = P.empresas.lista().find((e) => e.id === 'principal'); if (pr && !pr.rolFijado) { pr.rol = PLANES[plan].grupo ? 'holding' : (plan === 'consultora' ? 'cliente' : 'holding'); try { await P.empresas.guardar(); } catch (x) { /* se corrige en el mapa */ } } }
+    return u;
+  };
+  P.panelPlanes = function (opts) {
+    opts = opts || {};
+    const u = P.user; if (!u) return;
+    const acc = P.accessOf(u); let periodo = u.periodo || 'mensual';
+    const n = P.empresas.lista().length || 1;
+    const back = document.createElement('div'); back.className = 'ef-back';
+    const draw = () => {
+      back.innerHTML = `<div class="ef-card pl-card glass" role="dialog" aria-modal="true" aria-label="Mi plan">
+        <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
+        <div class="eyebrow">Mi plan</div>
+        <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.6rem">Ahora tienes <em>${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan}</em></h3>
+        <p class="small muted" style="margin:0">${acc.motivo === 'prueba' ? `Estás en la prueba gratuita (quedan ${acc.diasPrueba} días). Puedes cambiar de plan cuando quieras sin coste: la prueba sigue contando desde tu alta.` : acc.motivo === 'pagado' ? 'Tu acceso está activado. El cambio se aplica al momento y la diferencia de cuota se ajusta en tu siguiente cobro; te lo confirmaremos por correo.' : 'Elige el plan que quieres activar.'}${opts.motivo ? `<br><b style="color:var(--gold-soft)">${opts.motivo}</b>` : ''}</p>
+        <div class="seg" style="margin:0;justify-self:start"><button data-per="mensual" aria-pressed="${periodo === 'mensual'}">Pago mensual</button><button data-per="anual" aria-pressed="${periodo === 'anual'}">Pago anual · −30 %</button></div>
+        <div class="pl-grid">${Object.keys(PLANES).map((k) => {
+          const pl = PLANES[k], pr = P.precio(k, periodo, k === 'grupos' ? Math.max(1, n) : 1), r = P.PLAN_RESUMEN[k], cur = k === u.plan;
+          const bloq = n > pl.empresas;
+          return `<div class="pl-it ${cur ? 'on' : ''} ${opts.destacar === k ? 'dest' : ''}">
+            <div class="row"><b>${pl.nombre}</b>${cur ? '<span class="em-act">tu plan</span>' : ''}</div>
+            <div class="pl-precio">${pl.tramos ? '<small>desde </small>' : ''}${P.eur(pr.mes)}<small>/mes</small></div>
+            <div class="small muted">${pl.para || ''}</div>
+            <ul class="small"><li>${r.mundos}</li><li>${r.empresas}</li>${r.vista !== '—' ? `<li>${r.vista}</li>` : ''}</ul>
+            ${cur ? '<button class="btn ghost small" disabled>Es tu plan</button>' : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas: borra las que sobran para pasar a este plan.</p>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
+          </div>`;
+        }).join('')}</div>
+        <p class="small" data-msg style="margin:0"></p>
+        <p class="small muted" style="margin:0">Los datos de cada empresa se conservan siempre al cambiar de plan.</p>
+      </div>`;
+      back.querySelector('.ef-x').onclick = () => back.remove();
+      back.querySelectorAll('[data-per]').forEach((b) => b.onclick = () => { periodo = b.dataset.per; draw(); });
+      back.querySelectorAll('[data-plan]').forEach((b) => b.onclick = async () => {
+        const k = b.dataset.plan, msg = back.querySelector('[data-msg]');
+        try { await P.cambiarPlan(k, periodo); msg.style.color = 'var(--go)'; msg.textContent = `Hecho: ahora tienes ${PLANES[k].nombre}.`; setTimeout(() => { if (opts.onCambio) opts.onCambio(k); else location.reload(); }, 700); }
+        catch (x) { msg.style.color = 'var(--stop)'; msg.textContent = x.message; }
+      });
+    };
+    draw();
+    back.addEventListener('click', (ev) => { if (ev.target === back) back.remove(); });
+    const esc = (ev) => { if (ev.key === 'Escape') { back.remove(); removeEventListener('keydown', esc); } };
+    addEventListener('keydown', esc);
+    document.body.appendChild(back);
+  };
+
   /* ---------- Ficha y mapa de empresas ----------
      Cada empresa de la cuenta tiene una ficha (forma jurídica, CIF, año de constitución, sector, actividad,
      provincia, plantilla, socios y su porcentaje y, en un grupo, de qué sociedad depende y con qué participación).
@@ -444,7 +518,8 @@
     const titulo = grupo ? 'Mapa del grupo' : lim > 1 ? 'Tus empresas cliente' : 'Tu empresa';
     const lede = grupo ? 'Cada sociedad con su ficha: la holding arriba y sus filiales debajo, con el porcentaje que tiene. Elige con cuál quieres trabajar.' : lim > 1 ? 'Cada empresa cliente con su ficha y sus datos separados. Elige con cuál quieres trabajar o da de alta una nueva.' : 'Revisa la ficha de tu empresa: el nombre, la forma jurídica, el año de constitución y los socios aparecen en todo Atalaya y en los informes.';
     host.innerHTML = `<div class="em-head"><div><div class="eyebrow">${opts.paso ? 'Paso 1 · ' : ''}${titulo}</div><p class="small muted" style="margin:4px 0 0">${lede}</p></div>${opts.cerrar ? '<button class="btn ghost small" data-cerrar>Ir a los mundos →</button>' : ''}</div>${cuerpo}
-      ${lim === 1 ? '<p class="small muted" style="margin:0">¿Trabajas con varias empresas? <a href="index.html#planes">Consultora</a> (empresas cliente) o <a href="index.html#planes">Grupos</a> (holding y filiales).</p>' : ''}`;
+      ${lim === 1 ? '<div class="row small" style="margin:0"><span class="muted">¿Trabajas con varias empresas?</span><button class="btn ghost small" data-planes="consultora">Pasar a Consultora (empresas cliente)</button><button class="btn ghost small" data-planes="grupos">Pasar a Grupos (holding y filiales)</button></div>' : ''}`;
+    host.querySelectorAll('[data-planes]').forEach((b) => b.onclick = () => P.panelPlanes({ destacar: b.dataset.planes, motivo: 'Al cambiar, el mapa te dejará dar de alta más empresas al momento.' }));
     const redraw = () => P.mapaEmpresas(host, opts);
     host.querySelectorAll('[data-enter]').forEach((b) => b.onclick = () => { const id = b.dataset.enter; if (opts.onEnter) opts.onEnter(id); else P.empresas.cambiar(id); });
     host.querySelectorAll('[data-ficha]').forEach((b) => b.onclick = async () => { const r = await P.fichaEmpresa(lista.find((x) => x.id === b.dataset.ficha)); if (r) redraw(); });
@@ -461,7 +536,7 @@
     el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${u.email}"><span>${ini}</span></button>
       <div class="acc-menu glass" hidden>
         <div class="acc-head"><b>${(u.nombre || u.email).replace(/</g, '&lt;')}</b><small>${u.email}</small><small>Plan ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="portal.html">Inicio · elegir herramienta</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a>${P.limiteEmpresas(u) === 1 ? '<a href="index.html#planes">¿Varias empresas o un grupo? Ver planes</a>' : ''}<button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <a href="portal.html">Inicio · elegir herramienta</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-planes>Mi plan: ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
@@ -500,6 +575,7 @@
     b.onclick = (e) => { e.stopPropagation(); m.hidden = !m.hidden; b.setAttribute('aria-expanded', !m.hidden); };
     document.addEventListener('click', (e) => { if (!el.contains(e.target)) m.hidden = true; });
     el.querySelector('[data-logout]').onclick = P.logout;
+    el.querySelector('[data-planes]').onclick = () => { m.hidden = true; P.panelPlanes(); };
     const pf = el.querySelector('[data-pwform]');
     el.querySelector('[data-pw]').onclick = (e) => { e.stopPropagation(); pf.hidden = !pf.hidden; };
     pf.onsubmit = async (e) => {

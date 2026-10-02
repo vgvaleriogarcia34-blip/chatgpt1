@@ -717,3 +717,14 @@ body.con-lineas .field[data-p="inversion.vidaUtil"] { display: none; }
 .em-hijos { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; border-top: 1px solid var(--line-strong); padding-top: 18px; width: fit-content; max-width: 100%; }
 .em-hijos .em-card { width: min(260px, 100%); position: relative; }
 .em-hijos .em-card::before { content: ''; position: absolute; left: 50%; top: -19px; height: 18px; border-left: 1px solid var(--line-strong); }
+
+/* Mi plan */
+.pl-card { width: min(980px, 100%); }
+.pl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.pl-it { display: grid; gap: 6px; align-content: start; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+.pl-it.on { border-color: var(--gold); }
+.pl-it.dest { box-shadow: 0 0 0 2px var(--gold); }
+.pl-it ul { margin: 0; padding-left: 16px; }
+.pl-precio { font-family: var(--font-data); font-size: 1.4rem; }
+.pl-precio small { font-size: 0.7rem; color: var(--muted); margin-left: 3px; }
+.acc-menu button[data-planes] { color: var(--gold-soft); }

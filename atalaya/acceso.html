@@ -68,6 +68,7 @@
       <h1>Activa <em>tu plan</em></h1>
       <p id="payTxt"></p>
       <button class="btn solid" id="payReq">Solicitar la activación</button>
+      <button class="btn" id="payPlan">Cambiar de plan antes de activar</button>
       <p class="small muted" id="payMsg"></p>
       <button class="btn ghost" id="payOut">Cerrar sesión</button>
     </div>
@@ -116,7 +117,8 @@
     if (resetToken) return;
     const u = await P.me();
     const acc = P.accessOf(u);
-    if (u && acc.ok) { location.href = 'portal.html'; return; }
+    // Con la sesión abierta, «Probar» un plan desde la página comercial lleva a cambiar de plan dentro de la aplicación
+    if (u && acc.ok) { const quiere = (h.match(/^alta-(esencial|profesional|consultora|grupos)/) || [])[1]; location.href = 'portal.html' + (quiere && quiere !== u.plan ? '#plan-' + quiere : ''); return; }
     if (u && !acc.ok) payScreen(u, acc.motivo);
     else if (h === 'pago' || h === 'bloqueado') $('#notice').insertAdjacentHTML('beforeend', '<div class="alert warn">Entra con tu cuenta para continuar.</div>');
   });
@@ -137,6 +139,7 @@
       } catch (e) { $('#payMsg').textContent = e.message; }
     };
     $('#payOut').onclick = P.logout;
+    const pc = $('#payPlan'); if (pc) pc.onclick = () => P.panelPlanes({ onCambio: async () => { const u2 = await P.me(); document.querySelectorAll('.ef-back').forEach((x) => x.remove()); payScreen(u2, motivo); } });
   }
 
   $('#fForgot').onsubmit = async (e) => {

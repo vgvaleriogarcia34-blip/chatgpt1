@@ -309,6 +309,13 @@
     if (P) {
       const ok = await P.guard(); if (!ok) return;
       P.mountAccount($('#account'));
+      // Plan Esencial: solo simulador. El sistema estratégico se explica y se ofrece, sin abrirlo
+      if (P.puede && !P.puede('estrategia')) {
+        $('#stTabs').innerHTML = '';
+        $('#stPanel').innerHTML = `<div class="glass pad stack" style="max-width:720px;margin:40px auto"><div class="eyebrow">Sistema estratégico</div><h2>Incluido desde el plan <em>Profesional</em></h2><p>Tu plan Esencial incluye el simulador de inversión. El sistema estratégico añade 21 módulos de diagnóstico (cuadro de mando, flujo del dinero, cobros, márgenes, compras, personas, valoración, evolución…), la zona de origen de datos y los informes 360.</p><div class="row"><button class="btn solid" id="stPlanes">Cambiar de plan</button><a class="btn" href="app.html">Ir al simulador</a></div></div>`;
+        $('#stPlanes').onclick = () => P.panelPlanes({ destacar: 'profesional' });
+        return;
+      }
       const remoteSim = await P.loadData('simulador'); if (remoteSim && remoteSim.empresa) S.sim = remoteSim;
     }
     if (!S.sim || !S.sim.empresa) { S.sim = A.defaultState(); const ea = P && P.empresas && P.empresas.activa(); if (ea) S.sim.empresaNombre = ea.nombre; }

@@ -15,6 +15,8 @@
   let entering = false;
   function enter(w) {
     if (entering || !DEST[w]) return;
+    // Esencial incluye solo el simulador: el sistema estratégico se ofrece, no se abre
+    if (w === 'est' && P.user && !P.puede('estrategia')) { P.panelPlanes({ destacar: 'profesional', motivo: 'El sistema estratégico está incluido desde el plan Profesional. Tu plan Esencial incluye el simulador de inversión.' }); return; }
     entering = true;
     LS.set('atalaya.ultimo', w);
     if (scene && !reduce) { flyTo(w); setTimeout(() => $('#warp').classList.add('on'), 650); setTimeout(() => { location.href = DEST[w]; }, 1350); }
@@ -48,6 +50,11 @@
       b.querySelector('[data-cambiar]').onclick = abrirPaso;
     }
     addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); if (!$('#empPaso').hidden) return; pintarBarra(); });
+    // Esencial: el mundo del sistema estratégico se ve, pero marcado como incluido desde Profesional
+    if (!P.puede('estrategia')) $$('[data-w="est"]').forEach((x) => { x.classList.add('pt-lock'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido desde el plan Profesional · toca para ver los planes'; });
+    // Desde la página comercial con la sesión abierta: abrir el cambio de plan con el elegido
+    const hp = (location.hash.match(/^#plan-(esencial|profesional|consultora|grupos)/) || [])[1];
+    if (hp) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } setTimeout(() => P.panelPlanes({ destacar: hp, motivo: hp !== P.user.plan ? `Has elegido ${P.PLANES[hp].nombre}. Cámbialo aquí: se aplica al momento y conservas todos tus datos.` : '' }), 300); }
     if (location.hash === '#empresas' || (multi && !SS.get('atalaya.emp.elegida')) || (!multi && P.fichaCompleta(act) < 40 && !SS.get('atalaya.emp.elegida'))) abrirPaso(); else pintarBarra();
     const n = (P.user && (P.user.nombre || '').split(/\s+/)[0]) || '';
     if (n) $('#hello').textContent = 'Hola, ' + n;

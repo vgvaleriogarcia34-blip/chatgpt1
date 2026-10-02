@@ -157,6 +157,8 @@
   // Precio mensual o anual (−30 %); Grupos, por tramos de sociedades
   let periodo = 'mensual';
   const drawPlans = () => {
+    // Con la sesión abierta, los botones de los planes llevan a cambiar de plan dentro de la aplicación
+    const conSesion = (() => { try { const ss = JSON.parse(localStorage.getItem('atalaya.session')); const us = JSON.parse(localStorage.getItem('atalaya.users') || '[]'); const x = ss && us.find((y) => y.id === ss.id); return x ? x.plan : (A.platform.user && A.platform.user.plan) || null; } catch (e) { return null; } })();
     $('#plans').innerHTML = Object.keys(P).map((k) => {
       const p = P[k], pr = A.platform.precio(k, periodo, 1);
       return `<article class="glass plan tilt ${p.destacado ? 'top' : ''} ${p.grupo ? 'grp' : ''}" data-tilt>
@@ -166,7 +168,7 @@
         <p class="small plan-bill">${periodo === 'anual' ? `${A.platform.eur(pr.total)} al año · ahorras ${A.platform.eur(pr.ahorro)}` : '&nbsp;'}</p>
         ${p.tramos ? `<ul class="tramos">${p.tramos.map((t) => `<li><span>${t.n}</span><b>${A.platform.eur(A.platform.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta).mes)}</b></li>`).join('')}</ul>` : ''}
         <ul>${p.incluye.map((x) => `<li>${x}</li>`).join('')}</ul>
-        <a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">Probar ${p.nombre}</a></article>`;
+        <a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">${conSesion ? (conSesion === k ? 'Es tu plan · entrar' : `Cambiar a ${p.nombre}`) : `Probar ${p.nombre}`}</a></article>`;
     }).join('');
     $$('#perSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
   };
