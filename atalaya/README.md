@@ -6,7 +6,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 
 | Página | Para qué |
 |---|---|
-| `index.html` | Página comercial: propuesta, demo en vivo con el motor real, planes y preguntas. |
+| `index.html` | Página comercial: propuesta, el ecosistema en 3D (los dos mundos y el abanico de pantallas de cada uno), demo en vivo con el motor real, planes y preguntas. |
 | `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
 | `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con dos mundos (simulador de inversión y sistema estratégico) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
@@ -31,6 +31,8 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 - Plan de corrección hacia la posición meta e informe de decisión.
 
 ## Sistema estratégico (`estrategia.html`)
+
+**Mapa de capas y recorrido por áreas**: las cinco áreas son las fases y los 18 módulos, ventanas flotantes en 3D con un fragmento real y su estado en vivo (abanico, pila, círculo o línea). Dentro se trabaja un módulo cada vez con hoja de ruta, anterior y siguiente; «Ver pestañas» vuelve a la barra clásica.
 
 | Grupo | Módulos |
 |---|---|
@@ -80,7 +82,7 @@ El control de acceso es real en el servidor: prueba de 14 días, acceso pagado c
 ```
 atalaya/
 ├── index.html · acceso.html · app.html · estrategia.html · admin.html
-├── css/atalaya.css · css/site.css
+├── css/atalaya.css · css/site.css · css/landing.css · css/eco.css · css/ruta.css · css/portal.css
 ├── js/
 │   ├── platform.js     cuentas, acceso, uso y datos (servidor o demo local)
 │   ├── sectors.js      perfiles sectoriales y datos de ejemplo
@@ -89,8 +91,11 @@ atalaya/
 │   ├── docs.js         lectura de PDF, Word, Excel, CSV, Markdown y dictado
 │   ├── financials.js   cuentas de varios años y flujo del dinero
 │   ├── charts.js · scene3d.js · report.js · assistant.js · app.js · site.js · admin.js
+│   ├── ruta.js         mapa de capas y hoja de ruta del simulador
+│   ├── eco.js          el ecosistema en 3D de la página comercial
+│   ├── portal.js       puesto de mando en 3D tras entrar
 │   ├── reloj.js        reloj de tareas (módulo, flotante, ventana aparte)
-│   └── strategy/       core · finance · commercial · operations · orgchart · plan · market
+│   └── strategy/       core · finance · commercial · operations · orgchart · plan · market · ruta-est
 ├── manual.html         manual de uso
 └── server/             server.mjs · package.json
 ```

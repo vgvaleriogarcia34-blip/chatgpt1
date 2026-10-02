@@ -100,3 +100,34 @@ body.ch-mode main > section.chapter.ch-on { animation: chIn 0.45s ease-out; min-
 @media (prefers-reduced-motion: reduce) { .rm-float { animation: none; } .rm-card, .rm-world { transition: none; } .ruta-map { animation: none; } }
 @media (max-width: 1000px) { .topbar .ruta-btn { display: none; } }
 @media (max-width: 760px) { .rm-open { display: none; } }
+
+/* ---------- Sistema estratégico: cinco áreas como fases, dieciocho módulos como capas ---------- */
+body.est-ruta .st-tabs { display: none; }
+body.est-ruta .st-main { padding-top: 150px; }
+.ruta-sub { display: none; }
+body.est-ruta .ruta-sub { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 4px; border-radius: 14px; border: 1px solid var(--line); background: rgba(8, 13, 28, 0.6); }
+.ruta-sub .rs-area { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); padding: 0 10px; }
+.ruta-sub button { border: 0; background: none; color: var(--muted); padding: 7px 12px; border-radius: 10px; font: inherit; font-size: var(--t-s); cursor: pointer; }
+.ruta-sub button:hover { color: var(--fg); }
+.ruta-sub button[aria-current="true"] { background: var(--raise); color: var(--gold-soft); box-shadow: 0 0 0 1px var(--line-strong) inset; }
+.ruta-sub .rs-tabs { font-size: var(--t-xs); color: var(--faint); }
+.ruta-bar.est { display: none; }
+body.est-ruta .ruta-bar.est { display: flex; }
+.rm-fases.n5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.rm-card.e0 { --fc: #d4ae64; } .rm-card.e1 { --fc: #199e70; } .rm-card.e2 { --fc: #3987e5; } .rm-card.e3 { --fc: #d95926; } .rm-card.e4 { --fc: #d55181; }
+.rm-card[class*=" e"] .rm-chrome { box-shadow: inset 0 3px 0 var(--fc); }
+.rm-card[class*=" e"] .rm-info small { color: var(--fc); }
+.rm-off { position: absolute; left: -30000px; top: 0; width: 1180px; visibility: hidden; pointer-events: none; }
+.rm-prev .st-panel.rm-clone { margin: 0; display: grid; gap: 14px; }
+@media (max-width: 760px) {
+  body.est-ruta .st-main { padding-top: 90px; padding-bottom: 90px; }
+  .ruta-sub .rs-area { width: 100%; padding: 4px 8px 0; }
+  .rm-fases.n5 { grid-template-columns: repeat(5, minmax(44px, 1fr)); }
+}
+.st-tabs .tab-mapa { color: var(--gold-soft); }
+.rm-fases.n5 ~ .rm-stage[data-layout="abanico"] .rm-world { transform: translateY(-30px) rotateX(var(--tx, 0deg)) rotateY(var(--ty, 0deg)); }
+@media (max-width: 760px) { .rm-fases.n5 ~ .rm-stage[data-layout="abanico"] .rm-world { transform: translateY(20px) rotateX(var(--tx, 0deg)) rotateY(var(--ty, 0deg)); } }
+@media (max-width: 560px) {
+  body:has(.st-main) .topbar a.btn[href="app.html"] { display: none; }
+  body.est-ruta .st-main { padding-top: 100px; }
+}

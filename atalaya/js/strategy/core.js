@@ -161,8 +161,10 @@
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
     // Al recalcular el mismo módulo se conserva la posición: solo se sube al cambiar de módulo
     if (keep) { const y = keep.y; scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
+    if (S.onShow) try { S.onShow(id, !!keep); } catch (e) { console.error(e); }
   }
   S.show = show;
+  S.GROUPS = GROUPS;
 
   /* ---------- Informe de un módulo ---------- */
   S.moduleReport = function (m) {
@@ -300,6 +302,7 @@
     const h = location.hash.replace('#', '');
     show(S.mod(h) ? h : 'tablero');
     addEventListener('hashchange', () => { const k = location.hash.replace('#', ''); if (S.mod(k) && k !== current) show(k); });
+    if (S.onStart) try { S.onStart(); } catch (e) { console.error(e); }
     if (A.assistant) A.assistant.init({ api: apiFor(), page: 'estrategia' });
     try { if (localStorage.getItem('atalaya.reloj.flotante') === '1') S.relojFlotante(true); } catch (e) { /* sin almacenamiento */ }
     // El reloj de reloj.html escribe en el mismo almacenamiento: se recoge aquí

@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/atalaya.css">
 <link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/ruta.css">
 </head>
 <body>
 <canvas id="sky" aria-hidden="true"></canvas>
@@ -17,6 +18,7 @@
 <header class="topbar">
   <a class="brand" href="portal.html"><b>Atalaya</b><span>Sistema estratégico</span></a>
   <span class="spacer"></span>
+  <button class="btn ghost ruta-btn" id="rutaBtn">Mapa</button>
   <a class="btn ghost" href="manual.html">Manual</a>
   <a class="btn ghost" href="app.html">Simulador de inversión</a>
   <div class="account" id="account"></div>
@@ -41,6 +43,7 @@
 <script src="js/strategy/orgchart.js"></script>
 <script src="js/strategy/plan.js"></script>
 <script src="js/strategy/market.js"></script>
+<script src="js/strategy/ruta-est.js"></script>
 <script src="js/assistant.js"></script>
 <script>Atalaya.strat.start();</script>
 </body>
