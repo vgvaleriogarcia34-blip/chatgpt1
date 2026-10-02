@@ -8,6 +8,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 |---|---|
 | `index.html` | Página comercial: propuesta, demo en vivo con el motor real, planes y preguntas. |
 | `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
+| `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con dos mundos (simulador de inversión y sistema estratégico) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (18 módulos). |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |

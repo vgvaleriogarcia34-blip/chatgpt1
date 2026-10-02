@@ -101,7 +101,7 @@
     if (resetToken) return;
     const u = await P.me();
     const acc = P.accessOf(u);
-    if (u && acc.ok) { location.href = 'app.html'; return; }
+    if (u && acc.ok) { location.href = 'portal.html'; return; }
     if (u && !acc.ok) payScreen(u, acc.motivo);
     else if (h === 'pago' || h === 'bloqueado') $('#notice').insertAdjacentHTML('beforeend', '<div class="alert warn">Entra con tu cuenta para continuar.</div>');
   });
@@ -143,7 +143,7 @@
     try {
       const u = await P.resetPassword(resetToken, $('#rsPass').value);
       const acc = P.accessOf(u);
-      if (acc.ok) location.href = 'app.html'; else { $('#rsMsg').textContent = ''; payScreen(u, acc.motivo); }
+      if (acc.ok) location.href = 'portal.html'; else { $('#rsMsg').textContent = ''; payScreen(u, acc.motivo); }
     } catch (err) { $('#rsMsg').textContent = err.message; }
   };
   $('#fIn').onsubmit = async (e) => {
@@ -151,7 +151,7 @@
     try {
       const u = await P.login($('#inEmail').value, $('#inPass').value);
       const acc = P.accessOf(u);
-      if (acc.ok) location.href = 'app.html'; else { $('#inMsg').textContent = ''; payScreen(u, acc.motivo); }
+      if (acc.ok) location.href = 'portal.html'; else { $('#inMsg').textContent = ''; payScreen(u, acc.motivo); }
     } catch (err) { $('#inMsg').textContent = err.message; }
   };
   $('#fUp').onsubmit = async (e) => {
@@ -161,7 +161,7 @@
     $('#upMsg').textContent = 'Creando tu cuenta…';
     try {
       await P.register({ nombre: $('#upName').value, empresa: $('#upCo').value, email: $('#upEmail').value, telefono: $('#upTel').value, password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value });
-      location.href = 'app.html';
+      location.href = 'portal.html';
     } catch (err) { $('#upMsg').textContent = err.message; }
   };
 })();

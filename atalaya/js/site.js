@@ -179,5 +179,5 @@
   addEventListener('scroll', () => sticky.classList.toggle('on', scrollY > innerHeight * 0.8), { passive: true });
 
   // Si ya hay sesión, «Entrar» lleva directo a la aplicación
-  A.platform.me().then((u) => { if (u) $$('a[href="acceso.html"]').forEach((a) => { a.href = 'app.html'; a.textContent = 'Abrir Atalaya'; }); });
+  A.platform.me().then((u) => { if (u) $$('a[href="acceso.html"]').forEach((a) => { a.href = 'portal.html'; a.textContent = 'Abrir Atalaya'; }); });
 })();

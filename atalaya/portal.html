@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atalaya · Inicio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/atalaya.css">
+<link rel="stylesheet" href="css/portal.css">
+</head>
+<body class="portal">
+<canvas id="space" aria-hidden="true"></canvas>
+<div class="pt-vignette" aria-hidden="true"></div>
+<div class="pt-warp" id="warp" aria-hidden="true"></div>
+
+<header class="pt-top">
+  <a class="brand" href="portal.html"><b>Atalaya</b><span>Tu puesto de mando</span></a>
+  <span class="spacer"></span>
+  <a class="pt-link" href="manual.html">Manual</a>
+  <div class="account" id="account"></div>
+</header>
+
+<section class="pt-intro" id="intro">
+  <div class="pt-kicker" id="hello">Bienvenido</div>
+  <h1>¿Por dónde <em>empezamos hoy</em>?</h1>
+  <p>Elige un mundo. Arrastra para moverte por el espacio, acércate con la rueda y toca el que quieras para entrar.</p>
+</section>
+
+<!-- Etiquetas que siguen a cada mundo en el espacio -->
+<div class="pt-labels" id="labels">
+  <button class="pt-world" data-w="sim" aria-label="Entrar en el simulador de inversión">
+    <span class="pt-w-kicker">Mundo 1</span>
+    <b>Simulador de inversión</b>
+    <span class="pt-q">¿Puedo dar este paso pagándolo con lo que gano, sin quedarme sin caja?</span>
+    <span class="pt-go">Entrar <i>→</i></span>
+  </button>
+  <button class="pt-world" data-w="est" aria-label="Entrar en el sistema estratégico">
+    <span class="pt-w-kicker">Mundo 2</span>
+    <b>Sistema estratégico</b>
+    <span class="pt-q">¿Cómo ordeno y gobierno mi empresa día a día: ventas, márgenes, presupuesto, equipo?</span>
+    <span class="pt-go">Entrar <i>→</i></span>
+  </button>
+  <button class="pt-moon" data-w="man" aria-label="Abrir el manual">Manual</button>
+</div>
+
+<!-- Alternativa siempre visible (y para teclado o sin 3D) -->
+<nav class="pt-dock" aria-label="Elegir herramienta">
+  <button data-w="sim"><i class="d-sim"></i><span><b>Simulador de inversión</b><small>Decidir una inversión</small></span><kbd>1</kbd></button>
+  <button data-w="est"><i class="d-est"></i><span><b>Sistema estratégico</b><small>Gobernar el día a día</small></span><kbd>2</kbd></button>
+</nav>
+<p class="pt-hint" id="hint">Arrastra para girar · rueda o pellizca para acercarte · teclas ← → para cambiar de mundo · Intro para entrar</p>
+<div class="pt-last" id="last" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/platform.js"></script>
+<script src="js/portal.js"></script>
+</body>
+</html>
