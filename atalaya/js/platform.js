@@ -38,6 +38,10 @@
     if (periodo === 'anual') { const mes = r2(base * (1 - DTO_ANUAL)); return { periodo: 'anual', base, mes, total: r2(mes * 12), ahorro: r2(base * 12 - mes * 12), tramo: t }; }
     return { periodo: 'mensual', base, mes: base, total: base, ahorro: 0, tramo: t };
   };
+  // Cómo se enseña una cuota: en anual, la cuota del año (12 meses con el 30 % de descuento), no una mensual rebajada
+  P.cuota = (pr) => (pr.periodo === 'anual'
+    ? { importe: pr.total, unidad: '/año', detalle: `12 × ${P.eur(pr.base)} = ${P.eur(r2(pr.base * 12))} − 30 % · ahorras ${P.eur(pr.ahorro)}` }
+    : { importe: pr.mes, unidad: '/mes', detalle: '' });
   // Importes con punto de miles también en cifras de cuatro dígitos (1.083,60 €)
   P.eur = (x) => { const neg = x < 0, v = Math.abs(x), d = v % 1 ? 2 : 0; const [e, f] = v.toFixed(d).split('.'); return (neg ? '−' : '') + e.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (f ? ',' + f : '') + ' €'; };
 
@@ -382,18 +386,20 @@
       back.innerHTML = `<div class="ef-card pl-card glass" role="dialog" aria-modal="true" aria-label="Mi plan">
         <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
         <div class="eyebrow">Mi plan</div>
-        <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.6rem">Ahora tienes <em>${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan}</em></h3>
+        <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.6rem">Ahora tienes <em>${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan}</em> · pago ${(u.periodo || 'mensual') === 'anual' ? 'anual' : 'mensual'}</h3>
+        <p class="small" style="margin:0">Tu cuota: <b>${(() => { const c = P.cuota(P.precio(u.plan, u.periodo, n)); return P.eur(c.importe) + c.unidad; })()}</b></p>
         <p class="small muted" style="margin:0">${acc.motivo === 'prueba' ? `Estás en la prueba gratuita (quedan ${acc.diasPrueba} días). Puedes cambiar de plan cuando quieras sin coste: la prueba sigue contando desde tu alta.` : acc.motivo === 'pagado' ? 'Tu acceso está activado. El cambio se aplica al momento y la diferencia de cuota se ajusta en tu siguiente cobro; te lo confirmaremos por correo.' : 'Elige el plan que quieres activar.'}${opts.motivo ? `<br><b style="color:var(--gold-soft)">${opts.motivo}</b>` : ''}</p>
         <div class="seg" style="margin:0;justify-self:start"><button data-per="mensual" aria-pressed="${periodo === 'mensual'}">Pago mensual</button><button data-per="anual" aria-pressed="${periodo === 'anual'}">Pago anual · −30 %</button></div>
+        ${periodo === 'anual' ? '<p class="small muted" style="margin:0">Cuota anual: se paga el año por adelantado y equivale a doce meses con un 30 % de descuento.</p>' : ''}
         <div class="pl-grid">${Object.keys(PLANES).map((k) => {
           const pl = PLANES[k], pr = P.precio(k, periodo, k === 'grupos' ? Math.max(1, n) : 1), r = P.PLAN_RESUMEN[k], cur = k === u.plan;
           const bloq = n > pl.empresas;
           return `<div class="pl-it ${cur ? 'on' : ''} ${opts.destacar === k ? 'dest' : ''}">
             <div class="row"><b>${pl.nombre}</b>${cur ? '<span class="em-act">tu plan</span>' : ''}</div>
-            <div class="pl-precio">${pl.tramos ? '<small>desde </small>' : ''}${P.eur(pr.mes)}<small>/mes</small></div>
+            ${(() => { const c = P.cuota(pr); return `<div class="pl-precio">${pl.tramos && n <= 1 ? '<small>desde </small>' : ''}${P.eur(c.importe)}<small>${c.unidad}</small></div>${c.detalle ? `<div class="small muted">${c.detalle}</div>` : ''}`; })()}
             <div class="small muted">${pl.para || ''}</div>
             <ul class="small"><li>${r.mundos}</li><li>${r.empresas}</li>${r.vista !== '—' ? `<li>${r.vista}</li>` : ''}</ul>
-            ${cur ? '<button class="btn ghost small" disabled>Es tu plan</button>' : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas: borra las que sobran para pasar a este plan.</p>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
+            ${cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es tu plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas: borra las que sobran para pasar a este plan.</p>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
           </div>`;
         }).join('')}</div>
         <p class="small" data-msg style="margin:0"></p>
@@ -403,7 +409,7 @@
       back.querySelectorAll('[data-per]').forEach((b) => b.onclick = () => { periodo = b.dataset.per; draw(); });
       back.querySelectorAll('[data-plan]').forEach((b) => b.onclick = async () => {
         const k = b.dataset.plan, msg = back.querySelector('[data-msg]');
-        try { await P.cambiarPlan(k, periodo); msg.style.color = 'var(--go)'; msg.textContent = `Hecho: ahora tienes ${PLANES[k].nombre}.`; setTimeout(() => { if (opts.onCambio) opts.onCambio(k); else location.reload(); }, 700); }
+        try { await P.cambiarPlan(k, periodo); const c = P.cuota(P.precio(k, periodo, n)); msg.style.color = 'var(--go)'; msg.textContent = `Hecho: ahora tienes ${PLANES[k].nombre} con pago ${periodo}: ${P.eur(c.importe)}${c.unidad}.`; setTimeout(() => { if (opts.onCambio) opts.onCambio(k); else location.reload(); }, 700); }
         catch (x) { msg.style.color = 'var(--stop)'; msg.textContent = x.message; }
       });
     };

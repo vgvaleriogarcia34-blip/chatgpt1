@@ -164,9 +164,9 @@
       return `<article class="glass plan tilt ${p.destacado ? 'top' : ''} ${p.grupo ? 'grp' : ''}" data-tilt>
         ${p.destacado ? '<span class="tag">El más elegido</span>' : p.grupo ? '<span class="tag">Holdings y grupos</span>' : ''}
         <h3>${p.nombre}</h3><p class="small muted plan-para">${p.para || ''}</p>
-        <div class="price">${p.tramos ? '<small>desde</small>' : ''}<b>${A.platform.eur(pr.mes)}</b><span>/mes</span></div>
-        <p class="small plan-bill">${periodo === 'anual' ? `${A.platform.eur(pr.total)} al año · ahorras ${A.platform.eur(pr.ahorro)}` : '&nbsp;'}</p>
-        ${p.tramos ? `<ul class="tramos">${p.tramos.map((t) => `<li><span>${t.n}</span><b>${A.platform.eur(A.platform.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta).mes)}</b></li>`).join('')}</ul>` : ''}
+        <div class="price">${p.tramos ? '<small>desde</small>' : ''}<b>${A.platform.eur(A.platform.cuota(pr).importe)}</b><span>${A.platform.cuota(pr).unidad}</span></div>
+        <p class="small plan-bill">${periodo === 'anual' ? A.platform.cuota(pr).detalle : '&nbsp;'}</p>
+        ${p.tramos ? `<ul class="tramos">${p.tramos.map((t) => `<li><span>${t.n}</span><b>${A.platform.eur(A.platform.cuota(A.platform.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta)).importe)}${periodo === 'anual' ? '/año' : ''}</b></li>`).join('')}</ul>` : ''}
         <ul>${p.incluye.map((x) => `<li>${x}</li>`).join('')}</ul>
         <a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">${conSesion ? (conSesion === k ? 'Es tu plan · entrar' : `Cambiar a ${p.nombre}`) : `Probar ${p.nombre}`}</a></article>`;
     }).join('');

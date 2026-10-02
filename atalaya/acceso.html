@@ -100,10 +100,10 @@
   let periodo = /anual/.test(h) ? 'anual' : 'mensual';
   const drawPlans = () => {
     const cur = (document.querySelector('input[name="plan"]:checked') || {}).value || planSel;
-    $('#planPick').innerHTML = Object.keys(P.PLANES).map((k) => { const pr = P.precio(k, periodo, 1); return `<label><input type="radio" name="plan" value="${k}" ${k === cur ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.eur(pr.mes)}/mes${P.PLANES[k].tramos ? ' desde' : ''}</small></label>`; }).join('');
+    $('#planPick').innerHTML = Object.keys(P.PLANES).map((k) => { const pr = P.precio(k, periodo, 1); return `<label><input type="radio" name="plan" value="${k}" ${k === cur ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.eur(P.cuota(pr).importe)}${P.cuota(pr).unidad}${P.PLANES[k].tramos ? ' desde' : ''}</small></label>`; }).join('');
     document.querySelectorAll('#perPick button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
     const k = (document.querySelector('input[name="plan"]:checked') || {}).value || 'profesional', pr = P.precio(k, periodo, 1), pl = P.PLANES[k];
-    $('#planNote').innerHTML = `${pl.para || ''}${pl.tramos ? ` · ${pl.tramos.map((t) => `${t.n.toLowerCase()}: ${P.eur(P.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta).mes)}/mes`).join(' · ')}` : ''}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}${pl.tramos ? ' (primer tramo)' : ''}, ahorras ${P.eur(pr.ahorro)}` : ''}. Los 14 días de prueba son gratis en todos.`;
+    $('#planNote').innerHTML = `${pl.para || ''}${pl.tramos ? ` · ${pl.tramos.map((t) => `${t.n.toLowerCase()}: ${(() => { const c = P.cuota(P.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta)); return P.eur(c.importe) + c.unidad; })()}`).join(' · ')}` : ''}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}${pl.tramos ? ' (primer tramo)' : ''}, ahorras ${P.eur(pr.ahorro)}` : ''}. Los 14 días de prueba son gratis en todos.`;
     document.querySelectorAll('input[name="plan"]').forEach((r) => r.onchange = drawPlans);
   };
   document.querySelectorAll('#perPick button').forEach((b) => b.onclick = () => { periodo = b.dataset.per; drawPlans(); });
@@ -129,7 +129,7 @@
     const pl = P.PLANES[u.plan] || P.PLANES.profesional, pr = P.precio(u.plan, u.periodo, u.empresas);
     $('#payTxt').innerHTML = motivo === 'bloqueado'
       ? 'Tu acceso está suspendido. Escríbenos para revisarlo.'
-      : `Tu periodo de prueba ha terminado. Para seguir usando Atalaya activa el plan <b>${pl.nombre}</b> (${pr.periodo === 'anual' ? `${P.eur(pr.total)} al año, ${P.eur(pr.mes)} al mes con el 30 % de descuento` : `${P.eur(pr.mes)} al mes`}). Te enviaremos los datos de pago y, en cuanto se confirme, tu acceso se reactiva con todos tus datos.`;
+      : `Tu periodo de prueba ha terminado. Para seguir usando Atalaya activa el plan <b>${pl.nombre}</b> (${pr.periodo === 'anual' ? `cuota anual de ${P.eur(pr.total)}: doce meses con el 30 % de descuento` : `${P.eur(pr.mes)} al mes`}). Te enviaremos los datos de pago y, en cuanto se confirme, tu acceso se reactiva con todos tus datos.`;
     $('#payReq').hidden = motivo === 'bloqueado';
     $('#payReq').onclick = async () => {
       try {

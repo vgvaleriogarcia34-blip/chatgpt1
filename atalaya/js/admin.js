@@ -69,7 +69,7 @@
         <td><select data-plan>${Object.keys(P.PLANES).map((k) => `<option value="${k}" ${k === u.plan ? 'selected' : ''}>${P.PLANES[k].nombre}</option>`).join('')}</select></td>
         <td><select data-per><option value="mensual" ${u.periodo !== 'anual' ? 'selected' : ''}>Mensual</option><option value="anual" ${u.periodo === 'anual' ? 'selected' : ''}>Anual −30 %</option></select></td>
         <td>${u.empresas || 1}${isFinite((P.PLANES[u.plan] || {}).empresas) ? ' / ' + P.PLANES[u.plan].empresas : ''}</td>
-        <td>${(() => { const pr = P.precio(u.plan, u.periodo, u.empresas); return pr.periodo === 'anual' ? `${P.eur(pr.total)}/año<br><span class="muted">${P.eur(pr.mes)}/mes</span>` : `${P.eur(pr.mes)}/mes`; })()}</td>
+        <td>${(() => { const pr = P.precio(u.plan, u.periodo, u.empresas); return pr.periodo === 'anual' ? `${P.eur(pr.total)}/año<br><span class="muted">anual, −30 %</span>` : `${P.eur(pr.mes)}/mes`; })()}</td>
         <td><span class="state st-${e.st}">${e.t}</span></td><td>${u.pagado ? fdate(u.venceAcceso) : '—'}</td><td>${fdate(u.alta)}</td><td>${fdate(u.ultimoAcceso)}</td>
         <td>${hm(P.usageMinutes(u, 7))}</td><td>${hm(P.usageMinutes(u, 30))}</td><td>${hm(P.usageMinutes(u))}</td><td>${u.sesiones || 0}</td>
         <td><div class="uactions"><button class="btn" data-pay>Registrar pago</button>${u.estado === 'bloqueado' ? '<button class="btn ghost" data-unblock>Desbloquear</button>' : '<button class="btn ghost" data-block>Bloquear</button>'}<button class="btn ghost" data-pwrow>Contraseña</button><button class="btn ghost" data-more>Ficha</button></div></td></tr>`).join('') + '</tbody></table>'
@@ -97,7 +97,7 @@
     const pr = P.precio(u.plan, u.periodo, u.empresas);
     const base = u.venceAcceso && new Date(u.venceAcceso).getTime() > Date.now() ? new Date(u.venceAcceso) : new Date();
     const el = openModal(`<div class="eyebrow">Registrar pago</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
-      <p class="small muted">Plan ${pl.nombre}${pr.tramo ? ' · ' + pr.tramo.n.toLowerCase() : ''} · ${pr.periodo === 'anual' ? `pago anual: ${P.eur(pr.total)} (${P.eur(pr.mes)}/mes, −30 %)` : `${P.eur(pr.mes)}/mes`}. El acceso se amplía desde ${fdate(base)}.</p>
+      <p class="small muted">Plan ${pl.nombre}${pr.tramo ? ' · ' + pr.tramo.n.toLowerCase() : ''} · ${pr.periodo === 'anual' ? `cuota anual: ${P.eur(pr.total)} (12 × ${P.eur(pr.base)} − 30 %)` : `${P.eur(pr.mes)}/mes`}. El acceso se amplía desde ${fdate(base)}.</p>
       <div class="stack mt">
         <label class="small">Periodo<select id="pPer" class="input"><option value="1" ${pr.periodo !== 'anual' ? 'selected' : ''}>1 mes</option><option value="3">3 meses</option><option value="12" ${pr.periodo === 'anual' ? 'selected' : ''}>12 meses</option></select></label>
         <label class="small">Importe cobrado (€)<input class="input" id="pImp" value="${pr.periodo === 'anual' ? pr.total : pr.mes}"></label>
