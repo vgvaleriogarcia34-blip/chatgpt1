@@ -121,6 +121,7 @@
   let foco = 0, hot = null, faseHot = null, drag = null, dragged = false;
   const LAYOUTS = [['pila', 'Pila'], ['abanico', 'Abanico'], ['circulo', 'Círculo'], ['linea', 'Línea']];
   const hint = () => (layout === 'circulo' || layout === 'linea' ? 'Arrastra, usa la rueda o las flechas para recorrer las capas · ' : '') + 'Intro abre la capa · Esc cierra el mapa';
+  let salida = 0; // pequeña espera al salir de una capa: evita que suba y baje sin parar
   function openMap() {
     const ov = $('#rutaMap'); const O = ORDEN(), F = FASES();
     // La vista actual se guarda al momento; las demás se preparan una vez
@@ -148,8 +149,8 @@
     $('#rmX', ov).onclick = closeMap;
     const cards = $$('.rm-card', ov);
     cards.forEach((c) => {
-      c.addEventListener('pointerenter', () => { hot = +c.dataset.i; place(); });
-      c.addEventListener('pointerleave', () => { hot = null; place(); });
+      c.addEventListener('pointerenter', () => { clearTimeout(salida); if (hot !== +c.dataset.i) { hot = +c.dataset.i; place(); } });
+      c.addEventListener('pointerleave', () => { clearTimeout(salida); salida = setTimeout(() => { if (hot === +c.dataset.i) { hot = null; place(); } }, 140); });
       c.addEventListener('focus', () => { foco = +c.dataset.i; hot = foco; place(); });
       c.addEventListener('click', () => { if (dragged) return; abrir(+c.dataset.i); });
     });
@@ -183,26 +184,26 @@
     const O = ORDEN(), small = innerWidth < 760;
     const cw = small ? 250 : 330, gap = small ? 150 : 210;
     cards.forEach((c, i) => {
-      let tf = '', z = 0, op = 1;
+      let tf = '', z = 0, op = 1, up = '';
       const isHot = hot === i, inFase = faseHot !== null && faseDe(O[i]) === faseHot, dim = faseHot !== null && !inFase;
       if (layout === 'pila') {
-        const lift = isHot && i > 0 ? -(small ? 90 : 130) : 0;
-        tf = `translate3d(${(i % 2 ? 1 : -1) * 5}px, ${-i * (small ? 12 : 17) + lift + (small ? 120 : 170)}px, ${-i * 38 + (isHot ? 220 : 0)}px)`;
+                tf = `translate3d(${(i % 2 ? 1 : -1) * 5}px, ${-i * (small ? 12 : 17) + (small ? 120 : 170)}px, ${-i * 38}px)`; up = i > 0 ? `0 ${small ? -90 : -130}px 220px` : '0 0 220px';
         z = 100 - i + (isHot ? 100 : 0);
       } else if (layout === 'abanico') {
         const a = (i - (n - 1) / 2) * (small ? 5.5 : 6);
-        tf = `rotateZ(${a}deg) translate3d(0, ${isHot ? -90 : 0}px, ${i * 2 + (isHot ? 120 : 0)}px)`;
+        tf = `rotateZ(${a}deg) translate3d(0, 0, ${i * 2}px)`; up = '0 -90px 120px';
         z = isHot ? 200 : 100 - Math.abs(i - (n - 1) / 2);
       } else if (layout === 'circulo') {
         const step = 360 / n, a = (i - foco) * step, R = Math.max(small ? 520 : 760, (n * (cw + 30)) / (2 * Math.PI));
-        tf = `rotateY(${a}deg) translateZ(${R}px) translateZ(${isHot ? 60 : 0}px) translateY(${isHot ? -24 : 0}px)`;
+        tf = `rotateY(${a}deg) translateZ(${R}px)`; up = '0 -24px 60px';
         const cos = Math.cos((a * Math.PI) / 180); op = 0.2 + 0.8 * Math.max(0, cos); z = Math.round(100 + cos * 100);
       } else {
         const d = i - foco, s = Math.sign(d);
-        tf = d === 0 ? `translate3d(0, ${isHot ? -14 : 0}px, 160px)` : `translate3d(${d * (gap * 0.55) + s * gap * 0.6}px, 0, ${-Math.abs(d) * 40}px) rotateY(${-s * 55}deg)`;
+        up = '0 -14px 40px';
+        tf = d === 0 ? 'translate3d(0, 0, 160px)' : `translate3d(${d * (gap * 0.55) + s * gap * 0.6}px, 0, ${-Math.abs(d) * 40}px) rotateY(${-s * 55}deg)`;
         op = Math.abs(d) > 5 ? 0 : 1; z = 100 - Math.abs(d);
       }
-      c.style.transform = tf; c.style.zIndex = z; c.style.opacity = dim ? Math.min(op, 0.25) : op;
+      c.style.transform = tf; c.firstElementChild.style.translate = isHot ? up : ''; c.style.zIndex = z; c.style.opacity = dim ? Math.min(op, 0.25) : op;
       c.classList.toggle('hot', isHot || inFase);
       c.classList.toggle('foco', i === foco && (layout === 'circulo' || layout === 'linea'));
     });

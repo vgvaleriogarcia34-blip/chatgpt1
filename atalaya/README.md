@@ -6,7 +6,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 
 | Página | Para qué |
 |---|---|
-| `index.html` | Página comercial: propuesta, el ecosistema en 3D (los dos mundos y el abanico de pantallas de cada uno), demo en vivo con el motor real, planes y preguntas. |
+| `index.html` | Página comercial en un espacio 3D (fondo de galaxias por el que se avanza al bajar, tarjetas y titulares que flotan, se inclinan y se acercan al cursor): propuesta, el ecosistema en 3D (los dos mundos y el abanico de pantallas de cada uno), demo en vivo con el motor real, planes y preguntas. |
 | `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
 | `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con dos mundos (simulador de inversión y sistema estratégico) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
@@ -82,7 +82,7 @@ El control de acceso es real en el servidor: prueba de 14 días, acceso pagado c
 ```
 atalaya/
 ├── index.html · acceso.html · app.html · estrategia.html · admin.html
-├── css/atalaya.css · css/site.css · css/landing.css · css/eco.css · css/ruta.css · css/portal.css
+├── css/atalaya.css · css/site.css · css/landing.css · css/eco.css · css/space.css · css/ruta.css · css/portal.css
 ├── js/
 │   ├── platform.js     cuentas, acceso, uso y datos (servidor o demo local)
 │   ├── sectors.js      perfiles sectoriales y datos de ejemplo
@@ -93,6 +93,7 @@ atalaya/
 │   ├── charts.js · scene3d.js · report.js · assistant.js · app.js · site.js · admin.js
 │   ├── ruta.js         mapa de capas y hoja de ruta del simulador
 │   ├── eco.js          el ecosistema en 3D de la página comercial
+│   ├── space.js        espacio 3D de la página comercial: fondo, piezas flotantes y titulares con volumen
 │   ├── portal.js       puesto de mando en 3D tras entrar
 │   ├── reloj.js        reloj de tareas (módulo, flotante, ventana aparte)
 │   └── strategy/       core · finance · commercial · operations · orgchart · plan · market · ruta-est

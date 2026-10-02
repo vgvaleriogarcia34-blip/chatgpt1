@@ -31,7 +31,10 @@
 .eco-fan { position: absolute; left: 50%; bottom: 190px; width: 0; height: 0; z-index: 3; perspective: 1400px; transform-style: preserve-3d; }
 .eco-card { position: absolute; left: -110px; top: -180px; width: 220px; height: 180px; padding: 0; border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; transform-origin: 50% 330%; transition: transform 0.55s cubic-bezier(.2,.8,.2,1), opacity 0.35s, filter 0.35s; }
 .eco-card:focus { outline: none; }
-.ec-in { position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border-radius: 12px; overflow: hidden; border: 1px solid var(--line-strong); background: linear-gradient(170deg, rgba(20, 30, 60, 0.97), rgba(7, 11, 25, 0.98)); box-shadow: 0 30px 60px -25px rgba(0, 0, 0, 0.95); transition: box-shadow 0.3s, border-color 0.3s; }
+/* La pantalla elevada amplía su zona sensible hacia arriba para que el cursor pueda seguirla */
+.eco-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.eco-card.hot::before { top: -130px; left: -20px; right: -20px; }
+.ec-in { pointer-events: none; transition: transform 0.5s cubic-bezier(.2,.8,.2,1), box-shadow 0.3s, border-color 0.3s; position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border-radius: 12px; overflow: hidden; border: 1px solid var(--line-strong); background: linear-gradient(170deg, rgba(20, 30, 60, 0.97), rgba(7, 11, 25, 0.98)); box-shadow: 0 30px 60px -25px rgba(0, 0, 0, 0.95); }
 .eco-fan.in .ec-in { animation: ecIn 0.7s cubic-bezier(.2,.8,.2,1) backwards; animation-delay: var(--d, 0ms); }
 @keyframes ecIn { from { transform: translateY(160px) scale(0.85); opacity: 0; } }
 .ec-chrome { display: flex; align-items: center; gap: 5px; padding: 6px 9px; background: rgba(4, 7, 16, 0.9); border-bottom: 1px solid var(--line); box-shadow: inset 0 3px 0 var(--fc); font-size: 0.66rem; color: var(--muted); }

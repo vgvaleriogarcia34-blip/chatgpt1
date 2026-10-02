@@ -80,7 +80,7 @@
   }
 
   /* ---------- Abanico ---------- */
-  let mundo = 'sim', hot = null, faseHot = null, user = false;
+  let mundo = 'sim', hot = null, faseHot = null, user = false, salida = 0;
   const fan = $('#ecoFan'), fases = $('#ecoPhases'), read = $('#ecoRead');
   function drawFan() {
     const M = MUNDOS[mundo];
@@ -88,8 +88,9 @@
     fan.innerHTML = M.cards.map(([f, t, q, k], i) => `<button class="eco-card" data-i="${i}" style="--fc:${M.fases[f][1]}" aria-label="${esc(t)}: ${esc(q)}"><span class="ec-in"><span class="ec-chrome"><i></i><i></i><i></i><b>${String(i + 1).padStart(2, '0')} · ${esc(t)}</b></span><span class="ec-th">${thumb(k, M.fases[f][1], i + (mundo === 'est' ? 40 : 0))}</span><span class="ec-info"><small>${esc(M.fases[f][0])}</small><b>${esc(t)}</b></span></span></button>`).join('');
     fases.innerHTML = M.fases.map(([n, c], i) => `<button data-f="${i}" style="--fc:${c}"><i></i>${esc(n)}</button>`).join('');
     $$('.eco-card', fan).forEach((c) => {
-      c.addEventListener('pointerenter', () => { hot = +c.dataset.i; user = true; place(); });
-      c.addEventListener('pointerleave', () => { hot = null; place(); });
+      c.addEventListener('pointerenter', () => { clearTimeout(salida); if (hot !== +c.dataset.i) { hot = +c.dataset.i; user = true; place(); } });
+      // Al salir se espera un instante: pasar de una pantalla a la vecina no hace bajar y subir todo
+      c.addEventListener('pointerleave', () => { clearTimeout(salida); salida = setTimeout(() => { if (hot === +c.dataset.i) { hot = null; place(); } }, 140); });
       c.addEventListener('focus', () => { hot = +c.dataset.i; place(); });
       c.addEventListener('blur', () => { hot = null; place(); });
       c.addEventListener('click', () => { hot = hot === +c.dataset.i && c.matches(':focus') ? hot : +c.dataset.i; user = true; place(); });
@@ -110,7 +111,10 @@
       const a = (i - (n - 1) / 2) * step, isHot = hot === i, inF = faseHot !== null && M.cards[i][0] === faseHot;
       c.style.setProperty('--a', a + 'deg');
       c.style.setProperty('--d', (i * 35) + 'ms');
-      c.style.transform = `rotateZ(${a}deg) translate3d(0, ${isHot ? (small ? -70 : -110) : inF ? -36 : 0}px, ${isHot ? 140 : inF ? 50 : i}px) rotateZ(${isHot ? -a : 0}deg) scale(${isHot ? (small ? 1.25 : 1.18) : 1})`;
+      // La zona sensible (el botón) no se mueve: solo sube su contenido. Así la pantalla elegida sale y se queda
+      // quieta, sin entrar y salir del cursor una y otra vez.
+      c.style.transform = `rotateZ(${a}deg) translateZ(${i}px)`;
+      c.firstElementChild.style.transform = isHot ? `translate3d(0, ${small ? -70 : -110}px, 140px) rotateZ(${-a}deg) scale(${small ? 1.25 : 1.18})` : inF ? 'translate3d(0, -36px, 50px)' : '';
       c.style.zIndex = isHot ? 200 : inF ? 150 : 100 - Math.round(Math.abs(i - (n - 1) / 2));
       c.classList.toggle('hot', isHot);
       c.classList.toggle('dim', faseHot !== null && !inF);
@@ -146,6 +150,8 @@
   document.addEventListener('visibilitychange', () => { running = visible && !document.hidden; });
 
   function load() {
+    const A = window.Atalaya || {};
+    if (A.loadThree) { A.loadThree().then(scene3d, () => eco.classList.add('no3d')); return; }
     if (window.THREE) return scene3d();
     const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
     s.onload = scene3d; s.onerror = () => eco.classList.add('no3d');

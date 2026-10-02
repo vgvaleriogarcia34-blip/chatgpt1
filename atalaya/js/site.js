@@ -13,18 +13,12 @@
   const fino = matchMedia('(pointer: fine)').matches;
   A.sky();
 
-  /* ---------- Tarjetas que se inclinan y se elevan bajo el cursor ---------- */
+  /* Three.js compartido (fondo del espacio y ecosistema): se descarga una sola vez y bajo demanda */
+  let threeP = null;
+  A.loadThree = () => threeP || (threeP = window.THREE ? Promise.resolve(window.THREE) : new Promise((ok, ko) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'; s.onload = () => (window.THREE ? ok(window.THREE) : ko(new Error('Sin 3D'))); s.onerror = ko; document.head.appendChild(s); }));
+
+  /* ---------- Cursor: botones magnéticos y halo (la flotación de las tarjetas está en space.js) ---------- */
   if (fino && !reduce) {
-    $$('[data-tilt]').forEach((el) => {
-      el.addEventListener('pointermove', (e) => {
-        const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-        const k = el.classList.contains('lp-final') ? 3 : 7;
-        el.style.transform = `perspective(900px) rotateX(${(0.5 - y) * k}deg) rotateY(${(x - 0.5) * k}deg) translateZ(14px) translateY(-6px)`;
-        el.style.setProperty('--mx', x * 100 + '%'); el.style.setProperty('--my', y * 100 + '%');
-        el.classList.add('lifted');
-      });
-      el.addEventListener('pointerleave', () => { el.style.transform = ''; el.classList.remove('lifted'); });
-    });
     // Botones magnéticos
     $$('.magnetic').forEach((b) => {
       b.addEventListener('pointermove', (e) => { const r = b.getBoundingClientRect(); b.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * 0.18}px, ${(e.clientY - r.top - r.height / 2) * 0.3}px)`; });
@@ -169,10 +163,6 @@
     <h3>${P[k].nombre}</h3><div class="price"><b>${P[k].precio} €</b><span>/${P[k].periodo}</span></div>
     <ul>${P[k].incluye.map((x) => `<li>${x}</li>`).join('')}</ul>
     <a class="btn ${P[k].destacado ? 'solid' : ''}" href="acceso.html#alta-${k}">Probar ${P[k].nombre}</a></article>`).join('');
-  if (fino && !reduce) $$('#plans [data-tilt]').forEach((el) => {
-    el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; el.style.transform = `perspective(900px) rotateX(${(0.5 - y) * 6}deg) rotateY(${(x - 0.5) * 6}deg) translateY(-8px)`; el.style.setProperty('--mx', x * 100 + '%'); el.style.setProperty('--my', y * 100 + '%'); el.classList.add('lifted'); });
-    el.addEventListener('pointerleave', () => { el.style.transform = ''; el.classList.remove('lifted'); });
-  });
 
   // Barra fija en móvil a partir de la portada
   const sticky = $('.lp-sticky');

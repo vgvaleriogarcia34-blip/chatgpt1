@@ -131,3 +131,9 @@ body.est-ruta .ruta-bar.est { display: flex; }
   body:has(.st-main) .topbar a.btn[href="app.html"] { display: none; }
   body.est-ruta .st-main { padding-top: 100px; }
 }
+
+/* Capas estables al pasar el ratón: la zona sensible no se mueve, solo sube la ventana visible.
+   La capa elevada amplía su zona hacia arriba para poder seguirla sin que baje. */
+.rm-float { pointer-events: none; transition: box-shadow 0.3s, border-color 0.3s, translate 0.5s cubic-bezier(.2,.8,.2,1); }
+.rm-card::before { content: ''; position: absolute; inset: 0; }
+.rm-card.hot::before { top: -150px; left: -20px; right: -20px; }
