@@ -1,6 +1,6 @@
 /* Atalaya · Puesto de mando 3D
    Una galaxia con dos mundos: el simulador de inversión (planeta dorado con cinco lunas, una por escenario)
-   y el sistema estratégico (núcleo azul con 18 módulos en órbita, agrupados por áreas). Se navega arrastrando,
+   y el sistema estratégico (núcleo azul con 21 módulos en órbita, agrupados por áreas). Se navega arrastrando,
    con la rueda, pellizcando o con el teclado; al elegir un mundo la cámara vuela hacia él y se abre la herramienta. */
 (function () {
   const A = window.Atalaya, P = A.platform;
@@ -149,15 +149,15 @@
     const core = new T.Mesh(new T.IcosahedronGeometry(1.6, 2), coreMat); g.add(core);
     const shell = new T.Mesh(new T.IcosahedronGeometry(2.6, 1), new T.MeshBasicMaterial({ color: 0x6fa8ff, wireframe: true, transparent: true, opacity: 0.35 })); g.add(shell);
     const atm = sprite(glow(110, 160, 255), 0xffffff, 12, 0.65); g.add(atm);
-    // 18 módulos en tres órbitas, de color por área
-    const AREAS = [['Visión', 0xd4ae64, 3], ['Finanzas', 0x199e70, 4], ['Comercial', 0x3987e5, 4], ['Operaciones', 0xd95926, 5], ['Estrategia', 0xd55181, 2]];
+    // 21 módulos en tres órbitas, de color por área
+    const AREAS = [['Visión', 0xd4ae64, 4], ['Finanzas', 0x199e70, 5], ['Comercial', 0x3987e5, 4], ['Operaciones', 0xd95926, 5], ['Estrategia', 0xd55181, 3]];
     const nodes = [], linePos = [];
     const shells = [new T.Group(), new T.Group(), new T.Group()];
     shells.forEach((s, i) => { s.rotation.set(0.5 + i * 0.6, i * 0.9, 0.25 * i); g.add(s); });
     let k = 0;
     AREAS.forEach(([n, color, count]) => {
       for (let j = 0; j < count; j++, k++) {
-        const sh = shells[k % 3], r = 4.6 + (k % 3) * 1.25, a = (k / 18) * Math.PI * 2 * 3 + (k % 3) * 0.4;
+        const sh = shells[k % 3], r = 4.6 + (k % 3) * 1.25, a = (k / 21) * Math.PI * 2 * 3 + (k % 3) * 0.4;
         const m = new T.Mesh(new T.OctahedronGeometry(0.32, 0), new T.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.8, flatShading: true }));
         m.position.set(Math.cos(a) * r, Math.sin(a * 0.5) * 0.6, Math.sin(a) * r); sh.add(m);
         const gl = sprite(glow(255, 255, 255), color, 1.4, 0.7); gl.position.copy(m.position); sh.add(gl);
@@ -165,7 +165,7 @@
       }
     });
     // Conexiones entre los módulos y el núcleo (se recalculan cada fotograma)
-    const lineGeo = new T.BufferGeometry(); const lp = new Float32Array(18 * 2 * 3); lineGeo.setAttribute('position', new T.BufferAttribute(lp, 3));
+    const lineGeo = new T.BufferGeometry(); const lp = new Float32Array(21 * 2 * 3); lineGeo.setAttribute('position', new T.BufferAttribute(lp, 3));
     const lines = new T.LineSegments(lineGeo, new T.LineBasicMaterial({ color: 0x86b4ff, transparent: true, opacity: 0.22, blending: T.AdditiveBlending })); g.add(lines);
     const ringOrbits = shells.map((s, i) => { const t = new T.Mesh(new T.TorusGeometry(4.6 + i * 1.25, 0.01, 6, 160), new T.MeshBasicMaterial({ color: 0x86b4ff, transparent: true, opacity: 0.2 })); t.rotation.x = Math.PI / 2; s.add(t); return t; });
     const hit = new T.Mesh(new T.SphereGeometry(6.8, 16, 12), new T.MeshBasicMaterial({ visible: false })); g.add(hit);

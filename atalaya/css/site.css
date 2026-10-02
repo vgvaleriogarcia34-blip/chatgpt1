@@ -328,3 +328,17 @@ body.rj-window { margin: 0; padding: 14px; background: var(--abyss, #070c1a); co
 .gr-prop { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; } .gr-prop p { margin: 0; }
 .gr-tq { display: grid; gap: 8px; } .gr-tqi { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); }
 .gr-tqi .c3-a { margin: 0; }
+
+/* Valoración: puente de hoy al valor con el plan y ajustes del múltiplo */
+.vl-bridge { display: grid; gap: 8px; }
+.vl-row { display: grid; grid-template-columns: minmax(120px, 1.2fr) 2fr minmax(90px, auto); gap: 10px; align-items: center; font-size: 13px; }
+.vl-row i { display: block; height: 12px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.vl-row i b { display: block; height: 100%; border-radius: 6px; }
+.vl-row em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.vl-row.base span, .vl-row.base em { font-weight: 700; }
+.vl-aj { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.vl-aj b.neg { color: var(--stop); } .vl-aj b.pos { color: var(--go); }
+.vl-aj input[type=checkbox] { margin-right: 6px; }
+input.vl-in { display: inline-block; width: 7.5em; padding: 2px 8px; height: auto; }
+@media (max-width: 560px) { .vl-row { grid-template-columns: 1fr auto; } .vl-row i { grid-column: 1 / -1; grid-row: 2; } }
+@media (max-width: 560px) { .mfrow .num { min-width: 60px !important; } }

@@ -1,6 +1,6 @@
 # Atalaya
 
-Plataforma para que una empresa decida si puede afrontar una inversión **sin romper liquidez y pagándola con su propia rentabilidad**, y para gobernar el día a día con un sistema integrado de decisiones estratégicas. Pensada para empresarios sin formación financiera: cada indicador tiene su horquilla verde, ámbar y roja, las variables que lo mueven y un asistente al que se le puede hablar.
+Plataforma para que una empresa decida si puede afrontar una inversión **sin romper liquidez y pagándola con su propia rentabilidad**, y para analizar, diagnosticar y evaluar toda la empresa con un sistema integrado de decisiones estratégicas. **Atalaya es una herramienta de diagnóstico, no de gestión**: no sustituye al ERP ni lleva el día a día; trabaja sobre fotos a una fecha de corte para decidir mejor y comparar escenarios. Pensada para empresarios sin formación financiera: cada indicador tiene su horquilla verde, ámbar y roja, las variables que lo mueven y un asistente al que se le puede hablar.
 
 ## Páginas
 
@@ -11,7 +11,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `grupo.html` | Vista de grupo (plan Grupos) o cartera de clientes (plan Consultora): sociedades, consolidado con eliminaciones intragrupo, comparativa, riesgos cruzados, objetivos en cascada e informe. |
 | `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con dos mundos (simulador de inversión y sistema estratégico) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
-| `estrategia.html` | Sistema estratégico integrado (18 módulos). |
+| `estrategia.html` | Sistema estratégico integrado (21 módulos). |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
 | `manual.html` | Manual de uso completo, con buscador. Es parte del área de clientes: solo se abre con sesión y acceso vigente (o con la sesión de administración). |
 | `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso, cambio de contraseña de los usuarios y enlaces de recuperación. Sin enlace visible: se entra por la barra de direcciones (`admin.html` o `#admin` en la página principal). Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
@@ -39,15 +39,15 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 
 **Universo 3D** detrás de cada módulo y capítulo (`js/cosmos.js`).
 
-**Mapa de capas y recorrido por áreas**: las cinco áreas son las fases y los 18 módulos, ventanas flotantes en 3D con un fragmento real y su estado en vivo (abanico, pila, círculo o línea). Dentro se trabaja un módulo cada vez con hoja de ruta, anterior y siguiente; «Ver pestañas» vuelve a la barra clásica.
+**Mapa de capas y recorrido por áreas**: las cinco áreas son las fases y los 21 módulos, ventanas flotantes en 3D con un fragmento real y su estado en vivo (abanico, pila, círculo o línea). Dentro se trabaja un módulo cada vez con hoja de ruta, anterior y siguiente; «Ver pestañas» vuelve a la barra clásica.
 
 | Grupo | Módulos |
 |---|---|
-| Visión | Cuadro de mando cruzado · Plan de empresa (misión, visión, valores con peso, DAFO contextualizado con tus datos, CAME, filtro de valores, riesgos ponderados por valores y cascada de objetivos macro → micro) · Informe de auditoría completo |
-| Finanzas | Flujo del dinero (con carga manual por años) · Impuestos (calendario de pagos, marco legal de reducción por escenario y escenarios fiscales de la inversión) · Tesorería por semanas · Presupuesto (generador con cuatro métodos, partidas detalladas, versiones, reales por partida y desviaciones en €, % y peso sobre ventas) |
+| Visión | Cuadro de mando cruzado · Plan de empresa (misión, visión, valores con peso, DAFO contextualizado con tus datos, CAME, filtro de valores, riesgos ponderados por valores y cascada de objetivos macro → micro) · Informe de auditoría completo · Evolución (corte del diagnóstico automático cada mes y manual; compara dos cortes: qué mejora, qué empeora, salud por área) |
+| Finanzas | Flujo del dinero (con carga manual por años) · Impuestos (calendario de pagos, marco legal de reducción por escenario y escenarios fiscales de la inversión) · Tesorería por semanas · Presupuesto (generador con cuatro métodos, partidas detalladas, versiones, reales por partida y desviaciones en €, % y peso sobre ventas) · Cobros y morosidad (auditoría de la cartera a una fecha de corte: antigüedad de saldos, pago real frente a pactado, caja atrapada y deterioro) |
 | Comercial | ABC y concentración de clientes, productos y proveedores (HHI explicado) · Margen de contribución sobre la demanda con palancas y escenarios guardados · Pipeline · Marketing (CAC, LTV) |
 | Operaciones | Compras (Kraljic) · Logística (OTIF, coste por pedido) · Gestor de tiempos (facturable frente a sistema interno, con reloj de tareas flotante y ventana siempre visible fuera del navegador) · Lean por sector (takt, OEE, flujo de valor, desperdicios, 5S, kaizen) · Personas (con organigrama dibujable) |
-| Estrategia | Expansión territorial (enviable al simulador) · Mercado y riesgos 360 con datos macro de referencia 2026 y agente sobre fuentes oficiales |
+| Estrategia | Expansión territorial (enviable al simulador) · Valoración de la empresa (múltiplo de EBITDA del sector con ajustes y flujos descontados, puente de hoy al valor con el plan, calculadoras de socio y participación; `js/valoracion-core.js`, que usa también la vista de grupo) · Mercado y riesgos 360 con datos macro de referencia 2026 y agente sobre fuentes oficiales |
 
 Cada indicador con «?» abre una ficha que explica qué es, cómo se calcula, cómo leer tu dato y cómo mejorarlo (se cierra con la X, Escape o tocando fuera). Todas las tablas admiten importar documentos (PDF, Word, Excel, CSV, Markdown), pegar desde Excel y, donde tiene sentido, dictar por voz. Los riesgos, indicadores y hallazgos de cada módulo se suman al cuadro de mando y al informe de auditoría, que incluye un plan de trabajo de los objetivos a las acciones (macro → micro) y de los hallazgos al resultado (micro → macro).
 
@@ -105,7 +105,7 @@ atalaya/
 │   ├── cosmos.js       universo 3D detrás de cada pantalla de la aplicación
 │   ├── grupo.js        vista de grupo y cartera de clientes
 │   ├── reloj.js        reloj de tareas (módulo, flotante, ventana aparte)
-│   └── strategy/       core · finance · commercial · operations · orgchart · plan · market · consultor-data · origen · consultor · ruta-est
+│   └── strategy/       core · finance · commercial · operations · orgchart · plan · market · diagnostico · consultor-data · origen · consultor · ruta-est
 ├── manual.html         manual de uso
 ├── PLAN-GRUPOS.md      plan Grupos, precios por tramos, pago anual y lo construido
 ├── PUESTA-EN-MARCHA.md comprobaciones al subir al servidor y opciones de cobro

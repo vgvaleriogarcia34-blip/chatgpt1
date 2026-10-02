@@ -323,6 +323,53 @@
       ],
       objetivos: [{ k: 'Sensibilidad al ciclo', u: '/5', dir: 'bajar', sug: 3, kpi: 'Sensibilidad al ciclo' }, { k: 'Riesgos externos', u: 'riesgos', dir: 'bajar', kpi: 'Riesgos externos' }],
       cadencia: [['Trimestral', 'Indicadores externos y competencia', 'Dirección general'], ['Semestral', 'Regulación', 'Dirección y asesores'], ['Anual', 'Escenarios y contingencia', 'Comité de dirección']]
+    },
+
+    evolucion: {
+      pregunta: '¿La empresa mejora o empeora?', resp: 'Dirección general',
+      proposito: 'Pasar de la foto a la película: comparar el diagnóstico de hoy con el de hace un mes, un trimestre o un año para saber si las decisiones están funcionando.',
+      maxima: ['Un corte del diagnóstico cada mes, guardado y comparable.', 'Cada cambio relevante (cargar cuentas, una inversión, un cambio de política) con su corte antes y después para medir su efecto.', 'Revisión trimestral de qué semáforos mejoran y cuáles empeoran, con su explicación.', 'La propiedad ve la tendencia, no solo el dato del mes.'],
+      consultor: ['Fijar el corte de referencia (punto cero) con datos reales antes de empezar a mejorar.', 'Lectura de tendencias: separar lo que mejora por decisiones propias de lo que mejora por el mercado.', 'Informe trimestral de evolución para la propiedad o el consejo.'],
+      datos: [{ t: 'Balances y cuentas de resultados de los dos últimos años (punto de partida)', tipo: 'cuentas', alt: 'historico' }],
+      preguntas: [
+        s('v1', 'Proceso', '¿Tienes una foto de referencia de la empresa (punto cero) con la que comparar?', 'no', 'Guardar ahora un corte de referencia con los datos reales cargados.', 'Dirección general', 7, 'Cortes guardados'),
+        q('v2', 'Proceso', '¿Revisas de forma periódica si los indicadores mejoran o empeoran?', 'Revisión trimestral de la evolución: qué mejora, qué empeora y por qué.', 'Dirección general', 90, 'Revisiones trimestrales hechas'),
+        q('v3', 'Estrategia', '¿Mides el efecto de las decisiones importantes (antes y después)?', 'Guardar un corte antes y otro después de cada decisión relevante.', 'Dirección general', 30, 'Decisiones con corte antes y después')
+      ],
+      objetivos: [{ k: 'Salud global', u: '/100', dir: 'subir', sug: 75, fn: 'salud' }],
+      cadencia: [['Mensual', 'Corte automático del diagnóstico', 'Atalaya'], ['Trimestral', 'Lectura de la evolución con la dirección', 'Dirección general'], ['Anual', 'Evolución del año para la propiedad', 'Propiedad']]
+    },
+
+    cobros: {
+      pregunta: '¿Cómo pagan de verdad mis clientes y cuánto riesgo tengo en la calle?', resp: 'Dirección financiera',
+      proposito: 'Auditar la cartera de clientes a una fecha de corte: antigüedad de los saldos, comportamiento real de pago frente a lo pactado, caja atrapada y deterioro. Es diagnóstico para decidir la política de crédito, no la gestión diaria del cobro.',
+      maxima: ['Antigüedad de saldos revisada en cada cierre de mes, con el deterioro reconocido en las cuentas.', 'Plazo pactado y plazo real medidos por cliente y por segmento.', 'Política de crédito escrita: límites por cliente, condiciones por segmento y quién aprueba excepciones.', 'Seguro de crédito o garantías para los clientes con más riesgo.'],
+      consultor: ['Auditoría de la cartera al cierre: saldos vencidos por tramo y por cliente.', 'Comparación del plazo pactado con el pago real del último año.', 'Cálculo de la caja atrapada y del coste financiero de los retrasos.', 'Propuesta de política de crédito y de condiciones por segmento ABC.'],
+      datos: [{ t: 'Facturas pendientes de cobro a la fecha de corte', tipo: 'cartera' }, { t: 'Cobros del último año con fecha de factura y de cobro', tipo: 'cobros' }, { t: 'Ventas del último año por cliente (plazos pactados)', tipo: 'ventas' }],
+      preguntas: [
+        s('k1', 'Proceso', '¿Hay una política escrita de crédito a clientes (plazos, límites y quién aprueba excepciones)?', 'no', 'Redactar la política de crédito: plazos por segmento, límite por cliente y quién aprueba excepciones.', 'Dirección financiera', 45, 'Clientes dentro de límite'),
+        s('k2', 'Datos', '¿Se reconoce en las cuentas el deterioro de los saldos de dudoso cobro?', 'no', 'Revisar con el asesor el deterioro de los saldos de más de seis meses y su deducibilidad.', 'Administración', 30, 'Deterioro reconocido'),
+        q('k3', 'Estrategia', '¿Las condiciones de pago se deciden según la rentabilidad y el riesgo de cada cliente?', 'Condiciones por segmento ABC: plazos más cortos o garantías a los clientes de más riesgo y menos margen.', 'Dirección comercial', 60, 'Días reales de cobro'),
+        s('k4', 'Herramientas', '¿Tienes seguro de crédito o garantías con los clientes que más deben?', 'no', 'Estudiar el seguro de crédito o garantías para los clientes con más saldo vencido.', 'Dirección financiera', 60, 'Saldo asegurado')
+      ],
+      objetivos: [{ k: 'Días reales de cobro', u: 'días', dir: 'bajar', kpi: 'Días reales de cobro' }, { k: 'Vencido sobre pendiente', u: '%', dir: 'bajar', sug: 15, kpi: 'Vencido sobre pendiente' }],
+      cadencia: [['Mensual', 'Antigüedad de saldos al cierre', 'Administración'], ['Trimestral', 'Plazo real frente a pactado y política de crédito', 'Dirección financiera'], ['Anual', 'Deterioro y seguro de crédito', 'Dirección y asesor']]
+    },
+
+    valoracion: {
+      pregunta: '¿Cuánto vale mi empresa y cuánto puede llegar a valer?', resp: 'Propiedad',
+      proposito: 'Poner precio orientativo a la empresa con métodos de mercado y saber qué decisiones la hacen valer más: el marcador final para la propiedad en sucesiones, entrada de socios, ventas o estrategia de grupo.',
+      maxima: ['Valoración actualizada cada año con dos métodos y un rango, no una cifra única.', 'Mapa de lo que resta valor (dependencia del dueño, clientes concentrados, cuentas poco fiables) con un plan para corregirlo.', 'Valor objetivo a tres o cinco años ligado al plan de empresa.', 'Pactos entre socios y protocolo familiar con un criterio de valoración acordado de antemano.'],
+      consultor: ['Normalización del EBITDA: gastos personales, sueldos fuera de mercado y partidas no recurrentes.', 'Valoración por múltiplos de operaciones comparables y por descuento de flujos.', 'Análisis de los factores que un comprador descuenta y plan para corregirlos.', 'Preparación de la empresa para una operación (vendor due diligence).'],
+      datos: [{ t: 'Balances y cuentas de resultados de al menos dos años', tipo: 'cuentas', alt: 'historico' }, { t: 'Ventas del último año por cliente (concentración)', tipo: 'ventas' }],
+      preguntas: [
+        s('w1', 'Estrategia', '¿La empresa funcionaría tres meses sin la propiedad?', 'no', 'Delegar decisiones y preparar un equipo directivo que no dependa de la propiedad.', 'Propiedad', 180, 'Decisiones delegadas'),
+        s('w2', 'Datos', '¿Las cuentas están auditadas o tienen un histórico fiable de al menos tres años?', 'no', 'Ordenar las cuentas y valorar una auditoría voluntaria antes de cualquier operación.', 'Administración', 120, 'Años con cuentas fiables'),
+        s('w3', 'Estrategia', '¿Hay un pacto entre socios o protocolo familiar con un criterio de valoración?', 'no', 'Acordar un pacto de socios con el método de valoración para entradas, salidas y herencias.', 'Propiedad', 120, 'Pacto firmado'),
+        q('w4', 'Estrategia', '¿Sabes qué decisiones aumentarían más el valor de la empresa?', 'Priorizar las mejoras del plan por su efecto en el valor (EBITDA por múltiplo y reducción de riesgo).', 'Dirección general', 60, 'Valor con el plan')
+      ],
+      objetivos: [{ k: 'Valor de las acciones', u: '€', dir: 'subir', kpi: 'Valor de las acciones' }],
+      cadencia: [['Anual', 'Valoración actualizada con las cuentas del año', 'Propiedad y dirección financiera'], ['Ante cualquier operación', 'Valoración profesional independiente', 'Propiedad y asesor']]
     }
   };
 
@@ -336,6 +383,8 @@
     pipeline: { n: 'Oportunidades comerciales', d: 'Oportunidades abiertas con cliente, importe, etapa y probabilidad.', mods: ['comercial'] },
     tiempos: { n: 'Partes de horas', d: 'Registros de horas por persona, tarea y fecha.', mods: ['tiempos', 'lean'] },
     banco: { n: 'Movimientos bancarios', d: 'Extracto con fecha, concepto, importe y saldo.', mods: ['tesoreria'] },
+    cartera: { n: 'Facturas pendientes de cobro', d: 'Cartera de clientes a una fecha: cliente, factura, vencimiento e importe pendiente.', mods: ['cobros', 'dinero', 'valoracion'] },
+    cobros: { n: 'Cobros del último año', d: 'Facturas cobradas con fecha de factura y fecha de cobro: dice cómo paga de verdad cada cliente.', mods: ['cobros'] },
     marketing: { n: 'Marketing por canal', d: 'Inversión, contactos y clientes por canal o campaña.', mods: ['marketing'] },
     documentos: { n: 'Informes y documentos de trabajo', d: 'Informes, actas, estudios, memorias o cualquier texto que dé contexto.', mods: ['plan', 'auditoria', 'mercado', 'expansion', 'lean', 'logistica', 'impuestos', 'presupuesto'] }
   };

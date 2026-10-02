@@ -35,6 +35,8 @@
     pipeline: { f: { cliente: ['cliente', 'empresa', 'cuenta', 'oportunidad', 'nombre oportunidad'], importe: ['importe', 'valor', 'presupuesto', 'cuantia', 'importe estimado'], etapa: ['etapa', 'fase', 'estado', 'stage'], prob: ['probabilidad', 'prob', 'probabilidad %'], cierre: ['cierre', 'fecha cierre', 'fecha prevista', 'cierre previsto'], comercial: ['comercial', 'vendedor', 'responsable', 'propietario'] }, need: (m) => 'etapa' in m && 'importe' in m, bonus: () => 3 },
     tiempos: { f: { persona: ['persona', 'empleado', 'trabajador', 'operario', 'nombre'], tarea: ['tarea', 'actividad', 'descripcion', 'orden', 'proyecto', 'trabajo'], horas: ['horas', 'tiempo', 'duracion', 'horas trabajadas'], fecha: ['fecha', 'dia'], categoria: ['categoria', 'tipo', 'clase'] }, need: (m) => 'horas' in m && ('persona' in m || 'tarea' in m), bonus: () => 3 },
     banco: { f: { fecha: ['fecha', 'f valor', 'fecha valor', 'fecha operacion', 'fecha contable'], concepto: ['concepto', 'descripcion', 'movimiento', 'detalle'], importe: ['importe', 'cantidad', 'cargo abono'], cargo: ['cargo', 'debe', 'salida', 'pagos'], abono: ['abono', 'haber', 'entrada', 'cobros'], saldo: ['saldo', 'saldo disponible'] }, need: (m) => 'fecha' in m && 'concepto' in m && ('importe' in m || 'cargo' in m || 'abono' in m) && ('saldo' in m || 'cargo' in m || 'abono' in m), bonus: () => 3 },
+    cartera: { f: { cliente: ['cliente', 'razon social', 'deudor', 'nombre cliente', 'cuenta cliente'], factura: ['factura', 'numero factura', 'n factura', 'documento', 'efecto'], emision: ['fecha factura', 'emision', 'fecha emision', 'fecha'], vencimiento: ['vencimiento', 'fecha vencimiento', 'vto', 'vence'], importe: ['pendiente', 'importe pendiente', 'saldo', 'saldo pendiente', 'importe', 'total'], producto: ['producto', 'articulo', 'referencia'], unidades: ['unidades', 'cantidad', 'uds'] }, need: (m) => 'cliente' in m && 'vencimiento' in m && 'importe' in m && !('producto' in m) && !('unidades' in m), bonus: () => 4 },
+    cobros: { f: { cliente: ['cliente', 'razon social', 'deudor', 'nombre cliente'], emision: ['fecha factura', 'emision', 'fecha emision'], cobro: ['fecha cobro', 'fecha de cobro', 'cobrado el', 'fecha pago', 'fecha de pago', 'cobro'], importe: ['importe', 'cobrado', 'importe cobrado', 'total'] }, need: (m) => 'cliente' in m && 'emision' in m && 'cobro' in m && 'importe' in m, bonus: () => 6 },
     marketing: { f: { canal: ['canal', 'medio', 'fuente', 'campana', 'origen'], inversion: ['inversion', 'gasto', 'coste', 'presupuesto', 'importe'], leads: ['leads', 'contactos', 'solicitudes', 'registros'], oportunidades: ['oportunidades'], clientes: ['clientes', 'conversiones', 'clientes nuevos', 'ventas'] }, need: (m) => 'canal' in m && ('inversion' in m || 'leads' in m) && !('cliente' in m), bonus: (m) => ('leads' in m ? 3 : 0) }
   };
   // Cabecera: la fila (de las diez primeras) que mejor casa con los campos de un tipo
@@ -161,6 +163,22 @@
       O().series.banco = { entradasMes: Math.round(ent / meses), salidasMes: Math.round(sal / meses), saldo: ult, movimientos: L.length };
       if (ult !== null) S.state.tesoreria.saldoInicial = Math.round(ult);
       return { mods: TIPOS.banco.mods, txt: `${L.length} movimientos · entradas ${F.eur(ent / meses)} y salidas ${F.eur(sal / meses)} al mes${ult !== null ? ` · saldo ${F.eur(ult)} como punto de partida de la tesorería` : ''}` };
+    },
+    // Cartera de clientes a una fecha (auditoría de cobros): sustituye la de ejemplo
+    cartera(res) {
+      const C = S.state.cobros;
+      const L = res.rows.filter((r) => r.cliente && num(r.importe)).map((r) => ({ cliente: String(r.cliente).trim(), factura: String(r.factura || '').trim(), emision: iso(fecha(r.emision)) || '', vencimiento: iso(fecha(r.vencimiento)) || iso(fecha(r.emision)) || '', importe: Math.round(num(r.importe) * 100) / 100 }));
+      if (C.ejemplo) C.historico = [];
+      C.partidas = L; C.ejemplo = false;
+      return { mods: TIPOS.cartera.mods, txt: `${L.length} facturas pendientes · ${F.eur(L.reduce((a, p) => a + p.importe, 0))} por cobrar de ${new Set(L.map((p) => p.cliente)).size} clientes` };
+    },
+    cobros(res) {
+      const C = S.state.cobros;
+      const L = res.rows.filter((r) => r.cliente && fecha(r.emision) && fecha(r.cobro)).map((r) => ({ cliente: String(r.cliente).trim(), emision: iso(fecha(r.emision)), cobro: iso(fecha(r.cobro)), importe: Math.round(num(r.importe) * 100) / 100 }));
+      if (C.ejemplo) C.partidas = [];
+      C.historico = L; C.ejemplo = false;
+      const d = L.reduce((a, h) => a + (fecha(h.cobro) - fecha(h.emision)) / 864e5 * (h.importe || 1), 0) / Math.max(1, L.reduce((a, h) => a + (h.importe || 1), 0));
+      return { mods: TIPOS.cobros.mods, txt: `${L.length} cobros · se cobra de media a ${Math.round(d)} días de la factura` };
     },
     marketing(res) {
       const C = S.state.comercial, old = new Map((C.canales || []).map((c) => [c.canal, c])), mg = S.sim.empresa.margen || 35;

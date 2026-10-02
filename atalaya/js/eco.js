@@ -34,10 +34,12 @@
         [0, 'Cuadro de mando', '¿Cómo está toda la empresa de un vistazo?', 'kpis'],
         [0, 'Plan de empresa', '¿A dónde vamos y con qué valores?', 'dafo'],
         [0, 'Informe de auditoría', 'El diagnóstico completo, de lo micro a lo macro.', 'doc'],
+        [0, 'Evolución', '¿La empresa mejora o empeora?', 'lines'],
         [1, 'Flujo del dinero', '¿Por qué el beneficio no llega a la caja?', 'flow'],
         [1, 'Impuestos', '¿Cuánto y cuándo pagaré a Hacienda?', 'bars'],
         [1, 'Tesorería semanal', '¿Llego a fin de mes, semana a semana?', 'lines'],
         [1, 'Presupuesto', '¿Qué espero ganar y gastar este año?', 'table'],
+        [1, 'Cobros y morosidad', '¿Cómo pagan de verdad mis clientes?', 'bars'],
         [2, 'ABC y concentración', '¿Quién me compra y cuánto dependo de él?', 'pareto'],
         [2, 'Margen y demanda', '¿Qué precio y qué volumen me convienen?', 'lines'],
         [2, 'Pipeline comercial', '¿Qué ventas tengo en camino?', 'funnel'],
@@ -48,7 +50,8 @@
         [3, 'Lean', '¿Dónde se pierde valor en el proceso?', 'steps'],
         [3, 'Personas', '¿Está bien organizado el equipo?', 'org'],
         [4, 'Expansión territorial', '¿Dónde y cómo crecer?', 'radar'],
-        [4, 'Mercado y riesgos', '¿Qué pasa fuera que me afecta?', 'lights']
+        [4, 'Mercado y riesgos', '¿Qué pasa fuera que me afecta?', 'lights'],
+        [4, 'Valoración', '¿Cuánto vale mi empresa?', 'flow']
       ]
     }
   };
@@ -191,15 +194,15 @@
       const ring = pts(pos, col, 0.12, 0.9); ring.rotation.set(1.2, 0, 0.25); sim.add(ring); sim.userData.ring = ring;
       sim.userData.moons = [0xe04848, 0xd95926, 0x3987e5, 0x199e70, 0xd55181].map((c, i) => { const pv = new T.Group(); pv.rotation.set(0.3 + i * 0.35, i * 1.1, 0.2 * i); sim.add(pv); const r = 6.6 + i * 0.7; const o = new T.Mesh(new T.TorusGeometry(r, 0.014, 6, 120), new T.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.3 })); o.rotation.x = Math.PI / 2; pv.add(o); const h = new T.Group(); pv.add(h); const m = new T.Mesh(new T.SphereGeometry(0.3, 16, 12), new T.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.7 })); m.position.x = r; h.add(m); const gl = sprite(glow(255, 255, 255), c, 1.6, 0.8); gl.position.x = r; h.add(gl); return { h, sp: 0.25 + i * 0.07 }; });
     }
-    // Mundo 2: núcleo azul con 18 módulos en tres órbitas, de color por área
+    // Mundo 2: núcleo azul con 21 módulos en tres órbitas, de color por área
     const est = new T.Group();
     { const core = new T.Mesh(new T.IcosahedronGeometry(1.6, 2), new T.MeshStandardMaterial({ color: 0x9cc4ff, emissive: 0x2c5fd0, emissiveIntensity: 1.1, roughness: 0.3, metalness: 0.4 })); est.add(core);
       const shell = new T.Mesh(new T.IcosahedronGeometry(2.6, 1), new T.MeshBasicMaterial({ color: 0x6fa8ff, wireframe: true, transparent: true, opacity: 0.35 })); est.add(shell);
       est.add(sprite(glow(110, 160, 255), 0xffffff, 12, 0.65));
       const shells = [0, 1, 2].map((i) => { const s = new T.Group(); s.rotation.set(0.5 + i * 0.6, i * 0.9, 0.25 * i); est.add(s); const t = new T.Mesh(new T.TorusGeometry(4.6 + i * 1.25, 0.012, 6, 120), new T.MeshBasicMaterial({ color: 0x86b4ff, transparent: true, opacity: 0.2 })); t.rotation.x = Math.PI / 2; s.add(t); return s; });
       const nodes = []; let k = 0;
-      [[0xd4ae64, 3], [0x199e70, 4], [0x3987e5, 4], [0xd95926, 5], [0xd55181, 2]].forEach(([color, cnt]) => { for (let j = 0; j < cnt; j++, k++) { const sh = shells[k % 3], r = 4.6 + (k % 3) * 1.25, a = (k / 18) * Math.PI * 6 + (k % 3) * 0.4; const m = new T.Mesh(new T.OctahedronGeometry(0.34, 0), new T.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.8, flatShading: true })); m.position.set(Math.cos(a) * r, Math.sin(a * 0.5) * 0.6, Math.sin(a) * r); sh.add(m); const gl = sprite(glow(255, 255, 255), color, 1.4, 0.7); gl.position.copy(m.position); sh.add(gl); nodes.push(m); } });
-      const lg = new T.BufferGeometry(), lp = new Float32Array(18 * 6); lg.setAttribute('position', new T.BufferAttribute(lp, 3));
+      [[0xd4ae64, 4], [0x199e70, 5], [0x3987e5, 4], [0xd95926, 5], [0xd55181, 3]].forEach(([color, cnt]) => { for (let j = 0; j < cnt; j++, k++) { const sh = shells[k % 3], r = 4.6 + (k % 3) * 1.25, a = (k / 21) * Math.PI * 6 + (k % 3) * 0.4; const m = new T.Mesh(new T.OctahedronGeometry(0.34, 0), new T.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.8, flatShading: true })); m.position.set(Math.cos(a) * r, Math.sin(a * 0.5) * 0.6, Math.sin(a) * r); sh.add(m); const gl = sprite(glow(255, 255, 255), color, 1.4, 0.7); gl.position.copy(m.position); sh.add(gl); nodes.push(m); } });
+      const lg = new T.BufferGeometry(), lp = new Float32Array(21 * 6); lg.setAttribute('position', new T.BufferAttribute(lp, 3));
       est.add(new T.LineSegments(lg, new T.LineBasicMaterial({ color: 0x86b4ff, transparent: true, opacity: 0.22, blending: T.AdditiveBlending })));
       Object.assign(est.userData, { core, shell, shells, nodes, lg, lp });
     }

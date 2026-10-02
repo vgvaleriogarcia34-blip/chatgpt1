@@ -1,5 +1,5 @@
 /* Atalaya · Recorrido del sistema estratégico
-   El mismo lenguaje que el simulador: las cinco áreas son las fases y los 18 módulos, las capas.
+   El mismo lenguaje que el simulador: las cinco áreas son las fases y los 21 módulos, las capas.
    1) Mapa de capas en 3D (pila, abanico, círculo o línea) con un fragmento real de cada módulo y su estado en vivo.
    2) Hoja de ruta fija: áreas, módulo actual, anterior / siguiente. «Ver pestañas» vuelve a la barra clásica. */
 (function () {
@@ -13,7 +13,7 @@
   // Pregunta que responde cada módulo: el empresario sabe para qué entra
   const Q = {
     tablero: '¿Cómo está toda la empresa de un vistazo?', plan: '¿A dónde vamos y con qué valores?', auditoria: 'El diagnóstico completo, de lo micro a lo macro.',
-    dinero: '¿Por qué el beneficio no llega a la caja?', impuestos: '¿Cuánto y cuándo pagaré a Hacienda?', tesoreria: '¿Llego a fin de mes, semana a semana?', presupuesto: '¿Qué espero ganar y gastar este año?',
+    dinero: '¿Por qué el beneficio no llega a la caja?', impuestos: '¿Cuánto y cuándo pagaré a Hacienda?', tesoreria: '¿Llego a fin de mes, semana a semana?', presupuesto: '¿Qué espero ganar y gastar este año?', cobros: '¿Cómo pagan de verdad mis clientes?', evolucion: '¿La empresa mejora o empeora?', valoracion: '¿Cuánto vale mi empresa y cuánto puede valer?',
     ventas: '¿Quién me compra y cuánto dependo de él?', margen: '¿Qué precio y qué volumen me convienen?', comercial: '¿Qué ventas tengo en camino?', marketing: '¿Qué me rinde cada euro de marketing?',
     compras: '¿De quién dependo para comprar?', logistica: '¿Cuánto me cuesta mover y guardar?', tiempos: '¿En qué se va el tiempo del equipo?', lean: '¿Dónde se pierde valor en el proceso?', personas: '¿Está bien organizado el equipo?',
     expansion: '¿Dónde y cómo crecer?', mercado: '¿Qué pasa fuera que me afecta?'
@@ -135,7 +135,7 @@
     foco = Math.max(0, O.indexOf(cur));
     ov.innerHTML = `<div class="rm-head">
         <div><div class="rm-kicker">Sistema estratégico · tu recorrido</div><h2>Toda la empresa, <em>capa a capa</em></h2>
-        <p>Cinco áreas, dieciocho módulos y la zona de origen de los datos. Cada ventana enseña lo que hay dentro y su estado con tus datos. Pasa por encima para elevarla y púlsala para entrar.</p></div>
+        <p>Cinco áreas, veintiún módulos y la zona de origen de los datos. Cada ventana enseña lo que hay dentro y su estado con tus datos. Pasa por encima para elevarla y púlsala para entrar.</p></div>
         <div class="rm-tools"><div class="seg" id="rmLay">${LAYOUTS.map(([k, n]) => `<button data-l="${k}" aria-pressed="${k === layout}">${n}</button>`).join('')}</div>
         <button class="btn ghost" id="rmAll">${modo === 'capitulo' ? 'Ver pestañas' : 'Recorrido por áreas'}</button><button class="icon-btn" id="rmX" aria-label="Cerrar el mapa">×</button></div></div>
       <ol class="rm-fases n5">${F.map((f, k) => `<li data-f="${k}"><b>${k + 1}</b><span>${esc(f.n)}</span><small>${f.ids.filter((x) => visit.has(x)).length}/${f.ids.length}</small></li>`).join('')}</ol>
