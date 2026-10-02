@@ -51,7 +51,12 @@
     const lines = String(text).replace(/\r/g, '').split('\n').map((l) => l.trim()).filter((l) => l && !/^\|?\s*:?-{3,}/.test(l));
     if (lines.some((l) => l.includes('\t'))) return lines.map((l) => l.split('\t'));
     if (lines.filter((l) => l.startsWith('|')).length > 2) return lines.filter((l) => l.startsWith('|')).map((l) => l.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
-    if (lines.filter((l) => l.split(';').length > 2).length > 2) return lines.map((l) => l.split(';'));
+    // CSV con comillas: un separador dentro de "…" no parte la celda
+    const splitQ = (l, sep) => { const out = []; let cur = '', q = false; for (const ch of l) { if (ch === '"') { q = !q; continue; } if (ch === sep && !q) { out.push(cur.trim()); cur = ''; } else cur += ch; } out.push(cur.trim()); return out; };
+    if (lines.filter((l) => splitQ(l, ';').length > 2).length > 2) return lines.map((l) => splitQ(l, ';'));
+    // Comas: si casi todas las líneas tienen tantas columnas como la cabecera, es un CSV (aunque haya decimales con coma entre comillas)
+    const hc = splitQ(lines[0] || '', ',').length;
+    if (hc > 2 && lines.filter((l) => splitQ(l, ',').length === hc).length >= lines.length * 0.6) return lines.map((l) => splitQ(l, ','));
     if (lines.filter((l) => l.split(',').length > 2 && !/\d,\d{2}\b/.test(l)).length > lines.length / 2) return lines.map((l) => l.split(','));
     const num = /\(?-?\d{1,3}(?:\.\d{3})+(?:,\d+)?\)?|\(?-?\d+(?:,\d+)?\)?/g;
     return lines.map((l) => {

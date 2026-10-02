@@ -83,7 +83,11 @@
   function recorrido() { modo = 'capitulo'; LS.set('atalaya.rutaest.modo', modo); document.body.classList.add('est-ruta'); drawBar(); drawNext(); }
 
   /* Cada vez que se muestra un módulo */
+  const AREA_COL = { 'Visión': 0xd4ae64, 'Finanzas': 0x199e70, 'Comercial': 0x3987e5, 'Operaciones': 0xd95926, 'Estrategia': 0xd55181 };
   S.onShow = (id, keep) => {
+    // Cada módulo vive en su propia galaxia, del color de su área; los titulares flotan con volumen
+    if (A.cosmos) { const m = S.mod(id); if (!keep) A.cosmos.go(id, AREA_COL[m && m.grupo] || 0xd4ae64); A.cosmos.type3d($('#stPanel')); }
+    if (S.onShowExtra) S.onShowExtra.forEach((f) => { try { f(id, keep); } catch (e) { console.error(e); } });
     visit.add(id); LS.set('atalaya.rutaest.visto', Array.from(visit));
     // Se guarda su aspecto real para el mapa (cuando los gráficos ya están dibujados)
     setTimeout(() => { if (S.current() === id) snap.set(id, clonar($('#stPanel'))); }, keep ? 50 : 400);
@@ -131,7 +135,7 @@
     foco = Math.max(0, O.indexOf(cur));
     ov.innerHTML = `<div class="rm-head">
         <div><div class="rm-kicker">Sistema estratégico · tu recorrido</div><h2>Toda la empresa, <em>capa a capa</em></h2>
-        <p>Cinco áreas y dieciocho módulos. Cada ventana enseña lo que hay dentro y su estado con tus datos. Pasa por encima para elevarla y púlsala para entrar.</p></div>
+        <p>Cinco áreas, dieciocho módulos y la zona de origen de los datos. Cada ventana enseña lo que hay dentro y su estado con tus datos. Pasa por encima para elevarla y púlsala para entrar.</p></div>
         <div class="rm-tools"><div class="seg" id="rmLay">${LAYOUTS.map(([k, n]) => `<button data-l="${k}" aria-pressed="${k === layout}">${n}</button>`).join('')}</div>
         <button class="btn ghost" id="rmAll">${modo === 'capitulo' ? 'Ver pestañas' : 'Recorrido por áreas'}</button><button class="icon-btn" id="rmX" aria-label="Cerrar el mapa">×</button></div></div>
       <ol class="rm-fases n5">${F.map((f, k) => `<li data-f="${k}"><b>${k + 1}</b><span>${esc(f.n)}</span><small>${f.ids.filter((x) => visit.has(x)).length}/${f.ids.length}</small></li>`).join('')}</ol>

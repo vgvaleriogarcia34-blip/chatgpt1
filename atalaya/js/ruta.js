@@ -83,6 +83,7 @@
     sections().forEach((s) => s.classList.toggle('ch-on', s.id === id));
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
     drawBar(); drawNext();
+    if (A.cosmos) { const fi = faseDe(id); A.cosmos.go(id, [0xecd6a6, 0x3987e5, 0xd4ae64, 0xd55181, 0x199e70, 0xd95926][fi] || 0x9ba4ba); }
     if (!quiet) scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
     // Los gráficos y el 3D se recalculan al hacerse visibles
     setTimeout(() => dispatchEvent(new Event('resize')), 60);

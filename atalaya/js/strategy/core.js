@@ -18,7 +18,7 @@
   S.pct = (a, b) => (b ? (a / b) * 100 : 0);
 
   /* ---------- Módulos ---------- */
-  S.register = (m) => { S.modules.push(m); };
+  S.register = (m) => { if (m.first) S.modules.unshift(m); else S.modules.push(m); };
   S.mod = (id) => S.modules.find((m) => m.id === id);
   S.defaults = {};
   S.save = (() => { let t; return () => { LS.set(LSK, S.state); clearTimeout(t); t = setTimeout(() => A.platform && A.platform.saveData('estrategia', S.state), 1200); S.refreshKpis(); }; })();
@@ -154,9 +154,13 @@
     const m = S.mod(id);
     try { m.render(panel); } catch (e) { panel.innerHTML = `<div class="alert stop">No se pudo mostrar este módulo: ${esc(e.message)}</div>`; console.error(e); }
     // Cada módulo puede generar su informe
+    // Cabecera del módulo: área, nombre con volumen, la pregunta que responde y sus informes
     if (A.informe && !panel.querySelector('.alert.stop')) {
-      panel.insertAdjacentHTML('afterbegin', `<div class="st-repbar"><span class="small muted">${esc(m.nombre)}</span><span class="spacer"></span><button class="btn" id="stReport">Generar informe</button></div>`);
-      $('#stReport', panel).onclick = () => (id === 'auditoria' && S.auditReport ? S.auditReport() : S.moduleReport(m));
+      const D = A.C360 && A.C360[id];
+      const r360 = D && S.report360;
+      panel.insertAdjacentHTML('afterbegin', `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(m.grupo)}</span><h2 class="st-title">${esc(m.nombre)}</h2>${D && D.pregunta ? `<p class="st-q">${esc(D.pregunta)}</p>` : ''}</div><span class="spacer"></span>${id === 'auditoria' && S.auditReport ? '<button class="btn" id="stAudit">Informe de auditoría</button>' : ''}${id !== 'origen' ? `<button class="btn ${r360 ? 'solid' : ''}" id="stReport">${r360 ? 'Informe 360' : 'Generar informe'}</button>` : ''}</div>`);
+      const rb = $('#stReport', panel); if (rb) rb.onclick = () => (r360 ? S.report360(m) : S.moduleReport(m));
+      const ab = $('#stAudit', panel); if (ab) ab.onclick = () => S.auditReport();
     }
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
     // Al recalcular el mismo módulo se conserva la posición: solo se sube al cambiar de módulo
@@ -167,6 +171,19 @@
   S.GROUPS = GROUPS;
 
   /* ---------- Informe de un módulo ---------- */
+  /* Piezas comunes de los informes: indicadores, riesgos, hallazgos y el análisis detallado del módulo en pantalla */
+  S.reportParts = function (m) {
+    const I = A.informe, panel = $('#stPanel');
+    const tiles = $$('.kpi', panel).map((t) => ({ k: (t.querySelector('.k span') || {}).textContent || '', v: (t.querySelector('.v') || {}).innerHTML || '', st: (t.querySelector('.state') || { className: '' }).className.replace(/.*st-(\w+).*/, '$1') || null, d: (t.querySelector('.d') || {}).textContent || '' })).map((k) => Object.assign(k, { st: ['ok', 'warn', 'stop'].includes(k.st) ? k.st : null }));
+    let R = [], Fi = []; try { R = m.risks ? m.risks().map((r) => r) : []; } catch (e) { /* sin riesgos */ } try { Fi = m.findings ? m.findings() : []; } catch (e) { /* sin hallazgos */ }
+    R.sort((a, b) => b.nivel - a.nivel); Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0));
+    const lede = ($('.lede', panel) || {}).textContent || '';
+    const conSt = tiles.filter((t) => t.st), sc = conSt.length ? Math.round(conSt.reduce((a, t) => a + (t.st === 'ok' ? 100 : t.st === 'warn' ? 55 : 15), 0) / conSt.length) : null;
+    const st = sc === null ? null : sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop';
+    const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360'));
+    const detalle = blocks.map((g) => { const t = (g.querySelector('h4') || {}).textContent || ''; const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); const body = I.fromDom(c).trim(); return body.replace(/<[^>]+>/g, '').trim() ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
+    return { tiles, R, Fi, lede, sc, st, detalle };
+  };
   S.moduleReport = function (m) {
     const I = A.informe, panel = $('#stPanel');
     I.reset();
@@ -180,7 +197,7 @@
     const rojos = tiles.filter((t) => t.st === 'stop').map((t) => t.k.toLowerCase());
     const resumen = `<p><b>${esc(m.nombre)}${sc === null ? '' : `: ${sc}/100 ${I.pill(st)}`}.</b> ${tiles.length} indicadores analizados${rojos.length ? `, ${rojos.length} en rojo (${esc(rojos.join(', '))})` : ', ninguno en rojo'}. ${R.length ? `${R.length} riesgo${R.length > 1 ? 's' : ''} identificado${R.length > 1 ? 's' : ''}, el principal: ${esc(R[0].nombre.toLowerCase())}.` : 'Sin riesgos relevantes.'} ${Fi.length ? `Las mejoras detectadas suman <b>${F.eur(impacto)}</b> al año.` : ''}</p>${Fi[0] ? `<p><b>Prioridad:</b> ${esc(Fi[0].accion)}</p>` : R[0] ? `<p><b>Prioridad:</b> ${esc(R[0].mitigacion || '')}</p>` : ''}`;
     // Detalle: cada bloque del módulo convertido en contenido de informe
-    const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass'));
+    const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360'));
     const detalle = blocks.map((g) => { const t = (g.querySelector('h4') || {}).textContent || ''; const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); const body = I.fromDom(c).trim(); return body.replace(/<[^>]+>/g, '').trim() ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
     const pasos = Fi.slice(0, 3).map((f) => `<li><b>${esc(f.accion)}</b> <span class="rp-muted">${esc(f.hallazgo)} · ${F.eur(f.impactoEUR || 0)} al año · ${f.plazo || 90} días</span></li>`).concat(R.slice(0, 3).map((r) => `<li><b>${esc(r.mitigacion || '')}</b> <span class="rp-muted">Riesgo: ${esc(r.nombre)}</span></li>`));
     const html = I.cover({ tipo: 'Informe de área', kicker: 'Sistema estratégico · ' + m.grupo, titulo: m.nombre, subtitulo: lede, empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre })

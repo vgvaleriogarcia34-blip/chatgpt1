@@ -578,3 +578,9 @@ table.guide td:nth-child(n+3):not(:last-child) { font-size: 0.8rem; }
   .rp-brand, .paper.rp thead th, .rp-n, .rp-summary, .rp-pill, .paper.rp tbody tr:nth-child(even) td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rp-cover { break-after: avoid; }
 }
+/* Informe 360: barras de madurez */
+.rp-bars { display: grid; gap: 6px; margin: 8px 0 14px; }
+.rp-bar { display: grid; grid-template-columns: 120px minmax(0, 1fr) 36px; gap: 10px; align-items: center; font-size: 0.85rem; }
+.rp-bar i { height: 8px; border-radius: 4px; background: #ece5d6; overflow: hidden; display: block; }
+.rp-bar i b { display: block; height: 100%; background: linear-gradient(90deg, #b88a32, #d4ae64); }
+.rp-bar em { font-style: normal; font-family: var(--font-data); text-align: right; }

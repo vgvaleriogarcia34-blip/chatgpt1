@@ -32,6 +32,12 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 
 ## Sistema estratégico (`estrategia.html`)
 
+**Zona de origen de datos**: se suben a la vez listados de ventas, compras, productos, plantilla, oportunidades, partes de horas, extractos, balances y cuentas, e informes; se reconocen por sus columnas y se reparten a los módulos (y al simulador). Cada módulo dice qué datos le faltan.
+
+**Diagnóstico e informe 360 por módulo**: propósito, máxima expresión, lo que añade un consultor, preguntas al empresario, objetivos, plan de acción a 30/60/90 días y cadencia de seguimiento (`js/strategy/consultor-data.js`), con su informe 360.
+
+**Universo 3D** detrás de cada módulo y capítulo (`js/cosmos.js`).
+
 **Mapa de capas y recorrido por áreas**: las cinco áreas son las fases y los 18 módulos, ventanas flotantes en 3D con un fragmento real y su estado en vivo (abanico, pila, círculo o línea). Dentro se trabaja un módulo cada vez con hoja de ruta, anterior y siguiente; «Ver pestañas» vuelve a la barra clásica.
 
 | Grupo | Módulos |
@@ -95,8 +101,10 @@ atalaya/
 │   ├── eco.js          el ecosistema en 3D de la página comercial
 │   ├── space.js        espacio 3D de la página comercial: fondo, piezas flotantes y titulares con volumen
 │   ├── portal.js       puesto de mando en 3D tras entrar
+│   ├── cosmos.js       universo 3D detrás de cada pantalla de la aplicación
 │   ├── reloj.js        reloj de tareas (módulo, flotante, ventana aparte)
-│   └── strategy/       core · finance · commercial · operations · orgchart · plan · market · ruta-est
+│   └── strategy/       core · finance · commercial · operations · orgchart · plan · market · consultor-data · origen · consultor · ruta-est
 ├── manual.html         manual de uso
+├── PLAN-GRUPOS.md      propuesta del plan para grupos empresariales y pago anual
 └── server/             server.mjs · package.json
 ```

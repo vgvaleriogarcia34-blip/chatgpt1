@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/cosmos.css">
 <style>
 /* Manual de consulta: índice fijo a la izquierda y una columna de lectura; misma identidad que Atalaya (azul noche y oro) */
 :root {
@@ -25,6 +26,13 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+/* Universo detrás del manual (solo en tema oscuro; queda por debajo del texto) */
+#cosmos { z-index: -1; }
+body.cosmos3d .veil { display: none; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) #cosmos { display: none; } }
+:root[data-theme="light"] #cosmos { display: none; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .w3d { text-shadow: none; } }
+:root[data-theme="light"] .w3d { text-shadow: none; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.65; }
 a { color: var(--gold); }
 a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
@@ -268,6 +276,14 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
 <p>En <span class="path">estrategia.html</span>. Usa los datos del simulador (sector, empresa, inversión) y añade los suyos. Todo lo que cambias se guarda solo. Los indicadores, riesgos y hallazgos de cada módulo se suman al cuadro de mando y al informe de auditoría.</p>
 <div class="box tip"><b class="lbl">Mapa de capas y recorrido por áreas</b>Funciona igual que en el simulador. Las <b>cinco áreas</b> (visión, finanzas, comercial, operaciones y estrategia) son las fases y los <b>dieciocho módulos</b> son las capas: cada ventana deja ver un fragmento real del módulo y su estado con tus datos (por ejemplo «Peso del primer cliente: 28 %» en rojo). Se ordenan en <b>abanico</b>, <b>pila</b>, <b>círculo</b> o <b>línea</b>; al pasar el ratón por un área se iluminan sus módulos. Dentro, arriba está la hoja de ruta con las áreas, los módulos vistos y las flechas de anterior y siguiente; debajo, los módulos del área activa. Al final de cada módulo, «Siguiente». El botón <b>Mapa</b> (o la primera pestaña en el móvil) abre las capas y <b>Ver pestañas</b> vuelve a la barra clásica con los 18 módulos seguidos. El mapa se abre solo la primera vez que entras en cada sesión.</div>
 <div class="box tip"><b class="lbl">Informe de cada módulo</b>Arriba de cada módulo está el botón <b>Generar informe</b>. Crea un documento profesional con portada (empresa, sector, fecha y referencia), resumen ejecutivo con la nota del área, indicadores con su semáforo, el análisis detallado con las tablas y gráficos del módulo, los riesgos, los hallazgos con su impacto anual y los próximos pasos. Se puede copiar como texto o imprimir y guardar en PDF (en A4) cuando Atalaya se abre en su propia pestaña o en tu servidor.</div>
+<div class="box tip"><b class="lbl">Zona de origen de datos</b>Es el primer módulo del área Visión. Arrastra ahí toda la documentación en bruto, varios archivos a la vez: listados de ventas, compras, productos, clientes, plantilla, oportunidades, partes de horas, extractos del banco, balances y cuentas de resultados, informes y actas. Atalaya reconoce qué es cada archivo por sus columnas y lo reparte solo:
+<ul><li><b>Ventas</b> → clientes y productos (ABC, margen y demanda) y la serie mensual de ventas. Si el listado no trae coste, lo estima con el margen medio y lo avisa.</li><li><b>Compras</b> → proveedores en Compras (revisa luego su criticidad y alternativas).</li><li><b>Plantilla</b> → áreas en Personas y personas en el Gestor de tiempos. Si los importes son salarios mensuales, los pasa a coste empresa anual.</li><li><b>Balances y cuentas</b> → Flujo del dinero, Impuestos, Presupuesto y también el simulador, que pasa a partir del último año.</li><li><b>Extractos del banco</b> → saldo de partida y entradas y salidas medias de la tesorería.</li><li><b>Oportunidades, partes de horas y marketing</b> → Pipeline, Gestor de tiempos y Marketing.</li><li><b>Textos</b> (informes, actas, estudios) → documentos de contexto que se citan en los informes 360 de los módulos que tratan.</li></ul>
+La pantalla muestra qué se ha cargado y adónde ha ido, la <b>cobertura de cada módulo</b> (qué datos tiene y cuáles faltan) y permite <b>deshacer la última carga</b>.</div>
+<div class="box tip"><b class="lbl">Llevar cada módulo a la operativa · diagnóstico e informe 360</b>Bajo la cabecera de cada módulo está el panel «Llevar … a la operativa». Tiene cinco pestañas:
+<ul><li><b>Qué es</b>: qué pretende trabajar el módulo, cómo es a su máxima expresión, lo que añadiría un consultor para llevarlo a la práctica y la cadencia de seguimiento (semanal, mensual, trimestral).</li><li><b>Lo que falta</b>: los datos que el módulo necesita y si ya están aterrizados. Puedes subirlos en la zona de origen o marcar que los has metido a mano.</li><li><b>Preguntas</b>: cinco o seis preguntas sobre cómo se gestiona hoy (escala de 1 a 5 o sí/no). Cada respuesta débil se convierte en una acción con responsable y plazo.</li><li><b>Objetivos</b>: tus metas. El valor actual sale de tus datos; tú pones la meta, la fecha y el responsable.</li><li><b>Plan de acción</b>: todo lo anterior junto (datos que faltan, respuestas, objetivos, hallazgos y riesgos) a 30, 60 y 90 días, con estado, responsable y fecha editables. «Enviar al plan de empresa» lo lleva al plan general.</li></ul>
+El botón <b>Informe 360</b> de la cabecera genera el documento completo: resumen ejecutivo con la nota del módulo, qué pretendemos trabajar, datos de partida, foto actual, madurez de la gestión, objetivos, riesgos, hallazgos, plan de acción por plazos, cómo llevarlo a la operativa, tus notas y próximos pasos. En el Informe de auditoría siguen estando los dos: el de auditoría y el 360.</div>
+<div class="box tip"><b class="lbl">Un universo detrás de cada pantalla</b>Detrás de cada módulo del sistema estratégico y de cada capítulo del simulador hay una galaxia propia, del color de su área. Al cambiar de módulo la cámara viaja hasta ella, y los titulares flotan con volumen. Si el ordenador pide reducir el movimiento, el fondo queda quieto.</div>
+
 
 <h3 id="est-vision">Visión</h3>
 <h4>Cuadro de mando</h4>
@@ -481,6 +497,7 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
 </div>
 
 <script src="js/platform.js"></script>
+<script src="js/cosmos.js"></script>
 <script>
 /* El manual es parte del área de clientes: solo se muestra con una sesión con acceso vigente (o con la administración) */
 (async function () {
