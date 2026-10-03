@@ -403,12 +403,15 @@
     try { VISTAS[tab](host); } catch (e) { host.innerHTML = `<div class="alert stop">No se pudo mostrar: ${esc(e.message)}</div>`; console.error(e); }
     scrollTo({ top: y });
   }
+  A.mesa.abrirMeta = (id) => { tab = 'metas'; metaSel = id; render(); scrollTo({ top: ($('#msTabs') || document.body).offsetTop - 90 }); };
   A.mesa.start = async () => {
     A.sky && A.sky();
     const Pl = P();
     if (Pl) { const ok = await Pl.guard(); if (!ok) return; Pl.mountAccount($('#account')); if (Pl.empresas) await Pl.empresas.cargar(); }
     ST = await M.cargar();
     const h = location.hash.replace('#', ''); if (VISTAS[h]) tab = h;
+    // Una meta concreta pedida desde la nota de la empresa
+    try { const mm = sessionStorage.getItem('atalaya.mesa.meta'); if (mm) { sessionStorage.removeItem('atalaya.mesa.meta'); if (ST.metas.some((x) => x.id === mm)) { tab = 'metas'; metaSel = mm; } } } catch (e) { /* nada */ }
     // La portada: titular, empresa y estado de la semana, como en los otros mundos
     const e = Pl && Pl.empresas && Pl.empresas.activa();
     const hero = $('#msHero');

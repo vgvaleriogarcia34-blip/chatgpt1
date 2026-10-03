@@ -56,6 +56,10 @@ Un solo sitio para organizar el trabajo que sale del ecosistema y el que apunta 
 - `js/manual-lateral.js`: pestaña en el borde derecho que abre `manual.html?embed=1` en un panel, en el apartado de la zona actual (capítulo, módulo, herramienta o pestaña), con menú de apartados y buscador. Intercepta los enlaces a `manual.html` (Ctrl o Cmd los abre aparte).
 - `js/assistant.js`: en los cuatro mundos. Conversación por voz continua (botón junto al asistente; se recuerda en `atalaya.voz`), lectura frase a frase y escucha en pausa mientras habla. Herramientas de guía para los tres cerebros: `donde_estoy`, `ir_a_mundo`, `ir_a_zona`, `cerrar` y `abrir_manual`; las órdenes claras («llévame a…», «abre…», «cierra…») se resuelven al momento en el navegador. La conversación continúa al cambiar de mundo (`sessionStorage`).
 
+## Nota de la empresa (`js/nota.js`)
+
+Nota del 1 al 10 en la cabecera de cada mundo: global (media de los mundos del plan) y del mundo actual. Comprobaciones con peso y estado (verde 1, ámbar 0,5, rojo 0) por mundo; el simulador y el sistema estratégico se calculan con su motor al abrirlos y se guardan por empresa (clave `nota`); personas y mesa se calculan siempre con sus datos. El desplegable lista los puntos a tratar y lleva a cada zona (en la mesa, a la meta concreta).
+
 ## Simulador (`app.html`)
 
 - **Mapa de capas y hoja de ruta**: al entrar, los capítulos aparecen como ventanas flotantes en 3D (pila, abanico, círculo o línea) con un fragmento real y su estado; dentro se trabaja un capítulo cada vez, guiado por seis fases. «Ver todo seguido» recupera la página completa.

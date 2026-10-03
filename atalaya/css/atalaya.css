@@ -854,3 +854,45 @@ span.pdf-campo { display: inline-block; min-width: 60px; }
 .as-vozst { font: 600 var(--t-xs) var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--go); background: rgba(14, 17, 24, 0.9); border-radius: 999px; padding: 4px 10px; }
 .as-vozst:empty { display: none; }
 @media (max-width: 899px) { .as-voz { width: 44px; height: 44px; } .as-vozst { display: none; } }
+
+/* ---------- Nota de la empresa (js/nota.js) ---------- */
+.nt-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(14, 17, 24, 0.85); color: var(--fg); cursor: pointer; white-space: nowrap; }
+.nt-chip:hover { border-color: var(--gold); }
+.nt-chip small { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.nt-n { font: 700 0.95rem var(--font-data); padding: 1px 7px; border-radius: 7px; background: rgba(255, 255, 255, 0.06); }
+.nt-n.ok, .nt-big.ok, .nt-m b.ok { color: var(--go); } .nt-n.warn, .nt-big.warn, .nt-m b.warn { color: var(--warn); } .nt-n.stop, .nt-big.stop, .nt-m b.stop { color: var(--stop); }
+.nt-n.ok { background: rgba(47, 178, 74, 0.14); } .nt-n.warn { background: rgba(250, 178, 25, 0.14); } .nt-n.stop { background: rgba(224, 72, 72, 0.16); }
+.nt-sep { width: 1px; height: 18px; background: var(--line); }
+.nt-panel { position: fixed; z-index: 140; top: calc(78px + env(safe-area-inset-top, 0px)); right: 16px; width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow: auto; padding: 16px; border-radius: 16px; background: var(--panel-solid, #10131a); border: 1px solid var(--line-strong); box-shadow: var(--shadow); display: grid; gap: 10px; }
+.nt-panel[hidden] { display: none; }
+.nt-head { display: flex; align-items: flex-start; gap: 10px; }
+.nt-k { font: 600 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); }
+.nt-big { font: 700 2.6rem var(--font-data); line-height: 1; }
+.nt-big small { font-size: 0.9rem; color: var(--muted); margin-left: 2px; }
+.nt-exp { margin: 0; font-size: var(--t-xs); color: var(--muted); }
+.nt-mundos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.nt-m { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); color: var(--fg); cursor: pointer; }
+.nt-m b { grid-row: span 2; font: 700 1.25rem var(--font-data); }
+.nt-m span { font-size: var(--t-s); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nt-m small { font-size: 0.66rem; color: var(--muted); }
+.nt-m.aqui { border-color: rgba(201, 242, 77, 0.45); }
+.nt-m.on { background: rgba(201, 242, 77, 0.1); border-color: var(--gold); }
+.nt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.nt-p { width: 100%; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); color: var(--fg); cursor: pointer; }
+.nt-p:hover { border-color: var(--gold); }
+.nt-p i { width: 10px; height: 10px; border-radius: 50%; background: var(--warn); }
+.nt-p.stop i { background: var(--stop); box-shadow: 0 0 0 3px rgba(224, 72, 72, 0.2); }
+.nt-p span { display: grid; gap: 2px; min-width: 0; }
+.nt-p b { font-size: var(--t-s); font-weight: 600; }
+.nt-p small { font-size: var(--t-xs); color: var(--muted); }
+.nt-p em { font-style: normal; font-size: 0.64rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.nt-go { color: var(--gold); }
+.nt-vacio { color: var(--go); font-size: var(--t-s); }
+@media (max-width: 720px) { .nt-chip small { display: none; } .nt-chip { padding: 4px 6px; gap: 4px; } .nt-mundos { grid-template-columns: minmax(0, 1fr); } }
+@media print { .nt-chip, .nt-panel { display: none !important; } }
+
+/* Cabeceras con muchos accesos: sin partir botones; en pantallas medianas se quitan los accesos a otros mundos (siguen en el menú de la cuenta y en el asistente) */
+.topbar .btn { white-space: nowrap; }
+@media (max-width: 1560px) { .topbar a.btn[href="app.html"], .topbar a.btn[href="estrategia.html"] { display: none; } }
+@media (max-width: 1180px) { .nt-chip small { display: none; } }
+@media (max-width: 560px) { .topbar a.btn[href^="manual.html"], .topbar .mesa-link { display: none; } }
