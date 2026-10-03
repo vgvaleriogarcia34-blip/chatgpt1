@@ -303,6 +303,7 @@
     if (Pl) {
       const ok = await Pl.guard(); if (!ok) return;
       Pl.mountAccount($('#account'));
+      if (A.assistant) A.assistant.init({ page: 'personas' });
       // Personas y equipos es del plan Consultora: el resto lo ve explicado y puede cambiar de plan; sus datos se conservan
       if (Pl.puede && !Pl.puede('personas')) {
         $('#peTabs').innerHTML = '';

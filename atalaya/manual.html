@@ -7,8 +7,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('embed');</script>
 <link rel="stylesheet" href="css/cosmos.css">
 <style>
+/* Dentro del panel lateral de la aplicación: sin cabecera ni índice propios (el panel tiene su menú y su buscador) */
+html.embed { scroll-padding-top: 12px; }
+html.embed .top, html.embed nav.toc, html.embed #cosmos, html.embed .hero { display: none !important; }
+html.embed .wrap { display: block; padding: 12px 18px 60px; max-width: none; }
+html.embed main { max-width: none; }
+html.embed body { font-size: 0.95rem; }
 /* Manual de consulta: índice fijo a la izquierda y una columna de lectura; identidad Business Avance (tinta y lima en oscuro; hueso y oliva en claro) */
 :root {
   --bg: #05060a; --panel: #10131a; --raise: #181c25; --line: #2c333f; --line-strong: rgba(201, 242, 77, 0.4);
@@ -128,7 +135,8 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
     <li><a href="#mesa">6. Mesa de trabajo</a>
       <ol><li><a href="#mesa-hoy">Hoy y bandeja</a></li><li><a href="#mesa-prioridades">Prioridades 20/80 y agenda</a></li><li><a href="#mesa-metas">Metas SMART</a></li><li><a href="#mesa-rutinas">Repetitivas, reuniones y delegación</a></li><li><a href="#mesa-envios">Cómo llega el trabajo</a></li></ol></li>
     <li><a href="#datos">7. Cargar datos</a></li>
-    <li><a href="#asistente">8. El asistente</a></li>
+    <li><a href="#asistente">8. El asistente</a>
+      <ol><li><a href="#asistente-voz">Conversación por voz y guía</a></li></ol></li>
     <li><a href="#admin">9. Gestor de usuarios</a></li>
     <li><a href="#servidor">10. Servidor e instalación</a></li>
     <li><a href="#glosario">11. Conceptos clave</a></li>
@@ -187,6 +195,7 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Barra lateral (dock)</b> del simulador: un icono por capítulo; el capítulo visible se ilumina. El último icono abre el <b>Sistema estratégico</b>.</li>
   <li><b>Caja de herramientas</b> (icono de la llave): cambia escenario activo, sector y estructura societaria; añade campos hipotéticos; guarda y carga escenarios de trabajo; copia y pega todos los datos; carga el ejemplo; abre el asistente; genera el informe.</li>
   <li><b>Tarjetas flotantes:</b> casi todo es pulsable. Un semáforo, un anillo, un escenario o una estructura abren su explicación. En el sistema estratégico, los indicadores con <b>?</b> abren una ficha que se cierra con la <b>X</b>, con <kbd>Esc</kbd> o pulsando fuera; también se cierra sola al cambiar de módulo.</li>
+  <li><b>Manual en el lateral:</b> la pestaña «Manual» del borde derecho (y el botón «Manual» de cada cabecera) abre este manual en un panel, sin salir de la pantalla, directamente en el apartado de la zona en la que está. Arriba tiene un menú para saltar a cualquier apartado y un buscador; «Página completa» lo abre aparte (también con Ctrl o Cmd al pulsar el enlace).</li>
   <li><b>Pestañas</b> del sistema estratégico, agrupadas en Visión, Finanzas, Comercial, Operaciones y Estrategia. Cada módulo tiene su dirección propia (por ejemplo <span class="path">estrategia.html#presupuesto</span>) para enlazarlo.</li>
 </ul>
 </section>
@@ -517,7 +526,13 @@ El botón <b>Informe 360</b> de la cabecera genera el documento completo: resume
   <div class="box"><h3>Preguntar</h3><p>«¿Qué es el DSCR?» · «¿Cómo pongo en verde la liquidez?» · «¿Dónde está el mayor riesgo?» · «Resumen de la situación».</p></div>
   <div class="box"><h3>Cambiar el simulador</h3><p>«Pon la financiación al 80 %» · «Alarga el plazo a 9 años» · «Simula perder un cliente del 10 % en el mes 14» · «Cambia a escenario pesimista».</p></div>
   <div class="box"><h3>Sistema estratégico</h3><p>«Sube el precio un 3 %» · «Abre impuestos» · «Abre clientes» · «¿Cómo va el presupuesto?» · «¿Qué clientes me hacen grande pero no rico?».</p></div>
+  <div class="box"><h3>Guía: moverse por Atalaya</h3><p>«¿Dónde estoy?» · «Llévame a la mesa de trabajo» · «Abre las metas SMART» · «Abre liderazgo a medida» · «Cierra el informe» · «Abre el manual de semáforos» · «Cierra el mundo» (vuelve al inicio).</p></div>
 </div>
+<h3 id="asistente-voz">Conversación por voz y guía</h3>
+<ul><li>El botón redondo del micrófono, junto a «Asistente», enciende o apaga la <b>conversación por voz</b>: con ella encendida el asistente escucha sin pulsar nada, responde en voz alta y vuelve a escuchar. El botón se pone verde y late mientras escucha, y en lima mientras habla. Para apagarla, toque el botón o diga «para» o «silencio». También se enciende desde el panel del asistente.</li>
+<li>El asistente está en el simulador, en el sistema estratégico, en personas y equipos y en la mesa de trabajo, y hace de <b>guía</b>: lleva a otro mundo, abre un módulo, capítulo o pestaña, cierra informes, mapas y ventanas, abre el manual en el apartado del tema y explica qué hay en cada sitio y por dónde empezar.</li>
+<li>Al pasar de un mundo a otro con el asistente, la conversación continúa y, si la voz estaba encendida, sigue escuchando al llegar. Algunos navegadores piden tocar la página una vez antes de volver a hablar.</li>
+<li>El micrófono pequeño del panel sirve para dictar una sola pregunta. La voz necesita un navegador que la permita (Chrome, Edge o Safari recientes) y la web abierta en https.</li></ul>
 <div class="box tip"><b class="lbl">Planes, varias empresas y vista de grupo</b>
 <ul><li><b>Esencial</b> (49 €/mes) y <b>Profesional</b> (129 €/mes): una empresa.</li><li><b>Consultora</b> (349 €/mes): hasta quince empresas cliente, cada una por separado, con su cartera de clientes.</li><li><b>Grupos</b>: holding y filiales con su estructura, vista consolidada, informes del grupo y el plan estratégico de toda la corporación. Se prepara <b>a medida</b> con nuestro equipo («Contactar con nuestro equipo»).</li><li><b>Pago anual</b>: cuota del año con un 30 % de descuento en Esencial, Profesional y Consultora, pagando el año por adelantado.</li></ul>
 <b>Mi plan.</b> Desde el menú de la cuenta («Mi plan · cambiar»), el mapa de empresas o la página de planes con la sesión abierta se cambia de plan sin salir de la aplicación: en la prueba, libre y al momento; con el acceso activado, al momento y con la cuota ajustada en el siguiente cobro. Para bajar a un plan con menos empresas hay que borrar antes las que sobran. Esencial incluye solo el simulador: el sistema estratégico aparece marcado como incluido desde Profesional.<br><br><b>El mapa de empresas es el primer paso.</b> Al entrar en el puesto de mando, antes de elegir mundo, aparece el mapa: en Grupos, la holding arriba y sus filiales debajo con el porcentaje que tiene; en Consultora, las empresas cliente; con una sola empresa, su ficha. Cada empresa tiene una <b>ficha</b> con nombre o razón social, forma jurídica, CIF, año de constitución, sector, actividad, provincia, plantilla y <b>socios con su porcentaje</b> (en un grupo, además, de qué sociedad depende y qué participación tiene). Eliges la empresa con «Entrar con esta» y después el mundo (simulador o sistema estratégico). Una barra arriba recuerda con qué empresa trabajas y permite cambiarla. El nombre, el sector y la plantilla de la ficha pasan al simulador; la ficha se abre también desde el botón con el nombre de la empresa en la cabecera de cualquier pantalla.<br><br>Con Consultora o Grupos aparece en la cabecera el <b>selector de empresa</b>: muestra la empresa activa, permite cambiar a otra, darla de alta (en Grupos, como holding o filial y con su porcentaje de participación), cambiarle el nombre o borrarla. Cada empresa tiene sus propios datos: simulador, sistema estratégico, zona de origen e informes. La empresa que ya tenías pasa a ser la principal.<br><br>

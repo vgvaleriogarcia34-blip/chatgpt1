@@ -51,6 +51,11 @@ Un solo sitio para organizar el trabajo que sale del ecosistema y el que apunta 
 - Informe del plan de trabajo con membrete y PDF.
 - Envío desde cada mundo con `Atalaya.mesa.enviar(items)` / `Atalaya.mesa.boton(fn)` (`js/mesa-comun.js`, sin duplicados por `oid`): plan de corrección del simulador, plan de acción 360 del sistema estratégico y plan de desarrollo de liderazgo.
 
+## Manual en el lateral y asistente guía
+
+- `js/manual-lateral.js`: pestaña en el borde derecho que abre `manual.html?embed=1` en un panel, en el apartado de la zona actual (capítulo, módulo, herramienta o pestaña), con menú de apartados y buscador. Intercepta los enlaces a `manual.html` (Ctrl o Cmd los abre aparte).
+- `js/assistant.js`: en los cuatro mundos. Conversación por voz continua (botón junto al asistente; se recuerda en `atalaya.voz`), lectura frase a frase y escucha en pausa mientras habla. Herramientas de guía para los tres cerebros: `donde_estoy`, `ir_a_mundo`, `ir_a_zona`, `cerrar` y `abrir_manual`; las órdenes claras («llévame a…», «abre…», «cierra…») se resuelven al momento en el navegador. La conversación continúa al cambiar de mundo (`sessionStorage`).
+
 ## Simulador (`app.html`)
 
 - **Mapa de capas y hoja de ruta**: al entrar, los capítulos aparecen como ventanas flotantes en 3D (pila, abanico, círculo o línea) con un fragmento real y su estado; dentro se trabaja un capítulo cada vez, guiado por seis fases. «Ver todo seguido» recupera la página completa.
