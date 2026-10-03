@@ -33,7 +33,7 @@
 
   const AREAS = ['Finanzas', 'Comercial', 'Operaciones', 'Personas', 'Inversión', 'Estrategia', 'Dirección', 'Personal'];
   const TIPOS = { imperativa: 'Imperativa', importante: 'Importante', seguimiento: 'Llamada o seguimiento', delegada: 'Delegada' };
-  const MUNDOS = { manual: 'Apuntada aquí', simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', meta: 'Meta SMART', reunion: 'Reunión', delegacion: 'Delegación' };
+  const MUNDOS = { manual: 'Apuntada aquí', simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', meta: 'Meta SMART', reunion: 'Reunión', delegacion: 'Delegación', intervencion: 'Auditoría integral' };
   const pend = () => ST.tareas.filter((t) => t.estado !== 'hecha');
   const tarea = (id) => ST.tareas.find((t) => t.id === id);
   const score = (t) => (+t.impacto || 3) * 2 - (+t.esfuerzo || 3) + (t.clave ? 3 : 0);

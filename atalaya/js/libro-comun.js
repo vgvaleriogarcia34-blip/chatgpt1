@@ -8,9 +8,9 @@
   const P = () => A.platform;
   const $ = (s, r) => (r || document).querySelector(s);
   const pagina = () => (location.pathname.split('/').pop() || 'index.html').replace(/\?.*$/, '');
-  const MUNDO = { 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa' };
-  const SECCION = { simulador: 'Inversión y crecimiento', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Plan de trabajo' };
-  const URL = { simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html' };
+  const MUNDO = { 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'intervencion.html': 'intervencion' };
+  const SECCION = { intervencion: 'Auditoría integral', simulador: 'Inversión y crecimiento', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Plan de trabajo' };
+  const URL = { simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html', intervencion: 'intervencion.html' };
   const LIMITE = 3.6e6; // el servidor admite peticiones de hasta 4 MB
   const L = (A.libro = A.libro || {});
   const uid = () => 'c' + Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 5);
@@ -113,6 +113,13 @@
         if (R.informeEquipoCompleto) await meter(await capturar(() => R.informeEquipoCompleto(R.state.personas.map((p) => p.id), 'Toda la empresa')));
         for (const q of R.state.equipos || []) { progreso('Personas y equipos · equipo ' + q.nombre); await meter(await capturar(() => R.informeEquipoCompleto(q.miembros || [], q.nombre, q.objetivo))); }
       }
+    } else if (mundo === 'intervencion') {
+      const V = A.interv; await hasta(() => V && V.listo && V.informes, 80);
+      if (P() && P().puede && !P().puede('intervencion')) return 0;
+      const st = V.estado();
+      if (st.sintomas.length) { progreso('Auditoría integral · primera sesión'); await meter(await capturar(() => V.informes.primera())); }
+      if (Object.keys(st.verifica || {}).length || st.hallazgos.length) { progreso('Auditoría integral · resultado'); await meter(await capturar(() => V.informes.auditoria())); }
+      if (st.plan.acciones.length) { progreso('Auditoría integral · plan de intervención'); await meter(await capturar(() => V.informes.plan())); }
     } else if (mundo === 'mesa') {
       await hasta(() => A.mesa && A.mesa.informe && A.mesa.listo, 80); progreso('Mesa de trabajo · plan de trabajo');
       await meter(await capturar(() => A.mesa.informe()));

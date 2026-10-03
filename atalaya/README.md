@@ -14,6 +14,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `estrategia.html` | Sistema estratégico integrado (21 módulos). |
 | `personas.html` | Personas y equipos (plan Consultora): DISC, aportaciones al equipo, eneagrama, puestos, encaje persona-puesto, organigrama, mapa de talento, equipos, liderazgo a medida, test a distancia, tablillas de entrenamiento e informes. |
 | `mesa.html` | Mesa de trabajo común a los tres mundos: hoy, bandeja con fecha de acción, prioridades 20/80, agenda semanal con horas reservadas (exportación .ics), metas SMART con plan de acción, repetitivas, semana ideal, reuniones y delegación. |
+| `intervencion.html` | Auditoría integral (plan Consultora): primera sesión como un triaje, auditoría integral por áreas y plan de intervención con sesiones. |
 | `libro.html` | Libro corporativo: los informes de todos los mundos en un libro de la empresa con índice interactivo por secciones y PDF completo o por sección. |
 | `test.html` | Página pública de un cuestionario de personas: se abre con un enlace personal, sin cuenta; la persona da su consentimiento y responde una pregunta por pantalla. |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
@@ -60,6 +61,14 @@ Un solo sitio para organizar el trabajo que sale del ecosistema y el que apunta 
 ## Nota de la empresa (`js/nota.js`)
 
 Nota del 1 al 10 en la cabecera de cada mundo: global (media de los mundos del plan) y del mundo actual. Comprobaciones con peso y estado (verde 1, ámbar 0,5, rojo 0) por mundo; el simulador y el sistema estratégico se calculan con su motor al abrirlos y se guardan por empresa (clave `nota`); personas y mesa se calculan siempre con sus datos. El desplegable lista los puntos a tratar y lleva a cada zona (en la mesa, a la meta concreta).
+
+## Auditoría integral (`intervencion.html`, plan Consultora)
+
+- `js/intervencion/datos.js`: áreas, constantes vitales, los siete huecos que delata el lenguaje (señales, vacío, coste y artefacto), léxico, resignificaciones, guion de 60 minutos, causas tipo, fases, líneas de trabajo con acciones y verificaciones por área.
+- `js/intervencion/escucha.js`: lectura de transcripciones (texto, SRT, VTT, Word y PDF; hablantes), análisis local del lenguaje y lectura en profundidad con Claude (`/api/escucha` en el servidor o el visor).
+- `js/intervencion/core.js`: estado por empresa (clave `intervencion`), recorrido en tres capas, portada, guion con reloj, constantes (monitor y radar) y escucha.
+- `js/intervencion/vistas.js`: síntomas y causas con Pareto 20/80, triaje y hoja de ruta, verificación por áreas y volcado de desviaciones del ecosistema (`A.nota.calcular`).
+- `js/intervencion/plan.js`: plan de intervención por fases y líneas, envío a la mesa (tareas y metas), sesiones con orden del día y acuerdos, e informes.
 
 ## Libro corporativo (`libro.html`)
 

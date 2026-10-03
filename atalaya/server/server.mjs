@@ -401,8 +401,9 @@ route('PUT', /^\/api\/data\/([a-z0-9_-]{1,40})$/i, async (req, res, body, u, m) 
   }
   // Personas y equipos es del plan Consultora: el resto puede leer lo que tuviera, pero no guardar
   if (/^personas(--|$)/.test(key) && body !== null && u.plan !== 'consultora') throw Object.assign(new Error('Personas y equipos está incluido en el plan Consultora.'), { code: 403 });
+  if (/^intervencion(--|$)/.test(key) && body !== null && u.plan !== 'consultora') throw Object.assign(new Error('La auditoría integral está incluida en el plan Consultora.'), { code: 403 });
   if (/^consultor(--|$)/.test(key) && body !== null && u.plan !== 'consultora') throw Object.assign(new Error('El cuaderno del consultor está incluido en el plan Consultora.'), { code: 403 });
-  const sub = key.match(/^(simulador|estrategia|personas|consultor|agenda|nota|libro)--([a-z0-9_-]+)$/i);
+  const sub = key.match(/^(simulador|estrategia|personas|consultor|agenda|nota|libro|intervencion)--([a-z0-9_-]+)$/i);
   if (sub && body !== null) {
     const ids = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.map((e) => e && e.id) : [];
     if (!ids.includes(sub[2])) throw Object.assign(new Error('Esa empresa no está dada de alta en tu cuenta'), { code: 403 });
@@ -526,6 +527,20 @@ route('POST', /^\/api\/chat$/, async (req, res, body) => {
   const pagina = String(body.page || '').replace(/[^a-z]/g, '').slice(0, 20);
   const r = await ask({ system: SYSTEM_CHAT + (pagina ? `\nEl usuario está ahora en: ${pagina}.` : ''), tools, messages, output_config: { effort: 'low' } });
   return { content: r.content, stop_reason: r.stop_reason };
+});
+
+// Auditoría integral: lectura entre líneas de la transcripción de una sesión de diagnóstico
+route('POST', /^\/api\/escucha$/, async (req, res, body) => {
+  const texto = String(body.texto || '').slice(0, 200000);
+  const instr = String(body.instrucciones || '').slice(0, 6000);
+  const forma = String(body.forma || '').slice(0, 4000);
+  if (!texto) throw Object.assign(new Error('Transcripción vacía'), { code: 400 });
+  const r = await ask({
+    system: 'Eres un consultor sénior de pymes familiares españolas experto en diagnóstico: escuchas cómo el empresario describe su empresa, separas síntomas de causas, lees entre líneas lo que quiere decir y no dice, y priorizas las causas cuyo 20 % de solución da el 80 % del resultado. Cada afirmación se apoya en una cita literal de la transcripción; no inventas. Respondes en español y solo con JSON.',
+    messages: [{ role: 'user', content: `${instr}\n\nDevuelve SOLO JSON con esta forma: ${forma}\n\nTranscripción:\n${texto}` }],
+    output_config: { effort: 'medium' }
+  });
+  return { datos: jsonOf(textOf(r)) };
 });
 
 // Extracción de datos de documentos (balances, cuentas, tesorería, tareas…)

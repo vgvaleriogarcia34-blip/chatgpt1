@@ -198,7 +198,7 @@
      anteriores siguen donde estaban; las demás llevan su identificador: atalaya.v1@id en el navegador y simulador--id
      en el servidor. El registro de empresas se guarda como un dato más de la cuenta («empresas»). */
   const ACT = 'atalaya.empresa.activa';
-  const SCOPED = ['simulador', 'estrategia', 'personas', 'consultor', 'agenda', 'nota', 'libro'];
+  const SCOPED = ['simulador', 'estrategia', 'personas', 'consultor', 'agenda', 'nota', 'libro', 'intervencion'];
   P.empresaId = () => LS.get(ACT) || 'principal';
   P.k = (base, id) => { id = id || P.empresaId(); return id === 'principal' ? base : base + '@' + id; };
   const dk = (key, id) => { id = id || P.empresaId(); return SCOPED.includes(key) && id !== 'principal' ? key + '--' + id : key; };
@@ -232,7 +232,7 @@
       await P.empresas.cargar();
       if (id === 'principal') throw new Error('La empresa principal no se puede borrar.');
       REG.lista = REG.lista.filter((x) => x.id !== id); await P.empresas.guardar();
-      for (const k of SCOPED) { await P.saveData(k + '--' + id, null); LS.del(P.k({ simulador: 'atalaya.v1', estrategia: 'atalaya.estrategia.v1', personas: 'atalaya.personas.v1', consultor: 'atalaya.consultor.v1', agenda: 'atalaya.agenda.v1', nota: 'atalaya.nota.v1', libro: 'atalaya.libro.v1' }[k], id)); }
+      for (const k of SCOPED) { await P.saveData(k + '--' + id, null); LS.del(P.k({ simulador: 'atalaya.v1', estrategia: 'atalaya.estrategia.v1', personas: 'atalaya.personas.v1', consultor: 'atalaya.consultor.v1', agenda: 'atalaya.agenda.v1', nota: 'atalaya.nota.v1', libro: 'atalaya.libro.v1', intervencion: 'atalaya.intervencion.v1' }[k], id)); }
       if (P.empresaId() === id) LS.set(ACT, 'principal');
     },
     cambiar(id) { LS.set(ACT, id); location.reload(); }
@@ -383,6 +383,8 @@
     if (f === 'personas') return k === 'consultora';
     // Informes en dos partes (para la empresa y cuaderno interno del consultor)
     if (f === 'consultor') return k === 'consultora';
+    // La auditoría integral (primera sesión, auditoría e intervención) es la herramienta del consultor
+    if (f === 'intervencion') return k === 'consultora';
     return true;
   };
   P.PLAN_RESUMEN = {
@@ -672,7 +674,7 @@
     el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${u.email}"><span>${ini}</span></button>
       <div class="acc-menu glass" hidden>
         <div class="acc-head"><b>${(u.nombre || u.email).replace(/</g, '&lt;')}</b><small>${u.email}</small><small>Plan ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="portal.html">Inicio · elegir herramienta</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a><a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-planes>Mi plan: ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <a href="portal.html">Inicio · elegir herramienta</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a>${P.puede && P.puede('intervencion', u) ? '<a href="intervencion.html">Auditoría integral</a>' : ''}<a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-planes>Mi plan: ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atalaya 360° · Auditoría integral</title>
+<meta name="description" content="Primera sesión como un triaje (guion, constantes, escucha y síntomas), auditoría integral por áreas y plan de intervención completo con sus sesiones.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/atalaya.css">
+<link rel="stylesheet" href="css/cosmos.css">
+<link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/intervencion.css">
+</head>
+<body class="iv-page">
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<header class="topbar">
+  <a class="brand" href="portal.html"><b>Atalaya</b><span>Auditoría integral</span></a>
+  <span class="spacer"></span>
+  <a class="btn ghost mesa-link" href="mesa.html">Mesa de trabajo</a>
+  <a class="btn ghost" href="manual.html#intervencion">Manual</a>
+  <a class="btn ghost" href="estrategia.html">Sistema estratégico</a>
+  <div class="account" id="account"></div>
+</header>
+<main class="st-main">
+  <div id="ivHero"></div>
+  <div class="iv-ruta" id="ivRuta" aria-label="Recorrido de la intervención"></div>
+  <nav class="st-tabs iv-tabs" id="ivTabs" role="tablist" aria-label="Partes de la auditoría integral"></nav>
+  <section class="st-panel" id="ivPanel" aria-live="polite"></section>
+</main>
+<script src="js/platform.js"></script>
+<script src="js/manual-lateral.js"></script>
+<script src="js/nota.js"></script>
+<script src="js/cosmos.js"></script>
+<script src="js/docs.js"></script>
+<script src="js/informe.js"></script>
+<script src="js/libro-comun.js"></script>
+<script src="js/hero-mundo.js"></script>
+<script src="js/mesa-comun.js"></script>
+<script src="js/intervencion/datos.js"></script>
+<script src="js/intervencion/escucha.js"></script>
+<script src="js/intervencion/core.js"></script>
+<script src="js/intervencion/vistas.js"></script>
+<script src="js/intervencion/plan.js"></script>
+<script src="js/assistant.js"></script>
+<script>Atalaya.interv.start();</script>
+</body>
+</html>

@@ -61,10 +61,11 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     estrategia: { url: 'estrategia.html', n: 'el sistema estratégico', k: ['sistema estrategico', 'estrategico', 'estrategia', 'cuadro de mando'], d: 'Veintidós módulos para analizar la empresa entera: finanzas, comercial, operaciones y estrategia, cada uno con su diagnóstico 360 e informe.', primero: 'Mira primero el cuadro de mando y los indicadores en rojo.' },
     personas: { url: 'personas.html', n: 'personas y equipos', k: ['personas y equipos', 'personas', 'equipos', 'liderazgo', 'disc', 'plantilla'], d: 'Perfiles de cada persona, puestos y encaje, equipos, liderazgo a medida y planes de desarrollo.', primero: 'Da de alta la plantilla y pasa el primer test.', plan: 'personas' },
     mesa: { url: 'mesa.html', n: 'la mesa de trabajo', k: ['mesa de trabajo', 'mesa', 'agenda', 'prioridades', 'mis tareas', 'tareas'], d: 'Todo el trabajo del ecosistema en una sola mesa: lo de hoy, la bandeja, el 20 % que da el resultado, la agenda y las metas SMART.', primero: 'Trae el trabajo del ecosistema y revisa tu 20 %.' },
+    intervencion: { url: 'intervencion.html', n: 'la auditoría integral', k: ['auditoria integral', 'auditoría integral', 'intervencion', 'intervención', 'diagnostico', 'diagnóstico', 'triaje', 'primera sesion', 'primera sesión'], d: 'La herramienta del consultor para entrar en una empresa: primera sesión como un triaje, auditoría integral por áreas y plan de intervención con sus sesiones.', primero: 'Empieza por el guion de la primera sesión o sube la transcripción.', plan: 'intervencion' },
     libro: { url: 'libro.html', n: 'el libro corporativo', k: ['libro corporativo', 'libro de la empresa', 'libro', 'todos los informes'], d: 'Todos los informes del ecosistema en un libro de la empresa, con índice por secciones y descarga en PDF.', primero: 'Pulsa «Recoger todos los informes» si aún está vacío.' },
     grupo: { url: 'grupo.html', n: 'la vista de grupo', k: ['vista de grupo', 'cartera de clientes', 'cartera', 'consolidado', 'sociedades del grupo'], d: 'Las empresas o sociedades de la cuenta juntas: consolidado, comparativa, riesgos cruzados y objetivos.', grupo: true }
   };
-  const mundoActual = () => ({ 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'grupo.html': 'grupo', 'portal.html': 'inicio', 'libro.html': 'libro' }[PG()] || 'inicio');
+  const mundoActual = () => ({ 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'grupo.html': 'grupo', 'portal.html': 'inicio', 'libro.html': 'libro', 'intervencion.html': 'intervencion' }[PG()] || 'inicio');
   const disponible = (k) => {
     const P = A.platform, w = MUNDOS[k]; if (!w) return false;
     if (w.plan && P && P.puede && !P.puede(w.plan)) return false;
@@ -77,6 +78,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     if (p === 'estrategia.html' && A.strat && A.strat.modules) return A.strat.modules.map((m) => ({ id: m.id, n: m.nombre, g: m.grupo }));
     if (p === 'personas.html' && A.personas && A.personas.modules) return A.personas.modules.map((m) => ({ id: m.id, n: m.nombre, g: m.grupo }));
     if (p === 'mesa.html') return $$('#msTabs [data-t]').map((b) => ({ id: b.dataset.t, n: (b.firstChild && b.firstChild.textContent || b.textContent).trim() }));
+    if (p === 'intervencion.html') return $$('#ivTabs [data-t]').map((b) => ({ id: b.dataset.t, n: (b.firstChild && b.firstChild.textContent || b.textContent).trim() }));
     return [];
   };
   const cerrarMapas = () => { const ov = document.getElementById('rutaMap'); if (ov && !ov.hidden) { [A.rutaEst, A.rutaPer].forEach((r) => r && r.closeMap && r.closeMap()); if (!ov.hidden) ov.hidden = true; document.body.style.overflow = ''; return true; } return false; };
@@ -87,6 +89,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     else if (p === 'estrategia.html') A.strat.show(id);
     else if (p === 'personas.html') A.personas.show(id);
     else if (p === 'mesa.html') { const b = document.querySelector(`#msTabs [data-t="${id}"]`); if (b) b.click(); }
+    else if (p === 'intervencion.html' && A.interv && A.interv.ir) A.interv.ir(id);
     return d;
   };
   const puntua = (t, nombre) => { const n = norm(nombre); if (!n) return 0; if (t.includes(n)) return 10 + n.length; let p = 0; n.split(/\s+/).filter((w) => w.length > 4).forEach((w) => { if (t.includes(w)) p += w.length; }); return p >= 6 ? p : 0; };
@@ -127,6 +130,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
       if (p === 'estrategia.html' && A.strat.current) { const m = A.strat.mod(A.strat.current()); return m && m.nombre; }
       if (p === 'personas.html' && A.personas.current) { const m = A.personas.mod(A.personas.current()); return m && m.nombre; }
       if (p === 'mesa.html') { const b = document.querySelector('#msTabs [aria-selected="true"]'); return b && b.firstChild.textContent.trim(); }
+      if (p === 'intervencion.html') { const b = document.querySelector('#ivTabs [aria-selected="true"]'); return b && b.firstChild.textContent.trim(); }
       if (p === 'app.html') { let id = null; document.querySelectorAll('section.chapter[id]').forEach((s) => { if (s.getBoundingClientRect().top < innerHeight * 0.45) id = s.id; }); const d = destinos().find((x) => x.id === id); return d && d.n; }
     } catch (e) { /* sin zona */ }
     return null;
@@ -466,12 +470,14 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     simulador: ['¿Me lo puedo permitir?', '¿Qué me debería preocupar?', '¿Cómo pongo en verde la liquidez?', 'Pon la financiación al 80 %', 'Llévame a la mesa de trabajo', '¿Dónde estoy?', 'Abre el manual'],
     estrategia: ['¿Cómo va el presupuesto?', '¿Dónde está el mayor riesgo?', 'Sube el precio un 3 %', 'Abre impuestos', 'Llévame a personas y equipos', '¿Dónde estoy?', 'Abre el manual'],
     personas: ['¿Dónde estoy?', 'Abre liderazgo a medida', 'Abre el plan de desarrollo', 'Llévame a la mesa de trabajo', 'Abre el manual de liderazgo', 'Cierra el mundo'],
+    intervencion: ['¿Dónde estoy?', 'Abre el guion de la sesión', 'Abre la escucha y transcripción', 'Abre el triaje y hoja de ruta', 'Abre el plan de intervención', 'Abre el manual de la auditoría integral'],
     mesa: ['¿Dónde estoy?', 'Abre las metas SMART', 'Abre la agenda semanal', 'Abre el manual de metas', 'Llévame al sistema estratégico', 'Cierra el mundo']
   };
   const HOLA = {
     simulador: 'Hola. Cuéntame qué te preocupa de la inversión o pregúntame lo que no entiendas. Puedo hacer cambios por ti («pon el plazo a 9 años») y llevarte a cualquier sitio («llévame a la mesa de trabajo»).',
     estrategia: 'Hola. Puedo explicarte cualquier análisis, decirte dónde están los riesgos, mover las palancas estratégicas y llevarte a cualquier módulo o mundo.',
     personas: 'Hola. Soy tu guía en personas y equipos: dime a qué herramienta quieres ir, pide que abra el manual de cualquier tema o que te lleve a otro mundo.',
+    intervencion: 'Hola. Soy tu guía en la auditoría integral: puedo llevarte al guion de la primera sesión, a la escucha de la transcripción, al triaje, a la auditoría o al plan de intervención, y abrir el manual de cada parte.',
     mesa: 'Hola. Soy tu guía en la mesa de trabajo: dime qué parte quieres ver (hoy, prioridades, agenda, metas), pide el manual o que te lleve a otro mundo.'
   };
   A.assistant = {

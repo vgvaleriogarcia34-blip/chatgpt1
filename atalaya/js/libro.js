@@ -9,15 +9,15 @@
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const P = () => A.platform;
-  const MUNDO_N = { simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Mesa de trabajo' };
-  const URL = { simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html' };
+  const MUNDO_N = { intervencion: 'Auditoría integral', simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Mesa de trabajo' };
+  const URL = { intervencion: 'intervencion.html', simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html' };
   const fCorta = (s) => (s ? new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
   let lib = null, sel = null, empresa = 'Mi empresa';
   const guardar = (() => { let t; return () => { clearTimeout(t); t = setTimeout(async () => { try { await L.guardar(lib); } catch (e) { toast(e.message); } }, 400); }; })();
   const toast = (t) => { $$('.ms-toast').forEach((x) => x.remove()); const d = document.createElement('div'); d.className = 'alert ok ms-toast lb-toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 6000); };
   const capsDe = (sid) => lib.caps.filter((c) => c.sec === sid);
   const incluidos = () => lib.secciones.flatMap((s) => capsDe(s.id).filter((c) => c.incl));
-  const mundosPlan = () => ['simulador', 'estrategia', 'personas', 'mesa'].filter((k) => !P() || !P().puede || (k === 'estrategia' ? P().puede('estrategia') : k === 'personas' ? P().puede('personas') : true));
+  const mundosPlan = () => ['intervencion', 'simulador', 'estrategia', 'personas', 'mesa'].filter((k) => !P() || !P().puede || (k === 'estrategia' ? P().puede('estrategia') : k === 'personas' ? P().puede('personas') : k === 'intervencion' ? P().puede('intervencion') : true));
   const mover = (arr, x, d) => { const i = arr.indexOf(x), j = i + d; if (i < 0 || j < 0 || j >= arr.length) return; arr.splice(i, 1); arr.splice(j, 0, x); };
   const moverCap = (c, d) => { // dentro de su sección
     const hermanos = capsDe(c.sec), i = hermanos.indexOf(c), otro = hermanos[i + d]; if (!otro) return;
