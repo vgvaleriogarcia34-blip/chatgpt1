@@ -99,10 +99,10 @@ function startAdminSession(res) {
 }
 /* ---------- Recuperación de contraseña ---------- */
 const RESET_MIN = 60;
-function newResetToken(u, por) {
+function newResetToken(u, por, minutos) {
   Object.keys(db.resets).forEach((k) => { if (db.resets[k].userId === u.id || Date.parse(db.resets[k].exp) < Date.now()) delete db.resets[k]; });
   const token = crypto.randomBytes(32).toString('hex');
-  db.resets[sha(token)] = { userId: u.id, exp: new Date(Date.now() + RESET_MIN * 60e3).toISOString(), por, creado: now() };
+  db.resets[sha(token)] = { userId: u.id, exp: new Date(Date.now() + (minutos || RESET_MIN) * 60e3).toISOString(), por, creado: now() };
   save();
   return token;
 }
@@ -354,6 +354,29 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/reset$/, async (req, res, body, m
   const enviado = body.enviar ? await sendMail(u.email, 'Atalaya · Restablecer tu contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abre este enlace (caduca en ${RESET_MIN} minutos):\n${APP_URL}/acceso.html#reset=${token}`) : false;
   delete u.solicitudReset; save();
   return { token, minutos: RESET_MIN, enviado };
+}, { admin: true });
+
+// Planes a medida (Grupos): la administración concede el acceso a quien pidió contacto.
+// Si no tiene cuenta, se crea con el plan y una invitación para que elija su contraseña (válida 7 días).
+route('POST', /^\/api\/admin\/conceder$/, async (req, res, body) => {
+  const email = String(body.email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error('Correo no válido'), { code: 400 });
+  const plan = PLANES.includes(body.plan) ? body.plan : 'grupos', periodo = PERIODOS.includes(body.periodo) ? body.periodo : 'mensual';
+  const cuota = Math.max(0, +body.cuota || 0), meses = Math.max(1, Math.min(36, +body.meses || (periodo === 'anual' ? 12 : 1)));
+  let u = db.users.find((x) => x.email === email), creado = false;
+  if (!u) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    u = { id: uid(), nombre: String(body.nombre || '').slice(0, 120), email, empresa: String(body.empresa || '').slice(0, 160), telefono: String(body.telefono || '').slice(0, 40), rol: 'cliente', alta: now(), ultimoAcceso: null, sesiones: 0, uso: {}, pagos: [], salt, hash: hashPw(crypto.randomBytes(24).toString('hex'), salt) };
+    db.users.push(u); creado = true;
+  }
+  const venc = new Date(); venc.setMonth(venc.getMonth() + meses);
+  Object.assign(u, { plan, periodo, estado: 'activo', pagado: true, venceAcceso: venc.toISOString(), cuotaPactada: cuota || null, concedido: now() });
+  (db.contactos || []).forEach((c) => { if (String(c.email).toLowerCase() === email) c.atendido = now(); });
+  const token = creado ? newResetToken(u, 'invitación', 7 * 24 * 60) : null;
+  const link = token ? `${APP_URL}/acceso.html#reset=${token}` : null;
+  const enviado = body.enviar ? await sendMail(u.email, 'Atalaya 360° · Su acceso está listo', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nYa tiene acceso a Atalaya 360° con el plan ${plan === 'grupos' ? 'Grupos' : plan}.\n${link ? 'Para elegir su contraseña abra este enlace (válido 7 días):\n' + link : 'Entre con su correo y su contraseña de siempre en ' + APP_URL + '/acceso.html'}\n\nEquipo de Business Avance`) : false;
+  save();
+  return { user: pub(u), creado, token, minutos: token ? 7 * 24 * 60 : 0, enviado };
 }, { admin: true });
 
 route('POST', /^\/api\/heartbeat$/, async (req, res, body, u) => {

@@ -26,7 +26,7 @@
     const now = Date.now();
     const est = users.map((u) => ({ u, e: estadoDe(u) }));
     const pagando = est.filter((x) => x.e.k === 'activo');
-    const mrr = pagando.reduce((a, x) => a + P.precio(x.u.plan, x.u.periodo, x.u.empresas).mes, 0); // ingreso mensual equivalente (los anuales, a su precio con descuento)
+    const mrr = pagando.reduce((a, x) => a + P.precio(x.u.plan, x.u.periodo, x.u.empresas, x.u.cuotaPactada).mes, 0); // ingreso mensual equivalente (los anuales, a su precio con descuento)
     const uso30 = users.reduce((a, u) => a + P.usageMinutes(u, 30), 0);
     const activos7 = users.filter((u) => u.ultimoAcceso && now - new Date(u.ultimoAcceso).getTime() < 7 * 864e5).length;
     $('#akpis').innerHTML = [
@@ -54,7 +54,9 @@
     const pend = [];
     users.filter((u) => u.solicitudReset).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> ha olvidado su contraseña (${fdate(u.solicitudReset)}). <button class="btn ghost" data-pwset="${u.id}" style="padding:3px 8px;font-size:.75rem">Cambiar contraseña</button> <button class="btn ghost" data-reset="${u.id}" style="padding:3px 8px;font-size:.75rem">Generar enlace</button></li>`));
     // Solicitudes de contacto para el plan Grupos (precio a medida)
-    contactos.slice(0, 20).forEach((c) => pend.push(`<li><b>${esc(c.nombre || c.email)}</b> pide información del plan ${esc((P.PLANES[c.plan] || {}).nombre || c.plan)} (${fdate(c.fecha)}): ${esc(c.email)}${c.telefono ? ' · ' + esc(c.telefono) : ''}${c.empresa ? ' · ' + esc(c.empresa) : ''}${c.sociedades ? ' · ' + esc(c.sociedades) + ' sociedades' : ''}${c.mensaje ? `<br><span class="muted">${esc(c.mensaje)}</span>` : ''}</li>`));
+    contactos.filter((c) => !c.atendido && c.plan !== 'sesion').slice(0, 20).forEach((c, i) => { const ya = users.find((u) => u.email === String(c.email).toLowerCase()); pend.push(`<li><b>${esc(c.nombre || c.email)}</b> pide el plan ${esc((P.PLANES[c.plan] || {}).nombre || c.plan)} (${fdate(c.fecha)}): ${esc(c.email)}${c.telefono ? ' · ' + esc(c.telefono) : ''}${c.empresa ? ' · ' + esc(c.empresa) : ''}${c.sociedades ? ' · ' + esc(c.sociedades) + ' sociedades' : ''}${c.mensaje ? '<br><span class="muted">«' + esc(c.mensaje) + '»</span>' : ''}${ya ? ' <span class="muted">(ya tiene cuenta)</span>' : ''} <button class="btn solid" data-conceder="${i}" style="padding:3px 10px;font-size:.75rem">Conceder acceso</button></li>`); });
+    // Sesiones de 60 minutos pedidas desde la página comercial
+    contactos.filter((c) => !c.atendido && c.plan === 'sesion').slice(0, 20).forEach((c) => pend.push(`<li><b>${esc(c.nombre || c.email)}</b> pide una sesión de 60 minutos (${fdate(c.fecha)}): ${esc(c.email)}${c.telefono ? ' · ' + esc(c.telefono) : ''}${c.empresa ? ' · ' + esc(c.empresa) : ''}${c.mensaje ? '<br><span class="muted">«' + esc(c.mensaje) + '»</span>' : ''}</li>`));
     // Cambios de plan hechos por el cliente en el último mes (para ajustar la cuota en el siguiente cobro)
     users.forEach((u) => (u.cambiosPlan || []).filter((c) => Date.now() - new Date(c.fecha).getTime() < 31 * 864e5).forEach((c) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> cambió de ${esc((P.PLANES[c.de] || {}).nombre || c.de)} a ${esc((P.PLANES[c.a] || {}).nombre || c.a)} el ${fdate(c.fecha)}${u.pagado ? ': ajusta la cuota en el siguiente cobro' : ' (en prueba)'}.</li>`)));
     users.filter((u) => u.solicitudPago && !u.pagado).forEach((u) => pend.push(`<li><b>${esc(u.nombre || u.email)}</b> pidió activar el plan ${esc((P.PLANES[u.plan] || {}).nombre || u.plan)} el ${fdate(u.solicitudPago)}.</li>`));
@@ -63,6 +65,8 @@
     $('#pending').innerHTML = pend.length ? `<ul>${pend.join('')}</ul>` : '<p class="muted">Nada pendiente.</p>';
     $$('#pending [data-reset]').forEach((b) => b.onclick = () => resetDialog(users.find((x) => x.id === b.dataset.reset)));
     $$('#pending [data-pwset]').forEach((b) => b.onclick = () => pwDialog(users.find((x) => x.id === b.dataset.pwset)));
+    const pendGrupos = contactos.filter((c) => !c.atendido && c.plan !== 'sesion');
+    $$('#pending [data-conceder]').forEach((b) => b.onclick = () => concederDialog(pendGrupos[+b.dataset.conceder]));
 
     // Tabla
     const q = ($('#q').value || '').toLowerCase(), fe = $('#fEstado').value;
@@ -72,7 +76,7 @@
         <td><select data-plan>${Object.keys(P.PLANES).map((k) => `<option value="${k}" ${k === u.plan ? 'selected' : ''}>${P.PLANES[k].nombre}</option>`).join('')}</select></td>
         <td><select data-per><option value="mensual" ${u.periodo !== 'anual' ? 'selected' : ''}>Mensual</option><option value="anual" ${u.periodo === 'anual' ? 'selected' : ''}>Anual −30 %</option></select></td>
         <td>${u.empresas || 1}${isFinite((P.PLANES[u.plan] || {}).empresas) ? ' / ' + P.PLANES[u.plan].empresas : ''}</td>
-        <td>${(() => { const pr = P.precio(u.plan, u.periodo, u.empresas); return pr.periodo === 'anual' ? `${P.eur(pr.total)}/año<br><span class="muted">anual, −30 %</span>` : `${P.eur(pr.mes)}/mes`; })()}</td>
+        <td>${(() => { const pr = P.precio(u.plan, u.periodo, u.empresas, u.cuotaPactada); return pr.pactada ? `${P.eur(pr.mes)}/mes<br><span class="muted">pactada${pr.periodo === 'anual' ? ' · anual' : ''}</span>` : pr.periodo === 'anual' ? `${P.eur(pr.total)}/año<br><span class="muted">anual, −30 %</span>` : `${P.eur(pr.mes)}/mes`; })()}</td>
         <td><span class="state st-${e.st}">${e.t}</span></td><td>${u.pagado ? fdate(u.venceAcceso) : '—'}</td><td>${fdate(u.alta)}</td><td>${fdate(u.ultimoAcceso)}</td>
         <td>${hm(P.usageMinutes(u, 7))}</td><td>${hm(P.usageMinutes(u, 30))}</td><td>${hm(P.usageMinutes(u))}</td><td>${u.sesiones || 0}</td>
         <td><div class="uactions"><button class="btn" data-pay>Registrar pago</button>${u.estado === 'bloqueado' ? '<button class="btn ghost" data-unblock>Desbloquear</button>' : '<button class="btn ghost" data-block>Bloquear</button>'}<button class="btn ghost" data-pwrow>Contraseña</button><button class="btn ghost" data-more>Ficha</button></div></td></tr>`).join('') + '</tbody></table>'
@@ -97,7 +101,7 @@
   function alertBox(t) { openModal(`<p class="alert stop">${esc(t)}</p>`); }
   function payDialog(u) {
     const pl = P.PLANES[u.plan] || P.PLANES.profesional;
-    const pr = P.precio(u.plan, u.periodo, u.empresas);
+    const pr = P.precio(u.plan, u.periodo, u.empresas, u.cuotaPactada);
     const base = u.venceAcceso && new Date(u.venceAcceso).getTime() > Date.now() ? new Date(u.venceAcceso) : new Date();
     const el = openModal(`<div class="eyebrow">Registrar pago</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
       <p class="small muted">Plan ${pl.nombre}${pr.tramo ? ' · ' + pr.tramo.n.toLowerCase() : ''} · ${pr.periodo === 'anual' ? `cuota anual: ${P.eur(pr.total)} (12 × ${P.eur(pr.base)} − 30 %)` : `${P.eur(pr.mes)}/mes`}. El acceso se amplía desde ${fdate(base)}.</p>
@@ -145,6 +149,29 @@
       catch (x) { $('#pwM', el).innerHTML = `<span style="color:var(--stop)">${esc(x.message)}</span>`; }
     };
   }
+  /* Conceder el plan a medida a quien lo pidió: cuota pactada, forma de pago y periodo de acceso */
+  async function concederDialog(c) {
+    const st = await P.adminAuth.status().catch(() => ({}));
+    const ya = users.find((u) => u.email === String(c.email).toLowerCase());
+    const el = openModal(`<div class="eyebrow">Conceder acceso · plan ${esc((P.PLANES[c.plan] || P.PLANES.grupos).nombre)}</div><h2 style="font-size:1.6rem">${esc(c.nombre || c.email)}</h2>
+      <p class="small muted">${esc(c.email)}${c.empresa ? ' · ' + esc(c.empresa) : ''}${c.sociedades ? ' · ' + esc(c.sociedades) + ' sociedades' : ''}. ${ya ? 'Ya tiene cuenta: se le cambia el plan y se activa el acceso.' : 'No tiene cuenta: se crea con este plan y recibe una invitación para elegir su contraseña (válida 7 días).'}</p>
+      <form class="stack mt" id="cForm">
+        <div class="row"><label class="small">Cuota pactada (€/mes, sin IVA)<input class="input" type="number" min="0" step="10" name="cuota" id="cCuota" placeholder="Por ejemplo, 690" required></label>
+        <label class="small">Pago<select class="input" name="periodo" id="cPer"><option value="mensual">Mensual</option><option value="anual">Anual</option></select></label>
+        <label class="small">Acceso durante<select class="input" name="meses" id="cMeses"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12" selected>12 meses</option></select></label></div>
+        <div class="row"><button class="btn solid" type="submit">Conceder acceso</button>${st.correo ? '<label class="small row"><input type="checkbox" name="enviar" id="cEnv" checked> Enviarle el aviso por correo</label>' : ''}</div>
+      </form><div id="cOut" class="stack mt"></div>`);
+    $('#cForm', el).onsubmit = async (e) => {
+      e.preventDefault(); const f = e.target;
+      try {
+        const r = await P.admin.conceder({ email: c.email, nombre: c.nombre, empresa: c.empresa, telefono: c.telefono, plan: P.PLANES[c.plan] ? c.plan : 'grupos', cuota: +f.cuota.value, periodo: f.periodo.value, meses: +f.meses.value, enviar: !!(f.enviar && f.enviar.checked) });
+        $('#cOut', el).innerHTML = `<p class="alert info">Acceso concedido hasta el ${fdate(r.user.venceAcceso)} · ${P.eur(+f.cuota.value)}/mes.${r.enviado ? ' Aviso enviado por correo.' : ''}</p>` + (r.link ? `<p class="small">Invitación para que elija su contraseña (válida 7 días). Envíesela por un canal de confianza:</p><textarea class="input" rows="3" readonly id="cLink">${esc(r.link)}</textarea><button class="btn" id="cCopy">Copiar enlace</button>` : '<p class="small">Ya tenía cuenta: entra con su correo y su contraseña de siempre.</p>');
+        const cp = $('#cCopy', el); if (cp) cp.onclick = () => { const t = $('#cLink', el); (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(() => { cp.textContent = 'Copiado'; }, () => { t.select(); }); };
+        f.querySelector('button[type=submit]').disabled = true;
+        load();
+      } catch (x) { $('#cOut', el).innerHTML = `<p class="alert stop">${esc(x.message)}</p>`; }
+    };
+  }
   async function resetDialog(u) {
     const st = await P.adminAuth.status().catch(() => ({}));
     const el = openModal(`<div class="eyebrow">Recuperar contraseña</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
@@ -164,7 +191,7 @@
   }
   function csv() {
     const head = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'empresas', 'cuota_mes', 'estado', 'pagado', 'vence', 'alta', 'ultimo_acceso', 'uso_7d_min', 'uso_30d_min', 'uso_total_min', 'sesiones'];
-    const rows = users.map((u) => [u.nombre, u.email, u.empresa, u.telefono, u.plan, u.periodo || 'mensual', u.empresas || 1, P.precio(u.plan, u.periodo, u.empresas).mes, estadoDe(u).t, u.pagado ? 'sí' : 'no', u.venceAcceso || '', u.alta, u.ultimoAcceso, P.usageMinutes(u, 7), P.usageMinutes(u, 30), P.usageMinutes(u), u.sesiones || 0]);
+    const rows = users.map((u) => [u.nombre, u.email, u.empresa, u.telefono, u.plan, u.periodo || 'mensual', u.empresas || 1, P.precio(u.plan, u.periodo, u.empresas, u.cuotaPactada).mes, estadoDe(u).t, u.pagado ? 'sí' : 'no', u.venceAcceso || '', u.alta, u.ultimoAcceso, P.usageMinutes(u, 7), P.usageMinutes(u, 30), P.usageMinutes(u), u.sesiones || 0]);
     const txt = [head].concat(rows).map((r) => r.map((c) => `"${String(c == null ? '' : c).replace(/"/g, '""')}"`).join(';')).join('\n');
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => alertBox2('CSV copiado: pégalo en Excel.'), () => openModal(`<textarea class="input" rows="12" style="width:100%">${esc(txt)}</textarea>`));
   }

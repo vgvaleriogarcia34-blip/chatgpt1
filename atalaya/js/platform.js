@@ -32,8 +32,10 @@
   const P = (A.platform = { mode: 'local', user: null, PLANES, PRUEBA_DIAS, DTO_ANUAL });
   const r2 = (x) => Math.round(x * 100) / 100;
   /* Precio de un plan: mensual o anual (−30 %); en Grupos, según el tramo de sociedades */
-  P.precio = function (plan, periodo, n) {
+  P.precio = function (plan, periodo, n, pactada) {
     const p = PLANES[plan] || PLANES.profesional;
+    // Plan a medida con cuota pactada por la administración: manda la cuota acordada (mensual)
+    if (pactada > 0) return periodo === 'anual' ? { periodo: 'anual', base: pactada, mes: pactada, total: r2(pactada * 12), ahorro: 0, tramo: null, pactada: true } : { periodo: 'mensual', base: pactada, mes: pactada, total: pactada, ahorro: 0, tramo: null, pactada: true };
     const t = p.tramos ? p.tramos.find((x) => (n || 1) <= x.hasta) || p.tramos[p.tramos.length - 1] : null;
     const base = t ? t.precio : p.precio;
     if (periodo === 'anual') { const mes = r2(base * (1 - DTO_ANUAL)); return { periodo: 'anual', base, mes, total: r2(mes * 12), ahorro: r2(base * 12 - mes * 12), tramo: t }; }
@@ -320,6 +322,23 @@
       u.reset = { hash: await hash(token), exp: new Date(Date.now() + 60 * 60e3).toISOString() }; delete u.solicitudReset; L.save(users);
       return { link: base + token, minutos: 60, enviado: false };
     },
+    /* Concede un plan a medida (Grupos) a quien lo pidió: crea la cuenta si no existe y devuelve la invitación */
+    async conceder(d) {
+      await P.ready;
+      const base = location.href.replace(/[^/]*([?#].*)?$/, '') + 'acceso.html#reset=';
+      if (P.mode === 'server') { const r = await api('/admin/conceder', { method: 'POST', body: JSON.stringify(d) }); return Object.assign(r, { link: r.token ? base + r.token : null }); }
+      needAdmin();
+      const email = String(d.email || '').trim().toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Correo no válido');
+      const users = L.users(); let u = users.find((x) => x.email === email), creado = false;
+      if (!u) { const salt = uid(); u = { id: uid(), nombre: (d.nombre || '').trim(), email, empresa: (d.empresa || '').trim(), telefono: (d.telefono || '').trim(), rol: 'cliente', alta: new Date().toISOString(), ultimoAcceso: null, sesiones: 0, uso: {}, salt, hash: await hash(salt + uid() + uid()) }; users.push(u); creado = true; }
+      const meses = Math.max(1, Math.min(36, +d.meses || (d.periodo === 'anual' ? 12 : 1))), venc = new Date(); venc.setMonth(venc.getMonth() + meses);
+      Object.assign(u, { plan: PLANES[d.plan] ? d.plan : 'grupos', periodo: d.periodo === 'anual' ? 'anual' : 'mensual', estado: 'activo', pagado: true, venceAcceso: venc.toISOString(), cuotaPactada: +d.cuota || null, concedido: new Date().toISOString() });
+      let link = null;
+      if (creado) { const token = Array.from(crypto.getRandomValues(new Uint8Array(24))).map((b) => b.toString(16).padStart(2, '0')).join(''); u.reset = { hash: await hash(token), exp: new Date(Date.now() + 7 * 864e5).toISOString() }; link = base + token; }
+      L.save(users);
+      const cs = LS.get('atalaya.contactos') || []; cs.forEach((c) => { if (String(c.email).toLowerCase() === email) c.atendido = new Date().toISOString(); }); LS.set('atalaya.contactos', cs);
+      return { user: publicUser(u), creado, link, minutos: creado ? 7 * 24 * 60 : 0, enviado: false };
+    },
     async list() {
       await P.ready;
       if (P.mode === 'server') return (await api('/admin/users')).users;
@@ -433,7 +452,7 @@
         <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
         <div class="eyebrow">Mi plan</div>
         <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.6rem">Ahora tienes <em>${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan}</em> · pago ${(u.periodo || 'mensual') === 'anual' ? 'anual' : 'mensual'}</h3>
-        <p class="small" style="margin:0">Tu cuota: <b>${(() => { const c = P.cuota(P.precio(u.plan, u.periodo, n)); return P.eur(c.importe) + c.unidad; })()}</b></p>
+        <p class="small" style="margin:0">Tu cuota: <b>${(() => { const c = P.cuota(P.precio(u.plan, u.periodo, n, u.cuotaPactada)); return P.eur(c.importe) + c.unidad; })()}</b></p>
         <p class="small muted" style="margin:0">${acc.motivo === 'prueba' ? `Estás en la prueba gratuita (quedan ${acc.diasPrueba} días). Puedes cambiar de plan cuando quieras sin coste: la prueba sigue contando desde tu alta.` : acc.motivo === 'pagado' ? 'Tu acceso está activado. El cambio se aplica al momento y la diferencia de cuota se ajusta en tu siguiente cobro; te lo confirmaremos por correo.' : 'Elige el plan que quieres activar.'}${opts.motivo ? `<br><b style="color:var(--gold-soft)">${opts.motivo}</b>` : ''}</p>
         <div class="seg" style="margin:0;justify-self:start"><button data-per="mensual" aria-pressed="${periodo === 'mensual'}">Pago mensual</button><button data-per="anual" aria-pressed="${periodo === 'anual'}">Pago anual · −30 %</button></div>
         ${periodo === 'anual' ? '<p class="small muted" style="margin:0">Cuota anual: se paga el año por adelantado y equivale a doce meses con un 30 % de descuento.</p>' : ''}
