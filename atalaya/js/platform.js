@@ -198,7 +198,7 @@
      anteriores siguen donde estaban; las demás llevan su identificador: atalaya.v1@id en el navegador y simulador--id
      en el servidor. El registro de empresas se guarda como un dato más de la cuenta («empresas»). */
   const ACT = 'atalaya.empresa.activa';
-  const SCOPED = ['simulador', 'estrategia', 'personas'];
+  const SCOPED = ['simulador', 'estrategia', 'personas', 'consultor'];
   P.empresaId = () => LS.get(ACT) || 'principal';
   P.k = (base, id) => { id = id || P.empresaId(); return id === 'principal' ? base : base + '@' + id; };
   const dk = (key, id) => { id = id || P.empresaId(); return SCOPED.includes(key) && id !== 'principal' ? key + '--' + id : key; };
@@ -232,7 +232,7 @@
       await P.empresas.cargar();
       if (id === 'principal') throw new Error('La empresa principal no se puede borrar.');
       REG.lista = REG.lista.filter((x) => x.id !== id); await P.empresas.guardar();
-      for (const k of SCOPED) { await P.saveData(k + '--' + id, null); LS.del(P.k({ simulador: 'atalaya.v1', estrategia: 'atalaya.estrategia.v1', personas: 'atalaya.personas.v1' }[k], id)); }
+      for (const k of SCOPED) { await P.saveData(k + '--' + id, null); LS.del(P.k({ simulador: 'atalaya.v1', estrategia: 'atalaya.estrategia.v1', personas: 'atalaya.personas.v1', consultor: 'atalaya.consultor.v1' }[k], id)); }
       if (P.empresaId() === id) LS.set(ACT, 'principal');
     },
     cambiar(id) { LS.set(ACT, id); location.reload(); }
@@ -381,6 +381,8 @@
     if (f === 'cartera') return k === 'consultora';
     // Personas y equipos (y su liderazgo) es exclusivo del plan Consultora
     if (f === 'personas') return k === 'consultora';
+    // Informes en dos partes (para la empresa y cuaderno interno del consultor)
+    if (f === 'consultor') return k === 'consultora';
     return true;
   };
   P.PLAN_RESUMEN = {

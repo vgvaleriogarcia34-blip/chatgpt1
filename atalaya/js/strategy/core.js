@@ -210,7 +210,12 @@
       + I.section('Hallazgos y mejoras', I.findings(Fi, F.eur))
       + (pasos.length ? I.section('Próximos pasos', `<ol class="rp-steps">${pasos.join('')}</ol>`) : '')
       + I.foot();
-    I.open({ titulo: 'Informe · ' + m.nombre, html });
+    const abrir = A.consultorInf ? A.consultorInf.abrir : I.open;
+    abrir({ titulo: 'Informe · ' + m.nombre, html, clave: 'mod:' + m.id, ctx: {
+      titulo: m.nombre, tipo: 'Informe de área', empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre,
+      pasos: Fi.slice(0, 5).map((f) => ({ q: f.accion, c: f.hallazgo, cuando: new Date(Date.now() + (f.plazo || 90) * 864e5).toISOString().slice(0, 10), s: 'Impacto medido: ' + F.eur(f.impactoEUR || 0) + ' al año' })).concat(R.slice(0, 4).map((r) => ({ q: r.mitigacion || 'Mitigar: ' + r.nombre, c: 'Riesgo: ' + r.nombre + ' (nivel ' + r.nivel + ')', s: 'El riesgo baja de nivel en la siguiente revisión' }))),
+      datos: [['Nota del área', sc === null ? '—' : sc + '/100'], ['Indicadores', String(tiles.length)], ['En rojo', rojos.join(', ') || 'Ninguno'], ['Riesgos', String(R.length)], ['Mejora identificada', F.eur(impacto) + ' al año']]
+    } });
   };
   S.current = () => current;
 

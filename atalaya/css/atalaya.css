@@ -556,7 +556,7 @@ table.guide td:nth-child(n+3):not(:last-child) { font-size: 0.8rem; }
 .rp-tw, .paper.rp .table-wrap { overflow-x: auto; margin-top: 10px; }
 .paper.rp table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 6px; }
 .paper.rp thead th { background: #0b0d13; color: #e1f7a1; font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; padding: 8px 10px; border: 0; text-align: left; white-space: nowrap; }
-.paper.rp td { padding: 7px 10px; border-bottom: 1px solid #e6e4dc; color: #14171e; vertical-align: top; white-space: normal; font-family: var(--font-body); }
+.paper.rp td { padding: 7px 10px; border-bottom: 1px solid #e6e4dc; color: #14171e; vertical-align: top; text-align: left; white-space: normal; font-family: var(--font-body); }
 .paper.rp tbody tr:nth-child(even) td { background: #fbfaf7; }
 .paper.rp tr { break-inside: avoid; page-break-inside: avoid; }
 .paper.rp .rp-num, .paper.rp td.rp-num { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -753,3 +753,22 @@ body.con-lineas .field[data-p="inversion.vidaUtil"] { display: none; }
 a { color: var(--gold); }
 /* El titular calado solo en tamaño grande: en miniaturas y textos pequeños la segunda parte va en lima macizo */
 .rm-clone em, .rm-prev em, .rm-card em, .eco-fan em, .sp-card em, .toolbox em, .ef-card h2 em, .ef-card h3 em { color: var(--gold); -webkit-text-stroke: 0; }
+
+/* ---------- Informes con consultor: versión para la empresa y cuaderno interno ---------- */
+.ci-seg { margin-left: 0; }
+.ci-seg button[aria-selected="true"] { background: var(--gold); color: #05060a; }
+.paper.ci-interno { outline: 3px solid #b8432f; outline-offset: -3px; }
+.ci-stamp { background: #b8432f; color: #fff; font: 600 0.72rem var(--font-data); letter-spacing: 0.14em; text-transform: uppercase; text-align: center; padding: 6px 10px; }
+.ci-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px 14px; }
+.ci-grid1 { display: grid; gap: 12px; }
+.ci-grid label, .ci-grid1 label, .ci-l { display: grid; gap: 4px; font-size: 0.78rem; color: #55534c; font-weight: 600; }
+.ci-in { width: 100%; font: 400 0.9rem var(--font-body); color: #15140f; background: #fffefa; border: 1px solid #d9d6cc; border-radius: 6px; padding: 7px 9px; resize: vertical; }
+.ci-in:focus { outline: 2px solid #6e7d14; outline-offset: 1px; }
+.ci-ses td { vertical-align: top; }
+.ci-ses td:first-child { min-width: 130px; }
+.ci-del { border: 0; background: transparent; font-size: 1.2rem; color: #8a877d; cursor: pointer; }
+.ci-add { margin-top: 8px; border: 1px dashed #b5b19f; background: transparent; color: #4a4838; border-radius: 6px; padding: 7px 12px; font: 600 0.82rem var(--font-body); cursor: pointer; }
+.ci-checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.ci-checks label { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; color: #15140f; }
+.ci-checks input { margin-top: 3px; accent-color: #6e7d14; }
+@media print { .ci-del, .ci-add { display: none; } .ci-in { border-color: #e4e1d6; background: transparent; } }

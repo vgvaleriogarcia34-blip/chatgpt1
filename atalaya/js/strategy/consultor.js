@@ -190,6 +190,13 @@
       + (c.notas ? I.section('Notas del empresario', `<p>${esc(c.notas).replace(/\n/g, '<br>')}</p>`) : '')
       + I.section('Próximos pasos', `<ol class="rp-steps">${(altas.length ? altas : PL).slice(0, 5).map((x) => `<li><b>${esc(x.accion)}</b> <span class="rp-muted">${esc(x.resp || '')} · ${x.fecha ? new Date(x.fecha).toLocaleDateString('es-ES') : 'en ' + x.plazo + ' días'}</span></li>`).join('') || '<li>Responder el diagnóstico y fijar objetivos.</li>'}</ol>`)
       + I.foot();
-    I.open({ titulo: 'Informe 360 · ' + m.nombre, html });
+    const ordenados = (altas.length ? altas.concat(PL.filter((x) => !altas.includes(x))) : PL).filter((x) => x.estado !== 'Hecha');
+    const abrir = A.consultorInf ? A.consultorInf.abrir : I.open;
+    abrir({ titulo: 'Informe 360 · ' + m.nombre, html, clave: 'est:' + m.id, ctx: {
+      titulo: m.nombre, tipo: 'Informe 360', empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre,
+      pasos: ordenados.slice(0, 10).map((x) => ({ q: x.accion, c: x.origen + (x.motivo ? ': ' + x.motivo : ''), quien: x.resp, cuando: x.fecha || new Date(Date.now() + (x.plazo || 60) * 864e5).toISOString().slice(0, 10), s: x.kpi && x.kpi !== '—' ? x.kpi : 'Acción cerrada en el plan de empresa' })),
+      seguimiento: d.cadencia.map((r) => [r[0], r[1], r[2]]),
+      datos: [['Nota del área', nota === null ? '—' : nota + '/100'], ['Indicadores', P.sc === null ? '—' : P.sc + '/100'], ['Madurez de la gestión', mz.score === null ? 'Sin responder' : mz.score + '/100'], ['Datos que faltan', String(falta.length)], ['Riesgos', String(P.R.length)], ['Acciones en el plan', PL.length + ' (' + altas.length + ' de prioridad alta)'], ['Notas del empresario', c.notas ? c.notas.slice(0, 200) : '—']]
+    } });
   };
 })();

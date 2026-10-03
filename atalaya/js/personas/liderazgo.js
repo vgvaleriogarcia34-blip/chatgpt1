@@ -347,6 +347,7 @@
   });
 
   /* ================= INFORMES ================= */
+  const SEG_LID = [['Según el acuerdo (diario a mensual)', 'Cada colaborador con su responsable, en el ritmo pactado para cada tarea', 'Responsable', 'Señales del siguiente nivel', 'Mantener o cambiar el estilo'], ['Mensual (con el consultor)', 'Mapa de mando: desajustes y acuerdos', 'Líder y consultor', 'Desajustes abiertos', 'Ajustar los acuerdos'], ['A las seis semanas', 'Repetir la valoración de las tareas', 'Líder y colaborador', 'Nivel de preparación', 'Nuevo estilo para la tarea'], ['Trimestral', 'Repetir el estilo percibido', 'Consultor', 'Propio frente a percibido', 'Nuevo plan de desarrollo del líder']];
   const pie = 'Herramienta orientativa para conversar sobre cómo se dirige cada tarea. El nivel de preparación es de una tarea, no de la persona. Datos tratados con el consentimiento de cada persona.';
   const cover = (o) => { const e = R.empresa(); return I().cover(Object.assign({ empresa: e.nombre, sector: e.sector, tipo: 'Liderazgo a medida' }, o)); };
   const mapaTabla = (In, filas) => In.table(['Colaborador', 'Tarea', 'Nivel', 'Toca', 'Usa', 'Ajuste'], filas.filter((f) => f.t).map((f) => [f.c.nombre, f.t.nombre, f.nv ? N[f.nv.nivel].n : 'Sin valorar', f.toca ? E[f.toca].n : '—', f.usa ? E[f.usa.e].n : '—', f.des ? { h: In.pill(f.des.st, f.des.st === 'ok' ? 'Ajustado' : f.des.tipo === 'mas' ? 'Dirige de más' : 'Suelta de más') } : '—']));
@@ -370,9 +371,8 @@
     if (filas.some((f) => f.t && f.t.acuerdo)) h += In.section('Acuerdos de liderazgo', acuerdosTabla(In, filas));
     const tabs = R.tablillasLid(p).slice(0, 5);
     if (tabs.length) h += In.section('Plan de desarrollo', In.table(['Tablilla', 'Objetivo', 'Pasos', 'Por qué'], tabs.map((x) => [x.t.titulo, x.t.objetivo, x.t.pasos.join(' · '), x.motivos.join(' ')])));
-    h += R.consultorBloque ? R.consultorBloque('lid-lider:' + p.id, { titulo: 'liderazgo de ' + p.nombre, pasos: R.pasosLider(p) }) : '';
     h += In.foot(pie);
-    In.open(Object.assign({ titulo: 'Informe del líder · ' + p.nombre, html: h }, R.consultorOpen ? R.consultorOpen('lid-lider:' + p.id, { titulo: 'Liderazgo de ' + p.nombre, datos: R.datosLider(p), pasos: R.pasosLider(p) }) : {}));
+    R.abrirInforme({ titulo: 'Informe del líder · ' + p.nombre, html: h, clave: 'lid-lider:' + p.id, ctx: { titulo: 'Liderazgo de ' + p.nombre, tipo: 'Informe del líder', datos: R.datosLider(p), pasos: R.pasosLider(p), seguimiento: SEG_LID } });
   };
 
   R.informeLidEquipo = (p) => {
@@ -386,7 +386,7 @@
     });
     h += In.section('Los cuatro estilos', In.table(['Estilo', 'Qué significa', 'Seguimiento habitual'], [1, 2, 3, 4].map((k) => [E[k].n, E[k].que, E[k].seguimiento])));
     h += In.foot(pie);
-    In.open({ titulo: 'Acuerdos del equipo de ' + p.nombre, html: h });
+    R.abrirInforme({ titulo: 'Acuerdos del equipo de ' + p.nombre, html: h, clave: 'lid-eq:' + p.id, ctx: { titulo: 'Acuerdos del equipo de ' + p.nombre, tipo: 'Acuerdos de liderazgo', datos: R.datosLider(p), pasos: R.pasosLider(p).slice(-3), seguimiento: SEG_LID } });
   };
 
   R.informeLidOrg = () => {
@@ -406,7 +406,11 @@
     const tDes = datos.flatMap((d) => d.des.map((x) => ({ d, x })));
     if (tDes.length) h += In.section('Desajustes que corregir', In.table(['Líder', 'Colaborador · tarea', 'Qué pasa', 'Toca'], tDes.sort((a, b) => (a.x.des.st === 'stop' ? -1 : 1) - (b.x.des.st === 'stop' ? -1 : 1)).map(({ d, x }) => [d.p.nombre, x.c.nombre + ' · ' + x.t.nombre, x.des.t, E[x.toca].n])));
     h += In.foot(pie);
-    In.open({ titulo: 'Informe de liderazgo de la organización', html: h });
+    R.abrirInforme({ titulo: 'Informe de liderazgo de la organización', html: h, clave: 'lid-org', ctx: { titulo: 'Liderazgo en la organización', tipo: 'Informe de liderazgo', seguimiento: SEG_LID,
+      datos: [['Líderes', String(ls.length)], ['Con test de estilo', String(conC.length)], ['Eficacia media', efM != null ? efM + ' %' : '—'], ['Flexibilidad media', flM != null ? flM + ' %' : '—'], ['Tareas valoradas', String(todas.length)], ['Desajustes', String(nDes)]],
+      pasos: [{ q: 'Presentar el modelo a los líderes', c: 'Sesión de 60 minutos: estilos, niveles y por qué el nivel es de la tarea, no de la persona.', quien: 'Consultor', s: 'Todos los líderes conocen el modelo' }, { q: 'Test de estilo de cada líder', c: (ls.length - conC.length) + ' pendientes; se pueden enviar por enlace.', quien: 'Cada líder', s: 'Todos los líderes con test' }, { q: 'Estilo percibido', c: 'Enviar el test a cada equipo; mínimo tres respuestas por líder.', quien: 'Recursos humanos o consultor', s: 'Cada líder con su estilo percibido' }, { q: 'Valorar las tareas clave de cada colaborador', c: 'Dos o tres tareas por persona, valoradas por el líder y por la persona.', quien: 'Cada líder', s: 'Mapa de mando completo' }]
+        .concat(tDes.slice(0, 4).map(({ d, x }) => ({ q: 'Corregir el desajuste de ' + d.p.nombre + ' con ' + x.c.nombre + ' en «' + x.t.nombre + '»', c: 'Toca ' + E[x.toca].n + ': ' + x.des.t, quien: d.p.nombre, s: 'Acuerdo firmado con el estilo que toca' })))
+        .concat([{ q: 'Acuerdos de liderazgo por escrito', c: 'Cada líder con cada colaborador: estilo, seguimiento y siguiente nivel.', quien: 'Cada líder', s: 'Un acuerdo por tarea clave' }, { q: 'Revisión a las seis semanas', c: 'Repetir la valoración de las tareas y comparar niveles.', quien: 'Consultor', s: 'Al menos un nivel subido por equipo' }]) } });
   };
 
   /* Datos y pasos del líder para el cuaderno del consultor */

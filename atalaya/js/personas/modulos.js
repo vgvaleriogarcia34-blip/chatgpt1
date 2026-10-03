@@ -449,6 +449,10 @@
   const discTabla = (d, ideal) => I().table(['Factor', 'Persona', ideal ? 'Puesto' : null].filter(Boolean), ['D', 'I', 'S', 'C'].map((k) => [`${k} · ${H.DISC[k].n}`, String(d[k]), ideal ? String(ideal[k]) : null].filter((x) => x != null)), { num: [1, 2] });
   const pie = 'Herramientas orientativas para conocerse y trabajar mejor. No son diagnósticos ni deben ser el único criterio para decisiones sobre personas. Datos tratados con el consentimiento de cada persona.';
   const cover = (o) => { const e = R.empresa(); return I().cover(Object.assign({ empresa: e.nombre, sector: e.sector, tipo: 'Personas y equipos' }, o)); };
+  /* Informe con su parte de consultor (hoja de ruta, seguimiento y cuaderno interno) */
+  R.abrirInforme = (o) => (A.consultorInf ? A.consultorInf.abrir(Object.assign({}, o, { ctx: Object.assign({ empresa: R.empresa().nombre, sector: R.empresa().sector }, o.ctx || {}) })) : I().open(o));
+  const SEG_PERSONA = [['Semanal', 'Avance de la tablilla en curso', 'Responsable directo', 'Señal de avance de la tablilla', 'Seguir con el paso o cambiarlo'], ['Mensual (30 min)', 'Conversación de desarrollo: qué ha cambiado y qué cuesta', 'Responsable y persona', 'Señales de avance de las tablillas', 'Elegir la siguiente tablilla'], ['Trimestral', 'Repetir los cuestionarios que hagan falta y revisar el encaje', 'Consultor', 'Encaje con el puesto', 'Ajustar el plan de desarrollo']];
+  R.SEG_PERSONA = SEG_PERSONA;
 
   R.informePersona = (p) => {
     if (!p) return; const In = I(); In.reset();
@@ -462,7 +466,12 @@
     const tabs = R.tablillasDe(p).slice(0, 5);
     if (tabs.length) h += In.section('Plan de entrenamiento', In.table(['Tablilla', 'Objetivo', 'Duración', 'Por qué'], tabs.map((x) => [x.t.titulo, x.t.objetivo, x.t.duracion, x.motivos.join(' ')])));
     h += In.foot(pie);
-    In.open({ titulo: 'Informe de ' + p.nombre, html: h });
+    const jefe = R.persona(p.responsable);
+    R.abrirInforme({ titulo: 'Informe de ' + p.nombre, html: h, clave: 'per:' + p.id, ctx: { titulo: p.nombre, tipo: 'Informe de persona', seguimiento: SEG_PERSONA,
+      pasos: [{ q: 'Conversación de devolución del perfil', c: 'Treinta minutos entre ' + (jefe ? jefe.nombre : 'su responsable') + ' y ' + p.nombre + ': leer juntos el informe, contrastarlo con ejemplos y elegir la primera tablilla.', quien: jefe ? jefe.nombre : 'Responsable directo', s: 'Tablilla elegida con fecha de revisión' }]
+        .concat(tabs.map((x) => ({ q: 'Tablilla: ' + x.t.titulo, c: x.t.pasos[0] + ' (' + x.t.duracion + ')', quien: p.nombre, s: x.t.senal })))
+        .concat(enc && enc.brechas.length ? [{ q: 'Cerrar la brecha principal con el puesto', c: enc.brechas[0].txt, quien: jefe ? jefe.nombre : 'Responsable directo', s: 'La brecha deja de aparecer en la siguiente valoración' }] : []),
+      datos: [['Puesto', pu ? pu.nombre : 'Sin puesto'], ['Estilo DISC', e ? e.nombre : '—'], ['Aportaciones naturales', p.roles && p.roles.scores ? R.rolesOrden(p.roles.scores).slice(0, 3).map((k) => H.ROLES[k].n).join(', ') : '—'], ['Eneatipo', p.enea && p.enea.tipo ? p.enea.tipo + ' · ' + H.ENEA[p.enea.tipo].n : '—'], ['Encaje', enc && enc.total != null ? enc.total + ' %' : '—'], ['Consentimiento', p.consentimiento ? 'Sí' + (p.consentFecha ? ' · ' + R.fechaES(p.consentFecha) : '') : 'No']] } });
   };
 
   R.informeTablillas = (p) => {
@@ -485,7 +494,13 @@
     const tq = R.tablillasEquipo(an);
     h += In.section('Tablillas del equipo', In.table(['Tablilla', 'Objetivo', 'Pasos', 'Por qué'], tq.map((x) => [x.t.titulo, x.t.objetivo, x.t.pasos.join(' · '), x.motivos.join(' ')])));
     h += In.foot(pie);
-    In.open({ titulo: 'Informe del equipo ' + nombre, html: h });
+    R.abrirInforme({ titulo: 'Informe del equipo ' + nombre, html: h, clave: 'eq:' + nombre, ctx: { titulo: 'Equipo ' + nombre, tipo: 'Informe de equipo',
+      pasos: [{ q: 'Sesión de devolución con el equipo', c: 'Sesenta minutos: cada persona comparte su estilo y cómo prefiere que le pidan las cosas; se leen las aportaciones cubiertas y las que faltan.', quien: 'Responsable del equipo', s: 'Cada persona conoce el estilo de las demás' }]
+        .concat(tq.map((x) => ({ q: 'Tablilla de equipo: ' + x.t.titulo, c: x.t.pasos[0], quien: 'Responsable del equipo', s: x.t.senal })))
+        .concat(an.tensiones.slice(0, 3).map((t) => ({ q: 'Pactar la diferencia entre ' + R.nombre(t.a) + ' y ' + R.nombre(t.b), c: t.t.clave, quien: 'Responsable del equipo', s: 'Acuerdo escrito y revisado al mes' })))
+        .concat(an.contratar ? [{ q: 'Definir la próxima incorporación', c: [an.contratar.rol && 'Aportación de ' + H.ROLES[an.contratar.rol].n.toLowerCase(), an.contratar.estilo && 'estilo ' + H.DISC[an.contratar.estilo].n.toLowerCase()].filter(Boolean).join(', '), quien: 'Dirección', s: 'Perfil del puesto actualizado' }] : []),
+      seguimiento: [['Quincenal', 'Acuerdos del equipo y fricciones', 'Responsable del equipo', 'Incidencias entre personas', 'Ajustar los acuerdos'], ['Mensual', 'Avance de las tablillas del equipo', 'Responsable y consultor', 'Señales de avance', 'Siguiente tablilla'], ['Trimestral', 'Revisión del análisis del equipo', 'Consultor', 'Aportaciones cubiertas', 'Recomposición o incorporación']],
+      datos: [['Personas', String(an.miembros.length)], ['Con DISC', String(an.conDisc.length)], ['Aportaciones sin cubrir', an.faltan.map((k) => H.ROLES[k].n).join(', ') || 'Ninguna'], ['Fricciones probables', String(an.tensiones.length)]] } });
   };
 
   R.informeOrg = () => {
@@ -503,6 +518,14 @@
     if (s.evaluados) { const filas = Object.keys(R.CAJAS).map((k) => ({ k, quien: ps.filter((p) => R.caja(p) === k) })).filter((x) => x.quien.length); h += In.section('Mapa de talento', In.table(['Casilla', 'Personas', 'Acción recomendada'], filas.map((x) => [R.CAJAS[x.k].n, x.quien.map((p) => p.nombre).join(', '), R.CAJAS[x.k].a]))); }
     if (R.state.equipos.length) h += In.section('Equipos', In.table(['Equipo', 'Miembros', 'Aportaciones sin cubrir', 'Fricciones', 'Incorporar'], R.state.equipos.map((q) => { const a = R.analizarEquipo(q.miembros); return [q.nombre, String(a.miembros.length), a.faltan.map((k) => H.ROLES[k].n).join(', ') || '—', String(a.tensiones.length), a.contratar ? [a.contratar.rol && H.ROLES[a.contratar.rol].n, a.contratar.estilo && H.DISC[a.contratar.estilo].n].filter(Boolean).join(' · ') : '—']; }), { num: [1, 3] }));
     h += In.foot(pie);
-    In.open({ titulo: 'Informe de personas y estructura', html: h });
+    const sinH = ps.filter((p) => !p.disc).length, crit = s.est.avisos.filter((a) => a.st === 'stop');
+    R.abrirInforme({ titulo: 'Informe de personas y estructura', html: h, clave: 'org', ctx: { titulo: 'Personas y estructura', tipo: 'Auditoría de personas',
+      pasos: (sinH ? [{ q: 'Completar los cuestionarios pendientes', c: sinH + ' personas sin DISC: enviarlos por enlace desde «Test a distancia».', quien: 'Recursos humanos o dirección', s: 'Toda la plantilla con DISC' }] : [])
+        .concat(crit.slice(0, 3).map((a) => ({ q: 'Resolver: ' + a.t, c: 'Nombrar sucesor o cubrir el puesto y preparar el relevo con una tablilla.', quien: 'Dirección', s: 'El aviso desaparece de la estructura' })))
+        .concat(s.encBajo ? [{ q: 'Revisar las personas con encaje bajo', c: 'Conversación individual: ¿ajustar el puesto, entrenar la brecha o cambiar de puesto?', quien: 'Responsable directo', s: 'Plan acordado con cada persona' }] : [])
+        .concat(s.todo.faltan.length ? [{ q: 'Cubrir las aportaciones que nadie tiene', c: s.todo.faltan.map((k) => H.ROLES[k].n).join(', '), quien: 'Dirección', s: 'Aportación cubierta en algún equipo' }] : [])
+        .concat([{ q: 'Conversaciones de desarrollo con cada persona', c: 'Treinta minutos con su informe y una tablilla elegida.', quien: 'Cada responsable', s: 'Todas las personas con tablilla en curso' }, { q: 'Revisión trimestral de personas y estructura', c: 'Repetir este informe y comparar.', quien: 'Consultor', s: 'Menos alertas que en este informe' }]),
+      seguimiento: SEG_PERSONA,
+      datos: [['Personas', String(s.n)], ['DISC completados', s.disc + '/' + s.n], ['Encaje medio', pct(s.encMedio)], ['Niveles', String(s.est.niveles)], ['Alertas graves', String(crit.length)], ['Equipos', String(R.state.equipos.length)]] } });
   };
 })();
