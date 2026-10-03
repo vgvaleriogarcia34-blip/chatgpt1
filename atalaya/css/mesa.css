@@ -117,3 +117,22 @@
   .ms-t .ms-acc { grid-row: 1 / span 2; grid-column: 3; }
   .ms-top li { flex-wrap: wrap; }
 }
+
+/* Ficha de la meta */
+.ms-ficha { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px 18px; align-items: start; border-color: rgba(201, 242, 77, 0.35); }
+.ms-fid { display: grid; justify-items: center; gap: 4px; padding: 10px 12px; border-radius: 12px; background: rgba(201, 242, 77, 0.08); border: 1px solid rgba(201, 242, 77, 0.35); }
+.ms-fid small { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.ms-fid b { font: 700 1.05rem var(--font-data); color: var(--gold); }
+.ms-ftx { display: grid; gap: 6px; min-width: 0; }
+.ms-frase { margin: 0; font: 600 1.05rem/1.45 var(--font-display); }
+.ms-fchips { flex-wrap: wrap; gap: 4px; }
+.ms-fbtns { display: grid; gap: 6px; }
+.ms-prop { grid-column: 1 / -1; }
+.ms-prop:empty { display: none; }
+.ms-propc { display: grid; gap: 8px; padding: 12px; border-radius: 12px; border: 1px dashed var(--line-strong); background: rgba(255, 255, 255, 0.02); }
+.ms-luz { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--faint); vertical-align: -1px; }
+.ms-luz.ok { background: var(--go); box-shadow: 0 0 0 3px rgba(47, 178, 74, 0.2); }
+.ms-luz.warn { background: var(--warn); box-shadow: 0 0 0 3px rgba(250, 178, 25, 0.2); }
+.ms-luz.stop { background: var(--stop); box-shadow: 0 0 0 3px rgba(224, 72, 72, 0.2); }
+.ms-mid { font: 600 var(--t-xs) var(--font-data); color: var(--gold); white-space: nowrap; }
+@media (max-width: 720px) { .ms-ficha { grid-template-columns: auto minmax(0, 1fr); } .ms-fbtns { grid-column: 1 / -1; grid-auto-flow: column; justify-content: start; } }

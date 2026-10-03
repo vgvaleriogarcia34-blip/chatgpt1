@@ -258,19 +258,88 @@
       { k: '★', n: 'Depende solo de quien la ejecuta', ok: !!resp && !varios && !terc && !!m.solo, h: terc ? `Depende de un tercero («${terc[0].trim()}»). Reescríbala en lo que usted hace: en lugar de «que el cliente compre», «hacer ocho visitas de venta a la semana».` : !resp ? 'Indique una sola persona responsable.' : varios ? 'Una meta tiene una sola persona responsable, no un equipo ni varias personas.' : 'Confirme que su cumplimiento depende solo de quien la ejecuta.' }
     ];
   };
+  /* Número fijo de cada meta (META-01, META-02…) para reconocerla en listas, informes y la nota */
+  const numMeta = (m) => { if (!m.num) { m.num = ST.metas.reduce((a, x) => Math.max(a, +x.num || 0), 0) + 1; guardar(); } return 'META-' + String(m.num).padStart(2, '0'); };
+  /* La meta en una frase: quién, qué, cuánto, cuándo y para qué */
+  const frase = (m) => {
+    const q = (m.especifica || m.objetivo || '').trim().replace(/[.\s]+$/, ''); if (!q) return '';
+    const n = (v) => String(v || '').trim();
+    return `${n(m.responsable) ? n(m.responsable) + ' va a ' : ''}${n(m.responsable) ? q.charAt(0).toLowerCase() + q.slice(1) : q}${n(m.valor) && !(q.includes(n(m.valor)) && !n(m.actual)) ? `, ${n(m.actual) ? 'pasando de ' + n(m.actual) + ' a ' : 'hasta '}${n(m.valor)} ${n(m.unidad)}${n(m.indicador) && !q.toLowerCase().includes(n(m.indicador).toLowerCase()) && !n(m.indicador).toLowerCase().includes(n(m.unidad).toLowerCase()) ? ' (' + n(m.indicador).toLowerCase() + ')' : ''}` : ''}${m.fecha ? ', antes del ' + fCorta(m.fecha) + ' de ' + m.fecha.slice(0, 4) : ''}${n(m.beneficio) ? ', para ' + n(m.beneficio).charAt(0).toLowerCase() + n(m.beneficio).slice(1).replace(/[.\s]+$/, '') : ''}.`;
+  };
+  /* Semáforo del beneficio: claro y cuantificado, con pros y contras pesados y confirmación de que compensa */
+  const CUANT = /\d[\d.,]*\s*(€|eur|euros|k€|mil|millones|%|horas?|h\b|d[ií]as?|semanas?|meses|minutos|clientes|pedidos|unidades|visitas|puntos)/i;
+  const evalBeneficio = (m) => {
+    const b = (m.beneficio || '').trim(), tips = [];
+    if (!b) return { st: 'stop', t: 'Sin beneficio definido', tips: ['Escriba qué gana la empresa si la cumple, en euros, en horas o en clientes.'] };
+    if (m.merece === 'no' || m.valores === 'no') return { st: 'stop', t: m.merece === 'no' ? 'Usted mismo dice que no compensa' : 'No encaja con sus valores', tips: ['Replantee la meta o descártela: el tiempo que le dedique lo quita de su 20 %.'] };
+    const cuant = CUANT.test(b) || CUANT.test(m.beneficios || '');
+    if (!cuant) tips.push('Cuantifique el beneficio: «40.000 € más de venta al año», «6 horas a la semana liberadas».');
+    if (!(m.pros || '').trim()) tips.push('Anote los pros de ejecutarla.');
+    if (!(m.contras || '').trim()) tips.push('Anote los contras: tiempo, dinero y renuncias. Sin ellos no se puede pesar si compensa.');
+    if (m.merece !== 'si') tips.push('Confirme si merece el tiempo, el esfuerzo y el dinero.');
+    const ok = cuant && (m.pros || '').trim() && (m.contras || '').trim() && m.merece === 'si';
+    return ok ? { st: 'ok', t: 'Beneficio claro y pesado frente a los costes', tips } : { st: 'warn', t: cuant ? 'Beneficio cuantificado, falta pesarlo' : 'Beneficio poco concreto', tips };
+  };
+  /* Mejorar la definición: con Claude si está disponible (servidor o visor); si no, con reglas propias */
+  const ia = async (prompt) => {
+    const Pl = P();
+    try { await Pl.ready; if (Pl.mode === 'server' && Pl.serverInfo && Pl.serverInfo.ia) { const r = await Pl.api('/chat', { method: 'POST', body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], tools: [], page: 'mesa' }) }); const t = (r.content || []).filter((x) => x.type === 'text').map((x) => x.text).join('\n'); if (t) return t; } } catch (e) { /* sin servidor */ }
+    try { if (window.claude && window.claude.use) { const sm = await window.claude.use('sample'); if (sm) { const r = await sm([{ role: 'user', content: prompt }]); if (r && r.text) return r.text; } } } catch (e) { /* sin permiso */ }
+    return null;
+  };
+  const VERBOS = { ventas: 'hacer', clientes: 'visitar', llamadas: 'hacer', ofertas: 'presentar', visitas: 'hacer', horas: 'dedicar', reuniones: 'celebrar' };
+  const mejorarReglas = (m) => {
+    const s = smart(m), cambios = [], prop = {};
+    let q = (m.especifica || m.objetivo || '').trim();
+    const terc = TERCEROS.exec(q);
+    const u0 = (m.unidad || '').toLowerCase(), vb = Object.keys(VERBOS).find((k) => u0.includes(k));
+    const periodo = (m.indicador || '').toLowerCase().match(/(por|a la|al|cada)\s+(dia|día|semana|mes|trimestre|año)/);
+    if (terc) {
+      cambios.push(`«${q}» depende de otros. Escriba lo que hará usted para provocarlo: por ejemplo, «presentar 10 ofertas a clientes actuales cada mes».`);
+      // Con la cifra y la unidad se puede reescribir en lo que hace la persona
+      if (m.valor && m.unidad) { prop.especifica = `${(vb ? VERBOS[vb] : 'hacer').replace(/^./, (c) => c.toUpperCase())} ${m.valor} ${m.unidad}${periodo ? ' ' + periodo[0] : ''}${/client/i.test(q + ' ' + (m.objetivo || '')) && !/client/i.test(m.unidad) ? ' a clientes' : ''}`; q = ''; }
+    }
+    if (q && !/^\s*\w+?(ar|er|ir)(se|lo|la|le)?\b/i.test(q)) { const u = (m.unidad || '').toLowerCase(); const v = Object.keys(VERBOS).find((k) => u.includes(k)); q = (v ? VERBOS[v] : 'conseguir') + ' ' + q.charAt(0).toLowerCase() + q.slice(1); prop.especifica = q.charAt(0).toUpperCase() + q.slice(1); cambios.push('Empiece por un verbo de acción suyo.'); }
+    if (q && m.valor && m.unidad && !q.includes(String(m.valor))) { prop.especifica = (prop.especifica || q).replace(/[.\s]+$/, '') + ` (${m.valor} ${m.unidad}${m.indicador && /semana|mes|dia|día/i.test(m.indicador) ? ' ' + m.indicador.toLowerCase().replace(/^.*?(por|a la|al|cada)\s/, 'por ') : ''})`; cambios.push('Incluya la cifra en la propia frase de la meta.'); }
+    s.filter((y) => !y.ok && y.k !== '★').forEach((y) => cambios.push(y.n + ': ' + y.h));
+    return { prop, cambios };
+  };
+  const proponer = async (host, m) => {
+    const box = $('#msProp', host); box.innerHTML = '<p class="small muted" style="margin:0">Analizando la meta…</p>';
+    const r = mejorarReglas(m);
+    let txt = null;
+    const prompt = `Eres consultor de pymes. Mejora la definición de esta meta para que sea SMART (específica, medible, alcanzable, rentable y con fecha) y dependa solo de quien la ejecuta, sin depender de clientes, bancos ni terceros. Devuelve solo JSON: {"especifica": "frase que empieza por un verbo de acción de la persona", "indicador": "...", "valor": "número", "unidad": "...", "beneficio": "beneficio cuantificado si se puede", "motivo": "en una frase, qué has cambiado y por qué"}.\nMeta actual: ${JSON.stringify({ objetivo: m.objetivo, especifica: m.especifica, indicador: m.indicador, actual: m.actual, valor: m.valor, unidad: m.unidad, fecha: m.fecha, responsable: m.responsable, beneficio: m.beneficio, pros: m.pros, contras: m.contras })}`;
+    try { txt = await ia(prompt); } catch (e) { txt = null; }
+    let j = null; if (txt) { try { j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1)); } catch (e) { j = null; } }
+    const prop = j ? Object.fromEntries(['especifica', 'indicador', 'valor', 'unidad', 'beneficio'].filter((k) => j[k] && String(j[k]).trim() && String(j[k]) !== String(m[k] || '')).map((k) => [k, String(j[k]).trim()])) : r.prop;
+    const nombres = { especifica: 'Qué hará', indicador: 'Indicador', valor: 'Valor meta', unidad: 'Unidad', beneficio: 'Beneficio' };
+    box.innerHTML = `<div class="ms-propc"><div class="eyebrow">${j ? 'Propuesta de redacción (con Claude)' : 'Cómo mejorarla'}</div>
+      ${j && j.motivo ? `<p class="small" style="margin:0">${esc(j.motivo)}</p>` : ''}
+      ${Object.keys(prop).length ? `<table class="ms-tab"><tbody>${Object.keys(prop).map((k) => `<tr><td style="text-align:left;width:120px" class="small muted">${nombres[k]}</td><td style="text-align:left"><s class="muted small">${esc(m[k] || '—')}</s><br><b>${esc(prop[k])}</b></td></tr>`).join('')}</tbody></table><div class="row"><button class="btn solid small" id="msUsar">Usar esta redacción</button><button class="btn ghost small" id="msDescartar">Descartar</button></div>` : ''}
+      ${!j && r.cambios.length ? `<ul class="small" style="margin:0;padding-left:18px">${r.cambios.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+      ${!j && !r.cambios.length && !Object.keys(prop).length ? '<p class="small" style="margin:0">La meta ya está bien definida.</p>' : ''}
+      ${!j ? '<p class="small muted" style="margin:0">Con el servidor de Atalaya y Claude conectados, la propuesta de redacción se escribe automáticamente.</p>' : ''}</div>`;
+    const u = $('#msUsar', box); if (u) u.onclick = () => { Object.assign(m, prop); guardar(); render(); toast('Redacción actualizada. Revise que sigue diciendo lo que usted quiere.'); };
+    const dsc = $('#msDescartar', box); if (dsc) dsc.onclick = () => { box.innerHTML = ''; };
+  };
   const vMetas = (host) => {
     const m = metaSel && ST.metas.find((x) => x.id === metaSel);
     if (!m) {
       const l = ST.metas.slice().sort((a, b) => (a.estado === 'cumplida') - (b.estado === 'cumplida') || (+a.prioridad || 99) - (+b.prioridad || 99));
       host.innerHTML = `<div class="glass pad stack"><p style="margin:0">Un <b>objetivo</b> dice a dónde quiere llegar («aumentar la facturación un 5 %»); una <b>meta</b> es un paso concreto que depende de usted y le acerca («hacer ocho visitas a clientes actuales cada semana»). Aquí cada objetivo se convierte en metas <b>SMART</b>: específicas, medibles, alcanzables, rentables y con fecha, y que dependen <b>solo de quien las ejecuta</b>. Cada meta baja a un plan de acción que llega a su bandeja.</p><div class="row"><button class="btn solid" id="msNM">Nueva meta</button></div></div>
-        ${l.length ? `<div class="glass pad stack"><div class="eyebrow">Lista de metas prioritarias</div><div class="table-wrap"><table class="ms-tab"><thead><tr><th>Prioridad</th><th style="text-align:left">Meta</th><th>Área</th><th>Fecha</th><th>Plazo</th><th>SMART</th><th>Avance</th><th></th></tr></thead><tbody>${l.map((x) => { const s = smart(x), ok = s.filter((y) => y.ok).length, ac = (x.acciones || []).filter((a) => a.t), hechas = ac.filter((a) => a.hecha).length; return `<tr data-m="${x.id}" class="${x.estado === 'cumplida' ? 'hecha' : ''}"><td><input class="input ms-n" type="number" min="1" data-p value="${esc(x.prioridad)}"></td><td style="text-align:left"><b>${esc(x.especifica || x.objetivo || 'Meta sin definir')}</b><br><small class="muted">${esc(x.objetivo && x.especifica ? 'Objetivo: ' + x.objetivo : '')}</small></td><td>${esc(x.area || '—')}</td><td>${fCorta(x.fecha)}</td><td>${x.plazo === 'largo' ? 'Largo' : 'Corto'} · ${x.tangible ? 'tangible' : 'intangible'}</td><td><span class="ms-smart">${s.map((y) => `<i class="${y.ok ? 'ok' : y.warn ? 'warn' : ''}" title="${esc(y.n)}">${y.k}</i>`).join('')}</span><small class="muted"> ${ok}/6</small></td><td>${ac.length ? `${hechas}/${ac.length}` : '—'}</td><td><button class="btn small" data-ab>Abrir</button></td></tr>`; }).join('')}</tbody></table></div></div>` : ''}`;
+        ${l.length ? `<div class="glass pad stack"><div class="eyebrow">Lista de metas prioritarias</div><div class="table-wrap"><table class="ms-tab"><thead><tr><th>Prioridad</th><th>Meta n.º</th><th style="text-align:left">Meta</th><th>Área</th><th>Fecha</th><th>Plazo</th><th>SMART</th><th>Beneficio</th><th>Avance</th><th></th></tr></thead><tbody>${l.map((x) => { const s = smart(x), ok = s.filter((y) => y.ok).length, ac = (x.acciones || []).filter((a) => a.t), hechas = ac.filter((a) => a.hecha).length; return `<tr data-m="${x.id}" class="${x.estado === 'cumplida' ? 'hecha' : ''}"><td><input class="input ms-n" type="number" min="1" data-p value="${esc(x.prioridad)}"></td><td class="ms-mid">${numMeta(x)}</td><td style="text-align:left"><b>${esc(x.especifica || x.objetivo || 'Meta sin definir')}</b><br><small class="muted">${esc(x.objetivo && x.especifica ? 'Objetivo: ' + x.objetivo : '')}</small></td><td>${esc(x.area || '—')}</td><td>${fCorta(x.fecha)}</td><td>${x.plazo === 'largo' ? 'Largo' : 'Corto'} · ${x.tangible ? 'tangible' : 'intangible'}</td><td><span class="ms-smart">${s.map((y) => `<i class="${y.ok ? 'ok' : y.warn ? 'warn' : ''}" title="${esc(y.n)}">${y.k}</i>`).join('')}</span><small class="muted"> ${ok}/6</small></td><td>${(() => { const eb = evalBeneficio(x); return `<span class="ms-luz ${eb.st}" title="${esc(eb.t)}"></span>`; })()}</td><td>${ac.length ? `${hechas}/${ac.length}` : '—'}</td><td><button class="btn small" data-ab>Abrir</button></td></tr>`; }).join('')}</tbody></table></div></div>` : ''}`;
       $('#msNM', host).onclick = () => { const x = nuevaMeta(); metaSel = x.id; guardar(); render(); };
       $$('tr[data-m]', host).forEach((tr) => { const x = ST.metas.find((y) => y.id === tr.dataset.m); $('[data-ab]', tr).onclick = () => { metaSel = x.id; render(); }; $('[data-p]', tr).onchange = (e) => { x.prioridad = +e.target.value; guardar(); }; });
       return;
     }
-    const s = smart(m), listo = s.every((y) => y.ok);
+    const s = smart(m), listo = s.every((y) => y.ok), eb = evalBeneficio(m);
     const campo = (k, t, ph, rows) => `<label class="small">${t}${rows ? `<textarea class="input" rows="${rows}" data-f="${k}" placeholder="${esc(ph || '')}">${esc(m[k] || '')}</textarea>` : `<input class="input" data-f="${k}" value="${esc(m[k] || '')}" placeholder="${esc(ph || '')}">`}</label>`;
     host.innerHTML = `<div class="glass pad row"><button class="btn ghost small" id="msVolver">← Lista de metas</button><span class="spacer"></span>${listo ? chip('Meta SMART lista', 'ok') : chip(`${s.filter((y) => y.ok).length} de 6 criterios`, 'warn')}<button class="btn" id="msBajar">Pasar el plan de acción a la bandeja</button><button class="btn ghost small" id="msCumplida">${m.estado === 'cumplida' ? 'Reabrir' : 'Marcar como cumplida'}</button><button class="btn ghost small" id="msBorrar">Borrar</button></div>
+      <section class="glass pad ms-ficha"><div class="ms-fid"><small>Meta n.º</small><b>${numMeta(m)}</b><span class="ms-luz ${eb.st}" title="Beneficio: ${esc(eb.t)}"></span></div>
+        <div class="ms-ftx"><div class="eyebrow">La meta en una frase</div><p class="ms-frase">${esc(frase(m)) || '<span class="muted">Escriba qué va a hacer, con qué cifra, cuándo y para qué: aquí aparecerá la meta completa.</span>'}</p>
+          <div class="row ms-fchips">${s.map((y) => `<span class="ms-chip ${y.ok ? 'ok' : y.warn ? 'warn' : ''}" title="${esc(y.n)}">${y.k}</span>`).join('')}<span class="ms-chip ${eb.st}">Beneficio: ${esc(eb.t.toLowerCase())}</span></div></div>
+        <div class="ms-fbtns"><button class="btn small" id="msMejorar">Mejorar la definición</button><button class="btn ghost small" id="msEvalB">Evaluar el beneficio</button></div>
+        <div id="msProp" class="ms-prop"></div></section>
       <div class="grid ms-meta"><div class="stack">
         <section class="glass pad stack"><div class="eyebrow">1 · De dónde parte</div>
           <div class="ms-g3"><label class="small">Área<select class="input" data-f="area"><option value="">—</option>${AREAS.map((a) => `<option ${m.area === a ? 'selected' : ''}>${a}</option>`).join('')}</select></label><label class="small">Plazo<select class="input" data-f="plazo"><option value="corto" ${m.plazo !== 'largo' ? 'selected' : ''}>Corto plazo</option><option value="largo" ${m.plazo === 'largo' ? 'selected' : ''}>Largo plazo</option></select></label><label class="small">Tipo<select class="input" data-f="tangible"><option value="1" ${m.tangible ? 'selected' : ''}>Tangible</option><option value="0" ${!m.tangible ? 'selected' : ''}>Intangible</option></select></label></div>
@@ -281,7 +350,7 @@
           <div class="ms-g3">${campo('unidad', 'Unidad', 'visitas')}<label class="small">Fecha límite<input class="input" type="date" data-f="fecha" value="${esc(m.fecha || '')}"></label>${campo('responsable', 'Responsable (una sola persona)', 'Su nombre')}</div>
           <label class="small ms-inl"><input type="checkbox" data-f="medios" ${m.medios ? 'checked' : ''}> Tengo los medios, el tiempo y las capacidades para hacerla.</label>
           <label class="small ms-inl"><input type="checkbox" data-f="solo" ${m.solo ? 'checked' : ''}> Cumplirla depende solo de mí, no de un cliente, un proveedor, un banco ni otra persona.</label></section>
-        <section class="glass pad stack"><div class="eyebrow">3 · Por qué merece la pena</div>
+        <section class="glass pad stack" id="msSecB"><div class="row"><div class="eyebrow">3 · Por qué merece la pena</div><span class="spacer"></span><span class="ms-chip ${eb.st}"><span class="ms-luz ${eb.st}"></span> ${esc(eb.t)}</span></div>
           ${campo('beneficio', 'Beneficio de lograrla (en euros o en tiempo, si puede)', 'Por ejemplo: 40.000 € más de venta al año', 1)}
           <div class="ms-g2">${campo('beneficios', 'Otros beneficios', '', 3)}${campo('perdidas', 'Pérdidas que evita', '', 3)}</div>
           <div class="ms-g2">${campo('pros', 'Pros de ejecutarla', 'Lo que gana la empresa y usted', 3)}${campo('contras', 'Contras de ejecutarla', 'Lo que cuesta: tiempo, dinero, renuncias', 3)}</div>
@@ -297,6 +366,13 @@
         ${listo ? '<div class="alert ok">La meta es SMART y depende solo de quien la ejecuta. Pase el plan de acción a la bandeja y reserve tiempo.</div>' : ''}
         <p class="small muted" style="margin:0">Resultado: ${esc(m.especifica || '—')}${m.valor ? ` · de ${esc(m.actual || '?')} a ${esc(m.valor)} ${esc(m.unidad || '')}` : ''}${m.fecha ? ` · antes del ${fCorta(m.fecha)}` : ''}${m.responsable ? ` · ${esc(m.responsable)}` : ''}.</p></aside></div>`;
     $('#msVolver', host).onclick = () => { metaSel = null; render(); };
+    $('#msMejorar', host).onclick = () => proponer(host, m);
+    $('#msEvalB', host).onclick = async () => {
+      const box = $('#msProp', host), e = evalBeneficio(m);
+      box.innerHTML = `<div class="ms-propc"><div class="eyebrow">Beneficio de la meta</div><p style="margin:0"><span class="ms-luz ${e.st}"></span> <b>${esc(e.t)}</b></p>${e.tips.length ? `<ul class="small" style="margin:0;padding-left:18px">${e.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="small" style="margin:0">Está cuantificado, tiene pros y contras y usted confirma que compensa.</p>'}<p class="small muted" style="margin:0" id="msEvIA"></p></div>`;
+      const t = await ia(`Eres consultor de pymes. Evalúa en tres frases, con números si se puede, si este beneficio compensa el esfuerzo de la meta y qué falta para que quede claro. Sin listas ni símbolos. Meta: ${frase(m) || m.objetivo}. Beneficio: ${m.beneficio || '—'}. Otros beneficios: ${m.beneficios || '—'}. Pérdidas que evita: ${m.perdidas || '—'}. Pros: ${m.pros || '—'}. Contras: ${m.contras || '—'}.`).catch(() => null);
+      const el = $('#msEvIA', box); if (el && t) { el.classList.remove('muted'); el.textContent = t.trim(); }
+    };
     $$('[data-f]', host).forEach((i) => (i.oninput = i.onchange = () => { const k = i.dataset.f; m[k] = i.type === 'checkbox' ? i.checked : k === 'tangible' ? i.value === '1' : i.value; guardar(); if (i.type === 'checkbox' || i.tagName === 'SELECT' || i.type === 'date') render(); else refrescarVal(host, m); }));
     $$('.ms-ob', host).forEach((d) => $$('[data-ok]', d).forEach((i) => (i.oninput = () => { m.obstaculos[+d.dataset.o][i.dataset.ok] = i.value; guardar(); })));
     $('#msOb', host).onclick = () => { m.obstaculos.push({ o: '', s: '' }); guardar(); render(); };
@@ -306,7 +382,10 @@
     $('#msCumplida', host).onclick = () => { m.estado = m.estado === 'cumplida' ? 'activa' : 'cumplida'; m.cumplida = m.estado === 'cumplida' ? M.hoy() : ''; guardar(); render(); };
     $('#msBorrar', host).onclick = (e) => { if (!e.target.dataset.ok) { e.target.dataset.ok = 1; e.target.textContent = '¿Seguro? Toque otra vez'; return; } ST.metas = ST.metas.filter((x) => x !== m); metaSel = null; guardar(); render(); };
   };
-  const refrescarVal = (host, m) => { const box = $('.ms-val', host); if (!box) return; const s = smart(m); $$('.ms-cr', box).forEach((d, i) => { d.className = 'ms-cr ' + (s[i].ok ? 'ok' : s[i].warn ? 'warn' : ''); const sm = $('small', d); if (s[i].ok) { if (sm) sm.remove(); } else if (sm) sm.textContent = s[i].h; else d.querySelector('div').insertAdjacentHTML('beforeend', `<small>${esc(s[i].h)}</small>`); }); };
+  const refrescarVal = (host, m) => {
+    const fr = $('.ms-frase', host); if (fr) { const t = frase(m); if (t) fr.textContent = t; }
+    const eb = evalBeneficio(m); $$('.ms-ficha .ms-luz, #msSecB .ms-luz', host).forEach((x) => (x.className = 'ms-luz ' + eb.st));
+    const box = $('.ms-val', host); if (!box) return; const s = smart(m); $$('.ms-cr', box).forEach((d, i) => { d.className = 'ms-cr ' + (s[i].ok ? 'ok' : s[i].warn ? 'warn' : ''); const sm = $('small', d); if (s[i].ok) { if (sm) sm.remove(); } else if (sm) sm.textContent = s[i].h; else d.querySelector('div').insertAdjacentHTML('beforeend', `<small>${esc(s[i].h)}</small>`); }); };
 
   /* ---------- REPETITIVAS Y SEMANA IDEAL ---------- */
   const FREQ = { diaria: 'Diaria', semanal: 'Semanal', mensual: 'Mensual', trimestral: 'Trimestral', anual: 'Anual' };
@@ -382,7 +461,7 @@
     if (top.length) h += In.section('Su 20 %', In.table(['Tarea', 'Área', 'Impacto', 'Esfuerzo', 'Fecha'], top.map((t) => [t.t, t.area || '—', String(t.impacto), String(t.esfuerzo), t.fecha ? fCorta(t.fecha) + (t.hora ? ' ' + t.hora : '') : '—'])));
     ST.metas.filter((m) => m.estado !== 'cumplida').forEach((m) => {
       const s = smart(m);
-      h += In.section('Meta: ' + (m.especifica || m.objetivo || 'sin definir'), In.table(['Campo', 'Contenido'], [['Objetivo de partida', m.objetivo || '—'], ['Indicador', `${m.indicador || '—'}: de ${m.actual || '?'} a ${m.valor || '?'} ${m.unidad || ''}`], ['Fecha límite', fCorta(m.fecha)], ['Responsable', m.responsable || '—'], ['Beneficio', m.beneficio || '—'], ['Pros', m.pros || '—'], ['Contras', m.contras || '—'], ['Obstáculos y soluciones', (m.obstaculos || []).filter((o) => o.o).map((o) => `${o.o} → ${o.s}`).join(' · ') || '—'], ['Seguimiento', m.seguimiento || '—'], ['Afirmación', m.afirmacion || '—'], ['Criterios', s.map((y) => `${y.k} ${y.ok ? '✓' : '✗'}`).join('  ')]]) + ((m.acciones || []).some((a) => a.t) ? In.table(['Acción', 'Fecha límite', 'Revisada', 'Hecha'], m.acciones.filter((a) => a.t).map((a) => [a.t, fCorta(a.fecha), fCorta(a.revisada), a.hecha ? fCorta(a.hecha) : '—'])) : ''));
+      h += In.section(numMeta(m) + ' · ' + (m.especifica || m.objetivo || 'sin definir'), In.table(['Campo', 'Contenido'], [['La meta en una frase', frase(m) || '—'], ['Objetivo de partida', m.objetivo || '—'], ['Beneficio (semáforo)', ({ ok: 'Verde', warn: 'Ámbar', stop: 'Rojo' })[evalBeneficio(m).st] + ': ' + evalBeneficio(m).t], ['Indicador', `${m.indicador || '—'}: de ${m.actual || '?'} a ${m.valor || '?'} ${m.unidad || ''}`], ['Fecha límite', fCorta(m.fecha)], ['Responsable', m.responsable || '—'], ['Beneficio', m.beneficio || '—'], ['Pros', m.pros || '—'], ['Contras', m.contras || '—'], ['Obstáculos y soluciones', (m.obstaculos || []).filter((o) => o.o).map((o) => `${o.o} → ${o.s}`).join(' · ') || '—'], ['Seguimiento', m.seguimiento || '—'], ['Afirmación', m.afirmacion || '—'], ['Criterios', s.map((y) => `${y.k} ${y.ok ? '✓' : '✗'}`).join('  ')]]) + ((m.acciones || []).some((a) => a.t) ? In.table(['Acción', 'Fecha límite', 'Revisada', 'Hecha'], m.acciones.filter((a) => a.t).map((a) => [a.t, fCorta(a.fecha), fCorta(a.revisada), a.hecha ? fCorta(a.hecha) : '—'])) : ''));
     });
     if (sem.length) h += In.section('Agenda de la semana', In.table(['Día', 'Hora', 'Tarea', 'Minutos'], sem.map((t) => [fLarga(t.fecha), t.hora, t.t, String(t.dur || 30)])));
     if (ST.repetitivas.length) h += In.section('Tareas repetitivas', In.table(['Tarea', 'Frecuencia', 'Hora'], ST.repetitivas.map((r) => [(r.clave ? '★ ' : '') + r.t, FREQ[r.freq], r.hora || '—'])));
