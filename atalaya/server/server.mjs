@@ -401,7 +401,7 @@ route('PUT', /^\/api\/data\/([a-z0-9_-]{1,40})$/i, async (req, res, body, u, m) 
   // Personas y equipos es del plan Consultora: el resto puede leer lo que tuviera, pero no guardar
   if (/^personas(--|$)/.test(key) && body !== null && u.plan !== 'consultora') throw Object.assign(new Error('Personas y equipos está incluido en el plan Consultora.'), { code: 403 });
   if (/^consultor(--|$)/.test(key) && body !== null && u.plan !== 'consultora') throw Object.assign(new Error('El cuaderno del consultor está incluido en el plan Consultora.'), { code: 403 });
-  const sub = key.match(/^(simulador|estrategia|personas|consultor)--([a-z0-9_-]+)$/i);
+  const sub = key.match(/^(simulador|estrategia|personas|consultor|agenda)--([a-z0-9_-]+)$/i);
   if (sub && body !== null) {
     const ids = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.map((e) => e && e.id) : [];
     if (!ids.includes(sub[2])) throw Object.assign(new Error('Esa empresa no está dada de alta en tu cuenta'), { code: 403 });

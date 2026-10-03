@@ -128,7 +128,7 @@
     return `<p class="small muted">Cada acción viene de algo concreto: un dato que falta, una respuesta, un objetivo, un hallazgo o un riesgo. Cambia el estado, el responsable o la fecha y se guarda.</p>
       ${HOR.map((h, hi) => { const L = P.filter((x) => x.h === hi); return L.length ? `<h5>${h}</h5><div class="c3-acts">${L.map((x) => `<div class="c3-act p-${x.prio.toLowerCase()} ${x.estado === 'Hecha' ? 'done' : ''}"><div><b>${esc(x.accion)}</b><span class="small muted">${esc(x.origen)}${x.motivo ? ' · ' + esc(x.motivo) : ''}${x.impacto ? ' · ' + F.eur(x.impacto) + ' al año' : ''}${x.kpi ? ' · Se mide con: ' + esc(x.kpi) : ''}</span></div>
         <div class="c3-ctl"><span class="c3-pri">${x.prio}</span><select data-pe="${esc(x.id)}">${['Pendiente', 'En curso', 'Hecha'].map((e) => `<option ${e === x.estado ? 'selected' : ''}>${e}</option>`).join('')}</select><input class="txt" data-pr="${esc(x.id)}" value="${esc(x.resp)}" aria-label="Responsable"><input type="date" data-pf="${esc(x.id)}" value="${esc(x.fecha || '')}" aria-label="Fecha"></div></div>`).join('')}</div>` : ''; }).join('')}
-      <div class="row mt"><button class="btn ghost" data-toplan>Enviar al plan de empresa</button><span class="small" data-plmsg></span></div>`;
+      <div class="row mt"><button class="btn ghost" data-toplan>Enviar al plan de empresa</button><span data-mesa></span><span class="small" data-plmsg></span></div>`;
   }
   function refresh(box, id, tab) { if (tab) pest[id] = tab; abierto = id; const y = scrollY; panel(id); scrollTo({ top: y }); }
   function wire(box, id) {
@@ -145,6 +145,7 @@
     $$('[data-delo]', box).forEach((b) => b.onclick = () => { c.obj.splice(+b.dataset.delo, 1); S.save(); refresh(box, id); });
     const setP = (k, f) => (inp) => inp.onchange = () => { const x = c.plan[inp.dataset[k]] || (c.plan[inp.dataset[k]] = {}); x[f] = inp.value; S.save(); if (f === 'estado') refresh(box, id); };
     $$('[data-pe]', box).forEach(setP('pe', 'estado')); $$('[data-pr]', box).forEach(setP('pr', 'resp')); $$('[data-pf]', box).forEach(setP('pf', 'fecha'));
+    const ms = $('[data-mesa]', box); if (ms && A.mesa && A.mesa.boton) { const m = S.mod(id); ms.appendChild(A.mesa.boton(() => plan(id).filter((x) => x.estado !== 'Hecha').map((x) => ({ t: x.accion, resp: x.resp || '', area: 'Estrategia', fecha: x.fecha || new Date(Date.now() + (x.plazo || 90) * 864e5).toISOString().slice(0, 10), mundo: 'estrategia', origen: `${(m && m.nombre) || id} · ${x.origen}`, oid: 'est:360:' + id + ':' + x.id, impacto: x.prio === 'Alta' ? 5 : x.prio === 'Media' ? 3 : 2, clave: x.prio === 'Alta' })))); }
     const tp = $('[data-toplan]', box); if (tp) tp.onclick = () => {
       const pl = S.state.plan; if (!pl || !Array.isArray(pl.acciones)) return;
       const area = S.mod(id).grupo === 'Visión' ? 'Dirección' : S.mod(id).grupo; let n = 0;

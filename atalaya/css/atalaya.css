@@ -819,3 +819,7 @@ span.pdf-campo { display: inline-block; min-width: 60px; }
 .ci-pat dd { margin: 2px 0 0; font-size: 0.86rem; color: #14171e; }
 .ci-check { display: flex; gap: 8px; align-items: center; font-size: 0.85rem; }
 .ci-check input { accent-color: #6e7d14; }
+
+/* Enlace a la mesa de trabajo en las cabeceras: en pantallas estrechas queda en el menú de la cuenta */
+@media (max-width: 900px) { .topbar .mesa-link { display: none; } }
+.mesa-btn { white-space: nowrap; }

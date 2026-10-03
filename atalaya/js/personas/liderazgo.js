@@ -328,6 +328,13 @@
       wireLider(host);
       host.insertAdjacentHTML('beforeend', `<div class="glass pad stack"><div class="eyebrow">Para ${esc(p.nombre)} como líder</div>${prop.length ? `<div class="pe-tabs">${prop.slice(0, 6).map((x) => R.tablillaHTML(x.t, x.motivos)).join('')}</div>` : `<p class="muted" style="margin:0">Sin propuestas todavía: ${p.lid && p.lid.estilo ? 'valora las tareas de su equipo en «Preparación por tarea».' : 'haz primero su test de estilo.'}</p>`}</div>
         <div class="glass pad stack"><div class="eyebrow">Para cada colaborador: el siguiente paso</div>${pasos.length ? `<div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Colaborador · tarea</th><th>Ahora</th><th style="text-align:left">Siguiente paso</th><th style="text-align:left">Primer paso concreto</th></tr></thead><tbody>${pasos.map((x) => `<tr><td>${esc(x.f.c.nombre)} · ${esc(x.f.t.nombre)}</td><td style="text-align:center">${chipN(x.f.nv.nivel)}</td><td>${esc(x.t.titulo)}</td><td class="small">${esc((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted" style="margin:0">Valora las tareas de su equipo para ver el siguiente paso de cada persona.</p>'}</div>${aviso()}`);
+      // El plan de desarrollo, a la mesa de trabajo del responsable
+      if (A.mesa && A.mesa.boton && (prop.length || pasos.length)) {
+        const fila = document.createElement('div'); fila.className = 'row';
+        fila.appendChild(A.mesa.boton(() => prop.slice(0, 6).map((x) => ({ t: `Entrenar como líder: ${x.t.titulo}`, area: 'Personas', mundo: 'personas', resp: p.nombre, origen: 'Plan de desarrollo de ' + p.nombre, oid: 'per:plan:' + p.id + ':' + x.t.titulo, impacto: 4 }))
+          .concat(pasos.map((x) => ({ t: `${x.f.c.nombre} · ${x.f.t.nombre}: ${x.t.titulo}`, area: 'Personas', mundo: 'personas', resp: p.nombre, tipo: 'seguimiento', contacto: 'Equipo de ' + p.nombre, origen: 'Plan de desarrollo · ' + ((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0] || ''), oid: 'per:paso:' + x.f.c.id + ':' + x.f.t.id, fecha: (x.f.t.acuerdo && x.f.t.acuerdo.revision) || '', impacto: 3 }))), 'Llevar el plan a mi mesa de trabajo'));
+        host.appendChild(fila);
+      }
     }
   });
 

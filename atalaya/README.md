@@ -13,6 +13,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (21 módulos). |
 | `personas.html` | Personas y equipos (plan Consultora): DISC, aportaciones al equipo, eneagrama, puestos, encaje persona-puesto, organigrama, mapa de talento, equipos, liderazgo a medida, test a distancia, tablillas de entrenamiento e informes. |
+| `mesa.html` | Mesa de trabajo común a los tres mundos: hoy, bandeja con fecha de acción, prioridades 20/80, agenda semanal con horas reservadas (exportación .ics), metas SMART con plan de acción, repetitivas, semana ideal, reuniones y delegación. |
 | `test.html` | Página pública de un cuestionario de personas: se abre con un enlace personal, sin cuenta; la persona da su consentimiento y responde una pregunta por pantalla. |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
 | `manual.html` | Manual de uso completo, con buscador. Es parte del área de clientes: solo se abre con sesión y acceso vigente (o con la sesión de administración). |
@@ -36,6 +37,19 @@ Tercer mundo, exclusivo del plan Consultora (el resto lo ve y se le ofrece; el s
 ## Informes con consultor (`js/consultor-informe.js`)
 
 En el plan Consultora cada informe tiene dos partes: **para la empresa** (hoja de ruta de implantación en tres fases con la señal de cada paso, pautas y reglas de seguimiento, reparto empresa-consultor) y **cuaderno del consultor**, interno (ficha del encargo, datos clave, plan de trabajo por sesiones, comprobaciones, notas, resistencias y próxima sesión), editable en el propio informe y guardado por empresa (`atalaya.consultor.v1`, en el servidor `consultor--id`). En el resto de planes, los informes del sistema estratégico llevan el apartado «Con su consultor».
+
+## Mesa de trabajo (`mesa.html`)
+
+Un solo sitio para organizar el trabajo que sale del ecosistema y el que apunta el empresario. Datos por empresa en la clave `agenda` (navegador: `atalaya.agenda.v1`), en todos los planes.
+
+- **Hoy**: imperativas (aviso si pasan de 4 h o alguna de más de 1 h), importantes, seguimientos agrupados por contacto, delegadas, horario, repetitivas, logros y «Cerrar el día» (lo pendiente pasa al siguiente laborable; aviso a la segunda vez).
+- **Bandeja**: fecha de entrada y de acción, tipo, actividad clave, impacto y esfuerzo; trae las acciones del plan de empresa, los objetivos 360 y las revisiones de acuerdos de liderazgo.
+- **Prioridades 20/80**: el 20 % por impacto, esfuerzo y actividad clave; matriz impacto-esfuerzo; porcentaje del tiempo reservado que va a lo clave.
+- **Agenda semanal**: reservar tiempo tocando un hueco, semana ideal, exportación `.ics` y enlace a Google Calendar.
+- **Metas SMART**: objetivo → meta con indicador, valores, fecha y una sola persona responsable; beneficio, pros y contras, obstáculos, plan de acción y afirmación. Comprobación en vivo de los criterios y de que la meta **depende solo de quien la ejecuta** (detecta dependencias de terceros). El plan baja a la bandeja como actividad clave.
+- **Repetitivas y semana ideal**, **reuniones** (orden del día y acta) y **delegación** (beneficios, pasos, seguimiento).
+- Informe del plan de trabajo con membrete y PDF.
+- Envío desde cada mundo con `Atalaya.mesa.enviar(items)` / `Atalaya.mesa.boton(fn)` (`js/mesa-comun.js`, sin duplicados por `oid`): plan de corrección del simulador, plan de acción 360 del sistema estratégico y plan de desarrollo de liderazgo.
 
 ## Simulador (`app.html`)
 

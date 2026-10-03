@@ -754,6 +754,8 @@
     $('#planSteps').innerHTML = Pl.acciones.map((a) => `<div class="step"><div><div class="what">${a.lv.nombre}</div><div class="how">${lvTxt(a.lv, a.desde, a.hasta)} · ${a.lv.resp}</div></div><div class="eff">${F.eur(a.antes.cajaRef)} → ${F.eur(a.despues.cajaRef)}<small>liquidez mínima</small></div></div>`).join('');
     const ap = $('#applyPlan');
     if (ap) ap.onclick = applyPlan;
+    // El plan de palancas, a la mesa de trabajo: cada palanca es una tarea con su responsable
+    if (ap && A.mesa && A.mesa.boton) ap.parentNode.appendChild(A.mesa.boton(() => Pl.acciones.map((a) => ({ t: `${a.lv.nombre}: ${lvTxt(a.lv, a.desde, a.hasta)}`, resp: a.lv.resp, area: 'Inversión', mundo: 'simulador', origen: 'Plan de corrección del simulador', oid: 'sim:plan:' + a.lv.nombre, impacto: 5, esfuerzo: 3, clave: true }))));
     $('#leverTable').innerHTML = Pl.ok ? '<p class="small muted">Sin metas que corregir.</p>' : `<p class="small muted" style="margin:0">Moviendo una sola palanca, ¿cuánto haría falta para cumplir todas las metas? «Sí» significa que esa palanca sola basta; «No», que llegaría hasta ahí y aún faltaría.</p><table><thead><tr><th style="text-align:left">Palanca</th><th>Hoy</th><th>Hasta</th><th style="text-align:left">Qué significa</th><th>¿Basta sola?</th></tr></thead><tbody>` +
       Pl.individuales.map((x) => `<tr><td style="text-align:left">${x.lv.nombre}</td><td>${A.report.lv(x.lv, x.desde)}</td><td>${A.report.lv(x.lv, x.hasta)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:200px" class="small">${lvTxt(x.lv, x.desde, x.hasta)}</td><td><span class="state ${stCls(x.basta ? 'ok' : 'warn')}">${x.basta ? 'Sí' : 'No'}</span></td></tr>`).join('') + '</tbody></table>';
   }
