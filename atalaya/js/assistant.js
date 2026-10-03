@@ -61,9 +61,10 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     estrategia: { url: 'estrategia.html', n: 'el sistema estratégico', k: ['sistema estrategico', 'estrategico', 'estrategia', 'cuadro de mando'], d: 'Veintidós módulos para analizar la empresa entera: finanzas, comercial, operaciones y estrategia, cada uno con su diagnóstico 360 e informe.', primero: 'Mira primero el cuadro de mando y los indicadores en rojo.' },
     personas: { url: 'personas.html', n: 'personas y equipos', k: ['personas y equipos', 'personas', 'equipos', 'liderazgo', 'disc', 'plantilla'], d: 'Perfiles de cada persona, puestos y encaje, equipos, liderazgo a medida y planes de desarrollo.', primero: 'Da de alta la plantilla y pasa el primer test.', plan: 'personas' },
     mesa: { url: 'mesa.html', n: 'la mesa de trabajo', k: ['mesa de trabajo', 'mesa', 'agenda', 'prioridades', 'mis tareas', 'tareas'], d: 'Todo el trabajo del ecosistema en una sola mesa: lo de hoy, la bandeja, el 20 % que da el resultado, la agenda y las metas SMART.', primero: 'Trae el trabajo del ecosistema y revisa tu 20 %.' },
+    libro: { url: 'libro.html', n: 'el libro corporativo', k: ['libro corporativo', 'libro de la empresa', 'libro', 'todos los informes'], d: 'Todos los informes del ecosistema en un libro de la empresa, con índice por secciones y descarga en PDF.', primero: 'Pulsa «Recoger todos los informes» si aún está vacío.' },
     grupo: { url: 'grupo.html', n: 'la vista de grupo', k: ['vista de grupo', 'cartera de clientes', 'cartera', 'consolidado', 'sociedades del grupo'], d: 'Las empresas o sociedades de la cuenta juntas: consolidado, comparativa, riesgos cruzados y objetivos.', grupo: true }
   };
-  const mundoActual = () => ({ 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'grupo.html': 'grupo', 'portal.html': 'inicio' }[PG()] || 'inicio');
+  const mundoActual = () => ({ 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'grupo.html': 'grupo', 'portal.html': 'inicio', 'libro.html': 'libro' }[PG()] || 'inicio');
   const disponible = (k) => {
     const P = A.platform, w = MUNDOS[k]; if (!w) return false;
     if (w.plan && P && P.puede && !P.puede(w.plan)) return false;

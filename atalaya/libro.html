@@ -3,41 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Atalaya 360° · Mesa de trabajo</title>
-<meta name="description" content="Todo el trabajo del ecosistema en una sola mesa: prioridades 20/80, fecha de acción, horas reservadas, metas SMART con plan de acción, repetitivas, reuniones y delegación.">
+<title>Atalaya 360° · Libro corporativo</title>
+<meta name="description" content="Todos los informes del ecosistema en un libro de la empresa: portada, introducción, índice interactivo por secciones y descarga en PDF.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/atalaya.css">
 <link rel="stylesheet" href="css/cosmos.css">
 <link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/personas.css">
 <link rel="stylesheet" href="css/mesa.css">
+<link rel="stylesheet" href="css/libro.css">
 </head>
-<body class="ms-page">
+<body class="lb-page">
 <canvas id="sky" aria-hidden="true"></canvas>
 <div class="veil" aria-hidden="true"></div>
 <header class="topbar">
-  <a class="brand" href="portal.html"><b>Atalaya</b><span>Mesa de trabajo</span></a>
+  <a class="brand" href="portal.html"><b>Atalaya</b><span>Libro corporativo</span></a>
   <span class="spacer"></span>
-  <a class="btn ghost" href="manual.html#mesa">Manual</a>
-  <a class="btn ghost ms-hide-s" href="estrategia.html">Sistema estratégico</a>
+  <a class="btn ghost mesa-link" href="mesa.html">Mesa de trabajo</a>
+  <a class="btn ghost" href="manual.html#libro">Manual</a>
   <div class="account" id="account"></div>
 </header>
 <main class="st-main">
-  <div id="msHero"></div>
-  <nav class="st-tabs" id="msTabs" role="tablist" aria-label="Partes de la mesa de trabajo"></nav>
-  <section class="st-panel ms-panel" id="msPanel" aria-live="polite"></section>
+  <div id="lbHero"></div>
+  <section class="st-panel" id="lbPanel" aria-live="polite"></section>
 </main>
 <script src="js/platform.js"></script>
 <script src="js/manual-lateral.js"></script>
-<script src="js/nota.js"></script>
 <script src="js/cosmos.js"></script>
 <script src="js/informe.js"></script>
 <script src="js/libro-comun.js"></script>
 <script src="js/hero-mundo.js"></script>
-<script src="js/mesa-comun.js"></script>
-<script src="js/mesa.js"></script>
-<script src="js/assistant.js"></script>
-<script>Atalaya.mesa.start();</script>
+<script src="js/libro.js"></script>
+<script>Atalaya.libroPagina.start();</script>
 </body>
 </html>

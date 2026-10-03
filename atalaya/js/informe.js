@@ -72,13 +72,37 @@
   let cargando = null;
   const cargar = () => cargando || (cargando = new Promise((ok, ko) => { if (window.html2pdf) return ok(); const sc = document.createElement('script'); sc.src = H2P; sc.onload = () => ok(); sc.onerror = () => { cargando = null; ko(new Error('No se pudo cargar el generador de PDF')); }; document.head.appendChild(sc); }));
   const slug = (t) => String(t || 'informe').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 70);
+  /* Documentos largos (el libro corporativo): el navegador no puede pintar más de unos 16.000 px de alto en un solo
+     lienzo, así que se parten en trozos que empiezan en página nueva (secciones, capítulos, hojas) o, si un
+     capítulo es muy largo, por sus partes. Cada trozo se pinta aparte y se añade al mismo PDF. */
+  const MAXT = 9000;
+  const partir = (doc) => {
+    const out = []; let cur = null, h = 0;
+    const nuevo = () => { cur = document.createElement('div'); cur.className = doc.className + ' pdf-trozo'; doc.parentNode.appendChild(cur); out.push(cur); h = 0; };
+    // Un rótulo suelto (menos de 120 px) se queda con lo que le sigue, aunque empiece página
+    const meter = (el, alto, corte) => { if (!cur || (h > 0 && ((corte && h > 120) || h + alto > MAXT))) nuevo(); cur.appendChild(el); h += alto; };
+    const CORTE = '.lb-secp, .lb-cap, .lb-pp';
+    const repartir = (el) => {
+      const alto = el.offsetHeight, corte = el.matches(CORTE);
+      if (alto <= MAXT || el.children.length < 2) { meter(el, alto, corte); return; }
+      // Se reparte por sus partes, cada una dentro de una copia vacía de su envoltorio (conserva las clases)
+      Array.from(el.children).map((x) => [x, x.offsetHeight]).forEach(([x, ah], i) => {
+        const env = el.cloneNode(false); env.removeAttribute('id'); env.appendChild(x);
+        if (ah > MAXT && x.children.length > 1) { const tmp = document.createElement('div'); tmp.className = 'pdf-tmp'; doc.appendChild(tmp); tmp.appendChild(env); repartir(env); tmp.remove(); return; }
+        meter(env, ah, (i === 0 && corte) || x.matches(CORTE));
+      });
+    };
+    Array.from(doc.children).map((x) => x).forEach(repartir);
+    doc.remove();
+    return out;
+  };
   I.pdf = async (paper, o) => {
     o = o || {};
     const b = o.boton, t0 = b && b.textContent;
     if (b) { b.disabled = true; b.textContent = 'Preparando PDF…'; }
     const host = document.createElement('div'); host.className = 'pdf-host';
     const doc = paper.cloneNode(true); doc.removeAttribute('id'); doc.classList.add('pdf-doc'); doc.style.zoom = '';
-    if (o.paginado || doc.querySelector('.pp-page')) doc.classList.add('pdf-pag');
+    if (o.paginado || doc.querySelector(':scope > .pp-page')) doc.classList.add('pdf-pag');
     doc.querySelectorAll('button, .ci-add, .ci-del').forEach((x) => x.remove());
     // Los campos del cuaderno se imprimen como texto
     doc.querySelectorAll('textarea, input, select').forEach((i) => { const v = i.tagName === 'SELECT' ? (i.options[i.selectedIndex] || {}).text : i.type === 'checkbox' ? (i.checked ? '☑' : '☐') : i.value; const t = document.createElement(i.tagName === 'TEXTAREA' ? 'div' : 'span'); t.className = 'pdf-campo'; t.textContent = v || (i.type === 'checkbox' ? '' : '—'); i.replaceWith(t); });
@@ -95,7 +119,13 @@
         jsPDF: pag ? { unit: 'px', format: [794, 1123], orientation: 'portrait', hotfixes: ['px_scaling'] } : { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: pag ? { mode: [] } : { mode: ['css', 'legacy'], avoid: ['tr', 'h2', 'h3', '.rp-kpi', '.rp-callout', '.rp-summary', '.rp-bar', 'svg', '.pdf-keep', 'li'] }
       };
-      const w = window.html2pdf().set(opt).from(doc).toPdf();
+      let w;
+      const trozos = !pag && doc.offsetHeight > MAXT * 1.4 ? partir(doc) : null;
+      if (trozos && trozos.length > 1) {
+        if (b) b.textContent = `Preparando PDF… (0 de ${trozos.length})`;
+        w = window.html2pdf().set(opt).from(trozos[0]).toPdf();
+        trozos.slice(1).forEach((el, i) => { w = w.get('pdf').then((pd) => { pd.addPage(); if (b) b.textContent = `Preparando PDF… (${i + 1} de ${trozos.length})`; }).from(el).toContainer().toCanvas().toPdf(); });
+      } else w = window.html2pdf().set(opt).from(doc).toPdf();
       const pdf = await w.get('pdf');
       const n = pdf.internal.getNumberOfPages();
       for (let i = 1; i <= n; i++) {

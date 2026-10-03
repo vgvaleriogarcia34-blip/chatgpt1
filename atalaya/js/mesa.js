@@ -510,5 +510,6 @@
     const r0 = render; render = function () { r0(); pintaHero(); }; // eslint-disable-line no-func-assign
     render();
     if (A.assistant) A.assistant.init({ page: 'mesa' });
+    A.mesa.informe = informe; A.mesa.listo = true;
   };
 })();

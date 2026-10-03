@@ -14,6 +14,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `estrategia.html` | Sistema estratégico integrado (21 módulos). |
 | `personas.html` | Personas y equipos (plan Consultora): DISC, aportaciones al equipo, eneagrama, puestos, encaje persona-puesto, organigrama, mapa de talento, equipos, liderazgo a medida, test a distancia, tablillas de entrenamiento e informes. |
 | `mesa.html` | Mesa de trabajo común a los tres mundos: hoy, bandeja con fecha de acción, prioridades 20/80, agenda semanal con horas reservadas (exportación .ics), metas SMART con plan de acción, repetitivas, semana ideal, reuniones y delegación. |
+| `libro.html` | Libro corporativo: los informes de todos los mundos en un libro de la empresa con índice interactivo por secciones y PDF completo o por sección. |
 | `test.html` | Página pública de un cuestionario de personas: se abre con un enlace personal, sin cuenta; la persona da su consentimiento y responde una pregunta por pantalla. |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
 | `manual.html` | Manual de uso completo, con buscador. Es parte del área de clientes: solo se abre con sesión y acceso vigente (o con la sesión de administración). |
@@ -59,6 +60,12 @@ Un solo sitio para organizar el trabajo que sale del ecosistema y el que apunta 
 ## Nota de la empresa (`js/nota.js`)
 
 Nota del 1 al 10 en la cabecera de cada mundo: global (media de los mundos del plan) y del mundo actual. Comprobaciones con peso y estado (verde 1, ámbar 0,5, rojo 0) por mundo; el simulador y el sistema estratégico se calculan con su motor al abrirlos y se guardan por empresa (clave `nota`); personas y mesa se calculan siempre con sus datos. El desplegable lista los puntos a tratar y lleva a cada zona (en la mesa, a la meta concreta).
+
+## Libro corporativo (`libro.html`)
+
+- `js/libro-comun.js` (en los cuatro mundos): botón «Añadir al libro» en cualquier informe abierto (vigila `#report`), captura silenciosa de informes (`A.informe.open` envuelto) y recogida automática por mundos con una cola en `sessionStorage` (`?libro=1`). Datos por empresa en la clave `libro` (máx. 3,6 MB).
+- `js/libro.js`: índice por secciones (renombrar, ordenar, crear, incluir, mover), lector y composición del libro (portada, introducción, índice con enlaces, portadas de sección, capítulos).
+- `js/informe.js`: los documentos largos se pasan a PDF por trozos (secciones, capítulos u hojas) para no superar el tamaño máximo de lienzo del navegador.
 
 ## Simulador (`app.html`)
 
