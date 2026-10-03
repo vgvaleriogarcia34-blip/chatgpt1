@@ -12,7 +12,8 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con tres mundos (simulador de inversión, sistema estratégico y personas y equipos) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (21 módulos). |
-| `personas.html` | Personas y equipos (plan Consultora): DISC, aportaciones al equipo, eneagrama, puestos, encaje persona-puesto, organigrama, mapa de talento, equipos, tablillas de entrenamiento e informes. |
+| `personas.html` | Personas y equipos (plan Consultora): DISC, aportaciones al equipo, eneagrama, puestos, encaje persona-puesto, organigrama, mapa de talento, equipos, liderazgo a medida, test a distancia, tablillas de entrenamiento e informes. |
+| `test.html` | Página pública de un cuestionario de personas: se abre con un enlace personal, sin cuenta; la persona da su consentimiento y responde una pregunta por pantalla. |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
 | `manual.html` | Manual de uso completo, con buscador. Es parte del área de clientes: solo se abre con sesión y acceso vigente (o con la sesión de administración). |
 | `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso, cambio de contraseña de los usuarios y enlaces de recuperación. Sin enlace visible: se entra por la barra de direcciones (`admin.html` o `#admin` en la página principal). Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
@@ -26,7 +27,13 @@ Tercer mundo, exclusivo del plan Consultora (el resto lo ve y se le ofrece; el s
 - **Estructura**: puestos con perfil ideal (9 plantillas), encaje persona-puesto (60 % DISC + 40 % aportaciones clave) con brechas y ranking por puesto, organigrama con auditoría (amplitud de mando, niveles, áreas de una persona, puestos críticos sin sucesor) y mapa de talento 9-box.
 - **Equipos**: rueda de estilos, aportaciones cubiertas, centros del eneagrama, fricciones probables entre estilos y perfil a incorporar.
 - **Tablillas de entrenamiento** (28) que se proponen solas según estilo, puesto, eneatipo y equipo; informes de persona, tablillas, equipo y organización.
-- Se puede traer la plantilla del organigrama del sistema estratégico. Código: `js/personas/datos.js` (contenido), `core.js` (cálculos y navegación), `modulos.js` (pantallas e informes).
+- **Liderazgo a medida**: estilos Marcar, Entrenar, Acompañar y Confiar según el nivel de preparación por tarea (Inicial, En desarrollo, Capaz con dudas, Autónomo). Test de estilo (12 situaciones: estilo principal y secundario, eficacia y flexibilidad), estilo percibido por el equipo, preparación por tarea (8 frases de capacidad y disposición, del líder y de la persona), mapa de mando con desajustes, acuerdos de liderazgo, plan de desarrollo con 10 tablillas propias e informes del líder, del equipo y de la organización.
+- **Test a distancia**: cada persona responde en `test.html`, sin cuenta y con su propio consentimiento. Con servidor, invitación de un solo uso (14 días) por correo o enlace, con estados, recordar, reenviar y anular, y la respuesta entra sola en la ficha (`/api/invitaciones`, `/api/t/:token`). Sin servidor, el enlace lleva los datos y al terminar da un código de respuesta (`js/personas/codigo.js`) que se pega en la ficha.
+- Se puede traer la plantilla del organigrama del sistema estratégico. Código: `js/personas/datos.js` (contenido), `core.js` (cálculos y navegación), `modulos.js` (pantallas e informes), `liderazgo-datos.js` y `liderazgo.js`, `codigo.js` y `envio.js` (test a distancia), y `js/test-publico.js` (página pública).
+
+## Informes con consultor (`js/consultor-informe.js`)
+
+En el plan Consultora cada informe tiene dos partes: **para la empresa** (hoja de ruta de implantación en tres fases con la señal de cada paso, pautas y reglas de seguimiento, reparto empresa-consultor) y **cuaderno del consultor**, interno (ficha del encargo, datos clave, plan de trabajo por sesiones, comprobaciones, notas, resistencias y próxima sesión), editable en el propio informe y guardado por empresa (`atalaya.consultor.v1`, en el servidor `consultor--id`). En el resto de planes, los informes del sistema estratégico llevan el apartado «Con su consultor».
 
 ## Simulador (`app.html`)
 
