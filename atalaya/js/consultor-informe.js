@@ -96,24 +96,90 @@
     c.hechos = c.hechos || {};
     return c;
   };
+  /* ---------- Guía de ejecución: patrones propios del consultor ----------
+     Para cada paso de la hoja de ruta: cómo abordarlo con el empresario, la resistencia previsible, la pregunta
+     que desbloquea, la señal de alarma y el primer resultado rápido. Se clasifica cada paso por su tema. */
+  const PATRONES = [
+    { k: 'datos', re: /dato|cuenta|balance|información|aterrizar|origen|registro|medir|indicador/i, n: 'Datos y medición',
+      abordar: 'Pida los datos como condición para decidir, no como trámite: «sin esto, estamos opinando». Deje claro quién los trae y en qué formato.',
+      resist: '«Ya lo sé de memoria» o «eso lo lleva la gestoría». El empresario confunde intuición con dato.',
+      pregunta: '¿Qué decisión de este trimestre cambiaría si el dato fuera distinto de lo que usted cree?',
+      alarma: 'Dos sesiones seguidas sin el dato prometido: el problema no es el dato, es la prioridad.',
+      rapido: 'Un único indicador al día en una semana, revisado en la siguiente sesión.' },
+    { k: 'personas', re: /persona|equipo|líder|lider|tablilla|conversación|devolución|puesto|encaje|relevo|sucesor|talento|contrat|incorpora|consentimiento|cuestionario|estilo/i, n: 'Personas y liderazgo',
+      abordar: 'Empiece por el empresario: su propio perfil y su estilo de dirección antes que el de su equipo. Lo que no se aplica a sí mismo no lo exigirá a los demás.',
+      resist: 'Ver el informe de personas como un juicio. Miedo a «etiquetar» o a abrir conversaciones incómodas.',
+      pregunta: 'Si esta persona se fuera mañana, ¿qué dejaría de pasar en la empresa?',
+      alarma: 'Que las conversaciones de devolución se aplacen o se hagan por correo.',
+      rapido: 'Una conversación de devolución bien hecha con la persona más receptiva, como ejemplo para el resto.' },
+    { k: 'ventas', re: /cliente|venta|vend|comercial|precio|margen|marketing|pipeline|oferta|tarifa|cartera/i, n: 'Clientes y ventas',
+      abordar: 'Hable en euros de margen, no de facturación. Ordene los clientes por lo que dejan, no por lo que compran.',
+      resist: '«Ese cliente no se puede tocar» o miedo a perder volumen al subir precios.',
+      pregunta: '¿Qué cliente aceptaría hoy que no aceptaría si empezara de cero?',
+      alarma: 'Descuentos nuevos durante la implantación sin pasar por el criterio acordado.',
+      rapido: 'Revisar la tarifa de los cinco clientes de menor margen en el primer mes.' },
+    { k: 'operaciones', re: /coste|proceso|compra|proveedor|stock|inventario|tiempo|lean|logística|producción|calidad|desperdicio/i, n: 'Costes y operaciones',
+      abordar: 'Baje a la planta o al puesto: mida un proceso real con el equipo delante antes de proponer cambios.',
+      resist: '«Siempre se ha hecho así» y desconfianza de los mandos intermedios hacia el cambio.',
+      pregunta: '¿Qué tarea de esta semana no la pagaría el cliente si la viera?',
+      alarma: 'Mejoras que dependen solo del consultor: si no está, no se hacen.',
+      rapido: 'Eliminar un paso inútil de un proceso visible en dos semanas.' },
+    { k: 'finanzas', re: /caja|tesorer|deuda|financ|préstamo|impuesto|cobro|pago|presupuesto|liquidez|rentab|inversión|beneficio/i, n: 'Finanzas y caja',
+      abordar: 'Ponga la caja de los próximos 13 semanas encima de la mesa en cada sesión. Lo que no se ve en caja no está decidido.',
+      resist: 'Optimismo con las ventas futuras y resistencia a recortar gasto «estratégico».',
+      pregunta: '¿Cuántos meses aguanta la empresa si las ventas bajan un 20 % desde mañana?',
+      alarma: 'Decisiones de inversión o contratación que no pasan por la previsión de caja.',
+      rapido: 'Una previsión semanal de tesorería que el empresario actualice él mismo.' },
+    { k: 'estrategia', re: /plan|objetivo|estrateg|dafo|came|visión|valores|expansión|mercado|prioridad|meta/i, n: 'Estrategia y prioridades',
+      abordar: 'Reduzca: tres prioridades por trimestre, cada una con su responsable y su indicador. Lo demás, a la lista de espera escrita.',
+      resist: 'Querer hacerlo todo a la vez o cambiar de prioridad con cada urgencia.',
+      pregunta: 'De todo lo que tiene en marcha, ¿qué dejaría de hacer para que esto salga?',
+      alarma: 'Prioridades nuevas en cada sesión sin cerrar las anteriores.',
+      rapido: 'Una hoja con las tres prioridades del trimestre colgada a la vista del equipo.' }
+  ];
+  const GENERICO = { k: 'general', n: 'Implantación', abordar: 'Acuerde el qué, el quién y el cuándo en la misma sesión; nunca deje un paso sin responsable interno.', resist: 'El día a día se come la implantación.', pregunta: '¿Qué tendría que pasar para que esto esté hecho en la fecha acordada?', alarma: 'Pasos sin avance en dos revisiones seguidas.', rapido: 'Cerrar el paso más pequeño de la lista antes de la próxima sesión.' };
+  const patronDe = (p) => PATRONES.find((x) => x.re.test(p.q + ' ' + (p.c || ''))) || GENERICO;
+  /* Cómo trabajar con el empresario según su estilo (lo marca el consultor) */
+  const EMPRESARIO = {
+    D: { n: 'Directo y orientado a resultados', como: ['Llegue con dos o tres opciones y su coste; deje que elija.', 'Sesiones cortas, con decisiones al final.', 'Hable de resultados y plazos, no de método.'], cuidado: ['Puede saltarse pasos «porque ya lo ve claro»: pida el dato antes de decidir.', 'No discuta en público con él: plantee el desacuerdo en privado y con cifras.'] },
+    I: { n: 'Entusiasta y sociable', como: ['Empiece por la visión y por qué importa; luego baje al detalle.', 'Deje por escrito lo acordado al terminar cada sesión.', 'Use ejemplos de otras empresas y casos.'], cuidado: ['Se compromete con mucho y cierra poco: limite a tres compromisos por sesión.', 'Revise lo prometido al empezar la siguiente sesión, no al final.'] },
+    S: { n: 'Prudente y estable', como: ['Explique el porqué de cada cambio y su impacto en las personas.', 'Introduzca los cambios por fases, con tiempo para adaptarse.', 'Pregunte su opinión antes de proponer.'], cuidado: ['Puede decir que sí para evitar el conflicto y no hacerlo: confirme con preguntas abiertas.', 'Le cuestan las decisiones sobre personas: prepárelas con él paso a paso.'] },
+    C: { n: 'Analítico y riguroso', como: ['Traiga los datos y el razonamiento completo, por escrito y antes de la sesión.', 'Dele tiempo para analizar; no fuerce la decisión en la misma reunión.', 'Sea preciso: una cifra mal le hará dudar de todo.'], cuidado: ['Puede quedarse analizando: fije una fecha de decisión.', 'Tiende a perfeccionar antes de empezar: acuerde una primera versión «suficientemente buena».'] }
+  };
   const campo = (k, v, ph, rows) => (rows ? `<textarea class="ci-in" data-k="${k}" rows="${rows}" placeholder="${esc(ph || '')}">${esc(v || '')}</textarea>` : `<input class="ci-in" data-k="${k}" value="${esc(v || '')}" placeholder="${esc(ph || '')}">`);
   CI.cuadernoHTML = (ctx) => {
     const In = I(), c = cuadernoDe(ctx), f = ST.ficha, pasos = (ctx.pasos || []).slice(0, 12);
     In.reset();
     const hechos = pasos.filter((p, i) => c.hechos[i]).length;
+    const pats = pasos.map((p) => ({ p, t: patronDe(p) }));
+    const temas = Array.from(new Set(pats.map((x) => x.t.k))).map((k) => (PATRONES.find((x) => x.k === k) || GENERICO));
+    const emp = c.estiloEmp && EMPRESARIO[c.estiloEmp];
+    const fases = ['Arranque', 'Implantación', 'Consolidación'];
+    const faseI = (i, n) => (n <= 2 ? Math.min(i, 2) : i < Math.ceil(n / 3) ? 0 : i < Math.ceil((2 * n) / 3) ? 1 : 2);
     return `<div class="ci-stamp">Documento interno del consultor · No entregar a la empresa</div>`
-      + In.cover({ tipo: 'Cuaderno del consultor', kicker: 'Interno · ' + (ctx.tipo || 'Informe'), titulo: ctx.titulo || 'Cuaderno', subtitulo: 'Notas, datos y plan de trabajo del encargo', empresa: ctx.empresa, sector: ctx.sector })
-      + In.section('Ficha del encargo', `<div class="ci-grid"><label>Consultor${campo('f.nombre', f.nombre, 'Nombre y apellidos')}</label><label>Firma${campo('f.firma', f.firma, 'Business Avance')}</label><label>Contacto${campo('f.contacto', f.contacto, 'Correo o teléfono')}</label><label>Interlocutor en la empresa${campo('interlocutor', c.interlocutor, 'Nombre y cargo')}</label><label>Inicio${campo('inicio', c.inicio || c.creado, 'aaaa-mm-dd')}</label><label>Sesiones pactadas${campo('pactadas', c.pactadas, 'Por ejemplo: 6 sesiones en 90 días')}</label></div><p class="rp-muted">Los datos del consultor salen también, en una línea, en la versión para la empresa.</p>`)
-      + (ctx.datos && ctx.datos.length ? In.section('Datos clave', In.table(['Dato', 'Valor'], ctx.datos)) : '')
-      + In.section('Plan de trabajo', `<div class="rp-tw"><table class="rp-table ci-ses"><thead><tr><th>Fecha</th><th>Objetivo de la sesión</th><th>Preparación</th><th>Estado</th><th>Resultado y acuerdos</th><th></th></tr></thead><tbody>${c.sesiones.map((s, i) => `<tr data-s="${i}"><td><input class="ci-in" type="date" data-s-k="fecha" value="${esc(s.fecha)}"></td><td><textarea class="ci-in" rows="2" data-s-k="objetivo">${esc(s.objetivo)}</textarea></td><td><textarea class="ci-in" rows="2" data-s-k="prep">${esc(s.prep)}</textarea></td><td><select class="ci-in" data-s-k="estado">${['Pendiente', 'Hecha', 'Aplazada'].map((e) => `<option ${e === s.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td><td><textarea class="ci-in" rows="2" data-s-k="resultado">${esc(s.resultado)}</textarea></td><td><button class="ci-del" data-del="${i}" aria-label="Quitar sesión">×</button></td></tr>`).join('')}</tbody></table></div><button class="ci-add" data-add>Añadir sesión</button>`)
-      + (pasos.length ? In.section('Comprobaciones de la hoja de ruta', `<p class="rp-muted">${hechos} de ${pasos.length} pasos comprobados.</p><ul class="ci-checks">${pasos.map((p, i) => `<li><label><input type="checkbox" data-h="${i}" ${c.hechos[i] ? 'checked' : ''}> <b>${esc(p.q)}</b>${p.s ? ` <span class="rp-muted">· Señal: ${esc(p.s)}</span>` : ''}</label></li>`).join('')}</ul>`) : '')
-      + In.section('Notas del consultor', `<div class="ci-grid1"><label>Lectura de la situación${campo('notas', c.notas, 'Lo que ve el consultor y no está en los datos', 5)}</label><label>Resistencias y riesgos de la implantación${campo('riesgos', c.riesgos, 'Quién frena, qué puede salir mal y cómo anticiparlo', 3)}</label><label>Cómo ayudar al empresario${campo('ayuda', c.ayuda, 'Qué necesita oír, qué decisiones le cuestan, cómo acompañarle', 3)}</label></div>`)
-      + In.section('Próxima sesión', `<div class="ci-grid"><label>Fecha${`<input class="ci-in" type="date" data-k="proxima" value="${esc(c.proxima || (c.sesiones.find((s) => s.estado === 'Pendiente') || {}).fecha || '')}">`}</label></div><label class="ci-l">Orden del día${campo('agenda', c.agenda || '1. Indicadores\n2. Acciones vencidas\n3. Bloqueos\n4. Próximos compromisos', '', 4)}</label>`)
-      + `<footer class="rp-foot"><span>Atalaya · Cuaderno del consultor · ${esc(fES(hoy()))}</span><span>Documento interno. Se guarda con la empresa en Atalaya y no forma parte del informe entregado.</span></footer>`;
+      + In.cover({ tipo: 'Guía del consultor', kicker: 'Interno · ' + (ctx.tipo || 'Informe'), titulo: ctx.titulo || 'Guía del consultor', subtitulo: 'Cómo ejecutar el plan con esta empresa y cuaderno de trabajo del encargo', empresa: ctx.empresa, sector: ctx.sector })
+      + In.summary('Para qué sirve', `<p>La versión para la empresa dice <b>qué</b> hacer. Esta guía es para usted: <b>cómo</b> llevarlo a cabo con este empresario, qué resistencias esperar, qué preguntar para desbloquear y qué señales indican que el plan se está cayendo. Al final, su cuaderno de notas del encargo.</p>`)
+      + In.section('Lectura rápida del encargo', `${ctx.datos && ctx.datos.length ? In.table(['Dato', 'Valor'], ctx.datos) : ''}
+        <h3>Temas que va a tocar</h3><ul>${temas.map((t) => `<li><b>${esc(t.n)}</b> · ${pats.filter((x) => x.t === t).length} paso${pats.filter((x) => x.t === t).length === 1 ? '' : 's'}</li>`).join('')}</ul>
+        ${pats.length ? In.callout(`<b>Primer resultado rápido recomendado:</b> ${esc(pats[0].t.rapido)} Consíguelo antes de la segunda sesión: es lo que compra la confianza para el resto del plan.`, 'info') : ''}`)
+      + In.section('Cómo trabajar con este empresario', `<div class="ci-grid"><label>Estilo de quien decide (según su observación)<select class="ci-in" data-k="estiloEmp"><option value="">— elegir —</option>${Object.keys(EMPRESARIO).map((k) => `<option value="${k}" ${c.estiloEmp === k ? 'selected' : ''}>${EMPRESARIO[k].n}</option>`).join('')}</select></label></div>
+        ${emp ? `<div class="ci-cols"><div><h3>Funciona</h3><ul>${emp.como.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div><div><h3>Cuidado con</h3><ul>${emp.cuidado.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></div>` : '<p class="rp-muted">Elija el estilo que observa en quien toma las decisiones y aparecerán las pautas para trabajar con él. Si la persona tiene su DISC en Personas y equipos, use ese resultado.</p>'}`)
+      + (pats.length ? In.section('Patrones de ejecución paso a paso', `<p class="rp-muted">Lo que no va en el informe de la empresa: cómo abordar cada paso, qué resistencia esperar, la pregunta que desbloquea y la señal de que se está cayendo.</p>
+        ${pats.map((x, i) => `<div class="ci-pat"><div class="ci-pat-h"><span>${esc(fases[faseI(i, pats.length)])} · ${esc(x.t.n)}</span><b>${i + 1}. ${esc(x.p.q)}</b></div>
+          <dl><div><dt>Cómo abordarlo</dt><dd>${esc(x.t.abordar)}</dd></div><div><dt>Resistencia previsible</dt><dd>${esc(x.t.resist)}</dd></div><div><dt>Pregunta que desbloquea</dt><dd>${esc(x.t.pregunta)}</dd></div><div><dt>Señal de alarma</dt><dd>${esc(x.t.alarma)}</dd></div></dl>
+          <label class="ci-check"><input type="checkbox" data-h="${i}" ${c.hechos[i] ? 'checked' : ''}> Hecho${x.p.s ? ` <span class="rp-muted">· señal: ${esc(x.p.s)}</span>` : ''}</label></div>`).join('')}
+        <p class="rp-muted">${hechos} de ${pats.length} pasos comprobados.</p>`) : '')
+      + In.section('Ritmo de las sesiones', `<ol class="rp-steps"><li><b>Antes:</b> revise los datos en Atalaya y prepare una sola pregunta incómoda.</li><li><b>Primeros 10 minutos:</b> lo comprometido en la sesión anterior, uno por uno. Sin esto no se avanza.</li><li><b>Centro:</b> un solo tema de fondo; decisión escrita con responsable y fecha.</li><li><b>Últimos 5 minutos:</b> tres compromisos como máximo, leídos en voz alta.</li><li><b>Después:</b> acta en 24 horas y actualización del plan en Atalaya.</li></ol>`)
+      + In.section('Cuaderno de trabajo', `<p class="rp-muted">Su espacio de notas: reflexiones, comentarios y lo que vaya observando. Se guarda con la empresa y no forma parte de nada que se entregue.</p>
+        <div class="ci-grid"><label>Consultor${campo('f.nombre', f.nombre, 'Nombre y apellidos')}</label><label>Firma${campo('f.firma', f.firma, 'Business Avance')}</label><label>Contacto${campo('f.contacto', f.contacto, 'Correo o teléfono')}</label><label>Interlocutor en la empresa${campo('interlocutor', c.interlocutor, 'Nombre y cargo')}</label><label>Inicio${campo('inicio', c.inicio || c.creado, 'aaaa-mm-dd')}</label><label>Sesiones pactadas${campo('pactadas', c.pactadas, 'Por ejemplo: 6 sesiones en 90 días')}</label></div>
+        <div class="ci-grid1"><label>Reflexiones y comentarios${campo('notas', c.notas, 'Lo que observa y no está en los datos', 6)}</label><label>Resistencias y personas clave${campo('riesgos', c.riesgos, 'Quién empuja, quién frena y por qué', 3)}</label><label>Cómo ayudar al empresario${campo('ayuda', c.ayuda, 'Qué necesita oír, qué decisiones le cuestan', 3)}</label></div>`)
+      + In.section('Registro de sesiones', `<div class="rp-tw"><table class="rp-table ci-ses"><thead><tr><th>Fecha</th><th>Objetivo de la sesión</th><th>Preparación</th><th>Estado</th><th>Resultado y acuerdos</th><th></th></tr></thead><tbody>${c.sesiones.map((s, i) => `<tr data-s="${i}"><td><input class="ci-in" type="date" data-s-k="fecha" value="${esc(s.fecha)}"></td><td><textarea class="ci-in" rows="2" data-s-k="objetivo">${esc(s.objetivo)}</textarea></td><td><textarea class="ci-in" rows="2" data-s-k="prep">${esc(s.prep)}</textarea></td><td><select class="ci-in" data-s-k="estado">${['Pendiente', 'Hecha', 'Aplazada'].map((e) => `<option ${e === s.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td><td><textarea class="ci-in" rows="2" data-s-k="resultado">${esc(s.resultado)}</textarea></td><td><button class="ci-del" data-del="${i}" aria-label="Quitar sesión">×</button></td></tr>`).join('')}</tbody></table></div><button class="ci-add" data-add>Añadir sesión</button>
+        <div class="ci-grid" style="margin-top:14px"><label>Próxima sesión<input class="ci-in" type="date" data-k="proxima" value="${esc(c.proxima || (c.sesiones.find((x) => x.estado === 'Pendiente') || {}).fecha || '')}"></label></div><label class="ci-l">Orden del día${campo('agenda', c.agenda || '1. Compromisos de la sesión anterior\n2. Indicadores\n3. Tema de fondo\n4. Tres compromisos', '', 4)}</label>`)
+      + `<footer class="rp-foot"><span>Business Avance · Atalaya 360° · Guía del consultor · ${esc(fES(hoy()))}</span><span>Documento interno. Se guarda con la empresa en Atalaya y no forma parte del informe entregado.</span></footer>`;
   };
   const wireCuaderno = (paper, ctx, rehacer) => {
     const c = cuadernoDe(ctx);
-    paper.querySelectorAll('[data-k]').forEach((el) => (el.oninput = () => { const k = el.dataset.k; if (k.startsWith('f.')) ST.ficha[k.slice(2)] = el.value; else c[k] = el.value; c.editado = hoy(); guardar(); }));
+    paper.querySelectorAll('[data-k]').forEach((el) => (el.oninput = el.onchange = () => { const k = el.dataset.k; if (k.startsWith('f.')) ST.ficha[k.slice(2)] = el.value; else c[k] = el.value; c.editado = hoy(); guardar(); if (k === 'estiloEmp') rehacer(); }));
     paper.querySelectorAll('tr[data-s]').forEach((tr) => tr.querySelectorAll('[data-s-k]').forEach((el) => (el.oninput = el.onchange = () => { c.sesiones[+tr.dataset.s][el.dataset.sK] = el.value; guardar(); })));
     paper.querySelectorAll('[data-h]').forEach((el) => (el.onchange = () => { c.hechos[el.dataset.h] = el.checked; guardar(); }));
     paper.querySelectorAll('[data-del]').forEach((b) => (b.onclick = () => { c.sesiones.splice(+b.dataset.del, 1); guardar(); rehacer(); }));
@@ -135,7 +201,7 @@
     const i = o.html.lastIndexOf('<footer class="rp-foot"');
     const externo = i >= 0 ? o.html.slice(0, i) + extra + o.html.slice(i) : o.html + extra;
     const barExtra = cons
-      ? `<div class="seg ci-seg" role="tablist" aria-label="Versión del informe"><button role="tab" aria-selected="true" data-v="ext">Para la empresa</button><button role="tab" aria-selected="false" data-v="int">Cuaderno del consultor</button></div>`
+      ? `<div class="seg ci-seg" role="tablist" aria-label="Versión del informe"><button role="tab" aria-selected="true" data-v="ext">Para la empresa</button><button role="tab" aria-selected="false" data-v="int">Guía y cuaderno del consultor</button></div>`
       : `<button class="btn ghost" id="ciSesion">Hablar con un consultor</button>`;
     In.open(Object.assign({}, o, {
       html: externo, barExtra: (o.barExtra || '') + barExtra,

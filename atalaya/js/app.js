@@ -1525,12 +1525,13 @@
     ov.hidden = false; document.body.style.overflow = 'hidden';
     ov.innerHTML = `<div class="report-bar"><b style="font-family:var(--font-display);font-size:1.1rem;color:var(--gold-soft)">Informe</b>
       ${A.SCENARIOS.map((s) => `<label><input type="checkbox" data-rs="${s.key}" ${repSc.indexOf(s.key) >= 0 ? 'checked' : ''}>${s.nombre}</label>`).join('')}
-      <span class="spacer"></span>${inFrame ? '' : '<button class="btn" id="repPrint">Imprimir o guardar PDF</button>'}<button class="btn ghost" id="repCopy">Copiar texto</button><button class="btn solid" id="repClose">Cerrar</button></div><article class="paper rp" id="paper"></article>`;
+      <span class="spacer"></span><button class="btn" id="repPdf">Descargar PDF</button>${inFrame ? '' : '<button class="btn ghost" id="repPrint">Imprimir</button>'}<button class="btn ghost" id="repCopy">Copiar texto</button><button class="btn solid" id="repClose">Cerrar</button></div><article class="paper rp" id="paper"></article>`;
     drawPaper();
     $$('[data-rs]', ov).forEach((c) => c.onchange = () => { repSc = $$('[data-rs]', ov).filter((x) => x.checked).map((x) => x.dataset.rs); drawPaper(); });
     $('#repClose').onclick = closeReport;
     $('#repCopy').onclick = () => copy(A.report.text(state, ctx), 'Resumen copiado');
     if ($('#repPrint')) $('#repPrint').onclick = () => window.print();
+    $('#repPdf').onclick = (e) => A.informe && A.informe.pdf($('#paper'), { titulo: 'Informe de decisión · ' + (state.proyecto || 'inversión'), boton: e.currentTarget });
   }
   function drawPaper() {
     $('#paper').innerHTML = A.report.build(state, ctx, { scenarios: repSc });

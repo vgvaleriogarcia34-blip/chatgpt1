@@ -125,7 +125,7 @@
       <tr><td>Margen actividad nueva</td><td>${F.pct(inv.margenNuevo)}</td><td>Contrataciones</td><td>${inv.contrataciones} × ${F.eur(inv.salario)}</td></tr>
       <tr><td>Hipótesis activas</td><td colspan="3" style="text-align:left;font-family:var(--font-body)">${(state.hipotesis || []).filter((x) => x.activo).map((x) => `${A.SHOCKS[x.tipo].nombre} (mes ${x.mes}, ${x.magnitud} ${A.SHOCKS[x.tipo].unidad})`).join('; ') || 'Ninguna'}</td></tr>
       </tbody></table></div>`;
-    h += `<footer class="rp-foot"><span>Atalaya · Documento generado el ${A.informe ? A.informe.fecha() : ""}</span><span>Proyección mensual a 60 meses con impuesto de sociedades del ${e.impuesto} %, calendario de préstamo francés y circulante calculado sobre días de cobro, stock y pago. Es una herramienta de anticipación: las cifras dependen de los supuestos introducidos y no sustituyen el asesoramiento financiero, fiscal ni legal.</span></footer>`;
+    h += `<footer class="rp-foot"><span>Business Avance · Atalaya 360° · Documento generado el ${A.informe ? A.informe.fecha() : ""}</span><span>Proyección mensual a 60 meses con impuesto de sociedades del ${e.impuesto} %, calendario de préstamo francés y circulante calculado sobre días de cobro, stock y pago. Es una herramienta de anticipación: las cifras dependen de los supuestos introducidos y no sustituyen el asesoramiento financiero, fiscal ni legal.</span></footer>`;
     return h;
   };
 

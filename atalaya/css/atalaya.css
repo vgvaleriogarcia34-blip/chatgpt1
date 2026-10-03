@@ -790,3 +790,32 @@ a { color: var(--gold); }
 .st-head::before { content: ''; position: absolute; inset: -40% auto auto -10%; width: 60%; height: 180%; background: radial-gradient(closest-side, rgba(201, 242, 77, 0.10), transparent); pointer-events: none; }
 .st-head .st-title { font-size: clamp(2rem, 4.4vw, 3.1rem); font-weight: 800; letter-spacing: -0.03em; }
 .st-head .st-title em { font-style: normal; color: transparent; -webkit-text-stroke: 1.3px var(--gold); }
+
+/* ---------- Membrete corporativo de los informes ---------- */
+.rp-mb { display: inline-flex; align-items: center; gap: 12px; }
+.rp-mb .rp-ba { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; letter-spacing: 0.04em; text-transform: uppercase; color: #f5f3ee; }
+.rp-mb .rp-ba i { font-style: normal; color: #c9f24d; margin-left: 5px; }
+.rp-mb .rp-sep { width: 1px; height: 20px; background: #3a4150; }
+.rp-mb .rp-at { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; color: #c9f24d; letter-spacing: 0.01em; }
+.rp-mb .rp-at i { font-style: normal; color: #f5f3ee; }
+@media (max-width: 520px) { .rp-mb { gap: 8px; } .rp-mb .rp-ba, .rp-mb .rp-at { font-size: 0.85rem; } }
+/* Lienzo fuera de pantalla para el PDF (ancho de A4 a 96 ppp) */
+.pdf-host { position: fixed; left: -12000px; top: 0; width: 794px; z-index: -1; pointer-events: none; }
+.paper.pdf-doc { width: 794px !important; max-width: none !important; margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; font-size: 13px; }
+.paper.pdf-doc > * { margin-left: 38px !important; margin-right: 38px !important; }
+.paper.pdf-doc > .rp-cover, .paper.pdf-doc > .ci-stamp, .paper.pdf-doc.pdf-pag > * { margin-left: 0 !important; margin-right: 0 !important; }
+.pdf-doc .rp-tw { overflow: visible !important; }
+.pdf-campo { display: block; white-space: pre-wrap; border-bottom: 1px dotted #b5b19f; padding: 2px 0 4px; min-height: 1.4em; color: #15140f; }
+span.pdf-campo { display: inline-block; min-width: 60px; }
+/* Guía del consultor */
+.ci-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 620px) { .ci-cols { grid-template-columns: 1fr; } }
+.ci-pat { border: 1px solid #d9d6cc; border-left: 4px solid #6e7d14; background: #fbfaf7; padding: 10px 14px; margin-top: 10px; break-inside: avoid; }
+.ci-pat-h span { display: block; font: 600 0.66rem var(--font-data); letter-spacing: 0.12em; text-transform: uppercase; color: #6e7d14; }
+.ci-pat-h b { font-family: var(--font-display); font-size: 1rem; color: #0b0d13; }
+.ci-pat dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 8px 0 6px; }
+@media (max-width: 620px) { .ci-pat dl { grid-template-columns: 1fr; } }
+.ci-pat dt { font: 600 0.64rem var(--font-data); letter-spacing: 0.1em; text-transform: uppercase; color: #7d828c; }
+.ci-pat dd { margin: 2px 0 0; font-size: 0.86rem; color: #14171e; }
+.ci-check { display: flex; gap: 8px; align-items: center; font-size: 0.85rem; }
+.ci-check input { accent-color: #6e7d14; }
