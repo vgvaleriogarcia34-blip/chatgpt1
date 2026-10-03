@@ -74,3 +74,10 @@
   .eco-read { font-size: var(--t-xs); }
 }
 @media (prefers-reduced-motion: reduce) { .eco-card, .ec-in { transition: none; } .eco-fan.in .ec-in { animation: none; } }
+/* Mundo 3: personas y equipos */
+.eco-orbs .o-per { left: 50%; top: 250px; width: 130px; height: 130px; background: radial-gradient(circle at 35% 35%, #f1e7ff, #ab7bff 45%, #3d2370 80%); box-shadow: 0 0 70px rgba(171, 123, 255, 0.55); }
+.eco[data-w="sim"] .o-per, .eco[data-w="est"] .o-per, .eco[data-w="per"] .o-sim, .eco[data-w="per"] .o-est { transform: translateX(-50%) scale(0.8); opacity: 0.6; }
+.eco-w[data-w="per"] span { color: #c9a8ff; }
+.eco-w[data-w="per"].on { border-color: #ab7bff; box-shadow: 0 0 0 1px #ab7bff, 0 20px 50px -20px rgba(171, 123, 255, 0.55); }
+.eco:not(.is3d) .eco-w[data-w="per"] { left: 50%; top: 390px; }
+@media (max-width: 760px) { .eco-orbs .o-per { top: 170px; width: 90px; height: 90px; } .eco:not(.is3d) .eco-w[data-w="per"] { top: 270px; } }

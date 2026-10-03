@@ -127,7 +127,7 @@
 
   /* ---------- Explorador del sistema estratégico ---------- */
   const MODS = {
-    'Visión': [['Cuadro de mando', 'Salud global de la empresa, riesgos de todas las áreas y mejoras con su impacto anual.', 'Salud 72/100'], ['Plan de empresa', 'Misión, valores con peso, DAFO con tus datos y CAME que lo convierte en acciones.', '9 acciones'], ['Informe de auditoría', 'Diagnóstico 360 y planes de trabajo de macro a micro y de micro a macro.', '9 capítulos']],
+    'Visión': [['Cuadro de mando', 'Salud global de la empresa, riesgos de todas las áreas y mejoras con su impacto anual.', 'Salud 72/100'], ['Plan de empresa', 'Misión, valores con peso, DAFO con sus datos y CAME que lo convierte en acciones.', '9 acciones'], ['Informe de auditoría', 'Diagnóstico 360 y planes de trabajo de macro a micro y de micro a macro.', '9 capítulos']],
     'Finanzas': [['Flujo del dinero', 'Dónde ha ido cada euro del beneficio: clientes, stock, inversión, bancos o socios.', '31 % llega al banco'], ['Impuestos', 'Calendario de pagos, movimientos legales de ahorro y escenarios fiscales de la inversión.', '−48 k€ en 5 años'], ['Tesorería semanal', 'Entradas y salidas a 13, 26 o 52 semanas, con la semana más tensa marcada.', 'Semana 9 en ámbar'], ['Presupuesto', 'Propuestas con cuatro métodos, partidas detalladas y desviaciones en € y %.', 'Ventas al 95 %']],
     'Comercial': [['ABC y concentración', 'Clientes, productos y proveedores por venta y por margen, con el HHI explicado.', 'HHI 1.180'], ['Margen y demanda', 'Precio, volumen, mix y coste: cómo cambia el margen con cada palanca.', '+62 k€ con +3 % precio'], ['Pipeline comercial', 'Oportunidades por etapa y previsión ponderada frente al objetivo.', '41 % del objetivo'], ['Marketing', 'Coste de conseguir un cliente frente a lo que deja en toda la relación.', 'LTV/CAC 4,2×']],
     'Operaciones': [['Compras', 'Matriz de Kraljic, ahorro negociable y proveedores sin alternativa.', '2 sin alternativa'], ['Logística', 'Coste por pedido, OTIF y rendimiento por ruta.', 'OTIF 91 %'], ['Gestor de tiempos', 'Reloj de tareas flotante y tiempo facturable frente al sistema interno.', '64 % facturable'], ['Lean', 'Takt, cuello de botella, OEE, flujo de valor, 5S y kaizen por sector.', 'OEE 68 %'], ['Personas', 'Plantilla, rotación, preparación para crecer y organigrama dibujable.', '3 niveles']],
@@ -146,11 +146,14 @@
     const io = new IntersectionObserver((es) => es.forEach((e) => {
       if (!e.isIntersecting) return; io.unobserve(e.target);
       const to = +e.target.dataset.count, t0 = performance.now();
-      const step = (t) => { const k = Math.min(1, (t - t0) / 900); e.target.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+      const step = (t) => { const k = Math.min(1, (t - t0) / 900); e.target.textContent = (e.target.dataset.pre || '') + Math.round(to * (1 - Math.pow(1 - k, 3))) + (e.target.dataset.suf || ''); if (k < 1) requestAnimationFrame(step); };
       requestAnimationFrame(step);
     }), { threshold: 0.6 });
     $$('[data-count]').forEach((el) => io.observe(el));
   }
+
+  /* ---------- Sesión de 60 minutos con Business Avance ---------- */
+  $$('[data-sesion]').forEach((b) => b.onclick = () => A.platform.formContacto({ tipo: 'sesion', plan: 'sesion', origen: 'landing-sesion' }));
 
   /* ---------- Planes ---------- */
   const P = A.platform.PLANES;
@@ -164,10 +167,10 @@
       return `<article class="glass plan tilt ${p.destacado ? 'top' : ''} ${p.grupo ? 'grp' : ''}" data-tilt>
         ${p.destacado ? '<span class="tag">El más elegido</span>' : p.grupo ? '<span class="tag">Holdings y grupos</span>' : ''}
         <h3>${p.nombre}</h3><p class="small muted plan-para">${p.para || ''}</p>
-        ${p.aMedida ? '<div class="price"><b style="font-size:1.9rem;font-family:var(--font-display);font-weight:500">A medida</b></div><p class="small plan-bill">El precio se prepara con nuestro equipo según tus sociedades y tu estructura.</p>' : `<div class="price"><b>${A.platform.eur(A.platform.cuota(pr).importe)}</b><span>${A.platform.cuota(pr).unidad}</span></div>
+        ${p.aMedida ? '<div class="price"><b style="font-size:1.9rem;font-family:var(--font-display);font-weight:500">A medida</b></div><p class="small plan-bill">El precio se prepara con nuestro equipo según sus sociedades y su estructura.</p>' : `<div class="price"><b>${A.platform.eur(A.platform.cuota(pr).importe)}</b><span>${A.platform.cuota(pr).unidad}</span></div>
         <p class="small plan-bill">${periodo === 'anual' ? A.platform.cuota(pr).detalle : '&nbsp;'}</p>`}
         <ul>${p.incluye.map((x) => `<li>${x}</li>`).join('')}</ul>
-        ${p.aMedida && conSesion !== k ? '<button class="btn solid" data-contacto>Contactar con nuestro equipo</button>' : `<a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">${conSesion ? (conSesion === k ? 'Es tu plan · entrar' : `Cambiar a ${p.nombre}`) : `Probar ${p.nombre}`}</a>`}</article>`;
+        ${p.aMedida && conSesion !== k ? '<button class="btn solid" data-contacto>Contactar con nuestro equipo</button>' : `<a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">${conSesion ? (conSesion === k ? 'Es su plan · entrar' : `Cambiar a ${p.nombre}`) : `Probar ${p.nombre}`}</a>`}</article>`;
     }).join('');
     $$('#perSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
     $$('#plans [data-contacto]').forEach((b) => b.onclick = () => A.platform.formContacto({ plan: 'grupos', origen: 'pagina-planes' }));

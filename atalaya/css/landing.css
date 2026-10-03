@@ -199,3 +199,45 @@
 .lp-tag.violet { color: #e3d4ff; background: rgba(171, 123, 255, 0.14); border-color: rgba(171, 123, 255, 0.45); }
 .lp-tag { font-family: var(--font-data); font-size: 0.68rem; border-radius: 3px; }
 .lp-tag.gold, .lp-tag.violet { color: var(--gold); border-color: var(--line-strong); background: transparent; }
+/* ---------- Atalaya 360° · piezas de la página de Business Avance ---------- */
+.lp-pains-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lp-cifra { margin-top: 16px; padding-top: 12px; border-top: 2px solid var(--gold); display: grid; gap: 2px; }
+.lp-cifra small { font-family: var(--font-data); font-size: 0.64rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
+.lp-cifra b { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.03em; font-size: 2rem; line-height: 1.1; color: var(--fg); }
+.lp-cifra span { font-size: var(--t-xs); color: var(--muted); }
+.lp-band { margin-top: 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px 28px; align-items: center; padding: 22px 26px; border-radius: 6px; border-top: 3px solid var(--gold); box-shadow: var(--relieve); }
+.lp-band small { display: block; font-family: var(--font-data); font-size: 0.64rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
+.lp-band b { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.04em; font-size: clamp(2.2rem, 5vw, 3.4rem); color: var(--gold); line-height: 1; }
+.lp-band p { margin: 0; color: var(--muted); }
+.lp-src { margin: 10px 0 0; font-family: var(--font-data); font-size: 0.68rem; letter-spacing: 0.04em; color: var(--faint); }
+.lp-seq { list-style: none; padding: 0; margin: 28px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--gold); }
+.lp-seq li { padding: 16px 18px 4px 0; display: grid; gap: 4px; position: relative; }
+.lp-seq li + li { padding-left: 18px; border-left: 1px solid var(--line); }
+.lp-seq small { font-family: var(--font-data); font-size: 0.64rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
+.lp-seq b { font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; letter-spacing: -0.02em; }
+.lp-seq span { color: var(--muted); font-size: var(--t-s); }
+.lp-ways { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 30px; }
+.lp-ways .lp-card { display: grid; gap: 10px; align-content: start; }
+.lp-ways .btn { justify-self: start; margin-top: 6px; }
+.lp-way-top { border-top: 3px solid var(--gold); box-shadow: var(--relieve); }
+.lp-stats-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 2px solid var(--gold); }
+.lp-cases { display: grid; gap: 14px; margin-top: 18px; }
+.lp-case { padding: 20px 24px; border-left: 3px solid var(--gold); background: rgba(16, 19, 26, 0.85); border-radius: 0 6px 6px 0; display: grid; gap: 8px; }
+.lp-case-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.lp-case-h b { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.03em; font-size: 1.7rem; color: var(--gold); }
+.lp-case-h span { font-family: var(--font-display); font-weight: 600; color: var(--fg); }
+.lp-case-h small { margin-left: auto; font-family: var(--font-data); font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.lp-case p { margin: 0; color: var(--muted); }
+.lp-team { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 26px; }
+.lp-team .lp-card { display: grid; gap: 6px; align-content: start; border-top: 3px solid var(--gold); border-radius: 6px; }
+.lp-team h3 { margin: 0; }
+.lp-team small { font-family: var(--font-data); font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.lp-soon { margin-left: 6px; padding: 1px 7px; border: 1px solid var(--line-strong); border-radius: 3px; font-family: var(--font-data); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.site-foot b { color: var(--fg); }
+@media (max-width: 900px) {
+  .lp-pains-4, .lp-ways, .lp-team, .lp-seq { grid-template-columns: 1fr; }
+  .lp-seq li + li { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+  .lp-band { grid-template-columns: 1fr; }
+  .lp-stats-3 { grid-template-columns: 1fr; }
+  .lp-case-h small { margin-left: 0; width: 100%; }
+}

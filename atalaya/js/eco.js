@@ -1,6 +1,6 @@
 /* Atalaya · Landing: el ecosistema
-   El mismo universo del puesto de mando en pequeño: dos mundos (simulador de inversión y sistema estratégico)
-   unidos por una corriente de datos. Al elegir uno, sus pantallas se despliegan en abanico debajo,
+   El mismo universo del puesto de mando en pequeño: tres mundos (simulador de inversión, sistema estratégico y
+   personas y equipos) unidos por una corriente de datos. Al elegir uno, sus pantallas se despliegan en abanico debajo,
    coloreadas por fase o por área; al pasar por encima, cada pantalla se eleva y cuenta qué responde. */
 (function () {
   const $ = (s, r) => (r || document).querySelector(s);
@@ -12,12 +12,12 @@
   /* ---------- Las pantallas de cada mundo ---------- */
   const MUNDOS = {
     sim: {
-      fases: [['Visión general', '#ecd6a6'], ['Tu empresa', '#3987e5'], ['El movimiento', '#d4ae64'], ['Ensayar el futuro', '#d55181'], ['Lo que cambia', '#199e70'], ['Decidir', '#d95926']],
+      fases: [['Visión general', '#ecd6a6'], ['Su empresa', '#3987e5'], ['El movimiento', '#d4ae64'], ['Ensayar el futuro', '#d55181'], ['Lo que cambia', '#199e70'], ['Decidir', '#d95926']],
       cards: [
         [0, 'Puente de mando', '¿Cómo está todo de un vistazo?', 'kpis'],
-        [1, 'La empresa hoy', '¿Cómo es tu empresa ahora mismo?', 'bars'],
+        [1, 'La empresa hoy', '¿Cómo es su empresa ahora mismo?', 'bars'],
         [1, 'Historia y cuentas', '¿De dónde viene? Tus cuentas de otros años.', 'table'],
-        [2, 'La inversión', '¿Qué quieres hacer y cómo lo pagas?', 'donut'],
+        [2, 'La inversión', '¿Qué quiere hacer y cómo lo paga?', 'donut'],
         [3, 'Horizonte 3D', '¿Qué pasa si cambian dos cosas a la vez?', 'terrain'],
         [3, 'Escenarios', '¿Y si sale peor, o mejor?', 'lines'],
         [3, 'Semáforos y riesgos', '¿Qué hay que vigilar?', 'lights'],
@@ -52,6 +52,24 @@
         [4, 'Expansión territorial', '¿Dónde y cómo crecer?', 'radar'],
         [4, 'Mercado y riesgos', '¿Qué pasa fuera que me afecta?', 'lights'],
         [4, 'Valoración', '¿Cuánto vale mi empresa?', 'flow']
+      ]
+    },
+    per: {
+      fases: [['Visión', '#c9f24d'], ['Herramientas', '#ab7bff'], ['Estructura', '#3987e5'], ['Equipos', '#199e70'], ['Desarrollo', '#d95926']],
+      cards: [
+        [0, 'Panorama', '¿Cómo es el equipo humano y qué trabajar primero?', 'kpis'],
+        [0, 'Plantilla', '¿Quién está en cada puesto y de quién depende?', 'table'],
+        [1, 'DISC', '¿Cómo se comporta cada persona?', 'radar'],
+        [1, 'Aportaciones al equipo', '¿Qué aporta cada persona cuando trabaja con otros?', 'bars'],
+        [1, 'Eneagrama', '¿Qué mueve a cada persona y qué teme?', 'radar'],
+        [2, 'Puestos', '¿Qué pide cada puesto?', 'steps'],
+        [2, 'Encaje persona-puesto', '¿Está cada persona en el puesto que mejor la aprovecha?', 'lights'],
+        [2, 'Organigrama y mandos', '¿Dependencias, amplitud de mando y relevos?', 'org'],
+        [2, 'Mapa de talento', '¿Dónde está el talento que sostiene la empresa?', 'dafo'],
+        [3, 'Equipos', '¿Está equilibrado cada equipo?', 'donut'],
+        [3, 'Liderazgo a medida', '¿Lidera cada responsable como pide su equipo? Próximamente.', 'funnel'],
+        [4, 'Tablillas de entrenamiento', '¿Qué entrenar a cada persona y a cada equipo?', 'steps'],
+        [4, 'Informes', 'De la persona, del equipo y de la organización.', 'doc']
       ]
     }
   };
@@ -124,7 +142,7 @@
     });
     $$('button', fases).forEach((b) => b.classList.toggle('on', +b.dataset.f === (hot !== null ? M.cards[hot][0] : faseHot)));
     const k = hot !== null ? M.cards[hot] : null;
-    read.innerHTML = '<span>' + (k ? `<b>${esc(k[1])}</b> · ${esc(k[2])}` : faseHot !== null ? `<b>${esc(M.fases[faseHot][0])}</b> · ${M.cards.filter((x) => x[0] === faseHot).map((x) => esc(x[1])).join(', ')}` : mundo === 'sim' ? 'Doce pantallas en seis fases: de cómo es tu empresa hoy a la decisión. <b>Pasa por encima de una pantalla.</b>' : 'Dieciocho módulos en cinco áreas que comparten los mismos datos. <b>Pasa por encima de un módulo.</b>') + '</span>';
+    read.innerHTML = '<span>' + (k ? `<b>${esc(k[1])}</b> · ${esc(k[2])}` : faseHot !== null ? `<b>${esc(M.fases[faseHot][0])}</b> · ${M.cards.filter((x) => x[0] === faseHot).map((x) => esc(x[1])).join(', ')}` : mundo === 'sim' ? 'Doce pantallas en seis fases: de cómo es su empresa hoy a la decisión. <b>Pase por encima de una pantalla.</b>' : mundo === 'est' ? 'Veintiún módulos en cinco áreas que comparten los mismos datos. <b>Pase por encima de un módulo.</b>' : 'Trece pantallas para leer personas, puestos y equipos. Plan Consultora. <b>Pase por encima de una pantalla.</b>') + '</span>';
   }
   function elegir(w, byUser) {
     if (byUser) user = true;
@@ -138,9 +156,9 @@
   elegir('sim');
   addEventListener('resize', place);
 
-  // Mientras nadie toca nada, los dos mundos se alternan solos
+  // Mientras nadie toca nada, los tres mundos se alternan solos
   let visible = false;
-  setInterval(() => { if (!user && visible && !reduce) elegir(mundo === 'sim' ? 'est' : 'sim'); }, 7000);
+  setInterval(() => { if (!user && visible && !reduce) elegir({ sim: 'est', est: 'per', per: 'sim' }[mundo]); }, 7000);
 
   /* ---------- Universo 3D (Three.js bajo demanda) ---------- */
   const canvas = $('#ecoCanvas');
@@ -206,7 +224,25 @@
       est.add(new T.LineSegments(lg, new T.LineBasicMaterial({ color: 0x86b4ff, transparent: true, opacity: 0.22, blending: T.AdditiveBlending })));
       Object.assign(est.userData, { core, shell, shells, nodes, lg, lp });
     }
-    scene.add(sim); scene.add(est);
+    // Mundo 3: planeta violeta con cuatro equipos de personas (uno por estilo) unidos en red
+    const per = new T.Group();
+    { const map = tex(128, (x, s) => { const gr = x.createLinearGradient(0, 0, s, s); gr.addColorStop(0, '#3d2370'); gr.addColorStop(0.5, '#ab7bff'); gr.addColorStop(1, '#2a1650'); x.fillStyle = gr; x.fillRect(0, 0, s, s); for (let i = 0; i < 80; i++) { x.fillStyle = `rgba(241,231,255,${Math.random() * 0.18})`; x.beginPath(); x.arc(Math.random() * s, Math.random() * s, 1 + Math.random() * 3, 0, 7); x.fill(); } });
+      const core = new T.Mesh(new T.SphereGeometry(1.9, 40, 30), new T.MeshStandardMaterial({ map, roughness: 0.5, metalness: 0.2, emissive: 0x3d2370, emissiveIntensity: 0.8 })); per.add(core);
+      per.add(sprite(glow(171, 123, 255), 0xffffff, 10, 0.6));
+      const teams = [0xe04848, 0xfab219, 0x2fb24a, 0x3987e5].map((c, i) => {
+        const pivot = new T.Group(); pivot.rotation.x = 0.25 * (i % 2 ? 1 : -1); per.add(pivot);
+        const hub = new T.Mesh(new T.IcosahedronGeometry(0.34, 0), new T.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.9, flatShading: true })); hub.position.set(4.2, 0, 0); pivot.add(hub);
+        const cl = new T.Group(); cl.position.copy(hub.position); pivot.add(cl);
+        const people = Array.from({ length: 5 }, (_, j) => { const m = new T.Mesh(new T.SphereGeometry(0.13, 10, 8), new T.MeshStandardMaterial({ color: 0xf1e7ff, emissive: c, emissiveIntensity: 0.6 })); const a = (j / 5) * Math.PI * 2; m.position.set(Math.cos(a) * 1.05, Math.sin(a * 2) * 0.3, Math.sin(a) * 1.05); cl.add(m); return m; });
+        return { pivot, hub, cl, people, a0: (i / 4) * Math.PI * 2 };
+      });
+      const lg = new T.BufferGeometry(), lp = new Float32Array(teams.length * 7 * 6); lg.setAttribute('position', new T.BufferAttribute(lp, 3));
+      per.add(new T.LineSegments(lg, new T.LineBasicMaterial({ color: 0xc9a8ff, transparent: true, opacity: 0.25, blending: T.AdditiveBlending })));
+      const orb = new T.Mesh(new T.TorusGeometry(4.2, 0.012, 6, 120), new T.MeshBasicMaterial({ color: 0xc9a8ff, transparent: true, opacity: 0.18 })); orb.rotation.x = Math.PI / 2; per.add(orb);
+      Object.assign(per.userData, { core, teams, lg, lp });
+    }
+    scene.add(sim); scene.add(est); scene.add(per);
+    const hitP = new T.Mesh(new T.SphereGeometry(5.6, 12, 10), new T.MeshBasicMaterial({ visible: false })); per.add(hitP);
     const hitS = new T.Mesh(new T.SphereGeometry(6.5, 12, 10), new T.MeshBasicMaterial({ visible: false })); sim.add(hitS);
     const hitE = new T.Mesh(new T.SphereGeometry(6.8, 12, 10), new T.MeshBasicMaterial({ visible: false })); est.add(hitE);
 
@@ -218,14 +254,15 @@
 
     // Disposición según el tamaño del escenario: los mundos ocupan la parte de arriba y el abanico la de abajo
     let Wd = 0, Hd = 0, sc = 1;
-    const SIM = new T.Vector3(), EST = new T.Vector3();
+    const SIM = new T.Vector3(), EST = new T.Vector3(), PER = new T.Vector3();
     function resize() {
       Wd = eco.clientWidth; Hd = eco.clientHeight; if (!Wd || !Hd) return;
       renderer.setSize(Wd, Hd, false); camera.aspect = Wd / Hd; camera.updateProjectionMatrix();
       const halfW = Math.tan((25 * Math.PI) / 180) * 34 * camera.aspect;
       sc = Math.min(1, halfW / 17.5); const x = Math.min(10.5, halfW * 0.5);
       const y = camera.aspect < 0.8 ? 9.2 : 7.6;
-      SIM.set(-x, y, 0); EST.set(x, y, 0);
+      // Simulador y sistema a los lados; personas y equipos en medio, algo más arriba, con su etiqueta debajo
+      SIM.set(-x, y - 0.6 * sc, 0); EST.set(x, y - 0.6 * sc, 0); PER.set(0, y + 1.6 * sc, 0);
       curve = new T.CatmullRomCurve3([SIM.clone().add(new T.Vector3(3 * sc, 0, 0)), new T.Vector3(0, y + 4.5 * sc, -3), EST.clone().add(new T.Vector3(-3 * sc, 0, 0))]);
     }
     resize(); addEventListener('resize', resize);
@@ -234,11 +271,11 @@
     // Ratón: inclina el espacio y permite elegir un mundo pulsándolo
     let mx = 0, my = 0, tx = 0, ty = 0, over = null;
     const ray = new T.Raycaster(), v2 = new T.Vector2();
-    const pick = (e) => { const r = canvas.getBoundingClientRect(); v2.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(v2, camera); const h = ray.intersectObjects([hitS, hitE]); return h.length ? (h[0].object === hitS ? 'sim' : 'est') : null; };
+    const pick = (e) => { const r = canvas.getBoundingClientRect(); v2.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(v2, camera); const h = ray.intersectObjects([hitS, hitE, hitP]); return h.length ? (h[0].object === hitS ? 'sim' : h[0].object === hitE ? 'est' : 'per') : null; };
     eco.addEventListener('pointermove', (e) => { const r = eco.getBoundingClientRect(); tx = ((e.clientX - r.left) / r.width - 0.5); ty = ((e.clientY - r.top) / r.height - 0.5); if (e.target === canvas) { over = pick(e); canvas.style.cursor = over ? 'pointer' : ''; } });
     canvas.addEventListener('click', (e) => { const w = pick(e); if (w) elegir(w, true); });
 
-    const labels = { sim: $('.eco-w[data-w="sim"]', eco), est: $('.eco-w[data-w="est"]', eco) };
+    const labels = { sim: $('.eco-w[data-w="sim"]', eco), est: $('.eco-w[data-w="est"]', eco), per: $('.eco-w[data-w="per"]', eco) };
     const v3 = new T.Vector3();
     const t0 = performance.now(); let last = t0;
     (function loop(now) {
@@ -248,10 +285,10 @@
       mx += (tx - mx) * 0.05; my += (ty - my) * 0.05;
       camera.position.set(mx * 6, -my * 3 + 1, 34); camera.lookAt(0, 1.5, 0);
       // El mundo elegido se acerca y brilla; el otro se queda atrás
-      [[sim, SIM, 'sim'], [est, EST, 'est']].forEach(([g, P, k]) => {
+      [[sim, SIM, 'sim'], [est, EST, 'est'], [per, PER, 'per']].forEach(([g, P, k]) => {
         const on = mundo === k, s = sc * (on ? 1.12 : over === k ? 0.98 : 0.86);
         g.scale.setScalar(g.scale.x + (s - g.scale.x) * 0.08);
-        const z = on ? 3 : -2; g.position.set(P.x, P.y + Math.sin(t * 0.8 + (k === 'sim' ? 0 : 2)) * 0.25, g.position.z + (z - g.position.z) * 0.06);
+        const z = on ? 3 : -2; g.position.set(P.x, P.y + Math.sin(t * 0.8 + ({ sim: 0, est: 2, per: 4 })[k]) * 0.25, g.position.z + (z - g.position.z) * 0.06);
       });
       sim.userData.spin.rotation.y += dt * 0.18; sim.userData.ring.rotation.z += dt * 0.05;
       sim.userData.moons.forEach((m) => { m.h.rotation.y += dt * m.sp; });
@@ -259,12 +296,16 @@
       E.shells.forEach((s, i) => { s.rotation.y += dt * (0.12 + i * 0.05) * (i % 2 ? -1 : 1); });
       E.nodes.forEach((m, i) => { m.rotation.y += dt; m.getWorldPosition(v3); est.worldToLocal(v3); E.lp.set([0, 0, 0, v3.x, v3.y, v3.z], i * 6); });
       E.lg.attributes.position.needsUpdate = true;
+      { const PU = per.userData; PU.core.rotation.y += dt * 0.1; let li = 0; const put = (a, b) => { PU.lp.set([a.x, a.y, a.z, b.x, b.y, b.z], li * 6); li++; }; const hb = new T.Vector3(), pp = new T.Vector3(), o = new T.Vector3();
+        PU.teams.forEach((q, i) => { q.pivot.rotation.y = q.a0 + t * 0.16; q.cl.rotation.y = -t * (0.5 + i * 0.08); q.hub.getWorldPosition(hb); per.worldToLocal(hb); put(o, hb); q.people.forEach((m) => { m.getWorldPosition(pp); per.worldToLocal(pp); put(hb, pp); }); const nx = PU.teams[(i + 1) % PU.teams.length]; nx.hub.getWorldPosition(pp); per.worldToLocal(pp); put(hb, pp); });
+        PU.lg.attributes.position.needsUpdate = true; }
       for (let i = 0; i < flowN; i++) { fT[i] = (fT[i] + dt * 0.12 * (0.6 + (i % 5) * 0.12)) % 1; const p = curve.getPoint(fT[i]); fPos.set([p.x + Math.sin(i * 7.1 + t) * 0.35, p.y + Math.cos(i * 3.7 + t) * 0.35, p.z], i * 3); }
       flow.geometry.attributes.position.needsUpdate = true;
       galaxy.rotation.z += dt * 0.01;
       renderer.render(scene, camera);
       // Etiquetas sobre cada mundo
-      [['sim', sim, SIM], ['est', est, EST]].forEach(([k, g, P]) => { v3.set(P.x, P.y + (camera.aspect < 0.8 ? 6.4 : 4.6) * sc, 0); v3.project(camera); const x = (v3.x * 0.5 + 0.5) * Wd, y = (-v3.y * 0.5 + 0.5) * Hd; const tf = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`; if (labels[k]._tf !== tf) { labels[k]._tf = tf; labels[k].style.transform = tf; } });
+      // El de personas va debajo de su planeta para no tapar a los otros dos
+      [['sim', sim, SIM], ['est', est, EST], ['per', per, PER]].forEach(([k, g, P]) => { const bajo = k === 'per'; v3.set(P.x, P.y + (bajo ? -(camera.aspect < 0.8 ? 3.4 : 3) : (camera.aspect < 0.8 ? 6.4 : 4.6)) * sc, 0); v3.project(camera); const x = (v3.x * 0.5 + 0.5) * Wd, y = (-v3.y * 0.5 + 0.5) * Hd; const tf = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, ${bajo ? '0' : '-100%'})`; if (labels[k]._tf !== tf) { labels[k]._tf = tf; labels[k].style.transform = tf; } });
     })(performance.now());
   }
 })();

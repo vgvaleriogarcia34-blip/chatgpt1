@@ -91,8 +91,8 @@
     if (p.roles && p.roles.scores && pu.roles && pu.roles.length) {
       const v = pu.roles.map((k) => ({ k, v: p.roles.scores[k] || 0 }));
       out.roles = r0(v.reduce((a, x) => a + x.v, 0) / v.length);
-      v.filter((x) => x.v < 50).forEach((x) => out.brechas.push({ tipo: 'rol', k: x.k, txt: `El rol de ${H.ROLES[x.k].n.toLowerCase()}, clave en el puesto, no le sale natural (${x.v} %).` }));
-      v.filter((x) => x.v >= 70).forEach((x) => out.fuertes.push(`Rol de ${H.ROLES[x.k].n.toLowerCase()} muy natural (${x.v} %).`));
+      v.filter((x) => x.v < 50).forEach((x) => out.brechas.push({ tipo: 'rol', k: x.k, txt: `La aportación de ${H.ROLES[x.k].n.toLowerCase()}, clave en el puesto, no le sale natural (${x.v} %).` }));
+      v.filter((x) => x.v >= 70).forEach((x) => out.fuertes.push(`Aportación de ${H.ROLES[x.k].n.toLowerCase()} muy natural (${x.v} %).`));
     }
     if (out.disc != null && out.roles != null) out.total = r0(out.disc * 0.6 + out.roles * 0.4);
     else out.total = out.disc != null ? out.disc : out.roles;
@@ -135,7 +135,7 @@
       if (out.dist[top] / conDisc.length > 0.6) out.avisos.push({ st: 'warn', t: `Equipo muy homogéneo: ${out.dist[top]} de ${conDisc.length} personas tienen estilo ${H.DISC[top].n.toLowerCase()}. Ganan en entendimiento, pero comparten los mismos puntos ciegos.` });
       ['D', 'I', 'S', 'C'].forEach((k) => { if (!out.dist[k] && out.media && out.media[k] < 40) out.avisos.push({ st: 'warn', t: `Nadie aporta ${H.DISC[k].n.toLowerCase()} (${H.DISC[k].corto.toLowerCase()}). ${{ D: 'Pueden faltar decisiones rápidas y empuje.', I: 'Puede faltar comunicación, ánimo y venta de las ideas.', S: 'Puede faltar constancia, paciencia y cuidado del clima.', C: 'Puede faltar rigor, control de calidad y análisis.' }[k]}` }); });
     }
-    if (out.faltan.length) out.avisos.push({ st: out.faltan.length > 2 ? 'stop' : 'warn', t: `Roles sin cubrir: ${out.faltan.map((k) => H.ROLES[k].n.toLowerCase()).join(', ')}. ${H.ROLES[out.faltan[0]].falta}` });
+    if (out.faltan.length) out.avisos.push({ st: out.faltan.length > 2 ? 'stop' : 'warn', t: `Aportaciones sin cubrir: ${out.faltan.map((k) => H.ROLES[k].n.toLowerCase()).join(', ')}. ${H.ROLES[out.faltan[0]].falta}` });
     if (out.tensiones.length) out.avisos.push({ st: 'warn', t: `${out.tensiones.length} posible${out.tensiones.length > 1 ? 's' : ''} punto${out.tensiones.length > 1 ? 's' : ''} de fricción entre estilos. No son conflictos: son diferencias que conviene pactar.` });
     if (miembros.length && conDisc.length < miembros.length) out.avisos.push({ st: 'info', t: `${miembros.length - conDisc.length} de ${miembros.length} personas no tienen aún su DISC: el análisis es parcial.` });
     // Próxima incorporación: el rol que más falta y el estilo menos presente
@@ -195,18 +195,18 @@
   R.tablillasDe = (p) => {
     const out = [], add = (id, motivo, prio) => { const t = tab(id); if (!t) return; const ya = out.find((x) => x.t.id === id); if (ya) { if (!ya.motivos.includes(motivo)) ya.motivos.push(motivo); ya.prio = Math.min(ya.prio, prio); return; } out.push({ t, motivos: [motivo], prio }); };
     const pu = R.puestoDe(p), enc = R.encaje(p, pu);
-    if (enc) enc.brechas.forEach((b) => { if (b.tipo === 'rol') add('r-' + b.k, `Su puesto (${pu.nombre}) pide el rol de ${H.ROLES[b.k].n.toLowerCase()}.`, 1); else if (b.d > 0) add(MAS_DISC[b.k], `Su puesto pide más ${H.DISC[b.k].n.toLowerCase()}.`, 1); });
+    if (enc) enc.brechas.forEach((b) => { if (b.tipo === 'rol') add('r-' + b.k, `Su puesto (${pu.nombre}) pide la aportación de ${H.ROLES[b.k].n.toLowerCase()}.`, 1); else if (b.d > 0) add(MAS_DISC[b.k], `Su puesto pide más ${H.DISC[b.k].n.toLowerCase()}.`, 1); });
     if (p.disc) { const e = R.discEstilo(p.disc); if (p.disc[e.pri] >= 65) H.TABLILLAS.filter((t) => t.cuando.disc === e.pri).forEach((t) => add(t.id, `Su estilo principal es ${H.DISC[e.pri].n.toLowerCase()} (${p.disc[e.pri]}): entrena sus excesos.`, 2)); }
     if (p.enea && p.enea.tipo) add('e-' + p.enea.tipo, `Eneatipo ${p.enea.tipo} · ${H.ENEA[p.enea.tipo].n}.`, 3);
     R.state.equipos.filter((q) => q.miembros.includes(p.id)).forEach((q) => {
       const an = R.analizarEquipo(q.miembros);
-      an.faltan.forEach((k) => { if (p.roles && p.roles.scores && p.roles.scores[k] >= 45) add('r-' + k, `Al equipo ${q.nombre} le falta el rol de ${H.ROLES[k].n.toLowerCase()} y es quien más cerca está de cubrirlo.`, 1); });
+      an.faltan.forEach((k) => { if (p.roles && p.roles.scores && p.roles.scores[k] >= 45) add('r-' + k, `Al equipo ${q.nombre} le falta la aportación de ${H.ROLES[k].n.toLowerCase()} y es quien más cerca está de cubrirlo.`, 1); });
     });
     return out.sort((a, b) => a.prio - b.prio);
   };
   R.tablillasEquipo = (an) => {
     const out = [];
-    an.faltan.forEach((k) => out.push({ t: tab('r-' + k), motivos: [`Falta el rol de ${H.ROLES[k].n.toLowerCase()}: ${H.ROLES[k].falta}`] }));
+    an.faltan.forEach((k) => out.push({ t: tab('r-' + k), motivos: [`Falta la aportación de ${H.ROLES[k].n.toLowerCase()}: ${H.ROLES[k].falta}`] }));
     if (an.tensiones.length || an.avisos.some((a) => /homogéneo/.test(a.t))) out.push({ t: tab('q-acuerdo'), motivos: ['Hay estilos que chocan o muy parecidos: conviene pactar cómo se trabaja.'] });
     out.push({ t: tab('q-revision'), motivos: ['Recomendada para todos los equipos.'] });
     return out.filter((x) => x.t);
@@ -300,6 +300,13 @@
     if (Pl) {
       const ok = await Pl.guard(); if (!ok) return;
       Pl.mountAccount($('#account'));
+      // Personas y equipos es del plan Consultora: el resto lo ve explicado y puede cambiar de plan; sus datos se conservan
+      if (Pl.puede && !Pl.puede('personas')) {
+        $('#peTabs').innerHTML = '';
+        $('#pePanel').innerHTML = `<div class="glass pad stack" style="max-width:740px;margin:40px auto"><div class="eyebrow">Personas y equipos</div><h2>Incluido en el plan <em>Consultora</em></h2><p>Perfiles de comportamiento (DISC), mapa de aportaciones al equipo y eneagrama; puestos y encaje persona-puesto; organigrama, relevos y mapa de talento; equipos equilibrados, liderazgo a medida y tablillas de entrenamiento, con informes para presentar a la empresa.</p><p class="small muted">Si ya tenías datos aquí, se conservan: vuelven a estar disponibles al pasar a Consultora.</p><div class="row"><button class="btn solid" id="pePlanes">Ver el plan Consultora</button><a class="btn" href="portal.html">Volver al puesto de mando</a></div></div>`;
+        $('#pePlanes').onclick = () => Pl.panelPlanes({ destacar: 'consultora' });
+        return;
+      }
       if (Pl.empresas) await Pl.empresas.cargar();
     }
     R.state = LS.get(LSK());

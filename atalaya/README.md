@@ -1,4 +1,4 @@
-# Atalaya
+# Atalaya 360°
 
 Plataforma para que una empresa decida si puede afrontar una inversión **sin romper liquidez y pagándola con su propia rentabilidad**, y para analizar, diagnosticar y evaluar toda la empresa con un sistema integrado de decisiones estratégicas. **Atalaya es una herramienta de diagnóstico, no de gestión**: no sustituye al ERP ni lleva el día a día; trabaja sobre fotos a una fecha de corte para decidir mejor y comparar escenarios. Pensada para empresarios sin formación financiera: cada indicador tiene su horquilla verde, ámbar y roja, las variables que lo mueven y un asistente al que se le puede hablar.
 
@@ -12,19 +12,19 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con tres mundos (simulador de inversión, sistema estratégico y personas y equipos) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
 | `estrategia.html` | Sistema estratégico integrado (21 módulos). |
-| `personas.html` | Personas y equipos (todos los planes): DISC, roles de equipo, eneagrama, puestos, encaje persona-puesto, organigrama, mapa de talento, equipos, tablillas de entrenamiento e informes. |
+| `personas.html` | Personas y equipos (plan Consultora): DISC, aportaciones al equipo, eneagrama, puestos, encaje persona-puesto, organigrama, mapa de talento, equipos, tablillas de entrenamiento e informes. |
 | `reloj.html` | Reloj de tareas en ventana aparte, para tenerlo abierto en el ordenador de cada persona. |
 | `manual.html` | Manual de uso completo, con buscador. Es parte del área de clientes: solo se abre con sesión y acceso vigente (o con la sesión de administración). |
 | `admin.html` | Gestor de usuarios: acceso, pagos, vencimientos, horas de uso, cambio de contraseña de los usuarios y enlaces de recuperación. Sin enlace visible: se entra por la barra de direcciones (`admin.html` o `#admin` en la página principal). Se entra con una **contraseña de administración propia**, que no pertenece a ninguna cuenta de usuario. |
 
 ## Personas y equipos (`personas.html`)
 
-Tercer mundo, incluido en todos los planes. Análisis, auditoría y estructura de las personas: sin control horario, nóminas ni seguimiento del día a día. Datos por empresa (`atalaya.personas.v1`, en el servidor `personas` / `personas--id`).
+Tercer mundo, exclusivo del plan Consultora (el resto lo ve y se le ofrece; el servidor rechaza guardar en otros planes). Análisis, auditoría y estructura de las personas: sin control horario, nóminas ni seguimiento del día a día. Datos por empresa (`atalaya.personas.v1`, en el servidor `personas` / `personas--id`).
 
-- **Herramientas**: DISC (12 bloques de «más» y «menos», o valores de un test externo), roles de equipo (27 frases, inspirado en Belbin, no el inventario oficial) y eneagrama (27 frases: tipo, ala y centro). Cuestionarios propios con su lectura: qué aporta, qué necesita, cómo comunicarse, bajo presión, cómo liderarle.
+- **Herramientas**: DISC (12 bloques de «más» y «menos», o valores de un test externo), mapa de aportaciones al equipo (27 frases y nueve aportaciones con nombres propios: inventor, explorador, orquestador, motor, analista, conciliador, constructor, garante y experto) y eneagrama (27 frases: tipo, ala y centro). Cuestionarios propios con su lectura: qué aporta, qué necesita, cómo comunicarse, bajo presión, cómo liderarle.
 - **Consentimiento**: no se pasa un cuestionario sin marcarlo; aviso de uso responsable (no son diagnósticos ni criterio único para decisiones sobre personas).
-- **Estructura**: puestos con perfil ideal (9 plantillas), encaje persona-puesto (60 % DISC + 40 % roles clave) con brechas y ranking por puesto, organigrama con auditoría (amplitud de mando, niveles, áreas de una persona, puestos críticos sin sucesor) y mapa de talento 9-box.
-- **Equipos**: rueda de estilos, roles cubiertos, centros del eneagrama, fricciones probables entre estilos y perfil a incorporar.
+- **Estructura**: puestos con perfil ideal (9 plantillas), encaje persona-puesto (60 % DISC + 40 % aportaciones clave) con brechas y ranking por puesto, organigrama con auditoría (amplitud de mando, niveles, áreas de una persona, puestos críticos sin sucesor) y mapa de talento 9-box.
+- **Equipos**: rueda de estilos, aportaciones cubiertas, centros del eneagrama, fricciones probables entre estilos y perfil a incorporar.
 - **Tablillas de entrenamiento** (28) que se proponen solas según estilo, puesto, eneatipo y equipo; informes de persona, tablillas, equipo y organización.
 - Se puede traer la plantilla del organigrama del sistema estratégico. Código: `js/personas/datos.js` (contenido), `core.js` (cálculos y navegación), `modulos.js` (pantallas e informes).
 

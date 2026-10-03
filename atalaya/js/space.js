@@ -33,7 +33,7 @@
   if (!reduce) $$('.lp-h1, .lp-h2').forEach(partir);
 
   /* ---------- Piezas flotantes ---------- */
-  const SEL_CARD = '.lp-pains > .lp-card, .lp-duo > .lp-card, .lp-stats, .lp-steps > li, #plans > .plan, .lp-compare, .faq > details, .lp-final, .lp-demo-cta, #mods > .lp-mod, .lp-kicker';
+  const SEL_CARD = '.lp-pains > .lp-card, .lp-duo > .lp-card, .lp-stats, .lp-steps > li, #plans > .plan, .lp-compare, .faq > details, .lp-final, .lp-demo-cta, #mods > .lp-mod, .lp-kicker, .lp-per, .lp-ways > .lp-card, .lp-team > .lp-card, .lp-case, .lp-band, .lp-seq';
   const SEL_TYPE = '.lp-h1, .lp-h2';
   const items = [];
   let seed = 7; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);

@@ -375,6 +375,8 @@ route('PUT', /^\/api\/data\/([a-z0-9_-]{1,40})$/i, async (req, res, body, u, m) 
     // Se puede quedar igual o bajar aunque se esté por encima (p. ej. tras cambiar a un plan menor), pero no subir del límite
     if (lista.length > lim && lista.length > antes) throw Object.assign(new Error(lim === 1 ? 'Tu plan incluye una empresa. Para varias, pasa a Consultora o a Grupos.' : `Tu plan incluye hasta ${lim} empresas.`), { code: 403 });
   }
+  // Personas y equipos es del plan Consultora: el resto puede leer lo que tuviera, pero no guardar
+  if (/^personas(--|$)/.test(key) && body !== null && u.plan !== 'consultora') throw Object.assign(new Error('Personas y equipos está incluido en el plan Consultora.'), { code: 403 });
   const sub = key.match(/^(simulador|estrategia|personas)--([a-z0-9_-]+)$/i);
   if (sub && body !== null) {
     const ids = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.map((e) => e && e.id) : [];

@@ -20,9 +20,9 @@
   /* Planes. «empresas» es el límite de empresas o sociedades de la cuenta; Grupos cobra por tramos según cuántas tenga.
      Pago anual: un 30 % de descuento sobre el precio mensual, pagando el año por adelantado. */
   const PLANES = {
-    esencial: { nombre: 'Esencial', precio: 49, periodo: 'mes', empresas: 1, para: 'Para estudiar una inversión', incluye: ['Simulador de inversión y crecimiento', 'Horizonte 3D y cinco escenarios', 'Semáforos con horquillas y plan de corrección', 'Informe de decisión', 'Personas y equipos: DISC, roles de equipo, eneagrama, encaje persona-puesto y tablillas', '1 empresa'] },
+    esencial: { nombre: 'Esencial', precio: 49, periodo: 'mes', empresas: 1, para: 'Para estudiar una inversión', incluye: ['Simulador de inversión y crecimiento', 'Horizonte 3D y cinco escenarios', 'Semáforos con horquillas y plan de corrección', 'Informe de decisión', '1 empresa'] },
     profesional: { nombre: 'Profesional', precio: 129, periodo: 'mes', empresas: 1, destacado: true, para: 'Para diagnosticar tu empresa y decidir', incluye: ['Todo lo de Esencial', 'Sistema estratégico completo: 21 módulos, zona de origen de datos e informes 360', 'Análisis de cuentas de varios años', 'Asistente con voz', '1 empresa'] },
-    consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
+    consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Personas y equipos: DISC, aportaciones al equipo, eneagrama, encaje persona-puesto, liderazgo y tablillas de entrenamiento', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
     // Grupos se contrata a medida con el equipo: no se publica precio. Los tramos quedan como referencia interna de administración
     grupos: { nombre: 'Grupos', precio: 690, periodo: 'mes', empresas: Infinity, grupo: true, aMedida: true, para: 'Para holdings y grupos familiares', tramos: [{ hasta: 5, precio: 690, n: 'De 1 a 5 sociedades' }, { hasta: 10, precio: 970, n: 'De 6 a 10 sociedades' }, { hasta: Infinity, precio: 1790, n: 'Más de 10 sociedades' }], incluye: ['Todo lo de Profesional, en cada sociedad del grupo', 'Estructuras de holding: sociedad dominante, filiales y participaciones, con su mapa', 'Vista de grupo: consolidado con eliminaciones intragrupo, comparativa y tesorería entre sociedades', 'Informes del grupo e informe 360 de cada sociedad', 'Plan estratégico de toda la corporación: objetivos de la holding en cascada a cada sociedad', 'Sociedades sin límite y acompañamiento de nuestro equipo'] }
   };
@@ -360,13 +360,15 @@
     if (f === 'varias') return pl.empresas > 1;
     if (f === 'grupo') return !!pl.grupo;
     if (f === 'cartera') return k === 'consultora';
+    // Personas y equipos (y su liderazgo) es exclusivo del plan Consultora
+    if (f === 'personas') return k === 'consultora';
     return true;
   };
   P.PLAN_RESUMEN = {
-    esencial: { mundos: 'Simulador de inversión y personas y equipos', empresas: '1 empresa', vista: '—' },
-    profesional: { mundos: 'Simulador, sistema estratégico y personas y equipos', empresas: '1 empresa', vista: '—' },
+    esencial: { mundos: 'Simulador de inversión', empresas: '1 empresa', vista: '—' },
+    profesional: { mundos: 'Simulador y sistema estratégico', empresas: '1 empresa', vista: '—' },
     consultora: { mundos: 'Simulador, sistema estratégico y personas y equipos', empresas: 'Hasta 15 empresas cliente', vista: 'Cartera de clientes' },
-    grupos: { mundos: 'Simulador, sistema estratégico y personas y equipos', empresas: 'Sociedades sin límite', vista: 'Vista de grupo con consolidado' }
+    grupos: { mundos: 'Simulador y sistema estratégico', empresas: 'Sociedades sin límite', vista: 'Vista de grupo con consolidado' }
   };
   P.cambiarPlan = async function (plan, periodo) {
     if (!PLANES[plan]) throw new Error('Plan no válido');
@@ -388,23 +390,25 @@
   };
   P.formContacto = function (opts) {
     opts = opts || {};
-    const u = P.user || {};
+    const u = P.user || {}, ses = opts.tipo === 'sesion';
     const back = document.createElement('div'); back.className = 'ef-back';
     back.innerHTML = `<form class="ef-card glass" role="dialog" aria-modal="true" aria-label="Contactar con nuestro equipo" style="width:min(600px,100%)">
       <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
-      <div class="eyebrow">Plan Grupos · a medida</div>
+      ${ses ? `<div class="eyebrow">Business Avance · sesión de 60 minutos</div>
+      <h3 style="margin:0;font-family:var(--font-display);font-weight:700;font-size:1.5rem">Traiga sus objetivos</h3>
+      <p class="small muted" style="margin:0">Una sesión de 60 minutos con la dirección de Business Avance: si sus objetivos son alcanzables con la estructura que tiene hoy, cuánto le cuestan hoy los problemas que ve y qué retorno puede esperar. Sin coste y sin propuesta comercial.</p>` : `<div class="eyebrow">Plan Grupos · a medida</div>
       <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.5rem">Hablemos de tu grupo</h3>
-      <p class="small muted" style="margin:0">El plan Grupos se ajusta a cada holding o grupo familiar: número de sociedades, estructura y acompañamiento. Déjanos tus datos y nuestro equipo te llama para preparar la propuesta.</p>
+      <p class="small muted" style="margin:0">El plan Grupos se ajusta a cada holding o grupo familiar: número de sociedades, estructura y acompañamiento. Déjanos tus datos y nuestro equipo te llama para preparar la propuesta.</p>`}
       <div class="ef-grid">
         <label><span>Nombre</span><input class="input" name="nombre" required value="${escH(u.nombre || '')}"></label>
         <label><span>Correo</span><input class="input" name="email" type="email" required value="${escH(u.email || '')}"></label>
         <label><span>Teléfono</span><input class="input" name="telefono" value="${escH(u.telefono || '')}"></label>
-        <label><span>Grupo o sociedad dominante</span><input class="input" name="empresa" value="${escH(u.empresa || '')}"></label>
-        <label><span>Número de sociedades</span><input class="input" name="sociedades" type="number" min="1" placeholder="Por ejemplo, 4"></label>
-        <label class="ef-wide"><span>Qué necesitas</span><textarea class="input" name="mensaje" rows="3" placeholder="Estructura del grupo, qué quieres consolidar, plazos…"></textarea></label>
+        <label><span>${ses ? 'Empresa' : 'Grupo o sociedad dominante'}</span><input class="input" name="empresa" value="${escH(u.empresa || '')}"></label>
+        <label><span>${ses ? 'Personas en plantilla' : 'Número de sociedades'}</span><input class="input" name="sociedades" type="number" min="1" placeholder="${ses ? 'Por ejemplo, 60' : 'Por ejemplo, 4'}"></label>
+        <label class="ef-wide"><span>${ses ? 'Sus objetivos' : 'Qué necesitas'}</span><textarea class="input" name="mensaje" rows="3" placeholder="${ses ? 'Qué quiere conseguir este año: margen, crecimiento, inversión, equipo…' : 'Estructura del grupo, qué quieres consolidar, plazos…'}"></textarea></label>
       </div>
       <p class="small" data-msg style="margin:0"></p>
-      <div class="row"><button class="btn solid" type="submit">Enviar a nuestro equipo</button><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
+      <div class="row"><button class="btn solid" type="submit">${ses ? 'Solicitar la sesión' : 'Enviar a nuestro equipo'}</button><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
     </form>`;
     document.body.appendChild(back);
     const f = back.querySelector('form'), close = () => back.remove();
@@ -414,7 +418,7 @@
       ev.preventDefault();
       const d = { plan: opts.plan || 'grupos', origen: opts.origen || location.pathname.split('/').pop(), cuenta: u.id || null };
       ['nombre', 'email', 'telefono', 'empresa', 'sociedades', 'mensaje'].forEach((k) => { d[k] = f[k].value.trim(); });
-      try { await P.contactar(d); f.innerHTML = `<button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button><div class="eyebrow">Recibido</div><h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.5rem">Gracias, ${escH(d.nombre.split(' ')[0])}</h3><p>Nuestro equipo te contactará en ${escH(d.email)}${d.telefono ? ' o en el ' + escH(d.telefono) : ''} para preparar la propuesta del plan Grupos.</p><div class="row"><button type="button" class="btn solid" data-ok>Cerrar</button></div>`; f.querySelector('.ef-x').onclick = close; f.querySelector('[data-ok]').onclick = close; }
+      try { await P.contactar(d); f.innerHTML = `<button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button><div class="eyebrow">Recibido</div><h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.5rem">Gracias, ${escH(d.nombre.split(' ')[0])}</h3><p>${ses ? `La dirección de Business Avance le escribirá a ${escH(d.email)}${d.telefono ? ' o le llamará al ' + escH(d.telefono) : ''} para fijar la sesión.` : `Nuestro equipo te contactará en ${escH(d.email)}${d.telefono ? ' o en el ' + escH(d.telefono) : ''} para preparar la propuesta del plan Grupos.`}</p><div class="row"><button type="button" class="btn solid" data-ok>Cerrar</button></div>`; f.querySelector('.ef-x').onclick = close; f.querySelector('[data-ok]').onclick = close; }
       catch (x) { f.querySelector('[data-msg]').textContent = x.message; }
     };
   };
