@@ -1,0 +1,44 @@
+/* Atalaya · Página pública de un cuestionario */
+.tp-page { background: var(--abyss); min-height: 100vh; display: flex; flex-direction: column; }
+.tp-top { display: flex; align-items: center; gap: 12px; padding: 16px; max-width: 760px; width: 100%; margin: 0 auto; }
+.tp-brand b { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.02em; font-size: 1.2rem; }
+.tp-brand span { color: var(--gold); font-family: var(--font-display); font-weight: 700; }
+.tp-emp { margin-left: auto; color: var(--muted); font-size: var(--t-s); text-align: right; }
+.tp-main { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: 8px 16px 32px; }
+.tp-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: clamp(18px, 4vw, 32px); gap: 16px; }
+.tp-card h1 { font-size: clamp(1.6rem, 5vw, 2.4rem); margin: 0; line-height: 1.1; }
+.tp-card h1 em { display: block; font-style: normal; color: var(--gold); }
+.tp-card p { margin: 0; }
+.tp-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.tp-meta span { font: 500 0.72rem var(--font-data); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
+.tp-legal { font-size: var(--t-s); color: var(--muted); border-left: 2px solid var(--gold); padding: 8px 12px; background: rgba(255, 255, 255, 0.02); }
+.tp-legal b { color: var(--fg); }
+.tp-check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.tp-check input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--gold); flex: none; }
+.tp-prog { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.tp-prog span { display: block; height: 100%; background: var(--gold); transition: width 0.25s; }
+.tp-n { font: 500 0.72rem var(--font-data); color: var(--muted); letter-spacing: 0.08em; margin-top: -8px; }
+.tp-q { font-size: clamp(1.05rem, 3.4vw, 1.25rem); line-height: 1.45; }
+.tp-ops { display: grid; gap: 8px; }
+.tp-op { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; cursor: pointer; min-height: 48px; }
+.tp-op span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line-strong); font: 600 0.75rem var(--font-data); color: var(--muted); }
+.tp-op:hover, .tp-ev:hover { background: rgba(201, 242, 77, 0.06); }
+.tp-op[aria-pressed="true"], .tp-ev[aria-pressed="true"] { border-color: var(--gold); background: rgba(201, 242, 77, 0.12); }
+.tp-op[aria-pressed="true"] span { background: var(--gold); color: #05060a; border-color: var(--gold); }
+.tp-esc { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.tp-ev { display: grid; gap: 4px; justify-items: center; padding: 12px 4px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; cursor: pointer; }
+.tp-ev b { font: 600 1.2rem var(--font-data); }
+.tp-ev span { font-size: 0.72rem; color: var(--muted); text-align: center; }
+.tp-disc { display: grid; gap: 4px; }
+.tp-dh, .tp-dr { display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; align-items: center; gap: 6px; }
+.tp-dh span { font: 500 0.7rem var(--font-data); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); text-align: center; }
+.tp-dr { padding: 6px 0; border-top: 1px solid var(--line); font-size: 1.05rem; }
+.tp-rb { justify-self: center; width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--line-strong); background: transparent; cursor: pointer; }
+.tp-rb.on { background: var(--go); border-color: var(--go); }
+.tp-rb.menos.on { background: var(--stop); border-color: var(--stop); }
+.tp-nav { gap: 8px; }
+.tp-save { min-height: 1em; }
+.tp-code { font: 600 clamp(1.3rem, 6vw, 2rem) var(--font-data); letter-spacing: 0.08em; text-align: center; padding: 18px 10px; border-radius: 12px; border: 1px dashed var(--gold); color: var(--gold); word-break: break-all; user-select: all; }
+.tp-res { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 8px; }
+.tp-foot { text-align: center; color: var(--faint); font-size: var(--t-xs); padding: 16px; }
+@media (max-width: 420px) { .tp-ev span { font-size: 0.6rem; } .tp-dh, .tp-dr { grid-template-columns: minmax(0, 1fr) 52px 52px; } }

@@ -193,3 +193,15 @@
 .lid-map td.small { min-width: 200px; }
 .lid-map select.input { min-width: 150px; }
 .lid-four { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+
+/* ---------- Test a distancia ---------- */
+.pe-env { max-width: 640px; }
+.pe-dest { display: grid; gap: 6px; max-height: 40vh; overflow: auto; }
+.pe-dr { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.2fr); gap: 8px; align-items: center; font-size: var(--t-s); }
+.pe-dr .input { padding: 6px 8px; font-size: var(--t-s); }
+@media (max-width: 520px) { .pe-dr { grid-template-columns: auto minmax(0, 1fr); } .pe-dr .input { grid-column: 1 / -1; } }
+.tp-inline { display: flex; gap: 8px; align-items: center; }
+.pe-link { display: grid; gap: 6px; }
+.pe-link .input { font: 400 0.75rem var(--font-data); }
+.pe-codein { font: 500 1.1rem var(--font-data); letter-spacing: 0.08em; text-transform: uppercase; }
+.pe-toast { background: var(--panel) !important; position: fixed; z-index: 90; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: min(92vw, 560px); box-shadow: var(--shadow); }

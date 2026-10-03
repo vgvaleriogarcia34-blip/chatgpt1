@@ -408,6 +408,88 @@ route('PUT', /^\/api\/data\/([a-z0-9_-]{1,40})$/i, async (req, res, body, u, m) 
   mine[key] = body; save(); return { ok: true };
 });
 
+/* ---------- Test de personas por enlace ----------
+   El responsable crea una invitación de un solo uso (caduca a los 14 días) para que una persona responda
+   un test sin cuenta. La persona da su consentimiento y responde (puede dejarlo a medias y retomarlo);
+   la aplicación recoge las respuestas completadas y las lleva a su ficha. */
+const INV_DIAS = 14;
+const TESTS_INV = { disc: 12, roles: 27, enea: 27, lid: 12, lid360: 12, prep: 8 };
+const TEST_NOMBRE = { disc: 'estilo de comportamiento (DISC)', roles: 'aportaciones al equipo', enea: 'motivación (eneagrama)', lid: 'estilo de liderazgo', lid360: 'cómo dirige su responsable', prep: 'preparación para una tarea' };
+db.invitaciones = db.invitaciones || {};
+const invEstado = (v) => (['completado', 'anulado'].includes(v.estado) ? v.estado : Date.parse(v.caduca) < Date.now() ? 'caducado' : v.estado);
+const invPub = (v) => ({ id: v.id, empresaId: v.empresaId, pid: v.pid, nombre: v.nombre, test: v.test, tid: v.tid, tarea: v.tarea, lider: v.lider, email: v.email, estado: invEstado(v), creado: v.creado, caduca: v.caduca, abierto: v.abierto, actualizado: v.actualizado, completado: v.completado, importada: v.importada, recordatorios: v.recordatorios || 0, progreso: Array.isArray(v.resp) ? v.resp.filter((x) => x != null).length : 0, total: TESTS_INV[v.test], resp: v.estado === 'completado' ? v.resp : undefined, de: v.de, url: `${APP_URL}/test.html#t=${v.token}` });
+const invDe = (u, id) => { const v = Object.values(db.invitaciones).find((x) => x.id === id && x.owner === u.id); if (!v) throw Object.assign(new Error('Invitación no encontrada'), { code: 404 }); return v; };
+const invMail = (v, recordatorio) => sendMail(v.email, `${recordatorio ? 'Recordatorio: ' : ''}${v.empresa || 'Su empresa'} le pide responder un cuestionario`,
+  `Hola${v.nombre ? ', ' + v.nombre : ''}:\n\n${v.empresa || 'Su empresa'} le invita a responder un cuestionario breve sobre ${TEST_NOMBRE[v.test]}${v.tarea ? ' («' + v.tarea + '»)' : ''}${v.lider && v.test === 'lid360' ? ', pensando en ' + v.lider : ''}.\n\nSe responde en unos minutos, sin crear ninguna cuenta. Antes de empezar verá para qué se usan sus respuestas y podrá aceptar o no.\n\n${APP_URL}/test.html#t=${v.token}\n\nEl enlace es personal y caduca el ${new Date(v.caduca).toLocaleDateString('es-ES')}.\n\nAtalaya 360°`);
+function nuevaInv(u, body) {
+  const token = crypto.randomBytes(24).toString('base64url');
+  const v = { id: 'i' + crypto.randomBytes(6).toString('hex'), token, owner: u.id, empresaId: String(body.empresaId || 'principal').slice(0, 40), empresa: String(body.empresa || '').slice(0, 120), pid: String(body.pid || '').slice(0, 40), nombre: String(body.nombre || '').slice(0, 120), test: body.test, tid: body.tid ? String(body.tid).slice(0, 40) : null, tarea: body.tarea ? String(body.tarea).slice(0, 160) : null, lider: body.lider ? String(body.lider).slice(0, 120) : null, de: body.de ? String(body.de).slice(0, 40) : null, email: body.email ? String(body.email).trim().toLowerCase().slice(0, 160) : null, resumen: body.resumen !== false, estado: 'enviado', creado: now(), caduca: new Date(Date.now() + INV_DIAS * 864e5).toISOString(), resp: null };
+  db.invitaciones[sha(token)] = v;
+  return v;
+}
+route('POST', /^\/api\/invitaciones$/, async (req, res, body, u) => {
+  if (u.plan !== 'consultora') throw Object.assign(new Error('Los test por enlace están incluidos en el plan Consultora.'), { code: 403 });
+  const lista = Array.isArray(body.lista) ? body.lista : [body];
+  if (!lista.length || lista.length > 100) throw Object.assign(new Error('Entre 1 y 100 invitaciones por envío'), { code: 400 });
+  const out = [];
+  for (const b of lista) {
+    if (!TESTS_INV[b.test]) throw Object.assign(new Error('Test no válido'), { code: 400 });
+    if (b.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(b.email).trim())) throw Object.assign(new Error('Correo no válido: ' + b.email), { code: 400 });
+    const v = nuevaInv(u, b);
+    const enviado = b.enviar && v.email ? await invMail(v) : false;
+    out.push(Object.assign(invPub(v), { enviado }));
+  }
+  save();
+  return { invitaciones: out, correo: !!process.env.SMTP_HOST };
+});
+route('GET', /^\/api\/invitaciones$/, async (req, res, body, u) => {
+  const url = new URL(req.url, 'http://x'), emp = url.searchParams.get('empresa');
+  return { invitaciones: Object.values(db.invitaciones).filter((v) => v.owner === u.id && (!emp || v.empresaId === emp)).sort((a, b) => b.creado.localeCompare(a.creado)).map(invPub), correo: !!process.env.SMTP_HOST };
+});
+route('POST', /^\/api\/invitaciones\/([\w-]+)\/(anular|recordar|reenviar|importada|borrar)$/, async (req, res, body, u, m) => {
+  const v = invDe(u, m[1]), acc = m[2];
+  if (acc === 'anular') { if (v.estado !== 'completado') v.estado = 'anulado'; }
+  else if (acc === 'importada') v.importada = now();
+  else if (acc === 'borrar') { delete db.invitaciones[sha(v.token)]; save(); return { ok: true }; }
+  else if (acc === 'recordar') {
+    if (invEstado(v) === 'completado' || invEstado(v) === 'anulado' || invEstado(v) === 'caducado') throw Object.assign(new Error('Esta invitación ya no está abierta'), { code: 409 });
+    if (!v.email) throw Object.assign(new Error('La invitación no tiene correo'), { code: 400 });
+    const ok = await invMail(v, true); if (!ok) throw Object.assign(new Error('No hay correo configurado en el servidor: copie el enlace y envíelo usted.'), { code: 503 });
+    v.recordatorios = (v.recordatorios || 0) + 1; v.recordado = now();
+  } else if (acc === 'reenviar') {
+    // Nuevo enlace con nuevo plazo; el anterior deja de valer. Conserva lo que ya hubiera respondido.
+    if (v.estado !== 'completado') v.estado = 'anulado';
+    const n = nuevaInv(u, Object.assign({}, v, { enviar: false }));
+    if (v.estado === 'anulado' && Array.isArray(v.resp)) { n.resp = v.resp; n.estado = 'a medias'; n.consent = v.consent; }
+    const enviado = n.email ? await invMail(n) : false;
+    save(); return { invitacion: Object.assign(invPub(n), { enviado }) };
+  }
+  save(); return { invitacion: invPub(v) };
+});
+// Página pública del test: solo con el enlace
+const invToken = (t) => { const v = db.invitaciones[sha(String(t || ''))]; if (!v) throw Object.assign(new Error('Este enlace no es válido.'), { code: 404 }); return v; };
+route('GET', /^\/api\/t\/([\w-]{20,64})$/, async (req, res, body, u, m) => {
+  const v = invToken(m[1]), st = invEstado(v);
+  if (st === 'enviado') { v.estado = 'abierto'; v.abierto = now(); save(); }
+  return { empresa: v.empresa, nombre: v.nombre, test: v.test, tarea: v.tarea, lider: v.lider, estado: invEstado(v), caduca: v.caduca, resp: st === 'completado' ? null : v.resp, consent: !!v.consent, resumen: v.resumen !== false };
+}, { public: true });
+route('PUT', /^\/api\/t\/([\w-]{20,64})$/, async (req, res, body, u, m) => {
+  const ip = req.socket.remoteAddress || '';
+  const v = invToken(m[1]), st = invEstado(v);
+  if (st === 'completado') throw Object.assign(new Error('Este cuestionario ya se entregó. Gracias.'), { code: 409 });
+  if (st === 'anulado' || st === 'caducado') throw Object.assign(new Error(st === 'caducado' ? 'Este enlace ha caducado. Pida uno nuevo a quien se lo envió.' : 'Este enlace se ha anulado.'), { code: 410 });
+  if (!body.consent) throw Object.assign(new Error('Hace falta su consentimiento para guardar las respuestas.'), { code: 400 });
+  const n = TESTS_INV[v.test], resp = body.resp;
+  if (!Array.isArray(resp) || resp.length !== n) throw Object.assign(new Error('Respuestas no válidas'), { code: 400 });
+  const okItem = (x) => x == null || (v.test === 'disc' ? x && typeof x === 'object' && /^[DISC]$/.test(x.mas) && /^[DISC]$/.test(x.menos) && x.mas !== x.menos : Number.isInteger(x) && x >= (v.test === 'roles' ? 0 : 1) && x <= ({ roles: 4, lid: 4, lid360: 4 }[v.test] || 5));
+  if (!resp.every(okItem)) throw Object.assign(new Error('Respuestas no válidas'), { code: 400 });
+  v.resp = v.test === 'disc' ? resp.map((x) => (x ? { mas: x.mas, menos: x.menos } : null)) : resp;
+  v.consent = v.consent || now(); v.actualizado = now(); v.ip = ip.slice(0, 60);
+  if (body.fin) { if (resp.some((x) => x == null)) throw Object.assign(new Error('Faltan respuestas'), { code: 400 }); v.estado = 'completado'; v.completado = now(); }
+  else v.estado = 'a medias';
+  save(); return { ok: true, estado: v.estado };
+}, { public: true });
+
 // Cada usuario con el número de empresas o sociedades que tiene dadas de alta (para el precio de Grupos)
 const nEmpresas = (u) => { const r = (db.data[u.id] || {}).empresas; return r && Array.isArray(r.lista) ? r.lista.length : 1; };
 route('GET', /^\/api\/admin\/users$/, async () => ({ users: db.users.map((u) => Object.assign(pub(u), { empresas: nEmpresas(u) })) }), { admin: true });

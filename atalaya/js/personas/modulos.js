@@ -11,11 +11,11 @@
   const confirmar = (btn, fn) => { if (btn.dataset.ok) return fn(); btn.dataset.ok = '1'; const t = btn.textContent; btn.textContent = '¿Seguro? Toca otra vez'; btn.classList.add('del-btn'); setTimeout(() => { if (btn.isConnected) { delete btn.dataset.ok; btn.textContent = t; btn.classList.remove('del-btn'); } }, 3500); };
 
   /* Bloqueo amable: sin consentimiento no se pasan cuestionarios */
-  const pideConsent = (p) => `<div class="alert warn stack"><span>Antes de pasar un cuestionario a <b>${esc(p.nombre)}</b>, explícale para qué es y pide su consentimiento. Puede ver sus resultados y pedir que se borren.</span><div class="row"><button class="btn solid small" id="peCons">Tengo su consentimiento</button></div></div>`;
+  const pideConsent = (p) => `<div class="alert warn stack"><span>Antes de pasar un cuestionario a <b>${esc(p.nombre)}</b>, explícale para qué es y pide su consentimiento. Puede ver sus resultados y pedir que se borren. También puedes enviárselo por enlace: lo responde desde su móvil y da su consentimiento al abrirlo.</span><div class="row"><button class="btn solid small" id="peCons">Tengo su consentimiento</button></div></div>`;
   const wireConsent = (host, p) => { const b = $('#peCons', host); if (b) b.onclick = () => { p.consentimiento = true; p.consentFecha = R.hoy(); R.save(); R.rerender(); }; };
   /* Cabecera de herramienta: elegir persona */
-  const cabPersona = (host, p, extra) => `<div class="glass pad row pe-who"><label class="small">Persona ${R.selPersona('pePer', p.id)}</label>${extra || ''}</div>`;
-  const wirePersona = (host) => { const s = $('#pePer', host); if (s) s.onchange = () => { R.activa = s.value; R.rerender(); }; };
+  const cabPersona = (host, p, extra, test) => `<div class="glass pad row pe-who"><label class="small">Persona ${R.selPersona('pePer', p.id)}</label>${extra || ''}${test && R.envioBtns ? `<span class="spacer"></span>${R.envioBtns(p, test)}` : ''}</div>`;
+  const wirePersona = (host) => { const s = $('#pePer', host); if (s) s.onchange = () => { R.activa = s.value; R.rerender(); }; if (R.wireEnvio) R.wireEnvio(host); };
 
   /* ================= VISIÓN ================= */
   R.register({
@@ -143,7 +143,7 @@
       const intro = `<div class="glass pad stack"><p style="margin:0">El DISC describe el <b>estilo de comportamiento</b> con cuatro factores: ${['D', 'I', 'S', 'C'].map((k) => `<b style="color:${H.DISC[k].c}">${k}</b> ${H.DISC[k].n.toLowerCase()} (${H.DISC[k].corto.toLowerCase()})`).join(', ')}. No hay perfiles buenos ni malos: cada uno aporta y necesita cosas distintas.</p></div>`;
       if (!p) { host.innerHTML = intro + R.vacia('Primero da de alta a las personas de la plantilla.', 'Ir a la plantilla'); return; }
       const modo = borradores['discModo:' + p.id];
-      let html = cabPersona(host, p, p.disc ? '<span class="spacer"></span><button class="btn ghost small" id="peRep2">Repetir cuestionario</button><button class="btn ghost small" id="peMan">Introducir un test externo</button>' : '');
+      let html = cabPersona(host, p, p.disc ? '<button class="btn ghost small" id="peRep2">Repetir cuestionario</button><button class="btn ghost small" id="peMan">Introducir un test externo</button>' : '', 'disc');
       if (!p.consentimiento) { host.innerHTML = intro + html + pideConsent(p); wireConsent(host, p); wirePersona(host); return; }
       if (modo === 'manual') {
         const d = p.disc || { D: 50, I: 50, S: 50, C: 50 };
@@ -218,7 +218,7 @@
       const intro = `<div class="glass pad stack"><p style="margin:0">Nueve <b>aportaciones al equipo</b> en tres familias: los que <b>piensan</b> (inventor, analista, experto), los que <b>conectan</b> (orquestador, explorador, conciliador) y los que <b>hacen</b> (motor, constructor, garante). Un equipo equilibrado tiene todas cubiertas, aunque una persona cubra varias.</p><p class="small muted" style="margin:0">Modelo y cuestionario propios de Atalaya 360°.</p></div>`;
       if (!p) { host.innerHTML = intro + R.vacia('Primero da de alta a las personas de la plantilla.', 'Ir a la plantilla'); return; }
       const rep = borradores['rolesModo:' + p.id];
-      host.innerHTML = intro + cabPersona(host, p, p.roles && p.roles.scores && !rep ? '<span class="spacer"></span><button class="btn ghost small" id="peRep2">Repetir cuestionario</button>' : '');
+      host.innerHTML = intro + cabPersona(host, p, p.roles && p.roles.scores && !rep ? '<button class="btn ghost small" id="peRep2">Repetir cuestionario</button>' : '', 'roles');
       wirePersona(host);
       if (!p.consentimiento) { host.insertAdjacentHTML('beforeend', pideConsent(p)); wireConsent(host, p); return; }
       if (!(p.roles && p.roles.scores) || rep) {
@@ -248,7 +248,7 @@
       const intro = `<div class="glass pad stack"><p style="margin:0">El <b>eneagrama</b> describe nueve tipos según su <b>motivación</b> de fondo y su miedo principal, agrupados en tres centros: instintivo (8, 9, 1), emocional (2, 3, 4) y mental (5, 6, 7). Ayuda a entender <i>por qué</i> alguien actúa como actúa, y cómo liderarle.</p></div>`;
       if (!p) { host.innerHTML = intro + R.vacia('Primero da de alta a las personas de la plantilla.', 'Ir a la plantilla'); return; }
       const rep = borradores['eneaModo:' + p.id];
-      host.innerHTML = intro + cabPersona(host, p, p.enea && p.enea.tipo && !rep ? '<span class="spacer"></span><button class="btn ghost small" id="peRep2">Repetir cuestionario</button>' : '');
+      host.innerHTML = intro + cabPersona(host, p, p.enea && p.enea.tipo && !rep ? '<button class="btn ghost small" id="peRep2">Repetir cuestionario</button>' : '', 'enea');
       wirePersona(host);
       if (!p.consentimiento) { host.insertAdjacentHTML('beforeend', pideConsent(p)); wireConsent(host, p); return; }
       if (!(p.enea && p.enea.tipo) || rep) {
