@@ -256,7 +256,7 @@
   /* ---------- Módulos y navegación ---------- */
   R.register = (m) => R.modules.push(m);
   R.mod = (id) => R.modules.find((m) => m.id === id);
-  const GRUPOS = ['Visión', 'Herramientas', 'Estructura', 'Equipos', 'Desarrollo'];
+  const GRUPOS = ['Visión', 'Herramientas', 'Estructura', 'Equipos', 'Liderazgo', 'Desarrollo'];
   let current = 'panorama';
   function buildTabs() {
     const host = $('#peTabs');

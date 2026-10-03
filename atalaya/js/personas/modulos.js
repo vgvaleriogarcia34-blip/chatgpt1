@@ -133,6 +133,7 @@
 
   /* ================= HERRAMIENTAS ================= */
   const borradores = {}; // respuestas a medias, por herramienta y persona
+  Object.assign(R, { borradores, pideConsent, wireConsent, cabPersona, wirePersona, kpis, confirmar });
 
   R.register({
     id: 'disc', grupo: 'Herramientas', nombre: 'DISC', pregunta: '¿Cómo se comporta cada persona: decide, conecta, sostiene o analiza?',
@@ -205,6 +206,8 @@
     $('#peFin', host).onclick = () => { onFin(resp.slice()); delete borradores[key]; };
     const c = $('#peCan', host); if (c) c.onclick = cfg.cancelar;
   };
+
+  R.escala = escala;
 
   R.register({
     id: 'roles', grupo: 'Herramientas', nombre: 'Aportaciones al equipo', pregunta: '¿Qué papel aporta cada persona cuando trabaja en equipo?',
@@ -416,7 +419,7 @@
     render(host) {
       const p = R.personaActiva();
       const prop = p ? R.tablillasDe(p) : [];
-      const cats = { todas: 'Todas', disc: 'Estilo DISC', rol: 'Aportaciones al equipo', enea: 'Eneagrama', equipo: 'Equipo' };
+      const cats = { todas: 'Todas', disc: 'Estilo DISC', rol: 'Aportaciones al equipo', enea: 'Eneagrama', equipo: 'Equipo', lid: 'Liderazgo', paso: 'Paso entre niveles' };
       const cat = H.TABLILLAS.filter((t) => catFiltro === 'todas' || t.cuando[catFiltro] != null);
       host.innerHTML = `<div class="glass pad stack"><p style="margin:0">Cada <b>tablilla</b> es una ficha corta para entrenar un comportamiento concreto: objetivo, pasos, duración y la señal de que funciona. Se proponen solas según el estilo de la persona, lo que pide su puesto y lo que le falta a su equipo. Se imprimen y se trabajan en la conversación con su responsable.</p></div>
         ${p ? `${cabPersona(host, p)}<div class="glass pad stack"><div class="eyebrow">Propuestas para ${esc(p.nombre)}</div>${prop.length ? `<div class="pe-tabs">${prop.slice(0, 6).map((x) => R.tablillaHTML(x.t, x.motivos)).join('')}</div>` : `<p class="muted">Sin propuestas todavía: ${p.disc ? 'asigna su puesto o completa más herramientas.' : 'completa su DISC y asígnale un puesto.'}</p>`}</div>` : R.vacia('Da de alta la plantilla para recibir propuestas personalizadas.', 'Ir a la plantilla')}

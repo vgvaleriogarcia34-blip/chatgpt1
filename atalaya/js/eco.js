@@ -67,7 +67,7 @@
         [2, 'Organigrama y mandos', '¿Dependencias, amplitud de mando y relevos?', 'org'],
         [2, 'Mapa de talento', '¿Dónde está el talento que sostiene la empresa?', 'dafo'],
         [3, 'Equipos', '¿Está equilibrado cada equipo?', 'donut'],
-        [3, 'Liderazgo a medida', '¿Lidera cada responsable como pide su equipo? Próximamente.', 'funnel'],
+        [3, 'Liderazgo a medida', '¿Usa cada responsable el estilo que toca con cada persona y tarea?', 'funnel'],
         [4, 'Tablillas de entrenamiento', '¿Qué entrenar a cada persona y a cada equipo?', 'steps'],
         [4, 'Informes', 'De la persona, del equipo y de la organización.', 'doc']
       ]
