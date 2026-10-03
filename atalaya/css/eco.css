@@ -1,6 +1,6 @@
 /* Atalaya · Landing: el ecosistema (dos mundos en 3D y el abanico de pantallas de cada uno) */
-.eco { position: relative; margin-top: 26px; height: 800px; border-radius: 26px; overflow: hidden; border: 1px solid var(--line-strong); background: radial-gradient(ellipse at 50% 30%, rgba(30, 44, 96, 0.55), rgba(2, 4, 11, 0.96) 70%), #02040b; box-shadow: 0 60px 120px -60px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.02) inset; isolation: isolate; }
-.eco::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(2, 4, 11, 0.7) 100%); z-index: 1; }
+.eco { position: relative; margin-top: 26px; height: 800px; border-radius: 26px; overflow: hidden; border: 1px solid var(--line-strong); background: radial-gradient(ellipse at 50% 30%, rgba(30, 44, 96, 0.55), rgba(4, 5, 7, 0.96) 70%), #02040b; box-shadow: 0 60px 120px -60px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.02) inset; isolation: isolate; }
+.eco::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(4, 5, 7, 0.7) 100%); z-index: 1; }
 #ecoCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
 
 /* Sin 3D: dos esferas dibujadas con CSS */
@@ -14,11 +14,11 @@
 
 /* Etiquetas de cada mundo (se colocan sobre su esfera) */
 .eco-labels { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.eco-w { position: absolute; left: 0; top: 0; pointer-events: auto; display: grid; gap: 2px; text-align: center; width: 230px; padding: 10px 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(6, 10, 23, 0.6); backdrop-filter: blur(8px); color: var(--fg); font: inherit; cursor: pointer; transition: border-color 0.3s, box-shadow 0.3s, opacity 0.3s; will-change: transform; }
+.eco-w { position: absolute; left: 0; top: 0; pointer-events: auto; display: grid; gap: 2px; text-align: center; width: 230px; padding: 10px 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(9, 11, 15, 0.6); backdrop-filter: blur(8px); color: var(--fg); font: inherit; cursor: pointer; transition: border-color 0.3s, box-shadow 0.3s, opacity 0.3s; will-change: transform; }
 .eco-w span { font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
-.eco-w b { font-family: var(--font-display); font-weight: 500; font-size: 1.25rem; line-height: 1.1; }
+.eco-w b { font-family: var(--font-display); letter-spacing: -0.02em; font-weight: 700; font-size: 1.25rem; line-height: 1.1; }
 .eco-w small { font-size: var(--t-xs); color: var(--muted); }
-.eco-w.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 20px 50px -20px rgba(212, 174, 100, 0.5); }
+.eco-w.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 20px 50px -20px rgba(201, 242, 77, 0.5); }
 .eco-w:not(.on) { opacity: 0.7; }
 .eco-w:not(.on):hover { opacity: 1; border-color: var(--line-strong); }
 .eco-w[data-w="est"] span { color: #86b4ff; }
@@ -34,24 +34,24 @@
 /* La pantalla elevada amplía su zona sensible hacia arriba para que el cursor pueda seguirla */
 .eco-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .eco-card.hot::before { top: -130px; left: -20px; right: -20px; }
-.ec-in { pointer-events: none; transition: transform 0.5s cubic-bezier(.2,.8,.2,1), box-shadow 0.3s, border-color 0.3s; position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border-radius: 12px; overflow: hidden; border: 1px solid var(--line-strong); background: linear-gradient(170deg, rgba(20, 30, 60, 0.97), rgba(7, 11, 25, 0.98)); box-shadow: 0 30px 60px -25px rgba(0, 0, 0, 0.95); }
+.ec-in { pointer-events: none; transition: transform 0.5s cubic-bezier(.2,.8,.2,1), box-shadow 0.3s, border-color 0.3s; position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border-radius: 12px; overflow: hidden; border: 1px solid var(--line-strong); background: linear-gradient(170deg, rgba(26, 31, 43, 0.97), rgba(10, 12, 17, 0.98)); box-shadow: 0 30px 60px -25px rgba(0, 0, 0, 0.95); }
 .eco-fan.in .ec-in { animation: ecIn 0.7s cubic-bezier(.2,.8,.2,1) backwards; animation-delay: var(--d, 0ms); }
 @keyframes ecIn { from { transform: translateY(160px) scale(0.85); opacity: 0; } }
-.ec-chrome { display: flex; align-items: center; gap: 5px; padding: 6px 9px; background: rgba(4, 7, 16, 0.9); border-bottom: 1px solid var(--line); box-shadow: inset 0 3px 0 var(--fc); font-size: 0.66rem; color: var(--muted); }
+.ec-chrome { display: flex; align-items: center; gap: 5px; padding: 6px 9px; background: rgba(6, 8, 11, 0.9); border-bottom: 1px solid var(--line); box-shadow: inset 0 3px 0 var(--fc); font-size: 0.66rem; color: var(--muted); }
 .ec-chrome i { width: 7px; height: 7px; border-radius: 50%; background: #e0605a; flex: 0 0 auto; } .ec-chrome i:nth-child(2) { background: #e3b341; } .ec-chrome i:nth-child(3) { background: #3fb950; margin-right: 4px; }
 .ec-chrome b { font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ec-th { display: grid; place-items: center; padding: 6px 8px 0; min-height: 0; }
 .ec-th svg { width: 100%; height: 100%; max-height: 92px; }
-.ec-info { padding: 6px 10px 9px; display: grid; gap: 1px; border-top: 1px solid var(--line); background: rgba(7, 11, 25, 0.95); }
+.ec-info { padding: 6px 10px 9px; display: grid; gap: 1px; border-top: 1px solid var(--line); background: rgba(10, 12, 17, 0.95); }
 .ec-info small { font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fc); }
-.ec-info b { font-family: var(--font-display); font-weight: 500; font-size: 1rem; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ec-info b { font-family: var(--font-display); letter-spacing: -0.02em; font-weight: 700; font-size: 1rem; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eco-card.hot .ec-in, .eco-card:focus-visible .ec-in { border-color: var(--fc); box-shadow: 0 50px 90px -30px rgba(0, 0, 0, 0.95), 0 0 0 1px var(--fc), 0 0 50px -10px var(--fc); }
 .eco-card.dim { opacity: 0.3; filter: saturate(0.4); }
 
 /* Pie: fases o áreas y lectura de la pantalla elegida */
-.eco-foot { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; padding: 14px 18px 16px; display: grid; gap: 8px; justify-items: center; background: linear-gradient(180deg, transparent, rgba(2, 4, 11, 0.92) 40%); }
+.eco-foot { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; padding: 14px 18px 16px; display: grid; gap: 8px; justify-items: center; background: linear-gradient(180deg, transparent, rgba(4, 5, 7, 0.92) 40%); }
 .eco-phases { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-.eco-phases button { display: flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: rgba(6, 10, 23, 0.7); color: var(--muted); font: inherit; font-size: var(--t-xs); cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.eco-phases button { display: flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: rgba(9, 11, 15, 0.7); color: var(--muted); font: inherit; font-size: var(--t-xs); cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .eco-phases i { width: 8px; height: 8px; border-radius: 50%; background: var(--fc); box-shadow: 0 0 8px var(--fc); }
 .eco-phases button:hover, .eco-phases button.on { color: var(--fg); border-color: var(--fc); }
 .eco-read { margin: 0; height: 2.9em; overflow: hidden; display: flex; align-items: flex-start; justify-content: center; font-size: var(--t-s); color: var(--muted); text-align: center; max-width: 70ch; }

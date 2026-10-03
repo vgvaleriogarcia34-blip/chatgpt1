@@ -260,8 +260,8 @@
       const E = H.ENEA[p.enea.tipo], s = p.enea.scores;
       const rad = (t) => ((t * 40 - 90) * Math.PI) / 180;
       const pt = (t, r) => [150 + r * Math.cos(rad(t)), 150 + r * Math.sin(rad(t))];
-      const svg = `<svg class="pe-enea" viewBox="0 0 300 300" role="img" aria-label="Eneagrama: tipo ${p.enea.tipo}"><circle cx="150" cy="150" r="118" fill="none" stroke="rgba(212,174,100,0.3)"/>
-        <polygon points="${[9, 3, 6].map((t) => pt(t, 118).join(',')).join(' ')}" fill="none" stroke="rgba(212,174,100,0.18)"/><polyline points="${[1, 4, 2, 8, 5, 7, 1].map((t) => pt(t, 118).join(',')).join(' ')}" fill="none" stroke="rgba(212,174,100,0.18)"/>
+      const svg = `<svg class="pe-enea" viewBox="0 0 300 300" role="img" aria-label="Eneagrama: tipo ${p.enea.tipo}"><circle cx="150" cy="150" r="118" fill="none" stroke="rgba(201, 242, 77, 0.3)"/>
+        <polygon points="${[9, 3, 6].map((t) => pt(t, 118).join(',')).join(' ')}" fill="none" stroke="rgba(201, 242, 77, 0.18)"/><polyline points="${[1, 4, 2, 8, 5, 7, 1].map((t) => pt(t, 118).join(',')).join(' ')}" fill="none" stroke="rgba(201, 242, 77, 0.18)"/>
         <polygon points="${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((t) => pt(t, 30 + (s[t] / 100) * 88).join(',')).join(' ')}" fill="rgba(171,123,255,0.22)" stroke="#ab7bff"/>
         ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((t) => { const [x, y] = pt(t, 136); return `<text x="${x}" y="${y + 4}" text-anchor="middle" class="pe-et ${t === p.enea.tipo ? 'on' : t === p.enea.ala ? 'ala' : ''}">${t}</text>`; }).join('')}</svg>`;
       host.insertAdjacentHTML('beforeend', `<div class="grid pe-two"><div class="glass pad stack"><div class="eyebrow">Resultado · ${R.fechaES(p.enea.fecha)}</div><h3 style="margin:0">Tipo ${p.enea.tipo} · ${esc(E.n)} <small class="muted">ala ${p.enea.ala} (${esc(H.ENEA[p.enea.ala].n.toLowerCase())})</small></h3><p class="small muted" style="margin:0">Centro ${esc(E.centro.toLowerCase())}</p>${svg}</div>

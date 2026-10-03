@@ -3,12 +3,12 @@
 body.cosmos3d #cosmos { opacity: 1; }
 body.cosmos3d #sky { opacity: 0; transition: opacity 1.2s; }
 /* Un velo suave sobre el universo para que las tablas y los números se lean siempre bien */
-body.cosmos3d .veil { background: radial-gradient(1200px 700px at 78% -10%, rgba(57, 135, 229, 0.1), transparent 60%), radial-gradient(900px 600px at 0% 110%, rgba(212, 174, 100, 0.07), transparent 60%), linear-gradient(90deg, rgba(5, 8, 18, 0.55), rgba(5, 8, 18, 0.25) 60%, rgba(5, 8, 18, 0.1)); }
+body.cosmos3d .veil { background: radial-gradient(1200px 700px at 78% -10%, rgba(57, 135, 229, 0.1), transparent 60%), radial-gradient(900px 600px at 0% 110%, rgba(201, 242, 77, 0.07), transparent 60%), linear-gradient(90deg, rgba(7, 9, 12, 0.55), rgba(7, 9, 12, 0.25) 60%, rgba(7, 9, 12, 0.1)); }
 
 /* Titulares: cada palabra flota en su plano, con canto dorado y sombra proyectada */
 .t3d { transform-style: preserve-3d; perspective: 900px; }
-.w3d { display: inline-block; transform-style: preserve-3d; text-shadow: 0 1px 0 rgba(212, 174, 100, 0.5), 0 2px 0 rgba(160, 125, 65, 0.4), 0 3px 0 rgba(110, 85, 40, 0.35), 0 4px 0 rgba(60, 46, 22, 0.3), 0 14px 24px rgba(0, 0, 0, 0.65); animation: wFloat 7s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -0.85s); }
-em .w3d, .w3d em { text-shadow: 0 1px 0 rgba(236, 214, 166, 0.55), 0 2px 0 rgba(190, 150, 80, 0.45), 0 3px 0 rgba(140, 105, 50, 0.4), 0 4px 0 rgba(80, 60, 25, 0.35), 0 14px 24px rgba(0, 0, 0, 0.65); }
+.w3d { display: inline-block; transform-style: preserve-3d; text-shadow: 0 2px 0 rgba(93, 95, 99, 0.4), 0 3px 0 rgba(63, 65, 69, 0.35), 0 4px 0 rgba(34, 36, 40, 0.3), 0 14px 24px rgba(0, 0, 0, 0.65); animation: wFloat 7s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -0.85s); }
+em .w3d, .w3d em { text-shadow: none; }
 @keyframes wFloat { 0%, 100% { transform: translate3d(0, 0, 0) rotateX(0deg); } 50% { transform: translate3d(0, -4px, 20px) rotateX(4deg); } }
 .rm-clone .w3d, .rm-clone * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .w3d { animation: none; } #cosmos { display: none; } }

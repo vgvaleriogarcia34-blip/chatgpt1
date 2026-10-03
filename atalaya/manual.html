@@ -6,23 +6,23 @@
 <title>Manual de Atalaya</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/cosmos.css">
 <style>
-/* Manual de consulta: índice fijo a la izquierda y una columna de lectura; misma identidad que Atalaya (azul noche y oro) */
+/* Manual de consulta: índice fijo a la izquierda y una columna de lectura; identidad Business Avance (tinta y lima en oscuro; hueso y oliva en claro) */
 :root {
-  --bg: #070c1a; --panel: #0d1428; --raise: #141d36; --line: rgba(212, 174, 100, 0.16); --line-strong: rgba(212, 174, 100, 0.36);
-  --fg: #e9e4d8; --muted: #a8adbd; --faint: #737a8e; --gold: #d4ae64; --gold-soft: #ecd6a6;
+  --bg: #05060a; --panel: #10131a; --raise: #181c25; --line: #2c333f; --line-strong: rgba(201, 242, 77, 0.4);
+  --fg: #f5f3ee; --muted: #a0a6b0; --faint: #69707c; --gold: #c9f24d; --gold-soft: #ecf2d6;
   --go: #2fb24a; --warn: #fab219; --stop: #e04848; --code: #10182f;
-  --font-display: 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
-  --font-body: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Libre Franklin', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-data: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) { --bg: #f6f3ec; --panel: #ffffff; --raise: #efe9dc; --line: rgba(120, 90, 30, 0.18); --line-strong: rgba(120, 90, 30, 0.4); --fg: #1a1f2e; --muted: #4f5566; --faint: #7a7f8c; --gold: #9a7224; --gold-soft: #7a5a18; --go: #1d8a37; --warn: #a86f00; --stop: #c02f2f; --code: #efe9dc; color-scheme: light; }
+  :root:not([data-theme="dark"]) { --bg: #f5f3ee; --panel: #fbfaf7; --raise: #ecebe3; --line: #d9d6cc; --line-strong: #6e7d14; --fg: #05060a; --muted: #4f5566; --faint: #7a7f8c; --gold: #6e7d14; --gold-soft: #55610f; --go: #1d8a37; --warn: #a86f00; --stop: #c02f2f; --code: #efe9dc; color-scheme: light; }
 }
-:root[data-theme="light"] { --bg: #f6f3ec; --panel: #ffffff; --raise: #efe9dc; --line: rgba(120, 90, 30, 0.18); --line-strong: rgba(120, 90, 30, 0.4); --fg: #1a1f2e; --muted: #4f5566; --faint: #7a7f8c; --gold: #9a7224; --gold-soft: #7a5a18; --go: #1d8a37; --warn: #a86f00; --stop: #c02f2f; --code: #efe9dc; color-scheme: light; }
+:root[data-theme="light"] { --bg: #f5f3ee; --panel: #fbfaf7; --raise: #ecebe3; --line: #d9d6cc; --line-strong: #6e7d14; --fg: #05060a; --muted: #4f5566; --faint: #7a7f8c; --gold: #6e7d14; --gold-soft: #55610f; --go: #1d8a37; --warn: #a86f00; --stop: #c02f2f; --code: #efe9dc; color-scheme: light; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
@@ -37,7 +37,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--fo
 a { color: var(--gold); }
 a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-.brand { font-family: var(--font-display); font-size: 1.35rem; color: var(--gold-soft); text-decoration: none; white-space: nowrap; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; color: var(--fg); letter-spacing: -0.035em; text-decoration: none; white-space: nowrap; }
 .brand small { font-family: var(--font-body); font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-left: 8px; }
 .top input { margin-left: auto; width: min(320px, 46vw); padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--fg); font: inherit; font-size: 0.9rem; }
 .tocbtn { display: none; border: 1px solid var(--line-strong); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 0.85rem; }
@@ -56,9 +56,10 @@ nav.toc ol ol a { padding-left: 18px; }
 main { min-width: 0; max-width: 74ch; }
 .hero { padding-block: 10px 26px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
 .kicker { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
-h1 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.3rem, 5vw, 3.4rem); line-height: 1.08; margin: 10px 0 12px; text-wrap: balance; }
-h1 em, h2 em { color: var(--gold-soft); font-style: italic; }
-h2 { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.2rem); line-height: 1.15; margin: 54px 0 8px; text-wrap: balance; }
+h1 { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.035em; font-size: clamp(2.3rem, 5vw, 3.4rem); line-height: 1.08; margin: 10px 0 12px; text-wrap: balance; }
+h1 em, h2 em { font-style: normal; color: transparent; -webkit-text-stroke: 1.3px var(--gold); }
+h2 em { color: var(--gold); -webkit-text-stroke: 0; }
+h2 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.025em; font-size: clamp(1.7rem, 3.4vw, 2.2rem); line-height: 1.15; margin: 54px 0 8px; text-wrap: balance; }
 h2 .num { font-family: var(--font-data); font-size: 0.8rem; color: var(--gold); letter-spacing: 0.1em; display: block; margin-bottom: 4px; }
 h3 { font-size: 1.12rem; margin: 30px 0 6px; color: var(--fg); text-wrap: balance; }
 h4 { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin: 20px 0 4px; }

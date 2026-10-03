@@ -469,7 +469,7 @@
      El mapa es el primer paso del puesto de mando: se elige la empresa y después se entra en los mundos. */
   P.FORMAS = ['Sociedad limitada (S.L.)', 'Sociedad anónima (S.A.)', 'Autónomo', 'Sociedad cooperativa', 'Sociedad laboral', 'Comunidad de bienes', 'Otra'];
   const escH = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const PAL = ['#d4ae64', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
+  const PAL = ['#c9f24d', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
   const sectores = () => ((window.Atalaya || {}).SECTORS) || null;
   P.fichaCompleta = (e) => {
     const k = ['forma', 'cif', 'constitucion', 'sector', 'actividad', 'provincia', 'plantilla'];
@@ -656,13 +656,13 @@
     const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     if (act && lim === 1 && lista.length <= 1) {
       const sel = document.createElement('div'); sel.className = 'emp';
-      sel.innerHTML = `<button class="emp-btn" title="Ficha de la empresa"><i style="background:#d4ae64"></i><span>${esc(act.nombre === 'Mi empresa' ? 'Ficha de mi empresa' : act.nombre)}</span><b>✎</b></button>`;
+      sel.innerHTML = `<button class="emp-btn" title="Ficha de la empresa"><i style="background:#c9f24d"></i><span>${esc(act.nombre === 'Mi empresa' ? 'Ficha de mi empresa' : act.nombre)}</span><b>✎</b></button>`;
       el.prepend(sel);
       sel.querySelector('.emp-btn').onclick = async (e) => { e.stopPropagation(); const r = await P.fichaEmpresa(act); if (r) P.mountAccount(el); };
     }
     if (act && (lim > 1 || lista.length > 1)) {
       const sel = document.createElement('div'); sel.className = 'emp';
-      const pal = ['#d4ae64', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
+      const pal = ['#c9f24d', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
       sel.innerHTML = `<button class="emp-btn" aria-haspopup="true" title="Cambiar de ${grupo ? 'sociedad' : 'empresa'}"><i style="background:${pal[lista.indexOf(act) % pal.length]}"></i><span>${esc(act.nombre)}</span><b>▾</b></button>
         <div class="emp-menu glass" hidden>
           <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : 'Empresas cliente'}</b><small>${lista.length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ' · plan a medida' : ''}</small></div>
@@ -706,7 +706,7 @@
     const draw = (t) => {
       g.clearRect(0, 0, W, H);
       const sy = scrollY * 0.18;
-      stars.forEach((s) => { g.fillStyle = `rgba(236,214,166,${s.a})`; g.beginPath(); g.arc(s.x * W, ((s.y * H * 1.6 - sy * 0.5) % H + H) % H, s.r, 0, 6.283); g.fill(); });
+      stars.forEach((s) => { g.fillStyle = `rgba(245,243,238,${s.a})`; g.beginPath(); g.arc(s.x * W, ((s.y * H * 1.6 - sy * 0.5) % H + H) % H, s.r, 0, 6.283); g.fill(); });
       for (let k = 0; k < 16; k++) {
         const base = H * 0.25 + k * (H * 0.06) - (sy % (H * 0.06));
         g.beginPath();
@@ -714,7 +714,7 @@
           const y = base + Math.sin(x * 0.0042 + k * 0.6 + t * 0.00012) * 26 + Math.sin(x * 0.011 - k * 0.35 + t * 0.00008) * 9 + Math.cos((x + sy * 2) * 0.0019 + k) * 30;
           x === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
         }
-        g.strokeStyle = `rgba(212,174,100,${0.035 + (k % 4 === 0 ? 0.045 : 0)})`;
+        g.strokeStyle = `rgba(160,168,180,${0.03 + (k % 4 === 0 ? 0.035 : 0)})`;
         g.lineWidth = k % 4 === 0 ? 1.1 : 0.7;
         g.stroke();
       }

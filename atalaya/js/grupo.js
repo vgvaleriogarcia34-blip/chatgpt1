@@ -12,7 +12,7 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\b(s\.?l\.?u?|s\.?a\.?|sociedad limitada|grupo)\b/g, '').replace(/[^a-z0-9]/g, '');
   const LS = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } } };
-  const PAL = ['#d4ae64', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
+  const PAL = ['#c9f24d', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
   const ST = { go: 'ok', warn: 'warn', stop: 'stop' };
   const IND = {
     ventas: { n: 'Ventas', u: '€', dir: 'subir', sum: true },
@@ -186,12 +186,12 @@
     const rad = (x) => (x.ok ? 14 + Math.sqrt(x.m.ventas / mx) * 30 : 12);
     const col = (x) => (!x.ok || !x.m.verdict ? '#737a8e' : x.m.verdict.key === 'go' ? '#2fb24a' : x.m.verdict.key === 'warn' ? '#fab219' : '#e04848');
     const planet = (x, px, py, big) => { const r = rad(x) * (big ? 1.15 : 1), i = lista.indexOf(x.e); return `<g class="gr-planet" data-id="${x.e.id}" tabindex="0" role="button" aria-label="Entrar en ${esc(x.e.nombre)}"><circle cx="${px}" cy="${py}" r="${r + 10}" fill="url(#halo${i})"/><circle cx="${px}" cy="${py}" r="${r}" fill="url(#pl${i})" stroke="${col(x)}" stroke-width="2.5"/><text x="${px}" y="${py + r + 18}" text-anchor="middle" class="gr-pn">${esc(x.e.nombre)}</text><text x="${px}" y="${py + r + 32}" text-anchor="middle" class="gr-ps">${x.ok ? F.eur(x.m.ventas) : 'sin datos'}${grupo && x.e.rol !== 'holding' ? ` · ${x.e.participacion != null ? x.e.participacion : 100} %` : ''}</text></g>`; };
-    const defs = E.map((x, i) => { const c = PAL[lista.indexOf(x.e) % PAL.length]; return `<radialGradient id="pl${i}" cx="35%" cy="35%"><stop offset="0" stop-color="#fff6dc"/><stop offset=".45" stop-color="${c}"/><stop offset="1" stop-color="#0b1226"/></radialGradient><radialGradient id="halo${i}"><stop offset=".6" stop-color="${c}" stop-opacity=".25"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`; }).join('');
+    const defs = E.map((x, i) => { const c = PAL[lista.indexOf(x.e) % PAL.length]; return `<radialGradient id="pl${i}" cx="35%" cy="35%"><stop offset="0" stop-color="#fff6dc"/><stop offset=".45" stop-color="${c}"/><stop offset="1" stop-color="#0b0d13"/></radialGradient><radialGradient id="halo${i}"><stop offset=".6" stop-color="${c}" stop-opacity=".25"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`; }).join('');
     const n = others.length, R = Math.min(W * 0.4, 190 + n * 10);
     // Las sociedades se reparten en la órbita empezando por los lados, donde hay más sitio para su nombre
     const pos = others.map((x, i) => { const a = Math.PI + (i / Math.max(1, n)) * Math.PI * 2 + (n > 2 ? Math.PI / n : 0); return [cx + Math.cos(a) * R, cy + Math.sin(a) * R * 0.55]; });
     return `<svg viewBox="0 0 ${W} ${H + 40}" class="gr-svg" role="img" aria-label="Constelación del ${grupo ? 'grupo' : 'conjunto de empresas'}"><defs>${defs}</defs>
-      <ellipse cx="${cx}" cy="${cy}" rx="${R}" ry="${R * 0.55}" fill="none" stroke="rgba(212,174,100,.25)" stroke-dasharray="3 6"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${R}" ry="${R * 0.55}" fill="none" stroke="rgba(201, 242, 77, .25)" stroke-dasharray="3 6"/>
       ${pos.map(([x, y]) => `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(134,180,255,.22)"/>`).join('')}
       ${others.map((x, i) => planet(x, pos[i][0], pos[i][1])).join('')}${planet(holding, cx, cy, true)}</svg>`;
   }
