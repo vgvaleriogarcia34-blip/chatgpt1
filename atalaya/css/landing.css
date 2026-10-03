@@ -253,3 +253,38 @@
 .lp-origen-f li::before { content: '+'; color: var(--gold); margin-right: 10px; }
 .lp-origen-f li:first-child::before { content: ''; margin: 0; }
 @media (max-width: 760px) { .lp-origen { grid-template-columns: 1fr; padding: 20px; } }
+/* Laboratorio de escenarios */
+.lab-tabs { margin: 24px 0 0; width: fit-content; max-width: 100%; }
+.lab-tabs button[aria-selected="true"] { background: var(--gold); color: #05060a; font-weight: 600; }
+.lab-panel .lp-demo { margin-top: 14px; }
+.lab-mod { margin: 0; font-family: var(--font-data); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
+.lab-intro { margin: 2px 0 10px; }
+.lab-chart svg { width: 100%; height: auto; display: block; }
+.lab-axis { stroke: var(--line); stroke-width: 1; }
+.lab-mark { stroke: var(--gold); stroke-dasharray: 4 4; }
+.lab-val { font: 600 12px var(--font-data); fill: var(--fg); }
+.lab-lbl { font: 11px var(--font-body); fill: var(--muted); }
+.lab-in { font: 600 11px var(--font-body); fill: #05060a; }
+.lab-lights { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 760px) { .lab-lights { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Caso nuevo con la pista de despegue */
+.lp-case-new { border-left-width: 4px; box-shadow: var(--relieve); }
+.lp-case-tag { font-family: var(--font-data); font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.lp-case p b { color: var(--fg); }
+.lp-runway { display: grid; gap: 6px; margin-top: 6px; }
+.rw-bar { position: relative; height: 54px; border-radius: 4px; background: linear-gradient(90deg, rgba(47, 178, 74, 0.18) 0 50%, transparent 50%); border: 1px solid var(--line); }
+.rw-gap { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, rgba(224, 72, 72, 0.28) 0 6px, rgba(224, 72, 72, 0.1) 6px 12px); }
+.rw-bar b { position: absolute; top: 50%; transform: translate(-50%, -50%); font: 600 0.7rem var(--font-data); white-space: nowrap; padding: 2px 6px; border-radius: 3px; background: #05060a; }
+.rw-m9 { color: var(--stop); border: 1px solid rgba(224, 72, 72, 0.6); top: 30% !important; }
+.rw-m15 { color: var(--gold); border: 1px solid var(--gold); top: 72% !important; }
+.lp-runway small { font-family: var(--font-data); font-size: 0.64rem; color: var(--faint); letter-spacing: 0.08em; }
+@media (max-width: 760px) { .rw-bar { height: 70px; } .rw-bar b { white-space: normal; width: 46%; text-align: center; } }
+.lab-panel .field .top .num { white-space: nowrap; }
+@media (max-width: 760px) {
+  .lab-tabs { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .lab-tabs button { flex: 0 0 auto; }
+  .rw-bar { height: auto; padding: 8px; display: grid; gap: 6px; background: linear-gradient(90deg, rgba(47, 178, 74, 0.18) 0 50%, rgba(224, 72, 72, 0.18) 50% 83.3%, transparent 83.3%); }
+  .rw-gap { display: none; }
+  .rw-bar b { position: static; transform: none; width: auto; justify-self: start; white-space: normal; text-align: left; }
+  .rw-m9, .rw-m15 { top: auto !important; }
+}

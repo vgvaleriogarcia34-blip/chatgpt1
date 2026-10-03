@@ -6,7 +6,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 
 | Página | Para qué |
 |---|---|
-| `index.html` | Página comercial en un espacio 3D (fondo de galaxias por el que se avanza al bajar, tarjetas y titulares que flotan, se inclinan y se acercan al cursor): propuesta, el ecosistema en 3D (los dos mundos y el abanico de pantallas de cada uno), demo en vivo con el motor real, planes y preguntas. |
+| `index.html` | Página comercial (con el laboratorio de escenarios de `js/lab.js`: inversión, Lean, impuestos, mercado y «todo a la vez») en un espacio 3D (fondo de galaxias por el que se avanza al bajar, tarjetas y titulares que flotan, se inclinan y se acercan al cursor): propuesta, el ecosistema en 3D (los dos mundos y el abanico de pantallas de cada uno), demo en vivo con el motor real, planes y preguntas. |
 | `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
 | `grupo.html` | Vista de grupo (plan Grupos) o cartera de clientes (plan Consultora): sociedades, consolidado con eliminaciones intragrupo, comparativa, riesgos cruzados, objetivos en cascada e informe. |
 | `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con tres mundos (simulador de inversión, sistema estratégico y personas y equipos) por la que se navega y desde la que se entra en cada herramienta. |
