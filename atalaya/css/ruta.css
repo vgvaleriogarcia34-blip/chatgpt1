@@ -137,3 +137,8 @@ body.est-ruta .ruta-bar.est { display: flex; }
 .rm-float { pointer-events: none; transition: box-shadow 0.3s, border-color 0.3s, translate 0.5s cubic-bezier(.2,.8,.2,1); }
 .rm-card::before { content: ''; position: absolute; inset: 0; }
 .rm-card.hot::before { top: -150px; left: -20px; right: -20px; }
+/* Personas y equipos: seis grupos */
+.rm-fases.n6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 760px) { .rm-fases.n6 { grid-template-columns: repeat(6, minmax(40px, 1fr)); } }
+.rm-fases.n6 ~ .rm-stage[data-layout="abanico"] .rm-world { transform: translateY(-30px) rotateX(var(--tx, 0deg)) rotateY(var(--ty, 0deg)); }
+.pe-page .rm-card.e0 { --fc: #c9f24d; } .pe-page .rm-card.e1 { --fc: #9b7cf0; } .pe-page .rm-card.e2 { --fc: #2fb4a0; } .pe-page .rm-card.e3 { --fc: #3987e5; } .pe-page .rm-card.e4 { --fc: #e0794a; } .pe-page .rm-card.e5 { --fc: #d55181; }

@@ -418,7 +418,7 @@ const TESTS_INV = { disc: 12, roles: 27, enea: 27, lid: 12, lid360: 12, prep: 8 
 const TEST_NOMBRE = { disc: 'estilo de comportamiento (DISC)', roles: 'aportaciones al equipo', enea: 'motivación (eneagrama)', lid: 'estilo de liderazgo', lid360: 'cómo dirige su responsable', prep: 'preparación para una tarea' };
 db.invitaciones = db.invitaciones || {};
 const invEstado = (v) => (['completado', 'anulado'].includes(v.estado) ? v.estado : Date.parse(v.caduca) < Date.now() ? 'caducado' : v.estado);
-const invPub = (v) => ({ id: v.id, empresaId: v.empresaId, pid: v.pid, nombre: v.nombre, test: v.test, tid: v.tid, tarea: v.tarea, lider: v.lider, email: v.email, estado: invEstado(v), creado: v.creado, caduca: v.caduca, abierto: v.abierto, actualizado: v.actualizado, completado: v.completado, importada: v.importada, recordatorios: v.recordatorios || 0, progreso: Array.isArray(v.resp) ? v.resp.filter((x) => x != null).length : 0, total: TESTS_INV[v.test], resp: v.estado === 'completado' ? v.resp : undefined, de: v.de, url: `${APP_URL}/test.html#t=${v.token}` });
+const invPub = (v) => ({ id: v.id, empresaId: v.empresaId, pid: v.pid, nombre: v.nombre, test: v.test, tid: v.tid, tarea: v.tarea, lider: v.lider, email: v.email, estado: invEstado(v), creado: v.creado, caduca: v.caduca, abierto: v.abierto, actualizado: v.actualizado, completado: v.completado, importada: v.importada, recordatorios: v.recordatorios || 0, progreso: Array.isArray(v.resp) ? v.resp.filter((x) => x != null).length : 0, total: TESTS_INV[v.test], resp: v.estado === 'completado' ? v.resp : undefined, nacimiento: v.estado === 'completado' ? v.nacimiento : undefined, de: v.de, url: `${APP_URL}/test.html#t=${v.token}` });
 const invDe = (u, id) => { const v = Object.values(db.invitaciones).find((x) => x.id === id && x.owner === u.id); if (!v) throw Object.assign(new Error('Invitación no encontrada'), { code: 404 }); return v; };
 const invMail = (v, recordatorio) => sendMail(v.email, `${recordatorio ? 'Recordatorio: ' : ''}${v.empresa || 'Su empresa'} le pide responder un cuestionario`,
   `Hola${v.nombre ? ', ' + v.nombre : ''}:\n\n${v.empresa || 'Su empresa'} le invita a responder un cuestionario breve sobre ${TEST_NOMBRE[v.test]}${v.tarea ? ' («' + v.tarea + '»)' : ''}${v.lider && v.test === 'lid360' ? ', pensando en ' + v.lider : ''}.\n\nSe responde en unos minutos, sin crear ninguna cuenta. Antes de empezar verá para qué se usan sus respuestas y podrá aceptar o no.\n\n${APP_URL}/test.html#t=${v.token}\n\nEl enlace es personal y caduca el ${new Date(v.caduca).toLocaleDateString('es-ES')}.\n\nAtalaya 360°`);
@@ -472,7 +472,7 @@ const invToken = (t) => { const v = db.invitaciones[sha(String(t || ''))]; if (!
 route('GET', /^\/api\/t\/([\w-]{20,64})$/, async (req, res, body, u, m) => {
   const v = invToken(m[1]), st = invEstado(v);
   if (st === 'enviado') { v.estado = 'abierto'; v.abierto = now(); save(); }
-  return { empresa: v.empresa, nombre: v.nombre, test: v.test, tarea: v.tarea, lider: v.lider, estado: invEstado(v), caduca: v.caduca, resp: st === 'completado' ? null : v.resp, consent: !!v.consent, resumen: v.resumen !== false };
+  return { empresa: v.empresa, nombre: v.nombre, test: v.test, tarea: v.tarea, lider: v.lider, estado: invEstado(v), caduca: v.caduca, resp: st === 'completado' ? null : v.resp, nacimiento: st === 'completado' ? null : v.nacimiento || null, consent: !!v.consent, resumen: v.resumen !== false };
 }, { public: true });
 route('PUT', /^\/api\/t\/([\w-]{20,64})$/, async (req, res, body, u, m) => {
   const ip = req.socket.remoteAddress || '';
@@ -486,6 +486,7 @@ route('PUT', /^\/api\/t\/([\w-]{20,64})$/, async (req, res, body, u, m) => {
   if (!resp.every(okItem)) throw Object.assign(new Error('Respuestas no válidas'), { code: 400 });
   v.resp = v.test === 'disc' ? resp.map((x) => (x ? { mas: x.mas, menos: x.menos } : null)) : resp;
   v.consent = v.consent || now(); v.actualizado = now(); v.ip = ip.slice(0, 60);
+  if (typeof body.nacimiento === 'string' && /^(19|20)\d{2}-\d{2}-\d{2}$/.test(body.nacimiento)) v.nacimiento = body.nacimiento;
   if (body.fin) { if (resp.some((x) => x == null)) throw Object.assign(new Error('Faltan respuestas'), { code: 400 }); v.estado = 'completado'; v.completado = now(); }
   else v.estado = 'a medias';
   save(); return { ok: true, estado: v.estado };

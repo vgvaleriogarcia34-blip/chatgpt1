@@ -38,9 +38,14 @@
   const deB32 = (s, base, len) => { let n = 0n; for (const ch of s) { const v = AB.indexOf(ch); if (v < 0) throw new Error('Carácter no válido'); n = n * 32n + BigInt(v); } const B = BigInt(base), d = []; for (let i = 0; i < len; i++) { d.push(Number(n % B)); n /= B; } if (n > 0n) throw new Error('Código demasiado largo'); return d; };
 
   /* Código: letra del test + huella (2) + respuestas + control (2), en grupos de cuatro */
-  C.codificar = (test, resp, pid, tid) => {
+  // La fecha de nacimiento (opcional) va al final, tras una U (letra que no usa el alfabeto), en días desde 1900
+  const D0 = Date.UTC(1900, 0, 1);
+  const fechaA = (f) => { const n = Math.round((Date.UTC(+f.slice(0, 4), +f.slice(5, 7) - 1, +f.slice(8, 10)) - D0) / 864e5); return n >= 0 && n < 32768 ? aB32([n], 32768).padStart(3, '0') : ''; };
+  const fechaDe = (s) => { const n = deB32(s, 32768, 1)[0]; return new Date(D0 + n * 864e5).toISOString().slice(0, 10); };
+  C.codificar = (test, resp, pid, tid, nacimiento) => {
     const T = C.TESTS[test];
-    const cuerpo = T.letra + C.huella(pid, tid) + aB32(T.aDig(resp), T.base);
+    const fe = nacimiento && /^\d{4}-\d{2}-\d{2}$/.test(nacimiento) ? fechaA(nacimiento) : '';
+    const cuerpo = T.letra + C.huella(pid, tid) + aB32(T.aDig(resp), T.base) + (fe ? 'U' + fe : '');
     return (cuerpo + control(cuerpo)).match(/.{1,4}/g).join('-');
   };
   C.decodificar = (code) => {
@@ -49,9 +54,10 @@
     const test = C.porLetra(s[0]); if (!test) throw new Error('El código no corresponde a ningún test.');
     const cuerpo = s.slice(0, -2);
     if (control(cuerpo) !== s.slice(-2)) throw new Error('El código tiene algún carácter mal copiado. Revíselo.');
-    const T = C.TESTS[test], resp = T.deDig(deB32(cuerpo.slice(3), T.base, T.len()));
+    const partes = cuerpo.slice(3).split('U');
+    const T = C.TESTS[test], resp = T.deDig(deB32(partes[0], T.base, T.len()));
     if (!T.valida(resp)) throw new Error('El código no contiene respuestas válidas.');
-    return { test, huella: cuerpo.slice(1, 3), resp };
+    return { test, huella: cuerpo.slice(1, 3), resp, nacimiento: partes[1] ? fechaDe(partes[1]) : null };
   };
 
   /* Enlace sin servidor: los datos de la invitación viajan en el propio enlace */

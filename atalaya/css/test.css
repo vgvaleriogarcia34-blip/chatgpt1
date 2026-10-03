@@ -42,3 +42,6 @@
 .tp-res { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 8px; }
 .tp-foot { text-align: center; color: var(--faint); font-size: var(--t-xs); padding: 16px; }
 @media (max-width: 420px) { .tp-ev span { font-size: 0.6rem; } .tp-dh, .tp-dr { grid-template-columns: minmax(0, 1fr) 52px 52px; } }
+.tp-nac { display: grid; gap: 4px; max-width: 360px; }
+.tp-nac span { font-weight: 600; font-size: var(--t-s); }
+.tp-nac small { color: var(--muted); font-size: var(--t-xs); font-weight: 400; }

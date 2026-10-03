@@ -21,6 +21,7 @@
     const p = R.persona(o.pid); if (!p) throw new Error('La persona ya no está en la plantilla.');
     if (!C.valida(o.test, o.resp)) throw new Error('Respuestas incompletas.');
     const f = R.hoy(), org = o.origen || 'enlace', r = o.resp;
+    if (o.nacimiento && o.test !== 'lid360' && R.fechaValida && R.fechaValida(o.nacimiento)) p.nacimiento = o.nacimiento;
     const cons = () => { p.consentimiento = true; p.consentFecha = p.consentFecha || f; p.consentPropio = f; };
     if (o.test === 'disc') { p.disc = Object.assign(R.discDesdeResp(r), { resp: r, fecha: f, origen: org }); cons(); }
     else if (o.test === 'roles') { p.roles = { resp: r, scores: R.rolesDesdeResp(r), fecha: f, origen: org }; cons(); }
@@ -42,7 +43,7 @@
       cache = { lista: j.invitaciones, correo: j.correo, err: null };
       const hechos = [];
       for (const v of j.invitaciones.filter((x) => x.estado === 'completado' && !x.importada && x.resp)) {
-        try { hechos.push(R.aplicarRespuesta({ test: v.test, pid: v.pid, tid: v.tid, resp: v.resp, origen: 'enlace' })); await P().api('/invitaciones/' + v.id + '/importada', { method: 'POST', body: '{}' }); v.importada = R.hoy(); } catch (e) { /* persona o tarea borrada: queda en la lista */ }
+        try { hechos.push(R.aplicarRespuesta({ test: v.test, pid: v.pid, tid: v.tid, resp: v.resp, nacimiento: v.nacimiento, origen: 'enlace' })); await P().api('/invitaciones/' + v.id + '/importada', { method: 'POST', body: '{}' }); v.importada = R.hoy(); } catch (e) { /* persona o tarea borrada: queda en la lista */ }
       }
       return hechos;
     } catch (e) { cache.err = e.message; return []; }
@@ -141,7 +142,7 @@
         <div class="row"><button class="btn solid" id="codApl" ${opts ? '' : 'disabled'}>Guardar en su ficha</button></div>`;
       $('#codApl', back).onclick = () => {
         const [pid, tid] = $('#codP', back).value.split('|');
-        try { const t = R.aplicarRespuesta({ test: d.test, pid, tid: tid || null, resp: d.resp, origen: 'código' }); close(); R.rerender(); aviso('Guardado: ' + t + '.'); }
+        try { const t = R.aplicarRespuesta({ test: d.test, pid, tid: tid || null, resp: d.resp, nacimiento: d.nacimiento, origen: 'código' }); close(); R.rerender(); aviso('Guardado: ' + t + '.'); }
         catch (e) { out.insertAdjacentHTML('beforeend', `<div class="alert stop">${esc(e.message)}</div>`); }
       };
     };

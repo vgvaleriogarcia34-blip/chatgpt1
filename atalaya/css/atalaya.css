@@ -772,3 +772,21 @@ a { color: var(--gold); }
 .ci-checks label { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; color: #15140f; }
 .ci-checks input { margin-top: 3px; accent-color: #6e7d14; }
 @media print { .ci-del, .ci-add { display: none; } .ci-in { border-color: #e4e1d6; background: transparent; } }
+
+/* ---------- Portada de cada mundo (misma cara que el puente de mando) ---------- */
+.hm-hero { padding-top: 6px; margin-bottom: 4px; }
+.hm-hero h1 { font-size: clamp(2.2rem, 5vw, 3.9rem); }
+.hm-emp { display: grid; gap: 2px; }
+.hm-emp span, .hm-datos span { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.hm-emp b { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; font-size: clamp(1.4rem, 3vw, 1.9rem); border-bottom: 1px solid var(--line-strong); padding-bottom: 6px; }
+.hm-emp small { color: var(--muted); }
+.hm-datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.hm-datos b { display: block; font: 500 1.15rem var(--font-data); color: var(--fg); margin-top: 2px; }
+.hm-bars { display: flex; align-items: flex-end; gap: 3px; height: 30px; margin-top: 8px; }
+.hm-bars i { flex: 1; border-radius: 2px 2px 0 0; opacity: 0.85; min-width: 3px; }
+.hm-kpis { margin-bottom: 18px; }
+/* Cabecera de cada módulo: titular grande y calado, con brillo de marca */
+.st-head { position: relative; overflow: hidden; }
+.st-head::before { content: ''; position: absolute; inset: -40% auto auto -10%; width: 60%; height: 180%; background: radial-gradient(closest-side, rgba(201, 242, 77, 0.10), transparent); pointer-events: none; }
+.st-head .st-title { font-size: clamp(2rem, 4.4vw, 3.1rem); font-weight: 800; letter-spacing: -0.03em; }
+.st-head .st-title em { font-style: normal; color: transparent; -webkit-text-stroke: 1.3px var(--gold); }

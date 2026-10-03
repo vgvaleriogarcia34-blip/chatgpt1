@@ -270,14 +270,17 @@
     const sel = $(`#peTabs button[data-t="${id}"]`); if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
     const panel = $('#pePanel'), m = R.mod(id);
     const y = scrollY;
-    panel.innerHTML = `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(m.grupo)}</span><h2 class="st-title">${esc(m.nombre)}</h2>${m.pregunta ? `<p class="st-q">${esc(m.pregunta)}</p>` : ''}</div><span class="spacer"></span>${m.informe ? `<button class="btn" id="peRep">${esc(m.informeTxt || 'Generar informe')}</button>` : ''}</div><div class="pe-body stack" id="peBody"></div>`;
+    panel.innerHTML = `${m.portada ? '' : `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(m.grupo)}</span><h2 class="st-title">${A.tituloCalado ? A.tituloCalado(m.nombre) : esc(m.nombre)}</h2>${m.pregunta ? `<p class="st-q">${esc(m.pregunta)}</p>` : ''}</div><span class="spacer"></span>${m.informe ? `<button class="btn" id="peRep">${esc(m.informeTxt || 'Generar informe')}</button>` : ''}</div>`}<div class="pe-body stack" id="peBody"></div>`;
     const body = $('#peBody', panel);
     try { m.render(body); } catch (e) { body.innerHTML = `<div class="alert stop">No se pudo mostrar este módulo: ${esc(e.message)}</div>`; console.error(e); }
     const rb = $('#peRep', panel); if (rb) rb.onclick = () => m.informe();
     $$('[data-go]', panel).forEach((b) => (b.onclick = () => show(b.dataset.go)));
+    (R.onShowExtra || []).forEach((f) => { try { f(id, body); } catch (e) { console.error(e); } });
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
     if (keep) { scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
+    if (R.onShow) try { R.onShow(id, !!keep); } catch (e) { console.error(e); }
   }
+  R.current = () => current;
   R.show = show;
   R.rerender = () => show(current, true);
   R.GRUPOS = GRUPOS;
@@ -317,6 +320,7 @@
     buildTabs();
     const h = location.hash.replace('#', '');
     show(R.mod(h) ? h : 'panorama');
+    if (R.onStart) try { R.onStart(); } catch (e) { console.error(e); }
     addEventListener('hashchange', () => { const k = location.hash.replace('#', ''); if (R.mod(k) && k !== current) show(k); });
     // Detalle de una persona al tocar su punto en la rueda
     document.addEventListener('click', (e) => { const g = e.target.closest('.pe-pt'); if (g && R.fichaPersona) R.fichaPersona(g.dataset.pid); });

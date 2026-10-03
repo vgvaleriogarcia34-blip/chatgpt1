@@ -11,24 +11,78 @@
   const confirmar = (btn, fn) => { if (btn.dataset.ok) return fn(); btn.dataset.ok = '1'; const t = btn.textContent; btn.textContent = '¿Seguro? Toca otra vez'; btn.classList.add('del-btn'); setTimeout(() => { if (btn.isConnected) { delete btn.dataset.ok; btn.textContent = t; btn.classList.remove('del-btn'); } }, 3500); };
 
   /* Bloqueo amable: sin consentimiento no se pasan cuestionarios */
-  const pideConsent = (p) => `<div class="alert warn stack"><span>Antes de pasar un cuestionario a <b>${esc(p.nombre)}</b>, explícale para qué es y pide su consentimiento. Puede ver sus resultados y pedir que se borren. También puedes enviárselo por enlace: lo responde desde su móvil y da su consentimiento al abrirlo.</span><div class="row"><button class="btn solid small" id="peCons">Tengo su consentimiento</button></div></div>`;
+  const pideConsent = (p) => `<div class="alert warn stack"><span>Antes de pasar un cuestionario a <b>${esc(p.nombre)}</b>, explícale para qué es y pide su consentimiento. Puede ver sus resultados y pedir que se borren. Si se indica su fecha de nacimiento, se usa para una lectura complementaria de su perfil. También puedes enviárselo por enlace: lo responde desde su móvil y da su consentimiento al abrirlo.</span><div class="row"><button class="btn solid small" id="peCons">Tengo su consentimiento</button></div></div>`;
   const wireConsent = (host, p) => { const b = $('#peCons', host); if (b) b.onclick = () => { p.consentimiento = true; p.consentFecha = R.hoy(); R.save(); R.rerender(); }; };
   /* Cabecera de herramienta: elegir persona */
   const cabPersona = (host, p, extra, test) => `<div class="glass pad row pe-who"><label class="small">Persona ${R.selPersona('pePer', p.id)}</label>${extra || ''}${test && R.envioBtns ? `<span class="spacer"></span>${R.envioBtns(p, test)}` : ''}</div>`;
   const wirePersona = (host) => { const s = $('#pePer', host); if (s) s.onchange = () => { R.activa = s.value; R.rerender(); }; if (R.wireEnvio) R.wireEnvio(host); };
 
   /* ================= VISIÓN ================= */
+  /* Portada del mundo: la misma cara que el puente de mando del simulador */
+  const C3 = { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' };
+  const stP = (x) => (x == null ? null : x >= 75 ? 'ok' : x >= 50 ? 'warn' : 'stop');
+  R.heroCfg = () => {
+    const s = R.resumen(), ps = R.state.personas, n = s.n;
+    const parte = (k) => (n ? Math.round((k / n) * 100) : null);
+    const ident = R.identidad ? ps.filter((p) => R.identidad(p)).length : 0;
+    const ls = R.lideres ? R.lideres() : [], filas = ls.flatMap((p) => R.mapaMando(p)), desj = filas.filter((f) => f.des && f.des.st !== 'ok').length;
+    const graves = s.est.avisos.filter((a) => a.st === 'stop').length, revisar = s.est.avisos.filter((a) => a.st === 'warn').length;
+    const luces = n ? [
+      { n: 'Consentimiento', v: `${s.consent}/${n}`, st: stP(parte(s.consent)), go: 'personas' },
+      { n: 'DISC', v: `${s.disc}/${n}`, st: stP(parte(s.disc)), go: 'disc' },
+      { n: 'Aportaciones al equipo', v: `${s.roles}/${n}`, st: stP(parte(s.roles)), go: 'roles' },
+      { n: 'Eneagrama', v: `${s.enea}/${n}`, st: stP(parte(s.enea)), go: 'eneagrama' },
+      { n: 'Perfil de identidad', v: `${ident}/${n}`, st: stP(parte(ident)), go: 'identidad' },
+      { n: 'Puestos definidos', v: String(R.state.puestos.length), st: R.state.puestos.length ? 'ok' : 'warn', go: 'puestos' },
+      { n: 'Encaje medio', v: s.encMedio == null ? '—' : s.encMedio + ' %', st: s.encMedio == null ? null : s.encMedio >= 75 ? 'ok' : s.encMedio >= 55 ? 'warn' : 'stop', go: 'encaje' },
+      { n: 'Encaje bajo', v: String(s.encBajo), st: s.enc ? (s.encBajo ? 'stop' : 'ok') : null, go: 'encaje' },
+      { n: 'Puestos críticos y relevos', v: graves ? graves + ' alertas' : 'sin alertas', st: graves ? 'stop' : 'ok', go: 'organigrama' },
+      { n: 'Estructura', v: revisar + ' puntos a revisar', st: revisar > 2 ? 'stop' : revisar ? 'warn' : 'ok', go: 'organigrama' },
+      { n: 'Mapa de talento', v: `${s.evaluados}/${n}`, st: stP(parte(s.evaluados)), go: 'talento' },
+      { n: 'Aportaciones sin cubrir', v: String(s.todo.faltan.length), st: s.roles ? (s.todo.faltan.length > 2 ? 'stop' : s.todo.faltan.length ? 'warn' : 'ok') : null, go: 'equipos' },
+      { n: 'Líderes con test de estilo', v: `${ls.filter((p) => p.lid && p.lid.estilo).length}/${ls.length}`, st: ls.length ? stP(Math.round((ls.filter((p) => p.lid && p.lid.estilo).length / ls.length) * 100)) : null, go: 'lid-estilo' },
+      { n: 'Desajustes de liderazgo', v: String(desj), st: filas.some((f) => f.nv) ? (desj > 2 ? 'stop' : desj ? 'warn' : 'ok') : null, go: 'lid-mapa' }
+    ] : [];
+    const con = luces.filter((l) => l.st), nota = con.length ? Math.round(con.reduce((a, l) => a + (l.st === 'ok' ? 100 : l.st === 'warn' ? 55 : 15), 0) / con.length) : null;
+    const stN = nota == null ? null : nota >= 70 ? 'ok' : nota >= 50 ? 'warn' : 'stop';
+    const encs = ps.map((p) => ({ p, e: R.encaje(p, R.puestoDe(p)) })).filter((x) => x.e && x.e.total != null);
+    const niveles = { 1: 0, 2: 0, 3: 0, 4: 0 }; filas.filter((f) => f.nv).forEach((f) => niveles[f.nv.nivel]++);
+    const LN = A.liderazgoDatos;
+    return {
+      kicker: 'Personas y equipos · panorama',
+      titulo: '¿Tiene cada persona <em>el sitio que le toca</em> en su equipo?',
+      lede: 'Comportamiento, aportaciones, motivación e identidad de cada persona; puestos, estructura y relevos; equipos equilibrados y un liderazgo a la medida de cada tarea.',
+      empresa: R.empresa().nombre, sector: R.empresa().sector,
+      datos: [['Personas', String(n)], ['Puestos', String(R.state.puestos.length)], ['Equipos', String(R.state.equipos.length)], ['Líderes', String(ls.length)]],
+      acciones: n ? [{ t: 'Enviar cuestionarios', cls: 'solid', fn: () => R.show('envios') }, { t: 'Ver el mapa', fn: () => A.rutaPer && A.rutaPer.openMap() }, { t: 'Informe de la organización', cls: 'ghost', fn: () => R.informeOrg() }]
+        : [{ t: 'Empezar por la plantilla', cls: 'solid', fn: () => R.show('personas') }, { t: 'Definir puestos', fn: () => R.show('puestos') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaPer && A.rutaPer.openMap() }],
+      veredicto: { kicker: 'Salud del equipo humano', st: stN,
+        titulo: !n ? 'Sin plantilla todavía' : nota + '/100 · ' + (nota >= 70 ? 'equipo en orden' : nota >= 50 ? 'con puntos que trabajar' : 'con alertas que atender'),
+        texto: n ? 'Cada franja es un aspecto del equipo: herramientas completadas, encaje, estructura, talento, equipos y liderazgo. Tócala para ir a su herramienta.' : 'Da de alta a las personas y aquí aparecerá el estado de cada aspecto del equipo, con su semáforo.',
+        luces: luces.map((l) => ({ n: l.n, v: l.v, st: l.st, fn: () => R.show(l.go) })),
+        enlace: n ? { t: 'Por dónde empezar', fn: () => { const x = document.querySelector('.pe-prior'); if (x) x.scrollIntoView({ behavior: 'smooth', block: 'center' }); } } : null },
+      kpis: n ? [
+        { k: 'Estilos', v: `${s.disc}/${n}`, d: 'personas con DISC', st: stP(parte(s.disc)), barras: ['D', 'I', 'S', 'C'].map((k) => ({ n: H.DISC[k].n, v: s.todo.dist[k] || 0.3, c: H.DISC[k].c })), fn: () => R.show('disc') },
+        { k: 'Cuestionarios', v: String(s.disc + s.roles + s.enea), d: `de ${n * 3} posibles`, st: stP(Math.round(((s.disc + s.roles + s.enea) / (n * 3)) * 100)), barras: [{ n: 'DISC', v: s.disc + 0.3 }, { n: 'Aportaciones', v: s.roles + 0.3 }, { n: 'Eneagrama', v: s.enea + 0.3 }, { n: 'Identidad', v: ident + 0.3 }], fn: () => R.show('envios') },
+        { k: 'Encaje medio', v: s.encMedio == null ? '—' : s.encMedio + ' %', d: `${s.enc} con puesto y perfil`, st: s.encMedio == null ? null : s.encMedio >= 75 ? 'ok' : s.encMedio >= 55 ? 'warn' : 'stop', barras: encs.length ? encs.map((x) => ({ n: x.p.nombre, v: x.e.total, c: C3[x.e.st] })) : null, fn: () => R.show('encaje') },
+        { k: 'Estructura', v: `${s.est.niveles} nivel${s.est.niveles === 1 ? '' : 'es'}`, d: `${s.est.mandos.length} mandos · ${graves} alertas graves`, st: graves ? 'stop' : revisar ? 'warn' : 'ok', barras: s.est.mandos.map((m) => ({ n: m.p.nombre, v: m.n, c: m.n > 8 ? C3.warn : null })), fn: () => R.show('organigrama') },
+        { k: 'Liderazgo', v: `${filas.filter((f) => f.nv).length} tareas`, d: `${desj} desajuste${desj === 1 ? '' : 's'}`, st: filas.some((f) => f.nv) ? (desj ? 'warn' : 'ok') : null, barras: LN ? [1, 2, 3, 4].map((k) => ({ n: LN.NIVELES[k].n, v: niveles[k] + 0.3, c: LN.NIVELES[k].c })) : null, fn: () => R.show('lid-mapa') }
+      ] : []
+    };
+  };
+  const conHero = (host, html) => { const hc = A.heroMundo ? R.heroCfg() : null; host.innerHTML = (hc ? A.heroMundo.html(hc) : '') + html; if (hc) A.heroMundo.wire(host, hc); };
+
   R.register({
-    id: 'panorama', grupo: 'Visión', nombre: 'Panorama', pregunta: '¿Cómo es el equipo humano y qué conviene trabajar primero?',
+    id: 'panorama', grupo: 'Visión', nombre: 'Panorama', portada: true, pregunta: '¿Cómo es el equipo humano y qué conviene trabajar primero?',
     informe: () => R.informeOrg(), informeTxt: 'Informe de la organización',
     render(host) {
       const s = R.resumen();
       if (!s.n) {
-        host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Personas y equipos</div><h2>Analiza perfiles, encaja personas y puestos y ordena la estructura</h2>
-          <p>Este mundo trabaja con tres herramientas clásicas de recursos humanos: <b>DISC</b> (estilo de comportamiento), <b>aportaciones al equipo</b> (modelo propio de nueve aportaciones) y <b>eneagrama</b> (motivación). Con ellas: perfiles de puesto, encaje persona-puesto, análisis de equipos, auditoría de la estructura, mapa de talento y <b>tablillas de entrenamiento</b> que se proponen solas.</p>
+        conHero(host, `<div class="glass pad stack"><div class="eyebrow">Cómo empezar</div><h2>Analiza perfiles, encaja personas y puestos y <em>ordena la estructura</em></h2>
+          <p>Este mundo trabaja con <b>DISC</b> (estilo de comportamiento), <b>aportaciones al equipo</b> (modelo propio de nueve aportaciones), <b>eneagrama</b> (motivación) y el <b>perfil de identidad</b>. Con ellas: perfiles de puesto, encaje persona-puesto, análisis de equipos, auditoría de la estructura, mapa de talento y <b>tablillas de entrenamiento</b> que se proponen solas.</p>
           <p class="small muted">No es control horario, ni nóminas, ni seguimiento del día a día: es análisis, auditoría y estructura.</p>
           <ol class="pe-pasos"><li><b>Plantilla:</b> da de alta a las personas (o tráelas del organigrama del sistema estratégico).</li><li><b>Puestos:</b> define cada puesto con su perfil (hay plantillas).</li><li><b>Herramientas:</b> cada persona responde sus cuestionarios (5–10 minutos cada uno).</li><li><b>Lectura:</b> encaje, equipos, estructura, talento y tablillas.</li></ol>
-          <div class="row"><button class="btn solid" data-go="personas">Empezar por la plantilla</button><button class="btn" data-go="puestos">Definir puestos</button></div></div>${R.aviso()}`;
+          <div class="row"><button class="btn solid" data-go="personas">Empezar por la plantilla</button><button class="btn" data-go="puestos">Definir puestos</button></div></div>${R.aviso()}`);
         return;
       }
       const prior = [];
@@ -39,19 +93,12 @@
       s.est.avisos.filter((a) => a.st === 'warn').slice(0, 3).forEach((a) => prior.push({ st: 'warn', t: a.t, go: 'organigrama' }));
       if (!R.state.puestos.length) prior.push({ st: 'info', t: 'Aún no hay puestos definidos: defínelos para medir el encaje.', go: 'puestos' });
       if (!s.evaluados) prior.push({ st: 'info', t: 'Sin valoración de desempeño y potencial: el mapa de talento está vacío.', go: 'talento' });
-      host.innerHTML = `${kpis([
-        { k: 'Personas', v: s.n, d: `${s.consent} con consentimiento` },
-        { k: 'DISC', v: `${s.disc}/${s.n}`, d: 'estilo de comportamiento', st: s.disc === s.n ? 'ok' : 'warn' },
-        { k: 'Aportaciones', v: `${s.roles}/${s.n}`, d: 'mapa de aportaciones al equipo' },
-        { k: 'Eneagrama', v: `${s.enea}/${s.n}`, d: 'motivación' },
-        { k: 'Encaje medio', v: pct(s.encMedio), d: `${s.enc} persona${s.enc === 1 ? '' : 's'} con puesto y perfil`, st: s.encMedio == null ? null : s.encMedio >= 75 ? 'ok' : s.encMedio >= 55 ? 'warn' : 'stop' },
-        { k: 'Estructura', v: `${s.est.niveles} nivel${s.est.niveles === 1 ? '' : 'es'}`, d: `${s.est.mandos.length} mando${s.est.mandos.length === 1 ? '' : 's'}`, st: s.est.avisos.some((a) => a.st === 'stop') ? 'stop' : s.est.avisos.some((a) => a.st === 'warn') ? 'warn' : 'ok' }
-      ])}
+      conHero(host, `
       <div class="grid pe-two">
         <div class="glass pad stack"><div class="eyebrow">Mapa de estilos</div>${s.disc ? R.rueda(R.state.personas) + '<p class="small muted">Cada punto es una persona; tócalo para ver su ficha. Arriba, los estilos rápidos y orientados a la acción; abajo, los reflexivos y constantes. A la izquierda, orientados a la tarea; a la derecha, a las personas.</p>' : '<p class="muted">Cuando las personas completen su DISC aparecerán aquí.</p>'}</div>
         <div class="glass pad stack"><div class="eyebrow">Por dónde empezar</div>${prior.length ? `<div class="pe-prior">${prior.slice(0, 7).map((a) => `<button class="pe-pr st-${a.st}" data-go="${a.go}"><span>${esc(a.t)}</span><i>›</i></button>`).join('')}</div>` : '<div class="alert info">Todo en orden con los datos actuales. Revisa las tablillas de entrenamiento propuestas.</div>'}
           ${s.todo.media ? `<div class="eyebrow">Perfil medio de la empresa</div>${R.discBars(s.todo.media)}` : ''}</div>
-      </div>${R.aviso()}`;
+      </div>${R.aviso()}`);
     }
   });
 
@@ -463,6 +510,7 @@
     if (p.roles && p.roles.scores) { const s = p.roles.scores; h += In.section('Aportaciones al equipo', In.table(['Aportación', 'Familia', 'Puntuación', 'Aporta'], R.rolesOrden(s).map((k) => [H.ROLES[k].n, H.ROLES[k].g, s[k] + ' %', H.ROLES[k].aporta]), { num: [2] }), 'Modelo propio. Las tres primeras son sus aportaciones naturales.'); }
     if (p.enea && p.enea.tipo) { const E = H.ENEA[p.enea.tipo]; h += In.section('Motivación (eneagrama)', In.table(['Aspecto', 'Lectura'], [['Tipo', `${p.enea.tipo} · ${E.n} (ala ${p.enea.ala}, centro ${E.centro.toLowerCase()})`], ['Le mueve', E.motivacion], ['Teme', E.miedo], ['Fortaleza', E.fortaleza], ['En estrés / al crecer', `Tipo ${E.estres} / tipo ${E.crece}`], ['Cómo liderarle', E.liderar], ['Riesgo', E.riesgo]])); }
     if (enc && enc.total != null) h += In.section('Encaje con el puesto', In.kpis([{ k: 'Encaje', v: enc.total + ' %', st: enc.st }, { k: 'Comportamiento', v: pct(enc.disc) }, { k: 'Aportaciones clave', v: pct(enc.roles) }]) + (enc.brechas.length ? In.table(['Brecha'], enc.brechas.map((b) => [b.txt])) : In.callout('Perfil alineado con lo que pide el puesto.', 'ok')), pu.mision ? 'Misión del puesto: ' + esc(pu.mision) : '');
+    if (R.identidadInforme) h += R.identidadInforme(p);
     const tabs = R.tablillasDe(p).slice(0, 5);
     if (tabs.length) h += In.section('Plan de entrenamiento', In.table(['Tablilla', 'Objetivo', 'Duración', 'Por qué'], tabs.map((x) => [x.t.titulo, x.t.objetivo, x.t.duracion, x.motivos.join(' ')])));
     h += In.foot(pie);

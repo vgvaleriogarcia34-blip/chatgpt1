@@ -157,10 +157,11 @@
     try { m.render(panel); } catch (e) { panel.innerHTML = `<div class="alert stop">No se pudo mostrar este módulo: ${esc(e.message)}</div>`; console.error(e); }
     // Cada módulo puede generar su informe
     // Cabecera del módulo: área, nombre con volumen, la pregunta que responde y sus informes
-    if (A.informe && !panel.querySelector('.alert.stop')) {
+    // La portada (cuadro de mando) lleva su propio titular grande: sin cabecera pequeña encima
+    if (A.informe && !panel.querySelector('.alert.stop') && !(m.portada && panel.querySelector('.hm-hero'))) {
       const D = A.C360 && A.C360[id];
       const r360 = D && S.report360;
-      panel.insertAdjacentHTML('afterbegin', `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(m.grupo)}</span><h2 class="st-title">${esc(m.nombre)}</h2>${D && D.pregunta ? `<p class="st-q">${esc(D.pregunta)}</p>` : ''}</div><span class="spacer"></span>${id === 'auditoria' && S.auditReport ? '<button class="btn" id="stAudit">Informe de auditoría</button>' : ''}${id !== 'origen' ? `<button class="btn ${r360 ? 'solid' : ''}" id="stReport">${r360 ? 'Informe 360' : 'Generar informe'}</button>` : ''}</div>`);
+      panel.insertAdjacentHTML('afterbegin', `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(m.grupo)}</span><h2 class="st-title">${A.tituloCalado ? A.tituloCalado(m.nombre) : esc(m.nombre)}</h2>${D && D.pregunta ? `<p class="st-q">${esc(D.pregunta)}</p>` : ''}</div><span class="spacer"></span>${id === 'auditoria' && S.auditReport ? '<button class="btn" id="stAudit">Informe de auditoría</button>' : ''}${id !== 'origen' ? `<button class="btn ${r360 ? 'solid' : ''}" id="stReport">${r360 ? 'Informe 360' : 'Generar informe'}</button>` : ''}</div>`);
       const rb = $('#stReport', panel); if (rb) rb.onclick = () => (r360 ? S.report360(m) : S.moduleReport(m));
       const ab = $('#stAudit', panel); if (ab) ab.onclick = () => S.auditReport();
     }
@@ -265,25 +266,44 @@
   S.allFindings = () => S.modules.filter((m) => m.findings).flatMap((m) => { try { return m.findings().map((f) => Object.assign({ area: m.nombre, mod: m.id }, f)); } catch (e) { return []; } });
 
   S.register({
-    id: 'tablero', nombre: 'Cuadro de mando', grupo: 'Visión',
+    id: 'tablero', nombre: 'Cuadro de mando', grupo: 'Visión', portada: true,
     render(host) {
       const k = S.allKpis(), R = S.allRisks(), Fi = S.allFindings();
       const areas = Array.from(new Set(k.map((x) => x.area)));
       const score = (list) => { const s = list.filter((x) => x.st); return s.length ? Math.round(s.reduce((a, x) => a + (x.st === 'ok' ? 100 : x.st === 'warn' ? 55 : 15), 0) / s.length) : null; };
       const global = score(k);
       const impacto = Fi.reduce((a, f) => a + (f.impactoEUR || 0), 0);
-      host.innerHTML = `<div class="eyebrow">Cuadro de mando</div><h2>La empresa <em>de un vistazo</em></h2>
-        <p class="lede">Todos los indicadores de todas las áreas, con su semáforo. Toca un área para ir a su módulo. Los riesgos y las oportunidades de mejora se suman aquí desde cada sección.</p>
-        ${S.kpiTiles([
+      const stS = (x) => (x === null ? null : x >= 70 ? 'ok' : x >= 50 ? 'warn' : 'stop');
+      const porArea = areas.map((a) => { const l = k.filter((x) => x.area === a); return { a, mod: l[0].mod, sc: score(l), st: stS(score(l)) }; });
+      const veredicto = S.analysis().verdict, rojos = k.filter((x) => x.st === 'stop').length;
+      const ea = A.platform && A.platform.empresas && A.platform.empresas.activa();
+      const hc = {
+        kicker: 'Sistema estratégico · cuadro de mando',
+        titulo: '¿Funciona la empresa <em>como un sistema</em>, área a área?',
+        lede: 'Veintiún módulos sobre los mismos datos: finanzas, clientes, operaciones y entorno. Cada indicador con su semáforo, cada riesgo con su nivel y cada mejora con lo que vale al año.',
+        empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
+        datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]],
+        acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaEst && A.rutaEst.openMap() }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
+        veredicto: { kicker: 'Salud global de la empresa', st: stS(global), titulo: global === null ? 'Sin datos suficientes' : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. Cada franja es un indicador: tócala para ir a su módulo.`,
+          luces: k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
+        kpis: [
+          { k: 'Salud global', v: global === null ? '—' : global + '/100', st: stS(global), d: `${rojos} indicadores en rojo`, barras: porArea.map((x) => ({ n: x.a, v: x.sc || 5, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
+          { k: 'Riesgos altos', v: String(R.filter((r) => r.estado === 'stop').length), st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados`, barras: R.slice(0, 16).map((r) => ({ n: r.nombre, v: r.nivel, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[r.estado] })) },
+          { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual`, barras: Fi.slice().sort((x, y) => (y.impactoEUR || 0) - (x.impactoEUR || 0)).slice(0, 12).map((f) => ({ n: f.hallazgo, v: f.impactoEUR || 0 })) },
+          { k: 'Veredicto de inversión', v: veredicto.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base'), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[veredicto.key] || null, fn: () => { location.href = 'app.html'; } }
+        ]
+      };
+      host.innerHTML = `${A.heroMundo ? A.heroMundo.html(hc) : `<div class="eyebrow">Cuadro de mando</div><h2>La empresa <em>de un vistazo</em></h2>${S.kpiTiles([
           { k: 'Salud global', v: global === null ? '—' : global + '/100', st: global === null ? null : global >= 70 ? 'ok' : global >= 50 ? 'warn' : 'stop', d: `${k.filter((x) => x.st === 'stop').length} indicadores en rojo` },
           { k: 'Riesgos altos', v: R.filter((r) => r.estado === 'stop').length, st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados` },
           { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual` },
           { k: 'Veredicto de inversión', v: S.analysis().verdict.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base') }
-        ])}
+        ])}`}
         <div class="areas mt">${areas.map((a) => { const l = k.filter((x) => x.area === a); const sc = score(l); return `<button class="glass area" data-mod="${l[0].mod}"><div class="row"><b>${a}</b><span class="spacer"></span>${sc === null ? '' : `<span class="state st-${sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop'}">${sc}</span>`}</div>${l.slice(0, 4).map((x) => `<div class="arow"><span>${x.k}</span><b class="num">${x.v}</b>${x.st ? `<i class="dotc ${x.st}"></i>` : '<i></i>'}</div>`).join('')}</button>`; }).join('')}</div>
         <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Mapa de riesgos de todas las áreas</h4><div class="chart" id="tbRisk"></div></div><div class="glass pad stack"><h4>Riesgos principales</h4>${S.riskBlock(R.slice(0, 8))}</div></div>
         <div class="glass pad mt stack"><h4>Mayores oportunidades de mejora</h4>${Fi.length ? `<div class="table-wrap"><table><thead><tr><th>Área</th><th style="text-align:left">Hallazgo</th><th>Impacto anual</th><th style="text-align:left">Acción</th><th>Plazo</th></tr></thead><tbody>${Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0)).slice(0, 12).map((f) => `<tr><td>${esc(f.area)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.hallazgo)}</td><td>${F.eur(f.impactoEUR || 0)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.accion)}</td><td>${f.plazo} días</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Completa los módulos para ver oportunidades.</p>'}</div>`;
       $$('.area', host).forEach((b) => b.onclick = () => show(b.dataset.mod));
+      if (A.heroMundo) A.heroMundo.wire(host, hc);
       A.charts.riskMatrix($('#tbRisk', host), R.slice(0, 14), () => {});
     }
   });

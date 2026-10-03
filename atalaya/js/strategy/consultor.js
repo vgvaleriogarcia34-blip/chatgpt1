@@ -95,7 +95,7 @@
         <div class="c3-pane">${pane(id, tab)}</div>
         <div class="c3-foot"><span class="small muted">${mz.resp < mz.total ? `Responde las preguntas: el plan de acción y el informe salen de tus respuestas.` : 'Diagnóstico completo.'}</span><span class="spacer"></span><button class="btn solid" data-rep>Generar informe 360</button></div>
       </div>`;
-    const head = $('.st-head', host); if (head) head.after(box); else host.prepend(box);
+    const head = $('.hm-kpis', host) || $('.st-head', host); if (head) head.after(box); else host.prepend(box);
     wire(box, id);
   }
   function pane(id, tab) {

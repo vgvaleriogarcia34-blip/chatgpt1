@@ -15,7 +15,7 @@
   const ESC5 = ['Nada', 'Poco', 'A veces', 'Bastante', 'Totalmente'];
   const F = ['D', 'I', 'S', 'C'];
 
-  let meta = null, modo = null, token = null, resp = null, idx = 0, consent = false, lsKey = null;
+  let meta = null, modo = null, token = null, resp = null, idx = 0, consent = false, lsKey = null, nac = '';
 
   /* ---------- Preguntas de cada test ---------- */
   const items = () => ({ disc: H.DISC_BLOQUES, roles: H.ROLES_ITEMS, enea: H.ENEA_ITEMS, lid: L.SITUACIONES, lid360: L.SITUACIONES, prep: L.PREP_ITEMS }[meta.test]);
@@ -40,13 +40,13 @@
   /* ---------- Guardado del avance ---------- */
   let tSave = null;
   const guardar = (fin) => {
-    if (modo === 'codigo') { LS.set(lsKey, { resp, idx, consent }); return Promise.resolve(); }
+    if (modo === 'codigo') { LS.set(lsKey, { resp, idx, consent, nac }); return Promise.resolve(); }
     clearTimeout(tSave);
-    const put = () => fetch('/api/t/' + token, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resp: limpia(), consent: true, fin: !!fin }) })
+    const put = () => fetch('/api/t/' + token, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resp: limpia(), consent: true, fin: !!fin, nacimiento: nac || undefined }) })
       .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'No se pudo guardar'); return j; });
     if (fin) return put();
     tSave = setTimeout(() => put().catch(() => { /* se reintenta en la siguiente respuesta */ }), 600);
-    LS.set(lsKey, { resp, idx, consent });
+    LS.set(lsKey, { resp, idx, consent, nac });
     return Promise.resolve();
   };
 
@@ -60,9 +60,11 @@
       <p>${INTRO[meta.test]()}</p>
       <p class="tp-meta"><span>Unos ${T.min} minutos</span><span>Sin crear cuenta</span><span>${modo === 'servidor' ? 'Puede dejarlo y seguir luego con este enlace' : 'Su avance se guarda en este navegador'}</span></p>
       <div class="tp-legal"><b>Para qué se usan sus respuestas.</b> Para ${PARA[meta.test]}. Es una herramienta orientativa: no es un examen, no mide su valor y no debe usarse como único criterio para ninguna decisión sobre usted. Puede ver su resultado y pedir a ${esc(meta.empresa || 'la empresa')} que lo borre cuando quiera.</div>
+      ${meta.test === 'lid360' ? '' : `<label class="tp-nac"><span>Fecha de nacimiento <small>(opcional)</small></span><input class="input" type="date" id="tpNac" value="${esc(nac)}" max="${new Date().toISOString().slice(0, 10)}"><small>Si la indica, se usa para completar su perfil con una lectura complementaria de su identidad personal.</small></label>`}
       <label class="tp-check"><input type="checkbox" id="tpOk" ${consent ? 'checked' : ''}> <span>He leído para qué se usan mis respuestas y acepto responder.</span></label>
       <div class="row"><button class="btn solid big" id="tpGo" ${consent ? '' : 'disabled'}>${hechos ? `Seguir (${hechos} de ${resp.length})` : 'Empezar'}</button></div></div>`;
     $('#tpOk').onchange = (e) => { consent = e.target.checked; $('#tpGo').disabled = !consent; };
+    const tn = $('#tpNac'); if (tn) tn.onchange = () => { nac = /^\d{4}-\d{2}-\d{2}$/.test(tn.value) && +tn.value.slice(0, 4) >= 1900 ? tn.value : ''; };
     $('#tpGo').onclick = () => { const f = limpia().findIndex((x) => x == null); idx = f < 0 ? resp.length - 1 : f; pregunta(); };
   };
   const barra = () => `<div class="tp-prog"><span style="width:${(limpia().filter((x) => x != null).length / resp.length) * 100}%"></span></div><div class="tp-n">${idx + 1} de ${resp.length}</div>`;
@@ -106,8 +108,8 @@
       main.innerHTML = `<div class="tp-card stack"><div class="eyebrow">Entregado</div><h1>Gracias${meta.nombre ? ', ' + nombre1() : ''}.</h1><p>Sus respuestas han llegado a ${esc(meta.empresa || 'la empresa')}. Ya puede cerrar esta página.</p>${resumen()}</div>`;
       return;
     }
-    const code = C.codificar(meta.test, resp, meta.pid, meta.tid);
-    LS.set(lsKey, { resp, idx, consent, code });
+    const code = C.codificar(meta.test, resp, meta.pid, meta.tid, nac);
+    LS.set(lsKey, { resp, idx, consent, nac, code });
     finCodigo(code);
   };
   const finCodigo = (code) => {
@@ -145,7 +147,7 @@
       if (j.estado === 'caducado') { pantallaError('Este enlace ha caducado', 'Pida a quien se lo envió un enlace nuevo.'); return; }
       if (j.estado === 'anulado') { pantallaError('Este enlace ya no está activo', 'Puede que le hayan enviado uno más reciente.'); return; }
       const loc = LS.get(lsKey);
-      resp = Array.isArray(j.resp) ? j.resp : (loc && loc.resp) || null; consent = !!j.consent || !!(loc && loc.consent);
+      resp = Array.isArray(j.resp) ? j.resp : (loc && loc.resp) || null; consent = !!j.consent || !!(loc && loc.consent); nac = j.nacimiento || (loc && loc.nac) || '';
     } else if (h.get('c')) {
       modo = 'codigo';
       try { const o = C.leerPaquete(h.get('c')); meta = { test: o.t, nombre: o.n, empresa: o.e, pid: o.p, tid: o.ti, tarea: o.ta, lider: o.l, email: o.m, resumen: o.r !== 0 }; } catch (e) { meta = null; }
@@ -153,7 +155,7 @@
       lsKey = 'atalaya.test.c.' + C.huella(h.get('c'), meta.test);
       const loc = LS.get(lsKey);
       if (loc && loc.code) { resp = loc.resp; finCodigo(loc.code); $('#tpEmp').textContent = meta.empresa || ''; return; }
-      resp = loc && loc.resp; consent = !!(loc && loc.consent);
+      resp = loc && loc.resp; consent = !!(loc && loc.consent); nac = (loc && loc.nac) || '';
     } else { pantallaError('Falta el enlace del cuestionario', 'Abra el enlace completo que le enviaron.'); return; }
     const n = C.TESTS[meta.test].len();
     if (!Array.isArray(resp) || resp.length !== n) resp = Array.from({ length: n }, () => null);
