@@ -10,7 +10,7 @@
    equipo, llave en mano, coste de no hacerlo, inversión, objetivos, siguiente paso y contraportada). */
 (function () {
   const A = window.Atalaya, V = A.interv;
-  const { D, $, $$, esc, uid, hoy, sumar, fLarga, pl, guardar, toast, empresa, causasOrdenadas, veinte, ruta, render, VISTAS, fraseObj, evalObj } = V.int;
+  const { D, E, $, $$, esc, uid, hoy, sumar, fLarga, pl, guardar, toast, empresa, causasOrdenadas, veinte, ruta, render, VISTAS, fraseObj, evalObj } = V.int;
   const S = () => V.int.st();
   const P = () => A.platform;
 
@@ -175,7 +175,7 @@
     let pg = 3; secciones.forEach((x, i) => { x.num = String(i + 1).padStart(2, '0'); x.pag = pg; pg += x.hojas.length; });
     const cifra = pr.cifra || (r ? Math.round(r.centro) + '×' : '360');
     const portada = hoja('pc-dark pc-portada', `${marca(f)}<div class="pc-anio">Dossier<br>${(pr.fecha || hoy()).slice(0, 4)}</div><div class="pc-pbot">${kick('Dossier de propuesta comercial')}<h1 class="pc-t1">${esc(pr.t1)}<br><span>${esc(pr.t2)}.</span></h1><i class="pc-rule"></i><p class="pc-sub">${esc(pr.subtitulo)}</p><div class="pc-tri"><div><small>Preparado para</small><b>${esc(emp)}</b></div><div><small>Alcance</small><b>${esc(pr.alcance)}</b></div><div><small>Duración</small><b>${esc(pr.duracion)}</b></div></div><div class="pc-pf"><span>${esc((pr.ciudad ? pr.ciudad + ' · ' : '') + mesAnio(pr.fecha))}</span><span>Documento confidencial</span></div></div>`, false, globo({ id: 'a', cx: 640, cy: 470, r: 260, c: '#c9f24d' }));
-    const indice = hoja('pc-dark', `${marca(f, 'mini')}<div class="pc-cifra" aria-hidden="true" style="font-size:${String(cifra).length > 3 ? 150 : String(cifra).length > 2 ? 190 : 250}px"><span>${esc(cifra)}</span><span>${esc(cifra)}</span></div>${kick(`${pr.tipo === 'programa' ? 'Programa de implantación' : 'Proyecto llave en mano'} · ${emp}`)}<h2 class="pc-h big">${esc(pr.idx.a)}<br><span class="pc-o">${esc(pr.idx.b)}</span><br><span class="pc-l">${esc(pr.idx.c)}</span></h2><i class="pc-rule"></i><p class="pc-lede" style="max-width:430px">${esc(pr.idx.texto || pr.subtitulo)}</p><div class="pc-k" style="margin-top:auto">Contenido</div><ol class="pc-idx">${secciones.map((x) => `<li><small>${x.num}</small><b>${esc(x.t)}</b><span>${String(x.pag).padStart(2, '0')}</span></li>`).join('')}</ol>`, { t: pieT, n: '02' });
+    const indice = hoja('pc-dark', `${marca(f, 'mini')}${kick(`${pr.tipo === 'programa' ? 'Programa de implantación' : 'Proyecto llave en mano'} · ${emp}`)}<h2 class="pc-h big">${esc(pr.idx.a)}<br><span class="pc-o">${esc(pr.idx.b)}</span><br><span class="pc-l">${esc(pr.idx.c)}</span></h2><i class="pc-rule"></i><p class="pc-lede" style="max-width:430px">${esc(pr.idx.texto || pr.subtitulo)}</p><div class="pc-k" style="margin-top:auto">Contenido</div><ol class="pc-idx">${secciones.map((x) => `<li><small>${x.num}</small><b>${esc(x.t)}</b><span>${String(x.pag).padStart(2, '0')}</span></li>`).join('')}</ol>`, { t: pieT, n: '02' }, `<div class="pc-cifra" aria-hidden="true" style="font-size:${String(cifra).length > 3 ? 150 : String(cifra).length > 2 ? 190 : 250}px"><span>${esc(cifra)}</span><span>${esc(cifra)}</span></div>`);
     const contra = hoja('pc-dark pc-contra', `<div class="pc-cbig">${marca(f, 'grande')}<i class="pc-rule"></i><p class="pc-lede big">${esc(f.descripcion)}</p><div class="pc-tri two">${f.email ? `<div><small>Correo</small><u>${esc(f.email)}</u></div>` : ''}${f.tel ? `<div><small>Teléfono</small><u>${esc(f.tel)}</u></div>` : ''}</div></div><div class="pc-pf"><span>${esc([f.razon || f.nombre, f.cif && 'CIF ' + f.cif, f.direccion, f.ciudad].filter(Boolean).join(' · '))}</span><span>${esc(mesAnio(pr.fecha))}</span></div>`, false, globo({ id: 'b', cx: 560, cy: 420, r: 300, c: '#c9f24d' }) + ciudad('#c9f24d'));
     return portada + indice + secciones.map((x) => x.hojas.map((h, i) => h(String(x.pag + i).padStart(2, '0'), x.num)).join('')).join('') + contra;
   };
@@ -201,6 +201,107 @@
     A.informe.open({ titulo: 'Propuesta comercial · ' + empresa(), barra: 'Propuesta comercial · ' + empresa(), html: dossier(pr), paginado: true, clave: 'iv:propuesta', after: (paper) => { paper.classList.add('pp-doc', 'pc-doc'); const z = () => { paper.style.zoom = Math.min(1, (innerWidth - 24) / 794); }; z(); addEventListener('resize', z); } });
   };
 
+  /* ================= DOCUMENTOS Y FUENTES =================
+     Borradores, propuestas anteriores, dossieres hechos a mano, notas o transcripciones que no se pasaron
+     por la escucha: se adjuntan aquí y se fusionan con lo que ya sabe la auditoría (sesión, triaje,
+     objetivos, plan). Con Claude se redacta la fusión completa; sin él, se recogen precio, duración,
+     pasos, hitos de pago e incluye/no incluye por reglas. */
+  const TIPOS_ADJ = { borrador: 'Borrador de propuesta', anterior: 'Propuesta anterior', dossier: 'Dossier o informe hecho a mano', notas: 'Notas o análisis previo', transcripcion: 'Transcripción o grabación', otro: 'Otro documento' };
+  const FUENTES_S = { transcripciones: 'Transcripciones y lectura en profundidad', triaje: 'Constantes, síntomas, causas y triaje', objetivos: 'Objetivos del empresario', plan: 'Plan de intervención y sesiones' };
+  const adj = () => { const ST = S(); if (!Array.isArray(ST.pcAdj)) ST.pcAdj = []; return ST.pcAdj; };
+  const fuentesS = () => { const ST = S(); ST.pcFuentes = Object.assign({ transcripciones: true, triaje: true, objetivos: true, plan: true }, ST.pcFuentes || {}); return ST.pcFuentes; };
+  const MAXDOC = 60000;
+  const tipoPorNombre = (n) => (/propuesta|oferta|presupuesto/i.test(n) ? (/borrador|draft|v\d/i.test(n) ? 'borrador' : 'anterior') : /dossier|informe/i.test(n) ? 'dossier' : /transcrip|plaud|acta|srt|vtt/i.test(n) ? 'transcripcion' : /nota|analisis|análisis|triaje/i.test(n) ? 'notas' : 'otro');
+  const fuentesHTML = () => {
+    const l = adj(), fs = fuentesS(), ST = S(), fu = ST.propuesta && ST.propuesta.fusion;
+    return `<section class="glass pad stack pc-fuentes"><div class="row"><div><div class="eyebrow">Documentos y fuentes</div><small class="muted">Adjunta borradores, propuestas anteriores, dossieres hechos a mano, notas o una transcripción que no pasó por la escucha. Se fusionan con lo que ya sabe la auditoría.</small></div></div>
+      ${l.length ? `<ul class="pc-adj">${l.map((d) => `<li data-d="${d.id}"><input type="checkbox" data-du ${d.usar !== false ? 'checked' : ''} aria-label="Usar este documento"><div><b>${esc(d.nombre)}</b><small class="muted">${fLarga(d.fecha)} · ${(d.texto || '').length.toLocaleString('es-ES')} caracteres${d.recortado ? ' (recortado)' : ''}</small></div><select class="input" data-dt>${Object.keys(TIPOS_ADJ).map((k) => `<option value="${k}" ${d.tipo === k ? 'selected' : ''}>${TIPOS_ADJ[k]}</option>`).join('')}</select><button class="btn ghost small" data-dv>Ver</button><button class="icon-btn" data-dd aria-label="Quitar el documento">×</button><pre class="pc-adj-v" hidden>${esc((d.texto || '').slice(0, 3000))}${(d.texto || '').length > 3000 ? '\n…' : ''}</pre></li>`).join('')}</ul>` : '<p class="small muted" style="margin:0">Aún no hay documentos adjuntos.</p>'}
+      <div class="row"><label class="btn small iv-file">Adjuntar documentos<input type="file" id="pcFile" multiple accept=".txt,.md,.docx,.pdf,.srt,.vtt,.json,.csv" hidden></label><span class="small muted">Word, PDF, texto o subtítulos. O pega el texto:</span></div>
+      <textarea class="input" id="pcPega" rows="3" placeholder="Pega aquí un borrador, unas notas o la propuesta que se envió por correo"></textarea>
+      <div class="row"><input class="input" id="pcPegaN" placeholder="Nombre (p. ej. Borrador de junio)" style="flex:1;min-width:0"><button class="btn ghost small" id="pcPegaB">Añadir el texto</button></div>
+      <div class="pc-fs"><span class="small muted">Fusionar también con:</span>${Object.keys(FUENTES_S).map((k) => `<label class="iv-inl small"><input type="checkbox" data-fs="${k}" ${fs[k] ? 'checked' : ''}> ${FUENTES_S[k]}</label>`).join('')}</div>
+      <div class="row"><button class="btn ${ST.propuesta && ST.propuesta.generada ? '' : 'solid'}" id="pcFus" ${l.some((d) => d.usar !== false) ? '' : 'disabled'}>Fusionar los documentos en la propuesta</button><small class="muted">Con Claude conectado se redacta la fusión completa; si no, se recogen precio, duración, pasos, hitos e incluye/no incluye.</small></div>
+      ${fu ? `<div class="pc-fu small"><b>Última fusión · ${fLarga(fu.fecha.slice(0, 10))}${fu.ia ? ' · con Claude' : ' · por reglas'}</b><br>Fuentes: ${esc(fu.fuentes.join(' · '))}${fu.tomado && fu.tomado.length ? `<br>Se ha tomado: ${esc(fu.tomado.join(', '))}` : ''}${fu.notas ? `<br>${esc(fu.notas)}` : ''}</div>` : ''}</section>`;
+  };
+  const wireFuentes = (host) => {
+    const l = adj();
+    const f = $('#pcFile', host); if (f) f.onchange = async (e) => {
+      const files = [...e.target.files]; let n = 0;
+      for (const fl of files) { try { const t = String(await E.leerArchivo(fl) || '').trim(); if (!t) { toast(`«${fl.name}» no tiene texto legible.`); continue; } l.push({ id: uid(), nombre: fl.name.replace(/\.[^.]+$/, ''), tipo: tipoPorNombre(fl.name), fecha: hoy(), texto: t.slice(0, MAXDOC), recortado: t.length > MAXDOC, usar: true }); n++; } catch (x) { toast(`«${fl.name}»: ${x.message}`); } }
+      guardar(); render(); if (n) toast(`${pl(n, 'documento adjuntado', 'documentos adjuntados')}. Pulsa «Fusionar» para llevarlo a la propuesta.`);
+    };
+    const pb = $('#pcPegaB', host); if (pb) pb.onclick = () => { const t = $('#pcPega', host).value.trim(); if (!t) return toast('Pega primero el texto.'); const nm = $('#pcPegaN', host).value.trim() || 'Texto pegado ' + fLarga(hoy()); l.push({ id: uid(), nombre: nm, tipo: tipoPorNombre(nm), fecha: hoy(), texto: t.slice(0, MAXDOC), recortado: t.length > MAXDOC, usar: true }); guardar(); render(); };
+    $$('.pc-adj li', host).forEach((li) => { const d = l.find((x) => x.id === li.dataset.d); if (!d) return;
+      $('[data-du]', li).onchange = (e) => { d.usar = e.target.checked; guardar(); render(); };
+      $('[data-dt]', li).onchange = (e) => { d.tipo = e.target.value; guardar(); };
+      $('[data-dv]', li).onclick = () => { const v = $('.pc-adj-v', li); v.hidden = !v.hidden; };
+      $('[data-dd]', li).onclick = (e) => { if (!e.target.dataset.conf) { e.target.dataset.conf = 1; e.target.textContent = '¿?'; e.target.title = 'Pulsa otra vez para quitarlo'; return; } S().pcAdj = l.filter((x) => x !== d); guardar(); render(); }; });
+    $$('[data-fs]', host).forEach((c) => (c.onchange = () => { fuentesS()[c.dataset.fs] = c.checked; guardar(); }));
+    const fb = $('#pcFus', host); if (fb) fb.onclick = async () => { fb.disabled = true; fb.textContent = 'Fusionando…'; try { await fusionar(); } catch (x) { toast('No se pudo fusionar: ' + x.message); } render(); };
+  };
+
+  /* Lectura por reglas de un documento comercial */
+  const importes = (s) => [...String(s).matchAll(/(\d{1,3}(?:[.\s]\d{3})+|\d{3,})(?:,(\d{1,2}))?\s*(?:€|eur(?:os)?\b)/gi)].map((m) => parseFloat(m[1].replace(/[.\s]/g, '') + '.' + (m[2] || '0')));
+  const extraerReglas = (txt) => {
+    // Los PDF maquetados separan a veces los dígitos («0 1», «0 3 – 0 4»): se juntan antes de leer
+    const L = String(txt).replace(/\r/g, '').split('\n').map((x) => x.replace(/\s+/g, ' ').trim().replace(/^(\d) (\d)\b/, '$1$2').replace(/^(\d{2}) ?[–-] ?(\d) (\d)\b/, '$1-$2$3')).filter(Boolean), r = {};
+    // El precio: la línea «Total» manda; si no hay, las de precio o inversión que no sean un rango de riesgos
+    const totL = L.filter((x) => /^total\b/i.test(x)).flatMap(importes), kwL = L.filter((x) => /\b(precio|inversi[oó]n|honorarios|importe)\b/i.test(x) && !/\d\s*[–-]\s*\d/.test(x)).flatMap(importes), tot = totL.length ? totL : kwL;
+    if (tot.length) r.precio = Math.max(...tot);
+    const dur = String(txt).match(/(?:duraci[oó]n|plazo|periodo)[^\n]{0,40}?(\d{1,2})\s*(?:a\s*(\d{1,2})\s*)?mes(?:es)?/i) || String(txt).match(/\b(\d{1,2})\s*(?:a\s*(\d{1,2})\s*)?meses\b/i);
+    if (dur) r.duracion = dur[2] ? `${dur[1]} a ${dur[2]} meses` : `${dur[1]} meses`;
+    const hit = L.filter((x) => /\d{1,3}\s*%/.test(x) && /(aceptaci|firma|inicio|arranque|entrega|mitad|final|cierre|inscripci|hito|sesi[oó]n de acuerdo)/i.test(x)).map((x) => ({ t: cap(x.replace(/\d{1,3}\s*%.*$/, '').replace(/[·:|\-–]+\s*$/, '').trim()) || 'Hito', pct: +x.match(/(\d{1,3})\s*%/)[1] }));
+    if (hit.length >= 2 && hit.reduce((a, x) => a + x.pct, 0) === 100) r.hitos = hit;
+    const pas = L.map((x) => x.match(/^(?:paso\s*)?(\d{1,2}(?:-\d{1,2})?)[.)\-–:]?\s+([A-ZÁÉÍÓÚÑ].{5,160})$/)).filter(Boolean).map((m) => { const im = importes(m[2]); return { t: m[2].replace(/\s*\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?\s*(?:€|eur(?:os)?).*$/i, '').replace(/[·:|]+\s*$/, '').trim(), d: '', cuando: (m[2].match(/semanas?\s*\d+(?:\s*[-–a]\s*\d+)?/i) || [''])[0], quien: '', ent: '', imp: im.length ? String(im[im.length - 1]) : '' }; });
+    // Preferimos el desglose con importes; sin él, las líneas numeradas que no son un índice (acaban en número de página)
+    const conImp = pas.filter((x) => num(x.imp)), cand = conImp.length >= 2 ? conImp : pas.filter((x, i) => !/\s\d{1,3}$/.test(x.t) && !/^(la|el|lo|los|las)\s/i.test(x.t) || /semana/i.test(x.cuando));
+    const vistos = new Set(); const pasos = cand.filter((x) => x.t.length > 4 && !vistos.has(x.t) && vistos.add(x.t)).slice(0, 10);
+    if (pasos.length >= 2) r.pasos = pasos;
+    const bloque = (re, stop) => { const i = L.findIndex((x) => re.test(x)); if (i < 0) return ''; const out = []; for (let j = i + 1; j < L.length && out.length < 8; j++) { if (stop.test(L[j]) || /^[A-ZÁÉÍÓÚÑ ]{6,}$/.test(L[j])) break; out.push(L[j].replace(/^[•\-·*]\s*/, '')); } return out.join('\n'); };
+    const inc = bloque(/^incluye\b/i, /^no incluye|^forma de pago|^validez|^duraci/i), noi = bloque(/^no incluye\b/i, /^forma de pago|^validez|^duraci|^incluye/i);
+    if (inc) r.incluye = inc; if (noi) r.noIncluye = noi;
+    const t = L.find((x) => x.length > 8 && x.length < 70 && !/confidencial|página|^\d|propuesta comercial$/i.test(x)); if (t) r.titulo = t;
+    return r;
+  };
+  const fusionar = async () => {
+    const ST = S(); if (!ST.propuesta || !ST.propuesta.generada) preparar();
+    const pr = ST.propuesta, docs = adj().filter((d) => d.usar !== false), fs = fuentesS(), tomado = [];
+    if (!docs.length) return toast('Marca al menos un documento.');
+    const v = A.ia ? await A.ia.via() : null;
+    let ia = null;
+    if (v) {
+      const ctx = {};
+      if (fs.objetivos) ctx.objetivos = (ST.objetivos || []).map((o) => ({ dice: o.dice, smart: fraseObj(o), beneficio: o.beneficio, como: o.como }));
+      if (fs.triaje) { ctx.causas = causasOrdenadas().slice(0, 8).map((x) => ({ causa: x.c.t, citas: x.ss.map((s) => s.cita).filter(Boolean).slice(0, 2) })); ctx.triaje = ruta().map((x) => ({ area: x.a.n, nivel: x.n })); ctx.constantes = ST.constantes; }
+      if (fs.transcripciones) ctx.lecturas = ST.transcripciones.map((t) => (t.ia ? { resumen: t.ia.resumen, cita: t.ia.cita_clave, alertas: t.ia.alertas } : { huecos: t.analisis && t.analisis.huecos.filter((h) => h.peso).map((h) => h.id) })).slice(0, 4);
+      if (fs.plan) { ctx.plan = (ST.plan.acciones || []).filter((a) => a.clave).slice(0, 12).map((a) => ({ t: a.t, fase: a.f, entregable: a.ent })); ctx.sesiones = ST.sesiones.length; }
+      let presu = 110000; const textos = docs.map((d) => { const t = d.texto.slice(0, Math.max(4000, Math.floor(presu / docs.length))); return `### ${TIPOS_ADJ[d.tipo] || 'Documento'}: ${d.nombre} (${d.fecha})\n${t}`; }).join('\n\n');
+      try {
+        ia = await A.ia.json(`Eres consultor de pymes y preparas una propuesta comercial para ${empresa()}. Fusiona los documentos adjuntos (borradores, propuestas anteriores, dossieres hechos a mano, notas o transcripciones) con lo que ya sabe la auditoría. Reglas: respeta los precios, pasos y condiciones que figuren en los documentos salvo que la información de la auditoría sea más reciente y los contradiga (dilo en "notas"); no inventes cifras: si un dato no aparece, déjalo vacío; los importes como números sin símbolo; de usted, frases cortas, sin superlativos; habla de valor y de lo que obtiene la empresa. Si hay parte variable por objetivos, cada objetivo debe depender al 100 % de la empresa (nunca de ventas, márgenes o terceros). Devuelve JSON con lo que puedas rellenar: {"tipo":"llave|programa","t1":"","t2":"","subtitulo":"","alcance":"","duracion":"","idx":{"a":"","b":"","c":"","texto":""},"sit":{"h1":"","h2":"","intro":"","items":[{"t":"","d":"","c":""}]},"riesgo":{"linea":[{"cuando":"","que":""}]},"obtienen":{"intro":"","items":[{"t":"","elimina":"","d":""}],"resultado":""},"pasos":{"intro":"","items":[{"t":"","d":"","cuando":"","quien":"","ent":"","imp":0}],"regla":""},"coste":{"modo":"beneficio|perdida","vMin":0,"vMax":0,"pMin":0,"pMax":0,"valorEmpresa":0,"supuestos":"","riesgos":[{"r":"","q":"","imp":""}]},"inv":{"precio":0,"hitos":[{"t":"","pct":0}],"incluye":"una línea por punto","noIncluye":"","descuentos":[{"t":"","imp":0}],"variable":{"on":false,"pct":0},"objetivos":[{"t":"","peso":0,"accion":"una por línea"}]},"notas":"en dos frases: qué has tomado de cada fuente y qué contradicciones has resuelto"}.\n\nLo que sabe la auditoría: ${JSON.stringify(ctx).slice(0, 25000)}\n\nDocumentos:\n${textos}`, { max: 16000 });
+      } catch (x) { ia = null; toast('Claude no ha podido fusionar (' + x.message + '): se usan las reglas.'); }
+    }
+    if (ia) {
+      const pon = (dst, src, ruta) => Object.keys(src || {}).forEach((k) => { const v2 = src[k], p2 = ruta ? ruta + '.' + k : k; if (v2 == null || v2 === '' || v2 === 0 && !/pct|peso/.test(k)) return; if (Array.isArray(v2)) { if (v2.length && dst[k] !== undefined) { dst[k] = v2.map((x) => (typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([a, b]) => [a, b == null ? '' : typeof b === 'number' ? String(b) : b])) : x)); tomado.push(p2); } } else if (typeof v2 === 'object') { if (dst[k] && typeof dst[k] === 'object') pon(dst[k], v2, p2); } else if (k in dst) { dst[k] = typeof v2 === 'number' && typeof dst[k] !== 'number' && typeof dst[k] !== 'boolean' ? String(v2) : v2; tomado.push(p2); } });
+      const { notas } = ia; delete ia.notas;
+      pon(pr, ia, '');
+      if (ia.inv && num(ia.inv.precio)) pr.inv.auto = pr.pasos.items.some((x) => num(x.imp)) && Math.abs(precioPasos(pr) - num(ia.inv.precio)) < 1;
+      (pr.inv.objetivos || []).forEach((o) => { if (!o.tramos) o.tramos = tramosTipo(); });
+      pr.fusion = { fecha: new Date().toISOString(), ia: true, fuentes: docs.map((d) => d.nombre).concat(Object.keys(fs).filter((k) => fs[k]).map((k) => FUENTES_S[k].toLowerCase())), tomado: [...new Set(tomado.map((x) => NOMBRE_CAMPO(x)))], notas: notas || '' };
+    } else {
+      const r = docs.reduce((acc, d) => Object.assign(acc, Object.fromEntries(Object.entries(extraerReglas(d.texto)).filter(([k]) => !(k in acc)))), {});
+      if (r.precio) { pr.inv.precio = String(r.precio); pr.inv.auto = false; tomado.push('precio (' + eur(r.precio) + ')'); }
+      if (r.duracion) { pr.duracion = r.duracion; tomado.push('duración'); }
+      if (r.pasos) { pr.pasos.items = r.pasos; if (r.pasos.some((x) => num(x.imp))) pr.inv.auto = true; tomado.push(pl(r.pasos.length, 'paso', 'pasos')); }
+      if (r.hitos) { pr.inv.hitos = r.hitos; tomado.push('hitos de pago'); }
+      if (r.incluye) { pr.inv.incluye = r.incluye; tomado.push('incluye'); }
+      if (r.noIncluye) { pr.inv.noIncluye = r.noIncluye; tomado.push('no incluye'); }
+      pr.fusion = { fecha: new Date().toISOString(), ia: false, fuentes: docs.map((d) => d.nombre), tomado, notas: v ? '' : 'Sin conexión con Claude: los textos de situación, beneficios y riesgos se han preparado con la sesión. Conecta Claude para redactar la fusión completa.' };
+    }
+    guardar();
+    toast(tomado.length ? `Fusión hecha: ${pr.fusion.tomado.slice(0, 6).join(', ')}${pr.fusion.tomado.length > 6 ? '…' : ''}. Revísalo antes de enviar.` : 'No se ha encontrado nada que tomar de los documentos. Revísalos o conecta Claude.');
+  };
+  const NOMBRE_CAMPO = (p) => ({ t1: 'título', t2: 'título', subtitulo: 'subtítulo', alcance: 'alcance', duracion: 'duración', tipo: 'modelo', 'sit.items': 'situación', 'sit.intro': 'situación', 'riesgo.linea': 'riesgo', 'obtienen.items': 'beneficios', 'obtienen.resultado': 'resultado', 'pasos.items': 'pasos', 'pasos.regla': 'regla del proceso', 'inv.precio': 'precio', 'inv.hitos': 'hitos de pago', 'inv.incluye': 'incluye', 'inv.noIncluye': 'no incluye', 'inv.descuentos': 'descuentos', 'inv.objetivos': 'objetivos variables', 'inv.variable.on': 'parte variable', 'inv.variable.pct': 'parte variable', 'coste.riesgos': 'coste de no hacerlo' }[p.replace(/^\./, '')] || (p.replace(/^\./, '').startsWith('coste.') ? 'valor y retorno' : p.replace(/^\./, '').split('.')[0]));
+
   /* ================= EDITOR ================= */
   const ruta1 = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
   const pon1 = (o, p, v) => { const k = p.split('.'), u = k.pop(); ruta1(o, k.join('.'))[u] = v; };
@@ -214,7 +315,9 @@
       host.innerHTML = `<section class="glass pad stack"><div class="eyebrow">Propuesta comercial</div><h3 class="iv-bt">De la primera sesión a la propuesta</h3><p style="margin:0">Con lo escuchado, los objetivos del empresario, las causas que más pesan y el plan, se prepara la propuesta comercial: un dossier con su situación, lo que obtiene, el protocolo de trabajo, el coste de no hacerlo, la inversión y el siguiente paso.</p>
         <ul class="small" style="margin:0;padding-left:18px"><li><b>Se habla de valor, no de precio:</b> la inversión es una parte pequeña del valor que se genera o de la pérdida que se evita, y el retorno se enseña con sus supuestos.</li><li><b>Dos modelos:</b> proyecto llave en mano (precio cerrado, pago por hitos) o programa de implantación (cuotas y, si se pacta, una parte variable por objetivos que dependen al 100 % de la empresa).</li><li>Todo es editable antes de enviarlo.</li></ul>
         <div class="row"><button class="btn solid" id="pcPrep">Preparar la propuesta desde la primera sesión</button><small class="muted">${pl((ST.objetivos || []).length, 'objetivo', 'objetivos')} · ${pl(causasOrdenadas().length, 'causa', 'causas')} · ${pl((ST.plan.acciones || []).length, 'acción del plan', 'acciones del plan')}</small></div></section>`;
+      host.insertAdjacentHTML('beforeend', fuentesHTML());
       $('#pcPrep', host).onclick = () => { preparar(); render(); toast('Propuesta preparada: revisa el precio y los textos.'); };
+      wireFuentes(host);
       return;
     }
     const pr = ST.propuesta, r = retorno(pr), f = firma(), N = neto(pr), PR = precio(pr), cu = cuotas(pr), prog = pr.tipo === 'programa';
@@ -222,6 +325,7 @@
     const bloque = (id, t, d, html) => `<section class="glass pad stack pc-ed ${abierto === id ? 'on' : ''}" data-b="${id}"><button class="pc-ed-h" data-ab="${id}" aria-expanded="${abierto === id}"><b>${t}</b><small>${d}</small><span>${abierto === id ? '▴' : '▾'}</span></button>${abierto === id ? html : ''}</section>`;
     host.innerHTML = `<section class="glass pad stack"><div class="row"><div><div class="eyebrow">Propuesta comercial</div><small class="muted">Preparada el ${fLarga(pr.generada.slice(0, 10))} · ${prog ? 'programa de implantación' : 'proyecto llave en mano'} · ${PR ? eur(N || PR) + ' + IVA' : 'precio por fijar'}</small></div><span class="spacer"></span><button class="btn ghost small" id="pcIA">Redactar los textos con Claude</button><button class="btn ghost small" id="pcRe">Volver a preparar</button><button class="btn solid" id="pcVer">Ver el dossier</button></div>
         <div class="pc-modelo" role="radiogroup">${[['llave', 'Proyecto llave en mano', 'Pasos con entregable, precio cerrado y pago por hitos.'], ['programa', 'Programa de implantación', 'Jornadas y seguimiento durante meses, cuotas y, si se pacta, un variable por objetivos.']].map(([k, t, d]) => `<button role="radio" aria-checked="${pr.tipo === k}" data-tipo="${k}"><b>${t}</b><small>${d}</small></button>`).join('')}</div></section>
+      ${fuentesHTML()}
       <section class="glass pad stack pc-valor"><div class="row"><div><div class="eyebrow">Valor y precio</div><small class="muted">La regla: la inversión es una parte pequeña de lo que se juega la empresa.</small></div><span class="spacer"></span>${r ? `<span class="iv-st ${r.st}">Retorno ${xx(r.min)}–${xx(r.max)}</span>` : ''}</div>
         <div class="iv-g3"><label class="small">Qué se mide<select class="input" data-p="coste.modo"><option value="beneficio" ${pr.coste.modo !== 'perdida' ? 'selected' : ''}>Valor que genera (beneficio)</option><option value="perdida" ${pr.coste.modo === 'perdida' ? 'selected' : ''}>Pérdida que evita (riesgo)</option></select></label>${campo('coste.vMin', pr.coste.modo === 'perdida' ? 'Pérdida mínima (€)' : 'Valor mínimo (€)', pr.coste.vMin, { ph: '400000' })}${campo('coste.vMax', pr.coste.modo === 'perdida' ? 'Pérdida máxima (€)' : 'Valor máximo (€)', pr.coste.vMax, { ph: '1200000' })}${campo('coste.pMin', 'Probabilidad mínima (%)', pr.coste.pMin)}${campo('coste.pMax', 'Probabilidad máxima (%)', pr.coste.pMax)}${campo('coste.valorEmpresa', 'Valor de la empresa (€, opcional)', pr.coste.valorEmpresa, { ph: '3000000' })}</div>
         <div class="iv-g3">${campo('inv.precio', 'Precio del proyecto (€, sin IVA)', pr.inv.auto && precioPasos(pr) ? String(precioPasos(pr)) : pr.inv.precio, { ph: '37000' })}<label class="iv-inl small"><input type="checkbox" data-p="inv.auto" ${pr.inv.auto ? 'checked' : ''}> Sumar los importes de los pasos</label>${campo('validez', 'Validez (días)', pr.validez)}</div>
@@ -249,6 +353,7 @@
       ${bloque('firma', 'Ficha de tu firma', esc(f.nombre) + ' · para todas tus propuestas', `<div class="iv-g3">${['nombre:Nombre comercial', 'lema:Lema', 'consultor:Consultor', 'cargo:Cargo', 'razon:Razón social', 'cif:CIF', 'direccion:Dirección', 'ciudad:Ciudad', 'email:Correo', 'tel:Teléfono o WhatsApp'].map((x) => { const [k, l] = x.split(':'); return `<label class="small">${l}<input class="input" data-f="${k}" value="${esc(f[k])}"></label>`; }).join('')}</div><label class="small">Descripción de la contraportada<textarea class="input" rows="2" data-f="descripcion">${esc(f.descripcion)}</textarea></label>`)}`;
     // Eventos
     $('#pcVer', host).onclick = () => V.informes.propuesta();
+    wireFuentes(host);
     $('#pcRe', host).onclick = (e) => { if (!e.target.dataset.conf) { e.target.dataset.conf = 1; e.target.textContent = '¿Seguro? Se rehace desde la sesión'; return; } const tipo = pr.tipo, inv = pr.inv, coste = pr.coste; ST.propuesta = null; preparar(); Object.assign(ST.propuesta, { tipo }); ST.propuesta.inv = Object.assign(inv, { objetivos: ST.propuesta.inv.objetivos }); ST.propuesta.coste = Object.assign(ST.propuesta.coste, { modo: coste.modo, vMin: coste.vMin, vMax: coste.vMax, pMin: coste.pMin, pMax: coste.pMax, valorEmpresa: coste.valorEmpresa, supuestos: coste.supuestos }); render(); };
     $$('[data-tipo]', host).forEach((b) => (b.onclick = () => { pr.tipo = b.dataset.tipo; if (pr.tipo === 'programa' && !pr.duracion) pr.duracion = '10 meses'; guardar(); render(); }));
     $$('[data-ab]', host).forEach((b) => (b.onclick = () => { abierto = abierto === b.dataset.ab ? '' : b.dataset.ab; render(); }));
