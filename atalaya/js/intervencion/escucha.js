@@ -89,14 +89,15 @@
 
   /* ---------- Lectura en profundidad con Claude (si está disponible) ---------- */
   E.conIA = async (texto, contexto) => {
-    if (!A.docs || !A.docs.aiAvailable) return null;
-    const via = await A.docs.aiAvailable(); if (!via) return null;
+    const via = A.ia ? await A.ia.asegurar('Lectura en profundidad con Claude') : A.docs && A.docs.aiAvailable ? await A.docs.aiAvailable() : null;
+    if (!via) return null;
     const areas = D().AREAS.map((a) => `${a.id} = ${a.n}`).join('; '), pats = D().PATRONES.map((p) => `${p.id} = ${p.n}`).join('; ');
     const destino = `Transcripción de la primera sesión de diagnóstico de un consultor con el empresario de una pyme. ${contexto || ''}
 Lee entre líneas como un consultor experto: separa síntomas de causas, detecta lo que el empresario dice y lo que realmente quiere decir y no dice (resignificación por el contexto de sus palabras), su lenguaje (absolutos, culpa fuera, obligación, emociones, minimizaciones), y los huecos de definición de la empresa. Cada síntoma y cada hueco debe apoyarse en una cita literal de la transcripción; si no hay cita, no lo incluyas. Prioriza las causas que, resolviendo el 20 %, darían el 80 % del resultado.
 Áreas: ${areas}. Huecos: ${pats}. Gravedad de 1 (leve) a 5 (grave). Constantes de 1 (bien) a 5 (grave).`;
     const forma = '{"resumen":"3 frases","cita_clave":"la frase literal que mejor resume su problema","sintomas":[{"t":"síntoma en una frase","cita":"literal","area":"id","patron":"id","gravedad":1}],"resignificaciones":[{"dice":"literal","quiere":"lo que realmente quiere decir","pregunta":"pregunta para confirmarlo"}],"causas":[{"t":"causa raíz","area":"id","explica":["síntoma"],"prioridad":1}],"constantes":{"tension":3,"temperatura":3,"pulso":3,"respiracion":3,"dependencia":3,"reflejos":3},"alertas":["urgencia con plazo"],"preguntas_pendientes":["lo que conviene preguntar en la auditoría integral"]}';
     if (via === 'server') return (await A.platform.api('/escucha', { method: 'POST', body: JSON.stringify({ texto: String(texto).slice(0, 200000), instrucciones: destino, forma }) })).datos;
+    if (via === 'clave') return A.ia.json(`${destino}\nResponde SOLO con JSON de esta forma: ${forma}\n\nTranscripción:\n${String(texto).slice(0, 110000)}`, { max: 16000 });
     const sm = await window.claude.use('sample');
     return sm.json(`${destino}\nResponde SOLO con JSON de esta forma: ${forma}\n\nTranscripción:\n${String(texto).slice(0, 110000)}`);
   };

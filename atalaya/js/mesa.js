@@ -282,6 +282,7 @@
   };
   /* Mejorar la definición: con Claude si está disponible (servidor o visor); si no, con reglas propias */
   const ia = async (prompt) => {
+    if (A.ia) { const v = await A.ia.asegurar('Mejorar la definición de la meta'); return v ? A.ia.texto(prompt, { page: 'mesa' }) : null; }
     const Pl = P();
     try { await Pl.ready; if (Pl.mode === 'server' && Pl.serverInfo && Pl.serverInfo.ia) { const r = await Pl.api('/chat', { method: 'POST', body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], tools: [], page: 'mesa' }) }); const t = (r.content || []).filter((x) => x.type === 'text').map((x) => x.text).join('\n'); if (t) return t; } } catch (e) { /* sin servidor */ }
     try { if (window.claude && window.claude.use) { const sm = await window.claude.use('sample'); if (sm) { const r = await sm([{ role: 'user', content: prompt }]); if (r && r.text) return r.text; } } } catch (e) { /* sin permiso */ }

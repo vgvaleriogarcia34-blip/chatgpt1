@@ -14,7 +14,7 @@
 .iv-dot.on { outline: 2px solid var(--gold); outline-offset: 2px; }
 .iv-flecha { align-self: center; color: var(--faint); }
 @media (max-width: 760px) { .iv-flecha { display: none; } }
-.iv-tabs .iv-tg { align-self: center; padding: 0 8px 0 12px; font: 600 0.62rem var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); white-space: nowrap; border-left: 1px solid var(--line); }
+.iv-tabs .iv-tg { cursor: pointer; background: none; border-top: 0; border-right: 0; border-bottom: 0; align-self: center; padding: 0 8px 0 12px; font: 600 0.62rem var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); white-space: nowrap; border-left: 1px solid var(--line); }
 .iv-tabs .iv-tg:first-child { border-left: 0; padding-left: 6px; }
 .iv-ok { color: var(--go); font-style: normal; font-size: 0.6rem; vertical-align: 2px; }
 /* Rejillas */
@@ -61,7 +61,7 @@
 .iv-esc { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
 .iv-e { display: grid; gap: 2px; padding: 6px; border-radius: 9px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); color: var(--fg); cursor: pointer; text-align: left; position: relative; }
 .iv-e span { font: 700 0.9rem var(--font-data); }
-.iv-e small { font-size: 0.62rem; color: var(--muted); line-height: 1.25; }
+.iv-e small { font-size: 0.72rem; color: var(--muted); line-height: 1.3; }
 .iv-e.on.ok { background: rgba(47, 178, 74, 0.2); border-color: var(--go); }
 .iv-e.on.warn { background: rgba(250, 178, 25, 0.18); border-color: var(--warn); }
 .iv-e.on.stop { background: rgba(224, 72, 72, 0.2); border-color: var(--stop); }
@@ -153,3 +153,107 @@
 .iv-sf { font: 600 var(--t-xs) var(--font-data); color: var(--gold); }
 .iv-acu { margin-top: 6px; }
 .iv-inf h3 { margin: 0; }
+
+.iv-tabs .iv-tg:hover { color: var(--gold-soft); text-decoration: underline; }
+.iv-leyenda { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 2px 4px 0; font-size: var(--t-xs); color: var(--muted); }
+.iv-leyenda span { display: inline-flex; gap: 6px; align-items: center; }
+.iv-leyenda .iv-dot { cursor: default; display: inline-block; width: 10px; height: 10px; }
+/* Recorrido paso a paso */
+.iv-paso { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 10px 14px; border-radius: 14px; border: 1px dashed var(--line-strong); }
+.iv-paso b { font: 600 var(--t-m) var(--font-display); }
+.iv-paso p { flex: 1 1 100%; margin: 0; font-size: var(--t-s); color: var(--muted); }
+.iv-pnum { font: 600 var(--t-xs) var(--font-data); color: var(--abyss); background: var(--gold); padding: 2px 8px; border-radius: 6px; }
+.iv-pasos { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; padding: 12px 0 4px; border-top: 1px solid var(--line); }
+.iv-pasos > :first-child { justify-self: start; } .iv-pasos > :last-child { justify-self: end; }
+.iv-pasos .btn { max-width: 100%; white-space: normal; text-align: left; }
+.iv-pn { display: flex; gap: 5px; }
+.iv-pn i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--line-strong); }
+.iv-pn i.ok { background: var(--go); border-color: var(--go); }
+.iv-pn i.on { outline: 2px solid var(--gold); outline-offset: 1px; }
+@media (max-width: 640px) { .iv-pasos { grid-template-columns: 1fr 1fr; } .iv-pn { display: none; } }
+/* Ampliar un recuadro */
+#ivPanel .glass.pad { position: relative; padding-right: 48px; }
+.iv-amp { position: absolute; top: 10px; right: 10px; z-index: 2; width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--line-strong); background: rgba(12, 14, 19, 0.85); color: var(--muted); font: 600 15px/1 var(--font-data); cursor: zoom-in; display: grid; place-items: center; }
+.iv-amp:hover, .iv-amp:focus-visible { color: var(--gold); border-color: var(--gold); }
+.iv-cab { cursor: zoom-in; }
+.iv-max .iv-amp, .iv-max .iv-cab { cursor: zoom-out; }
+.iv-max > .iv-amp { position: sticky; top: 0; justify-self: end; float: right; margin: -8px -12px -30px 0; color: var(--fg); background: var(--panel-solid); width: 38px; height: 38px; font-size: 18px; }
+body.iv-maxon { overflow: hidden; }
+body.iv-maxon .st-main { z-index: 95; }
+body.iv-maxon #ivPanel::before { content: ''; position: fixed; inset: 0; z-index: 88; background: rgba(6, 7, 9, 0.8); backdrop-filter: blur(3px); }
+#ivPanel .glass.pad.iv-max { position: fixed; inset: clamp(8px, 3vw, 36px); z-index: 89; max-width: 1180px; margin: 0 auto; overflow: auto; background: rgba(14, 17, 24, 0.99); backdrop-filter: none; box-shadow: 0 40px 120px -20px #000; padding: clamp(18px, 3vw, 34px) clamp(18px, 3vw, 34px) clamp(18px, 3vw, 34px) clamp(18px, 3vw, 34px);
+  --t-xs: 0.86rem; --t-s: 1rem; --t-m: 1.12rem; --t-l: 1.55rem; font-size: 1.1rem; }
+.iv-max .iv-e small { font-size: 0.86rem; }
+.iv-max .iv-monitor, .iv-max .iv-radar { max-width: 760px; margin: 0 auto; }
+.iv-max .iv-kp b { font-size: 1.7rem; }
+/* Escucha: cifras con explicación y salto a su sección */
+.iv-kpi { cursor: pointer; transition: border-color 0.15s; }
+.iv-kpi:hover, .iv-kpi:focus-visible { border-color: var(--gold) !important; }
+.iv-kpi span { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+.iv-kpi small { font-size: var(--t-xs); color: var(--gold); }
+.iv-q { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line-strong); background: transparent; color: var(--gold); font: 700 0.7rem var(--font-data); cursor: help; padding: 0; flex: none; }
+.iv-qpop { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(201, 242, 77, 0.06); border-left: 3px solid var(--gold); }
+.iv-flash { animation: ivflash 1.6s ease-out; }
+@keyframes ivflash { 0%, 40% { box-shadow: 0 0 0 2px var(--gold); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.iv-capt { display: grid; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid rgba(201, 242, 77, 0.35); background: rgba(201, 242, 77, 0.03); }
+.iv-capt textarea { font-size: 1.05rem; min-height: 92px; }
+.iv-pats { display: flex; flex-wrap: wrap; gap: 6px; }
+.iv-pats .chip[aria-pressed=true] { border-color: var(--gold); color: var(--abyss); background: var(--gold); }
+/* Objetivos del empresario */
+.iv-objs { display: grid; gap: 10px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.iv-obj { display: grid; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid var(--line); border-left: 3px solid var(--gold); background: rgba(255, 255, 255, 0.015); }
+.iv-obj > label { display: grid; gap: 4px; }
+.iv-obj .row { gap: 8px; align-items: center; }
+.iv-oid { font: 700 var(--t-s) var(--font-data); color: var(--gold); }
+.iv-smart { display: inline-flex; gap: 3px; }
+.iv-smart i { font: 700 0.66rem var(--font-data); font-style: normal; width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; border: 1px solid var(--line-strong); color: var(--muted); }
+.iv-smart i.ok { background: var(--go); border-color: var(--go); color: #04110a; }
+.iv-oev { flex: 1 1 200px; }
+.iv-ofr { margin: 0; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.03); }
+.ms-luz { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--faint); vertical-align: -1px; flex: none; }
+.ms-luz.ok { background: var(--go); box-shadow: 0 0 0 3px rgba(47, 178, 74, 0.2); }
+.ms-luz.warn { background: var(--warn); box-shadow: 0 0 0 3px rgba(250, 178, 25, 0.2); }
+.ms-luz.stop { background: var(--stop); box-shadow: 0 0 0 3px rgba(224, 72, 72, 0.2); }
+.ms-propc { display: grid; gap: 8px; padding: 12px; border-radius: 12px; border: 1px dashed var(--line-strong); background: rgba(255, 255, 255, 0.02); }
+.ms-tab { width: 100%; border-collapse: collapse; font-size: var(--t-s); }
+.ms-tab td { padding: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); vertical-align: top; }
+/* Plan: detalle de cada acción */
+button.iv-at { background: none; border: 0; padding: 0; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.iv-at .iv-ver { font: 600 var(--t-xs) var(--font-display); color: var(--gold); }
+.iv-at:hover b { color: var(--gold-soft); }
+.iv-acc.abierta { border-color: var(--gold); background: rgba(201, 242, 77, 0.03); }
+.iv-det { grid-column: 1 / -1; display: grid; gap: 10px; margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--line-strong); }
+.iv-dg { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); align-items: start; }
+.iv-dg label, .iv-det > label { display: grid; gap: 4px; }
+.iv-pas { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 4px; counter-reset: p; }
+.iv-pas li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.iv-pas input[type=checkbox] { accent-color: var(--go); width: 16px; height: 16px; }
+.iv-kt { width: 100%; border-collapse: collapse; font-size: var(--t-xs); }
+.iv-kt th { text-align: left; color: var(--muted); font-weight: 600; padding: 2px 4px; }
+.iv-kt td { padding: 2px; } .iv-kt td:nth-child(2), .iv-kt td:nth-child(3) { width: 64px; }
+.iv-kt .input { padding: 5px 6px; width: 100%; min-width: 0; }
+/* Hoja de ruta del punto A al punto B */
+.iv-ab { display: grid; grid-template-columns: minmax(150px, 0.9fr) minmax(0, 4fr) minmax(150px, 0.9fr); gap: 10px; align-items: stretch; }
+.iv-abp { display: grid; gap: 4px; align-content: start; padding: 12px; border-radius: 14px; border: 1px solid var(--line); }
+.iv-abp.a { background: rgba(224, 72, 72, 0.07); border-color: rgba(224, 72, 72, 0.45); }
+.iv-abp.b { background: rgba(47, 178, 74, 0.07); border-color: rgba(47, 178, 74, 0.45); }
+.iv-abl { font: 800 1.8rem var(--font-display); line-height: 1; }
+.iv-abp.a .iv-abl { color: var(--stop); } .iv-abp.b .iv-abl { color: var(--go); }
+.iv-abp small { color: var(--muted); font-size: var(--t-xs); }
+.iv-abp ul, .iv-abf ul { margin: 2px 0 0; padding-left: 16px; font-size: var(--t-xs); display: grid; gap: 2px; }
+.iv-abr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; position: relative; }
+.iv-abr::before { content: ''; position: absolute; left: 0; right: 0; top: 13px; height: 2px; background: linear-gradient(90deg, var(--stop), var(--warn), var(--go)); opacity: 0.6; }
+.iv-abf { position: relative; display: grid; gap: 4px; align-content: start; padding: 0 10px 10px; border-radius: 12px; }
+.iv-abf .iv-cn { position: relative; z-index: 1; }
+.iv-abf b { font: 600 var(--t-s) var(--font-display); }
+.iv-abf small { color: var(--muted); font-size: var(--t-xs); }
+.iv-abf.on { background: rgba(201, 242, 77, 0.06); box-shadow: 0 0 0 1px var(--gold); padding-top: 0; }
+.iv-abf.pas { opacity: 0.65; }
+@media (max-width: 900px) { .iv-ab { grid-template-columns: minmax(0, 1fr); } .iv-abr { grid-template-columns: repeat(2, minmax(0, 1fr)); } .iv-abr::before { display: none; } }
+@media (max-width: 480px) { .iv-abr { grid-template-columns: minmax(0, 1fr); } }
+/* Ritmo de las sesiones */
+.iv-ritmo { display: grid; gap: 8px 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); align-items: end; }
+.iv-ritmo label { display: grid; gap: 4px; }
+.iv-obj > label.iv-inl { display: inline-flex; }
+@media (min-width: 1000px) { .iv-dg { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr) minmax(0, 1.1fr); } }
+.iv-pas .input { padding: 6px 8px; font-size: var(--t-s); }

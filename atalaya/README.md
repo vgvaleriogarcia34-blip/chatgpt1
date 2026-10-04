@@ -66,9 +66,10 @@ Nota del 1 al 10 en la cabecera de cada mundo: global (media de los mundos del p
 
 - `js/intervencion/datos.js`: áreas, constantes vitales, los siete huecos que delata el lenguaje (señales, vacío, coste y artefacto), léxico, resignificaciones, guion de 60 minutos, causas tipo, fases, líneas de trabajo con acciones y verificaciones por área.
 - `js/intervencion/escucha.js`: lectura de transcripciones (texto, SRT, VTT, Word y PDF; hablantes), análisis local del lenguaje y lectura en profundidad con Claude (`/api/escucha` en el servidor o el visor).
-- `js/intervencion/core.js`: estado por empresa (clave `intervencion`), recorrido en tres capas, portada, guion con reloj, constantes (monitor y radar) y escucha.
+- `js/intervencion/core.js`: estado por empresa (clave `intervencion`), recorrido en tres capas y diez pasos (Paso N de 10 con Anterior/Siguiente), recuadros ampliables (⤢, Esc), portada, guion con reloj y objetivos SMART del empresario (a la mesa como meta), constantes (monitor y radar) y escucha (cifras con «?» y salto a su sección, captura en directo con dictado).
 - `js/intervencion/vistas.js`: síntomas y causas con Pareto 20/80, triaje y hoja de ruta, verificación por áreas y volcado de desviaciones del ecosistema (`A.nota.calcular`).
-- `js/intervencion/plan.js`: plan de intervención por fases y líneas, envío a la mesa (tareas y metas), sesiones con orden del día y acuerdos, e informes.
+- `js/intervencion/plan.js`: plan de intervención por fases y líneas con detalle por acción (pasos, KPI, entregable, notas), hoja de ruta visual A→B, envío a la mesa (tareas y metas), sesiones con ritmo configurable por fase, día y hora y enlace a Google Calendar u Outlook (o .ics), e informes (guía del auditor con hoja de preguntas; plan con resumen, matriz de responsables y fechas orientativas).
+- `js/conexiones.js`: conexiones comunes (`A.ia`, `A.calendario`, `A.conexiones`). Claude por el servidor (`ANTHROPIC_API_KEY`), el visor o una clave propia guardada solo en el navegador; aviso «Falta la conexión con la API de Claude» con guía la primera vez; guía de la grabadora y elección de calendario. También en el menú de la cuenta.
 
 ## Libro corporativo (`libro.html`)
 

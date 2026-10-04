@@ -896,3 +896,23 @@ span.pdf-campo { display: inline-block; min-width: 60px; }
 @media (max-width: 1560px) { .topbar a.btn[href="app.html"], .topbar a.btn[href="estrategia.html"] { display: none; } }
 @media (max-width: 1180px) { .nt-chip small { display: none; } }
 @media (max-width: 560px) { .topbar a.btn[href^="manual.html"], .topbar .mesa-link { display: none; } }
+/* Conexiones: IA, grabadora y calendario */
+.cx { width: min(720px, 100%); display: grid; gap: 8px; }
+.cx-falta { margin: 18px 0 4px; }
+.cx-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.cx-tabs button { display: inline-flex; gap: 6px; align-items: center; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--fg); font: 600 var(--t-s) var(--font-display); cursor: pointer; }
+.cx-tabs button[aria-selected=true] { border-color: var(--gold); background: rgba(201, 242, 77, 0.08); color: var(--gold-soft); }
+.cx-body { display: grid; gap: 10px; }
+.cx-luz { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--faint); flex: none; }
+.cx-luz.ok { background: var(--go); box-shadow: 0 0 6px var(--go); } .cx-luz.warn { background: var(--warn); } .cx-luz.stop { background: var(--stop); }
+.cx-est { display: flex; gap: 8px; align-items: center; margin: 0; font: 600 var(--t-s) var(--font-display); }
+.cx-op { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.cx-op summary { cursor: pointer; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cx-op ol { margin: 8px 0 0; }
+.cx-op code, .cx code { font-family: var(--font-data); font-size: 0.85em; color: var(--gold-soft); }
+.cx-rec { font: 600 0.62rem var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--abyss); background: var(--gold); padding: 2px 6px; border-radius: 6px; }
+.cx-cal { display: grid; gap: 6px; }
+.cx-calo { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); cursor: pointer; }
+.cx-calo.on { border-color: var(--gold); background: rgba(201, 242, 77, 0.05); }
+.cx-calo span { display: grid; gap: 2px; } .cx-calo small { color: var(--muted); font-size: var(--t-xs); }
+.cx-calo input { accent-color: var(--gold); margin-top: 3px; }

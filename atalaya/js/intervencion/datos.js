@@ -90,7 +90,12 @@
     { id: 'apertura', n: 'Apertura y encuadre', min: 5, obj: 'Crear confianza y explicar que hoy se escucha, no se juzga.', p: [
       { q: 'Antes de empezar: ¿qué tendría que pasar en esta hora para que haya merecido la pena?', oye: 'Su prioridad real y lo que espera de ti.' },
       { q: 'Cuéntame en dos frases qué hace tu empresa y para quién.', oye: 'Cómo se define: por producto, por cliente o por esfuerzo.' }] },
-    { id: 'historia', n: 'Historia y momento', min: 10, obj: 'Entender de dónde viene y por qué ahora.', p: [
+    { id: 'objetivos', n: 'Sus objetivos', min: 8, obj: 'Que el empresario diga con sus palabras qué quiere conseguir y ayudarle a convertirlo en un objetivo SMART que dependa de él.', p: [
+      { q: '¿Qué quieres conseguir con la empresa en los próximos doce meses? Dímelo con tus palabras.', oye: 'El objetivo tal como lo siente: apúntalo literal en «Objetivos del empresario», debajo de estas preguntas.' },
+      { q: '¿Cómo sabrías que lo has conseguido? ¿Qué número cambiaría y desde cuál partes hoy?', oye: 'Indicador, valor actual y valor meta: lo que lo hace medible.' },
+      { q: '¿Qué depende solo de ti para lograrlo? ¿Qué harías tú cada semana?', oye: 'Si depende de terceros (clientes, banco, equipo), conviértelo en lo que hará él para provocarlo.' },
+      { q: '¿Qué ganas si lo consigues y qué te cuesta: tiempo, dinero, renuncias? ¿Merece la pena?', oye: 'Beneficio cuantificado y contras: con eso se enciende el semáforo del beneficio.' }] },
+    { id: 'historia', n: 'Historia y momento', min: 7, obj: 'Entender de dónde viene y por qué ahora.', p: [
       { q: '¿Cómo empezó la empresa y qué momento estáis viviendo ahora?', oye: 'Hitos, herencias, socios y figuras que siguen pesando.', area: 'gob' },
       { q: '¿Por qué ahora? ¿Qué ha pasado para que nos sentemos hoy?', oye: 'El detonante: suele ser el síntoma más caliente.', area: 'tie' },
       { q: '¿Qué ha cambiado en los últimos dos años: clientes, equipo, tamaño, márgenes?', oye: 'Crecimiento sin estructura, pérdida de margen o de personas.' }] },
@@ -98,7 +103,7 @@
       { q: 'Si tuvieras que nombrar lo que más te quita el sueño, ¿qué sería?', oye: 'La frase literal: apúntala tal cual. Será la cita que abra el informe.' },
       { q: '¿Qué has intentado ya para resolverlo y qué pasó?', oye: 'Patrones de intento fallido: suelen apuntar a la causa.' },
       { q: '¿Qué pasaría si dentro de un año todo siguiera exactamente igual?', oye: 'El coste de no actuar, en su lenguaje.' }] },
-    { id: 'recorrido', n: 'Recorrido por las áreas', min: 25, obj: 'Tomar las constantes de cada área con preguntas abiertas.', p: [
+    { id: 'recorrido', n: 'Recorrido por las áreas', min: 20, obj: 'Tomar las constantes de cada área con preguntas abiertas.', p: [
       { q: '¿Quién decide qué en la empresa? Cuando tú no estás, ¿quién manda?', oye: 'Mando difuso, poder legal y real, figura del fundador.', area: 'gob', patron: 'mando' },
       { q: 'Si mañana faltas dos semanas, ¿qué se para el primer día?', oye: 'Dependencia y tareas sin responsable.', area: 'gob', patron: 'responsable' },
       { q: '¿Cómo sabes si este mes has ganado dinero? ¿Cuándo lo sabes?', oye: 'Información tardía, dependencia de la asesoría.', area: 'fin', patron: 'dato' },
@@ -193,6 +198,26 @@
       { t: 'Prueba de autonomía: una semana sin el empresario en la operativa', f: 4, sem: 1, ent: 'Informe de la prueba', resp: 'empresa' }] }
   ];
   D.linea = (id) => D.LINEAS.find((l) => l.id === id);
+  /* Indicadores que miden cada línea de trabajo (se proponen en el detalle de cada acción) */
+  D.KPIS = {
+    gobierno: ['Decisiones tomadas en la reunión de dirección con acta', 'Decisiones revocadas fuera de la reunión', 'Objetivos del año escritos y compartidos (%)'],
+    organizacion: ['Horas a la semana del empresario en operativa', 'Tareas críticas con responsable y suplente (%)', 'Llamadas o consultas al empresario por día'],
+    finanzas: ['Semanas de caja cubiertas por la previsión', 'Margen bruto (%)', 'Días medios de cobro', 'Cuota de deuda sobre EBITDA (%)'],
+    comercial: ['Peso del primer cliente sobre la venta (%)', 'Ofertas presentadas al mes', 'Tasa de cierre de ofertas (%)', 'Margen medio por cliente (%)'],
+    procesos: ['Procesos críticos escritos', 'Reprocesos o incidencias al mes', 'Plazo medio de entrega (días)', 'Roturas de stock al mes'],
+    equipos: ['Puestos con ficha y responsable', 'Personas clave con suplente formado', 'Rotación anual (%)'],
+    protocolos: ['Proyectos con fecha y responsable (%)', 'Vencimientos incumplidos', 'Reuniones con acta (%)'],
+    informacion: ['Indicadores del cuadro de mando al día', 'Días desde el cierre hasta tener los datos', 'Decisiones tomadas con dato (%)'],
+    diccionario: ['Términos definidos y aprobados', 'Personas que lo han leído (%)'],
+    libro: ['Documentos incorporados al libro', 'Días de la prueba de autonomía sin incidencias graves']
+  };
+  /* Pasos tipo de una acción: preparar, elaborar, validar, implantar y comprobar */
+  D.pasos = (a) => {
+    const ini = { gobierno: 'Reunir a quienes deciden y repasar cómo se decide hoy', organizacion: 'Listar las tareas del empresario de dos semanas reales', finanzas: 'Recoger extractos, pólizas, cobros y pagos', comercial: 'Sacar la venta y el margen por cliente y producto', procesos: 'Observar el trabajo real y anotar pasos y tiempos', equipos: 'Entrevistar a cada persona implicada', protocolos: 'Recoger cómo se hace hoy y dónde falla', informacion: 'Elegir los indicadores que se miran y de dónde salen', diccionario: 'Recopilar los términos que se usan con distinto sentido', libro: 'Reunir informes, procesos y decisiones aprobados' }[a.linea] || 'Recoger la información y a las personas implicadas';
+    return [ini, 'Elaborar el borrador: ' + String(a.ent || 'entregable').toLowerCase(), 'Revisarlo con el empresario y ajustarlo', 'Aprobarlo y comunicarlo al equipo', 'Comprobar en la siguiente sesión que se aplica'];
+  };
+  D.RITMOS = { 7: 'Semanal', 14: 'Quincenal', 21: 'Cada tres semanas', 28: 'Mensual' };
+  D.DIAS = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes' };
 
   /* ---------- Auditoría integral: qué se verifica en cada área y qué documentación pedir ---------- */
   D.VERIFICA = {
