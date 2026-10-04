@@ -15,7 +15,8 @@
   const P = () => A.platform;
 
   /* ---------- Formato ---------- */
-  const num = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : 0; };
+  // «1.500.000» y «1.500,50» son miles; «1.5» o «1,5» son decimales
+  const num = (v) => { const t = String(v == null ? '' : v).trim().replace(/\s|€|%/g, ''); const n = /^-?\d+\.\d{1,2}$/.test(t) ? parseFloat(t) : parseFloat(t.replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : 0; };
   // Separador de miles también en cuatro cifras (7.500 €), como en los documentos de referencia
   const eur = (n, dec) => { const v = Math.abs(+n || 0).toFixed(dec ? 2 : 0).split('.'); return ((+n || 0) < 0 ? '−' : '') + v[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (v[1] ? ',' + v[1] : '') + ' €'; };
   const corto = (n) => (n >= 1e6 ? (n / 1e6).toLocaleString('es-ES', { maximumFractionDigits: 2 }) + ' M€' : n >= 1e4 ? Math.round(n / 1000).toLocaleString('es-ES') + '.000 €' : eur(n));
@@ -122,6 +123,127 @@
     return { fijo, variable: N - fijo, lista: l.map((v, i) => ({ mes: mes(i), v })) };
   };
 
+  /* ================= DIMENSIÓN DE LA EMPRESA Y VALOR DE LA INVERSIÓN =================
+     Con el tamaño de la empresa (facturación, margen, plantilla, horas del empresario, coste financiero)
+     y sus objetivos, se estima lo que aporta el proyecto cada año por palancas, con una rampa de
+     implantación, y se calcula el plazo de recuperación, la rentabilidad a cinco años, el múltiplo,
+     la TIR y el VAN. Dos escenarios: base y conservador (prudencia). */
+  const PALANCAS = [
+    { id: 'horas', n: 'Horas del empresario liberadas', d: 'Horas a la semana que deja de dedicar a operativa y pasa a dirigir o vender, valoradas a lo que vale su hora.', q: '¿Cuántas horas a la semana dejará de dedicar a la operativa?', campos: [['horas', 'Horas/semana liberadas'], ['valorHora', 'Valor de su hora (€)']], calc: (p, d) => num(p.horas) * 46 * num(p.valorHora || d.valorHora) },
+    { id: 'margen', n: 'Mejora del margen', d: 'Puntos de margen que se recuperan con precios revisados, margen por cliente y producto y menos descuentos.', q: '¿Cuántos puntos de margen se pueden recuperar?', campos: [['puntos', 'Puntos de margen']], calc: (p, d) => num(d.ventas) * num(p.puntos) / 100 },
+    { id: 'productividad', n: 'Productividad del equipo', d: 'Parte del coste de personal que hoy se pierde en reprocesos, esperas, urgencias y tareas sin método.', q: '¿Qué parte del tiempo del equipo se recupera?', campos: [['pct', '% del coste de personal']], calc: (p, d) => costePersonal(d) * num(p.pct) / 100 },
+    { id: 'financiero', n: 'Coste financiero y tesorería', d: 'Intereses, comisiones y recargos que se evitan con previsión de caja y deuda ajustada.', q: '¿Qué parte del coste financiero se puede ahorrar?', campos: [['pct', '% de ahorro']], calc: (p, d) => num(d.financiero) * num(p.pct) / 100 },
+    { id: 'crecimiento', n: 'Crecimiento que la estructura permite', d: 'Venta adicional que la empresa puede atender con orden, valorada a su margen de contribución.', q: '¿Cuánta venta adicional podrá atender sin romperse?', campos: [['pct', '% de venta adicional'], ['contrib', 'Margen de contribución (%)']], calc: (p, d) => num(d.ventas) * num(p.pct) / 100 * num(p.contrib || d.margen) / 100 },
+    { id: 'riesgo', n: 'Riesgo evitado', d: 'Pérdida que se evita (dependencia, personas clave, sucesión, litigio), repartida en cinco años y ponderada por su probabilidad.', q: '¿Qué pérdida se evita y con qué probabilidad en cinco años?', campos: [['perdida', 'Pérdida evitable (€)'], ['prob', 'Probabilidad en 5 años (%)']], calc: (p) => num(p.perdida) * num(p.prob) / 100 / 5 }
+  ];
+  const costePersonal = (d) => num(d.personal) || num(d.plantilla) * num(d.costePersona);
+  const dimVacia = () => ({ ventas: '', margen: '', ebitda: '', plantilla: '', costePersona: '32000', personal: '', horasEmp: '', valorHora: '60', financiero: '', crecimiento: '', multiplo: '5', rampa: [40, 80, 100, 100, 100], prudencia: 60, tasa: 8, palancas: Object.fromEntries(PALANCAS.map((x) => [x.id, { on: false }])), origen: '' });
+  const dimDe = (pr) => { pr.dim = Object.assign(dimVacia(), pr.dim || {}); pr.dim.palancas = Object.assign(dimVacia().palancas, pr.dim.palancas || {}); return pr.dim; };
+  // Datos del simulador de la empresa (si no son de ejemplo)
+  const traerSimulador = async (d) => {
+    let st = null; const Pl = P();
+    try { if (Pl && Pl.loadData) st = await Pl.loadData('simulador'); } catch (e) { st = null; }
+    if (!st) { try { st = JSON.parse(localStorage.getItem(Pl && Pl.k ? Pl.k('atalaya.v1') : 'atalaya.v1')); } catch (e) { st = null; } }
+    const e = st && st.empresa; if (!e || st.ejemplo) return false;
+    if (num(e.ventas)) d.ventas = String(Math.round(num(e.ventas)));
+    if (num(e.margen)) d.margen = String(num(e.margen));
+    if (num(e.personal)) d.personal = String(Math.round(num(e.personal)));
+    if (num(e.plantilla)) d.plantilla = String(num(e.plantilla));
+    if (num(e.crecimiento)) d.crecimiento = String(num(e.crecimiento));
+    if (num(e.ventas) && num(e.margen)) d.ebitda = String(Math.round(num(e.ventas) * num(e.margen) / 100 - num(e.personal) - num(e.fijos)));
+    d.origen = 'simulador'; return true;
+  };
+  // Palancas propuestas a partir de los objetivos del empresario y de las causas que más pesan
+  const proponerPalancas = (d) => {
+    const ST = S(), refs = new Set(causasOrdenadas().map((x) => x.c.ref).filter(Boolean)), pal = d.palancas, objs = ST.objetivos || [], usadas = [];
+    const pon = (id, v, por) => { pal[id] = Object.assign({}, pal[id], v, { on: true }); usadas.push(por); };
+    const oh = objs.find((o) => /hora/i.test((o.unidad || '') + ' ' + (o.indicador || '')) && num(o.actual) > num(o.valor));
+    if (oh) pon('horas', { horas: String(num(oh.actual) - num(oh.valor)), valorHora: d.valorHora }, 'su objetivo «' + (oh.especifica || oh.dice) + '»');
+    else if (refs.has('gob-cuello') || refs.has('tie-agenda') || num(d.horasEmp)) pon('horas', { horas: String(Math.max(6, Math.round(num(d.horasEmp) * 0.3) || 10)), valorHora: d.valorHora }, 'todo pasa por el empresario');
+    if (refs.has('fin-margen') || refs.has('com-precio') || objs.some((o) => /margen|precio/i.test(o.especifica + o.dice))) pon('margen', { puntos: '1,5' }, 'margen y precios sin control');
+    if ([...refs].some((r) => /^ope-|per-puestos|inf-/.test(r))) pon('productividad', { pct: '3' }, 'procesos y puestos sin método');
+    if ((refs.has('fin-caja') || refs.has('fin-carga')) && num(d.financiero)) pon('financiero', { pct: '20' }, 'tesorería y deuda');
+    if (num(d.crecimiento) || objs.some((o) => /crec|vend|client/i.test(o.especifica + o.dice))) pon('crecimiento', { pct: String(Math.min(15, num(d.crecimiento) || 10)), contrib: d.margen }, 'el crecimiento que quiere');
+    const c = S().propuesta && S().propuesta.coste; if (c && c.modo === 'perdida' && num(c.vMin)) pon('riesgo', { perdida: String(Math.round((num(c.vMin) + num(c.vMax || c.vMin)) / 2)), prob: String(Math.round((num(c.pMin) + num(c.pMax || c.pMin)) / 2)) }, 'el riesgo del coste de no hacerlo');
+    return usadas;
+  };
+  const mesesDur = (pr) => { const m = String(pr.duracion || '').match(/(\d+)(?:\D+(\d+))?\s*mes/); return m ? +(m[2] || m[1]) : 6; };
+  // Salidas de caja de la inversión, mes a mes (mes 0 = aceptación)
+  const pagos = (pr) => {
+    const out = Array(61).fill(0), N = neto(pr) || precio(pr);
+    if (!N) return out;
+    if (pr.tipo === 'programa') { const cu = cuotas(pr); cu.lista.forEach((x, i) => { out[Math.min(60, i)] += x.v; }); if (pr.inv.variable.on) out[Math.min(60, cu.lista.length)] += cu.variable; }
+    else { const h = pr.inv.hitos.length ? pr.inv.hitos : [{ pct: 100 }], dur = mesesDur(pr); h.forEach((x, i) => { out[Math.min(60, i === 0 ? 0 : Math.round((dur * i) / (h.length - 1 || 1)))] += (N * num(x.pct)) / 100; }); }
+    return out;
+  };
+  const tir = (flujos) => { const van = (r) => flujos.reduce((a, f, i) => a + f / Math.pow(1 + r, i), 0); let lo = -0.99, hi = 1; if (van(lo) * van(hi) > 0) return null; for (let k = 0; k < 120; k++) { const m = (lo + hi) / 2; if (van(lo) * van(m) <= 0) hi = m; else lo = m; } return (lo + hi) / 2; };
+  const valorInversion = (pr) => {
+    const d = dimDe(pr), inv = pagos(pr), I = inv.reduce((a, x) => a + x, 0);
+    const lista = PALANCAS.map((x) => { const p = d.palancas[x.id] || {}; return { x, p, v: p.on ? Math.max(0, x.calc(p, d)) : 0 }; });
+    const B = lista.reduce((a, l) => a + l.v, 0);
+    const esc = (f) => {
+      const anual = d.rampa.map((r) => (B * num(r) / 100) * f), flujos = Array(61).fill(0);
+      for (let m = 1; m <= 60; m++) flujos[m] = anual[Math.floor((m - 1) / 12)] / 12;
+      const neto = flujos.map((b, m) => b - inv[m]); let acc = 0, pay = null; neto.forEach((x, m) => { acc += x; if (pay == null && m > 0 && acc >= 0) pay = m; });
+      const suma = anual.reduce((a, x) => a + x, 0), r = tir(neto), rm = Math.pow(1 + num(d.tasa) / 100, 1 / 12) - 1;
+      return { anual, suma, pay, roi: I ? (suma - I) / I : null, mult: I ? suma / I : null, tir: r == null ? null : Math.pow(1 + r, 12) - 1, van: neto.reduce((a, x, i) => a + x / Math.pow(1 + rm, i), 0), acumulado: anual.map((_, y) => anual.slice(0, y + 1).reduce((a, x) => a + x, 0) - inv.slice(0, (y + 1) * 12 + 1).reduce((a, x) => a + x, 0)) };
+    };
+    const base = esc(1), cons = esc(num(d.prudencia) / 100);
+    // Semáforo: cuántas veces devuelve la inversión en cinco años (escenario base); el conservador se enseña al lado
+    const st = !I || !B ? null : base.mult >= 5 ? 'ok' : base.mult >= 3 ? 'warn' : 'stop';
+    return { d, lista, B, I, base, cons, st, pctVentas: num(d.ventas) ? (I / num(d.ventas)) * 100 : null, pctEbitda: num(d.ebitda) > 0 ? (I / num(d.ebitda)) * 100 : null, valorCreado: B * num(d.multiplo) };
+  };
+  const meses = (m) => (m == null ? 'más de 5 años' : m <= 1 ? 'el primer mes' : m < 24 ? m + ' meses' : (m / 12).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' años');
+  const pct0 = (x) => (x == null ? '—' : Math.round(x * 100).toLocaleString('es-ES') + ' %');
+  const tirTxt = (x) => (x == null ? '—' : x > 3 ? 'más del 300 %' : pct0(x));
+  // Gráfica a cinco años: barras del beneficio anual y línea del neto acumulado (inversión descontada)
+  const grafica5 = (vi, tema) => {
+    const W = 640, H = 230, L = 60, Rr = 20, T = 18, Bt = 36, e = vi.base, c2 = vi.cons, max = Math.max(1, ...e.anual, ...e.acumulado.map(Math.abs)), min = Math.min(0, ...e.acumulado, -vi.I);
+    const y = (v) => T + (H - T - Bt) * (1 - (v - min) / (max - min)), bw = (W - L - Rr) / 5;
+    const col = tema === 'claro' ? { t: '#5d626c', g: '#d6d3c8', b: '#6e7d14', b2: '#c9cdb0', l: '#0b0d13' } : { t: '#9aa1ab', g: 'rgba(255,255,255,.12)', b: '#c9f24d', b2: 'rgba(201,242,77,.35)', l: '#f3f2ee' };
+    const pts = e.acumulado.map((v, i) => [L + bw * i + bw / 2, y(v)]);
+    return `<svg viewBox="0 0 ${W} ${H}" class="pc-g5" role="img" aria-label="Beneficio anual y neto acumulado a cinco años"><line x1="${L}" x2="${W - Rr}" y1="${y(0)}" y2="${y(0)}" stroke="${col.g}"/>${[max, min].filter((v) => v).map((v) => `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="${col.t}">${corto(v).replace(' €', '')}</text>`).join('')}
+      ${e.anual.map((v, i) => `<rect x="${L + bw * i + bw * 0.2}" y="${y(Math.max(v, 0))}" width="${bw * 0.28}" height="${Math.abs(y(v) - y(0))}" fill="${col.b}"/><rect x="${L + bw * i + bw * 0.5}" y="${y(Math.max(c2.anual[i], 0))}" width="${bw * 0.28}" height="${Math.abs(y(c2.anual[i]) - y(0))}" fill="${col.b2}"/><text x="${L + bw * i + bw / 2}" y="${H - 16}" text-anchor="middle" font-size="11" fill="${col.t}">Año ${i + 1}</text>`).join('')}
+      <polyline points="${pts.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${col.l}" stroke-width="2"/>${pts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${col.l}"/>`).join('')}
+      <g font-size="10" fill="${col.t}"><rect x="${L}" y="${H - 8}" width="10" height="6" fill="${col.b}"/><text x="${L + 14}" y="${H - 2}">Beneficio anual (base)</text><rect x="${L + 150}" y="${H - 8}" width="10" height="6" fill="${col.b2}"/><text x="${L + 164}" y="${H - 2}">Conservador</text><line x1="${L + 260}" x2="${L + 276}" y1="${H - 5}" y2="${H - 5}" stroke="${col.l}" stroke-width="2"/><text x="${L + 280}" y="${H - 2}">Neto acumulado (inversión descontada)</text></g></svg>`;
+  };
+  const dimHTML = (pr) => {
+    const vi = valorInversion(pr), d = vi.d, e = vi.base, c = vi.cons;
+    const q = (k, l, ph, t) => `<label class="small">${l}<input class="input" ${t ? `type="${t}"` : ''} data-dm="${k}" value="${esc(d[k])}" placeholder="${esc(ph || '')}"></label>`;
+    return `<section class="glass pad stack pc-dim"><div class="row"><div><div class="eyebrow">Dimensión de la empresa y valor de la inversión</div><small class="muted">Lo que aporta el proyecto según el tamaño de la empresa y sus objetivos: plazo de recuperación y rentabilidad a cinco años.</small></div><span class="spacer"></span>${vi.st ? `<span class="iv-st ${vi.st}">${vi.st === 'ok' ? 'Alto valor' : vi.st === 'warn' ? 'Valor justo' : 'No compensa'}</span>` : ''}</div>
+      <div class="eyebrow">Preguntas para dimensionar ${d.origen === 'simulador' ? '<span class="muted">· datos del simulador</span>' : ''}</div>
+      <div class="iv-g3">${q('ventas', '¿Cuánto factura al año? (€)', '1.500.000')}${q('margen', '¿Qué margen bruto deja? (%)', '35')}${q('ebitda', '¿Qué beneficio operativo (EBITDA) hace al año? (€)', '120.000')}${q('plantilla', '¿Cuántas personas trabajan?', '18')}${q('costePersona', '¿Coste medio por persona al año? (€)', '32.000')}${q('personal', 'O el coste total de personal (€)', '')}${q('horasEmp', '¿Horas a la semana del empresario en operativa?', '45')}${q('valorHora', '¿Cuánto vale una hora suya dirigiendo o vendiendo? (€)', '60')}${q('financiero', '¿Cuánto paga al año en intereses y comisiones? (€)', '18.000')}${q('crecimiento', '¿Cuánto quiere crecer al año? (%)', '10')}${q('multiplo', '¿A cuántas veces el EBITDA se valoraría la empresa?', '5')}</div>
+      <div class="row"><button class="btn ghost small" id="pcSim">Traer los datos del simulador</button><button class="btn small" id="pcPal">Proponer las palancas desde sus objetivos y causas</button></div>
+      <div class="eyebrow">Palancas de valor (al año, en régimen)</div>
+      <div class="pc-pals">${vi.lista.map(({ x, p, v }) => `<div class="pc-pal ${p.on ? 'on' : ''}"><label class="iv-inl"><input type="checkbox" data-pon="${x.id}" ${p.on ? 'checked' : ''}> <b>${esc(x.n)}</b></label><small class="muted">${esc(x.q)} ${esc(x.d)}</small>${p.on ? `<div class="iv-g3">${x.campos.map(([k, l]) => `<label class="small">${l}<input class="input" data-pv="${x.id}.${k}" value="${esc(p[k] != null ? p[k] : '')}" placeholder="${esc(k === 'valorHora' ? d.valorHora : k === 'contrib' ? d.margen : '')}"></label>`).join('')}</div><b class="pc-pal-v">${eur(v)} al año</b>` : ''}</div>`).join('')}</div>
+      <div class="iv-g3"><label class="small">Rampa de implantación (% del efecto, años 1 a 5)<input class="input" data-dm="rampa" value="${esc(d.rampa.join(' / '))}"></label><label class="small">Escenario conservador (% del base)<input class="input" type="number" data-dm="prudencia" value="${esc(d.prudencia)}"></label><label class="small">Tasa para el VAN (%)<input class="input" type="number" data-dm="tasa" value="${esc(d.tasa)}"></label></div>
+      ${vi.B && vi.I ? `<div class="pc-roi-ed"><div><small>Valor que aporta al año</small><b>${eur(vi.B)}</b><span>en régimen · ${vi.pctVentas != null ? (vi.B / num(d.ventas) * 100).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' % de la facturación' : ''}</span></div><div><small>Inversión</small><b>${eur(vi.I)}</b><span>${vi.pctVentas != null ? vi.pctVentas.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' % de la facturación' : ''}${vi.pctEbitda != null ? ' · ' + Math.round(vi.pctEbitda) + ' % del EBITDA' : ''}</span></div><div class="${vi.st}"><small>Recupera la inversión</small><b>${meses(e.pay)}</b><span>conservador: ${meses(c.pay)}</span></div><div class="${vi.st}"><small>Rentabilidad a 5 años</small><b>${pct0(e.roi)}</b><span>conservador: ${pct0(c.roi)} · cada euro devuelve ${(c.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })}–${(e.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })} €</span></div><div><small>TIR · VAN (${d.tasa} %)</small><b>${tirTxt(e.tir)}</b><span>VAN ${eur(e.van)} · conservador ${eur(c.van)}</span></div><div><small>Valor de empresa creado</small><b>${corto(vi.valorCreado)}</b><span>${d.multiplo} × la mejora anual del beneficio</span></div></div>
+        ${grafica5(vi)}
+        <div class="table-wrap"><table class="ms-tab"><thead><tr><th style="text-align:left">Año</th><th>Beneficio (base)</th><th>Conservador</th><th>Neto acumulado</th></tr></thead><tbody>${e.anual.map((v, i) => `<tr><td style="text-align:left">Año ${i + 1} · rampa ${d.rampa[i]} %</td><td>${eur(v)}</td><td>${eur(c.anual[i])}</td><td>${eur(e.acumulado[i])}</td></tr>`).join('')}<tr><td style="text-align:left"><b>Total 5 años</b></td><td><b>${eur(e.suma)}</b></td><td><b>${eur(c.suma)}</b></td><td><b>${eur(e.acumulado[4])}</b></td></tr></tbody></table></div>
+        ${vi.st === 'warn' ? '<div class="alert small">Devuelve entre tres y cinco veces la inversión en cinco años: es rentable, pero conviene reforzar el valor (objetivos más ambiciosos, más palancas) o ajustar el alcance para llegar a cinco veces o más.</div>' : ''}${vi.st === 'stop' ? '<div class="alert warn small">Con estos objetivos y este tamaño, el proyecto no devuelve al menos tres veces la inversión en cinco años. Si los objetivos son pequeños, la propuesta no es rentable para el cliente: plantee objetivos mayores o ajuste el alcance.</div>' : ''}
+        <div class="row"><button class="btn ghost small" id="pcDimV">Usar estos valores en «Valor y precio»</button><label class="iv-inl small"><input type="checkbox" data-dm="enDossier" ${d.enDossier !== false ? 'checked' : ''}> Incluir la hoja «La inversión, en números» en el dossier</label></div>`
+        : `<p class="small muted" style="margin:0">${!vi.I ? 'Fija el precio en «Valor y precio» para calcular el retorno. ' : ''}${!vi.B ? 'Responde a las preguntas y activa las palancas que aplican (o pulsa «Proponer las palancas»).' : ''}</p>`}</section>`;
+  };
+  const wireDim = (host, pr) => {
+    const d = dimDe(pr), sec = $('.pc-dim', host); if (!sec) return;
+    $$('[data-dm]', sec).forEach((i) => { const k = i.dataset.dm; i.onchange = () => { if (k === 'rampa') { const r = i.value.split(/[\/,;\s]+/).map(num).filter((x) => x >= 0).slice(0, 5); while (r.length < 5) r.push(r[r.length - 1] || 100); d.rampa = r; } else if (k === 'enDossier') d.enDossier = i.checked; else d[k] = i.value; guardar(); render(); }; });
+    $$('[data-pon]', sec).forEach((c) => (c.onchange = () => { d.palancas[c.dataset.pon] = Object.assign({}, d.palancas[c.dataset.pon], { on: c.checked }); guardar(); render(); }));
+    $$('[data-pv]', sec).forEach((i) => (i.onchange = () => { const [id, k] = i.dataset.pv.split('.'); d.palancas[id][k] = i.value; guardar(); render(); }));
+    $('#pcSim', sec).onclick = async () => { const ok = await traerSimulador(d); guardar(); render(); toast(ok ? 'Datos traídos del simulador: revísalos.' : 'El simulador no tiene datos reales de esta empresa todavía.'); };
+    $('#pcPal', sec).onclick = () => { const u = proponerPalancas(d); guardar(); render(); toast(u.length ? 'Palancas propuestas por: ' + u.join('; ') + '. Ajusta las cifras con el empresario.' : 'No hay objetivos ni causas suficientes: activa las palancas a mano.'); };
+    const uv = $('#pcDimV', sec); if (uv) uv.onclick = () => { const vi = valorInversion(pr); Object.assign(pr.coste, { modo: 'beneficio', vMin: String(Math.round(vi.cons.suma)), vMax: String(Math.round(vi.base.suma)), pMin: '100', pMax: '100', supuestos: `Valor a cinco años según el tamaño de la empresa y sus objetivos: ${vi.lista.filter((l) => l.v).map((l) => l.x.n.toLowerCase() + ' ' + eur(l.v) + '/año').join('; ')}; rampa ${d.rampa.join('/')} %; escenario conservador al ${d.prudencia} %.` }); guardar(); render(); toast('Valor a cinco años llevado a «Valor y precio».'); };
+  };
+  // Hoja del dossier: la inversión, en números
+  const hojaNumeros = (pr, pieT) => {
+    const vi = valorInversion(pr), d = vi.d, e = vi.base, c = vi.cons;
+    if (!vi.B || !vi.I || d.enDossier === false) return null;
+    return (n, s) => hoja('pc-light', kick(`${s} · La inversión, en números`) + tit('Una inversión que', `se paga en ${meses(e.pay)}.`) + `<p class="pc-lede">Estimación con el tamaño de la empresa y sus objetivos. El proyecto aporta unos ${eur(vi.B)} al año cuando está implantado${num(d.ventas) ? `, el ${(vi.B / num(d.ventas) * 100).toLocaleString('es-ES', { maximumFractionDigits: 1 })} % de la facturación` : ''}. La inversión es de ${eur(vi.I)}${vi.pctVentas != null ? `, el ${vi.pctVentas.toLocaleString('es-ES', { maximumFractionDigits: 1 })} % de la facturación de un año` : ''}.</p>
+      <div class="pc-roi four"><div><small>Recupera la inversión</small><b>${meses(e.pay)}</b><p>Conservador: ${meses(c.pay)}.</p></div><div><small>Rentabilidad a 5 años</small><b>${pct0(e.roi)}</b><p>Conservador: ${pct0(c.roi)}.</p></div><div><small>Cada euro invertido</small><b>${(e.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })} €</b><p>Conservador: ${(c.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })} €.</p></div><div class="on"><small>Valor de empresa creado</small><b>${corto(vi.valorCreado)}</b><p>${d.multiplo} veces la mejora anual del beneficio.</p></div></div>
+      <div class="pdf-keep" style="margin-top:16px">${grafica5(vi, 'claro')}</div>
+      <table class="pc-riesgos" style="margin-top:8px"><thead><tr><th>De dónde sale el valor</th><th>Cálculo</th><th>Al año</th></tr></thead><tbody>${vi.lista.filter((l) => l.v).map((l) => `<tr><th>${esc(l.x.n)}</th><td>${esc(l.x.campos.map(([k, lb]) => lb + ': ' + (l.p[k] || (k === 'valorHora' ? d.valorHora : k === 'contrib' ? d.margen : '—'))).join(' · '))}</td><td>${eur(l.v)}</td></tr>`).join('')}</tbody></table>
+      <p class="pc-nota">Rampa de implantación ${d.rampa.join(' / ')} % en los años 1 a 5; escenario conservador al ${d.prudencia} % del base; TIR ${tirTxt(e.tir)} y VAN al ${d.tasa} % de ${eur(e.van)}. Cifras orientativas con los datos facilitados por la empresa; se revisan en el diagnóstico. No son una garantía de resultado.</p>`, { t: pieT, n });
+  };
+
   /* ================= EL DOSSIER (hojas A4) ================= */
   const globo = (o) => { const cx = o.cx, cy = o.cy, r = o.r; let s = `<svg class="pc-art" viewBox="0 0 794 1123" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><radialGradient id="pg${o.id}" cx="${cx / 794}" cy="${cy / 1123}" r="0.5"><stop offset="0" stop-color="${o.c}" stop-opacity="0.22"/><stop offset="1" stop-color="${o.c}" stop-opacity="0"/></radialGradient></defs><rect width="794" height="1123" fill="url(#pg${o.id})"/><g fill="none" stroke="${o.c}" stroke-opacity="0.32" stroke-width="0.8"><circle cx="${cx}" cy="${cy}" r="${r}"/>`;
     for (let i = 1; i < 6; i++) s += `<ellipse cx="${cx}" cy="${cy}" rx="${r * Math.cos((i * Math.PI) / 12)}" ry="${r}"/><ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r * Math.sin((i * Math.PI) / 12)}" stroke-opacity="0.16"/>`;
@@ -158,6 +280,8 @@
     if (pr.coste.on && (pr.coste.riesgos.length || r)) sec('coste', 'El coste de no hacerlo', [(n, s) => hoja('pc-light', kick(`${s} · El coste de no hacerlo`) + tit(pr.coste.h1, pr.coste.h2) + `<p class="pc-lede">${esc(pr.coste.intro)}${num(pr.coste.valorEmpresa) ? ` Valor estimado de la empresa: ${corto(num(pr.coste.valorEmpresa))}.` : ''}</p>${pr.coste.riesgos.length ? `<table class="pc-riesgos"><thead><tr><th>Riesgo</th><th>Qué ocurre</th><th>Impacto estimado</th></tr></thead><tbody>${pr.coste.riesgos.slice(0, 6).map((x) => `<tr><th>${esc(x.r)}</th><td>${esc(x.q)}</td><td>${esc(x.imp)}</td></tr>`).join('')}</tbody></table>` : ''}
       ${r ? `<div class="pc-k" style="margin-top:20px">Retorno de la inversión</div><div class="pc-roi"><div><small>Inversión</small><b>${eur(N || PR)}</b><p>${r.pctEmp ? `En torno al ${r.pctEmp.toLocaleString('es-ES', { maximumFractionDigits: 1 })} % del valor de la empresa. ` : ''}${prog ? 'Cuotas durante el programa.' : 'Precio cerrado, pagado por hitos.'}</p></div><div><small>${pr.coste.modo === 'perdida' ? 'Pérdida en el escenario adverso' : 'Valor que genera'}</small><b>${corto(num(pr.coste.vMin))}–${corto(num(pr.coste.vMax))}</b><p>Entre ${xx(num(pr.coste.vMin) / (N || PR))} y ${xx(num(pr.coste.vMax) / (N || PR))} la inversión.</p></div><div class="on"><small>Retorno esperado</small><b>${xx(r.min)}–${xx(r.max)}</b><p>${pr.coste.modo === 'perdida' ? 'Pérdida evitada, ponderada por la probabilidad de que el escenario adverso llegue.' : 'Valor generado, ponderado por la probabilidad de alcanzarlo.'}</p></div></div>
       <p class="pc-nota">Estimación orientativa que se afinará en el diagnóstico. Supuestos: ${pr.coste.modo === 'perdida' ? 'pérdida' : 'valor generado'} entre ${corto(num(pr.coste.vMin))} y ${corto(num(pr.coste.vMax))}; probabilidad del ${num(pr.coste.pMin)} al ${num(pr.coste.pMax)} %.${pr.coste.supuestos ? ' ' + esc(pr.coste.supuestos) : ''}</p>` : ''}`, { t: pieT, n })]);
+    // La inversión, en números (dimensión de la empresa, retorno y rentabilidad a cinco años)
+    const hn = hojaNumeros(pr, pieT); if (hn) sec('numeros', 'La inversión, en números', [hn]);
     // 08 La inversión
     const desglose = ps.filter((x) => num(x.imp));
     sec('inv', 'La inversión', [(n, s) => hoja('pc-dark', kick(`${s} · La inversión`) + (prog ? tit('Un programa completo.', pr.inv.variable.on ? `${100 - pr.inv.variable.pct} % fijo, ${pr.inv.variable.pct} % por objetivos.` : 'Cuotas durante el programa.') : tit('Llave en mano.', 'Un precio cerrado, pagado por hitos.'))
@@ -333,6 +457,7 @@
           <p class="small" style="margin:0">Precio recomendado para un retorno de unas 6 veces: <b>${eur(r.recom)}</b> (entre ${eur(r.rango[0])} para 10× y ${eur(r.rango[1])} para 5×). <button class="btn ghost small" id="pcRec">Usar ${eur(r.recom)}</button> ${pr.pasos.items.length ? '<button class="btn ghost small" id="pcRep">Repartir el precio entre los pasos</button>' : ''}</p>
           ${r.st === 'stop' ? `<div class="alert warn small">Con estos objetivos el retorno no compensa la inversión. Si los objetivos del empresario son pequeños, esta propuesta no es rentable para él: ayúdale a plantear objetivos mayores (en el guion, «Objetivos del empresario») o reduce el alcance.</div>` : ''}` : `<p class="small muted" style="margin:0">Pon el valor en juego y el precio para ver el retorno. Ejemplo de referencia: 37.000 € frente a una pérdida evitada de 0,66 a 1,8 M€ con una probabilidad del 20 al 25 % da un retorno de 3,5 a 12 veces.</p>`}
         ${campo('coste.supuestos', 'Supuestos que se citan en el dossier', pr.coste.supuestos, { area: true, ph: 'Valor de la empresa de 3 a 4 M€; descuento por venta forzada del 20 al 40 %…' })}</section>
+      ${dimHTML(pr)}
       ${bloque('base', 'Portada e índice', esc(pr.t1 + ' ' + pr.t2), `<div class="iv-g3">${campo('t1', 'Título · primera línea', pr.t1)}${campo('t2', 'Título · segunda línea (en color)', pr.t2)}${campo('alcance', 'Alcance', pr.alcance)}${campo('duracion', 'Duración', pr.duracion)}${campo('ciudad', 'Ciudad', pr.ciudad)}${campo('fecha', 'Fecha', pr.fecha, { type: 'date' })}</div>${campo('subtitulo', 'Subtítulo de la portada', pr.subtitulo, { area: true })}<div class="iv-g3">${campo('idx.a', 'Índice · titular', pr.idx.a)}${campo('idx.b', 'Índice · en contorno', pr.idx.b)}${campo('idx.c', 'Índice · en color', pr.idx.c)}${campo('cifra', 'Cifra decorativa (opcional)', pr.cifra, { ph: r ? xx(r.centro) : '360' })}</div>${campo('idx.texto', 'Índice · texto', pr.idx.texto, { area: true, ph: pr.subtitulo })}`)}
       ${bloque('sit', 'La situación actual', pl(pr.sit.items.length, 'problema', 'problemas') + ' · de las causas que más pesan', `<div class="iv-g3">${campo('sit.h1', 'Titular', pr.sit.h1)}${campo('sit.h2', 'Titular · en contorno', pr.sit.h2)}</div>${campo('sit.intro', 'Entradilla', pr.sit.intro, { area: true })}${lista('sit.items', pr.sit.items, [{ k: 't', ph: 'Problema' }, { k: 'd', ph: 'Explicación o cita', area: true }, { k: 'c', ph: 'Consecuencia' }], 'Añadir un problema')}<small class="muted">Máximo seis en el dossier.</small>`)}
       ${bloque('riesgo', 'Lo que ocurre sin actuar', pr.riesgo.on ? pl(pr.riesgo.linea.length, 'momento', 'momentos') : 'Oculta', `<label class="iv-inl small"><input type="checkbox" data-p="riesgo.on" ${pr.riesgo.on ? 'checked' : ''}> Incluir esta hoja</label><div class="iv-g3">${campo('riesgo.h1', 'Titular', pr.riesgo.h1)}${campo('riesgo.h2', 'Titular · en contorno', pr.riesgo.h2)}</div>${campo('riesgo.intro', 'Entradilla', pr.riesgo.intro, { area: true })}${lista('riesgo.linea', pr.riesgo.linea, [{ k: 'cuando', ph: 'Mes 3', w: '120px' }, { k: 'que', ph: 'Qué ocurre' }], 'Añadir un momento')}<div class="eyebrow">Datos de contexto (solo se muestran con su fuente)</div>${lista('riesgo.stats', pr.riesgo.stats, [{ k: 'v', ph: '30 %', w: '90px' }, { k: 't', ph: 'de las empresas familiares…' }, { k: 'fuente', ph: 'Fuente y año' }], 'Añadir un dato')}`)}
@@ -354,6 +479,7 @@
     // Eventos
     $('#pcVer', host).onclick = () => V.informes.propuesta();
     wireFuentes(host);
+    wireDim(host, pr);
     $('#pcRe', host).onclick = (e) => { if (!e.target.dataset.conf) { e.target.dataset.conf = 1; e.target.textContent = '¿Seguro? Se rehace desde la sesión'; return; } const tipo = pr.tipo, inv = pr.inv, coste = pr.coste; ST.propuesta = null; preparar(); Object.assign(ST.propuesta, { tipo }); ST.propuesta.inv = Object.assign(inv, { objetivos: ST.propuesta.inv.objetivos }); ST.propuesta.coste = Object.assign(ST.propuesta.coste, { modo: coste.modo, vMin: coste.vMin, vMax: coste.vMax, pMin: coste.pMin, pMax: coste.pMax, valorEmpresa: coste.valorEmpresa, supuestos: coste.supuestos }); render(); };
     $$('[data-tipo]', host).forEach((b) => (b.onclick = () => { pr.tipo = b.dataset.tipo; if (pr.tipo === 'programa' && !pr.duracion) pr.duracion = '10 meses'; guardar(); render(); }));
     $$('[data-ab]', host).forEach((b) => (b.onclick = () => { abierto = abierto === b.dataset.ab ? '' : b.dataset.ab; render(); }));
@@ -378,5 +504,5 @@
       b.disabled = false; b.textContent = 'Redactar los textos con Claude';
     };
   };
-  V.propuesta = { preparar, dossier, retorno, cuotas, precio, neto, firma };
+  V.propuesta = { valorInversion, preparar, dossier, retorno, cuotas, precio, neto, firma };
 })();

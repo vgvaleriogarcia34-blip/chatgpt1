@@ -228,3 +228,14 @@
 .pc-fs { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 .pc-fu { padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--gold); background: rgba(201, 242, 77, 0.05); line-height: 1.5; }
 @media (max-width: 760px) { .pc-adj li { grid-template-columns: auto minmax(0, 1fr) auto; } .pc-adj li select { grid-column: 2 / 3; } }
+/* Dimensión de la empresa y valor de la inversión */
+.pc-pals { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 8px; }
+.pc-pal { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); align-content: start; }
+.pc-pal.on { border-color: rgba(201, 242, 77, 0.45); background: rgba(201, 242, 77, 0.04); }
+.pc-pal small { font-size: var(--t-xs); }
+.pc-pal-v { font: 600 var(--t-m) var(--font-data); color: var(--gold-soft); }
+.pc-dim label { display: grid; gap: 4px; }
+.pc-dim label.iv-inl { display: inline-flex; }
+.pc-g5 { width: 100%; height: auto; display: block; }
+.pp-page.pc-page .pc-roi.four { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.pp-page.pc-page .pc-roi.four b { font-size: 21px; }
