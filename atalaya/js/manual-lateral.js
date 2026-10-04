@@ -30,7 +30,7 @@
       if (p === 'estrategia.html' && A.strat && A.strat.current) { const m = A.strat.mod && A.strat.mod(A.strat.current()); return (m && EST[m.grupo]) || 'estrategia'; }
       if (p === 'personas.html' && A.personas && A.personas.current) { const id = A.personas.current(), m = A.personas.mod && A.personas.mod(id); return PER_ID[id] || (m && PER[m.grupo]) || 'personas'; }
       if (p === 'mesa.html') return MESA[location.hash.slice(1)] || 'mesa';
-      if (p === 'intervencion.html') return ({ guion: 'iv-guion', constantes: 'iv-primera', escucha: 'iv-escucha', sintomas: 'iv-escucha', triaje: 'iv-primera', auditoria: 'iv-auditoria', ecosistema: 'iv-auditoria', plan: 'iv-plan', sesiones: 'iv-plan', informes: 'iv-plan' })[location.hash.slice(1)] || 'intervencion';
+      if (p === 'intervencion.html') return ({ guion: 'iv-guion', constantes: 'iv-primera', escucha: 'iv-escucha', sintomas: 'iv-escucha', triaje: 'iv-primera', propuesta: 'iv-propuesta', auditoria: 'iv-auditoria', ecosistema: 'iv-auditoria', plan: 'iv-plan', sesiones: 'iv-plan', informes: 'iv-plan' })[location.hash.slice(1)] || 'intervencion';
       if (p === 'grupo.html') return 'modos';
       if (p === 'portal.html') return 'navegar';
     } catch (e) { /* sin contexto */ }
