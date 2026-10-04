@@ -92,3 +92,17 @@ body:has(#empBar:not([hidden])) .pt-intro .pt-kicker { display: none; }
 body:has(#empBar:not([hidden])) .pt-intro { top: calc(122px + env(safe-area-inset-top, 0px)); }
 @media (max-width: 640px) { body:has(#empBar:not([hidden])) .pt-intro { top: calc(108px + env(safe-area-inset-top, 0px)); } }
 .pt-lock-c b::after { content: ' · Consultora'; }
+
+/* Mundo 4: auditoría integral (coral) */
+.pt-dock .d-iv { background: radial-gradient(circle at 35% 35%, #ffe2dc, #e86a5a 45%, #4a1414); box-shadow: 0 0 18px rgba(232, 106, 90, 0.7); }
+.pt-world.pt-iv .pt-w-kicker { color: #ff9f8f; }
+.pt-world.pt-iv .pt-go { background: #e86a5a; }
+.pt-world.pt-iv.on, .pt-world.pt-iv:hover, .pt-world.pt-iv:focus-visible { border-color: #e86a5a; box-shadow: 0 0 0 1px #e86a5a, 0 30px 70px -20px rgba(232, 106, 90, 0.45); }
+/* Móvil con cuatro mundos: el panel inferior en dos columnas compactas para que se vean los planetas */
+@media (max-width: 760px) {
+  .pt-dock { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: calc(100% - 24px); }
+  .pt-dock button, .pt-dock .pt-grp { padding: 7px 10px; gap: 8px; border-radius: 12px; font-size: 0.82rem; min-width: 0; }
+  .pt-dock button b, .pt-dock .pt-grp b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pt-dock i { width: 20px; height: 20px; }
+  .pt-dock .pt-grp small { display: none; }
+}

@@ -1,7 +1,8 @@
 /* Atalaya · Puesto de mando 3D
    Una galaxia con tres mundos: el simulador de inversión (planeta dorado con cinco lunas, una por escenario),
    el sistema estratégico (núcleo azul con 21 módulos en órbita, agrupados por áreas) y personas y equipos
-   (planeta violeta con cuatro equipos de personas, uno por estilo DISC, unidos en red). Se navega arrastrando,
+   (planeta violeta con cuatro equipos de personas, uno por estilo DISC, unidos en red) y la auditoría integral
+   (planeta coral con su pulso en órbita, un radar que barre y ocho balizas de triaje, una por área). Se navega arrastrando,
    con la rueda, pellizcando o con el teclado; al elegir un mundo la cámara vuela hacia él y se abre la herramienta. */
 (function () {
   const A = window.Atalaya, P = A.platform;
@@ -9,8 +10,8 @@
   const $$ = (s) => Array.from(document.querySelectorAll(s));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const small = Math.min(innerWidth, innerHeight) < 700;
-  const DEST = { sim: 'app.html', est: 'estrategia.html', per: 'personas.html', man: 'manual.html' };
-  const NOMBRE = { sim: 'Simulador de inversión', est: 'Sistema estratégico', per: 'Personas y equipos', man: 'Manual' };
+  const DEST = { sim: 'app.html', est: 'estrategia.html', per: 'personas.html', iv: 'intervencion.html', man: 'manual.html' };
+  const NOMBRE = { sim: 'Simulador de inversión', est: 'Sistema estratégico', per: 'Personas y equipos', iv: 'Auditoría integral', man: 'Manual' };
   const LS = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
 
   let entering = false;
@@ -19,6 +20,7 @@
     // Esencial incluye solo el simulador: el sistema estratégico se ofrece, no se abre
     if (w === 'est' && P.user && !P.puede('estrategia')) { P.panelPlanes({ destacar: 'profesional', motivo: 'El sistema estratégico está incluido desde el plan Profesional. Tu plan Esencial incluye el simulador de inversión.' }); return; }
     if (w === 'per' && P.user && !P.puede('personas')) { P.panelPlanes({ destacar: 'consultora', motivo: 'Personas y equipos (perfiles, equipos, liderazgo y tablillas) está incluido en el plan Consultora.' }); return; }
+    if (w === 'iv' && P.user && !P.puede('intervencion')) { P.panelPlanes({ destacar: 'consultora', motivo: 'La auditoría integral (primera sesión como un triaje, auditoría por áreas y plan de intervención) está incluida en el plan Consultora.' }); return; }
     entering = true;
     LS.set('atalaya.ultimo', w);
     if (scene && !reduce) { flyTo(w); setTimeout(() => $('#warp').classList.add('on'), 650); setTimeout(() => { location.href = DEST[w]; }, 1350); }
@@ -53,6 +55,7 @@
     }
     addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); if (!$('#empPaso').hidden) return; pintarBarra(); });
     // Esencial: el mundo del sistema estratégico se ve, pero marcado como incluido desde Profesional
+    if (!P.puede('intervencion')) $$('[data-w="iv"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido en el plan Consultora · toca para ver los planes'; });
     if (!P.puede('personas')) $$('[data-w="per"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido en el plan Consultora · toca para ver los planes'; });
     if (!P.puede('estrategia')) $$('[data-w="est"]').forEach((x) => { x.classList.add('pt-lock'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido desde el plan Profesional · toca para ver los planes'; });
     // Desde la página comercial con la sesión abierta: abrir el cambio de plan con el elegido
@@ -138,8 +141,10 @@
   const W = {};
   // En pantallas verticales (móvil) los mundos se apilan; en horizontales quedan a izquierda y derecha
   const portrait = innerHeight > innerWidth * 1.1;
-  const SIM_POS = portrait ? new T.Vector3(0, 12, 0) : new T.Vector3(-11, 2.5, 0), EST_POS = portrait ? new T.Vector3(0, -1, 0) : new T.Vector3(11, 1.5, 0);
-  const PER_POS = portrait ? new T.Vector3(0, -13.5, 0) : new T.Vector3(0, -7.5, 3);
+  // En vertical los cuatro mundos van en zigzag; en horizontal la auditoría integral queda abajo a la izquierda
+  const SIM_POS = portrait ? new T.Vector3(-4, 12, 0) : new T.Vector3(-11, 2.5, 0), EST_POS = portrait ? new T.Vector3(-4, -5, 0) : new T.Vector3(11, 1.5, 0);
+  const PER_POS = portrait ? new T.Vector3(4, -14, 0) : new T.Vector3(0, -7.5, 3);
+  const IV_POS = portrait ? new T.Vector3(4.5, 3.5, -2) : new T.Vector3(-14, -8, 0);
   {
     const g = new T.Group(); g.position.copy(SIM_POS);
     const map = tex(512, (x, s) => {
@@ -231,6 +236,47 @@
     W.per = { g, core, teams, lines, lp, hit, atm, label: $('.pt-world[data-w="per"]'), r: 1.9, side: 1 };
   }
 
+  /* ---------- Mundo 4: auditoría integral ---------- */
+  {
+    const g = new T.Group(); g.position.copy(IV_POS);
+    const map = tex(256, (x, s) => {
+      const gr = x.createLinearGradient(0, 0, 0, s); gr.addColorStop(0, '#4a1414'); gr.addColorStop(0.5, '#e86a5a'); gr.addColorStop(1, '#3a0f12'); x.fillStyle = gr; x.fillRect(0, 0, s, s);
+      // Retícula de exploración
+      x.strokeStyle = 'rgba(255,220,210,0.18)'; x.lineWidth = 1;
+      for (let i = 0; i <= s; i += s / 16) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, s); x.stroke(); x.beginPath(); x.moveTo(0, i); x.lineTo(s, i); x.stroke(); }
+      for (let i = 0; i < 120; i++) { x.fillStyle = `rgba(255,236,230,${Math.random() * 0.16})`; x.beginPath(); x.arc(Math.random() * s, Math.random() * s, 1 + Math.random() * 3, 0, 7); x.fill(); }
+    });
+    const core = new T.Mesh(new T.SphereGeometry(1.8, 48, 36), new T.MeshStandardMaterial({ map, roughness: 0.45, metalness: 0.3, emissive: 0x5a1612, emissiveIntensity: 0.8 })); g.add(core);
+    const grid = new T.Mesh(new T.SphereGeometry(2.25, 18, 12), new T.MeshBasicMaterial({ color: 0xff8f7a, wireframe: true, transparent: true, opacity: 0.16 })); g.add(grid);
+    const atm = sprite(glow(232, 106, 90), 0xffffff, 10, 0.6); g.add(atm);
+    // El pulso: una línea de electrocardiograma que rodea el planeta
+    const ecgN = 360, ecgPts = [];
+    for (let i = 0; i <= ecgN; i++) {
+      const a = (i / ecgN) * Math.PI * 2, k = (i % 60) / 60;
+      const y = k > 0.42 && k < 0.47 ? 0.9 : k >= 0.47 && k < 0.52 ? -0.55 : k >= 0.52 && k < 0.56 ? 0.3 : k > 0.3 && k < 0.36 ? 0.12 : 0;
+      ecgPts.push(new T.Vector3(Math.cos(a) * 3.2, y, Math.sin(a) * 3.2));
+    }
+    const ecg = new T.Line(new T.BufferGeometry().setFromPoints(ecgPts), new T.LineBasicMaterial({ color: 0x5dff8a, transparent: true, opacity: 0.85, blending: T.AdditiveBlending }));
+    ecg.rotation.x = 0.35; g.add(ecg);
+    // El radar: un haz que barre el plano de las balizas
+    const sweep = new T.Mesh(new T.CircleGeometry(4.9, 32, 0, Math.PI / 5), new T.MeshBasicMaterial({ color: 0xff8f7a, transparent: true, opacity: 0.16, side: T.DoubleSide, blending: T.AdditiveBlending, depthWrite: false }));
+    sweep.rotation.x = -Math.PI / 2; const sweepHold = new T.Group(); sweepHold.add(sweep); sweepHold.rotation.x = -0.12; g.add(sweepHold);
+    const orbit = new T.Mesh(new T.TorusGeometry(4.6, 0.012, 6, 160), new T.MeshBasicMaterial({ color: 0xff8f7a, transparent: true, opacity: 0.25 })); orbit.rotation.x = Math.PI / 2 - 0.12; g.add(orbit);
+    // Ocho balizas de triaje, una por área de la empresa
+    const AREAS = [0xc9f24d, 0x3987e5, 0xd95926, 0x199e70, 0xc98500, 0x8a7cf0, 0xd55181, 0x9aa0aa];
+    const beacons = AREAS.map((c, i) => {
+      const a = (i / AREAS.length) * Math.PI * 2;
+      const m = new T.Mesh(new T.TetrahedronGeometry(0.3, 0), new T.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.9, flatShading: true }));
+      m.position.set(Math.cos(a) * 4.6, Math.sin(a * 2) * 0.25, Math.sin(a) * 4.6);
+      const gl = sprite(glow(255, 255, 255), c, 1.3, 0.6); gl.position.copy(m.position);
+      const hold = new T.Group(); hold.rotation.x = -0.12; hold.add(m); hold.add(gl); g.add(hold);
+      return { m, gl, a };
+    });
+    const hit = new T.Mesh(new T.SphereGeometry(5.4, 16, 12), new T.MeshBasicMaterial({ visible: false })); g.add(hit);
+    scene.add(g);
+    W.iv = { g, core, grid, ecg, sweepHold, beacons, hit, atm, label: $('.pt-world[data-w="iv"]'), r: 1.8, side: -1 };
+  }
+
   /* Luna del manual */
   {
     const g = new T.Group();
@@ -242,12 +288,20 @@
   }
 
   /* Corriente de datos entre los dos mundos: comparten la misma información */
-  const curve = portrait ? new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(0, -3, 0)), SIM_POS.clone().lerp(EST_POS, 0.5).add(new T.Vector3(4.5, 0, -3)), EST_POS.clone().add(new T.Vector3(0, 3, 0))]) : new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(3, 0, 0)), new T.Vector3(0, 4.5, -3), EST_POS.clone().add(new T.Vector3(-3, 0, 0))]);
+  const curve = portrait ? new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(0, -3, 0)), SIM_POS.clone().lerp(EST_POS, 0.5).add(new T.Vector3(-4.5, 0, -3)), EST_POS.clone().add(new T.Vector3(0, 3, 0))]) : new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(3, 0, 0)), new T.Vector3(0, 4.5, -3), EST_POS.clone().add(new T.Vector3(-3, 0, 0))]);
   const flowN = 220, flowPos = new Float32Array(flowN * 3), flowCol = new Float32Array(flowN * 3), flowT = new Float32Array(flowN);
   for (let i = 0; i < flowN; i++) { flowT[i] = Math.random(); const gold = Math.random() < 0.5; flowCol.set(gold ? [1, 0.85, 0.55] : [0.55, 0.72, 1], i * 3); }
   const flowGeo = new T.BufferGeometry(); flowGeo.setAttribute('position', new T.BufferAttribute(flowPos, 3)); flowGeo.setAttribute('color', new T.BufferAttribute(flowCol, 3));
   scene.add(new T.Points(flowGeo, pointsMat(0.22, 0.9)));
   scene.add(new T.Line(new T.BufferGeometry().setFromPoints(curve.getPoints(80)), new T.LineBasicMaterial({ color: 0xd4ae64, transparent: true, opacity: 0.12 })));
+
+  /* Corriente de la auditoría integral al sistema estratégico: el diagnóstico alimenta el plan */
+  const curve2 = portrait ? new T.CatmullRomCurve3([IV_POS.clone().add(new T.Vector3(-2, -2, 0.5)), IV_POS.clone().lerp(EST_POS, 0.5).add(new T.Vector3(1.5, 0, 2)), EST_POS.clone().add(new T.Vector3(2.4, 2, 0))]) : new T.CatmullRomCurve3([IV_POS.clone().add(new T.Vector3(2.2, 1.5, 0.5)), IV_POS.clone().lerp(EST_POS, 0.5).add(new T.Vector3(1.5, 3.5, 3)), EST_POS.clone().add(new T.Vector3(-2.4, -1.5, 0))]);
+  const flow2N = 120, flow2Pos = new Float32Array(flow2N * 3), flow2Col = new Float32Array(flow2N * 3), flow2T = new Float32Array(flow2N);
+  for (let i = 0; i < flow2N; i++) { flow2T[i] = Math.random(); const rojo = Math.random() < 0.55; flow2Col.set(rojo ? [1, 0.55, 0.48] : [0.55, 0.72, 1], i * 3); }
+  const flow2Geo = new T.BufferGeometry(); flow2Geo.setAttribute('position', new T.BufferAttribute(flow2Pos, 3)); flow2Geo.setAttribute('color', new T.BufferAttribute(flow2Col, 3));
+  scene.add(new T.Points(flow2Geo, pointsMat(0.2, 0.85)));
+  scene.add(new T.Line(new T.BufferGeometry().setFromPoints(curve2.getPoints(60)), new T.LineBasicMaterial({ color: 0xe86a5a, transparent: true, opacity: 0.12 })));
 
   /* Polvo cercano que pasa junto a la cámara */
   const dustN = small ? 300 : 700, dustPos = new Float32Array(dustN * 3), dustCol = new Float32Array(dustN * 3).fill(0.6);
@@ -256,14 +310,14 @@
   scene.add(new T.Points(dustGeo, pointsMat(0.18, 0.45)));
 
   /* ---------- Cámara: órbita con inercia ---------- */
-  const view = { theta: 0, phi: 1.32, radius: portrait ? 58 : small ? 46 : 38, tTheta: 0, tPhi: 1.32, tRadius: portrait ? 58 : small ? 46 : 38, target: new T.Vector3(0, 0, 0), tTarget: new T.Vector3(0, 0, 0) };
+  const view = { theta: 0, phi: 1.32, radius: portrait ? 66 : small ? 48 : 41, tTheta: 0, tPhi: 1.32, tRadius: portrait ? 66 : small ? 48 : 41, target: new T.Vector3(0, 0, 0), tTarget: new T.Vector3(0, 0, 0) };
   let focus = null, hover = null, drag = null, lastMove = performance.now(), flying = null;
   const setFocus = (w) => {
     focus = w;
     $$('.pt-world').forEach((el) => el.classList.toggle('on', el.dataset.w === w));
     $$('.pt-dock button').forEach((el) => el.classList.toggle('on', el.dataset.w === w));
     view.tTarget.copy(w ? W[w].g.position.clone().multiplyScalar(0.45) : new T.Vector3());
-    if (w && !portrait) view.tTheta = w === 'sim' ? -0.32 : w === 'est' ? 0.32 : w === 'per' ? 0 : view.tTheta;
+    if (w && !portrait) view.tTheta = w === 'sim' ? -0.32 : w === 'est' ? 0.32 : w === 'per' || w === 'iv' ? 0 : view.tTheta;
   };
   canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, th: view.tTheta, ph: view.tPhi, moved: false }; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
   canvas.addEventListener('pointermove', (e) => {
@@ -289,6 +343,7 @@
     else if (e.key === '1') enter('sim');
     else if (e.key === '2') enter('est');
     else if (e.key === '3') enter('per');
+    else if (e.key === '4') enter('iv');
     else return;
     lastMove = performance.now();
   });
@@ -318,7 +373,7 @@
     const narrow = innerWidth < 760;
     let lx, ly;
     if (w === 'man') { lx = x - o.label.offsetWidth / 2; ly = y + 18; }
-    else if (narrow) { lx = w !== 'est' ? x + 30 : x - o.label.offsetWidth - 30; ly = y - o.label.offsetHeight / 2; }
+    else if (narrow) { lx = x > innerWidth / 2 ? x - o.label.offsetWidth - 30 : x + 30; ly = y - o.label.offsetHeight / 2; }
     else { lx = x + offX * (Math.min(220, 2600 / d) + (offX < 0 ? o.label.offsetWidth : 0)); ly = y - o.label.offsetHeight / 2; }
     lx = Math.max(12, Math.min(innerWidth - o.label.offsetWidth - 12, lx)); ly = Math.max(narrow ? 200 : 140, Math.min(innerHeight - o.label.offsetHeight - (narrow ? 150 : 130), ly));
     o.label.style.transform = `translate(${lx}px, ${ly}px)`;
@@ -361,10 +416,18 @@
     const hub = new T.Vector3(), pp = new T.Vector3();
     PE.teams.forEach((q, i) => { q.hub.getWorldPosition(hub); PE.g.worldToLocal(hub); put(new T.Vector3(), hub); q.people.forEach((m) => { m.getWorldPosition(pp); PE.g.worldToLocal(pp); put(hub, pp); }); const nx = PE.teams[(i + 1) % PE.teams.length]; nx.hub.getWorldPosition(pp); PE.g.worldToLocal(pp); put(hub, pp); });
     PE.lines.geometry.attributes.position.needsUpdate = true;
-    if (portrait) W.man.g.position.set(-7 + Math.cos(t * 0.15 * sp) * 1.5, 5.5 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 3 - 4);
-    else W.man.g.position.set(Math.cos(t * 0.15 * sp) * 4, 7 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 4 - 6);
+    const IV = W.iv;
+    IV.core.rotation.y = t * 0.14 * sp; IV.grid.rotation.y = -t * 0.05 * sp; IV.ecg.rotation.y = -t * 0.35 * sp; IV.sweepHold.rotation.y = -t * 1.1 * sp;
+    // Cada baliza se enciende cuando el radar pasa por encima, como un triaje que va tomando constantes
+    const barrido = ((-t * 1.1 * sp) % (Math.PI * 2) + Math.PI * 4) % (Math.PI * 2);
+    IV.beacons.forEach((b) => { const d = Math.abs(((b.a - barrido + Math.PI * 3) % (Math.PI * 2)) - Math.PI); const k = Math.max(0, 1 - d / 0.9); b.m.scale.setScalar(1 + k * 0.9); b.gl.material.opacity = 0.35 + k * 0.65; b.m.rotation.y = t * 1.4; });
+    IV.ecg.material.opacity = 0.55 + Math.max(0, Math.sin(t * 2.4)) * 0.4;
+    if (portrait) W.man.g.position.set(-7 + Math.cos(t * 0.15 * sp) * 1.5, 2.5 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 3 - 4);
+    else W.man.g.position.set(15 + Math.cos(t * 0.15 * sp) * 3, 9 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 3 - 6);
     for (let i = 0; i < flowN; i++) { flowT[i] = (flowT[i] + 0.0016 * sp * (0.6 + (i % 5) * 0.15)) % 1; const p = curve.getPoint(flowT[i]); flowPos.set([p.x + Math.sin(i) * 0.25, p.y + Math.cos(i * 1.3) * 0.25, p.z], i * 3); }
     flowGeo.attributes.position.needsUpdate = true;
+    for (let i = 0; i < flow2N; i++) { flow2T[i] = (flow2T[i] + 0.0013 * sp * (0.6 + (i % 4) * 0.15)) % 1; const p = curve2.getPoint(flow2T[i]); flow2Pos.set([p.x + Math.sin(i) * 0.2, p.y + Math.cos(i * 1.7) * 0.2, p.z], i * 3); }
+    flow2Geo.attributes.position.needsUpdate = true;
     galaxy.rotation.y += 0.0004 * sp;
     nebulas.forEach((n, i) => { n.material.rotation += 0.0003 * (i % 2 ? 1 : -1) * sp; });
     starLayers.forEach((s, i) => { s.rotation.y += 0.00005 * (i + 1) * sp; s.material.opacity = 0.65 + Math.sin(t * (0.6 + i * 0.3) + i) * 0.15; });
@@ -372,17 +435,17 @@
     // Selección con el ratón
     if (!flying) {
       ray.setFromCamera(mouse, camera);
-      const hits = ray.intersectObjects([S.hit, E.hit, PE.hit, W.man.hit]);
-      const h = hits.length ? (hits[0].object === S.hit ? 'sim' : hits[0].object === E.hit ? 'est' : hits[0].object === PE.hit ? 'per' : 'man') : null;
+      const hits = ray.intersectObjects([S.hit, E.hit, PE.hit, IV.hit, W.man.hit]);
+      const h = hits.length ? (hits[0].object === S.hit ? 'sim' : hits[0].object === E.hit ? 'est' : hits[0].object === PE.hit ? 'per' : hits[0].object === IV.hit ? 'iv' : 'man') : null;
       hover = hoverLabel || h;
       canvas.classList.toggle('hover', !!h && !drag);
-      ['sim', 'est', 'per'].forEach((w) => {
+      ['sim', 'est', 'per', 'iv'].forEach((w) => {
         const on = hover === w || focus === w;
         const target = on ? 1.14 : 1; const g = W[w].g; g.scale.setScalar(g.scale.x + (target - g.scale.x) * 0.1);
         W[w].atm.material.opacity += ((on ? 0.95 : w === 'sim' ? 0.55 : 0.6) - W[w].atm.material.opacity) * 0.1;
         W[w].label.classList.toggle('on', on);
       });
-      placeLabel('sim', -1); placeLabel('est', 1); placeLabel('per', 1); placeLabel('man', 0);
+      placeLabel('sim', -1); placeLabel('est', 1); placeLabel('per', 1); placeLabel('iv', -1); placeLabel('man', 0);
     }
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
