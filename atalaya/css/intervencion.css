@@ -257,3 +257,18 @@ button.iv-at { background: none; border: 0; padding: 0; color: inherit; text-ali
 .iv-obj > label.iv-inl { display: inline-flex; }
 @media (min-width: 1000px) { .iv-dg { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr) minmax(0, 1.1fr); } }
 .iv-pas .input { padding: 6px 8px; font-size: var(--t-s); }
+/* Cruce de transcripciones y documentación de la cuenta */
+.iv-cuenta .ms-tab td .input { min-width: 0; padding: 5px 6px; }
+.iv-cuenta .ms-tab td input[type=date] { width: 140px; }
+.iv-autot { display: inline-block; font-size: var(--t-xs); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); }
+.iv-autot.alta { color: var(--go); border-color: rgba(47, 178, 74, 0.5); }
+.iv-autot.media { color: var(--gold-soft); border-color: rgba(201, 242, 77, 0.45); }
+.iv-autot.baja { color: var(--warn); border-color: rgba(250, 178, 25, 0.5); }
+.iv-autot.sin { color: var(--stop); border-color: rgba(224, 72, 72, 0.5); }
+.iv-sinr { padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--stop); background: rgba(224, 72, 72, 0.06); font-size: var(--t-s); }
+.iv-sinr ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+.iv-sinr a { color: var(--fg); }
+.iv-dl { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 3px; font-size: var(--t-xs); }
+.iv-dl li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.03); }
+.iv-dl li.stop b { color: var(--stop); } .iv-dl li.warn b { color: var(--warn); } .iv-dl li.ok b { color: var(--go); }
+.iv-pts { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 3px; }
