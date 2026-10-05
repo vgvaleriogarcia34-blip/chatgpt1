@@ -89,7 +89,7 @@
     const leer = () => { $$('[data-f]', back).forEach((i) => { const k = i.dataset.f; t[k] = i.type === 'checkbox' ? i.checked : ['impacto', 'esfuerzo', 'dur'].includes(k) ? +i.value || 0 : i.value; }); };
     $('[data-ok]', back).onclick = () => { leer(); guardar(); close(); render(); };
     $('[data-meta]', back).onclick = () => { leer(); const m = nuevaMeta({ objetivo: t.t, area: t.area, desde: t.id }); t.metaId = m.id; guardar(); close(); tab = 'metas'; metaSel = m.id; render(); };
-    $('[data-del]', back).onclick = () => { ST.tareas = ST.tareas.filter((x) => x !== t); guardar(); close(); render(); };
+    $('[data-del]', back).onclick = () => { ST.tareas = ST.tareas.filter((x) => x !== t); if (t.oid) { ST.descartadas = (ST.descartadas || []).concat([t.oid]).slice(-500); } guardar(); close(); render(); };
     back.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
     $('textarea', back).focus();
   };
@@ -160,7 +160,7 @@
         ${l.length ? `<div class="table-wrap"><table class="ms-tab"><thead><tr><th>Entrada</th><th style="text-align:left">Tarea</th><th>Fecha de acción</th><th>Tipo</th><th title="Actividad clave">★</th><th>Impacto</th><th>Esfuerzo</th><th></th></tr></thead><tbody>${l.map((t) => `<tr data-id="${t.id}" class="${t.estado === 'hecha' ? 'hecha' : ''}"><td class="small">${fCorta(t.entrada)}</td><td style="text-align:left"><b>${esc(t.t)}</b><br><small class="muted">${[t.area, t.mundo && t.mundo !== 'manual' ? MUNDOS[t.mundo] : '', t.origen].filter(Boolean).map(esc).join(' · ')}</small></td><td><input class="input" type="date" data-k="fecha" value="${esc(t.fecha || '')}"></td><td><select class="input" data-k="tipo">${Object.keys(TIPOS).map((k) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${TIPOS[k]}</option>`).join('')}</select></td><td><input type="checkbox" data-k="clave" ${t.clave ? 'checked' : ''} aria-label="Actividad clave"></td><td><select class="input ms-n" data-k="impacto">${[1, 2, 3, 4, 5].map((v) => `<option ${+t.impacto === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td><td><select class="input ms-n" data-k="esfuerzo">${[1, 2, 3, 4, 5].map((v) => `<option ${+t.esfuerzo === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td><td class="ms-act"><button class="btn ghost small" data-ed>Editar</button><button class="btn ghost small" data-ok>${t.estado === 'hecha' ? 'Reabrir' : 'Hecha'}</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small">No hay tareas con este filtro.</p>'}</div>`;
     const add = () => { const v = $('#msNueva', host).value.trim(); if (!v) return; ST.tareas.push({ id: M.uid(), t: v, entrada: M.hoy(), fecha: $('#msF', host).value || '', area: $('#msArea', host).value, tipo: 'importante', estado: 'pendiente', impacto: 3, esfuerzo: 3, mundo: 'manual' }); guardar(); render(); setTimeout(() => { const i = $('#msNueva'); if (i) i.focus(); }, 20); };
     $('#msAdd', host).onclick = add; $('#msNueva', host).onkeydown = (e) => { if (e.key === 'Enter') add(); };
-    $('#msImp', host).onclick = async () => { const n = await importar(); $('#msImpMsg').textContent = n ? `${n} tarea${n > 1 ? 's' : ''} nueva${n > 1 ? 's' : ''} traída${n > 1 ? 's' : ''} de los otros mundos.` : 'No hay trabajo nuevo en los otros mundos.'; if (n) setTimeout(render, 900); };
+    $('#msImp', host).onclick = async () => { const n = await importar(); $('#msImpMsg').textContent = resumenImp(n); if (n) setTimeout(render, 900); };
     $$('[data-fe]', host).forEach((b) => (b.onclick = () => { filtro.estado = b.dataset.fe; render(); }));
     $$('[data-fm]', host).forEach((b) => (b.onclick = () => { filtro.mundo = b.dataset.fm; render(); }));
     $$('tr[data-id]', host).forEach((tr) => {
@@ -174,29 +174,60 @@
   /* ---------- Datos reales: nada de ejemplo en la mesa ---------- */
   const real = () => !!(P() && P().modoReal && P().modoReal());
   // El plan de empresa de ejemplo del sistema estratégico (misión y acciones de la empresa ficticia)
-  const PLAN_EJ = ['Fabricar soluciones fiables para nuestros clientes industriales', 'Renegociar tarifas con Distribuciones Norte'];
-  const planEjemplo = (pl) => !!(pl && (pl.__vacio || PLAN_EJ.some((x) => String(pl.mision || '').includes(x) || (pl.acciones || []).some((a) => String(a.accion || '').includes(x)))));
+  const PLAN_EJ = ['Fabricar soluciones fiables para nuestros clientes industriales'];
+  const ACC_EJ = ['Renegociar tarifas con Distribuciones Norte', 'Plan de mantenimiento preventivo en montaje', 'Política de crédito y reclamación de vencidos'];
+  const accEjemplo = (txt) => ACC_EJ.some((x) => String(txt || '').trim() === x);
+  const planEjemplo = (pl) => !!(pl && (pl.__vacio || PLAN_EJ.some((x) => String(pl.mision || '').includes(x))));
   const limpiarEjemplos = async () => {
-    if (!real()) return 0;
+    // Las acciones del plan de ejemplo no son trabajo real en ningún caso
+    const e0 = ST.tareas.length; ST.tareas = ST.tareas.filter((t) => !(t.oid && /^est:plan:/.test(t.oid) && accEjemplo(t.oid.slice(9))));
+    const quitadasEj = e0 - ST.tareas.length; if (quitadasEj) guardar();
+    if (!real()) return quitadasEj;
     const loc = (k) => { try { return JSON.parse(localStorage.getItem(P() && P().k ? P().k(k) : k)); } catch (e) { return null; } };
     const est = (P() && (await P().loadData('estrategia').catch(() => null))) || loc('atalaya.estrategia.v1');
     const fuera = (t) => t.ejemplo || (t.oid && /^est:plan:/.test(t.oid) && (!est || planEjemplo(est.plan) || !((est.plan && est.plan.acciones) || []).some((a) => 'est:plan:' + a.accion === t.oid)));
     const n0 = ST.tareas.length; ST.tareas = ST.tareas.filter((t) => !fuera(t));
     const m0 = ST.metas.length; ST.metas = ST.metas.filter((m) => !m.ejemplo);
-    const n = n0 - ST.tareas.length + m0 - ST.metas.length; if (n) guardar(); return n;
+    const n = n0 - ST.tareas.length + m0 - ST.metas.length + quitadasEj; if (n) guardar(); return n;
   };
 
+  /* Traer el trabajo del ecosistema: solo lo que se está trabajando de verdad.
+     · Auditoría integral: acciones pendientes del plan de intervención, acuerdos de las sesiones, hitos de los
+       objetivos del empresario, próximas sesiones y preguntas que quedaron sin respuesta en la transcripción.
+     · Sistema estratégico: acciones del plan de empresa (nunca las del plan de ejemplo) y objetivos con meta.
+     · Personas y equipos: revisiones de acuerdos de liderazgo.
+     Lo que se borra de la mesa queda descartado y no vuelve a traerse. */
+  const LINEA_AREA = { gobierno: 'Dirección', organizacion: 'Dirección', finanzas: 'Finanzas', comercial: 'Comercial', procesos: 'Operaciones', equipos: 'Personas', informacion: 'Dirección', protocolos: 'Dirección' };
+  const resumenImp = (n) => { const f = importar.ultimo || {}, ks = Object.keys(f); return n ? `${n} tarea${n > 1 ? 's' : ''} nueva${n > 1 ? 's' : ''} desde ${ks.map((k) => `${k} (${f[k]})`).join(', ')}.` : ks.length ? 'No hay trabajo nuevo: lo que se está trabajando ya está en la mesa o se descartó.' : 'No hay trabajo real en los otros mundos todavía: llega de la auditoría integral (plan, acuerdos, hitos y sesiones) y del sistema estratégico (plan de empresa y objetivos).'; };
   const importar = async () => {
-    const items = [];
+    const items = [], porFuente = {};
+    const add = (x, f) => { items.push(x); porFuente[f] = (porFuente[f] || 0) + 1; };
     const loc = (k) => { try { return JSON.parse(localStorage.getItem(P() && P().k ? P().k(k) : k)); } catch (e) { return null; } };
-    const est = (P() && (await P().loadData('estrategia'))) || loc('atalaya.estrategia.v1');
-    if (est && est.plan && Array.isArray(est.plan.acciones) && !(real() && planEjemplo(est.plan))) est.plan.acciones.filter((a) => a.accion && a.estado !== 'Hecha').forEach((a) => items.push({ t: a.accion, area: a.area, resp: a.responsable, fecha: a.fin || '', mundo: 'estrategia', origen: 'Plan de empresa', oid: 'est:plan:' + a.accion, impacto: 4 }));
-    if (est && est.c360) Object.keys(est.c360).forEach((mod) => (est.c360[mod].obj || []).filter((o) => o.meta !== '' && o.meta != null).forEach((o) => items.push({ t: `Objetivo: ${o.dir === 'bajar' ? 'bajar' : 'subir'} «${o.k}» de ${o.actual} a ${o.meta}${o.u ? ' ' + o.u : ''}`, area: 'Estrategia', fecha: o.fecha || '', mundo: 'estrategia', origen: 'Objetivo del módulo ' + mod + ' · conviértalo en meta SMART', oid: 'est:obj:' + mod + ':' + o.k, impacto: 5 })));
-    const per = P() && P().puede && P().puede('personas') && ((await P().loadData('personas')) || loc('atalaya.personas.v1'));
-    if (per && Array.isArray(per.personas)) per.personas.forEach((c) => (c.tareas || []).filter((t) => t.acuerdo && t.acuerdo.revision).forEach((t) => { const jefe = per.personas.find((x) => x.id === c.responsable); items.push({ t: `Revisar el acuerdo de liderazgo con ${c.nombre} en «${t.nombre}»`, area: 'Personas', fecha: t.acuerdo.revision, resp: jefe ? jefe.nombre : '', mundo: 'personas', origen: 'Liderazgo a medida', oid: 'per:acu:' + c.id + ':' + t.id, impacto: 3, tipo: 'seguimiento', contacto: 'Equipo' }); }));
-    const n0 = ST.tareas.length;
-    items.forEach((x) => { if (!ST.tareas.some((y) => y.oid === x.oid)) ST.tareas.push(Object.assign({ id: M.uid(), entrada: M.hoy(), tipo: 'importante', estado: 'pendiente', esfuerzo: 3, clave: false }, x)); });
+    const ld = async (k, l) => { let r = null; try { r = P() && (await P().loadData(k)); } catch (e) { r = null; } return r || loc(l); };
+    const h = M.hoy();
+    // Auditoría integral (transcripciones, plan de intervención y sesiones)
+    if (!P() || !P().puede || P().puede('intervencion')) {
+      const iv = await ld('intervencion', 'atalaya.intervencion.v1');
+      if (iv) {
+        ((iv.plan && iv.plan.acciones) || []).filter((a) => a.t && a.estado !== 'hecha').forEach((a) => add({ t: a.t, area: LINEA_AREA[a.linea] || 'Dirección', resp: a.responsable || (a.quien === 'consultor' ? 'Consultor' : ''), fecha: a.fecha || '', mundo: 'intervencion', origen: 'Plan de intervención' + (a.ent && a.ent !== '—' ? ' · entregable: ' + a.ent : ''), oid: 'iv-acc:' + a.id, impacto: a.clave ? 5 : 4, clave: !!a.clave }, 'plan de intervención'));
+        (iv.sesiones || []).forEach((se) => (se.acuerdos || []).filter((x) => x.t && !x.hecho).forEach((x, k) => add({ t: x.t, resp: x.resp || '', fecha: x.fecha || '', area: 'Dirección', mundo: 'intervencion', origen: `Acuerdo de la sesión del ${fCorta(se.fecha)}`, oid: 'iv-acu:' + se.id + ':' + (x.id || k), impacto: 4 }, 'acuerdos de sesión')));
+        (iv.objetivos || []).forEach((o, i) => (o.hitos || []).filter((x) => x.t && !x.hecho).forEach((x) => add({ t: x.t, resp: x.resp || '', fecha: x.fecha || '', area: 'Dirección', mundo: 'intervencion', origen: `Hito del objetivo O${i + 1}: ${o.especifica || o.dice || ''}`.slice(0, 160), oid: 'iv-hito:' + o.id + ':' + x.id, impacto: 5, clave: true }, 'hitos de objetivos')));
+        (iv.sesiones || []).filter((se) => se.fecha && se.fecha >= h && se.tipo !== 'contacto').slice(0, 4).forEach((se) => add({ t: `Sesión de la auditoría: ${se.obj || se.tipo}`.slice(0, 160), fecha: se.fecha, hora: se.hora || '', dur: se.dur || 60, tipo: 'imperativa', area: 'Dirección', mundo: 'intervencion', origen: 'Calendario de sesiones', oid: 'iv-ses:' + se.id, impacto: 4 }, 'sesiones'));
+        const sinR = ((iv.sesion && iv.sesion.sinRespuesta) || []).length;
+        if (sinR) add({ t: `Preguntar en la próxima sesión: ${sinR} preguntas del guion sin respuesta en la transcripción`, area: 'Dirección', mundo: 'intervencion', origen: 'Guion de la primera sesión', oid: 'iv-sinr:' + ((iv.sesion && iv.sesion.fecha) || ''), impacto: 3 }, 'preguntas pendientes');
+      }
+    }
+    // Sistema estratégico (plan de empresa real y objetivos con meta)
+    const est = await ld('estrategia', 'atalaya.estrategia.v1');
+    if (est && est.plan && Array.isArray(est.plan.acciones) && !planEjemplo(est.plan)) est.plan.acciones.filter((a) => a.accion && a.estado !== 'Hecha' && !accEjemplo(a.accion)).forEach((a) => add({ t: a.accion, area: a.area, resp: a.responsable, fecha: a.fin || '', mundo: 'estrategia', origen: 'Plan de empresa', oid: 'est:plan:' + a.accion, impacto: 4 }, 'plan de empresa'));
+    if (est && est.c360) Object.keys(est.c360).forEach((mod) => (est.c360[mod].obj || []).filter((o) => o.meta !== '' && o.meta != null).forEach((o) => add({ t: `Objetivo: ${o.dir === 'bajar' ? 'bajar' : 'subir'} «${o.k}» de ${o.actual} a ${o.meta}${o.u ? ' ' + o.u : ''}`, area: 'Estrategia', fecha: o.fecha || '', resp: o.resp || '', mundo: 'estrategia', origen: 'Objetivos del sistema estratégico', oid: 'est:obj:' + mod + ':' + o.k, impacto: 4 }, 'objetivos estratégicos')));
+    // Personas y equipos
+    const per = P() && P().puede && P().puede('personas') && (await ld('personas', 'atalaya.personas.v1'));
+    if (per && Array.isArray(per.personas)) per.personas.forEach((c) => (c.tareas || []).filter((t) => t.acuerdo && t.acuerdo.revision).forEach((t) => add({ t: `Revisar el acuerdo de liderazgo con ${c.nombre} en «${t.nombre}»`, area: 'Personas', fecha: t.acuerdo.revision, mundo: 'personas', origen: 'Liderazgo a medida', oid: 'per:lid:' + c.id + ':' + t.nombre, impacto: 3 }, 'personas y equipos')));
+    const desc = new Set(ST.descartadas || []), n0 = ST.tareas.length, nuevas = {};
+    items.forEach((x) => { if (desc.has(x.oid) || ST.tareas.some((y) => y.oid === x.oid)) return; ST.tareas.push(Object.assign({ id: M.uid(), entrada: h, tipo: 'importante', estado: 'pendiente', esfuerzo: 3, clave: false }, x)); });
     guardar();
+    importar.ultimo = porFuente;
     return ST.tareas.length - n0;
   };
 
@@ -575,7 +606,7 @@
       const w0 = lunes(M.hoy()), sem = ST.tareas.filter((t) => t.hora && t.fecha >= w0 && t.fecha <= sumar(w0, 6)), minT = sem.reduce((a, t) => a + (+t.dur || 30), 0), minC = sem.filter((t) => t.clave).reduce((a, t) => a + (+t.dur || 30), 0);
       const hc = { kicker: 'Mesa de trabajo', titulo: '¿Está haciendo <em>lo que de verdad importa</em>?', lede: 'Todo el trabajo del simulador, del sistema estratégico y de personas y equipos en una sola mesa: pensar, priorizar y proteger el tiempo para el 20 % que da el resultado, con metas que dependen solo de quien las ejecuta.',
         empresa: (e && e.nombre) || 'Mi empresa', datos: [['Pendientes', String(l.length)], ['Hoy', String(hoyL.length)], ['Metas activas', String(metasL.length)], ['Repetitivas', String(ST.repetitivas.length)]],
-        acciones: [{ t: 'Traer el trabajo del ecosistema', cls: 'solid', fn: async () => { const n = await importar(); toast(n ? `${n} tarea${n > 1 ? 's' : ''} traída${n > 1 ? 's' : ''} de los otros mundos.` : 'No hay trabajo nuevo en los otros mundos.'); pintaHero(); render(); } }, { t: 'Nueva meta SMART', fn: () => { const m = nuevaMeta(); metaSel = m.id; tab = 'metas'; guardar(); render(); } }, { t: 'Informe del plan de trabajo', cls: 'ghost', fn: informe }],
+        acciones: [{ t: 'Traer el trabajo del ecosistema', cls: 'solid', fn: async () => { const n = await importar(); toast(resumenImp(n)); pintaHero(); render(); } }, { t: 'Nueva meta SMART', fn: () => { const m = nuevaMeta(); metaSel = m.id; tab = 'metas'; guardar(); render(); } }, { t: 'Informe del plan de trabajo', cls: 'ghost', fn: informe }],
         veredicto: { kicker: 'Su semana', st: atras.length > 5 ? 'stop' : atras.length || (minT && minC / minT < 0.3) ? 'warn' : 'ok', titulo: minT ? `${Math.round((minC / minT) * 100)} % del tiempo reservado va al 20 %` : 'Sin tiempo reservado esta semana', texto: `${atras.length} tarea${atras.length === 1 ? '' : 's'} atrasada${atras.length === 1 ? '' : 's'}, ${smartOk} de ${metasL.length} metas SMART completas. Cada franja es una tarea de hoy y de los próximos días.`,
           luces: l.filter((t) => t.fecha && t.fecha <= sumar(M.hoy(), 6)).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, 30).map((t) => ({ n: t.t, v: fCorta(t.fecha), st: t.fecha < M.hoy() ? 'stop' : t.clave ? 'ok' : 'warn', fn: () => editar(t) })) },
         kpis: [{ k: 'Horas reservadas', v: hm(minT), d: 'esta semana', fn: () => { tab = 'agenda'; render(); } }, { k: 'En actividades clave', v: (minT ? Math.round((minC / minT) * 100) : 0) + ' %', d: 'del tiempo reservado', st: minT ? (minC / minT >= 0.4 ? 'ok' : minC / minT >= 0.2 ? 'warn' : 'stop') : null, fn: () => { tab = 'prioridades'; render(); } }, { k: 'Atrasadas', v: String(atras.length), st: atras.length ? 'stop' : 'ok', fn: () => { tab = 'hoy'; render(); } }, { k: 'Metas SMART', v: `${smartOk}/${metasL.length}`, d: 'completas', fn: () => { tab = 'metas'; metaSel = null; render(); } }] };

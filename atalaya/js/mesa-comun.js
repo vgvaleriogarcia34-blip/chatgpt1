@@ -7,7 +7,7 @@
   const P = () => A.platform;
   const LSK = () => (P() && P().k ? P().k('atalaya.agenda.v1') : 'atalaya.agenda.v1');
   const M = (A.mesa = A.mesa || {});
-  M.vacia = () => ({ v: 1, tareas: [], repetitivas: [], metas: [], semana: [], reuniones: [], delegaciones: [], logros: {} });
+  M.vacia = () => ({ v: 1, tareas: [], repetitivas: [], metas: [], semana: [], reuniones: [], delegaciones: [], descartadas: [], logros: {} });
   M.cargar = async () => {
     let st = null;
     try { st = JSON.parse(localStorage.getItem(LSK())); } catch (e) { st = null; }
