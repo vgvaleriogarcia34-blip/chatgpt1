@@ -275,6 +275,8 @@
       if (bajos.length) sint('com', 'Clientes que apenas dejan margen', `${bajos.slice(0, 3).map((c) => c.nombre).join(', ')}${bajos.length > 3 ? '…' : ''}: margen de contribución por debajo del 10 %`, 3, 'Sistema estratégico · clientes');
       if (dias > 75) sint('fin', 'Cobros lentos que tensan la caja', `Plazo medio de cobro ponderado de ${Math.round(dias)} días`, 3, 'Sistema estratégico · clientes');
     }
+    const inv = est && est.inversores && Array.isArray(est.inversores.lista) ? est.inversores.lista : [];
+    if (inv.length) { const tot = inv.reduce((a, x) => a + num(x.aportacion), 0); fuentes.push('inversores'); add('fin', 'Inversores (acreedores, no plantilla)', `${inv.length} · ${Math.round(tot).toLocaleString('es-ES')} € aportados`); const r = inv.filter((x) => x.rentabilidad != null && num(x.rentabilidad)); if (r.length) add('fin', 'Rentabilidad pactada media con inversores', (Math.round(r.reduce((a, x) => a + num(x.rentabilidad), 0) / r.length * 10) / 10).toLocaleString('es-ES') + ' %'); }
     const docs = (est && est.origen && Array.isArray(est.origen.docs)) ? est.origen.docs : [];
     if (docs.length) fuentes.push(pl(docs.length, 'documento subido', 'documentos subidos'));
     docs.forEach((d) => {
@@ -282,7 +284,8 @@
       const fr = frasesDe(txt).slice(0, 600);
       // Señales del documento: frases que encajan con causas tipo (con su cita)
       const vistas = new Set();
-      D.CAUSAS.forEach((c) => { const f = fr.find((x) => c.k.filter((k) => norm(x).includes(norm(k))).length >= 2); if (f && !vistas.has(f) && out[c.area].sintomas.filter((s) => s.de === d.nombre).length < 3) { vistas.add(f); sint(c.area, c.n, f.length > 200 ? f.slice(0, 197) + '…' : f, 3, d.nombre); } });
+      // Una frase sobre inversores (acreedores) no es una señal de personas y equipos (trabajadores con nómina)
+      D.CAUSAS.forEach((c) => { const f = fr.find((x) => c.k.filter((k) => norm(x).includes(norm(k))).length >= 2 && !(c.area === 'per' && E.rolDe && E.rolDe(x) === 'inversor')); if (f && !vistas.has(f) && out[c.area].sintomas.filter((s) => s.de === d.nombre).length < 3) { vistas.add(f); sint(c.area, c.n, f.length > 200 ? f.slice(0, 197) + '…' : f, 3, d.nombre); } });
       (areas.length ? areas : [...new Set(D.CAUSAS.filter((c) => fr.some((x) => c.k.some((k) => norm(x).includes(norm(k))))).map((c) => c.area))].slice(0, 2)).forEach((a) => out[a].docs.push({ n: d.nombre, fecha: d.fecha, chars: d.chars }));
     });
     // Personas y equipos
@@ -291,7 +294,7 @@
       if (per && Array.isArray(per.personas) && per.personas.length) {
         fuentes.push('personas y equipos');
         const ps = per.personas, pu = per.puestos || [], sinPuesto = ps.filter((p) => !p.puesto && !p.puestoId), sinTit = pu.filter((x) => !ps.some((p) => p.puesto === x.id || p.puestoId === x.id || p.puesto === x.nombre));
-        add('per', 'Personas', String(ps.length)); add('per', 'Puestos definidos', String(pu.length), pu.length ? 'ok' : 'warn'); if (per.equipos) add('per', 'Equipos', String((per.equipos || []).length));
+        add('per', 'Trabajadores (plantilla con nómina)', String(ps.length)); add('per', 'Puestos definidos', String(pu.length), pu.length ? 'ok' : 'warn'); if (per.equipos) add('per', 'Equipos', String((per.equipos || []).length));
         if (sinPuesto.length) { add('per', 'Personas sin puesto', String(sinPuesto.length), 'warn'); sint('per', 'Puestos sin definir y personas sin funciones', `${pl(sinPuesto.length, 'persona', 'personas')} sin puesto asignado (${sinPuesto.slice(0, 3).map((p) => p.nombre).join(', ')})`, 3, 'Personas y equipos'); }
         if (sinTit.length && pu.length) add('per', 'Puestos sin titular', String(sinTit.length), 'warn');
       }

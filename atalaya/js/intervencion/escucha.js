@@ -102,7 +102,12 @@
   };
   // Afinar el área de una cita por sus palabras (dinero → finanzas, clientes → ventas…)
   const AREA_K = { fin: ['dinero', 'caja', 'banco', 'pagar', 'cobrar', 'margen', 'nomina', 'impuesto', 'deuda', 'poliza'], com: ['cliente', 'venta', 'vender', 'precio', 'oferta', 'pedido'], ope: ['produccion', 'taller', 'almacen', 'stock', 'entrega', 'proceso', 'maquina', 'obra'], per: ['gente', 'equipo', 'trabajador', 'empleado', 'encargado', 'personal', 'plantilla'], inf: ['datos', 'whatsapp', 'informe', 'numeros', 'excel', 'programa'], leg: ['socio', 'aval', 'abogado', 'juicio', 'inspeccion', 'licencia', 'hacienda'], tie: ['proyecto', 'pendiente', 'fecha', 'plazo'] };
-  const areaDe = (cita, def) => { const f = norm(cita); const a = Object.keys(AREA_K).find((k) => AREA_K[k].some((w) => f.includes(w))); return a || def; };
+  // Inversor y trabajador no son lo mismo: el inversor aporta dinero y pasa a ser acreedor de la empresa (financiación);
+  // el trabajador tiene nómina (personas). Una frase sobre inversores va a finanzas, no a personas y equipos.
+  const INV = /(inversor|inversores|aporta(n|do|ron|cion)? (de )?capital|aportacion|aportaciones|capital (de|del|de los) (socio|inversor|participe)|acreedor|prestamista|partícipe|participe|rentabilidad (garantizada|preferente|pactada)|devolver (el|la) (capital|aportacion|prestamo)|prestamo participativo)/;
+  const TRAB = /(nomina|nominas|salario|sueldo|contrato (laboral|de trabajo)|plantilla|empleado|trabajador|convenio|encargado|operario)/;
+  E.rolDe = (t) => { const f = norm(t), i = INV.test(f), w = TRAB.test(f); return i && !w ? 'inversor' : w && !i ? 'trabajador' : i && w ? 'ambos' : ''; };
+  const areaDe = (cita, def) => { const f = norm(cita); const rol = E.rolDe(f); if (rol === 'inversor') return 'fin'; if (rol === 'trabajador' && !/(pagar|caja|poliza|banco|justos|cobrar|deuda)/.test(f)) return 'per'; const a = Object.keys(AREA_K).find((k) => AREA_K[k].some((w) => f.includes(w))); return a || def; };
   E.areaDe = areaDe;
 
   /* ---------- Lectura en profundidad con Claude (si está disponible) ---------- */
