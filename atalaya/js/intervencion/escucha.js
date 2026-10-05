@@ -42,7 +42,25 @@
     return { turnos, hablantes };
   };
   // Por defecto el cliente es quien más habla (en la primera sesión debe hablar él)
-  E.clientePorDefecto = (hablantes, consultor) => { const c = norm(consultor || ''); const h = hablantes.find((x) => !c || !norm(x.n).includes(c.split(' ')[0])); return h ? [h.n] : []; };
+  // El consultor es quien lleva la conversación: el que más pregunta (o el que se llama como él); el resto es la empresa
+  E.consultorDe = (parsed, consultor) => {
+    const c = norm(consultor || '').split(' ')[0], hs = parsed.hablantes || [];
+    if (c) { const h = hs.find((x) => norm(x.n).split(/\s+/).includes(c)); if (h) return h.n; }
+    if (hs.length < 2) return '';
+    const preg = {}; (parsed.turnos || []).forEach((x) => { const p = preg[x.h] || (preg[x.h] = { n: 0, q: 0 }); p.n++; if (/\?/.test(x.t)) p.q++; });
+    const r = hs.slice(0, 3).map((x) => ({ n: x.n, q: preg[x.n] ? preg[x.n].q / preg[x.n].n : 0 })).sort((a, b) => b.q - a.q);
+    return r[0].q >= 0.3 && r[0].q - (r[1] ? r[1].q : 0) >= 0.15 ? r[0].n : '';
+  };
+  E.clientePorDefecto = (hablantes, consultor, parsed) => {
+    const cons = parsed ? E.consultorDe(parsed, consultor) : '', c = norm(consultor || '').split(' ')[0];
+    if (cons) return hablantes.filter((x) => x.n !== cons).map((x) => x.n);
+    const h = hablantes.find((x) => !c || !norm(x.n).includes(c)); return h ? [h.n] : [];
+  };
+  // El síntoma es la carencia que delatan sus palabras (no la frase repetida): «Sin criterio con número en el stock»
+  const CARENCIA = { responsable: 'Sin responsable con nombre', limite: 'Sin criterio con número', metodo: 'Sin método escrito', puesto: 'Funciones sin definir', dato: 'Se decide sin datos', fecha: 'Sin fecha ni seguimiento', mando: 'No está claro quién decide' };
+  const TEMA = [['stock', 'el stock'], ['pedido', 'los pedidos'], ['precio', 'los precios'], ['cobr', 'los cobros'], ['nomina', 'las nóminas y los pagos'], ['pagar', 'los pagos'], ['poliza', 'la caja'], ['caja', 'la caja'], ['banco', 'la relación con el banco'], ['prestamo', 'la deuda'], ['inversion', 'la inversión'], ['invertir', 'la inversión'], ['maquina', 'la maquinaria'], ['encargado', 'el encargado'], ['equipo', 'el equipo'], ['gente', 'el equipo'], ['decid', 'las decisiones'], ['decision', 'las decisiones'], ['proyecto', 'los proyectos'], ['obra', 'las obras'], ['cliente', 'los clientes'], ['venta', 'las ventas'], ['gestoria', 'la información económica'], ['ganamos', 'la información económica'], ['dinero', 'la información económica'], ['calidad', 'la calidad'], ['plazo', 'los plazos'], ['entrega', 'las entregas'], ['reunion', 'las reuniones'], ['whatsapp', 'la comunicación interna'], ['padre', 'el gobierno familiar'], ['socio', 'los socios'], ['estrategia', 'la estrategia'], ['objetivo', 'los objetivos'], ['tiempo', 'su agenda'], ['llaman', 'su agenda']];
+  E.temaDe = (cita) => { const f = norm(cita); const t = TEMA.find(([k]) => f.includes(k)); return t ? t[1] : ''; };
+  E.carencia = (patron, cita) => { const b = CARENCIA[patron]; if (!b) return ''; const t = E.temaDe(cita); return t ? `${b}: ${t}` : b; };
 
   /* ---------- Leer entre líneas ---------- */
   const frases = (t) => (String(t).match(/[^.!?¿¡\n]+[.!?]*/g) || []).map((x) => x.trim()).filter((x) => x.split(/\s+/).length >= 3);
@@ -73,8 +91,8 @@
     // Un síntoma por frase (aunque delate varios huecos), con sus palabras y el hueco que señala
     const sugeridos = [], vistas = new Set();
     const corta = (c) => { const t = c.replace(/^[«"\s]+|[»"\s.]+$/g, ''); return t.length > 110 ? t.slice(0, 107).replace(/\s\S*$/, '') + '…' : t; };
-    huecos.forEach((h) => { const p = D().patron(h.id); h.citas.slice(0, 3).forEach((c) => { const k = norm(c.cita); if (vistas.has(k)) return; vistas.add(k); sugeridos.push({ t: corta(c.cita), cita: c.cita, area: areaDe(c.cita, p.area), patron: p.id, hueco: p.n, origen: 'transcripcion' }); }); });
-    resig.forEach((r) => { const k = norm(r.cita); if (vistas.has(k)) return; vistas.add(k); sugeridos.push({ t: corta(r.cita), cita: r.cita, area: r.area, patron: r.patron, hueco: D().patron(r.patron).n, origen: 'transcripcion' }); });
+    huecos.forEach((h) => { const p = D().patron(h.id); h.citas.slice(0, 3).forEach((c) => { const k = norm(c.cita); if (vistas.has(k)) return; vistas.add(k); sugeridos.push({ t: E.carencia(p.id, c.cita) || corta(c.cita), cita: c.cita, area: areaDe(c.cita, p.area), patron: p.id, hueco: p.n, origen: 'transcripcion' }); }); });
+    resig.forEach((r) => { const k = norm(r.cita); if (vistas.has(k)) return; vistas.add(k); sugeridos.push({ t: E.carencia(r.patron, r.cita) || corta(r.cita), cita: r.cita, area: r.area, patron: r.patron, hueco: D().patron(r.patron).n, origen: 'transcripcion' }); });
     // Constantes estimadas por el lenguaje (para contrastar con la del consultor)
     const L = Object.fromEntries(lenguaje.map((x) => [x.id, x.por1000]));
     const escala = (v, a, b) => Math.max(1, Math.min(5, Math.round(1 + ((v - a) / (b - a)) * 4)));

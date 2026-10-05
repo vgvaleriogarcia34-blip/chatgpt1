@@ -165,6 +165,9 @@
       const rb = $('#stReport', panel); if (rb) rb.onclick = () => (r360 ? S.report360(m) : S.moduleReport(m));
       const ab = $('#stAudit', panel); if (ab) ab.onclick = () => S.auditReport();
     }
+    // Cuenta con datos reales: el módulo sin datos lo dice y pide la subida
+    if (S.pideDatos && S.pideDatos(id)) { const head = panel.querySelector('.st-head'); const av = `<div class="alert warn st-pide"><b>Sin datos reales en este módulo.</b> Esta empresa trabaja con datos reales: aquí no hay datos de ejemplo. Súbelos en <a href="#origen">Origen de datos</a> (Excel, CSV o PDF) o escríbelos en las tablas.</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
+    else if (id === 'tablero' && A.simEsEjemplo && S.sim && S.sim.sinDatos && !(S.sim.empresa && S.sim.empresa.ventas > 0)) panel.insertAdjacentHTML('afterbegin', '<div class="alert warn st-pide"><b>Faltan las cuentas de la empresa.</b> Esta empresa trabaja con datos reales y el simulador está a cero: sube el balance y la cuenta de resultados en <a href="#origen">Origen de datos</a> o en el <a href="app.html#empresa">simulador</a>.</div>');
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
     // Al recalcular el mismo módulo se conserva la posición: solo se sube al cambiar de módulo
     if (keep) { const y = keep.y; scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
@@ -327,6 +330,26 @@
   }
 
   /* ---------- Arranque ---------- */
+  /* Cuenta con datos reales: nada de datos de ejemplo. Los módulos que siguen con los de ejemplo (o sin tocar)
+     se vacían y piden sus datos; el simulador que alimenta las finanzas, también a cero. */
+  const NO_VACIAR = new Set(['origen', 'evolucion', 'impuestos', 'valoracion', 'lean']);
+  const vaciar = (v, prof) => { if (Array.isArray(v)) return []; if (v && typeof v === 'object' && prof < 2) { const o = {}; Object.keys(v).forEach((k) => (o[k] = vaciar(v[k], prof + 1))); return o; } return v; };
+  const sinDatos = (v, prof) => { if (Array.isArray(v)) return !v.length; if (v && typeof v === 'object' && prof < 2) return Object.keys(v).filter((k) => k !== '__vacio').every((k) => sinDatos(v[k], prof + 1)); return true; };
+  S.aDatosReales = () => {
+    let cambio = false;
+    if (A.simEsEjemplo && A.simEsEjemplo(S.sim)) { const ea = A.platform && A.platform.empresas && A.platform.empresas.activa(); S.sim = Object.assign(A.defaultState(), A.simVacio(S.sim.empresaNombre || (ea && ea.nombre) || '', S.sim.sector)); S.sim.empresa = Object.assign(A.defaultState().empresa, A.simVacio().empresa); S.sim.historico = undefined; delete S.sim.historico; S.saveSim(); }
+    Object.keys(S.defaults).forEach((k) => {
+      const d = S.defaults[k], v = S.state[k]; if (NO_VACIAR.has(k) || !d || typeof d !== 'object' || (v && v.__vacio)) return;
+      const intacto = v && (v.ejemplo === true || JSON.stringify(v) === JSON.stringify(d));
+      if (!intacto) return;
+      const n = vaciar(A.clone(d), 0); if (n && typeof n === 'object' && 'ejemplo' in n) n.ejemplo = false;
+      if (k === 'logistica') Object.keys(n).forEach((x) => { if (typeof n[x] === 'number') n[x] = 0; });
+      n.__vacio = true; S.state[k] = n; cambio = true;
+    });
+    if (cambio) S.save();
+  };
+  // ¿Sigue vacío un módulo que se vació por la cuenta real? (en cuanto entra un dato deja de avisar)
+  S.pideDatos = (id) => { const v = S.state && S.state[id]; if (!v || !v.__vacio) return false; if (!sinDatos(v, 0) && !(id === 'logistica' && Object.keys(v).some((x) => typeof v[x] === 'number' && v[x] > 0))) { delete v.__vacio; return false; } if (id === 'logistica' && Object.keys(v).some((x) => typeof v[x] === 'number' && v[x] > 0)) { delete v.__vacio; return false; } return true; };
   S.start = async function () {
     A.sky();
     S.sim = LS.get(SIMK);
@@ -353,6 +376,7 @@
     if (P) { const remote = await P.loadData('estrategia'); if (remote) S.state = remote; }
     S.state = Object.assign({}, A.clone(S.defaults), S.state || {});
     Object.keys(S.defaults).forEach((k) => { if (S.state[k] === undefined) S.state[k] = A.clone(S.defaults[k]); });
+    if (P && P.modoReal && P.modoReal()) S.aDatosReales();
     buildTabs();
     const h = location.hash.replace('#', '');
     show(S.mod(h) ? h : 'tablero');

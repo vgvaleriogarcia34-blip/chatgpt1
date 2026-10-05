@@ -30,7 +30,7 @@
   };
   const nuevaTr = (nombre, texto, fecha) => {
     const p = E.parse(texto); if (!p.turnos.length) return null;
-    const clientes = E.clientePorDefecto(p.hablantes, S().sesion.consultor);
+    const clientes = E.clientePorDefecto(p.hablantes, S().sesion.consultor || (A.platform && A.platform.user && A.platform.user.nombre) || '', p);
     const t = { id: uid(), nombre: nombre || 'Sesión ' + fCorta(hoy()), fecha: fecha || hoy(), turnos: p.turnos, hablantes: p.hablantes, clientes };
     t.analisis = E.analizar(p, clientes); t.momento = adivinarMomento(t);
     S().transcripciones.push(t); return t;
@@ -94,8 +94,7 @@
       } else { if (s.respuestas[k] && s.respuestas[k].origen === 'transcripcion') delete s.respuestas[k]; sin.push(k); }
     }));
     s.sinRespuesta = sin;
-    // Sus objetivos, si aún no hay ninguno apuntado
-    const r0 = s.respuestas['objetivos:0']; if (r0 && !(ST.objetivos || []).length) { ST.objetivos = [{ id: uid(), dice: r0.t.slice(0, 240), especifica: '', indicador: '', actual: '', valor: '', unidad: '', fecha: '', responsable: '', solo: false, beneficio: '', contras: '', merece: '', como: '' }]; }
+    // Los objetivos no salen de una sola respuesta: los saca V.objSmart de todo lo que dice el empresario en las transcripciones del día
     return { n, sin };
   };
   const responderConClaude = async () => {
@@ -137,8 +136,44 @@
     return { s, acuerdos: acuerdos.length, avances: objs.length };
   };
 
+  /* Datos reales: al subir las transcripciones de una empresa, ningún mundo usa ya los datos de ejemplo */
+  const aDatosReales = async () => {
+    const p = P(); if (!p || !p.activarModoReal) return false;
+    const nueva = await p.activarModoReal('auditoria');
+    try {
+      const sim = await p.loadData('simulador');
+      if (A.simEsEjemplo && A.simEsEjemplo(sim) && A.simVacio) { const e = p.empresas.activa(); await p.saveData('simulador', A.simVacio(e && e.nombre !== 'Mi empresa' ? e.nombre : '', (sim && sim.sector) || (e && e.sector) || 'industria')); }
+    } catch (x) { /* sin simulador */ }
+    if (nueva) toast('Empresa en datos reales: los mundos sin datos subidos se quedan a cero y piden sus datos.');
+    return nueva;
+  };
+  const MUNDOS_DATOS = [
+    { id: 'simulador', n: 'Simulador (finanzas y caja)', href: 'app.html#empresa', pide: 'Cuentas anuales o balance y cuenta de resultados' },
+    { id: 'estrategia', n: 'Sistema estratégico (clientes, ventas, compras, cobros…)', href: 'estrategia.html#origen', pide: 'Listado de clientes y ventas, compras, cobros y tesorería' },
+    { id: 'personas', n: 'Personas y equipos', href: 'personas.html', pide: 'Plantilla, puestos y equipos' }
+  ];
+  const estadoDatos = async () => {
+    const sim = await cargar('simulador', 'atalaya.v1'), est = await cargar('estrategia', 'atalaya.estrategia.v1'), per = await cargar('personas', 'atalaya.personas.v1');
+    const simOk = !!(sim && sim.empresa && sim.ejemplo === false && !sim.sinDatos && +sim.empresa.ventas > 0);
+    const mods = est ? Object.keys(est).filter((k) => !['origen', 'evolucion', 'impuestos', 'valoracion', 'lean', 'sim'].includes(k) && est[k] && typeof est[k] === 'object' && est[k].ejemplo === false && !est[k].__vacio) : [];
+    const docs = est && est.origen && Array.isArray(est.origen.docs) ? est.origen.docs.length : 0;
+    const nPer = per && Array.isArray(per.personas) ? per.personas.length : 0;
+    return { simulador: { ok: simOk, det: simOk ? 'Cuentas cargadas' : 'A cero: faltan las cuentas' }, estrategia: { ok: docs > 0 || mods.length > 0, det: docs ? pl(docs, 'documento subido', 'documentos subidos') : mods.length ? pl(mods.length, 'módulo con datos', 'módulos con datos') : 'A cero: faltan los datos' }, personas: { ok: nPer > 0, det: nPer ? pl(nPer, 'persona', 'personas') : 'Sin personas dadas de alta' } };
+  };
+  const tarjetaDatos = (host) => {
+    if (!P() || !P().modoReal || !P().modoReal()) return;
+    const sec = document.createElement('section'); sec.className = 'glass pad stack iv-reales'; sec.innerHTML = '<div class="eyebrow">Datos reales de la empresa</div><small class="muted">Leyendo…</small>';
+    host.prepend(sec);
+    estadoDatos().then((st) => {
+      const falta = MUNDOS_DATOS.filter((m) => !st[m.id].ok).length;
+      sec.innerHTML = `<div class="row"><div><div class="eyebrow">Datos reales de la empresa</div><small class="muted">Esta empresa trabaja con datos reales${P().empresas.activa().datosRealesDesde ? ' desde el ' + fLarga(P().empresas.activa().datosRealesDesde) : ''}: ningún mundo usa los datos de ejemplo. ${falta ? `Faltan datos en ${pl(falta, 'mundo', 'mundos')}; pídeselos a la empresa y súbelos.` : 'Todos los mundos tienen datos subidos.'}</small></div></div>
+        <ul class="iv-dl">${MUNDOS_DATOS.map((m) => `<li class="${st[m.id].ok ? 'ok' : 'stop'}"><span>${st[m.id].ok ? '✓' : '○'} <a href="${m.href}">${esc(m.n)}</a>${st[m.id].ok ? '' : ` · <small>pedir: ${esc(m.pide)}</small>`}</span><b>${esc(st[m.id].det)}</b></li>`).join('')}</ul>`;
+    }).catch(() => sec.remove());
+  };
+
   /* Procesar lo nuevo: cada transcripción según su momento */
   const procesar = (nuevas) => {
+    aDatosReales().then((n) => { if (n) render(); });
     let sin = 0, ctes = 0, resp = null; const ses = [];
     // Primero las de primera sesión (síntomas, constantes, guion y sus objetivos); después las de intervención, que ya ven los objetivos
     nuevas.filter((t) => (t.momento || 'primera') === 'primera').forEach((t) => { sin += aSintomas(t); });
@@ -157,10 +192,11 @@
   const escucha0 = VISTAS.escucha;
   VISTAS.escucha = (host) => {
     escucha0(host);
+    tarjetaDatos(host);
     const ST = S(), f = $('#ivFile', host);
     if (f) { f.multiple = true; const lab = f.closest('label'); if (lab && lab.firstChild && lab.firstChild.nodeType === 3) lab.firstChild.textContent = 'Subir archivos (uno o varios)';
-      f.onchange = async (e) => { const files = [...e.target.files], nuevas = []; for (const fl of files) { try { const t = nuevaTr(fl.name.replace(/\.[^.]+$/, ''), await E.leerArchivo(fl), fechaDelNombre(fl.name)); if (t) nuevas.push(t); else toast(`«${fl.name}»: no tiene texto.`); } catch (x) { toast(`«${fl.name}»: ${x.message}`); } } if (!nuevas.length) return; const r = procesar(nuevas); render(); toast(`${pl(nuevas.length, 'transcripción analizada', 'transcripciones analizadas')}${r.length ? ': ' + r.join('; ') : ''}. Revisa el momento de cada una.`); }; }
-    const ta = $('#ivTrAdd', host); if (ta) { const o = ta.onclick; ta.onclick = () => { const n0 = ST.transcripciones.length; o(); const nuevas = S().transcripciones.slice(n0); if (nuevas.length) { const r = procesar(nuevas); render(); if (r.length) toast(r.join('; ') + '.'); } }; }
+      f.onchange = async (e) => { const files = [...e.target.files], nuevas = []; for (const fl of files) { try { const t = nuevaTr(fl.name.replace(/\.[^.]+$/, ''), await E.leerArchivo(fl), fechaDelNombre(fl.name)); if (t) nuevas.push(t); else toast(`«${fl.name}»: no tiene texto.`); } catch (x) { toast(`«${fl.name}»: ${x.message}`); } } if (!nuevas.length) return; const r = V.cruce.procesar(nuevas); render(); toast(`${pl(nuevas.length, 'transcripción analizada', 'transcripciones analizadas')}${r.length ? ': ' + r.join('; ') : ''}. Revisa el momento de cada una.`); }; }
+    const ta = $('#ivTrAdd', host); if (ta) { const o = ta.onclick; ta.onclick = () => { const n0 = ST.transcripciones.length; o(); const nuevas = S().transcripciones.slice(n0); if (nuevas.length) { const r = V.cruce.procesar(nuevas); render(); if (r.length) toast(r.join('; ') + '.'); } }; }
     if (!ST.transcripciones.length) return;
     const c1 = conjunta('primera'), c2 = deMomento('intervencion');
     const sec = document.createElement('section'); sec.className = 'glass pad stack iv-cuenta';
@@ -279,6 +315,7 @@
   const triaje0 = VISTAS.triaje;
   VISTAS.triaje = (host) => {
     triaje0(host);
+    tarjetaDatos(host);
     const ST = S(), sec = document.createElement('section'); sec.className = 'glass pad stack iv-doccta';
     const pinta = () => {
       const c = cuenta;
@@ -361,5 +398,5 @@
     g.appendChild(d); $('[data-inf2]', d).onclick = () => V.informes.seguimiento();
   };
 
-  V.cruce = { procesar, conjunta, responderGuion, aConstantes, extraerIntervencion, leerCuenta, prepararSesiones, nuevaTr };
+  V.cruce = { procesar, aDatosReales, estadoDatos, conjunta, responderGuion, aConstantes, extraerIntervencion, leerCuenta, prepararSesiones, nuevaTr };
 })();

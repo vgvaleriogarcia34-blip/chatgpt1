@@ -71,6 +71,13 @@
       estacionalidad: 0.06, pico: 3, rampa: 8, span: 8, salario: 38000,
       vidaUtil: 7, pesoSalarialMax: 44, deudaEbitdaMax: 2.5, crecimiento: 5
     },
+    inmobiliaria: {
+      nombre: 'Inversión inmobiliaria',
+      nota: 'Compra, reforma y venta de inmuebles: el stock son los activos (de 9 a 14 meses en cartera) y el capital de los inversores permite llevar más activos con menos capital propio. Valores orientativos: se ajustan con las operaciones reales.',
+      margen: 22, personal: 4, fijos: 3, dso: 5, dio: 300, dpo: 30,
+      estacionalidad: 0.04, pico: 6, rampa: 12, span: 8, salario: 40000,
+      vidaUtil: 30, pesoSalarialMax: 8, deudaEbitdaMax: 5.0, crecimiento: 6, inmo: true
+    },
     logistica: {
       nombre: 'Logística y transporte',
       nota: 'Flota como inversión recurrente, combustible y conductores como variables críticas.',

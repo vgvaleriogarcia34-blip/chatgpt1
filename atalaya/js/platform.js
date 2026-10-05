@@ -203,6 +203,26 @@
   P.k = (base, id) => { id = id || P.empresaId(); return id === 'principal' ? base : base + '@' + id; };
   const dk = (key, id) => { id = id || P.empresaId(); return SCOPED.includes(key) && id !== 'principal' ? key + '--' + id : key; };
   P.limiteEmpresas = (u) => { u = u || P.user; const p = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional; return p.empresas; };
+  /* Cuenta con datos reales: se activa al empezar una empresa por la auditoría (al subir sus transcripciones).
+     Desde entonces ningún mundo usa los datos de ejemplo: los que no tienen datos subidos se quedan a cero y los piden. */
+  P.modoReal = () => { const e = P.empresas && P.empresas.activa && P.empresas.activa(); return !!(e && e.datosReales); };
+  P.activarModoReal = async (origen) => {
+    const e = P.empresas && P.empresas.activa && P.empresas.activa(); if (!e || e.datosReales) return false;
+    await P.empresas.editar(e.id, { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesOrigen: origen || 'auditoria' });
+    // El simulador guardado de ejemplo se pone a cero (los demás mundos se vacían al abrirlos)
+    try { const sim = await P.loadData('simulador'); if (A.simEsEjemplo(sim)) await P.saveData('simulador', A.simVacio(e.nombre && e.nombre !== 'Mi empresa' ? e.nombre : '', (sim && sim.sector) || e.sector || 'industria')); } catch (x) { /* sin simulador */ }
+    try { window.dispatchEvent(new CustomEvent('atalaya:modoreal', { detail: e })); } catch (x) { /* sin eventos */ }
+    return true;
+  };
+  // Volver a permitir los datos de ejemplo en los mundos que aún no tienen datos (los datos reales subidos se conservan)
+  P.desactivarModoReal = async () => { const e = P.empresas && P.empresas.activa && P.empresas.activa(); if (!e || !e.datosReales) return false; await P.empresas.editar(e.id, { datosReales: false }); try { window.dispatchEvent(new CustomEvent('atalaya:modoreal', { detail: e })); } catch (x) { /* sin eventos */ } return true; };
+  // Simulación a cero (sin datos de ejemplo), a la espera de las cuentas de la empresa
+  A.simVacio = (nombre, sector) => ({ empresaNombre: nombre || '', ejemplo: false, sinDatos: true, proyecto: '', sector: sector || 'industria',
+    empresa: { ventas: 0, margen: 0, personal: 0, plantilla: 0, fijos: 0, caja: 0, deudaViva: 0, cuotaDeuda: 0, fondosPropios: 0, polizaLimite: 0, polizaDispuesta: 0, dso: 0, dio: 0, dpo: 0, crecimiento: 0 },
+    inversion: { importe: 0, pctFin: 0, incVentas: 0, contrataciones: 0, fijosNuevos: 0, aportacion: 0, lineas: [] },
+    humano: { mandos: 0, mandosFormados: 0, dependencia: 0, procesos: 0, rotacion: 0, clima: 0, polivalencia: 0, absentismo: 0, horasExtra: 0, sucesion: 0 },
+    opciones: [], hipotesis: [] });
+  A.simEsEjemplo = (s) => !s || !s.empresa || (s.ejemplo !== false && !s.sinDatos);
   P.esGrupo = (u) => { u = u || P.user; return !!(u && PLANES[u.plan] && (PLANES[u.plan].grupo || PLANES[u.plan].empresas > 1)); };
   let REG = null;
   P.empresas = {
@@ -674,7 +694,7 @@
     el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${u.email}"><span>${ini}</span></button>
       <div class="acc-menu glass" hidden>
         <div class="acc-head"><b>${(u.nombre || u.email).replace(/</g, '&lt;')}</b><small>${u.email}</small><small>Plan ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="portal.html">Inicio · elegir herramienta</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a>${P.puede && P.puede('intervencion', u) ? '<a href="intervencion.html">Auditoría integral</a>' : ''}<a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-conex>Conexiones: IA, grabadora y calendario</button><button data-planes>Mi plan: ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <a href="portal.html">Inicio · elegir herramienta</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a>${P.puede && P.puede('intervencion', u) ? '<a href="intervencion.html">Auditoría integral</a>' : ''}<a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button><button data-planes>Mi plan: ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
@@ -714,6 +734,13 @@
     document.addEventListener('click', (e) => { if (!el.contains(e.target)) m.hidden = true; });
     el.querySelector('[data-logout]').onclick = P.logout;
     el.querySelector('[data-planes]').onclick = () => { m.hidden = true; P.panelPlanes(); };
+    el.querySelector('[data-real]').onclick = async () => {
+      m.hidden = true; const on = P.modoReal(), e = P.empresas.activa(), n = (e && e.nombre) || 'esta empresa';
+      if (!on && !confirm(`¿Trabajar con datos reales en ${n}?\n\nNingún mundo usará datos de ejemplo: lo que no se haya subido se queda a cero y se piden sus datos. Los datos ya subidos se conservan.`)) return;
+      if (on && !confirm(`¿Volver a permitir datos de ejemplo en ${n}?\n\nLos datos reales ya subidos se conservan; los mundos sin datos podrán mostrar el ejemplo.`)) return;
+      if (on) await P.desactivarModoReal(); else await P.activarModoReal('cuenta');
+      location.reload();
+    };
     el.querySelector('[data-conex]').onclick = () => { m.hidden = true; const go = () => A.conexiones.abrir('claude'); if (A.conexiones) return go(); const sc = document.createElement('script'); sc.src = 'js/conexiones.js'; sc.onload = go; document.head.appendChild(sc); };
     const pf = el.querySelector('[data-pwform]');
     el.querySelector('[data-pw]').onclick = (e) => { e.stopPropagation(); pf.hidden = !pf.hidden; };

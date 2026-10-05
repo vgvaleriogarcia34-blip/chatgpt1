@@ -237,7 +237,7 @@
     const all = A.SCENARIOS.map((sc, i) => ({ key: sc.key, nombre: sc.nombre, desc: sc.desc, i, r: A.analyze(state, A.scenarioMods(state, sc.key)) }));
     const active = all.find((x) => x.key === state.escenario).r;
     ctx = Object.assign(ctx || {}, { all, active, mods: A.scenarioMods(state, state.escenario) });
-    renderTop(); renderHero(); renderDimension(); renderLineas(); renderEquilibrio(); renderScenarios(); renderLights(); renderSize(); renderHuman();
+    renderTop(); renderHero(); renderDimension(); if (A.inmo) A.inmo.render($('#inmoBox'), state, () => { state.ejemplo = false; schedule(); }, syncFields); renderLineas(); renderEquilibrio(); renderScenarios(); renderLights(); renderSize(); renderHuman();
     if (view.mode === 'traj') render3D();
   }
   const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -1045,9 +1045,11 @@
     const opt = (o, sel) => Object.keys(o).map((k) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${o[k].nombre}</option>`).join('');
     if (document.activeElement !== $('#heroSector')) $('#heroSector').innerHTML = opt(A.SECTORS, state.sector);
     if (document.activeElement !== $('#heroEstr')) $('#heroEstr').innerHTML = opt(A.STRUCTURES, state.estructura);
-    const ej = $('#idEjemplo'), e = esEjemplo();
-    ej.hidden = !e;
-    if (e) ej.innerHTML = '<b>Estás viendo una empresa de ejemplo</b> (una industria de 4,2 M€ que estudia una línea de producción). Pulsa «Empezar de cero», responde las preguntas o carga tus cuentas para trabajar con la tuya.';
+    const ej = $('#idEjemplo'), e = esEjemplo(), falta = !!state.sinDatos && !(state.empresa.ventas > 0);
+    ej.hidden = !e && !falta;
+    if (falta) { ej.innerHTML = '<b>Faltan los datos reales de la empresa.</b> Esta cuenta trabaja con datos reales: el simulador está a cero hasta que subas las cuentas (balance y cuenta de resultados) o respondas las preguntas. <span class="row" style="margin-top:8px"><button class="btn solid small" id="ejCuentas">Subir las cuentas</button><button class="btn small" id="ejQuiz">Responder las preguntas</button></span>'; const c = $('#ejCuentas'); if (c) c.onclick = () => { location.hash = '#empresa'; const el = document.getElementById('empresa'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }; const q = $('#ejQuiz'); if (q) q.onclick = () => openQuiz('empresa'); }
+    else if (e) ej.innerHTML = '<b>Estás viendo una empresa de ejemplo</b> (una industria de 4,2 M€ que estudia una línea de producción). Pulsa «Empezar de cero», responde las preguntas o carga tus cuentas para trabajar con la tuya.';
+    if (!falta && state.sinDatos && state.empresa.ventas > 0) state.sinDatos = false;
     $('#idCard').classList.toggle('vacia', !state.empresaNombre);
   }
   function nuevaSimulacion() {
@@ -1615,6 +1617,8 @@
       const remote = await P.loadData('simulador');
       if (remote && remote.empresa) { state = loadState(remote); afterLoad(); }
       else if (!store.get(STORE) && P.empresas && P.empresas.activa()) { state.empresaNombre = P.empresas.activa().nombre; store.set(STORE, state); afterLoad(); }
+      // Empresa con datos reales (empezada por la auditoría): fuera los datos de ejemplo, todo a cero hasta subir las cuentas
+      if (P.modoReal && P.modoReal() && A.simEsEjemplo(state)) { const ea = P.empresas.activa(); state = loadState(A.simVacio(ea && ea.nombre !== 'Mi empresa' ? ea.nombre : '', ea && A.SECTORS[ea.sector] ? ea.sector : state.sector)); store.set(STORE, state); P.saveData('simulador', state); afterLoad(); }
       aplicarFicha(P.empresas && P.empresas.activa());
       // Si la ficha cambia (desde el menú de la cuenta), el simulador se pone al día
       addEventListener('atalaya:empresa', (ev) => { if (ev.detail && ev.detail.id === P.empresaId()) aplicarFicha(ev.detail); });

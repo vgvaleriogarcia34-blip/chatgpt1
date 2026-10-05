@@ -48,6 +48,7 @@
   C.closePop = () => { if (popEl) popEl.hidden = true; };
 
   const niceTicks = (min, max, n) => {
+    if (!(max > min)) max = min + 1;
     const span = max - min || 1;
     const step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
     const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= n) || mag * 10;

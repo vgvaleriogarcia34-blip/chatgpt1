@@ -43,18 +43,35 @@
   /* ---------- Cálculos ---------- */
   const sintomasDe = (aid) => ST.sintomas.filter((s) => s.area === aid);
   const desvDe = (aid) => Object.values(ST.verifica[aid] || {}).filter((x) => x && x.e === 'desv').length;
-  const nivelAuto = (aid) => {
-    const ss = sintomasDe(aid), g = ss.reduce((a, s) => a + (+s.gravedad || 3), 0) + desvDe(aid) * 3 + ST.hallazgos.filter((h) => h.area === aid).reduce((a, h) => a + (+h.gravedad || 3), 0);
-    if (!g) return '';
-    return g >= 10 || ss.some((s) => +s.gravedad >= 5) ? 'stop' : g >= 4 ? 'warn' : 'ok';
+  /* Prioridad de un área: no por el número de síntomas, sino por los principios de la empresa.
+     Primero la liquidez (poder pagar), después la rentabilidad (ganar con lo que se hace: precios, margen,
+     operaciones) y después el crecimiento; la organización (gobierno, personas, información, tiempo) sostiene
+     las tres. Dentro de cada principio pesan la gravedad, lo verificado y lo que dicen las constantes. */
+  const PRINCIPIO = { fin: { p: 'liquidez', o: 0, w: 1.5, c: 'pulso' }, leg: { p: 'liquidez', o: 0, w: 1.1, c: 'temperatura' }, ope: { p: 'rentabilidad', o: 1, w: 1.2, c: 'respiracion' }, com: { p: 'rentabilidad', o: 1, w: 1.2, c: '' }, gob: { p: 'organizacion', o: 3, w: 1, c: 'reflejos' }, per: { p: 'organizacion', o: 3, w: 1, c: 'dependencia' }, tie: { p: 'organizacion', o: 3, w: 0.9, c: 'tension' }, inf: { p: 'organizacion', o: 3, w: 0.9, c: '' } };
+  const PRIN_N = { liquidez: 'Liquidez: que la empresa pueda pagar', rentabilidad: 'Rentabilidad: que gane dinero con lo que hace', crecimiento: 'Crecimiento', organizacion: 'Organización: lo que sostiene la liquidez, la rentabilidad y el crecimiento' };
+  const prioArea = (aid) => {
+    const P0 = PRINCIPIO[aid] || { p: 'organizacion', o: 3, w: 1, c: '' }, ss = sintomasDe(aid), gs = ss.map((s) => +s.gravedad || 3).sort((a, b) => b - a), hs = ST.hallazgos.filter((h) => h.area === aid), dv = desvDe(aid);
+    const motivo = [];
+    if (!gs.length && !hs.length && !dv) return { p: P0.p, o: P0.o, score: 0, n: '', motivo };
+    const media = gs.length ? gs.reduce((a, b) => a + b, 0) / gs.length : 0;
+    const ev = (gs[0] || 0) * 1.5 + media + Math.min(gs.length, 4) * 0.5 + dv * 3 + hs.reduce((a, h) => a + (+h.gravedad || 3), 0);
+    const cv = P0.c ? +ST.constantes[P0.c] || 0 : 0, boost = cv >= 4 ? 4 : cv === 3 ? 1.5 : 0;
+    const score = Math.round((ev * P0.w + boost) * 10) / 10;
+    motivo.push(PRIN_N[P0.p]);
+    if (gs.length) motivo.push(`${gs.length} ${gs.length === 1 ? 'síntoma' : 'síntomas'}, el más grave de ${gs[0]}/5 (media ${media.toLocaleString('es-ES', { maximumFractionDigits: 1 })})`);
+    if (dv) motivo.push(`${dv} ${dv === 1 ? 'desviación verificada' : 'desviaciones verificadas'}`);
+    if (cv) motivo.push(`${(D.CONSTANTES.find((c) => c.id === P0.c) || {}).n} ${cv}/5`);
+    const n = gs.some((g) => g >= 5) || (aid === 'fin' && cv >= 4) || score >= 11 ? 'stop' : score >= 6 ? 'warn' : 'ok';
+    return { p: P0.p, o: P0.o, score, n, motivo };
   };
+  const nivelAuto = (aid) => prioArea(aid).n;
   const nivel = (aid) => (ST.areas[aid] && ST.areas[aid].nivel) || nivelAuto(aid);
   const global = () => { const n = D.AREAS.map((a) => nivel(a.id)); return n.includes('stop') ? 'stop' : n.includes('warn') ? 'warn' : n.includes('ok') ? 'ok' : ''; };
   const cte = (id) => +ST.constantes[id] || 0;
   // Causas: peso = suma de gravedades de los síntomas que explica (las de áreas en urgencias pesan más) ÷ esfuerzo
   const causaDe = (c) => (c.ref ? D.causa(c.ref) : null);
   const pesoCausa = (c) => { const ss = ST.sintomas.filter((s) => s.causa === c.id), base = ss.reduce((a, s) => a + (+s.gravedad || 3) * (nivel(s.area) === 'stop' ? 1.3 : 1), 0) + ST.hallazgos.filter((h) => h.causa === c.id).reduce((a, h) => a + (+h.gravedad || 3), 0); return { ss, base, score: base / (1 + ((+c.esfuerzo || 3) - 1) * 0.25) }; };
-  const causasOrdenadas = () => ST.causas.filter((c) => c.estado !== 'descartada').map((c) => Object.assign({ c }, pesoCausa(c))).sort((a, b) => b.score - a.score);
+  const causasOrdenadas = () => ST.causas.filter((c) => c.estado !== 'descartada').map((c) => Object.assign({ c, o: prioArea(c.area).o }, pesoCausa(c))).sort((a, b) => (a.score && b.score ? a.o - b.o : 0) || b.score - a.score);
   // El 20 %: las causas de mayor peso que, juntas, explican el 80 % de la gravedad de los síntomas
   const veinte = () => { const l = causasOrdenadas(), tot = l.reduce((a, x) => a + x.base, 0); let acc = 0; const out = []; for (const x of l) { if (tot && acc / tot >= 0.8) break; acc += x.base; out.push(x.c.id); } return new Set(out.slice(0, Math.max(1, Math.ceil(l.length * 0.35)))); };
   // Causa sugerida para un síntoma: misma área y patrón, y palabras en común
@@ -65,7 +82,7 @@
     return pt >= 3 ? mejor : null;
   };
   const asegurarCausa = (ref) => { let c = ST.causas.find((x) => x.ref === ref.id); if (!c) { c = { id: uid(), ref: ref.id, t: ref.n, area: ref.area, patron: ref.patron, esfuerzo: ref.esfuerzo, estado: 'hipotesis', porques: ['', '', ''] }; ST.causas.push(c); } return c; };
-  const ruta = () => D.AREAS.map((a) => ({ a, n: nivel(a.id), ss: sintomasDe(a.id), cs: ST.causas.filter((c) => c.area === a.id && c.estado !== 'descartada') })).filter((x) => x.n || x.ss.length).sort((x, y) => ({ stop: 0, warn: 1, ok: 2, '': 3 }[x.n] - { stop: 0, warn: 1, ok: 2, '': 3 }[y.n]) || y.ss.length - x.ss.length);
+  const ruta = () => D.AREAS.map((a) => ({ a, n: nivel(a.id), ss: sintomasDe(a.id), cs: ST.causas.filter((c) => c.area === a.id && c.estado !== 'descartada'), pr: prioArea(a.id) })).filter((x) => x.n || x.ss.length).sort((x, y) => ({ stop: 0, warn: 1, ok: 2, '': 3 }[x.n] - { stop: 0, warn: 1, ok: 2, '': 3 }[y.n]) || x.pr.o - y.pr.o || y.pr.score - x.pr.score);
   const capa = (k) => ({ guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, propuesta: 1, auditoria: 2, ecosistema: 2, plan: 3, sesiones: 3, informes: 3 }[k]);
 
   /* ---------- Pestañas y recorrido ---------- */
@@ -221,7 +238,7 @@
   const objAMesa = async (o, i) => {
     if (!A.mesa || !A.mesa.cargar) return toast('La mesa de trabajo no está disponible aquí.');
     const st = await A.mesa.cargar(), oid = 'iv-obj:' + o.id; let m = st.metas.find((x) => x.oid === oid);
-    const datos = { objetivo: o.dice || o.especifica, especifica: o.especifica, indicador: o.indicador, actual: o.actual, valor: o.valor, unidad: o.unidad, fecha: o.fecha, responsable: o.responsable, solo: !!o.solo, beneficio: o.beneficio, contras: o.contras, merece: o.merece, acciones: (o.como || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, fecha: '', revisada: '', hecha: '' })) };
+    const datos = { objetivo: o.dice || o.especifica, especifica: o.especifica, indicador: o.indicador, actual: o.actual, valor: o.valor, unidad: o.unidad, fecha: o.fecha, responsable: o.responsable, solo: !!o.solo, beneficio: o.beneficio, contras: o.contras, merece: o.merece, acciones: (o.hitos || []).filter((h) => h.t).map((h) => ({ t: h.t + (h.resp ? ' · ' + h.resp : ''), fecha: h.fecha || '', revisada: '', hecha: h.hecho || '' })).concat((o.como || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, fecha: '', revisada: '', hecha: '' }))) };
     if (m) Object.assign(m, datos);
     else { m = Object.assign({ id: 'm' + Date.now().toString(36), oid, creada: hoy(), area: 'Dirección', medios: false, beneficios: '', perdidas: '', pros: '', obstaculos: [{ o: '', s: '' }], seguimiento: 'En las sesiones de la intervención con el consultor', valores: '', afirmacion: '', prioridad: i + 1, plazo: 'corto', tangible: true, estado: 'activa' }, datos); st.metas.push(m); }
     await A.mesa.guardarYa(st); o.enviada = true; guardar(); render();
@@ -336,7 +353,7 @@
     $('#ivCapB', host).onclick = () => { const t = $('#ivCap', host).value.trim(); if (!t) return toast('Escribe o dicta primero la frase.'); const p = D.patron(patSel); ST.sintomas.push({ id: uid(), t: p.vacio.split(';')[0].replace(/\.$/, ''), cita: t, area: E.areaDe(t, p.area), patron: p.id, gravedad: 3, origen: 'directo' }); render(); toast('Apuntado en «Síntomas y causas».'); setTimeout(() => { const c = $('#ivCap'); if (c) c.focus({ preventScroll: true }); }, 50); };
     if (!tr) return;
     $('#ivTrDel', host).onclick = (e) => { if (!e.target.dataset.ok) { e.target.dataset.ok = 1; e.target.textContent = '¿Seguro?'; return; } ST.transcripciones = ST.transcripciones.filter((x) => x !== tr); trSel = null; render(); };
-    $$('[data-hab]', host).forEach((c) => (c.onchange = () => { tr.clientes = $$('[data-hab]', host).filter((x) => x.checked).map((x) => x.dataset.hab); tr.analisis = E.analizar({ turnos: tr.turnos, hablantes: tr.hablantes }, tr.clientes); render(); }));
+    $$('[data-hab]', host).forEach((c) => (c.onchange = () => { tr.clientesManual = true; tr.clientes = $$('[data-hab]', host).filter((x) => x.checked).map((x) => x.dataset.hab); tr.analisis = E.analizar({ turnos: tr.turnos, hablantes: tr.hablantes }, tr.clientes); render(); }));
     wireAnalisis(host, tr);
     const ia = $('#ivIA', host); if (ia) ia.onclick = async () => {
       ia.disabled = true; $('#ivIAm', host).textContent = 'Leyendo la sesión… puede tardar un minuto.';
@@ -379,7 +396,7 @@
   };
 
   /* La lógica de síntomas, triaje, auditoría, plan, sesiones e informes está en vistas.js */
-  V.int = { smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
+  V.int = { prioArea, PRIN_N, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
 
   /* ---------- Arranque ---------- */
   V.start = async () => {
