@@ -110,7 +110,7 @@
   }
   const recoger = () => {
     const m = mundosPlan();
-    if (!confirm(`La aplicación va a abrir ${m.map((k) => MUNDO_N[k].toLowerCase()).join(', ')} y generar sus informes para el libro. Tarda unos segundos por mundo. ¿Seguimos?`)) return;
+
     L.recogerTodo(m);
   };
   function pintarHero() {

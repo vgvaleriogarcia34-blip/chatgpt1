@@ -535,7 +535,7 @@
       back.innerHTML = `<form class="ef-card glass" role="dialog" aria-modal="true" aria-label="Ficha de la empresa">
         <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
         <div class="eyebrow">${opts.nuevo ? (grupo ? 'Nueva sociedad' : 'Nueva empresa') : 'Ficha de la empresa'}</div>
-        <label class="ef-name"><span>Nombre o razón social</span><input name="nombre" required value="${escH(d.nombre === 'Mi empresa' ? '' : d.nombre)}" placeholder="Por ejemplo: Transportes Ruiz, S.L."></label>
+        <label class="ef-name"><span>Nombre o razón social</span><input name="nombre" ${opts.nuevo ? 'required' : ''} value="${escH(d.nombre === 'Mi empresa' ? '' : d.nombre)}" placeholder="Por ejemplo: Transportes Ruiz, S.L."></label>
         <div class="ef-grid">
           <label><span>Forma jurídica</span><select class="input" name="forma">${P.FORMAS.map((f) => `<option ${f === d.forma ? 'selected' : ''}>${f}</option>`).join('')}</select></label>
           <label><span>CIF o NIF</span><input class="input" name="cif" value="${escH(d.cif)}" placeholder="B12345678"></label>
@@ -572,6 +572,7 @@
       f.querySelector('[data-sadd]').onclick = () => { f.querySelector('.ef-socios').insertAdjacentHTML('beforeend', socioRow({ nombre: '', pct: '' })); bindSoc(); };
       const filVis = () => { const r = f.rol; f.querySelectorAll('[data-fil]').forEach((x) => { x.hidden = r && r.value === 'holding'; }); };
       if (f.rol) { f.rol.onchange = filVis; filVis(); }
+      f.querySelectorAll('[name=modoDatos]').forEach((r) => (r.onchange = () => { delete f.dataset.okModo; f.querySelector('[data-msg]').textContent = ''; f.querySelector('button[type=submit]').textContent = opts.nuevo ? 'Dar de alta' : 'Guardar la ficha'; }));
       const close = (v) => { back.remove(); resolve(v); };
       back.querySelector('.ef-x').onclick = () => close(null); f.querySelector('[data-cancel]').onclick = () => close(null);
       back.addEventListener('click', (ev) => { if (ev.target === back) close(null); });
@@ -580,12 +581,19 @@
         ev.preventDefault();
         const socios = Array.from(f.querySelectorAll('.ef-socio')).map((r) => ({ nombre: r.querySelector('[data-sn]').value.trim(), pct: parseFloat(r.querySelector('[data-sp]').value) })).filter((s) => s.nombre || isFinite(s.pct)).map((s) => ({ nombre: s.nombre || 'Socio', pct: isFinite(s.pct) ? s.pct : null }));
         const v = (n) => (f[n] ? f[n].value.trim() : undefined);
-        const datos = { nombre: v('nombre'), forma: v('forma'), cif: v('cif').toUpperCase(), constitucion: v('constitucion') ? +v('constitucion') : '', sector: v('sector'), actividad: v('actividad'), provincia: v('provincia'), plantilla: v('plantilla') ? +v('plantilla') : '', socios };
+        const datos = { nombre: v('nombre') || (e && e.nombre) || 'Mi empresa', forma: v('forma'), cif: v('cif').toUpperCase(), constitucion: v('constitucion') ? +v('constitucion') : '', sector: v('sector'), actividad: v('actividad'), provincia: v('provincia'), plantilla: v('plantilla') ? +v('plantilla') : '', socios };
         if (f.contacto) datos.contacto = v('contacto');
         const quiereReal = (f.querySelector('[name=modoDatos]:checked') || {}).value === 'real', cambiaModo = quiereReal !== !!d.datosReales;
         if (opts.nuevo && quiereReal) Object.assign(datos, { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesTs: new Date().toISOString(), datosRealesOrigen: 'ficha' });
         if (f.rol) { datos.rol = v('rol'); datos.matriz = datos.rol === 'holding' ? '' : v('matriz'); datos.participacion = datos.rol === 'holding' ? 100 : +(v('participacion') || 100); }
-        if (!opts.nuevo && cambiaModo && !confirm(quiereReal ? `¿Trabajar con datos reales en ${datos.nombre || 'esta empresa'}?\n\nNingún mundo usará datos de ejemplo: los que no se hayan trabajado se ponen a cero y piden sus datos (transcripciones y documentación). Lo ya trabajado se conserva.` : `¿Volver a permitir datos ficticios en ${datos.nombre || 'esta empresa'}?\n\nLos datos reales ya subidos se conservan; los mundos sin datos podrán mostrar el ejemplo.`)) return;
+        // Confirmación dentro de la ficha (las ventanas del navegador pueden estar bloqueadas donde se publica la aplicación)
+        if (!opts.nuevo && cambiaModo && f.dataset.okModo !== (quiereReal ? 'real' : 'ejemplo')) {
+          f.dataset.okModo = quiereReal ? 'real' : 'ejemplo';
+          const msg = f.querySelector('[data-msg]'); msg.style.color = 'var(--warn, #c48a00)';
+          msg.textContent = quiereReal ? 'Vas a trabajar con datos reales: ningún mundo usará datos de ejemplo; los que no se hayan trabajado se ponen a cero y piden sus datos (transcripciones y documentación). Lo ya trabajado se conserva. Pulsa otra vez para confirmar.' : 'Vas a volver a permitir datos ficticios: los datos reales ya subidos se conservan y los mundos sin datos podrán mostrar el ejemplo. Pulsa otra vez para confirmar.';
+          f.querySelector('button[type=submit]').textContent = 'Confirmar el cambio y guardar';
+          return;
+        }
         try { const r = opts.nuevo ? await P.empresas.crear(datos) : await P.empresas.editar(e.id, datos);
           if (!opts.nuevo && cambiaModo) { const act = P.empresas.activa(); if (act && act.id === e.id) { if (quiereReal) await P.activarModoReal('ficha'); else await P.desactivarModoReal(); setTimeout(() => location.reload(), 50); } else await P.empresas.editar(e.id, quiereReal ? { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesTs: new Date().toISOString(), datosRealesOrigen: 'ficha' } : { datosReales: false }); }
           try { window.dispatchEvent(new CustomEvent('atalaya:empresa', { detail: r })); } catch (x) { /* sin eventos */ } close(r); }
@@ -745,10 +753,10 @@
     document.addEventListener('click', (e) => { if (!el.contains(e.target)) m.hidden = true; });
     el.querySelector('[data-logout]').onclick = P.logout;
     el.querySelector('[data-planes]').onclick = () => { m.hidden = true; P.panelPlanes(); };
-    el.querySelector('[data-real]').onclick = async () => {
-      m.hidden = true; const on = P.modoReal(), e = P.empresas.activa(), n = (e && e.nombre) || 'esta empresa';
-      if (!on && !confirm(`¿Trabajar con datos reales en ${n}?\n\nNingún mundo usará datos de ejemplo: lo que no se haya subido se queda a cero y se piden sus datos. Los datos ya subidos se conservan.`)) return;
-      if (on && !confirm(`¿Volver a permitir datos de ejemplo en ${n}?\n\nLos datos reales ya subidos se conservan; los mundos sin datos podrán mostrar el ejemplo.`)) return;
+    el.querySelector('[data-real]').onclick = async (ev) => {
+      ev.stopPropagation(); const b = ev.currentTarget, on = P.modoReal();
+      if (!b.dataset.ok) { b.dataset.ok = '1'; b.textContent = on ? 'Pulse otra vez para volver a permitir datos ficticios (lo real se conserva)' : 'Pulse otra vez para pasar a datos reales (los mundos sin trabajar se ponen a cero)'; return; }
+      m.hidden = true; b.disabled = true;
       if (on) await P.desactivarModoReal(); else await P.activarModoReal('cuenta');
       location.reload();
     };
