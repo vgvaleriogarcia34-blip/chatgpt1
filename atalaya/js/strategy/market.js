@@ -167,7 +167,7 @@
   function reportData() {
     const K = S.allKpis(), R = S.allRisks(), Fi = S.allFindings().sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0));
     const areas = Array.from(new Set(K.map((k) => k.area)));
-    const sc = (l) => { const s = l.filter((x) => x.st); return s.length ? Math.round(s.reduce((a, x) => a + (x.st === 'ok' ? 100 : x.st === 'warn' ? 55 : 15), 0) / s.length) : null; };
+    const sc = (l) => S.notaN(l === K ? null : [...new Set(l.map((x) => x.mod))], l);
     const r = S.analysis(), p = PL();
     const ebitda = S.baseYear().ebitda;
     const imp = {}; Fi.forEach((f) => { imp[f.area] = (imp[f.area] || 0) + (f.impactoEUR || 0); });
@@ -183,8 +183,8 @@
     const plazos = [30, 90, 180, 365];
     const I = A.informe;
     let h = I.cover({ tipo: 'Informe de auditoría', kicker: 'Auditoría estratégica 360', titulo: S.sim.empresaNombre, subtitulo: `${A.SECTORS[S.sim.sector].nombre} · ventas ${F.eur(e.ventas)} · ${e.plantilla} personas`, empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre })
-      + I.summary('Salud global', `<div class="rp-score"><b>${d.global === null ? '—' : d.global}</b><span>/100</span> ${pill(stOf(d.global), d.global >= 70 ? 'Sólida' : d.global >= 50 ? 'Con tensiones' : 'Frágil')}</div>
-      <p>${d.R.filter((x) => x.estado === 'stop').length} riesgos altos, ${d.Fi.length} oportunidades de mejora con un impacto anual estimado de <b>${F.eur(d.totImp)}</b> (${F.pct(S.pct(d.totImp, d.ebitda))} del EBITDA actual). Veredicto del simulador para la inversión «${esc(S.sim.proyecto)}»: <b>${d.r.verdict.titulo}</b>.</p>`, stOf(d.global));
+      + I.summary('Nota del sistema estratégico', `<div class="rp-score"><b>${d.global === null ? '—' : d.global}</b><span>/100</span> ${pill(stOf(d.global), d.global >= 70 ? 'Sólida' : d.global >= 50 ? 'Con tensiones' : 'Frágil')}</div>
+      <p class="rp-muted">${esc(A.nota && A.nota.REGLA ? A.nota.REGLA + ' Es la misma nota del cuadro de mando y de «Este mundo» en la cabecera.' : '')}</p><p>${d.R.filter((x) => x.estado === 'stop').length} riesgos altos, ${d.Fi.length} oportunidades de mejora con un impacto anual estimado de <b>${F.eur(d.totImp)}</b> (${F.pct(S.pct(d.totImp, d.ebitda))} del EBITDA actual). Veredicto del simulador para la inversión «${esc(S.sim.proyecto)}»: <b>${d.r.verdict.titulo}</b>.</p>`, stOf(d.global));
     h += `<h2><span class="rp-n">01</span>Diagnóstico 360 por áreas</h2><div class="table-wrap"><table><thead><tr><th>Área</th><th>Salud</th><th style="text-align:left">Indicadores</th></tr></thead><tbody>${d.areas.map((a) => { const l = d.K.filter((k) => k.area === a); const s = d.sc(l); return `<tr><td>${a}</td><td>${s === null ? '—' : pill(stOf(s), s)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${l.map((k) => `${k.k}: <b>${k.v}</b>`).join(' · ')}</td></tr>`; }).join('')}</tbody></table></div>`;
     h += `<h2><span class="rp-n">02</span>Auditoría del flujo del dinero</h2>${mf ? `<p>${mf.lectura.join(' ')}</p><table><tbody>${mf.destinos.map((x) => `<tr><td>${x.n}</td><td>${Math.round(x.pct)} € de cada 100</td></tr>`).join('')}</tbody></table>` : '<p>No hay cuentas de varios años cargadas.</p>'}`;
     h += `<h2><span class="rp-n">03</span>Impuestos</h2><p>Pagos estimados en los próximos 12 meses: <b>${F.eur(tc.anual)}</b> (${F.pct(S.pct(tc.anual, tc.ventas12))} de las ventas).</p><table><thead><tr><th>Fecha</th><th>Modelo</th><th style="text-align:left">Concepto</th><th>Importe</th></tr></thead><tbody>${tc.pagos.filter((p) => p.importe).map((p) => `<tr><td>${p.fecha.toLocaleDateString('es-ES')}</td><td>${p.modelo}</td><td style="text-align:left;font-family:var(--font-body)">${esc(p.concepto)}</td><td>${F.eurFull(p.importe)}</td></tr>`).join('')}</tbody></table>`;
@@ -207,7 +207,7 @@
   }
   function reportText() {
     const d = reportData();
-    return `AUDITORÍA ESTRATÉGICA · ${S.sim.empresaNombre}\nSalud global: ${d.global}/100. Impacto anual de las mejoras: ${F.eur(d.totImp)}.\n\nRiesgos principales:\n${d.R.slice(0, 8).map((r) => `- ${r.nombre} (${r.nivel})`).join('\n')}\n\nMejoras:\n${d.Fi.slice(0, 12).map((f) => `- [${f.area}] ${f.hallazgo} → ${f.accion} (${F.eur(f.impactoEUR || 0)}, ${f.plazo} días)`).join('\n')}`;
+    return `AUDITORÍA ESTRATÉGICA · ${S.sim.empresaNombre}\nNota del sistema estratégico: ${d.global}/100 (criterio común de Atalaya). Impacto anual de las mejoras: ${F.eur(d.totImp)}.\n\nRiesgos principales:\n${d.R.slice(0, 8).map((r) => `- ${r.nombre} (${r.nivel})`).join('\n')}\n\nMejoras:\n${d.Fi.slice(0, 12).map((f) => `- [${f.area}] ${f.hallazgo} → ${f.accion} (${F.eur(f.impactoEUR || 0)}, ${f.plazo} días)`).join('\n')}`;
   }
   S.auditReport = () => openReport();
   function openReport() { A.informe.open({ titulo: 'Informe de auditoría', html: reportHTML(), texto: reportText() }); }

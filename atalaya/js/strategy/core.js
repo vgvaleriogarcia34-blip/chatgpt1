@@ -184,7 +184,7 @@
     let R = [], Fi = []; try { R = m.risks ? m.risks().map((r) => r) : []; } catch (e) { /* sin riesgos */ } try { Fi = m.findings ? m.findings() : []; } catch (e) { /* sin hallazgos */ }
     R.sort((a, b) => b.nivel - a.nivel); Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0));
     const lede = ($('.lede', panel) || {}).textContent || '';
-    const conSt = tiles.filter((t) => t.st), sc = conSt.length ? Math.round(conSt.reduce((a, t) => a + (t.st === 'ok' ? 100 : t.st === 'warn' ? 55 : 15), 0) / conSt.length) : null;
+    const sc = S.notaN(m.id === 'tablero' ? null : m.id, tiles);
     const st = sc === null ? null : sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop';
     const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360'));
     const detalle = blocks.map((g) => { const t = (g.querySelector('h4') || {}).textContent || ''; const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); const body = I.fromDom(c).trim(); return body.replace(/<[^>]+>/g, '').trim() ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
@@ -197,11 +197,11 @@
     let R = [], Fi = []; try { R = m.risks ? m.risks().map((r) => r) : []; } catch (e) { /* sin riesgos */ } try { Fi = m.findings ? m.findings() : []; } catch (e) { /* sin hallazgos */ }
     R.sort((a, b) => b.nivel - a.nivel); Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0));
     const lede = ($('.lede', panel) || {}).textContent || '';
-    const conSt = tiles.filter((t) => t.st), sc = conSt.length ? Math.round(conSt.reduce((a, t) => a + (t.st === 'ok' ? 100 : t.st === 'warn' ? 55 : 15), 0) / conSt.length) : null;
+    const sc = S.notaN(m.id === 'tablero' ? null : m.id, tiles);
     const st = sc === null ? null : sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop';
     const impacto = Fi.reduce((a, f) => a + (f.impactoEUR || 0), 0);
     const rojos = tiles.filter((t) => t.st === 'stop').map((t) => t.k.toLowerCase());
-    const resumen = `<p><b>${esc(m.nombre)}${sc === null ? '' : `: ${sc}/100 ${I.pill(st)}`}.</b> ${tiles.length} indicadores analizados${rojos.length ? `, ${rojos.length} en rojo (${esc(rojos.join(', '))})` : ', ninguno en rojo'}. ${R.length ? `${R.length} riesgo${R.length > 1 ? 's' : ''} identificado${R.length > 1 ? 's' : ''}, el principal: ${esc(R[0].nombre.toLowerCase())}.` : 'Sin riesgos relevantes.'} ${Fi.length ? `Las mejoras detectadas suman <b>${F.eur(impacto)}</b> al año.` : ''}</p>${Fi[0] ? `<p><b>Prioridad:</b> ${esc(Fi[0].accion)}</p>` : R[0] ? `<p><b>Prioridad:</b> ${esc(R[0].mitigacion || '')}</p>` : ''}`;
+    const resumen = `<p><b>${esc(m.nombre)}${sc === null ? '' : `: ${sc}/100 ${I.pill(st)}`}.</b> ${m.id === 'tablero' ? 'Nota del sistema estratégico completo, la misma de «Este mundo» en la cabecera.' : `Nota de este módulo con el criterio común de Atalaya${S.notaN(null) != null ? `; la del sistema estratégico completo es ${S.notaN(null)}/100` : ''}.`} ${tiles.length} indicadores analizados${rojos.length ? `, ${rojos.length} en rojo (${esc(rojos.join(', '))})` : ', ninguno en rojo'}. ${R.length ? `${R.length} riesgo${R.length > 1 ? 's' : ''} identificado${R.length > 1 ? 's' : ''}, el principal: ${esc(R[0].nombre.toLowerCase())}.` : 'Sin riesgos relevantes.'} ${Fi.length ? `Las mejoras detectadas suman <b>${F.eur(impacto)}</b> al año.` : ''}</p>${Fi[0] ? `<p><b>Prioridad:</b> ${esc(Fi[0].accion)}</p>` : R[0] ? `<p><b>Prioridad:</b> ${esc(R[0].mitigacion || '')}</p>` : ''}`;
     // Detalle: cada bloque del módulo convertido en contenido de informe
     const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360'));
     const detalle = blocks.map((g) => { const t = (g.querySelector('h4') || {}).textContent || ''; const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); const body = I.fromDom(c).trim(); return body.replace(/<[^>]+>/g, '').trim() ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
@@ -264,6 +264,10 @@
   S.refreshKpis = () => { /* el cuadro de mando se recalcula al abrirse */ };
 
   /* ---------- Cuadro de mando cruzado ---------- */
+  /* Nota con el criterio único de Atalaya (A.nota): verde 1, ámbar 0,5, rojo 0, ponderado, sobre 100.
+     ids: un módulo, una lista o null (todo el sistema estratégico). Sin motor de notas, los semáforos que se pasen. */
+  S.notaRes = (ids) => (A.nota && A.nota.modulos ? A.nota.modulos(ids) : null);
+  S.notaN = (ids, tiles) => { const r = S.notaRes(ids); if (r) return r.n100; const l = (tiles || []).filter((t) => t.st); return l.length ? Math.round(l.reduce((a, t) => a + (t.st === 'ok' ? 100 : t.st === 'warn' ? 50 : 0), 0) / l.length) : null; };
   S.allKpis = () => S.modules.filter((m) => m.kpis).flatMap((m) => { try { return m.kpis().map((k) => Object.assign({ mod: m.id, area: m.nombre }, k)); } catch (e) { return []; } });
   S.allRisks = () => S.modules.filter((m) => m.risks).flatMap((m) => { try { return m.risks().map((r) => Object.assign({ fuente: m.nombre, mod: m.id }, r)); } catch (e) { return []; } }).sort((a, b) => b.nivel - a.nivel);
   S.allFindings = () => S.modules.filter((m) => m.findings).flatMap((m) => { try { return m.findings().map((f) => Object.assign({ area: m.nombre, mod: m.id }, f)); } catch (e) { return []; } });
@@ -273,8 +277,8 @@
     render(host) {
       const k = S.allKpis(), R = S.allRisks(), Fi = S.allFindings();
       const areas = Array.from(new Set(k.map((x) => x.area)));
-      const score = (list) => { const s = list.filter((x) => x.st); return s.length ? Math.round(s.reduce((a, x) => a + (x.st === 'ok' ? 100 : x.st === 'warn' ? 55 : 15), 0) / s.length) : null; };
-      const global = score(k);
+      const score = (list) => S.notaN([...new Set(list.map((x) => x.mod))], list);
+      const global = S.notaN(null, k), gRes = S.notaRes(null);
       const impacto = Fi.reduce((a, f) => a + (f.impactoEUR || 0), 0);
       const stS = (x) => (x === null ? null : x >= 70 ? 'ok' : x >= 50 ? 'warn' : 'stop');
       const porArea = areas.map((a) => { const l = k.filter((x) => x.area === a); return { a, mod: l[0].mod, sc: score(l), st: stS(score(l)) }; });
@@ -287,10 +291,10 @@
         empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
         datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]],
         acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaEst && A.rutaEst.openMap() }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
-        veredicto: { kicker: 'Salud global de la empresa', st: stS(global), titulo: global === null ? 'Sin datos suficientes' : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. Cada franja es un indicador: tócala para ir a su módulo.`,
+        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin datos suficientes' : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes) + '. ' : ''}${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
           luces: k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
         kpis: [
-          { k: 'Salud global', v: global === null ? '—' : global + '/100', st: stS(global), d: `${rojos} indicadores en rojo`, barras: porArea.map((x) => ({ n: x.a, v: x.sc || 5, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
+          { k: 'Nota del sistema estratégico', v: global === null ? '—' : global + '/100', st: stS(global), d: `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc || 5, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
           { k: 'Riesgos altos', v: String(R.filter((r) => r.estado === 'stop').length), st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados`, barras: R.slice(0, 16).map((r) => ({ n: r.nombre, v: r.nivel, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[r.estado] })) },
           { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual`, barras: Fi.slice().sort((x, y) => (y.impactoEUR || 0) - (x.impactoEUR || 0)).slice(0, 12).map((f) => ({ n: f.hallazgo, v: f.impactoEUR || 0 })) },
           { k: 'Veredicto de inversión', v: veredicto.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base'), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[veredicto.key] || null, fn: () => { location.href = 'app.html'; } }
@@ -302,9 +306,15 @@
           { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual` },
           { k: 'Veredicto de inversión', v: S.analysis().verdict.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base') }
         ])}`}
+        <div class="glass pad stack mt" id="tbNota"><small class="muted">Calculando la nota de la empresa…</small></div>
         <div class="areas mt">${areas.map((a) => { const l = k.filter((x) => x.area === a); const sc = score(l); return `<button class="glass area" data-mod="${l[0].mod}"><div class="row"><b>${a}</b><span class="spacer"></span>${sc === null ? '' : `<span class="state st-${sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop'}">${sc}</span>`}</div>${l.slice(0, 4).map((x) => `<div class="arow"><span>${x.k}</span><b class="num">${x.v}</b>${x.st ? `<i class="dotc ${x.st}"></i>` : '<i></i>'}</div>`).join('')}</button>`; }).join('')}</div>
         <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Mapa de riesgos de todas las áreas</h4><div class="chart" id="tbRisk"></div></div><div class="glass pad stack"><h4>Riesgos principales</h4>${S.riskBlock(R.slice(0, 8))}</div></div>
         <div class="glass pad mt stack"><h4>Mayores oportunidades de mejora</h4>${Fi.length ? `<div class="table-wrap"><table><thead><tr><th>Área</th><th style="text-align:left">Hallazgo</th><th>Impacto anual</th><th style="text-align:left">Acción</th><th>Plazo</th></tr></thead><tbody>${Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0)).slice(0, 12).map((f) => `<tr><td>${esc(f.area)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.hallazgo)}</td><td>${F.eur(f.impactoEUR || 0)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.accion)}</td><td>${f.plazo} días</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Completa los módulos para ver oportunidades.</p>'}</div>`;
+      if (A.nota && A.nota.calcular) A.nota.calcular().then((u) => { const el = host.querySelector('#tbNota'); if (!el || !u) return; const ks = Object.keys(u.mundos), f = (n) => (n == null ? '—' : String(n).replace('.', ','));
+        el.innerHTML = `<div class="row"><h4>Cómo se calcula la nota</h4><span class="spacer"></span><span class="state st-${u.global == null ? '' : u.global >= 7 ? 'ok' : u.global >= 5 ? 'warn' : 'stop'}">Empresa ${f(u.global)}/10 · ${u.global == null ? '—' : Math.round(u.global * 10)}/100</span></div>
+          <p class="small" style="margin:0">${esc(A.nota.REGLA)}</p>
+          <div class="table-wrap"><table><thead><tr><th style="text-align:left">Mundo</th><th>Nota /10</th><th>Nota /100</th><th>Comprobaciones</th><th style="text-align:left">Calculada</th></tr></thead><tbody>${ks.map((k) => { const m = u.mundos[k], r = A.nota.puntuar(m.puntos); return `<tr><td style="text-align:left">${esc(m.n)}${k === 'estrategia' ? ' <small class="muted">(este mundo)</small>' : ''}</td><td>${f(m.nota)}</td><td>${m.nota == null ? '—' : Math.round(m.nota * 10)}</td><td>${r ? `${r.verdes} ✓ · ${r.ambar} ámbar · ${r.rojos} rojo` : '—'}</td><td style="text-align:left">${m.vivo ? 'ahora' : m.fecha ? 'el ' + new Date(m.fecha).toLocaleDateString('es-ES') + ' <small class="muted">(se actualiza al abrir ese mundo)</small>' : 'sin abrir'}</td></tr>`; }).join('')}</tbody></table></div>
+          <p class="small muted" style="margin:0">La nota de la empresa (${f(u.global)}/10) es la media de los mundos; la de este mundo (${f(u.mundos.estrategia && u.mundos.estrategia.nota)}/10) es la del cuadro de mando y la de los informes del sistema estratégico. Si un mundo se calculó en otra fecha, su nota no recoge los cambios posteriores hasta que se abre.</p>`; }).catch(() => {});
       $$('.area', host).forEach((b) => b.onclick = () => show(b.dataset.mod));
       if (A.heroMundo) A.heroMundo.wire(host, hc);
       A.charts.riskMatrix($('#tbRisk', host), R.slice(0, 14), () => {});

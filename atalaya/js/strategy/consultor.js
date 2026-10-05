@@ -25,7 +25,7 @@
     return isFinite(x) ? x : null;
   };
   const FN = {
-    salud() { const k = S.allKpis().filter((x) => x.st); return k.length ? Math.round(k.reduce((a, x) => a + (x.st === 'ok' ? 100 : x.st === 'warn' ? 55 : 15), 0) / k.length) : null; },
+    salud() { return S.notaN(null, S.allKpis()); },
     riesgosAltos() { return S.allRisks().filter((r) => r.estado === 'stop').length; }
   };
   function actual(modId, o) {
@@ -165,9 +165,9 @@
     const docs = (o.docs || []).filter((x) => !x.temas || !x.temas.length || x.temas.includes(m.id));
     const objs = c.obj.filter((x) => x.meta !== '' && x.meta != null);
     const altas = PL.filter((x) => x.prio === 'Alta' && x.estado !== 'Hecha');
-    const scs = [P.sc, mz.score].filter((x) => x != null); const nota = scs.length ? Math.round(scs.reduce((a, b) => a + b, 0) / scs.length) : null;
+    const nRes = S.notaRes(m.id), nota = nRes ? nRes.n100 : P.sc;
     const stG = nota === null ? null : nota >= 70 ? 'ok' : nota >= 50 ? 'warn' : 'stop';
-    const resumen = `<p><b>${esc(m.nombre)}${nota === null ? '' : `: ${nota}/100 ${I.pill(stG)}`}.</b> ${P.sc !== null ? `Los indicadores dan ${P.sc}/100` : 'Sin indicadores con semáforo'}${mz.score !== null ? ` y la madurez de la gestión, ${mz.score}/100 (${mz.resp} de ${mz.total} preguntas respondidas)` : ' y aún no se ha respondido el diagnóstico'}. ${falta.length ? `${falta.length === 1 ? 'Falta 1 dato' : `Faltan ${falta.length} datos`} por aterrizar, así que parte del análisis usa datos de ejemplo o estimados.` : 'Los datos necesarios están cargados.'} ${objs.length ? `El empresario ha fijado ${objs.length} objetivo${objs.length > 1 ? 's' : ''}.` : ''}</p>
+    const resumen = `<p><b>${esc(m.nombre)}${nota === null ? '' : `: ${nota}/100 ${I.pill(stG)}`}.</b> Es la nota de este módulo con el criterio común de Atalaya (la misma de su tarjeta en el cuadro de mando): ${esc(A.nota && A.nota.desglose ? A.nota.desglose(nRes) : '')}${S.notaN(null) != null ? `. La nota del sistema estratégico completo, la de «Este mundo» en la cabecera, es ${S.notaN(null)}/100; la de la empresa es la media de todos los mundos` : ''}${mz.score !== null ? `, entre ellas la madurez de la gestión, ${mz.score}/100 (${mz.resp} de ${mz.total} preguntas respondidas)` : '; el diagnóstico de madurez aún no se ha respondido y no cuenta'}. ${falta.length ? `${falta.length === 1 ? 'Falta 1 dato' : `Faltan ${falta.length} datos`} por aterrizar, así que parte del análisis usa datos de ejemplo o estimados.` : 'Los datos necesarios están cargados.'} ${objs.length ? `El empresario ha fijado ${objs.length} objetivo${objs.length > 1 ? 's' : ''}.` : ''}</p>
       <p><b>${pl(PL.length, 'acción', 'acciones')}</b> en el plan, ${altas.length} de prioridad alta.${altas[0] ? ` Lo primero: ${esc(altas[0].accion)}` : ''}</p>`;
     const needT = I.table(['Dato', 'Estado', 'Fuente'], need.map((n) => [n.t, { h: I.pill(n.ok ? 'ok' : 'warn', n.ok ? 'Aterrizado' : 'Falta') }, n.ok ? n.via : (A.C360_TIPOS[n.tipo] || {}).d || '']));
     const dimT = mz.dims.length ? `<div class="rp-bars">${mz.dims.map((x) => `<div class="rp-bar"><span>${esc(x.dim)}</span><i><b style="width:${x.v}%"></b></i><em>${x.v}</em></div>`).join('')}</div>` : '';

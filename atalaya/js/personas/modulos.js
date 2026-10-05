@@ -43,7 +43,7 @@
       { n: 'Líderes con test de estilo', v: `${ls.filter((p) => p.lid && p.lid.estilo).length}/${ls.length}`, st: ls.length ? stP(Math.round((ls.filter((p) => p.lid && p.lid.estilo).length / ls.length) * 100)) : null, go: 'lid-estilo' },
       { n: 'Desajustes de liderazgo', v: String(desj), st: filas.some((f) => f.nv) ? (desj > 2 ? 'stop' : desj ? 'warn' : 'ok') : null, go: 'lid-mapa' }
     ] : [];
-    const con = luces.filter((l) => l.st), nota = con.length ? Math.round(con.reduce((a, l) => a + (l.st === 'ok' ? 100 : l.st === 'warn' ? 55 : 15), 0) / con.length) : null;
+    const nRes = A.nota && A.nota.personas ? A.nota.puntuar(A.nota.personas(R.state)) : null, con = luces.filter((l) => l.st), nota = nRes ? nRes.n100 : con.length ? Math.round(con.reduce((a, l) => a + (l.st === 'ok' ? 100 : l.st === 'warn' ? 50 : 0), 0) / con.length) : null;
     const stN = nota == null ? null : nota >= 70 ? 'ok' : nota >= 50 ? 'warn' : 'stop';
     const encs = ps.map((p) => ({ p, e: R.encaje(p, R.puestoDe(p)) })).filter((x) => x.e && x.e.total != null);
     const niveles = { 1: 0, 2: 0, 3: 0, 4: 0 }; filas.filter((f) => f.nv).forEach((f) => niveles[f.nv.nivel]++);
@@ -56,9 +56,9 @@
       datos: [['Personas', String(n)], ['Puestos', String(R.state.puestos.length)], ['Equipos', String(R.state.equipos.length)], ['Líderes', String(ls.length)]],
       acciones: n ? [{ t: 'Enviar cuestionarios', cls: 'solid', fn: () => R.show('envios') }, { t: 'Ver el mapa', fn: () => A.rutaPer && A.rutaPer.openMap() }, { t: 'Informe de la organización', cls: 'ghost', fn: () => R.informeOrg() }]
         : [{ t: 'Empezar por la plantilla', cls: 'solid', fn: () => R.show('personas') }, { t: 'Definir puestos', fn: () => R.show('puestos') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaPer && A.rutaPer.openMap() }],
-      veredicto: { kicker: 'Salud del equipo humano', st: stN,
+      veredicto: { kicker: 'Nota de personas y equipos', st: stN,
         titulo: !n ? 'Sin plantilla todavía' : nota + '/100 · ' + (nota >= 70 ? 'equipo en orden' : nota >= 50 ? 'con puntos que trabajar' : 'con alertas que atender'),
-        texto: n ? 'Cada franja es un aspecto del equipo: herramientas completadas, encaje, estructura, talento, equipos y liderazgo. Tócala para ir a su herramienta.' : 'Da de alta a las personas y aquí aparecerá el estado de cada aspecto del equipo, con su semáforo.',
+        texto: n ? (nRes ? `Nota con el criterio común de Atalaya, la misma de «Este mundo» en la cabecera: ${A.nota.desglose(nRes)}. ` : '') + 'Cada franja es un aspecto del equipo: herramientas completadas, encaje, estructura, talento, equipos y liderazgo. Tócala para ir a su herramienta.' : 'Da de alta a las personas y aquí aparecerá el estado de cada aspecto del equipo, con su semáforo.',
         luces: luces.map((l) => ({ n: l.n, v: l.v, st: l.st, fn: () => R.show(l.go) })),
         enlace: n ? { t: 'Por dónde empezar', fn: () => { const x = document.querySelector('.pe-prior'); if (x) x.scrollIntoView({ behavior: 'smooth', block: 'center' }); } } : null },
       kpis: n ? [

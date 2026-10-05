@@ -1,5 +1,5 @@
 /* Atalaya 360° · Nota de la empresa
-   Una nota del 1 al 10 para la empresa activa: la del mundo en el que se está y la global, media de los mundos
+   Una nota de 0 a 10 (o de 0 a 100, con el mismo criterio) para la empresa activa: la del mundo en el que se está y la global, media de los mundos
    que incluye el plan. Cada mundo se puntúa con sus comprobaciones (semáforos, datos que faltan, datos de
    ejemplo, objetivos mal planteados o vencidos, agenda que no se cumple, plantilla sin evaluar…). Al pulsarla
    se despliegan los puntos a tratar, primero los rojos, y cada uno lleva a su zona.
@@ -25,12 +25,16 @@
   };
   const mundoDePagina = () => ({ 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa' }[pagina()] || null);
   const VAL = { ok: 1, warn: 0.5, stop: 0 };
-  /* Nota del 1 al 10: proporción ponderada de comprobaciones en verde (ámbar cuenta la mitad) */
-  const notaDe = (puntos) => {
+  /* Criterio único de Atalaya para cualquier nota, en cualquier mundo, informe o fase:
+     cada comprobación vale verde 1, ámbar 0,5 y rojo 0, ponderada por su peso; la nota es esa proporción
+     sobre 100 (o sobre 10, la misma cifra con una coma: 58/100 = 5,8/10). Verde desde 70, ámbar desde 50. */
+  const puntuar = (puntos) => {
     const l = (puntos || []).filter((x) => x && VAL[x.st] != null); if (!l.length) return null;
     const w = l.reduce((a, x) => a + (x.peso || 1), 0), v = l.reduce((a, x) => a + (x.peso || 1) * VAL[x.st], 0);
-    return Math.round((1 + 9 * (v / w)) * 10) / 10;
+    const n100 = Math.round((v / w) * 100);
+    return { n100, n10: n100 / 10, st: n100 >= 70 ? 'ok' : n100 >= 50 ? 'warn' : 'stop', verdes: l.filter((x) => x.st === 'ok').length, ambar: l.filter((x) => x.st === 'warn').length, rojos: l.filter((x) => x.st === 'stop').length, total: l.length };
   };
+  const notaDe = (puntos) => { const r = puntuar(puntos); return r ? r.n10 : null; };
   const stDeNota = (n) => (n == null ? '' : n >= 7 ? 'ok' : n >= 5 ? 'warn' : 'stop');
   const fmt = (n) => (n == null ? '—' : String(n.toFixed(1)).replace('.', ','));
 
@@ -83,6 +87,7 @@
     Object.keys(c360).forEach((id) => { const ob = (c360[id].obj || []).filter((o) => o.meta !== '' && o.meta != null); const mal = ob.filter((o) => !o.fecha || !o.resp); const venc = ob.filter((o) => o.fecha && o.fecha < h); const m = mod(id); if (!m) return;
       if (mal.length) out.push({ st: 'warn', peso: 1, t: `Objetivos de «${m.nombre}» sin fecha o sin responsable (${mal.length})`, d: 'Un objetivo sin fecha ni responsable no se cumple.', zona: id });
       if (venc.length) out.push({ st: 'stop', peso: 1, t: `Objetivos de «${m.nombre}» con la fecha vencida (${venc.length})`, zona: id }); });
+    if (S.madurez360 && A.C360) Object.keys(A.C360).forEach((id) => { const m = mod(id); if (!m) return; let z = null; try { z = S.madurez360(id); } catch (e) { z = null; } if (z && z.score != null) out.push({ st: z.score >= 70 ? 'ok' : z.score >= 50 ? 'warn' : 'stop', peso: 1, t: `Madurez de la gestión en «${m.nombre}»: ${z.score}/100`, zona: id }); });
     S.allRisks().filter((r) => r.nivel >= 15).slice(0, 5).forEach((r) => out.push({ st: 'stop', peso: 1, t: 'Riesgo alto: ' + r.nombre, d: r.mitigacion || '', zona: r.mod }));
     return out;
   };
@@ -138,6 +143,13 @@
   const guardarCache = () => { lsSet(LSK(), cache); if (P() && P().saveData) P().saveData('nota', cache).catch(() => {}); };
   const datos = async (k, lsBase) => { let st = lsGet(P() && P().k ? P().k(lsBase) : lsBase); if (P() && P().loadData) { try { const r = await P().loadData(k); if (r) st = r; } catch (e) { /* local */ } } return st; };
   A.nota = A.nota || {};
+  A.nota.REGLA = 'Mismo criterio en toda Atalaya: cada comprobación (indicadores con semáforo, datos que faltan o de ejemplo, objetivos, plan, riesgos altos y madurez de la gestión) vale verde 1, ámbar 0,5 y rojo 0 según su peso; la nota es esa proporción sobre 100 (58/100 = 5,8/10). La nota de la empresa es la media de los mundos de su plan.';
+  A.nota.puntuar = puntuar;
+  A.nota.estrategia = () => estDesdeMotor();
+  A.nota.personas = (st) => evalPersonas(st);
+  // Nota de un conjunto de módulos del sistema estratégico (un área, un módulo o todos)
+  A.nota.modulos = (ids) => { const p = estDesdeMotor(); if (!p) return null; const set = ids ? new Set([].concat(ids)) : null; return puntuar(set ? p.filter((x) => set.has(x.zona)) : p); };
+  A.nota.desglose = (r) => (r ? `${r.total} comprobaciones: ${r.verdes} en verde, ${r.ambar} en ámbar y ${r.rojos} en rojo` : 'sin comprobaciones');
   A.nota.calcular = async () => {
     await cargarCache();
     const mundos = {};
@@ -177,7 +189,7 @@
     if (!chip || !ultima) return;
     const m = ultima.actual && ultima.mundos[ultima.actual];
     chip.innerHTML = `<span class="nt-n ${stDeNota(ultima.global)}">${fmt(ultima.global)}</span><small>Empresa</small>${m ? `<span class="nt-sep"></span><span class="nt-n ${stDeNota(m.nota)}">${fmt(m.nota)}</span><small>Este mundo</small>` : ''}`;
-    chip.title = 'Nota de la empresa del 1 al 10: toque para ver los puntos a tratar';
+    chip.title = 'Nota de la empresa de 0 a 10 (media de los mundos) y nota de este mundo, con el mismo criterio que el cuadro de mando y los informes: toque para ver los puntos a tratar';
   };
   const pintarPanel = () => {
     if (!panel || !ultima) return;
