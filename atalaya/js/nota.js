@@ -163,6 +163,9 @@
         if (k === 'mesa') { puntos = evalMesa(await datos('agenda', 'atalaya.agenda.v1')); vivo = true; }
       } catch (e) { console.error(e); puntos = null; }
       if (puntos && (k === 'simulador' || k === 'estrategia')) { cache[k] = { puntos, fecha: new Date().toISOString() }; }
+      // Con datos reales, una nota guardada antes de pasar a datos reales es del ejemplo: no se usa
+      const ea = P() && P().modoReal && P().modoReal() ? P().empresas.activa() : null, desde = ea && (ea.datosRealesTs || ea.datosRealesDesde);
+      if (desde && cache[k] && String(cache[k].fecha || '') < desde) delete cache[k];
       if (!puntos && cache[k]) puntos = cache[k].puntos;
       mundos[k] = { n: MUNDOS[k].n, nota: notaDe(puntos), puntos: puntos || [], vivo, fecha: (cache[k] && cache[k].fecha) || null };
     }

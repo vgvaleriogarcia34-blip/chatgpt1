@@ -208,7 +208,7 @@
   P.modoReal = () => { const e = P.empresas && P.empresas.activa && P.empresas.activa(); return !!(e && e.datosReales); };
   P.activarModoReal = async (origen) => {
     const e = P.empresas && P.empresas.activa && P.empresas.activa(); if (!e || e.datosReales) return false;
-    await P.empresas.editar(e.id, { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesOrigen: origen || 'auditoria' });
+    await P.empresas.editar(e.id, { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesTs: new Date().toISOString(), datosRealesOrigen: origen || 'auditoria' });
     // El simulador guardado de ejemplo se pone a cero (los demás mundos se vacían al abrirlos)
     try { const sim = await P.loadData('simulador'); if (A.simEsEjemplo(sim)) await P.saveData('simulador', A.simVacio(e.nombre && e.nombre !== 'Mi empresa' ? e.nombre : '', (sim && sim.sector) || e.sector || 'industria')); } catch (x) { /* sin simulador */ }
     try { window.dispatchEvent(new CustomEvent('atalaya:modoreal', { detail: e })); } catch (x) { /* sin eventos */ }
@@ -555,6 +555,12 @@
         <p class="small muted" style="margin:0">Quién es dueño de la empresa y en qué proporción: personas, familias o sociedades. Sirve para la valoración, la sucesión y la vista de grupo.</p>
         <div class="ef-socios">${(d.socios.length ? d.socios : [{ nombre: '', pct: '' }]).map(socioRow).join('')}</div>
         <div class="row"><button type="button" class="btn ghost small" data-sadd>Añadir socio</button><span class="small" data-stot></span></div>
+        <h4>Datos con los que se trabaja</h4>
+        <div class="ef-datos">
+          <label class="ef-modo"><input type="radio" name="modoDatos" value="ejemplo" ${d.datosReales ? '' : 'checked'}><span><b>Trabajar con datos ficticios</b><small>Sirven de ejemplo para conocer la herramienta: los mundos sin datos muestran una empresa ficticia.</small></span></label>
+          <label class="ef-modo"><input type="radio" name="modoDatos" value="real" ${d.datosReales ? 'checked' : ''}><span><b>Trabajar con datos reales</b><small>Solo cuenta lo que se adjunta: transcripciones y documentación. Cada mundo con el que no se haya trabajado se pone a cero y pide sus datos; lo ya trabajado se conserva.</small></span></label>
+          ${d.datosReales && d.datosRealesDesde ? `<small class="muted">Con datos reales desde el ${new Date(d.datosRealesDesde + 'T12:00:00').toLocaleDateString('es-ES')}.</small>` : ''}
+        </div>
         <p class="small" data-msg style="color:var(--stop)"></p>
         <div class="row"><button class="btn solid" type="submit">${opts.nuevo ? 'Dar de alta' : 'Guardar la ficha'}</button><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
       </form>`;
@@ -576,8 +582,13 @@
         const v = (n) => (f[n] ? f[n].value.trim() : undefined);
         const datos = { nombre: v('nombre'), forma: v('forma'), cif: v('cif').toUpperCase(), constitucion: v('constitucion') ? +v('constitucion') : '', sector: v('sector'), actividad: v('actividad'), provincia: v('provincia'), plantilla: v('plantilla') ? +v('plantilla') : '', socios };
         if (f.contacto) datos.contacto = v('contacto');
+        const quiereReal = (f.querySelector('[name=modoDatos]:checked') || {}).value === 'real', cambiaModo = quiereReal !== !!d.datosReales;
+        if (opts.nuevo && quiereReal) Object.assign(datos, { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesTs: new Date().toISOString(), datosRealesOrigen: 'ficha' });
         if (f.rol) { datos.rol = v('rol'); datos.matriz = datos.rol === 'holding' ? '' : v('matriz'); datos.participacion = datos.rol === 'holding' ? 100 : +(v('participacion') || 100); }
-        try { const r = opts.nuevo ? await P.empresas.crear(datos) : await P.empresas.editar(e.id, datos); try { window.dispatchEvent(new CustomEvent('atalaya:empresa', { detail: r })); } catch (x) { /* sin eventos */ } close(r); }
+        if (!opts.nuevo && cambiaModo && !confirm(quiereReal ? `¿Trabajar con datos reales en ${datos.nombre || 'esta empresa'}?\n\nNingún mundo usará datos de ejemplo: los que no se hayan trabajado se ponen a cero y piden sus datos (transcripciones y documentación). Lo ya trabajado se conserva.` : `¿Volver a permitir datos ficticios en ${datos.nombre || 'esta empresa'}?\n\nLos datos reales ya subidos se conservan; los mundos sin datos podrán mostrar el ejemplo.`)) return;
+        try { const r = opts.nuevo ? await P.empresas.crear(datos) : await P.empresas.editar(e.id, datos);
+          if (!opts.nuevo && cambiaModo) { const act = P.empresas.activa(); if (act && act.id === e.id) { if (quiereReal) await P.activarModoReal('ficha'); else await P.desactivarModoReal(); setTimeout(() => location.reload(), 50); } else await P.empresas.editar(e.id, quiereReal ? { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesTs: new Date().toISOString(), datosRealesOrigen: 'ficha' } : { datosReales: false }); }
+          try { window.dispatchEvent(new CustomEvent('atalaya:empresa', { detail: r })); } catch (x) { /* sin eventos */ } close(r); }
         catch (x) { f.querySelector('[data-msg]').textContent = x.message; }
       };
     });

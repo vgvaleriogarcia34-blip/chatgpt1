@@ -171,11 +171,26 @@
     });
   };
   /* Trae el trabajo guardado en los otros mundos de la empresa activa */
+  /* ---------- Datos reales: nada de ejemplo en la mesa ---------- */
+  const real = () => !!(P() && P().modoReal && P().modoReal());
+  // El plan de empresa de ejemplo del sistema estratégico (misión y acciones de la empresa ficticia)
+  const PLAN_EJ = ['Fabricar soluciones fiables para nuestros clientes industriales', 'Renegociar tarifas con Distribuciones Norte'];
+  const planEjemplo = (pl) => !!(pl && (pl.__vacio || PLAN_EJ.some((x) => String(pl.mision || '').includes(x) || (pl.acciones || []).some((a) => String(a.accion || '').includes(x)))));
+  const limpiarEjemplos = async () => {
+    if (!real()) return 0;
+    const loc = (k) => { try { return JSON.parse(localStorage.getItem(P() && P().k ? P().k(k) : k)); } catch (e) { return null; } };
+    const est = (P() && (await P().loadData('estrategia').catch(() => null))) || loc('atalaya.estrategia.v1');
+    const fuera = (t) => t.ejemplo || (t.oid && /^est:plan:/.test(t.oid) && (!est || planEjemplo(est.plan) || !((est.plan && est.plan.acciones) || []).some((a) => 'est:plan:' + a.accion === t.oid)));
+    const n0 = ST.tareas.length; ST.tareas = ST.tareas.filter((t) => !fuera(t));
+    const m0 = ST.metas.length; ST.metas = ST.metas.filter((m) => !m.ejemplo);
+    const n = n0 - ST.tareas.length + m0 - ST.metas.length; if (n) guardar(); return n;
+  };
+
   const importar = async () => {
     const items = [];
     const loc = (k) => { try { return JSON.parse(localStorage.getItem(P() && P().k ? P().k(k) : k)); } catch (e) { return null; } };
     const est = (P() && (await P().loadData('estrategia'))) || loc('atalaya.estrategia.v1');
-    if (est && est.plan && Array.isArray(est.plan.acciones)) est.plan.acciones.filter((a) => a.accion && a.estado !== 'Hecha').forEach((a) => items.push({ t: a.accion, area: a.area, resp: a.responsable, fecha: a.fin || '', mundo: 'estrategia', origen: 'Plan de empresa', oid: 'est:plan:' + a.accion, impacto: 4 }));
+    if (est && est.plan && Array.isArray(est.plan.acciones) && !(real() && planEjemplo(est.plan))) est.plan.acciones.filter((a) => a.accion && a.estado !== 'Hecha').forEach((a) => items.push({ t: a.accion, area: a.area, resp: a.responsable, fecha: a.fin || '', mundo: 'estrategia', origen: 'Plan de empresa', oid: 'est:plan:' + a.accion, impacto: 4 }));
     if (est && est.c360) Object.keys(est.c360).forEach((mod) => (est.c360[mod].obj || []).filter((o) => o.meta !== '' && o.meta != null).forEach((o) => items.push({ t: `Objetivo: ${o.dir === 'bajar' ? 'bajar' : 'subir'} «${o.k}» de ${o.actual} a ${o.meta}${o.u ? ' ' + o.u : ''}`, area: 'Estrategia', fecha: o.fecha || '', mundo: 'estrategia', origen: 'Objetivo del módulo ' + mod + ' · conviértalo en meta SMART', oid: 'est:obj:' + mod + ':' + o.k, impacto: 5 })));
     const per = P() && P().puede && P().puede('personas') && ((await P().loadData('personas')) || loc('atalaya.personas.v1'));
     if (per && Array.isArray(per.personas)) per.personas.forEach((c) => (c.tareas || []).filter((t) => t.acuerdo && t.acuerdo.revision).forEach((t) => { const jefe = per.personas.find((x) => x.id === c.responsable); items.push({ t: `Revisar el acuerdo de liderazgo con ${c.nombre} en «${t.nombre}»`, area: 'Personas', fecha: t.acuerdo.revision, resp: jefe ? jefe.nombre : '', mundo: 'personas', origen: 'Liderazgo a medida', oid: 'per:acu:' + c.id + ':' + t.id, impacto: 3, tipo: 'seguimiento', contacto: 'Equipo' }); }));
@@ -473,8 +488,66 @@
   };
 
   /* ---------- Navegación ---------- */
-  const TABS = [['hoy', 'Hoy'], ['bandeja', 'Bandeja'], ['prioridades', 'Prioridades 20/80'], ['agenda', 'Agenda semanal'], ['metas', 'Metas SMART'], ['repetitivas', 'Repetitivas y semana ideal'], ['reuniones', 'Reuniones y delegación']];
-  const VISTAS = { hoy: vHoy, bandeja: vBandeja, prioridades: vPrior, agenda: vAgenda, metas: vMetas, repetitivas: vRep, reuniones: vReu };
+
+  /* ---------- OBJETIVOS POR PRIORIDAD (desde los datos reales) ----------
+     Lee lo que hay de verdad en la empresa (objetivos e hitos de la auditoría, causas confirmadas, objetivos del
+     sistema estratégico y puntos en rojo de los mundos), lo ordena por los principios de la empresa (liquidez,
+     rentabilidad, crecimiento y organización) y lo aterriza en la estructura de la mesa: meta SMART con su plan,
+     acciones en la bandeja como actividad clave, tiempo protegido en la semana ideal y revisión semanal. */
+  const PRIN = { liquidez: [0, 'Liquidez'], rentabilidad: [1, 'Rentabilidad'], crecimiento: [2, 'Crecimiento'], organizacion: [3, 'Organización'] };
+  const prinTema = { caja: 'liquidez', cobros: 'liquidez', beneficio: 'rentabilidad', procesos: 'rentabilidad', ventas: 'crecimiento', horas: 'organizacion', equipo: 'organizacion', gobierno: 'organizacion', personal: 'organizacion' };
+  const prinArea = { fin: 'liquidez', leg: 'liquidez', ope: 'rentabilidad', com: 'rentabilidad', gob: 'organizacion', per: 'organizacion', inf: 'organizacion', tie: 'organizacion' };
+  const prinMod = (id) => (/^(dinero|tesoreria|cobros|presupuesto|impuestos|valoracion)$/.test(id) ? 'liquidez' : /^(margen|ventas|comercial|compras|logistica|tiempos|lean)$/.test(id) ? 'rentabilidad' : /^(marketing|expansion|mercado)$/.test(id) ? 'crecimiento' : 'organizacion');
+  const AREA_P = { liquidez: 'Finanzas', rentabilidad: 'Operaciones', crecimiento: 'Comercial', organizacion: 'Dirección' };
+  const CONTRATO = /(componente variable|parte variable|honorari|contrato|cl[aá]usula|propuesta (comercial|econ[oó]mica)|pago (condicionado|variable|fijo))/i;
+  let cands = null;
+  const leerReales = async () => {
+    const out = [], ld = async (k) => { try { return await P().loadData(k); } catch (e) { return null; } };
+    const iv = await ld('intervencion'), est = await ld('estrategia');
+    // 1. Objetivos del empresario en la auditoría (con sus hitos)
+    ((iv && iv.objetivos) || []).filter((o) => (o.especifica || o.dice) && !CONTRATO.test((o.dice || '') + ' ' + (o.especifica || ''))).forEach((o, i) => {
+      const smartN = [(o.especifica || '').split(/\s+/).length >= 4, !!(o.indicador && String(o.valor || '').trim()), !!o.solo, !!(o.beneficio && o.merece === 'si'), !!o.fecha].filter(Boolean).length;
+      const pr = prinTema[o.tema] || 'organizacion';
+      out.push({ oid: 'iv-obj:' + o.id, fuente: 'Auditoría integral · objetivo O' + (i + 1), pr, peso: 3, smartN, area: AREA_P[pr], m: { objetivo: o.dice || o.especifica, especifica: o.especifica || '', indicador: o.indicador || '', actual: o.actual || '', valor: o.valor || '', unidad: o.unidad || '', fecha: o.fecha || '', responsable: o.responsable || '', solo: !!o.solo, beneficio: o.beneficio || '', contras: o.contras || '', merece: o.merece || '' }, acciones: (o.hitos || []).filter((h) => h.t).map((h) => ({ t: h.t + (h.resp ? ' · ' + h.resp : ''), fecha: h.fecha || '', revisada: '', hecha: h.hecho || '' })).concat((o.como || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, fecha: '', revisada: '', hecha: '' }))) });
+    });
+    // 2. Causas confirmadas en la auditoría: cerrarlas es un objetivo de la empresa
+    ((iv && iv.causas) || []).filter((c) => c.estado === 'confirmada').forEach((c) => { const pr = prinArea[c.area] || 'organizacion'; out.push({ oid: 'iv-causa:' + c.id, fuente: 'Auditoría integral · causa confirmada', pr, peso: 2, smartN: 1, area: AREA_P[pr], m: { objetivo: 'Resolver: ' + c.t, especifica: '', indicador: '', fecha: '' }, acciones: ((iv.plan && iv.plan.acciones) || []).filter((a) => (a.causas || []).includes(c.id) || (a.causas || []).includes(c.ref)).slice(0, 6).map((a) => ({ t: a.t, fecha: a.fecha || '', revisada: '', hecha: a.estado === 'hecha' ? M.hoy() : '' })) }); });
+    // 3. Objetivos del sistema estratégico con meta (los pone la empresa)
+    if (est && est.c360) Object.keys(est.c360).forEach((mod) => (est.c360[mod].obj || []).filter((o) => o.meta !== '' && o.meta != null).forEach((o, i) => { const pr = prinMod(mod); out.push({ oid: 'est-obj:' + mod + ':' + i, fuente: 'Sistema estratégico · ' + mod, pr, peso: 2, smartN: [o.k, o.meta !== '', o.fecha, o.resp].filter(Boolean).length, area: AREA_P[pr], m: { objetivo: `${o.dir === 'bajar' ? 'Bajar' : 'Subir'} «${o.k}»`, especifica: '', indicador: o.k, actual: o.actual != null ? String(o.actual) : '', valor: String(o.meta), unidad: o.u || '', fecha: o.fecha || '', responsable: o.resp || '' }, acciones: [] }); }));
+    if (est && est.plan && !planEjemplo(est.plan)) (est.plan.objetivos || []).filter((o) => o.nombre).forEach((o) => { out.push({ oid: 'est-plan:' + (o.id || o.nombre), fuente: 'Plan de empresa', pr: /caja|tesorer|liquidez|deuda/i.test(o.nombre + o.indicador) ? 'liquidez' : /margen|ebitda|rentab|beneficio/i.test(o.nombre + o.indicador) ? 'rentabilidad' : /venta|crec|cliente|mercado/i.test(o.nombre + o.indicador) ? 'crecimiento' : 'organizacion', peso: 2, smartN: [o.indicador, o.meta, o.fecha].filter(Boolean).length, m: { objetivo: o.nombre, indicador: o.indicador || '', actual: o.actual != null ? String(o.actual) : '', valor: o.meta != null ? String(o.meta) : '', fecha: o.fecha || '' }, acciones: (est.plan.acciones || []).filter((a) => a.accion && a.estado !== 'Hecha').slice(0, 0) }); });
+    // 4. Puntos en rojo de los mundos (sin los que solo piden quitar datos de ejemplo)
+    if (A.nota && A.nota.calcular) { try { const u = await A.nota.calcular(); Object.keys(u.mundos).forEach((k) => { if (k === 'mesa') return; u.mundos[k].puntos.filter((x) => x.st === 'stop' && !/ejemplo/i.test(x.t)).slice(0, 4).forEach((x) => { const pr = k === 'simulador' ? 'liquidez' : k === 'personas' ? 'organizacion' : prinMod(x.zona || ''); out.push({ oid: 'nota:' + k + ':' + x.t, fuente: (u.mundos[k].n || k) + ' · en rojo', pr, peso: 1, smartN: 0, area: AREA_P[pr], m: { objetivo: 'Corregir: ' + x.t.replace(/^En rojo: /, ''), especifica: '', fecha: '' }, acciones: [] }); }); }); } catch (e) { /* sin nota */ } }
+    out.forEach((c) => { c.area = c.area || AREA_P[c.pr]; c.score = (3 - PRIN[c.pr][0]) * 10 + c.peso * 3 + c.smartN; });
+    // Primero los objetivos de la empresa (los del empresario, después los del sistema estratégico y las causas confirmadas) y al final las correcciones; dentro de cada grupo, por principio y por definición
+    out.sort((a, b) => b.peso - a.peso || PRIN[a.pr][0] - PRIN[b.pr][0] || b.smartN - a.smartN);
+    return out;
+  };
+  // Aterrizar un objetivo: meta SMART (plantilla de meta) + acciones en la bandeja + semana ideal + revisión semanal
+  const aterrizar = (c, rank) => {
+    let m = ST.metas.find((x) => x.oid === c.oid);
+    const base = Object.assign({ area: c.area, origen: c.fuente, oid: c.oid, prioridad: rank, seguimiento: 'Cada viernes, en la revisión semanal de metas' }, c.m);
+    if (m) { Object.keys(base).forEach((k) => { if (base[k] !== '' && base[k] != null && (!m[k] || k === 'prioridad')) m[k] = base[k]; }); } else m = nuevaMeta(Object.assign(base, { acciones: c.acciones.length ? c.acciones.map((a) => Object.assign({}, a)) : [{ t: '', fecha: '', revisada: '', hecha: '' }] }));
+    let n = 0;
+    (m.acciones || []).filter((a) => a.t).forEach((a) => { if (a.tareaId && tarea(a.tareaId)) return; const t = { id: M.uid(), t: a.t, entrada: M.hoy(), fecha: a.revisada || a.fecha || '', tipo: 'importante', estado: a.hecha ? 'hecha' : 'pendiente', impacto: 5, esfuerzo: 3, clave: true, area: m.area, resp: m.responsable, mundo: 'meta', metaId: m.id, origen: 'Meta: ' + (m.especifica || m.objetivo) }; ST.tareas.push(t); a.tareaId = t.id; n++; });
+    if (!ST.repetitivas.some((r) => r.metaId === m.id)) ST.repetitivas.push({ id: M.uid(), t: `Revisar el avance de la meta ${numMeta(m)}: ${m.indicador || m.objetivo}`, freq: 'semanal', hora: '12:00', dias: [5], dia: 1, mes: 1, clave: true, dur: 15, hechas: {}, metaId: m.id });
+    return n;
+  };
+  const protegerTiempo = () => { if (ST.semana.some((b) => b.tipo === 'metas')) return false; [2, 4].forEach((d) => ST.semana.push({ id: M.uid(), dia: d, desde: '09:00', hasta: '11:00', t: 'Metas prioritarias', tipo: 'metas' })); return true; };
+  const vObjetivos = (host) => {
+    if (!cands) { host.innerHTML = '<div class="glass pad"><p class="small muted" style="margin:0">Leyendo los datos de la empresa…</p></div>'; leerReales().then((l) => { cands = l; if (tab === 'objetivos') render(); }).catch((e) => { host.innerHTML = `<div class="alert stop">${esc(e.message)}</div>`; }); return; }
+    const ya = new Set(ST.metas.map((m) => m.oid).filter(Boolean)), w0 = lunes(M.hoy()), w6 = sumar(w0, 6);
+    const semanaL = ST.tareas.filter((t) => t.mundo === 'meta' && t.estado !== 'hecha' && t.fecha && t.fecha <= w6).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    host.innerHTML = `<div class="glass pad stack"><div class="row"><div><div class="eyebrow">Objetivos por prioridad · desde los datos reales</div><small class="muted">${real() ? 'Esta empresa trabaja con datos reales: aquí solo entra lo que viene de sus transcripciones, documentos y datos subidos; nada de ejemplo.' : 'Esta empresa admite datos de ejemplo; para trabajar solo con lo adjuntado, pase a datos reales en la ficha de la empresa.'} Orden: primero la liquidez, después la rentabilidad, el crecimiento y la organización; dentro de cada uno, lo que viene del empresario y lo que está mejor definido.</small></div><span class="spacer"></span><button class="btn ghost small" id="obRe">Volver a leer</button></div>
+      ${cands.length ? `<div class="table-wrap"><table class="ms-tab"><thead><tr><th></th><th>#</th><th style="text-align:left">Objetivo</th><th>Principio</th><th style="text-align:left">Fuente</th><th>Definición SMART</th><th>Plan</th><th>En la mesa</th></tr></thead><tbody>${cands.map((c, i) => `<tr data-c="${i}"><td><input type="checkbox" data-sel ${ya.has(c.oid) ? 'checked disabled' : c.peso >= 2 ? 'checked' : ''}></td><td>${i + 1}</td><td style="text-align:left"><b>${esc(c.m.especifica || c.m.objetivo)}</b>${c.m.indicador ? `<br><small class="muted">${esc(c.m.indicador)}: ${esc(c.m.actual || '?')} → ${esc(c.m.valor || '?')} ${esc(c.m.unidad || '')}${c.m.fecha ? ' · ' + fCorta(c.m.fecha) : ''}</small>` : ''}</td><td>${PRIN[c.pr][1]}</td><td style="text-align:left"><small>${esc(c.fuente)}</small></td><td>${c.smartN}/5</td><td>${c.acciones.length ? c.acciones.length + ' hitos' : '—'}</td><td>${ya.has(c.oid) ? chip('Meta ' + numMeta(ST.metas.find((m) => m.oid === c.oid)), 'ok') : '—'}</td></tr>`).join('')}</tbody></table></div>
+        <div class="row"><button class="btn solid" id="obAt">Crear las metas SMART y aterrizarlas</button><small class="muted">Cada objetivo marcado pasa a una meta SMART con su plan (los hitos), sus acciones a la bandeja como actividad clave, una revisión semanal en las repetitivas y, si no lo hay, tiempo protegido para metas en la semana ideal (martes y jueves de 9 a 11).</small></div>`
+      : `<p class="small" style="margin:0">Todavía no hay datos reales de los que sacar objetivos. Llegan de la auditoría integral (objetivos del empresario y sus hitos, causas confirmadas), del sistema estratégico (objetivos con meta y plan de empresa) y de los puntos en rojo de los mundos.</p>`}</div>
+      <div class="glass pad stack"><div class="eyebrow">Objetivos de la semana</div>${semanaL.length ? `<ul class="ms-list">${semanaL.map((t) => filaTarea(t)).join('')}</ul>` : '<p class="small muted" style="margin:0">Sin acciones de metas para esta semana.</p>'}</div>`;
+    $('#obRe', host).onclick = () => { cands = null; render(); };
+    const b = $('#obAt', host); if (b) b.onclick = () => { const sel = $$('tr[data-c]', host).filter((tr) => { const x = $('[data-sel]', tr); return x.checked && !x.disabled; }).map((tr) => cands[+tr.dataset.c]); if (!sel.length) return toast('Marque al menos un objetivo.'); let n = 0; sel.forEach((c) => { n += aterrizar(c, cands.indexOf(c) + 1); }); const pt = protegerTiempo(); guardar(); render(); toast(`${sel.length} meta${sel.length > 1 ? 's' : ''} SMART creada${sel.length > 1 ? 's' : ''}, ${n} acci${n === 1 ? 'ón' : 'ones'} en la bandeja, revisión semanal${pt ? ' y tiempo protegido en la semana ideal' : ''}.`); };
+    wireTareas(host);
+  };
+  const TABS = [['hoy', 'Hoy'], ['objetivos', 'Objetivos por prioridad'], ['bandeja', 'Bandeja'], ['prioridades', 'Prioridades 20/80'], ['agenda', 'Agenda semanal'], ['metas', 'Metas SMART'], ['repetitivas', 'Repetitivas y semana ideal'], ['reuniones', 'Reuniones y delegación']];
+  const VISTAS = { hoy: vHoy, objetivos: vObjetivos, bandeja: vBandeja, prioridades: vPrior, agenda: vAgenda, metas: vMetas, repetitivas: vRep, reuniones: vReu };
   const toast = (t) => { $$('.ms-toast').forEach((x) => x.remove()); const d = document.createElement('div'); d.className = 'alert ok ms-toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 6000); };
   function render() {
     $('#msTabs').innerHTML = TABS.map(([k, n]) => `<button role="tab" data-t="${k}" aria-selected="${k === tab}">${n}${k === 'bandeja' ? ` <small>${pend().length}</small>` : k === 'metas' && ST.metas.length ? ` <small>${ST.metas.filter((m) => m.estado !== 'cumplida').length}</small>` : ''}</button>`).join('');
@@ -489,6 +562,7 @@
     const Pl = P();
     if (Pl) { const ok = await Pl.guard(); if (!ok) return; Pl.mountAccount($('#account')); if (Pl.empresas) await Pl.empresas.cargar(); }
     ST = await M.cargar();
+    const limpias = await limpiarEjemplos(); if (limpias) setTimeout(() => toast(`Datos reales: ${limpias} elemento${limpias > 1 ? 's' : ''} que venía${limpias > 1 ? 'n' : ''} de datos de ejemplo se ha${limpias > 1 ? 'n' : ''} quitado de la mesa.`), 800);
     const h = location.hash.replace('#', ''); if (VISTAS[h]) tab = h;
     // Una meta concreta pedida desde la nota de la empresa
     try { const mm = sessionStorage.getItem('atalaya.mesa.meta'); if (mm) { sessionStorage.removeItem('atalaya.mesa.meta'); if (ST.metas.some((x) => x.id === mm)) { tab = 'metas'; metaSel = mm; } } } catch (e) { /* nada */ }
