@@ -73,18 +73,27 @@
     return n;
   };
   /* Respuestas a las preguntas del guion desde las transcripciones */
+  /* La voz del consultor fuera de las respuestas.
+     Aunque la grabadora meta frases del consultor en el turno del empresario (pasa a menudo cuando hablan
+     seguido), cada respuesta se limpia frase a frase: fuera las preguntas, lo que explica o propone el consultor
+     (la sesión, la propuesta, la auditoría, «como os he comentado», «te explico»…) y la pregunta del guion leída. */
+  const VOZ_CONS = /(\?|¿|\b(como (os|te|le|les) (he|hemos) (comentado|dicho|explicado|contado)|(te|os|le|les) (explico|cuento|propongo|pregunto|recomiendo|comento)|vamos a (ver|trabajar|hacer|empezar|repasar|hablar|centrarnos)|lo que vamos a hacer|lo que (yo )?(veo|haria|recomiendo)|mi recomendacion|nuestro (metodo|trabajo|equipo|enfoque)|nuestra (metodologia|propuesta)|la (propuesta|auditoria|intervencion|metodologia)|esta (sesion|hora|reunion)|en la (sesion|primera sesion)|cuentame|dime|hablame|imaginate|piensa en|antes de empezar|business avance|el consultor|consultoria)\b)/;
+  const frasesR = (t) => (String(t || '').match(/[^.!?¿¡\n]+[.!?]*|[¿¡][^?!]+[?!]?/g) || []).map((x) => x.trim()).filter(Boolean);
+  const esDelConsultor = (f, q) => VOZ_CONS.test(norm(f)) || (q && parecido(q, f) >= 0.5);
+  const soloEmpresa = (t, q) => frasesR(t).filter((f) => !esDelConsultor(f, q)).join(' ').replace(/\s+/g, ' ').trim();
+  const descartada = (t) => { const d = S().sesion.descartadas || []; const n = norm(t); return d.some((x) => x && (n.includes(x) || x.includes(n.slice(0, 60)))); };
   const responderGuion = () => {
     const ST = S(), s = ST.sesion, trs = deMomento('primera'); s.respuestas = s.respuestas || {}; s.notas = s.notas || {}; s.hechas = s.hechas || {};
     let n = 0; const sin = [];
     D.GUION.forEach((b) => b.p.forEach((p, i) => {
-      const k = b.id + ':' + i; if (s.respuestas[k] && s.respuestas[k].origen === 'claude') return;
+      const k = b.id + ':' + i; if (s.respuestas[k] && s.respuestas[k].origen === 'claude') { if (citaDeEmpresa(s.respuestas[k].cita, trs) && !descartada(s.respuestas[k].t)) return; delete s.respuestas[k]; if (s.auto && s.auto[k]) delete s.notas[k]; }
       let mejor = null;
       trs.forEach((tr) => {
         const set = clientesDe(tr);
         // 1. El consultor hizo una pregunta parecida: la respuesta es lo que dice después el empresario
-        tr.turnos.forEach((x, j) => { if (set.has(x.h)) return; const sc = parecido(p.q, x.t); if (sc >= 0.34 && (!mejor || sc + 1 > mejor.sc)) { const resp = tr.turnos.slice(j + 1, j + 4).filter((y) => set.has(y.h)).slice(0, 2).map((y) => y.t).join(' '); if (resp.split(/\s+/).length >= 4) mejor = { sc: sc + 1, t: resp, tr: tr.id, conf: 'alta' }; } });
+        tr.turnos.forEach((x, j) => { if (set.has(x.h)) return; const sc = parecido(p.q, x.t); if (sc >= 0.34 && (!mejor || sc + 1 > mejor.sc)) { const sig = []; for (const y of tr.turnos.slice(j + 1, j + 4)) { if (!set.has(y.h)) break; sig.push(y.t); } const resp = soloEmpresa(sig.slice(0, 2).join(' '), p.q); if (resp.split(/\s+/).length >= 4 && !descartada(resp)) mejor = { sc: sc + 1, t: resp, tr: tr.id, conf: 'alta' }; } });
         // 2. Si no, lo que dice el empresario que más encaja con la pregunta y lo que hay que escuchar
-        if (!mejor || mejor.conf !== 'alta') { const claves = [...new Set(palabras(p.q + ' ' + p.oye))]; tr.turnos.filter((x) => set.has(x.h)).forEach((x) => { const w = new Set(palabras(x.t)), sc = claves.filter((c) => w.has(c)).length; if (sc >= 3 && (!mejor || sc / 10 > mejor.sc)) mejor = { sc: sc / 10, t: x.t, tr: tr.id, conf: sc >= 5 ? 'media' : 'baja' }; }); }
+        if (!mejor || mejor.conf !== 'alta') { const claves = [...new Set(palabras(p.q + ' ' + p.oye))]; tr.turnos.filter((x) => set.has(x.h)).forEach((x) => { const t = soloEmpresa(x.t, p.q); if (t.split(/\s+/).length < 4 || descartada(t)) return; const w = new Set(palabras(t)), sc = claves.filter((c) => w.has(c)).length; if (sc >= 3 && (!mejor || sc / 10 > mejor.sc)) mejor = { sc: sc / 10, t, tr: tr.id, conf: sc >= 5 ? 'media' : 'baja' }; }); }
       });
       if (mejor) {
         const corto = mejor.t.length > 420 ? mejor.t.slice(0, 417).replace(/\s\S*$/, '') + '…' : mejor.t;
@@ -97,14 +106,16 @@
     // Los objetivos no salen de una sola respuesta: los saca V.objSmart de todo lo que dice el empresario en las transcripciones del día
     return { n, sin };
   };
+  // Una cita es de la empresa si aparece en un turno del empresario y no suena a consultor
+  const citaDeEmpresa = (cita, trs) => { const c = norm(cita || '').replace(/[«»"…]/g, '').trim(); if (c.length < 8 || esDelConsultor(cita)) return false; return trs.some((tr) => { const set = clientesDe(tr); return tr.turnos.some((x) => set.has(x.h) && norm(x.t).includes(c.slice(0, 60))); }); };
   const responderConClaude = async () => {
     const v = A.ia ? await A.ia.asegurar('Responder el guion desde la transcripción') : null; if (!v) return null;
     const ST = S(), trs = deMomento('primera'); if (!trs.length) return null;
     const preguntas = D.GUION.flatMap((b) => b.p.map((p, i) => ({ k: b.id + ':' + i, q: p.q })));
-    const texto = trs.map((t) => `### ${t.nombre} (${t.fecha})\n` + t.turnos.map((x) => `${x.h}: ${x.t}`).join('\n')).join('\n\n').slice(0, 120000);
-    const j = await A.ia.json(`Eres consultor de pymes. Con las transcripciones de la primera sesión con el empresario, responde cada pregunta del guion con lo que él dijo, aunque la pregunta no se hiciera con esas palabras: busca la parte de la conversación que encaja con lo que pregunta. Respuesta breve en tercera persona y una cita literal que la respalde. Si no hay nada que responda una pregunta, no la incluyas. Devuelve JSON: {"respuestas":[{"k":"","respuesta":"","cita":""}]}.\nPreguntas: ${JSON.stringify(preguntas)}\n\nTranscripciones:\n${texto}`, { max: 16000 });
+    const texto = trs.map((t) => { const set = clientesDe(t); return `### ${t.nombre} (${t.fecha})\n` + t.turnos.map((x) => `${set.has(x.h) ? 'EMPRESA' : 'CONSULTOR'} (${x.h}): ${x.t}`).join('\n'); }).join('\n\n').slice(0, 120000);
+    const j = await A.ia.json(`Eres consultor de pymes. Con las transcripciones de la primera sesión con el empresario, responde cada pregunta del guion solo con lo que dijo la EMPRESA (las líneas marcadas EMPRESA). Nunca uses lo que dice el CONSULTOR: sus preguntas, explicaciones, la propuesta, la metodología o frases como «como os he comentado»; si la grabadora ha mezclado en una línea de EMPRESA frases que son claramente del consultor, ignóralas. La cita literal tiene que ser palabras de la EMPRESA. Responde aunque la pregunta no se hiciera con esas palabras: busca la parte de la conversación que encaja con lo que pregunta. Respuesta breve en tercera persona y una cita literal que la respalde. Si no hay nada que responda una pregunta, no la incluyas. Devuelve JSON: {"respuestas":[{"k":"","respuesta":"","cita":""}]}.\nPreguntas: ${JSON.stringify(preguntas)}\n\nTranscripciones:\n${texto}`, { max: 16000 });
     const s = ST.sesion; s.respuestas = s.respuestas || {}; s.auto = s.auto || {}; let n = 0;
-    ((j && j.respuestas) || []).forEach((r) => { if (!r.k || !r.respuesta) return; s.respuestas[r.k] = { t: r.respuesta, cita: r.cita || '', conf: 'alta', origen: 'claude' }; if (!s.notas[r.k] || s.auto[r.k]) { s.notas[r.k] = r.respuesta + (r.cita ? ` — «${r.cita}»` : ''); s.auto[r.k] = true; } s.hechas[r.k] = true; n++; });
+    ((j && j.respuestas) || []).forEach((r) => { if (!r.k || !r.respuesta || !citaDeEmpresa(r.cita, trs) || descartada(r.respuesta)) return; s.respuestas[r.k] = { t: r.respuesta, cita: r.cita || '', conf: 'alta', origen: 'claude' }; if (!s.notas[r.k] || s.auto[r.k]) { s.notas[r.k] = r.respuesta + (r.cita ? ` — «${r.cita}»` : ''); s.auto[r.k] = true; } s.hechas[r.k] = true; n++; });
     const todas = preguntas.map((x) => x.k); s.sinRespuesta = todas.filter((k) => !s.respuestas[k]);
     return n;
   };
@@ -224,7 +235,8 @@
     card.innerHTML = `<div class="row"><div><div class="eyebrow">Respuestas desde la transcripción</div><small class="muted">${con} de ${nPreg} preguntas con respuesta en ${pl(hay, 'transcripción', 'transcripciones')} de primera sesión. Las respuestas se escriben en las notas de cada pregunta (marcadas «De la transcripción») y puedes corregirlas.</small></div><span class="spacer"></span><button class="btn small" id="ivGRe">Volver a responder</button><button class="btn ghost small" id="ivGIA">Responder con Claude</button></div>
       ${sin.length ? `<div class="iv-sinr"><b>Sin respuesta en la transcripción (${sin.length}).</b> ¿Lo trabajaste antes con ellos o en otra conversación? Si es así, apúntalo; si no, pregúntalo en la próxima sesión.<ul>${sin.map((k) => `<li><a href="#" data-goq="${k}">${esc(qtext(k))}</a></li>`).join('')}</ul></div>` : '<p class="small" style="margin:0">Todas las preguntas tienen respuesta en la transcripción.</p>'}`;
     const first = host.querySelector(':scope > .glass'); if (first && first.nextSibling) host.insertBefore(card, first.nextSibling); else host.prepend(card);
-    $$('.iv-preg > li', host).forEach((li) => { const k = li.dataset.q, r = R[k]; const tag = document.createElement('small'); if (r) { tag.className = 'iv-autot ' + r.conf; tag.textContent = `De la transcripción${r.origen === 'claude' ? ' · con Claude' : ''} · confianza ${r.conf}`; } else if (sin.includes(k)) { tag.className = 'iv-autot sin'; tag.textContent = 'Sin respuesta en la transcripción: ¿lo trabajaste antes con ellos?'; } else return; const oye = li.querySelector('.iv-oye'); (oye || li.firstChild).after(tag); });
+    $$('.iv-preg > li', host).forEach((li) => { const k = li.dataset.q, r = R[k]; const tag = document.createElement('small'); if (r) { tag.className = 'iv-autot ' + r.conf; tag.textContent = `De la transcripción${r.origen === 'claude' ? ' · con Claude' : ''} · confianza ${r.conf}`; } else if (sin.includes(k)) { tag.className = 'iv-autot sin'; tag.textContent = 'Sin respuesta en la transcripción: ¿lo trabajaste antes con ellos?'; } else return; const oye = li.querySelector('.iv-oye'); (oye || li.firstChild).after(tag);
+      if (r) { const bx = document.createElement('button'); bx.type = 'button'; bx.className = 'btn ghost small iv-noemp'; bx.textContent = 'No es del empresario'; bx.title = 'Descarta esta respuesta (por ejemplo, porque lo dijo el consultor) y busca otra en la transcripción'; bx.onclick = (e) => { e.preventDefault(); e.stopPropagation(); s.descartadas = (s.descartadas || []).concat([norm(r.t).replace(/[«»"]/g, '').slice(0, 120)]).slice(-200); delete s.respuestas[k]; if (s.auto && s.auto[k]) { delete s.notas[k]; delete s.auto[k]; } const g = responderGuion(); guardar(); render(); toast(R[k] || (S().sesion.respuestas || {})[k] ? 'Descartada: hay otra respuesta del empresario para esta pregunta.' : 'Descartada: la pregunta queda sin respuesta para la próxima sesión.'); }; tag.after(bx); } });
     $$('[data-goq]', card).forEach((a) => (a.onclick = (e) => { e.preventDefault(); const li = host.querySelector(`.iv-preg > li[data-q="${a.dataset.goq}"]`); if (li) { li.scrollIntoView({ behavior: 'smooth', block: 'center' }); li.classList.add('iv-flash'); setTimeout(() => li.classList.remove('iv-flash'), 1600); const t = li.querySelector('[data-n]'); if (t) t.focus({ preventScroll: true }); } }));
     $('#ivGRe', card).onclick = () => { const r = responderGuion(); guardar(); render(); toast(`${r.n} preguntas con respuesta; ${r.sin.length} sin respuesta.`); };
     $('#ivGIA', card).onclick = async (e) => { e.target.disabled = true; e.target.textContent = 'Respondiendo…'; try { const n = await responderConClaude(); if (n == null) toast('Sin conexión con Claude: se mantienen las respuestas por reglas.'); else { guardar(); render(); toast(`${n} preguntas respondidas con Claude.`); } } catch (x) { toast('No se pudo: ' + x.message); } e.target.disabled = false; e.target.textContent = 'Responder con Claude'; };
