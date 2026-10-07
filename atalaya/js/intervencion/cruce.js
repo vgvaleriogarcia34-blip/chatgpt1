@@ -13,7 +13,10 @@
   const { D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, guardar, toast, empresa, render, ir, VISTAS, cte, fraseObj } = V.int;
   const S = () => V.int.st();
   const P = () => A.platform;
-  const MOMENTO = { primera: 'Primera sesión · antes de la propuesta', intervencion: 'Sesión de intervención · tras la aceptación' };
+  // Tres fases: el diagnóstico inicial (investigación previa a la venta, ligada a sus objetivos), la conversación
+  // comercial con el prospecto (propuesta, condiciones, cierre) y las sesiones de trabajo una vez aceptada.
+  const MOMENTO = { primera: 'Diagnóstico inicial · antes de la propuesta', comercial: 'Conversación comercial · propuesta y cierre', intervencion: 'Sesión de trabajo · tras la aceptación' };
+  const FASE_N = { primera: 'Diagnóstico inicial', comercial: 'Comercial', intervencion: 'Sesión de trabajo' };
 
   /* ================= TRANSCRIPCIONES ================= */
   const parecido = (a, b) => { const A1 = new Set(palabras(a)), B1 = palabras(b); if (!A1.size) return 0; return B1.filter((w) => A1.has(w)).length / A1.size; };
@@ -25,14 +28,16 @@
     const t = norm(tr.turnos.map((x) => x.t).join(' ')), ST = S();
     const marcas = ['como acordamos', 'la semana pasada', 'la ultima sesion', 'el plan', 'avance', 'avances', 'hemos hecho', 'tareas que', 'seguimiento', 'objetivo', 'el panel', 'la mesa de trabajo'].reduce((a, w) => a + (t.split(w).length - 1), 0);
     if (marcas >= 4) return 'intervencion';
+    const com = ['propuesta', 'presupuesto', 'honorarios', 'precio', 'firmar', 'cuotas', 'variable', 'condiciones', 'inversion en la consultoria', 'cuanto cuesta'].reduce((a, w) => a + (t.split(w).length - 1), 0);
+    if (com >= 5) return 'comercial';
     const aceptada = ST.propuesta && ST.propuesta.generada && ST.plan.acciones.length;
     return aceptada && ST.transcripciones.some((x) => x !== tr && (x.momento || 'primera') === 'primera') ? 'intervencion' : 'primera';
   };
-  const nuevaTr = (nombre, texto, fecha) => {
+  const nuevaTr = (nombre, texto, fecha, fase) => {
     const p = E.parse(texto); if (!p.turnos.length) return null;
     const clientes = E.clientePorDefecto(p.hablantes, S().sesion.consultor || (A.platform && A.platform.user && A.platform.user.nombre) || '', p);
     const t = { id: uid(), nombre: nombre || 'Sesión ' + fCorta(hoy()), fecha: fecha || hoy(), turnos: p.turnos, hablantes: p.hablantes, clientes };
-    t.analisis = E.analizar(p, clientes); t.momento = adivinarMomento(t);
+    t.analisis = E.analizar(p, clientes); t.momento = MOMENTO[fase] ? fase : adivinarMomento(t); t.faseManual = !!MOMENTO[fase];
     S().transcripciones.push(t); return t;
   };
   const fechaDelNombre = (n) => { const m = String(n).match(/(20\d{2})[-_.]?(\d{2})[-_.]?(\d{2})/) || String(n).match(/(\d{2})[-_.](\d{2})[-_.](20\d{2})/); if (!m) return ''; return m[1].length === 4 ? `${m[1]}-${m[2]}-${m[3]}` : `${m[3]}-${m[2]}-${m[1]}`; };
@@ -93,14 +98,14 @@
         // 1. El consultor hizo una pregunta parecida: la respuesta es lo que dice después el empresario
         tr.turnos.forEach((x, j) => { if (set.has(x.h)) return; const sc = parecido(p.q, x.t); if (sc >= 0.34 && (!mejor || sc + 1 > mejor.sc)) { const sig = []; for (const y of tr.turnos.slice(j + 1, j + 4)) { if (!set.has(y.h)) break; sig.push(y.t); } const resp = soloEmpresa(sig.slice(0, 2).join(' '), p.q); if (resp.split(/\s+/).length >= 4 && !descartada(resp)) mejor = { sc: sc + 1, t: resp, tr: tr.id, conf: 'alta' }; } });
         // 2. Si no, lo que dice el empresario que más encaja con la pregunta y lo que hay que escuchar
-        if (!mejor || mejor.conf !== 'alta') { const claves = [...new Set(palabras(p.q + ' ' + p.oye))]; tr.turnos.filter((x) => set.has(x.h)).forEach((x) => { const t = soloEmpresa(x.t, p.q); if (t.split(/\s+/).length < 4 || descartada(t)) return; const w = new Set(palabras(t)), sc = claves.filter((c) => w.has(c)).length; if (sc >= 3 && (!mejor || sc / 10 > mejor.sc)) mejor = { sc: sc / 10, t, tr: tr.id, conf: sc >= 5 ? 'media' : 'baja' }; }); }
+        if (!mejor || mejor.conf !== 'alta') { const claves = [...new Set(palabras(p.q + ' ' + p.oye))]; tr.turnos.filter((x) => set.has(x.h)).forEach((x) => { const t = soloEmpresa(x.t, p.q); if (t.split(/\s+/).length < 4 || descartada(t)) return; const w = new Set(palabras(t)), sc = claves.filter((c) => w.has(c)).length; if (sc >= 5 && (!mejor || sc / 10 > mejor.sc)) mejor = { sc: sc / 10, t, tr: tr.id, conf: 'media' }; }); }
       });
       if (mejor) {
         const corto = mejor.t.length > 420 ? mejor.t.slice(0, 417).replace(/\s\S*$/, '') + '…' : mejor.t;
         s.respuestas[k] = { t: corto, tr: mejor.tr, conf: mejor.conf, origen: 'transcripcion' };
         if (!s.notas[k] || s.auto && s.auto[k]) { s.notas[k] = '«' + corto + '»'; s.auto = s.auto || {}; s.auto[k] = true; }
         s.hechas[k] = true; n++;
-      } else { if (s.respuestas[k] && s.respuestas[k].origen === 'transcripcion') delete s.respuestas[k]; sin.push(k); }
+      } else { if (s.respuestas[k] && s.respuestas[k].origen === 'transcripcion') delete s.respuestas[k]; if (s.auto && s.auto[k]) { delete s.notas[k]; delete s.auto[k]; s.hechas[k] = false; } sin.push(k); }
     }));
     s.sinRespuesta = sin;
     // Los objetivos no salen de una sola respuesta: los saca V.objSmart de todo lo que dice el empresario en las transcripciones del día
@@ -205,14 +210,16 @@
     escucha0(host);
     tarjetaDatos(host);
     const ST = S(), f = $('#ivFile', host);
+    const fase = () => { const x = $('#ivFase', host); return x ? x.value : 'primera'; };
+    if (f) { const lb = f.closest('label'); if (lb && !$('#ivFase', host)) lb.insertAdjacentHTML('beforebegin', `<label class="small iv-fase">Fase<select class="input" id="ivFase">${Object.keys(MOMENTO).map((k) => `<option value="${k}" ${k === (S().faseSubida || 'primera') ? 'selected' : ''}>${esc(MOMENTO[k])}</option>`).join('')}<option value="auto">Que lo decida Atalaya por el contenido</option></select></label>`); const fs = $('#ivFase', host); if (fs) fs.onchange = () => { S().faseSubida = fs.value; }; }
     if (f) { f.multiple = true; const lab = f.closest('label'); if (lab && lab.firstChild && lab.firstChild.nodeType === 3) lab.firstChild.textContent = 'Subir archivos (uno o varios)';
-      f.onchange = async (e) => { const files = [...e.target.files], nuevas = []; for (const fl of files) { try { const t = nuevaTr(fl.name.replace(/\.[^.]+$/, ''), await E.leerArchivo(fl), fechaDelNombre(fl.name)); if (t) nuevas.push(t); else toast(`«${fl.name}»: no tiene texto.`); } catch (x) { toast(`«${fl.name}»: ${x.message}`); } } if (!nuevas.length) return; const r = V.cruce.procesar(nuevas); render(); toast(`${pl(nuevas.length, 'transcripción analizada', 'transcripciones analizadas')}${r.length ? ': ' + r.join('; ') : ''}. Revisa el momento de cada una.`); }; }
-    const ta = $('#ivTrAdd', host); if (ta) { const o = ta.onclick; ta.onclick = () => { const n0 = ST.transcripciones.length; o(); const nuevas = S().transcripciones.slice(n0); if (nuevas.length) { const r = V.cruce.procesar(nuevas); render(); if (r.length) toast(r.join('; ') + '.'); } }; }
+      f.onchange = async (e) => { const files = [...e.target.files], nuevas = []; for (const fl of files) { try { const t = nuevaTr(fl.name.replace(/\.[^.]+$/, ''), await E.leerArchivo(fl), fechaDelNombre(fl.name), fase()); if (t) nuevas.push(t); else toast(`«${fl.name}»: no tiene texto.`); } catch (x) { toast(`«${fl.name}»: ${x.message}`); } } if (!nuevas.length) return; const r = V.cruce.procesar(nuevas); render(); toast(`${pl(nuevas.length, 'transcripción analizada', 'transcripciones analizadas')}${r.length ? ': ' + r.join('; ') : ''}. Revisa el momento de cada una.`); }; }
+    const ta = $('#ivTrAdd', host); if (ta) { const o = ta.onclick; ta.onclick = () => { const n0 = ST.transcripciones.length, fz = fase(); o(); const nuevas = S().transcripciones.slice(n0); nuevas.forEach((t) => { t.momento = MOMENTO[fz] ? fz : adivinarMomento(t); t.faseManual = !!MOMENTO[fz]; }); if (nuevas.length) { const r = V.cruce.procesar(nuevas); render(); if (r.length) toast(r.join('; ') + '.'); } }; }
     if (!ST.transcripciones.length) return;
     const c1 = conjunta('primera'), c2 = deMomento('intervencion');
     const sec = document.createElement('section'); sec.className = 'glass pad stack iv-cuenta';
-    sec.innerHTML = `<div class="row"><div><div class="eyebrow">Transcripciones de la cuenta</div><small class="muted">Marca el momento de cada una: las de primera sesión alimentan la foto, las constantes y el guion; las de intervención, el acta y los acuerdos de su sesión y el seguimiento de los objetivos.</small></div><span class="spacer"></span><button class="btn small" id="ivReap">Volver a aplicar a síntomas, constantes y guion</button></div>
-      <div class="table-wrap"><table class="ms-tab"><thead><tr><th style="text-align:left">Transcripción</th><th>Fecha</th><th>Momento</th><th>Palabras del cliente</th><th>Huecos</th><th>Yo / nosotros</th><th>Sesión</th><th>En medias</th></tr></thead><tbody>${ST.transcripciones.map((t) => `<tr data-tr="${t.id}"><td style="text-align:left"><b>${esc(t.nombre)}</b></td><td><input class="input" type="date" data-tk="fecha" value="${esc(t.fecha)}"></td><td><select class="input" data-tk="momento">${Object.keys(MOMENTO).map((k) => `<option value="${k}" ${(t.momento || 'primera') === k ? 'selected' : ''}>${k === 'primera' ? 'Primera sesión' : 'Intervención'}</option>`).join('')}</select></td><td>${t.analisis ? t.analisis.palabras.toLocaleString('es-ES') + ' · ' + t.analisis.pctCliente + ' %' : '—'}</td><td>${t.analisis ? t.analisis.huecos.filter((h) => h.peso).length + '/7' : '—'}</td><td>${t.analisis ? t.analisis.yo + '/' + t.analisis.nos : '—'}</td><td>${(t.momento || 'primera') === 'intervencion' ? `<select class="input" data-tk="sesion"><option value="">Automática</option>${ST.sesiones.filter((x) => x.tipo !== 'contacto').map((x) => `<option value="${x.id}" ${t.sesion === x.id ? 'selected' : ''}>${fCorta(x.fecha)} · ${esc(D.TIPOS_SESION[x.tipo] || x.tipo)}</option>`).join('')}</select>` : '—'}</td><td><input type="checkbox" data-tk="usar" ${t.usar !== false ? 'checked' : ''}></td></tr>`).join('')}</tbody></table></div>
+    sec.innerHTML = `<div class="row"><div><div class="eyebrow">Transcripciones de la cuenta</div><small class="muted">Cada una en su fase: las del <b>diagnóstico inicial</b> alimentan la foto, las constantes, el guion y los objetivos; las <b>comerciales</b> (propuesta y cierre) se guardan en el histórico sin mezclarse con el diagnóstico; las de <b>sesiones de trabajo</b>, el acta, los acuerdos y el avance de los objetivos.</small></div><span class="spacer"></span><button class="btn small" id="ivReap">Volver a aplicar a síntomas, constantes y guion</button></div>
+      <div class="table-wrap"><table class="ms-tab"><thead><tr><th style="text-align:left">Transcripción</th><th>Fecha</th><th>Fase</th><th>Palabras del cliente</th><th>Huecos</th><th>Yo / nosotros</th><th>Sesión</th><th>En medias</th></tr></thead><tbody>${ST.transcripciones.map((t) => `<tr data-tr="${t.id}"><td style="text-align:left"><b>${esc(t.nombre)}</b></td><td><input class="input" type="date" data-tk="fecha" value="${esc(t.fecha)}"></td><td><select class="input" data-tk="momento">${Object.keys(MOMENTO).map((k) => `<option value="${k}" ${(t.momento || 'primera') === k ? 'selected' : ''}>${FASE_N[k]}</option>`).join('')}</select></td><td>${t.analisis ? t.analisis.palabras.toLocaleString('es-ES') + ' · ' + t.analisis.pctCliente + ' %' : '—'}</td><td>${t.analisis ? t.analisis.huecos.filter((h) => h.peso).length + '/7' : '—'}</td><td>${t.analisis ? t.analisis.yo + '/' + t.analisis.nos : '—'}</td><td>${(t.momento || 'primera') === 'intervencion' ? `<select class="input" data-tk="sesion"><option value="">Automática</option>${ST.sesiones.filter((x) => x.tipo !== 'contacto').map((x) => `<option value="${x.id}" ${t.sesion === x.id ? 'selected' : ''}>${fCorta(x.fecha)} · ${esc(D.TIPOS_SESION[x.tipo] || x.tipo)}</option>`).join('')}</select>` : '—'}</td><td><input type="checkbox" data-tk="usar" ${t.usar !== false ? 'checked' : ''}></td></tr>`).join('')}</tbody></table></div>
       ${c1 ? `<div class="eyebrow">Vista conjunta · ${pl(c1.n, 'transcripción', 'transcripciones')} de primera sesión</div><div class="iv-kp"><div><span>Palabras del empresario</span><b>${c1.palabras.toLocaleString('es-ES')}</b></div><div><span>Huecos con cita (conjunto)</span><b>${c1.an.huecos.filter((h) => h.peso).length}/7</b></div><div><span>Huecos por sesión (media)</span><b>${c1.huecosMedia.toLocaleString('es-ES', { maximumFractionDigits: 1 })}</b></div><div><span>Yo / nosotros (media)</span><b>${Math.round(c1.yoMedia)}/${Math.round(c1.nosMedia)}</b></div><div><span>Habla el empresario (media)</span><b>${Math.round(c1.pctMedia)} %</b></div></div>
         <div class="small"><b>Constantes por el lenguaje (media):</b> ${D.CONSTANTES.map((c) => `${esc(c.n)} ${c1.est[c.id] || '—'}`).join(' · ')}</div>
         <div class="small"><b>Huecos que más se repiten:</b> ${c1.an.huecos.filter((h) => h.peso).sort((a, b) => b.peso - a.peso).slice(0, 4).map((h) => `${esc(h.n)} (${h.peso})`).join(' · ') || '—'}</div>` : ''}
@@ -413,5 +420,5 @@
     g.appendChild(d); $('[data-inf2]', d).onclick = () => V.informes.seguimiento();
   };
 
-  V.cruce = { procesar, aDatosReales, estadoDatos, conjunta, responderGuion, aConstantes, extraerIntervencion, leerCuenta, prepararSesiones, nuevaTr };
+  V.cruce = { MOMENTO, FASE_N, deMomento, clientesDe, soloEmpresa, estimar, fechaDelNombre, procesar, aDatosReales, estadoDatos, conjunta, responderGuion, aConstantes, extraerIntervencion, leerCuenta, prepararSesiones, nuevaTr };
 })();
