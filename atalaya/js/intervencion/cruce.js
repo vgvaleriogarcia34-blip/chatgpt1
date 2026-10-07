@@ -391,17 +391,9 @@
   const I = () => A.informe;
   // Añade secciones al final de un informe existente, antes de su pie
   const ampliar = (k, extra) => { const o = V.informes[k]; V.informes[k] = (...a) => { const In = I(), op = In.open; In.open = (cfg) => { In.open = op; try { const h = extra(In); if (h) cfg.html = cfg.html.replace(/<footer class="rp-foot"/, h + '<footer class="rp-foot"'); } catch (e) { console.error(e); } return op(cfg); }; try { return o(...a); } finally { In.open = op; } }; };
-  ampliar('primera', (In) => {
-    const ST = S(), l = deMomento('primera'); if (!l.length) return '';
-    const c = conjunta('primera'), s = ST.sesion, R = s.respuestas || {};
-    let h = In.section('Lo que hemos escuchado en las sesiones', In.table(['Sesión', 'Fecha', 'Palabras del empresario', 'Huecos con cita'], l.map((t) => [t.nombre, fCorta(t.fecha), t.analisis ? t.analisis.palabras.toLocaleString('es-ES') : '—', t.analisis ? t.analisis.huecos.filter((x) => x.peso).length + ' de 7' : '—'])) + (c ? `<p>En conjunto, el empresario habla el ${Math.round(c.pctMedia)} % del tiempo y deja ver ${c.an.huecos.filter((x) => x.peso).length} de los siete huecos de definición; los que más se repiten: ${c.an.huecos.filter((x) => x.peso).sort((a, b) => b.peso - a.peso).slice(0, 3).map((x) => x.n.toLowerCase()).join(', ') || '—'}.</p>` : ''));
-    const filas = D.GUION.flatMap((b) => b.p.map((p, i) => [p.q, R[b.id + ':' + i] ? R[b.id + ':' + i].t : (s.notas || {})[b.id + ':' + i] || '—'])).filter((x) => x[1] !== '—');
-    if (filas.length) h += In.section('Sus respuestas', In.table(['Pregunta', 'Lo que dijo'], filas.slice(0, 24)));
-    return h;
-  });
   ampliar('guia', (In) => { const s = S().sesion; if (!(s.sinRespuesta || []).length) return ''; const q = (k) => { const [b, i] = k.split(':'); const bl = D.GUION.find((x) => x.id === b); return bl ? bl.p[+i].q : k; }; return In.section('Preguntas sin respuesta en la transcripción', `<p>Revisa si se trabajaron antes con ellos; si no, inclúyelas en la próxima sesión.</p><ul>${s.sinRespuesta.map((k) => `<li>☐ ${esc(q(k))}</li>`).join('')}</ul>`); });
   V.informes.seguimiento = () => {
-    const In = I(); In.reset(); const ST = S(), pas = ST.sesiones.filter((s) => s.fecha <= hoy() && (s.acta || (s.acuerdos || []).length || (s.avances || []).length)), fut = ST.sesiones.filter((s) => s.fecha > hoy()).slice(0, 3), objs = objetivosVivos(), trs = deMomento('intervencion');
+    const In = I(); In.reset(); const ST = S(), pas = ST.sesiones.filter((s) => s.fecha <= hoy() && (s.acta || (s.acuerdos || []).length || (s.avances || []).length)), fut = ST.sesiones.filter((s) => s.fecha > hoy()).slice(0, 3), objs = objetivosVivos().filter((o) => !String(o.id).startsWith('v:')), trs = deMomento('intervencion');
     ST.informes = ST.informes || {}; ST.informes.seguimiento = new Date().toISOString(); guardar();
     let h = In.cover({ empresa: empresa(), tipo: 'Auditoría integral', kicker: 'Seguimiento de la intervención', titulo: 'Dónde estamos y qué sigue', subtitulo: `${pl(pas.length, 'sesión', 'sesiones')} con acta · ${pl(trs.length, 'transcripción', 'transcripciones')} de intervención · ${pl(objs.length, 'objetivo', 'objetivos')}` });
     h += In.summary('En pocas palabras', `<p>${objs.length ? `Seguimos ${pl(objs.length, 'objetivo', 'objetivos')}: ${objs.map((o) => o.n + ' ' + o.t.toLowerCase()).join('; ')}.` : 'Aún no hay objetivos registrados.'} ${pas.length ? `En las sesiones se han cerrado ${pl(pas.reduce((a, s) => a + (s.acuerdos || []).length, 0), 'acuerdo', 'acuerdos')}.` : ''}</p>`);

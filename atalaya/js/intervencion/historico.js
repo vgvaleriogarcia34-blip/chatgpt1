@@ -49,9 +49,10 @@
     const a = l[0], b = l[l.length - 1], r = (f) => (f.yo + f.nos ? (f.nos ? f.yo / f.nos : f.yo) : null), fr = (v) => (v == null ? '—' : v.toFixed(1).replace('.', ','));
     return [['Habla el empresario', a.pct + ' %', b.pct + ' %', b.pct === a.pct ? '=' : 'Cambia'], ['«Yo» por cada «nosotros»', fr(r(a)), fr(r(b)), flecha(r(a), r(b), true)], ['Huecos de definición con cita', String(a.huecos), String(b.huecos), flecha(a.huecos, b.huecos, true)], ['Tensión (lenguaje, 1-5)', String(a.tension || '—'), String(b.tension || '—'), flecha(a.tension, b.tension, true)], ['Urgencias (lenguaje, 1-5)', String(a.temperatura || '—'), String(b.temperatura || '—'), flecha(a.temperatura, b.temperatura, true)], ['Dependencia (lenguaje, 1-5)', String(a.dependencia || '—'), String(b.dependencia || '—'), flecha(a.dependencia, b.dependencia, true)]];
   };
-  const htmlHistorico = (H, compacto) => {
-    const F = C().FASE_N, f = H.filas; if (!f.length) return '<p class="small muted" style="margin:0">Aún no hay transcripciones.</p>';
+  const htmlHistorico = (H, compacto, empresa) => {
+    const F = C().FASE_N, f = empresa ? H.filas.filter((x) => x.fase !== 'comercial') : H.filas; if (!f.length) return '<p class="small muted" style="margin:0">Aún no hay transcripciones.</p>';
     const tab = (cab, filas) => `<div class="table-wrap"><table class="ms-tab"><thead><tr>${cab.map((c, i) => `<th${i === 0 ? ' style="text-align:left"' : ''}>${esc(c)}</th>`).join('')}</tr></thead><tbody>${filas.map((r) => `<tr>${r.map((c, i) => `<td${i === 0 ? ' style="text-align:left"' : ''}>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    if (empresa) return htmlEmpresa(H, f, tab, F);
     let h = `<div class="eyebrow">Secuencia</div>` + tab(['#', 'Fecha', 'Fase', 'Transcripción', 'Habla el empresario', 'Yo/nos', 'Huecos', 'Tensión', 'Temas'], f.map((x) => [String(x.i + 1), fCorta(x.tr.fecha), esc(F[x.fase] || x.fase), esc(x.tr.nombre), x.pct + ' %', `${x.yo}/${x.nos}`, String(x.huecos), String(x.tension || '—'), esc(x.temas.join(', ') || '—')]));
     const td = tendencia(H); if (td.length) h += `<div class="eyebrow">De la primera a la última</div>` + tab(['Lenguaje', 'Primera', 'Última', 'Tendencia'], td.map((r) => r.map(esc)));
     if (!compacto) {
@@ -61,6 +62,15 @@
     if (H.objs.length) h += `<div class="eyebrow">Alineamiento con sus objetivos</div><p class="small muted" style="margin:0">Si cada objetivo sigue apareciendo en lo que dice la empresa. Un objetivo que desaparece del lenguaje en las sesiones de trabajo conviene revisarlo con él.</p>` + tab(['Objetivo'].concat(f.map((x) => String(x.i + 1))).concat(['Sesiones de trabajo']), H.objs.map((o, k) => { const tr = f.filter((x) => x.fase === 'intervencion'); const n = tr.filter((x) => x.alin[k]).length; return [esc(o.especifica || o.dice)].concat(f.map((x) => (x.alin[k] ? '●' : '·'))).concat([tr.length ? `${n}/${tr.length}${n === 0 ? ' · revisar' : ''}` : '—']); }));
     const bs = f.flatMap((x) => x.benef.map((b) => ({ x, b })));
     h += `<div class="eyebrow">Beneficios detectados en el lenguaje</div>` + (bs.length ? tab(['Lo que dijo la empresa', 'Fecha', 'Fase'], bs.slice(0, compacto ? 5 : 20).map(({ x, b }) => [`«${esc(b)}»`, fCorta(x.tr.fecha), esc(F[x.fase] || x.fase)])) : '<p class="small muted" style="margin:0">Todavía no hay logros contados por la empresa en las transcripciones.</p>');
+    return h;
+  };
+  // Versión para la empresa: sin métricas de lenguaje ni la conversación comercial; sus temas, sus objetivos y sus logros
+  const htmlEmpresa = (H, f, tab, F) => {
+    if (!f.length) return '<p class="rp-muted" style="margin:0">Aún no hay conversaciones.</p>';
+    let h = tab(['#', 'Fecha', 'Conversación', 'De qué hablamos'], f.map((x, k) => [String(k + 1), fCorta(x.tr.fecha), esc(F[x.fase] || x.fase), esc(x.temas.join(', ') || '—')]));
+    if (H.objs.length) h += `<p style="margin:10px 0 4px"><b>Sus objetivos en cada conversación</b></p>` + tab(['Objetivo'].concat(f.map((x, k) => String(k + 1))), H.objs.map((o, k) => [esc(o.especifica || o.dice)].concat(f.map((x) => (x.alin[k] ? '●' : '·')))));
+    const bs = f.flatMap((x) => x.benef.map((b) => ({ x, b })));
+    if (bs.length) h += `<p style="margin:10px 0 4px"><b>Logros que usted ha contado</b></p>` + tab(['Lo que nos dijo', 'Fecha'], bs.slice(0, 12).map(({ x, b }) => [`«${esc(b)}»`, fCorta(x.tr.fecha)]));
     return h;
   };
   V.historico = { calcular, html: htmlHistorico };
@@ -91,7 +101,7 @@
   };
 
   // En los informes de seguimiento e integral
-  const anadir = (k, titulo, nota) => { const o = V.informes[k]; if (!o) return; V.informes[k] = (...a) => { const In = I(), op = In.open; In.open = (cfg) => { In.open = op; try { if (S().transcripciones.length) cfg.html = cfg.html.replace(/<footer class="rp-foot"/, In.section(titulo, htmlHistorico(calcular(), k === 'seguimiento'), nota) + '<footer class="rp-foot"'); } catch (e) { console.error(e); } return op(cfg); }; try { return o(...a); } finally { /* In.open se restaura al usarse */ } }; };
-  anadir('seguimiento', 'Histórico de la conversación', 'Cómo evoluciona el lenguaje de la empresa de una sesión a otra, si sus objetivos siguen presentes y qué logros cuenta con sus palabras.');
-  anadir('auditoria', 'Histórico de las transcripciones', 'Todas las transcripciones en orden y por fase (diagnóstico inicial, comercial y sesiones de trabajo), solo con las palabras de la empresa.');
+  const anadir = (k, titulo, nota) => { const o = V.informes[k]; if (!o) return; V.informes[k] = (...a) => { const In = I(), op = In.open; In.open = (cfg) => { In.open = op; try { if (S().transcripciones.length) cfg.html = cfg.html.replace(/<footer class="rp-foot"/, In.section(titulo, htmlHistorico(calcular(), true, true), nota) + '<footer class="rp-foot"'); } catch (e) { console.error(e); } return op(cfg); }; try { return o(...a); } finally { /* In.open se restaura al usarse */ } }; };
+  anadir('seguimiento', 'Nuestras conversaciones', 'De qué hemos hablado en cada sesión, qué objetivos han estado presentes y los logros que usted nos ha contado.');
+  anadir('auditoria', 'Nuestras conversaciones', 'De qué hemos hablado en cada sesión, qué objetivos han estado presentes y los logros que usted nos ha contado.');
 })();

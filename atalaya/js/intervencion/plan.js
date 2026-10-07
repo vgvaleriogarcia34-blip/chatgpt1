@@ -222,21 +222,7 @@
   const marca = (k) => { const ST = S(); ST.informes = ST.informes || {}; ST.informes[k] = new Date().toISOString(); guardar(); };
   const linea = (n) => '<span style="display:inline-block;width:100%;border-bottom:1px dotted #b9b5a8;height:16px"></span>'.repeat(n || 2);
   V.informes = {
-    // Para la empresa: lo escuchado, sus objetivos, las constantes, el triaje, las prioridades y el siguiente paso
-    primera() {
-      const In = I(); In.reset(); marca('primera');
-      const ST = S(), l = causasOrdenadas(), v20 = veinte(), cita = citaClave();
-      let h = cover({ kicker: 'Primera sesión', titulo: 'Lo que hemos escuchado', subtitulo: `Sesión del ${fLarga(ST.sesion.fecha)}${ST.sesion.asistentes ? ' · ' + ST.sesion.asistentes : ''}` });
-      h += In.summary('En pocas palabras', `${cita ? `<p><i>«${esc(cita)}»</i></p>` : ''}<p>Hemos tomado las constantes de la empresa y escuchado ${pl(ST.sintomas.length, 'síntoma', 'síntomas')}. Detrás hay ${pl(l.length, 'causa probable', 'causas probables')}; ${v20.size ? `${pl(v20.size, 'de ellas explica', 'de ellas explican')} la mayor parte de lo que pasa y por ahí conviene empezar.` : ''} Son hipótesis: la auditoría integral las confirmará con datos.</p>`);
-      { const so = V.objSmart ? V.objSmart.seccion(In) : tablaObjetivos(); if (so) h += In.section('Sus objetivos', so, 'Lo que usted quiere conseguir, convertido en objetivos SMART: específicos, medibles, que dependen de usted, rentables y con fecha. Solo figuran como objetivos los que cumplen las cinco condiciones.'); }
-      h += In.section('Las constantes de la empresa', `<div class="pdf-keep" style="max-width:560px;margin:0 0 10px">${monitor()}</div>` + tablaConst(), 'Como en una consulta: cada línea es una constante. Cuanto más rápido y alto late, más tensión hay en ese punto (1 = bien, 5 = grave).');
-      if (ruta().length) h += In.section('Triaje por áreas', tablaTriaje(), 'Urgencias: cerrar en 0-14 días. Preferente: este trimestre. Programable: sin urgencia.');
-      if (ST.sintomas.length) h += In.section('Lo que hemos escuchado', In.table(['Síntoma', 'Sus palabras', 'Área'], ST.sintomas.slice(0, 20).map((s) => [s.t, s.cita ? '«' + s.cita + '»' : '—', (D.area(s.area) || {}).n || ''])));
-      if (l.length) h += In.section('Por dónde empezar', In.table(['Causa probable', 'Explica', 'Prioridad'], l.slice(0, 8).map((x) => [x.c.t, pl(x.ss.length, 'síntoma', 'síntomas'), v20.has(x.c.id) ? { h: In.pill('stop', 'El 20 % que más pesa') } : 'Después'])));
-      h += In.section('Siguiente paso: la auditoría integral', `<p>En la auditoría integral revisaremos a fondo, en este orden, ${ruta().slice(0, 4).map((x) => x.a.n.toLowerCase()).join(', ') || 'las áreas de la empresa'}. Para prepararla necesitamos:</p><ul>${ruta().slice(0, 4).flatMap((x) => (D.VERIFICA[x.a.id] || []).slice(0, 2)).map((q) => `<li>${esc(q)}</li>`).join('')}</ul>`);
-      h += In.foot('Informe de la primera sesión de la auditoría integral. Las causas son hipótesis de trabajo hasta su verificación.');
-      In.open({ titulo: 'Primera sesión · ' + empresa(), html: h, clave: 'iv:primera' });
-    },
+    // «primera» (informe de la primera sesión) lo define primera.js y «auditoria» (informe integral), integral.js
     // Interno: pautas y preguntas de la sesión para rellenar, y la hoja de ruta completa del auditor
     guia() {
       const In = I(); In.reset(); marca('guia');
@@ -271,15 +257,6 @@
       h += In.foot('Guía del auditor · uso interno del consultor.');
       In.open({ titulo: 'Guía del auditor · ' + empresa(), html: h, clave: 'iv:guia' });
     },
-    auditoria() {
-      const In = I(); In.reset(); marca('auditoria');
-      const ST = S(), r = ruta();
-      let h = cover({ kicker: 'Auditoría integral', titulo: 'Resultado de la auditoría integral', subtitulo: `${pl(ST.hallazgos.length, 'hallazgo', 'hallazgos')} · ${pl(ST.causas.filter((c) => c.estado === 'confirmada').length, 'causa confirmada', 'causas confirmadas')}` });
-      h += In.summary('Resumen', `<p>Se han revisado ${pl(r.length, 'área', 'áreas')} en el orden del triaje. ${ST.causas.filter((c) => c.estado === 'confirmada').length ? 'Las causas confirmadas son: ' + ST.causas.filter((c) => c.estado === 'confirmada').map((c) => c.t.toLowerCase()).join('; ') + '.' : 'Aún no hay causas confirmadas.'}</p>`);
-      r.forEach((x) => { const v = ST.verifica[x.a.id] || {}; const filas = (D.VERIFICA[x.a.id] || []).map((q, i) => [q, D.ESTADOS_V[(v[i] || {}).e || 'pend'], (v[i] || {}).nota || '—']); const hs = ST.hallazgos.filter((hh) => hh.area === x.a.id); h += In.section(x.a.n, In.table(['Verificación', 'Estado', 'Evidencia'], filas) + (hs.length ? In.table(['Hallazgo', 'Gravedad', 'Origen'], hs.map((hh) => [hh.t, String(hh.gravedad), hh.origen === 'ecosistema' ? 'Ecosistema Atalaya' : 'Auditoría'])) : '')); });
-      h += In.foot('Informe de la auditoría integral.');
-      In.open({ titulo: 'Auditoría integral · ' + empresa(), html: h, clave: 'iv:auditoria' });
-    },
     // Para la empresa: el plan completo, con hoja de ruta, desgloses, indicadores, responsables y calendario
     plan() {
       const In = I(); In.reset();
@@ -289,11 +266,11 @@
       const ini = ST.plan.inicio || hoy(), fin = sumar(ini, D.FASES[D.FASES.length - 1].sem[1] * 7), emp = acc.filter((a) => a.quien === 'empresa').length, lineas = D.LINEAS.filter((L) => acc.some((a) => a.linea === L.id));
       const resp = (a) => a.responsable || (a.quien === 'empresa' ? 'Empresa (por asignar)' : 'Consultor');
       let h = cover({ kicker: 'Plan de intervención', titulo: 'Plan de trabajo con la empresa', subtitulo: `${pl(acc.length, 'acción', 'acciones')} en ${D.FASES.length} fases y ${pl(lineas.length, 'línea', 'líneas')} de trabajo · del ${fLarga(ini)} al ${fLarga(fin)}` });
-      h += In.summary('Resumen ejecutivo', `<p>El plan ataca primero ${pl(v20.size, 'la causa', 'las causas')} que más pesan: ${ST.causas.filter((c) => v20.has(c.id)).map((c) => c.t.toLowerCase()).join('; ') || '—'}. Cada acción tiene responsable, fecha, pasos, indicadores y un entregable concreto que cierra un hueco de la empresa: un responsable con nombre, un límite con número, un método escrito, un dato que se lee o una fecha en el calendario.</p>`
+      h += In.summary('Resumen ejecutivo', `<p>El plan ataca primero ${pl(v20.size, 'la causa', 'las causas')} que más pesan: ${ST.causas.filter((c) => v20.has(c.id)).map((c) => c.t.toLowerCase()).join('; ') || '—'}. Cada acción tiene responsable, fecha, pasos, indicadores y un entregable concreto que resuelve una carencia concreta de la empresa: un responsable con nombre, un límite con número, un método escrito, un dato que se lee o una fecha en el calendario.</p>`
         + In.kpis([{ k: 'Acciones', v: String(acc.length), d: `${acc.filter((a) => a.clave).length} clave (★)` }, { k: 'Las lleva la empresa', v: String(emp), d: `${acc.length - emp} lidera el consultor` }, { k: 'Duración', v: `${D.FASES[D.FASES.length - 1].sem[1]} semanas`, d: `${fCorta(ini)} → ${fCorta(fin)}` }, { k: 'Sesiones', v: String(ST.sesiones.length || '—'), d: ST.sesiones.length ? 'con orden del día' : 'por generar' }]));
       h += notaFechas();
       h += In.section('Hoja de ruta: del punto A al punto B', rutaABDoc());
-      if (tablaObjetivos()) h += In.section('Los objetivos de la empresa', tablaObjetivos(), 'El punto B: lo que el empresario quiere conseguir, en formato SMART.');
+      if (V.objSmart ? V.objSmart.seccion(In) : tablaObjetivos()) h += In.section('Los objetivos de la empresa', V.objSmart ? V.objSmart.seccion(In) : tablaObjetivos(), 'El punto B: lo que usted quiere conseguir, en formato SMART.');
       h += In.section('Resumen por línea de trabajo', In.table(['Línea', 'Acciones', 'Clave', 'Fases', 'Entregables', 'Hasta'], lineas.map((L) => { const l = acc.filter((a) => a.linea === L.id); return [L.n, String(l.length), String(l.filter((a) => a.clave).length), [...new Set(l.map((a) => +a.f))].sort().join(', '), l.map((a) => a.ent).filter((e) => e && e !== '—').slice(0, 3).join(' · ') || '—', fCorta(l.reduce((m, a) => (a.fecha > m ? a.fecha : m), ''))]; })));
       D.FASES.forEach((F) => {
         const l = acc.filter((a) => +a.f === F.id); if (!l.length) return;
@@ -314,7 +291,7 @@
   };
   VISTAS.informes = (host) => {
     const ST = S(), card = (k, t, d, para) => `<div class="glass pad stack iv-inf"><div class="eyebrow">${para}</div><h3 class="iv-bt">${t}</h3><p class="small" style="margin:0">${d}</p><div class="row"><button class="btn solid small" data-inf="${k}">Abrir el informe</button>${ST.informes && ST.informes[k] ? `<small class="muted">Último: ${new Date(ST.informes[k]).toLocaleDateString('es-ES')}</small>` : ''}</div></div>`;
-    host.innerHTML = `<div class="grid iv-four">${card('primera', 'Informe de la primera sesión', 'Lo que hemos escuchado, con sus palabras; sus objetivos SMART, el monitor de constantes, el triaje, por dónde empezar y qué necesitamos para la auditoría integral.', 'Para la empresa')}${card('guia', 'Guía del auditor', 'Hoja de preguntas de la primera sesión para rellenar, plantilla de objetivos y, con la transcripción, la hoja de ruta completa de la auditoría integral.', 'Interno del consultor')}${card('propuesta', 'Propuesta comercial', 'Dossier de propuesta con su situación, lo que obtiene, el protocolo de trabajo, el coste de no hacerlo, la inversión con su retorno y la forma de pago (por hitos o por cuotas con parte variable).', 'Para la empresa')}${card('auditoria', 'Informe de la auditoría integral', 'Verificaciones por área, evidencias, hallazgos (también los del ecosistema) y causas confirmadas.', 'Para la empresa')}${card('plan', 'Plan de intervención', 'Hoja de ruta del punto A al B, resumen por línea, fases con pasos e indicadores, matriz de responsables, calendario de sesiones y decisiones para firmar. Fechas orientativas.', 'Para la empresa')}</div>
+    host.innerHTML = `<div class="grid iv-four">${card('primera', 'Informe de la primera sesión', 'Lo que hemos escuchado, con sus palabras; sus objetivos SMART, el monitor de constantes, el triaje, por dónde empezar y qué necesitamos para la auditoría integral.', 'Para la empresa')}${card('guia', 'Guía del auditor', 'Hoja de preguntas de la primera sesión para rellenar, plantilla de objetivos y, con la transcripción, la hoja de ruta completa de la auditoría integral.', 'Uso interno del consultor')}${card('propuesta', 'Propuesta comercial', 'Dossier de propuesta con su situación, lo que obtiene, el protocolo de trabajo, el coste de no hacerlo, la inversión con su retorno y la forma de pago (por hitos o por cuotas con parte variable).', 'Para la empresa')}${card('auditoria', 'Informe de la auditoría integral', 'Verificaciones por área, evidencias, hallazgos (también los del ecosistema) y causas confirmadas.', 'Para la empresa')}${card('plan', 'Plan de intervención', 'Hoja de ruta del punto A al B, resumen por línea, fases con pasos e indicadores, matriz de responsables, calendario de sesiones y decisiones para firmar. Fechas orientativas.', 'Para la empresa')}</div>
       <section class="glass pad stack"><p class="small" style="margin:0">Todos se descargan en PDF con el membrete y se pueden añadir al libro corporativo de la empresa desde su barra. El plan de trabajo de la empresa se sigue en la <a href="mesa.html">mesa de trabajo</a>: envía allí las tareas y las metas desde «Plan de intervención».</p></section>`;
     $$('[data-inf]', host).forEach((b) => (b.onclick = () => V.informes[b.dataset.inf]()));
   };
