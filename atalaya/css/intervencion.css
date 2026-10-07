@@ -279,3 +279,26 @@ button.iv-at { background: none; border: 0; padding: 0; color: inherit; text-ali
 .dc-falta .iv-dl li { flex-direction: column; gap: 0; } .dc-falta .iv-dl li.ok span { color: var(--go); } .dc-falta .iv-dl li.stop span { color: var(--stop); }
 .ms-tab tr.dc-err td { color: var(--stop); }
 @media (max-width: 760px) { .dc-grid { grid-template-columns: 1fr; } }
+
+/* Ficha de recorrido: panel fijo al lado, plegable */
+.iv-ficha { position: fixed; z-index: 30; right: 44px; top: 96px; width: 300px; max-height: calc(100vh - 200px); overflow-y: auto; }
+body.iv-ficha-on .iv-ficha { padding: 14px 14px 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel-solid, #111418); box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.8); }
+.iv-fh { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .iv-fh b { font-family: var(--font-display); letter-spacing: -0.01em; }
+.iv-fx { background: none; border: 1px solid var(--line); color: inherit; border-radius: 8px; width: 28px; height: 28px; cursor: pointer; }
+.iv-fnv { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; border-radius: 10px; border: 1px solid var(--line); margin-bottom: 10px; }
+.iv-fnv button { background: none; border: 0; color: inherit; padding: 5px; border-radius: 7px; cursor: pointer; font: inherit; font-size: var(--t-xs); }
+.iv-fnv button[aria-pressed="true"] { background: var(--gold); color: #111; font-weight: 600; }
+.iv-fs { margin: 0 0 10px; font-size: var(--t-xs); line-height: 1.45; } .iv-fs p { margin: 0 0 4px; } .iv-fs ul, .iv-fs ol { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.iv-fk { display: block; font-family: var(--font-mono, monospace); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; color: var(--gold); margin-bottom: 4px; cursor: default; }
+details.iv-fs summary.iv-fk { cursor: pointer; }
+.iv-fsig { list-style: none; padding: 0 !important; } .iv-fsig li { display: grid; gap: 3px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); }
+.iv-fsig em { display: block; font-style: italic; opacity: 0.85; margin-top: 2px; }
+.iv-foco { display: inline-block; width: fit-content; font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; }
+.iv-foco.f-con { color: #6aa8ff; } .iv-foco.f-men { color: #e3a93b; } .iv-foco.f-coa { color: #d07be0; }
+.iv-fley { border-top: 1px solid var(--line); padding-top: 8px; opacity: 0.85; }
+.iv-fab { position: fixed; right: 44px; top: 96px; z-index: 30; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--gold); background: var(--panel-solid, #111418); color: var(--gold); font: inherit; font-size: var(--t-xs); cursor: pointer; }
+.iv-decir { margin-top: 6px; padding: 6px 8px; border-left: 2px solid var(--gold); border-radius: 0 6px 6px 0; background: rgba(201, 242, 77, 0.05); font-size: var(--t-xs); line-height: 1.4; text-align: left; }
+.iv-decir b, .iv-decir summary { display: block; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); margin-bottom: 2px; cursor: pointer; }
+@media (min-width: 1180px) { body.iv-ficha-on .st-main { width: min(1240px, calc(100% - 360px)); margin-left: auto; margin-right: 360px; } }
+@media (max-width: 1179px) { .iv-ficha { right: 12px; left: 12px; width: auto; top: auto; bottom: 84px; max-height: 60vh; } .iv-fab { right: auto; left: 16px; top: auto; bottom: 24px; } }
+@media print { .iv-ficha, .iv-fab { display: none !important; } }
