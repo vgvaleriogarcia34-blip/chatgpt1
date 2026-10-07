@@ -272,3 +272,10 @@ button.iv-at { background: none; border: 0; padding: 0; color: inherit; text-ali
 .iv-dl li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.03); }
 .iv-dl li.stop b { color: var(--stop); } .iv-dl li.warn b { color: var(--warn); } .iv-dl li.ok b { color: var(--go); }
 .iv-pts { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+
+/* Documentación: subir todo y repartirlo */
+.dc-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.dc-pasos { margin: 0; padding-left: 20px; display: grid; gap: 2px; }
+.dc-falta .iv-dl li { flex-direction: column; gap: 0; } .dc-falta .iv-dl li.ok span { color: var(--go); } .dc-falta .iv-dl li.stop span { color: var(--stop); }
+.ms-tab tr.dc-err td { color: var(--stop); }
+@media (max-width: 760px) { .dc-grid { grid-template-columns: 1fr; } }

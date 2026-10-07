@@ -83,12 +83,12 @@
   };
   const asegurarCausa = (ref) => { let c = ST.causas.find((x) => x.ref === ref.id); if (!c) { c = { id: uid(), ref: ref.id, t: ref.n, area: ref.area, patron: ref.patron, esfuerzo: ref.esfuerzo, estado: 'hipotesis', porques: ['', '', ''] }; ST.causas.push(c); } return c; };
   const ruta = () => D.AREAS.map((a) => ({ a, n: nivel(a.id), ss: sintomasDe(a.id), cs: ST.causas.filter((c) => c.area === a.id && c.estado !== 'descartada'), pr: prioArea(a.id) })).filter((x) => x.n || x.ss.length).sort((x, y) => ({ stop: 0, warn: 1, ok: 2, '': 3 }[x.n] - { stop: 0, warn: 1, ok: 2, '': 3 }[y.n]) || x.pr.o - y.pr.o || y.pr.score - x.pr.score);
-  const capa = (k) => ({ guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, propuesta: 1, auditoria: 2, ecosistema: 2, plan: 3, sesiones: 3, informes: 3 }[k]);
+  const capa = (k) => ({ guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, propuesta: 1, documentacion: 2, auditoria: 2, ecosistema: 2, plan: 3, sesiones: 3, informes: 3 }[k]);
 
   /* ---------- Pestañas y recorrido ---------- */
   const TABS = [
     ['guion', 'Guion de la sesión', 'Primera sesión'], ['constantes', 'Constantes vitales', 'Primera sesión'], ['escucha', 'Escucha y transcripción', 'Primera sesión'], ['sintomas', 'Síntomas y causas', 'Primera sesión'], ['triaje', 'Triaje y hoja de ruta', 'Primera sesión'], ['propuesta', 'Propuesta comercial', 'Primera sesión'],
-    ['auditoria', 'Verificación por áreas', 'Auditoría integral'], ['ecosistema', 'Desviaciones del ecosistema', 'Auditoría integral'],
+    ['documentacion', 'Documentación', 'Auditoría integral'], ['auditoria', 'Verificación por áreas', 'Auditoría integral'], ['ecosistema', 'Desviaciones del ecosistema', 'Auditoría integral'],
     ['plan', 'Plan de intervención', 'Intervención'], ['sesiones', 'Sesiones y seguimiento', 'Intervención'], ['informes', 'Informes', 'Intervención']
   ];
   const nPreg = () => D.GUION.reduce((a, b) => a + b.p.length, 0);
@@ -99,6 +99,7 @@
     if (k === 'sintomas') return ST.sintomas.length >= 3 && ST.sintomas.every((s) => s.causa);
     if (k === 'triaje') return ruta().length > 0 && ruta().every((x) => x.n);
     if (k === 'propuesta') return !!(ST.propuesta && ST.propuesta.generada && ST.informes && ST.informes.propuesta);
+    if (k === 'documentacion') return (ST.documentacion || []).length > 0;
     if (k === 'auditoria') { const r = ruta(); const tot = r.reduce((a, x) => a + (D.VERIFICA[x.a.id] || []).length, 0), rev = r.reduce((a, x) => a + Object.values(ST.verifica[x.a.id] || {}).filter((v) => v && v.e && v.e !== 'pend').length, 0); return tot > 0 && rev / tot >= 0.5; }
     if (k === 'ecosistema') return !!ST.volcado;
     if (k === 'plan') return ST.plan.acciones.length > 0;
@@ -122,6 +123,7 @@
     sintomas: 'Pasa los síntomas, enlaza cada uno con su causa y mira qué 20 % de las causas explica el 80 %.',
     triaje: 'Confirma el triaje de cada área (urgencias, preferente o programable): de aquí sale la hoja de ruta de la auditoría.',
     propuesta: 'Prepara la propuesta comercial desde la primera sesión: valor en juego, precio, protocolo y forma de pago. Queda hecho al abrir el dossier.',
+    documentacion: 'Sube aquí todo lo que te dé la empresa: transcripciones, cuentas, listados y documentos. Atalaya reconoce cada archivo y lo lleva al mundo que lo usa.',
     auditoria: 'Con la documentación delante, verifica cada punto de las áreas de la hoja de ruta y anota los hallazgos.',
     ecosistema: 'Trae las desviaciones que ya detecta el resto de Atalaya (estrategia, personas, simulador y mesa).',
     plan: 'Genera el plan por fases y líneas. Toca cada acción para ver sus pasos, indicadores y responsable.',

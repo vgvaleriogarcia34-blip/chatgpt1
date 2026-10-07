@@ -86,6 +86,8 @@
       res.fin.anios.forEach((a) => { const t = H.anios.find((x) => x.anio === a.anio); if (t) Object.assign(t, a); else H.anios.push(a); });
       H.anios.sort((a, b) => a.anio - b.anio); delete H.ejemplo; S.sim.historico = H;
       try { const an = A.fin.analyze(H); A.fin.applyToState(S.sim, an); } catch (e) { /* cuentas incompletas: se guardan igualmente */ }
+      // Con cuentas reales el simulador deja de ser de ejemplo y deja de estar a cero
+      if (S.sim.empresa && +S.sim.empresa.ventas > 0) { S.sim.ejemplo = false; S.sim.sinDatos = false; }
       S.saveSim();
       return { mods: TIPOS.cuentas.mods, txt: `${res.fin.anios.length} año(s) de cuentas (${res.fin.anios.map((a) => a.anio).join(', ')}); el simulador parte ya del último año` };
     },
@@ -214,6 +216,7 @@
       const res = classify(h.rows); if (!res) continue;
       if (forzar && forzar !== res.tipo) continue;
       const out = APPLY[res.tipo](res);
+      if (res.tipo === 'plantilla') S.origenPlantilla = res.rows; // para llevar las personas al mundo de personas
       o.cargado[res.tipo] = { fecha: reg.fecha, archivo: file.name, filas: res.filas };
       (out.extra || []).forEach((t) => { o.cargado[t] = { fecha: reg.fecha, archivo: file.name, filas: res.filas }; });
       reg.cargas.push({ tipo: res.tipo, hoja: h.hoja, filas: res.filas, txt: out.txt, mods: out.mods, aviso: !!out.aviso }); hechas++;
@@ -249,6 +252,16 @@
     const m = $('#orMsg'); if (m) m.innerHTML = `<span style="color:var(--go)">${ok} de ${out.length} archivo(s) cargados y repartidos.</span>${ok ? ' <button class="btn ghost" id="orUndo">Deshacer esta carga</button>' : ''}`;
     const u = $('#orUndo'); if (u) u.onclick = deshacer;
   }
+  /* Carga desde otra página (pestaña Documentación de la auditoría): procesa y guarda sin pintar */
+  S.origenCargar = async (files) => {
+    const o = O(), out = []; S.origenPlantilla = null;
+    for (const f of files) {
+      try { out.push(await procesar(f)); } catch (e) { const r = { nombre: f.name, fecha: new Date().toISOString(), estado: 'error', error: e.message, cargas: [] }; out.push(r); o.archivos.unshift(r); }
+    }
+    S.save(); S.saveSim();
+    if (A.platform) { try { await A.platform.saveData('estrategia', S.state); await A.platform.saveData('simulador', S.sim); } catch (e) { /* queda en local */ } }
+    return { out, plantilla: S.origenPlantilla };
+  };
   function deshacer() {
     if (!ultimaFoto) return;
     const f = JSON.parse(ultimaFoto); S.state = f.state; S.sim = f.sim; S.save(); S.saveSim(); ultimaFoto = null; S.origenUltimo = null; S.rerender();
