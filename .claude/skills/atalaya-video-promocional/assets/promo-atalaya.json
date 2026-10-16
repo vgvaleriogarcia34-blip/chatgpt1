@@ -114,25 +114,25 @@
           ],
           "etiqueta": "Puesto de mando",
           "rotulo": "Un mismo *universo*",
-          "peso": 1.5
+          "peso": 1.1
         },
         {
           "tipo": "clip",
           "img": "mundos",
-          "desde": 3.4,
           "de": [
-            260,
-            180,
+            250,
+            330,
             1400,
             790
           ],
           "a": [
-            420,
-            260,
-            1080,
-            610
+            380,
+            370,
+            1180,
+            665
           ],
-          "peso": 1
+          "peso": 1,
+          "desde": 5.2
         }
       ]
     },

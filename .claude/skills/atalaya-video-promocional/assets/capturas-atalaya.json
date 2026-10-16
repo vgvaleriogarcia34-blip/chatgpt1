@@ -231,8 +231,8 @@
    "esperar": 7000,
    "css": "#intro,.pt-top,.pt-dock,.pt-hint,.pt-last,.pt-empbar,.pt-moon{display:none!important}.pt-labels{display:none!important}",
    "clip": {
-    "segundos": 8,
-    "lento": 0.05
+    "segundos": 11,
+    "lento": 0.03
    }
   },
   {
@@ -241,8 +241,8 @@
    "esperar": 7000,
    "css": "#intro,.pt-top,.pt-dock,.pt-hint,.pt-last,.pt-empbar,.pt-moon{display:none!important}",
    "clip": {
-    "segundos": 6,
-    "lento": 0.05,
+    "segundos": 10,
+    "lento": 0.02,
     "guion": [
      {
       "t": 0.6,
@@ -255,10 +255,6 @@
      {
       "t": 2.6,
       "hover": ".pt-world[data-w=iv]"
-     },
-     {
-      "t": 3.6,
-      "click": ".pt-world[data-w=sim]"
      }
     ]
    },
@@ -284,7 +280,7 @@
    ],
    "clip": {
     "segundos": 6,
-    "lento": 0.02,
+    "lento": 0.008,
     "guion": [
      {
       "t": 0.4,
@@ -301,9 +297,6 @@
       }
      }
     ]
-   },
-   "marcas": {
-    "abanico": "#rmWorld"
    }
   },
   {
@@ -321,7 +314,7 @@
    ],
    "clip": {
     "segundos": 6,
-    "lento": 0.02,
+    "lento": 0.008,
     "guion": [
      {
       "t": 0.4,
@@ -338,9 +331,6 @@
       }
      }
     ]
-   },
-   "marcas": {
-    "abanico": "#rmWorld"
    }
   }
  ]
