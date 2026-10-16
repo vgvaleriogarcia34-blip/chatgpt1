@@ -26,8 +26,10 @@ const RELOJ = () => {
 };
 
 (async () => {
-  const [conf, out] = process.argv.slice(2);
-  if (!conf || !out) { console.error('Uso: node capturar.js <capturas.json> <carpeta-salida>'); process.exit(1); }
+  // --solo id1,id2: repite solo esas capturas y conserva el resto del manifiesto
+  const args = process.argv.slice(2), iSolo = args.indexOf('--solo'), SOLO = iSolo >= 0 ? args.splice(iSolo, 2)[1].split(',') : null;
+  const [conf, out] = args;
+  if (!conf || !out) { console.error('Uso: node capturar.js <capturas.json> <carpeta-salida> [--solo id1,id2]'); process.exit(1); }
   const C = JSON.parse(fs.readFileSync(conf, 'utf8'));
   const APP = (C.app || 'http://localhost:8765').replace(/\/$/, '');
   fs.mkdirSync(out, { recursive: true });
@@ -49,9 +51,10 @@ const RELOJ = () => {
   }, C.planVista || 'consultora');
 
   const OCULTAR = ['.assistant', '.ml-wrap', '.toast', '#paseo', '.iv-fab'].concat(C.ocultar || []);
-  const manifest = { app: APP, ancho: 1920, alto: 1080, densidad: C.densidad || 2, capturas: {} };
-  for (const k of C.capturas) {
-    await p.goto(APP + '/' + k.url, { waitUntil: 'load' });
+  const manPrev = path.join(out, 'capturas.manifest.json');
+  const manifest = SOLO && fs.existsSync(manPrev) ? JSON.parse(fs.readFileSync(manPrev, 'utf8')) : { app: APP, ancho: 1920, alto: 1080, densidad: C.densidad || 2, capturas: {} };
+  for (const k of C.capturas.filter((x) => !SOLO || SOLO.includes(x.id))) {
+    await p.goto(APP + '/' + k.url, { waitUntil: 'load', timeout: 120000 });
     await p.addStyleTag({ content: OCULTAR.join(',') + '{display:none!important}' + (C.css || '') + (k.css || '') });
     await p.waitForTimeout(k.esperar || 3000);
     for (const a of k.acciones || []) {
@@ -81,7 +84,8 @@ const RELOJ = () => {
     }, k.marcas || {});
     const f = path.join(out, k.id + '.png'); await p.screenshot({ path: f });
     manifest.capturas[k.id] = { archivo: k.id + '.png', url: k.url, marcas };
-    if (k.clip) manifest.capturas[k.id].clip = await grabarClip(k, OCULTAR);
+    if (k.clip) { try { manifest.capturas[k.id].clip = await grabarClip(k, OCULTAR); } catch (e) { console.warn(`  clip ${k.id}: no se pudo grabar (${e.message.split('\n')[0]})`); } }
+    fs.writeFileSync(manPrev, JSON.stringify(manifest, null, 1)); // se guarda tras cada captura: un fallo no pierde lo hecho
     console.log('✓', k.id, Object.entries(marcas).map(([n, r]) => n + (r ? '' : ' (no encontrada)')).join(', '));
   }
   /* ---------- Clips: la pantalla en movimiento ----------
@@ -102,7 +106,7 @@ const RELOJ = () => {
     // Un clic que abre otra pantalla no debe sacarnos de la escena: la navegación recibe un 204 y la página se queda.
     // Solo se intercepta el origen de la aplicación: interceptar la CDN rompe la carga de la librería 3D tras el proxy.
     await q.route(APP + '/**', (r) => (r.request().isNavigationRequest() && r.request().frame() === q.mainFrame() && !r.request().url().includes(k.url.split('#')[0]) ? r.fulfill({ status: 204 }) : r.continue()));
-    await q.goto(APP + '/' + k.url, { waitUntil: 'load' });
+    await q.goto(APP + '/' + k.url, { waitUntil: 'load', timeout: 120000 }); // tras un proxy las fuentes se reintentan y la carga tarda
     await q.addStyleTag({ content: OCULTAR.join(',') + '{display:none!important}' + (C.css || '') + (k.css || '') });
     await q.waitForTimeout(k.esperar || 3000);
     for (const a of (c.antes || k.acciones || [])) { try { if (a.click) await q.click(a.click, { timeout: 4000 }); if (a.eval) await q.evaluate(a.eval); if (a.scroll) await q.evaluate((s) => { const e = document.querySelector(s); if (e) e.scrollIntoView({ block: 'start' }); }, a.scroll); if (a.scrollY != null) await q.evaluate((y) => window.scrollTo(0, y), a.scrollY); await q.waitForTimeout(a.esperar || 700); } catch (e) { console.warn(`  ${k.id}: acción previa sin efecto (${e.message.split('\n')[0]})`); } }
