@@ -1,0 +1,405 @@
+{
+  "titulo": "Atalaya 360° · Vea el futuro de su empresa antes de decidir",
+  "fps": 30,
+  "acento": "#c9f24d",
+  "marca": "Atalaya *360°*",
+  "subtitulos": true,
+  "velocidad_voz": 1.06,
+  "musica": null,
+  "bloques": [
+    {
+      "voz": "¿Y si pudiera ver el futuro de su empresa antes de tomar una decisión?",
+      "pausa": 0.4,
+      "planos": [
+        {
+          "tipo": "titulo",
+          "kick": "Atalaya 360°",
+          "texto": "Vea el futuro\nde su empresa\n*antes de decidir*"
+        }
+      ]
+    },
+    {
+      "voz": "Casi todas las decisiones importantes se toman mirando hacia atrás: el cierre del trimestre, el extracto del banco. Y cuando el problema aparece en los números, ya es tarde.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "sim-historia",
+          "de": [
+            420,
+            300,
+            1150,
+            650
+          ],
+          "a": [
+            440,
+            330,
+            1100,
+            560
+          ],
+          "resalta": "kpis",
+          "rotulo": "Mirar atrás *llega tarde*",
+          "peso": 1.2
+        },
+        {
+          "tipo": "captura",
+          "img": "sim-historia",
+          "de": [
+            430,
+            560,
+            700,
+            470
+          ],
+          "a": [
+            450,
+            610,
+            600,
+            380
+          ],
+          "peso": 1
+        },
+        {
+          "tipo": "captura",
+          "img": "est-tesoreria",
+          "de": [
+            420,
+            90,
+            1150,
+            650
+          ],
+          "a": [
+            430,
+            90,
+            1100,
+            620
+          ],
+          "resalta": "kpis",
+          "resaltaDesde": 0.45,
+          "peso": 1
+        }
+      ]
+    },
+    {
+      "voz": "Atalaya conecta sus cuentas, sus ventas, sus cobros y su equipo en un solo modelo. Y le dice, con números, si puede dar el siguiente paso sin quedarse sin caja.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "sim-puente",
+          "etiqueta": "Simulador de inversión",
+          "de": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "a": [
+            400,
+            120,
+            1200,
+            700
+          ],
+          "rotulo": "Un solo modelo de *su empresa*",
+          "peso": 1.2
+        },
+        {
+          "tipo": "captura",
+          "img": "sim-puente",
+          "de": [
+            440,
+            150,
+            1120,
+            640
+          ],
+          "a": {
+            "marca": "kpis",
+            "margen": 40
+          },
+          "resalta": "liquidez",
+          "resaltaDesde": 0.35,
+          "peso": 1
+        },
+        {
+          "tipo": "captura",
+          "img": "sim-puente",
+          "de": [
+            800,
+            420,
+            900,
+            520
+          ],
+          "a": {
+            "marca": "veredicto",
+            "margen": 50
+          },
+          "resalta": "veredicto",
+          "resaltaDesde": 0.25,
+          "peso": 1
+        }
+      ]
+    },
+    {
+      "voz": "Proyecta la empresa mes a mes durante cinco años. Si la caja va a fallar dentro de dieciséis meses, usted lo sabe hoy.",
+      "sub": "Proyecta la empresa mes a mes durante cinco años. Si la caja va a fallar dentro de 16 meses, usted lo sabe hoy.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "sim-escenarios",
+          "etiqueta": "Proyección a 60 meses",
+          "de": [
+            420,
+            90,
+            1150,
+            600
+          ],
+          "a": [
+            600,
+            260,
+            760,
+            380
+          ],
+          "rotulo": "Lo sabe *hoy*",
+          "peso": 1.4
+        },
+        {
+          "tipo": "captura",
+          "img": "sim-riesgos",
+          "de": [
+            430,
+            280,
+            1130,
+            520
+          ],
+          "a": {
+            "marca": "semaforos",
+            "margen": 30
+          },
+          "resalta": "liquidez",
+          "resaltaDesde": 0.25,
+          "peso": 1
+        }
+      ]
+    },
+    {
+      "voz": "Ensaya cinco escenarios a la vez, del estrés al optimista, para decidir sabiendo qué pasa si las cosas salen peor de lo previsto.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "sim-escenarios-tarjetas",
+          "etiqueta": "Escenarios",
+          "de": [
+            420,
+            120,
+            1150,
+            650
+          ],
+          "a": [
+            440,
+            150,
+            1080,
+            520
+          ],
+          "rotulo": "Cinco escenarios *a la vez*",
+          "peso": 1.2
+        },
+        {
+          "tipo": "captura",
+          "img": "sim-escenarios",
+          "de": [
+            800,
+            200,
+            760,
+            430
+          ],
+          "a": [
+            450,
+            100,
+            1100,
+            560
+          ],
+          "peso": 1
+        }
+      ]
+    },
+    {
+      "voz": "Cruza todos los datos y enciende las alertas antes de que lleguen: cobros que se alargan, un cliente que pesa demasiado, la caja de las próximas trece semanas.",
+      "sub": "Cruza todos los datos y enciende las alertas antes de que lleguen: cobros que se alargan, un cliente que pesa demasiado, la caja de las próximas 13 semanas.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "est-cobros",
+          "etiqueta": "Sistema estratégico · Cobros",
+          "de": [
+            420,
+            200,
+            1150,
+            450
+          ],
+          "a": {
+            "marca": "kpis",
+            "margen": 30
+          },
+          "resalta": "cajaAtrapada",
+          "resaltaDesde": 0.35,
+          "peso": 1
+        },
+        {
+          "tipo": "captura",
+          "img": "est-ventas",
+          "etiqueta": "Clientes y concentración",
+          "de": [
+            430,
+            90,
+            1150,
+            700
+          ],
+          "a": {
+            "marca": "kpis",
+            "margen": 80
+          },
+          "resalta": {
+            "marca": "primerCliente",
+            "margen": 28
+          },
+          "resaltaDesde": 0.3,
+          "rotulo": "Un cliente, *31 %* de las ventas",
+          "peso": 1.1
+        },
+        {
+          "tipo": "captura",
+          "img": "est-tesoreria",
+          "etiqueta": "Tesorería a 13 semanas",
+          "de": [
+            430,
+            300,
+            1120,
+            450
+          ],
+          "a": [
+            430,
+            120,
+            1120,
+            600
+          ],
+          "peso": 1
+        }
+      ]
+    },
+    {
+      "voz": "Y le enseña qué palancas mover. En el caso de ejemplo, nueve palancas llevan la liquidez mínima de menos doscientos ochenta y cinco mil euros a setenta y un mil.",
+      "sub": "Y le enseña qué palancas mover. En el caso de ejemplo, nueve palancas llevan la liquidez mínima de −285.000 € a 71.000 €.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "est-tablero",
+          "etiqueta": "Qué tocar",
+          "de": [
+            400,
+            250,
+            1150,
+            650
+          ],
+          "a": {
+            "marca": "nota",
+            "margen": 50
+          },
+          "resalta": "nota",
+          "resaltaDesde": 0.4,
+          "peso": 1
+        },
+        {
+          "tipo": "cifra",
+          "kick": "Liquidez mínima · caso de ejemplo",
+          "de": "−285.000 €",
+          "a": "71.000 €",
+          "pie": "Misma inversión. *Otra decisión.*",
+          "cambio": 0.35,
+          "peso": 1.4
+        }
+      ]
+    },
+    {
+      "voz": "Detecta los puestos críticos sin suplente, ordena el diagnóstico por urgencias y lo convierte en metas con fecha y responsable.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "per-organigrama",
+          "etiqueta": "Personas y equipos",
+          "de": [
+            420,
+            300,
+            1150,
+            650
+          ],
+          "a": [
+            980,
+            500,
+            620,
+            400
+          ],
+          "resalta": {
+            "marca": "auditoria",
+            "margen": 6
+          },
+          "resaltaDesde": 0.35,
+          "peso": 1
+        },
+        {
+          "tipo": "captura",
+          "img": "iv-triaje",
+          "etiqueta": "Auditoría integral",
+          "de": [
+            400,
+            100,
+            1200,
+            700
+          ],
+          "a": {
+            "marca": "triaje",
+            "margen": 120
+          },
+          "resalta": "triaje",
+          "resaltaDesde": 0.3,
+          "peso": 1
+        },
+        {
+          "tipo": "captura",
+          "img": "mesa-metas",
+          "etiqueta": "Mesa de trabajo",
+          "de": [
+            420,
+            580,
+            1150,
+            450
+          ],
+          "a": [
+            440,
+            640,
+            1100,
+            300
+          ],
+          "resalta": [
+            450,
+            700,
+            1080,
+            140
+          ],
+          "resaltaDesde": 0.3,
+          "rotulo": "Del diagnóstico *a la acción*",
+          "peso": 1.1
+        }
+      ]
+    },
+    {
+      "voz": "Atalaya trescientos sesenta. Anticípese. Decida con números.",
+      "sub": "Atalaya 360°. Anticípese. Decida con números.",
+      "pausa": 1.6,
+      "planos": [
+        {
+          "tipo": "cierre",
+          "texto": "Atalaya *360°*",
+          "sub": "Anticípese. Decida con números.",
+          "cta": "Pruébelo 14 días"
+        }
+      ]
+    }
+  ]
+}
