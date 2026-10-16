@@ -28,6 +28,7 @@
     ST.plan.acciones = acciones.sort((a, b) => a.f - b.f || a.fecha.localeCompare(b.fecha));
     ST.plan.generado = new Date().toISOString();
   };
+  V.generarPlan = generar;
   const lineaDeArea = (a) => ({ gob: 'gobierno', fin: 'finanzas', com: 'comercial', ope: 'procesos', per: 'equipos', inf: 'informacion', tie: 'protocolos', leg: 'gobierno' }[a] || 'organizacion');
 
   /* ---------- Envío a la mesa de trabajo ---------- */

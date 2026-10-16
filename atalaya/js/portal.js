@@ -40,7 +40,7 @@
     // Paso 1: el mapa de empresas. En planes con varias empresas se elige antes de entrar en los mundos;
     // con una sola, se enseña mientras la ficha esté a medias. Siempre se puede volver desde la barra de empresa.
     const SS = { get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
-    const act = P.empresas.activa(), multi = P.limiteEmpresas() > 1 || P.empresas.lista().length > 1;
+    const act = P.empresas.activa(), multi = P.limiteEmpresas() > 1 || P.empresas.reales().length > 1;
     const cerrarPaso = () => { document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; SS.set('atalaya.emp.elegida', P.empresaId()); pintarBarra(); };
     const abrirPaso = () => {
       document.body.classList.add('paso-emp'); $('#empPaso').hidden = false; $('#empBar').hidden = true;

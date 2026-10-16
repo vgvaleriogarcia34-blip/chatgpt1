@@ -921,3 +921,18 @@ span.pdf-campo { display: inline-block; min-width: 60px; }
 .cx-calo.on { border-color: var(--gold); background: rgba(201, 242, 77, 0.05); }
 .cx-calo span { display: grid; gap: 2px; } .cx-calo small { color: var(--muted); font-size: var(--t-xs); }
 .cx-calo input { accent-color: var(--gold); margin-top: 3px; }
+
+/* Empresa modelo: tarjeta en el mapa y ficha de conexiones */
+.em-modelo-wrap { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line-strong); }
+.em-card.em-modelo { border: 1px solid rgba(201, 242, 77, 0.45); background: linear-gradient(160deg, rgba(201, 242, 77, 0.07), rgba(57, 135, 229, 0.06)); }
+.em-tag { display: inline-block; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--gold, #c9f24d); color: var(--gold, #c9f24d); }
+.em-ficha-modelo h4 { margin: 6px 0 0; }
+.emf-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.emf-kpis div { padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); display: grid; gap: 2px; }
+.emf-kpis span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; } .emf-kpis b { font-size: 0.98rem; } .emf-kpis small { font-size: 0.72rem; opacity: 0.75; }
+.emf-mundos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.emf-m { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; }
+.emf-m span { display: grid; } .emf-m small { opacity: 0.7; font-size: 0.74rem; }
+.emf-planes { display: flex; flex-wrap: wrap; gap: 6px; }
+.emf-p { display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); cursor: pointer; font-size: 0.85rem; }
+@media (max-width: 640px) { .emf-kpis { grid-template-columns: 1fr 1fr; } .emf-mundos { grid-template-columns: 1fr; } }
