@@ -65,10 +65,24 @@
   /* ---------- Escenas ---------- */
   const K = R.K, E = R.esc, P = R.pasos, F = R.final;
   const domPal = dominio([E.base.serie, F.serie, ...P.map((d) => d.despues.serie)]);
+  const GR = R.grupos, PAL = V.PALANCAS;
   const VIS = {
-    portada(h) {
-      h.innerHTML = `<div class="vd-portada"><div class="vd-kick">Empresa modelo · datos ficticios</div><h1>Valdenorte</h1><p>Estructuras y montajes industriales · Asturias · desde 1996</p>
-        <div class="vd-kpis">${kpi('Ventas 2025', L.meur(K.ventas))}${kpi('Personas', L.n(K.plantilla))}${kpi('Crecimiento anual', L.pct(K.cagr))}${kpi('Inversión prevista', L.meur(K.inversion))}</div></div>`;
+    gancho(h) {
+      const M = [['Simulador de inversión', 'Proyección y escenarios'], ['Sistema estratégico', 'Ventas, márgenes, cobros, caja'], ['Personas y equipos', 'Estructura, perfiles, relevo'], ['Auditoría integral', 'Diagnóstico y plan'], ['Mesa de trabajo', 'Metas y seguimiento']];
+      h.innerHTML = `<div class="vd-portada"><h1 class="vd-h1s">Ver el futuro<br>antes de decidir</h1><p>Anticiparse a los problemas y tomar mejores decisiones, con los datos de su empresa.</p>
+        <div class="vd-mundos">${M.map((m, i) => `<div class="vd-mn" style="animation-delay:${600 + i * 350}ms"><b>${esc(m[0])}</b><small>${esc(m[1])}</small></div>`).join('')}</div></div>`;
+    },
+    conecta(h) {
+      const IN = ['Cuentas de varios años', 'Ventas y clientes', 'Cobros y bancos', 'Compras y proveedores', 'Plantilla y puestos', 'Conversaciones con la dirección'];
+      const OUT = ['Proyección a 60 meses', 'Escenarios', 'Semáforos', 'Palancas', 'Plan y metas'];
+      h.innerHTML = `<div class="vd-flujo"><div class="vd-col">${IN.map((t, i) => `<div class="vd-in" style="animation-delay:${i * 260}ms">${esc(t)}</div>`).join('')}</div>
+        <div class="vd-flecha2">→</div><div class="vd-core2">Un solo modelo<small>de su empresa</small></div><div class="vd-flecha2">→</div>
+        <div class="vd-col">${OUT.map((t, i) => `<div class="vd-out" style="animation-delay:${2200 + i * 300}ms">${esc(t)}</div>`).join('')}</div></div>`;
+    },
+    caso(h) {
+      h.innerHTML = `<div class="vd-caso"><div class="vd-kick">Caso de ejemplo · empresa inventada</div><h3>Una industria familiar a punto de invertir</h3>
+        <div class="vd-kpis">${kpi('Ventas', L.meur(K.ventas))}${kpi('Personas', L.n(K.plantilla))}${kpi('Crecimiento anual', L.pct(K.cagr))}${kpi('Inversión prevista', L.meur(K.inversion))}</div>
+        <p class="vd-nota">La pregunta que se hace la dirección: ¿podemos invertir sin quedarnos sin caja?</p></div>`;
     },
     historia(h) {
       const Hs = R.H, mx = Math.max(...Hs.map((a) => a.ventas)), bw = 90, base = 300, alto = 230, x = (i) => 80 + i * 140;
@@ -80,16 +94,18 @@
         ${Hs.map((a, i) => `<circle class="vd-pt caja vd-tarde" cx="${x(i) + bw / 2}" cy="${ys(a.tesoreria)}" r="5"/><circle class="vd-pt deuda vd-tarde2" cx="${x(i) + bw / 2}" cy="${ys(a.deudaCP)}" r="5"/>`).join('')}
         </svg><div class="vd-side"><div class="vd-ley"><i class="v"></i>Ventas</div><div class="vd-ley vd-tarde"><i class="c"></i>Caja: ${L.eur(K.tesoreria0)} → ${L.eur(K.tesoreria)}</div><div class="vd-ley vd-tarde2"><i class="d"></i>Deuda a corto: ${L.eur(Hs[0].deudaCP)} → ${L.eur(Hs[4].deudaCP)}</div>${kpi('EBITDA sobre ventas', L.pct(K.ebitdaPct), 'en 2025', 'warn')}</div></div>`;
     },
-    rojos(h) {
-      const R5 = [['Cobros', `${K.dso} días`, `hace cinco años, ${K.dso0}`], ['Un cliente', `${K.topPct} %`, 'de las ventas'], ['Carpintería', `${K.carpPct} % de margen`, `montajes: ${K.montPct} %`], ['Dependencia', 'Todo pasa por el fundador', 'el taller, sin segundo'], ['Inversión', L.meur(K.inversion), 'láser, plegadora y nave']];
-      h.innerHTML = `<div class="vd-rojos">${R5.map((r, i) => `<div class="vd-rc" data-i="${i}"><span class="vd-rn">${i + 1}</span><span class="vd-rk">${esc(r[0])}</span><b>${esc(r[1])}</b><small>${esc(r[2])}</small></div>`).join('')}</div>`;
-      [0.12, 0.27, 0.45, 0.62, 0.78].forEach((fr, i) => cue(fr, () => { const c = $(`.vd-rc[data-i="${i}"]`, h); if (c) c.classList.add('on'); }));
+    semaforos(h) {
+      const R5 = [['Sistema estratégico · Cobros', `${K.dso} días de cobro`, `hace cinco años, ${K.dso0}`], ['Sistema estratégico · Clientes', `${K.topPct} % en un cliente`, 'riesgo de concentración'], ['Sistema estratégico · Margen', `${K.carpPct} % de margen`, `en una línea; otra deja ${K.montPct} %`], ['Personas y equipos', 'Todo pasa por una persona', 'puestos críticos sin suplente'], ['Simulador · Inversión', L.meur(K.inversion), 'sobre esta estructura']];
+      h.innerHTML = `<div class="vd-rojos">${R5.map((r, i) => `<div class="vd-rc" data-i="${i}"><span class="vd-rn">●</span><span class="vd-rk">${esc(r[0])}</span><b>${esc(r[1])}</b><small>${esc(r[2])}</small></div>`).join('')}</div>`;
+      [0.14, 0.3, 0.45, 0.6, 0.72].forEach((fr, i) => cue(fr, () => { const c = $(`.vd-rc[data-i="${i}"]`, h); if (c) c.classList.add('on'); }));
     },
     proyeccion(h) {
       const G = grafico(dominio([E.base.serie]));
-      h.innerHTML = `<div class="vd-2col">${G.svg}<div class="vd-side">${kpi('Liquidez mínima', L.eur(E.base.liq), mesN(E.base.mes), 'stop')}${kpi('Recuperación', L.anios(E.base.pb))}${kpi('Deuda / EBITDA', L.veces(E.base.dE), '', 'warn')}<div class="vd-vbox" hidden>${veredicto(E.base)}</div></div></div>`;
+      h.innerHTML = `<div class="vd-2col">${G.svg}<div class="vd-side">${kpi('Liquidez mínima', L.eur(E.base.liq), mesN(E.base.mes), 'stop')}${kpi('Recuperación', L.anios(E.base.pb))}${kpi('Deuda / EBITDA', L.veces(E.base.dE), '', 'warn')}<div class="vd-aviso" hidden>Atalaya lo avisa hoy: ${E.base.mes - 1} meses antes</div><div class="vd-vbox" hidden>${veredicto(E.base)}</div></div></div>`;
       const s = $('svg', h); linea(G, s, E.base.serie, 'base', { dibujar: dur * 0.45 });
+      s.querySelector('.vd-marks').insertAdjacentHTML('beforeend', `<g class="vd-hoy"><line x1="${G.x(0)}" x2="${G.x(0)}" y1="16" y2="${CH - 22}"/><text x="${G.x(0) + 6}" y="14">Hoy</text></g>`);
       cue(0.42, () => marca(G, s, E.base.mes, E.base.liq, `${L.eur(E.base.liq)} · ${mesN(E.base.mes)}`, 'stop'));
+      cue(0.55, () => { $('.vd-aviso', h).hidden = false; });
       cue(0.8, () => { $('.vd-vbox', h).hidden = false; });
     },
     escenarios(h) {
@@ -101,23 +117,26 @@
       cue(0.7, () => { linea(G, s, E.base.sinInv, 'e-sin', { dibujar: 1400 }); $('.vd-e-sin', h).hidden = false; });
     },
     palancas(h) {
-      h.innerHTML = `<div class="vd-chips">${P.map((d, i) => `<div class="vd-chip" style="animation-delay:${i * 160}ms"><span>${i + 1}</span><b>${esc(d.n)}</b><small>${esc(d.mundo)}</small></div>`).join('')}</div>`;
+      h.innerHTML = `<div class="vd-grupos">${GR.map((g, k) => `<div class="vd-gc" style="animation-delay:${k * 350}ms"><div class="vd-kick">${k + 1}. ${esc(g.n)}</div>${g.pasos.map((d) => `<div class="vd-gi"><b>${esc(d.n)}</b><small>${esc(d.mundo)}</small></div>`).join('')}</div>`).join('')}</div>`;
     },
-    paso(h, e) {
-      const d = P[e.paso], G = grafico(domPal);
-      h.innerHTML = `<div class="vd-2col">${G.svg}<div class="vd-side"><div class="vd-kick">${esc(d.mundo)}</div><h3 class="vd-pn">${esc(d.n)}</h3><div class="vd-pv">${esc(d.valor)}</div>
-        ${kpi('Liquidez mínima', L.eur(d.antes.liq), '', d.antes.liq < 0 ? 'stop' : 'ok')}${kpi('Caja a 5 años', L.meur(d.antes.fin))}${d.id === 'equipo' ? kpi('Sistema humano', L.n(d.antes.humano) + '/100') : ''}
-        <div class="vd-plist">${P.map((x, i) => `<i class="${i < e.paso ? 'ok' : i === e.paso ? 'on' : ''}" title="${esc(x.n)}"></i>`).join('')}</div></div></div>`;
+    grupo(h, e) {
+      const g = GR.find((x) => x.id === e.grupo), k = GR.indexOf(g), Gf = grafico(domPal), equipo = g.id === 'equipo';
+      h.innerHTML = `<div class="vd-2col vd-grupo">${Gf.svg}<div class="vd-side"><div class="vd-kick">${esc(e.mundo)}</div>
+        <div class="vd-glist">${g.pasos.map((d, j) => `<div class="vd-gl" data-j="${j}"><b>${esc(d.n)}</b><small>${esc(d.valor)}</small></div>`).join('')}</div>
+        <div class="vd-gk">${kpi('Liquidez mínima', L.eur(g.antes.liq), '', g.antes.liq < 0 ? 'stop' : 'ok')}${equipo ? kpi('Sistema humano', L.n(g.antes.humano) + '/100', '', 'warn') : kpi('Caja a 5 años', L.meur(g.antes.fin))}</div>
+        <div class="vd-plist">${GR.map((x, j) => `<i class="${j < k ? 'ok' : j === k ? 'on' : ''}" title="${esc(x.n)}"></i>`).join('')}</div></div></div>`;
       const s = $('svg', h);
-      linea(G, s, E.base.serie, 'fantasma');
-      const l = linea(G, s, d.antes.serie, 'base');
-      cue(0.4, () => {
-        l.morph(d.despues.serie, 1500).then(() => { if (d.despues.liq >= 0) l.setAttribute('class', 'vd-l final'); });
-        const ks = $$('.vd-kpi', h);
-        const set = (el, v, st) => { el.querySelector('b').textContent = v; if (st) { el.classList.remove('ok', 'stop', 'warn'); el.classList.add(st); } el.classList.add('vd-flash'); };
-        setTimeout(() => { set(ks[0], L.eur(d.despues.liq), d.despues.liq < 0 ? 'stop' : 'ok'); set(ks[1], L.meur(d.despues.fin)); if (ks[2]) set(ks[2], L.n(d.despues.humano) + '/100', 'ok'); $$('.vd-plist i', h)[e.paso].className = 'ok'; }, 900);
-        if (d.antes.liq < 0 && d.despues.liq >= 0) setTimeout(() => marca(G, s, d.despues.mes, d.despues.liq, 'Por encima de cero', 'ok'), 1600);
-      });
+      linea(Gf, s, E.base.serie, 'fantasma');
+      const l = linea(Gf, s, g.antes.serie, g.antes.liq >= 0 ? 'final' : 'base');
+      const ks = $$('.vd-kpi', h), set = (el, v, st) => { el.querySelector('b').textContent = v; if (st) { el.classList.remove('ok', 'stop', 'warn'); el.classList.add(st); } el.classList.remove('vd-flash'); void el.offsetWidth; el.classList.add('vd-flash'); };
+      // Cada palanca del grupo se aplica a su tiempo y la línea se mueve con ella
+      const n = g.pasos.length;
+      g.pasos.forEach((d, j) => cue(0.22 + 0.5 * j / n, () => {
+        $(`.vd-gl[data-j="${j}"]`, h).classList.add('on');
+        l.morph(d.despues.serie, 1300).then(() => { l.setAttribute('class', 'vd-l ' + (d.despues.liq >= 0 ? 'final' : 'base')); });
+        setTimeout(() => { set(ks[0], L.eur(d.despues.liq), d.despues.liq < 0 ? 'stop' : 'ok'); if (equipo) set(ks[1], L.n(d.despues.humano) + '/100', 'ok'); else set(ks[1], L.meur(d.despues.fin)); }, 800);
+        if (d.antes.liq < 0 && d.despues.liq >= 0) setTimeout(() => marca(Gf, s, d.despues.mes, d.despues.liq, 'Por encima de cero', 'ok'), 1500);
+      }));
     },
     rumbo(h) {
       const G = grafico(dominio([E.base.serie, F.serie]));
@@ -134,9 +153,13 @@
       h.innerHTML = `<div class="vd-2col">${G.svg}<div class="vd-side">${kpi('Estrés, sin tocar nada', L.eur(E.estres.liq), 'liquidez mínima', 'stop')}${kpi('Estrés, con las palancas', L.eur(R.finalEstres.liq), 'se cubre ampliando la póliza', 'warn')}</div></div>`;
       const s = $('svg', h); linea(G, s, E.estres.serie, 'e-estres'); cue(0.25, () => linea(G, s, R.finalEstres.serie, 'final', { dibujar: 2000 }));
     },
-    ecosistema(h) {
-      const MUNDOS = [['Sistema estratégico', 'Cobros · Margen · Compras · Plan'], ['Simulador', 'Financiación · Nave · Leasing'], ['Personas y equipos', 'Contratar a tiempo · Suplentes'], ['Auditoría integral', 'Plan de intervención'], ['Mesa de trabajo', 'Metas con fecha y responsable']];
-      h.innerHTML = `<div class="vd-eco"><div class="vd-core">Valdenorte<small>una sola fuente de datos</small></div>${MUNDOS.map((m, i) => `<div class="vd-w vd-w${i}" style="animation-delay:${400 + i * 500}ms"><b>${esc(m[0])}</b><small>${esc(m[1])}</small></div>`).join('')}</div>`;
+    accion(h) {
+      const PASOS = [['Palancas', 'Lo que la empresa decide tocar'], ['Auditoría integral', 'Plan de intervención por fases'], ['Mesa de trabajo', 'Metas con fecha y responsable'], ['Seguimiento', 'Tesorería a 13 semanas y nota de cada mundo']];
+      h.innerHTML = `<div class="vd-cadena">${PASOS.map((p, i) => `<div class="vd-cs" style="animation-delay:${400 + i * 900}ms"><span>${i + 1}</span><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div>${i < PASOS.length - 1 ? `<div class="vd-flecha2" style="animation-delay:${800 + i * 900}ms">→</div>` : ''}`).join('')}</div>`;
+    },
+    planes(h) {
+      const PL = [['Esencial', 'Simulador de inversión', 'Decidir una inversión con proyección, escenarios y semáforos'], ['Profesional', '+ Sistema estratégico', 'Gobernar la empresa cada día: ventas, márgenes, cobros, caja y plan'], ['Consultora', '+ Personas y equipos · Auditoría integral', 'Acompañar a otras empresas, del diagnóstico al plan']];
+      h.innerHTML = `<div class="vd-planes">${PL.map((p, i) => `<div class="vd-pl" style="animation-delay:${300 + i * 600}ms"><div class="vd-kick">Plan ${esc(p[0])}</div><b>${esc(p[1])}</b><small>${esc(p[2])}</small></div>`).join('')}</div>`;
     },
     usted(h) {
       const act = P.map(() => true);
@@ -144,7 +167,7 @@
         <div class="vd-toggles">${V.PALANCAS.map((p, i) => `<label class="vd-tg"><input type="checkbox" data-p="${i}" checked><span>${esc(p.n)}</span></label>`).join('')}</div>
         <label class="vd-esc">Escenario <select data-esc><option value="base">Base</option><option value="estres">Estrés</option><option value="pesimista">Pesimista</option><option value="optimista">Optimista</option></select></label>
         <div class="vd-uk"></div>
-        <div class="vd-ubtn"><button class="vd-b solid" data-sim>Abrir el simulador con Valdenorte</button><button class="vd-b" data-otra>Ver el vídeo otra vez</button></div></div></div>`;
+        <div class="vd-ubtn"><button class="vd-b solid" data-sim>Abrir el simulador con el caso</button><button class="vd-b" data-otra>Ver el vídeo otra vez</button></div></div></div>`;
       const pintar = () => {
         const s = JSON.parse(JSON.stringify(R.s0)); V.PALANCAS.forEach((p, i) => { if (act[i]) p.f(s); });
         const sc = $('[data-esc]', h).value, r = V.resultado(s, sc), r0 = sc === 'base' ? E.base : E[sc];
@@ -191,11 +214,12 @@
   function pintarEscena() {
     timers.forEach(clearTimeout); timers = [];
     const e = ESC[i];
-    stage.innerHTML = `<div class="vd-top"><span class="vd-brand">Atalaya 360° · Empresa modelo</span><span class="vd-n">${i + 1} / ${ESC.length}</span></div>
+    stage.innerHTML = `<div class="vd-top"><span class="vd-brand">Atalaya 360°${e.mundo && e.mundo !== 'Atalaya 360°' ? ' · ' + esc(e.mundo) : ''}</span><span class="vd-n">${i + 1} / ${ESC.length}</span></div>
       <h2 class="vd-t">${esc(e.titulo)}</h2><div class="vd-vis"></div><p class="vd-sub">${esc(e.texto)}</p>
       <div class="vd-prog">${ESC.map((x, j) => `<i class="${j < i ? 'ok' : j === i ? 'on' : ''}"></i>`).join('')}</div>`;
     stage.classList.toggle('vd-usted-on', e.id === 'usted');
-    const vis = $('.vd-vis', stage); (VIS[e.id] || (e.paso != null ? VIS.paso : null) || (() => {}))(vis, e);
+    stage.classList.toggle('vd-sin-t', e.id === 'gancho');
+    const vis = $('.vd-vis', stage); (VIS[e.id] || (e.grupo ? VIS.grupo : null) || (() => {}))(vis, e);
     pintarBarra();
   }
   function ir(n, reproducir) {
@@ -217,7 +241,7 @@
     bar.innerHTML = `<button class="vd-b" data-ant aria-label="Escena anterior">⏮</button><button class="vd-b solid" data-play aria-label="${jugando ? 'Pausa' : 'Reproducir'}">${jugando ? '❚❚ Pausa' : '▶ Reproducir'}</button><button class="vd-b" data-sig aria-label="Escena siguiente">⏭</button>
       <button class="vd-b" data-mudo aria-pressed="${mudo}">${mudo ? 'Sin voz' : 'Con voz'}</button>
       <select class="vd-cap" data-cap aria-label="Capítulos">${ESC.map((e, j) => `<option value="${j}" ${j === i ? 'selected' : ''}>${j + 1}. ${esc(e.titulo)}</option>`).join('')}</select>
-      <button class="vd-b" data-usted>Probar usted</button><a class="vd-b" href="media/video/valdenorte-cambiar-el-rumbo.mp4" download>Descargar MP4</a><a class="vd-b" href="portal.html">Salir</a>`;
+      <button class="vd-b" data-usted>Probar usted</button><a class="vd-b" href="media/video/atalaya-anticiparse-y-decidir.mp4" download>Descargar MP4</a><a class="vd-b" href="portal.html">Salir</a>`;
     $('[data-play]', bar).onclick = () => { if (jugando) { jugando = false; token++; clearTimeout(tFin); pararVoz(); pintarBarra(); } else ir(i, true); };
     $('[data-ant]', bar).onclick = () => ir(i - 1);
     $('[data-sig]', bar).onclick = () => ir(i + 1);

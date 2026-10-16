@@ -12,6 +12,6 @@ mix = ''.join(f'[a{k}]' for k in range(len(marcas))) + f'amix=inputs={len(marcas
 dur = M['fin'] - inicio + 1.5
 cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{inicio:.3f}', '-i', M['video']] + ins + ['-filter_complex', ';'.join(filt) + ';' + mix,
        '-map', '0:v', '-map', '[aout]', '-t', f'{dur:.2f}', '-c:v', 'libx264', '-preset', 'slow', '-crf', '23', '-pix_fmt', 'yuv420p', '-r', '25',
-       '-c:a', 'aac', '-b:a', '96k', '-ar', '44100', '-movflags', '+faststart', MEDIA + '/valdenorte-cambiar-el-rumbo.mp4']
+       '-c:a', 'aac', '-b:a', '96k', '-ar', '44100', '-movflags', '+faststart', MEDIA + '/atalaya-anticiparse-y-decidir.mp4']
 subprocess.run(cmd, check=True)
 print('ok', round(dur, 1), 's')

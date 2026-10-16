@@ -1,23 +1,27 @@
-/* Atalaya 360° · Vídeo de la empresa modelo: cálculo y guion
-   Todo sale del motor del simulador (A.analyze) con los datos de Valdenorte: la proyección a 60 meses, los escenarios,
-   los puntos rojos y el efecto de cada palanca, una tras otra. El guion se escribe dos veces con las mismas cifras:
-   para leer (subtítulos, «−285.000 €») y para decir (voz, «menos doscientos ochenta y cinco mil euros»).
-   Funciona en el navegador y en Node (para generar la voz y grabar el vídeo). */
+/* Atalaya 360° · Vídeo «Anticiparse y decidir mejor»: cálculo y guion
+   El protagonista es Atalaya: cómo conecta los datos, avisa antes, proyecta la empresa, ensaya escenarios, dice qué palancas
+   tocar y convierte la decisión en acción. La empresa modelo (Valdenorte) es solo el caso con el que se enseña.
+   Todo sale del motor del simulador (A.analyze): la proyección a 60 meses, los escenarios, los semáforos y el efecto de
+   cada palanca, una tras otra. El guion se escribe dos veces con las mismas cifras: para leer (subtítulos, «−285.000 €»)
+   y para decir (voz, «menos doscientos ochenta y cinco mil euros»). Funciona en el navegador y en Node. */
 (function (G) {
   const A = (G.Atalaya = G.Atalaya || {});
   const C = (o) => JSON.parse(JSON.stringify(o));
 
-  /* ---------- Las palancas, en el orden en que se mueven ---------- */
+  /* ---------- Las palancas, por grupos y en el orden en que se mueven ---------- */
+  const GRUPOS = [
+    { id: 'caja', n: 'La caja' }, { id: 'margen', n: 'Margen y crecimiento' }, { id: 'inversion', n: 'Cómo invertir' }, { id: 'equipo', n: 'El equipo' }
+  ];
   const PALANCAS = [
-    { id: 'cobros', n: 'Cobrar antes', mundo: 'Sistema estratégico · Cobros', valor: 'De 86 a 65 días de cobro', f: (s) => { s.empresa.dso = 65; } },
-    { id: 'margen', n: 'Precio y compras', mundo: 'Sistema estratégico · Margen y compras', valor: '+1,5 puntos de margen', f: (s) => { s.empresa.margen += 1.5; s.inversion.margenNuevo += 2; } },
-    { id: 'financiacion', n: 'Financiación a la medida', mundo: 'Simulador · Inversión', valor: '12 meses de carencia y 9 años de plazo', f: (s) => { s.inversion.carencia = 12; s.inversion.plazo = 9; } },
-    { id: 'contratar', n: 'Contratar al ritmo de la venta', mundo: 'Personas y equipos · Simulador', valor: 'Sin contratar antes de tiempo', f: (s) => { s.inversion.anticipo = 0; } },
-    { id: 'proveedores', n: 'Pagar a 60 días', mundo: 'Sistema estratégico · Compras', valor: 'De 50 a 60 días de pago', f: (s) => { s.empresa.dpo = 60; } },
-    { id: 'nave', n: 'La nave en dos tiempos', mundo: 'Simulador · Inversión', valor: 'Ampliación en el mes 18', f: (s) => { const l = (s.inversion.lineas || []).find((x) => x.tipo === 'nave'); if (l) l.mes = 18; } },
-    { id: 'mantenimiento', n: 'Mantenimiento recurrente', mundo: 'Sistema estratégico · Plan y comercial', valor: 'Crecimiento del 6 al 8 %', f: (s) => { s.empresa.crecimiento = 8; } },
-    { id: 'leasing', n: 'Leasing del láser', mundo: 'Simulador · Inversión', valor: 'Financiado el 85 %', f: (s) => { s.inversion.pctFin = 85; } },
-    { id: 'equipo', n: 'Un equipo que no dependa de una persona', mundo: 'Personas y equipos · Auditoría integral', valor: 'Suplentes, procesos y relevo', f: (s) => { Object.assign(s.humano, { dependencia: 50, procesos: 55, sucesion: 50, mandosFormados: 60 }); } }
+    { id: 'cobros', g: 'caja', n: 'Cobrar antes', mundo: 'Sistema estratégico · Cobros', valor: 'De 86 a 65 días de cobro', f: (s) => { s.empresa.dso = 65; } },
+    { id: 'proveedores', g: 'caja', n: 'Pagar a 60 días', mundo: 'Sistema estratégico · Compras', valor: 'De 50 a 60 días de pago', f: (s) => { s.empresa.dpo = 60; } },
+    { id: 'margen', g: 'margen', n: 'Precio y compras', mundo: 'Sistema estratégico · Margen', valor: '+1,5 puntos de margen', f: (s) => { s.empresa.margen += 1.5; s.inversion.margenNuevo += 2; } },
+    { id: 'mantenimiento', g: 'margen', n: 'Mantenimiento recurrente', mundo: 'Sistema estratégico · Plan', valor: 'Crecimiento del 6 al 8 %', f: (s) => { s.empresa.crecimiento = 8; } },
+    { id: 'financiacion', g: 'inversion', n: 'Financiación a la medida', mundo: 'Simulador · Inversión', valor: '12 meses de carencia, 9 años', f: (s) => { s.inversion.carencia = 12; s.inversion.plazo = 9; } },
+    { id: 'contratar', g: 'inversion', n: 'Contratar al ritmo de la venta', mundo: 'Simulador · Personas', valor: 'Sin contratar antes de tiempo', f: (s) => { s.inversion.anticipo = 0; } },
+    { id: 'nave', g: 'inversion', n: 'La nave en dos tiempos', mundo: 'Simulador · Inversión', valor: 'Ampliación en el mes 18', f: (s) => { const l = (s.inversion.lineas || []).find((x) => x.tipo === 'nave'); if (l) l.mes = 18; } },
+    { id: 'leasing', g: 'inversion', n: 'Leasing del láser', mundo: 'Simulador · Inversión', valor: 'Financiado el 85 %', f: (s) => { s.inversion.pctFin = 85; } },
+    { id: 'equipo', g: 'equipo', n: 'Suplentes, procesos y relevo', mundo: 'Personas y equipos', valor: 'Que no dependa de una persona', f: (s) => { Object.assign(s.humano, { dependencia: 50, procesos: 55, sucesion: 50, mandosFormados: 60 }); } }
   ];
 
   /* ---------- Cálculo ---------- */
@@ -34,7 +38,8 @@
     const esc = {}; ['estres', 'pesimista', 'base', 'optimista'].forEach((k) => { esc[k] = resultado(s0, k); });
     let s = C(s0), antes = esc.base;
     const pasos = PALANCAS.map((p) => { p.f(s); const d = resultado(s); const o = { id: p.id, n: p.n, mundo: p.mundo, valor: p.valor, antes, despues: d }; antes = d; return o; });
-    return { K, H, s0, sFinal: s, esc, pasos, final: antes, finalEstres: resultado(s, 'estres') };
+    const grupos = GRUPOS.map((g) => { const ps = pasos.filter((d) => PALANCAS.find((p) => p.id === d.id).g === g.id); return { id: g.id, n: g.n, pasos: ps, antes: ps[0].antes, despues: ps[ps.length - 1].despues }; });
+    return { K, H, s0, sFinal: s, esc, pasos, grupos, final: antes, finalEstres: resultado(s, 'estres') };
   }
 
   /* ---------- Números en palabras (para la voz) ---------- */
@@ -75,44 +80,31 @@
     mes: (x) => 'el mes ' + palabras(x)
   };
 
-  /* ---------- Guion ---------- */
+  /* ---------- Guion: Atalaya en primer plano, la empresa modelo como caso ---------- */
   function guion(R, f) {
-    const K = R.K, H = R.H, e = R.esc, P = R.pasos, F = R.final, h0 = H[0], h4 = H[H.length - 1];
-    const sube = (d) => (d.despues.liq - d.antes.liq);
-    // Si la palanca apenas mueve el punto más bajo (el bache llega antes), se cuenta lo que sí cambia: la caja final
-    const deltaTxt = (d) => { const x = sube(d); return Math.abs(x) < 10000 ? `apenas se mueve, porque el bache llega antes; pero la caja al final de los cinco años sube en ${f.eur(d.despues.fin - d.antes.fin)}` : `mejora en ${f.eur(x)} y queda en ${f.eur(d.despues.liq)}`; };
-    const cruza = P.find((d) => d.antes.liq < 0 && d.despues.liq >= 0);
+    const K = R.K, H = R.H, e = R.esc, F = R.final, h0 = H[0], h4 = H[H.length - 1], Gp = Object.fromEntries(R.grupos.map((g) => [g.id, g]));
     const esc = [];
-    esc.push({ id: 'portada', titulo: 'Valdenorte: cambiar el rumbo', texto: `Esta es Valdenorte, una empresa familiar de estructuras metálicas con ${f.n(K.plantilla)} personas. Es una empresa inventada, pero sus problemas son los de muchas pymes que crecen. En los próximos minutos verá su proyección, sus puntos rojos y cómo, moviendo unas pocas palancas dentro de su propio ecosistema, cambia el rumbo de la empresa.` });
-    esc.push({ id: 'historia', titulo: 'Cinco años: vende más y tiene menos caja', texto: `En cinco años, las ventas han pasado de ${f.meur(K.ventas0)} a ${f.meur(K.ventas)}: un ${f.pct(K.cagr)} más cada año. Pero mire la caja: ha bajado de ${f.eur(K.tesoreria0)} a ${f.eur(K.tesoreria)}, y la deuda a corto plazo ha pasado de ${f.eur(h0.deudaCP)} a ${f.eur(h4.deudaCP)}. La empresa vende más y, a la vez, tiene menos dinero. Y el resultado no acompaña: el EBITDA se queda en el ${f.pct(K.ebitdaPct)} de las ventas.` });
-    esc.push({ id: 'rojos', titulo: 'Los puntos rojos', texto: `Atalaya cruza los datos de todos los mundos y marca los puntos rojos. Uno: los clientes pagan a ${f.n(K.dso)} días; hace cinco años pagaban a ${f.n(K.dso0)}. Dos: un solo cliente es el ${f.pct(K.topPct, 0)} de las ventas. Tres: la carpintería metálica deja un ${f.pct(K.carpPct, 0)} de margen, frente al ${f.pct(K.montPct, 0)} de los montajes. Cuatro: todo pasa por el fundador, y el jefe de taller no tiene segundo. Y cinco: sobre todo esto, la empresa quiere invertir ${f.meur(K.inversion)} en un láser, una plegadora y una ampliación de nave.` });
-    esc.push({ id: 'proyeccion', titulo: 'La proyección si invierte tal como está planteado', texto: `Así queda la proyección a cinco años si invierte tal como está planteado. La línea es la liquidez: el dinero del banco más lo que queda libre de la póliza. En ${f.mes(e.base.mes)} cae a ${f.eur(e.base.liq)}, aun con la póliza agotada. La inversión tarda ${f.anios(e.base.pb)} en recuperarse y la deuda llega a ${f.veces(e.base.dE)} el EBITDA. El veredicto del simulador: rediseñar antes de mover.` });
-    esc.push({ id: 'escenarios', titulo: 'Cuatro escenarios, el mismo problema', texto: `Y eso es en el escenario base. En el de estrés, con la mitad de la venta nueva y cobros más lentos, la liquidez baja hasta ${f.eur(e.estres.liq)}. Y en el optimista también se queda en negativo: ${f.eur(e.optimista.liq)}. Sin invertir, la caja aguanta, pero la empresa renuncia a crecer. El problema no es la inversión: es la estructura sobre la que se apoya.` });
-    esc.push({ id: 'palancas', titulo: 'Las palancas', texto: `Ahora, las palancas. No hace falta inventar nada: cada una sale de un dato que la empresa ya tiene en su ecosistema. Vamos a moverlas una a una y a mirar qué le pasa a la línea.` });
-    const EXPL = {
-      cobros: `Cobrar antes. Volver de ${f.n(K.dso)} a ${f.n(65)} días con certificaciones mensuales y reclamando cada viernes`,
-      margen: 'Precio y compras. Una tabla de precios con margen mínimo para la carpintería y un acuerdo anual con las acerías: un punto y medio más de margen',
-      financiacion: 'Financiación a la medida de la rampa. Doce meses de carencia y nueve años de plazo, para que las cuotas empiecen cuando la máquina ya produce',
-      contratar: 'Contratar al ritmo de la venta. Las seis personas nuevas entran cuando llega el trabajo, no dos meses antes',
-      proveedores: 'Pagar a los proveedores a sesenta días en lugar de cincuenta, con el acuerdo anual de volumen',
-      nave: 'La nave en dos tiempos. La ampliación se hace en el mes dieciocho, cuando el láser ya genera caja',
-      mantenimiento: 'La línea nueva de mantenimiento. Contratos anuales con las plantas de los clientes, que suben el crecimiento del seis al ocho por ciento',
-      leasing: 'Leasing del láser. Se financia el ochenta y cinco por ciento de la inversión en lugar del setenta y cinco',
-      equipo: 'Y el equipo. Suplentes en los puestos críticos, procesos escritos y un plan de relevo'
-    };
-    P.forEach((d, i) => {
-      let t = `${f.n(i + 1)}. ${EXPL[d.id]}. `;
-      if (d.id === 'equipo') t += `La liquidez no cambia, pero el sistema humano pasa de ${f.n(d.antes.humano)} a ${f.n(d.despues.humano)} sobre cien: la empresa está preparada para crecer sin quemar a nadie.`;
-      else if (d === cruza) t += `Y la línea cruza el cero: la liquidez mínima pasa de ${f.eur(d.antes.liq)} a ${f.eur(d.despues.liq)}.`;
-      else t += `La liquidez mínima ${deltaTxt(d)}.`;
-      esc.push({ id: 'p-' + d.id, titulo: `${i + 1}. ${d.n}`, texto: t, paso: i });
-    });
-    esc.push({ id: 'rumbo', titulo: 'El nuevo rumbo', texto: `Compare las dos líneas. Sin tocar nada, la empresa se queda sin liquidez en ${f.mes(e.base.mes)}. Con las nueve palancas, la liquidez mínima es de ${f.eur(F.liq)}, la inversión se recupera en ${f.anios(F.pb)}, la deuda baja a ${f.veces(F.dE)} el EBITDA y la caja al final de los cinco años pasa de ${f.meur(e.base.fin)} a ${f.meur(F.fin)}. El veredicto cambia: de rediseñar antes de mover, a adelante.` });
-    esc.push({ id: 'estres', titulo: 'Y si las cosas salen mal', texto: `¿Y si las cosas salen mal? Con las palancas, el escenario de estrés pasa de ${f.eur(e.estres.liq)} a ${f.eur(R.finalEstres.liq)}: un hueco que se cubre ampliando la póliza. La empresa ya no depende de que todo salga bien.` });
-    esc.push({ id: 'ecosistema', titulo: 'Dónde vive cada palanca', texto: 'Lo importante es dónde vive cada palanca. Los cobros, en el sistema estratégico; el precio y las compras, en margen y proveedores; la financiación y la nave, en el simulador; las contrataciones y los suplentes, en personas y equipos. La auditoría integral las ordena en un plan de intervención, y cada una baja a la mesa de trabajo como una meta con fecha y responsable. Todo está conectado: cuando cambia un dato, cambia la proyección.' });
-    esc.push({ id: 'usted', titulo: 'Ahora, usted', texto: 'Ahora, pruébelo usted. Active o quite las palancas y mire cómo cambia el rumbo de Valdenorte. Con su empresa, Atalaya hace lo mismo con sus propios datos.' });
+    const add = (id, mundo, titulo, texto, extra) => esc.push(Object.assign({ id, mundo, titulo, texto }, extra || {}));
+    add('gancho', 'Atalaya 360°', 'Ver el futuro antes de decidir', 'La mayoría de las decisiones importantes de una empresa se toman mirando hacia atrás: el cierre del trimestre, el extracto del banco, la intuición. Atalaya le enseña el futuro de su empresa antes de que llegue, para que se anticipe y decida con números. En los próximos minutos verá cómo lo hace.');
+    add('conecta', 'Un solo modelo', 'Todo conectado en un solo modelo', 'Todo empieza por conectar. Atalaya junta en un solo modelo lo que hoy está repartido en hojas, programas y cabezas: las cuentas de varios años, las ventas y los cobros, las compras, el equipo, e incluso las conversaciones con la dirección. Cada mundo de Atalaya lee esos mismos datos, y cuando uno cambia, la proyección cambia con él.');
+    add('caso', 'Caso de ejemplo', 'Un caso para verlo', `Para verlo usaremos un caso de ejemplo: una empresa industrial familiar de ${f.n(K.plantilla)} personas, con ${f.meur(K.ventas)} de ventas, que está pensando invertir ${f.meur(K.inversion)}. La empresa es inventada; lo que Atalaya hace con ella es lo mismo que hará con la suya.`);
+    add('historia', 'Simulador · Historia y cuentas', 'Leer el pasado de otra manera', `Primero, Atalaya lee el pasado de otra manera. Cinco años de cuentas en un minuto: las ventas crecen un ${f.pct(K.cagr)} al año, pero la caja baja de ${f.eur(K.tesoreria0)} a ${f.eur(K.tesoreria)} y la deuda a corto plazo pasa de ${f.eur(h0.deudaCP)} a ${f.eur(h4.deudaCP)}. Lo que en el extracto del banco se ve tarde, aquí se ve de un vistazo: crecer está consumiendo la caja.`);
+    add('semaforos', 'Todos los mundos', 'Semáforos que avisan antes', `Después, Atalaya cruza los mundos y enciende los semáforos. El sistema estratégico detecta que los clientes pagan a ${f.n(K.dso)} días y que uno solo es el ${f.pct(K.topPct, 0)} de las ventas. El análisis de márgenes, que una línea deja un ${f.pct(K.carpPct, 0)} frente al ${f.pct(K.montPct, 0)} de otra. Personas y equipos, que todo pasa por una sola persona. Y el simulador pone sobre la mesa la inversión prevista. Son señales que normalmente se descubren cuando ya son problemas.`);
+    add('proyeccion', 'Simulador · Proyección a 60 meses', 'Anticiparse: la empresa mes a mes', `Y ahora, lo importante: el futuro. Atalaya proyecta la empresa mes a mes durante cinco años, con la inversión tal como está planteada. Hoy, antes de firmar nada, ya sabe que en ${f.mes(e.base.mes)} la liquidez caería a ${f.eur(e.base.liq)}, aun con la póliza agotada. Lo sabe con más de un año de antelación. El simulador lo resume en una frase: rediseñar antes de mover.`);
+    add('escenarios', 'Simulador · Escenarios', 'Ensayar el futuro antes de vivirlo', `Una sola previsión no basta. Atalaya ensaya a la vez el escenario de estrés, el pesimista, el base y el optimista. En estrés, la liquidez llega a ${f.eur(e.estres.liq)}; ni siquiera el optimista se libra: ${f.eur(e.optimista.liq)}. Y sin invertir, la caja aguanta, pero la empresa deja de crecer. Así se decide sabiendo qué pasa si las cosas salen peor de lo previsto.`);
+    add('palancas', 'Simulador y sistema estratégico', 'Qué tocar: las palancas', 'La pregunta ya no es si invertir, sino cómo. Atalaya le enseña qué palancas tiene, en qué mundo vive cada una y cuánto mueve la proyección. Vamos a tocarlas por grupos y a mirar cómo cambia la línea.');
+    const g = (k) => Gp[k];
+    add('g-caja', 'Sistema estratégico · Cobros y compras', '1. La caja', `Primero, la caja. Cobrar a ${f.n(65)} días en lugar de ${f.n(K.dso)}, con certificaciones mensuales, y pagar a los proveedores a ${f.n(60)} en lugar de ${f.n(50)}. Solo con estos dos cambios, la liquidez mínima pasa de ${f.eur(g('caja').antes.liq)} a ${f.eur(g('caja').despues.liq)}.`, { grupo: 'caja' });
+    add('g-margen', 'Sistema estratégico · Margen y plan', '2. Margen y crecimiento', `Segundo, el margen y el crecimiento. Una tabla de precios con margen mínimo y un acuerdo anual de compras suman un punto y medio de margen, y una línea de mantenimiento con contratos anuales sube el crecimiento al ${f.pct(8, 0)}. La liquidez mínima queda en ${f.eur(g('margen').despues.liq)} y la caja a cinco años sube de ${f.meur(g('margen').antes.fin)} a ${f.meur(g('margen').despues.fin)}.`, { grupo: 'margen' });
+    add('g-inversion', 'Simulador · Inversión', '3. Cómo invertir', `Tercero, cómo se hace la inversión. ${f.n(12)} meses de carencia y ${f.n(9)} años de plazo, contratar al ritmo de la venta, la ampliación de nave en ${f.mes(18)} y el láser en leasing al ${f.pct(85, 0)}. La misma inversión, hecha de otra manera, y la línea cruza el cero: la liquidez mínima pasa a ${f.eur(g('inversion').despues.liq)}.`, { grupo: 'inversion' });
+    add('g-equipo', 'Personas y equipos', '4. El equipo', `Y cuarto, el equipo: suplentes en los puestos críticos, procesos escritos y un plan de relevo. No mueve la caja, pero el sistema humano pasa de ${f.n(g('equipo').antes.humano)} a ${f.n(g('equipo').despues.humano)} sobre cien. La empresa está preparada para crecer sin depender de una persona.`, { grupo: 'equipo' });
+    add('rumbo', 'Simulador · Resultado', 'La decisión, con números', `Este es el resultado: las mismas cifras de partida, la misma inversión y otra decisión. La liquidez mínima pasa de ${f.eur(e.base.liq)} a ${f.eur(F.liq)}, la inversión se recupera en ${f.anios(F.pb)} en lugar de ${f.anios(e.base.pb)}, la deuda baja de ${f.veces(e.base.dE)} a ${f.veces(F.dE)} el EBITDA y la caja a cinco años pasa de ${f.meur(e.base.fin)} a ${f.meur(F.fin)}. El veredicto cambia de rediseñar a adelante, y se sabe antes de firmar.`);
+    add('estres', 'Simulador · Escenario de estrés', 'Preparado para lo peor', `Y si las cosas salen mal, con las palancas el escenario de estrés pasa de ${f.eur(e.estres.liq)} a ${f.eur(R.finalEstres.liq)}: un hueco que se cubre ampliando la póliza. La empresa ya no depende de que todo salga bien.`);
+    add('accion', 'Auditoría · Mesa de trabajo', 'De la decisión a la acción', `Decidir es la mitad. Atalaya convierte cada palanca en trabajo: la auditoría integral la ordena en un plan de intervención, la mesa de trabajo la convierte en metas con fecha y responsable, y la tesorería a ${f.n(13)} semanas y la nota de cada mundo avisan si algo se desvía. Así, anticiparse no se queda en un informe.`);
+    add('planes', 'Atalaya 360°', 'Por dónde empezar', 'Puede empezar por lo que necesite hoy. Con el plan Esencial, el simulador, para decidir una inversión. Con el Profesional, además, el sistema estratégico, para gobernar la empresa cada día. Y con el plan Consultora, también personas y equipos y la auditoría integral, para acompañar a otras empresas.');
+    add('usted', 'Pruébelo', 'Ahora, usted', 'Ahora, pruébelo usted. Active o quite las palancas y mire cómo cambia el rumbo. Con su empresa, Atalaya hace lo mismo con sus propios datos.');
     return esc;
   }
 
-  A.videoModelo = { PALANCAS, calcular, guion, resultado, LEER, DECIR, palabras };
+  A.videoModelo = { PALANCAS, GRUPOS, calcular, guion, resultado, LEER, DECIR, palabras };
 })(typeof window !== 'undefined' ? window : globalThis);

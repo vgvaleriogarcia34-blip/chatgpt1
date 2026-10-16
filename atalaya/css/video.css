@@ -99,3 +99,41 @@
 
 .vd-usted-on .vd-sub { min-height: 0; font-size: 15px; padding: 8px 14px; bottom: 30px; }
 .vd-usted-on .vd-vis { height: 470px; top: 116px; }
+
+/* Vídeo centrado en Atalaya: escenas nuevas */
+.vd-h1s { font-size: 76px !important; line-height: 1.02; margin-bottom: 6px !important; }
+.vd-mundos { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.vd-mn { padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(201, 242, 77, 0.35); background: rgba(201, 242, 77, 0.05); display: grid; gap: 2px; animation: vdIn 0.6s ease both; }
+.vd-mn b { font-size: 16px; } .vd-mn small { font-size: 13px; color: rgba(242, 239, 232, 0.65); }
+.vd-flujo { display: grid; grid-template-columns: 1fr 50px 250px 50px 1fr; align-items: center; height: 100%; gap: 6px; }
+.vd-col { display: grid; gap: 8px; }
+.vd-in, .vd-out { padding: 10px 14px; border-radius: 10px; font-size: 16px; animation: vdIn 0.5s ease both; }
+.vd-in { border: 1px solid rgba(106, 168, 255, 0.45); background: rgba(106, 168, 255, 0.07); }
+.vd-out { border: 1px solid rgba(155, 232, 155, 0.5); background: rgba(155, 232, 155, 0.07); font-weight: 600; }
+.vd-flecha2 { font-size: 34px; text-align: center; color: rgba(201, 242, 77, 0.8); animation: vdIn 0.6s ease 1.6s both; }
+.vd-core2 { width: 230px; height: 230px; border-radius: 50%; display: grid; place-content: center; text-align: center; font-family: 'Archivo', sans-serif; font-size: 28px; font-weight: 800; background: radial-gradient(circle, rgba(201, 242, 77, 0.28), rgba(201, 242, 77, 0.04) 70%); border: 1px solid rgba(201, 242, 77, 0.6); animation: vdIn 0.8s ease 1.2s both; }
+.vd-core2 small { display: block; font-family: 'Libre Franklin', sans-serif; font-size: 15px; font-weight: 400; color: rgba(242, 239, 232, 0.75); }
+.vd-caso { display: grid; align-content: center; gap: 12px; height: 100%; animation: vdIn 0.7s ease both; }
+.vd-caso h3 { margin: 0; font-family: 'Archivo', sans-serif; font-size: 38px; }
+.vd-nota { margin: 6px 0 0; font-size: 20px; color: #c9f24d; }
+.vd-rn { font-size: 14px; }
+.vd-hoy line { stroke: rgba(201, 242, 77, 0.8); stroke-dasharray: 3 4; } .vd-hoy text { fill: #c9f24d; font-size: 13px; font-family: 'IBM Plex Mono', monospace; }
+.vd-aviso { padding: 10px 14px; border-radius: 10px; background: rgba(201, 242, 77, 0.1); border: 1px solid rgba(201, 242, 77, 0.55); color: #e6ff9a; font-weight: 600; animation: vdIn 0.5s ease both; } .vd-aviso[hidden] { display: none; }
+.vd-grupos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; height: 100%; align-content: center; }
+.vd-gc { padding: 14px; border-radius: 14px; border: 1px solid rgba(201, 242, 77, 0.35); background: rgba(201, 242, 77, 0.04); display: grid; gap: 8px; align-content: start; min-height: 260px; animation: vdIn 0.6s ease both; }
+.vd-gi { display: grid; gap: 1px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); } .vd-gi b { font-size: 15px; } .vd-gi small { font-size: 12px; color: rgba(242, 239, 232, 0.6); }
+.vd-glist { display: grid; gap: 6px; }
+.vd-gl { display: grid; gap: 1px; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08); opacity: 0.4; transition: all 0.5s; }
+.vd-gl.on { opacity: 1; border-color: rgba(155, 232, 155, 0.6); background: rgba(155, 232, 155, 0.07); }
+.vd-gl b { font-size: 16px; } .vd-gl small { font-size: 13px; color: #c9f24d; }
+.vd-cadena { display: flex; align-items: center; justify-content: center; gap: 8px; height: 100%; }
+.vd-cs { width: 245px; padding: 18px; border-radius: 14px; border: 1px solid rgba(106, 168, 255, 0.5); background: rgba(106, 168, 255, 0.07); display: grid; gap: 4px; animation: vdIn 0.6s ease both; }
+.vd-cs span { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #6aa8ff; color: #0b0f17; font-weight: 700; } .vd-cs b { font-size: 20px; } .vd-cs small { font-size: 14px; color: rgba(242, 239, 232, 0.7); }
+.vd-cadena .vd-flecha2 { font-size: 28px; }
+.vd-planes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; height: 100%; align-content: center; }
+.vd-pl { padding: 22px; border-radius: 16px; border: 1px solid rgba(201, 242, 77, 0.4); background: rgba(201, 242, 77, 0.05); display: grid; gap: 6px; min-height: 200px; align-content: start; animation: vdIn 0.6s ease both; }
+.vd-pl b { font-family: 'Archivo', sans-serif; font-size: 24px; } .vd-pl small { font-size: 16px; color: rgba(242, 239, 232, 0.72); line-height: 1.4; }
+
+.vd-sin-t .vd-t { display: none; } .vd-sin-t .vd-vis { top: 96px; height: 470px; }
+.vd-grupo .vd-side { align-content: start; gap: 8px; } .vd-grupo .vd-gl { padding: 5px 10px; } .vd-grupo .vd-gl b { font-size: 15px; } .vd-grupo .vd-gl small { font-size: 12px; }
+.vd-gk { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .vd-gk .vd-kpi { padding: 8px 12px; } .vd-gk .vd-kpi b { font-size: 22px; }

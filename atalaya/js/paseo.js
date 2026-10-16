@@ -121,7 +121,7 @@
       <div class="paseo-ben"><b>${s.fin ? 'En resumen' : 'Lo que gana Valdenorte'}</b><p>${esc(ben)}</p></div>
       ${aqui(s) ? '' : `<p class="paseo-aviso">Esta parada está en otra pantalla. <button class="paseo-l" data-pir>Ir allí</button></p>`}
       <div class="paseo-dots" aria-hidden="true">${PASOS.map((x, j) => `<i class="${j === st.i ? 'on' : j < st.i ? 'ok' : ''}"></i>`).join('')}</div>
-      <div class="paseo-b">${st.i ? '<button class="paseo-btn" data-pant>← Anterior</button>' : '<span></span>'}${s.fin ? '<a class="paseo-btn" href="video.html">Ver el vídeo con voz</a><button class="paseo-btn" data-pquedar>Seguir con la empresa modelo</button><button class="paseo-btn solid" data-psalir>Volver a mi empresa</button>' : `<button class="paseo-btn solid" data-psig>Siguiente: ${esc(PASOS[st.i + 1].t)} →</button>`}</div>`;
+      <div class="paseo-b">${st.i ? '<button class="paseo-btn" data-pant>← Anterior</button>' : '<span></span>'}${s.fin ? '<a class="paseo-btn" href="video.html">Vídeo: anticiparse y decidir mejor</a><button class="paseo-btn" data-pquedar>Seguir con la empresa modelo</button><button class="paseo-btn solid" data-psalir>Volver a mi empresa</button>' : `<button class="paseo-btn solid" data-psig>Siguiente: ${esc(PASOS[st.i + 1].t)} →</button>`}</div>`;
     const on = (sel, fn) => el.querySelectorAll(sel).forEach((b) => (b.onclick = fn));
     on('[data-psig]', () => ir(st.i + 1)); on('[data-pant]', () => ir(st.i - 1)); on('[data-pir]', () => ir(st.i));
     on('[data-psalir]', salir); on('[data-pquedar]', quedarse);

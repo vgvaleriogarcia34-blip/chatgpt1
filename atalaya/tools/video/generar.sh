@@ -8,4 +8,4 @@ node escenas.js tmp/escenas.json
 python3 voces.py tmp ../../media/video "${PIPER_MODEL:?Indica PIPER_MODEL}"
 TMP_VIDEO="$PWD/tmp" node grabar.js
 python3 montar.py tmp ../../media/video
-echo "Listo: media/video/valdenorte-cambiar-el-rumbo.mp4"
+echo "Listo: media/video/atalaya-anticiparse-y-decidir.mp4"

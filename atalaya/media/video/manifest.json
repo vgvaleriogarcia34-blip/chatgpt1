@@ -1,100 +1,90 @@
 {
  "voz": "es_ES-davefx-medium (Piper)",
  "escenas": {
-  "portada": {
-   "archivo": "escena-portada.mp3",
-   "dur": 20.584,
-   "h": "3yaob2"
+  "gancho": {
+   "archivo": "escena-gancho.mp3",
+   "dur": 15.726,
+   "h": "lkxvso"
+  },
+  "conecta": {
+   "archivo": "escena-conecta.mp3",
+   "dur": 19.749,
+   "h": "vlnmyi"
+  },
+  "caso": {
+   "archivo": "escena-caso.mp3",
+   "dur": 16.849,
+   "h": "y750dx"
   },
   "historia": {
    "archivo": "escena-historia.mp3",
-   "dur": 28.97,
-   "h": "hqywi"
+   "dur": 24.216,
+   "h": "si7ume"
   },
-  "rojos": {
-   "archivo": "escena-rojos.mp3",
-   "dur": 33.515,
-   "h": "i109wy"
+  "semaforos": {
+   "archivo": "escena-semaforos.mp3",
+   "dur": 26.932,
+   "h": "1p1mkhd"
   },
   "proyeccion": {
    "archivo": "escena-proyeccion.mp3",
-   "dur": 22.23,
-   "h": "115ght"
+   "dur": 22.021,
+   "h": "1ow63c3"
   },
   "escenarios": {
    "archivo": "escena-escenarios.mp3",
-   "dur": 22.256,
-   "h": "1s7ztur"
+   "dur": 23.275,
+   "h": "gfjxur"
   },
   "palancas": {
    "archivo": "escena-palancas.mp3",
-   "dur": 10.109,
-   "h": "1qmfeh0"
+   "dur": 10.449,
+   "h": "1pwkr5t"
   },
-  "p-cobros": {
-   "archivo": "escena-p-cobros.mp3",
-   "dur": 13.949,
-   "h": "q1b8rw"
+  "g-caja": {
+   "archivo": "escena-g-caja.mp3",
+   "dur": 17.633,
+   "h": "1xie997"
   },
-  "p-margen": {
-   "archivo": "escena-p-margen.mp3",
-   "dur": 14.994,
-   "h": "1ag20uo"
+  "g-margen": {
+   "archivo": "escena-g-margen.mp3",
+   "dur": 20.271,
+   "h": "18tfvjp"
   },
-  "p-financiacion": {
-   "archivo": "escena-p-financiacion.mp3",
-   "dur": 16.274,
-   "h": "2x4iqi"
+  "g-inversion": {
+   "archivo": "escena-g-inversion.mp3",
+   "dur": 18.469,
+   "h": "1mppwbh"
   },
-  "p-contratar": {
-   "archivo": "escena-p-contratar.mp3",
-   "dur": 12.199,
-   "h": "sjgkhg"
-  },
-  "p-proveedores": {
-   "archivo": "escena-p-proveedores.mp3",
-   "dur": 10.658,
-   "h": "1midjkl"
-  },
-  "p-nave": {
-   "archivo": "escena-p-nave.mp3",
-   "dur": 11.337,
-   "h": "174yqqb"
-  },
-  "p-mantenimiento": {
-   "archivo": "escena-p-mantenimiento.mp3",
-   "dur": 16.823,
-   "h": "gjk8do"
-  },
-  "p-leasing": {
-   "archivo": "escena-p-leasing.mp3",
-   "dur": 12.826,
-   "h": "54f5bx"
-  },
-  "p-equipo": {
-   "archivo": "escena-p-equipo.mp3",
-   "dur": 15.621,
-   "h": "tt28vg"
+  "g-equipo": {
+   "archivo": "escena-g-equipo.mp3",
+   "dur": 14.864,
+   "h": "yh4ugx"
   },
   "rumbo": {
    "archivo": "escena-rumbo.mp3",
-   "dur": 26.044,
-   "h": "okucx0"
+   "dur": 31.19,
+   "h": "r5j0d"
   },
   "estres": {
    "archivo": "escena-estres.mp3",
-   "dur": 13.714,
-   "h": "fh33z3"
+   "dur": 14.237,
+   "h": "uywkyp"
   },
-  "ecosistema": {
-   "archivo": "escena-ecosistema.mp3",
-   "dur": 27.429,
-   "h": "8zdt7m"
+  "accion": {
+   "archivo": "escena-accion.mp3",
+   "dur": 19.278,
+   "h": "5ob6mo"
+  },
+  "planes": {
+   "archivo": "escena-planes.mp3",
+   "dur": 17.816,
+   "h": "13v10az"
   },
   "usted": {
    "archivo": "escena-usted.mp3",
-   "dur": 8.568,
-   "h": "615dto"
+   "dur": 8.072,
+   "h": "1j7a4u7"
   }
  }
 }
