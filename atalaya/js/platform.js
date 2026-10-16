@@ -679,6 +679,7 @@
           <button class="btn solid" type="submit">Guardar las conexiones</button>
           <button type="button" class="btn ghost" data-entrar>${P.modelo.activa() ? 'Seguir con la empresa modelo' : 'Probar con la empresa modelo'}</button>
           ${A.paseo ? '<button type="button" class="btn ghost" data-paseo>Paseo virtual</button>' : ''}
+          <a class="btn ghost" href="video.html">Vídeo con voz</a>
           <span class="spacer"></span>
           <button type="button" class="btn ghost small" data-reset title="Vuelve a crear los datos de la empresa modelo tal como vienen">Restablecer sus datos</button>
         </div>
