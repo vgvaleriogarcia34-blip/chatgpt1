@@ -1,229 +1,347 @@
 {
-  "app": "http://localhost:8765",
-  "planVista": "consultora",
-  "densidad": 2,
-  "capturas": [
-    {
-      "id": "sim-puente",
-      "url": "app.html#puente",
-      "esperar": 4500,
-      "marcas": {
-        "veredicto": {
-          "texto": "Veredicto · escenario base",
-          "subir": 2
-        },
-        "liquidez": {
-          "texto": "Liquidez mínima",
-          "subir": 2
-        },
-        "kpis": {
-          "texto": "Recuperación",
-          "subir": 3
-        },
-        "titulo": {
-          "texto": "pagar su crecimiento",
-          "subir": 1
-        }
-      }
+ "app": "http://localhost:8765",
+ "planVista": "consultora",
+ "densidad": 2,
+ "capturas": [
+  {
+   "id": "sim-puente",
+   "url": "app.html#puente",
+   "esperar": 4500,
+   "marcas": {
+    "veredicto": {
+     "texto": "Veredicto · escenario base",
+     "subir": 2
     },
-    {
-      "id": "sim-historia",
-      "url": "app.html#historia",
-      "esperar": 4500,
-      "acciones": [
-        {
-          "scrollTexto": "Crecimiento financiable",
-          "altura": 0.35
-        }
-      ],
-      "marcas": {
-        "kpis": {
-          "texto": "Crecimiento financiable",
-          "subir": 2
-        },
-        "grafico": {
-          "texto": "Evolución y proyección",
-          "subir": 1
-        }
-      }
+    "liquidez": {
+     "texto": "Liquidez mínima",
+     "subir": 2
     },
-    {
-      "id": "sim-escenarios",
-      "url": "app.html#escenarios",
-      "esperar": 5000,
-      "acciones": [
-        {
-          "scrollTexto": "Liquidez mensual por escenario",
-          "altura": 0.08,
-          "esperar": 1800
-        }
-      ],
-      "marcas": {
-        "grafico": {
-          "texto": "Liquidez mensual por escenario",
-          "subir": 1
-        }
-      }
+    "kpis": {
+     "texto": "Recuperación",
+     "subir": 3
     },
-    {
-      "id": "sim-escenarios-tarjetas",
-      "url": "app.html#escenarios",
-      "esperar": 5000,
-      "marcas": {
-        "tarjetas": {
-          "texto": "Pesimista",
-          "subir": 3
-        }
-      }
-    },
-    {
-      "id": "sim-riesgos",
-      "url": "app.html#riesgos",
-      "esperar": 4500,
-      "marcas": {
-        "semaforos": {
-          "texto": "Cobertura de deuda",
-          "subir": 3
-        },
-        "liquidez": {
-          "texto": "Liquidez",
-          "subir": 1
-        }
-      }
-    },
-    {
-      "id": "est-tablero",
-      "url": "estrategia.html#tablero",
-      "esperar": 4500,
-      "marcas": {
-        "nota": {
-          "texto": "con puntos que corregir",
-          "subir": 1
-        }
-      }
-    },
-    {
-      "id": "est-cobros",
-      "url": "estrategia.html#cobros",
-      "esperar": 4500,
-      "acciones": [
-        {
-          "scrollTexto": "Caja atrapada",
-          "altura": 0.25
-        }
-      ],
-      "marcas": {
-        "kpis": {
-          "texto": "Caja atrapada",
-          "subir": 3
-        },
-        "cajaAtrapada": {
-          "texto": "Caja atrapada",
-          "subir": 1
-        },
-        "lectura": {
-          "texto": "Lectura de auditoría",
-          "subir": 1
-        }
-      }
-    },
-    {
-      "id": "est-ventas",
-      "url": "estrategia.html#ventas",
-      "esperar": 4500,
-      "acciones": [
-        {
-          "scrollY": 520
-        }
-      ],
-      "marcas": {
-        "primerCliente": {
-          "texto": "Primer cliente",
-          "subir": 1
-        },
-        "kpis": {
-          "texto": "Primer cliente",
-          "subir": 2
-        }
-      }
-    },
-    {
-      "id": "est-tesoreria",
-      "url": "estrategia.html#tesoreria",
-      "esperar": 4500,
-      "acciones": [
-        {
-          "scrollTexto": "13 semanas",
-          "altura": 0.2
-        }
-      ],
-      "marcas": {
-        "semanaTensa": {
-          "texto": "Semana más tensa",
-          "subir": 1
-        },
-        "kpis": {
-          "texto": "Semana más tensa",
-          "subir": 2
-        }
-      }
-    },
-    {
-      "id": "est-plan",
-      "url": "estrategia.html#plan",
-      "esperar": 4500,
-      "acciones": [
-        {
-          "scrollTexto": "DAFO",
-          "altura": 0.15
-        }
-      ],
-      "marcas": {}
-    },
-    {
-      "id": "per-organigrama",
-      "url": "personas.html#organigrama",
-      "esperar": 4500,
-      "marcas": {
-        "auditoria": {
-          "texto": "Auditoría de la estructura",
-          "subir": 1
-        },
-        "criticos": {
-          "texto": "Puestos críticos",
-          "subir": 1
-        }
-      }
-    },
-    {
-      "id": "iv-triaje",
-      "url": "intervencion.html#triaje",
-      "esperar": 5500,
-      "marcas": {
-        "triaje": {
-          "texto": "Triaje de la empresa",
-          "subir": 2
-        },
-        "ficha": {
-          "texto": "Ficha de recorrido",
-          "subir": 2
-        },
-        "constantes": {
-          "texto": "Tensión",
-          "subir": 2
-        }
-      }
-    },
-    {
-      "id": "mesa-metas",
-      "url": "mesa.html#metas",
-      "esperar": 4500,
-      "acciones": [
-        {
-          "scrollY": 560
-        }
-      ],
-      "marcas": {}
+    "titulo": {
+     "texto": "pagar su crecimiento",
+     "subir": 1
     }
-  ]
+   }
+  },
+  {
+   "id": "sim-historia",
+   "url": "app.html#historia",
+   "esperar": 4500,
+   "acciones": [
+    {
+     "scrollTexto": "Crecimiento financiable",
+     "altura": 0.35
+    }
+   ],
+   "marcas": {
+    "kpis": {
+     "texto": "Crecimiento financiable",
+     "subir": 2
+    },
+    "grafico": {
+     "texto": "Evolución y proyección",
+     "subir": 1
+    }
+   }
+  },
+  {
+   "id": "sim-escenarios",
+   "url": "app.html#escenarios",
+   "esperar": 5000,
+   "acciones": [
+    {
+     "scrollTexto": "Liquidez mensual por escenario",
+     "altura": 0.08,
+     "esperar": 1800
+    }
+   ],
+   "marcas": {
+    "grafico": {
+     "texto": "Liquidez mensual por escenario",
+     "subir": 1
+    }
+   }
+  },
+  {
+   "id": "sim-escenarios-tarjetas",
+   "url": "app.html#escenarios",
+   "esperar": 5000,
+   "marcas": {
+    "tarjetas": {
+     "texto": "Pesimista",
+     "subir": 3
+    }
+   }
+  },
+  {
+   "id": "sim-riesgos",
+   "url": "app.html#riesgos",
+   "esperar": 4500,
+   "marcas": {
+    "semaforos": {
+     "texto": "Cobertura de deuda",
+     "subir": 3
+    },
+    "liquidez": {
+     "texto": "Liquidez",
+     "subir": 1
+    }
+   }
+  },
+  {
+   "id": "est-tablero",
+   "url": "estrategia.html#tablero",
+   "esperar": 4500,
+   "marcas": {
+    "nota": {
+     "texto": "con puntos que corregir",
+     "subir": 1
+    }
+   }
+  },
+  {
+   "id": "est-cobros",
+   "url": "estrategia.html#cobros",
+   "esperar": 4500,
+   "acciones": [
+    {
+     "scrollTexto": "Caja atrapada",
+     "altura": 0.25
+    }
+   ],
+   "marcas": {
+    "kpis": {
+     "texto": "Caja atrapada",
+     "subir": 3
+    },
+    "cajaAtrapada": {
+     "texto": "Caja atrapada",
+     "subir": 1
+    },
+    "lectura": {
+     "texto": "Lectura de auditoría",
+     "subir": 1
+    }
+   }
+  },
+  {
+   "id": "est-ventas",
+   "url": "estrategia.html#ventas",
+   "esperar": 4500,
+   "acciones": [
+    {
+     "scrollY": 520
+    }
+   ],
+   "marcas": {
+    "primerCliente": {
+     "texto": "Primer cliente",
+     "subir": 1
+    },
+    "kpis": {
+     "texto": "Primer cliente",
+     "subir": 2
+    }
+   }
+  },
+  {
+   "id": "est-tesoreria",
+   "url": "estrategia.html#tesoreria",
+   "esperar": 4500,
+   "acciones": [
+    {
+     "scrollTexto": "13 semanas",
+     "altura": 0.2
+    }
+   ],
+   "marcas": {
+    "semanaTensa": {
+     "texto": "Semana más tensa",
+     "subir": 1
+    },
+    "kpis": {
+     "texto": "Semana más tensa",
+     "subir": 2
+    }
+   }
+  },
+  {
+   "id": "est-plan",
+   "url": "estrategia.html#plan",
+   "esperar": 4500,
+   "acciones": [
+    {
+     "scrollTexto": "DAFO",
+     "altura": 0.15
+    }
+   ],
+   "marcas": {}
+  },
+  {
+   "id": "per-organigrama",
+   "url": "personas.html#organigrama",
+   "esperar": 4500,
+   "marcas": {
+    "auditoria": {
+     "texto": "Auditoría de la estructura",
+     "subir": 1
+    },
+    "criticos": {
+     "texto": "Puestos críticos",
+     "subir": 1
+    }
+   }
+  },
+  {
+   "id": "iv-triaje",
+   "url": "intervencion.html#triaje",
+   "esperar": 5500,
+   "marcas": {
+    "triaje": {
+     "texto": "Triaje de la empresa",
+     "subir": 2
+    },
+    "ficha": {
+     "texto": "Ficha de recorrido",
+     "subir": 2
+    },
+    "constantes": {
+     "texto": "Tensión",
+     "subir": 2
+    }
+   }
+  },
+  {
+   "id": "mesa-metas",
+   "url": "mesa.html#metas",
+   "esperar": 4500,
+   "acciones": [
+    {
+     "scrollY": 560
+    }
+   ],
+   "marcas": {}
+  },
+  {
+   "id": "galaxia",
+   "url": "portal.html",
+   "esperar": 7000,
+   "css": "#intro,.pt-top,.pt-dock,.pt-hint,.pt-last,.pt-empbar,.pt-moon{display:none!important}.pt-labels{display:none!important}",
+   "clip": {
+    "segundos": 8,
+    "lento": 0.05
+   }
+  },
+  {
+   "id": "mundos",
+   "url": "portal.html",
+   "esperar": 7000,
+   "css": "#intro,.pt-top,.pt-dock,.pt-hint,.pt-last,.pt-empbar,.pt-moon{display:none!important}",
+   "clip": {
+    "segundos": 6,
+    "lento": 0.05,
+    "guion": [
+     {
+      "t": 0.6,
+      "hover": ".pt-world[data-w=est]"
+     },
+     {
+      "t": 1.6,
+      "hover": ".pt-world[data-w=per]"
+     },
+     {
+      "t": 2.6,
+      "hover": ".pt-world[data-w=iv]"
+     },
+     {
+      "t": 3.6,
+      "click": ".pt-world[data-w=sim]"
+     }
+    ]
+   },
+   "marcas": {
+    "sim": ".pt-world[data-w=sim]",
+    "est": ".pt-world[data-w=est]",
+    "per": ".pt-world[data-w=per]",
+    "iv": ".pt-world[data-w=iv]"
+   }
+  },
+  {
+   "id": "abanico-est",
+   "url": "estrategia.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "eval": "localStorage.setItem('atalaya.rutaest.layout','\"abanico\"')"
+    },
+    {
+     "click": "#rutaBtn",
+     "esperar": 2500
+    }
+   ],
+   "clip": {
+    "segundos": 6,
+    "lento": 0.02,
+    "guion": [
+     {
+      "t": 0.4,
+      "raton": {
+       "de": [
+        380,
+        840
+       ],
+       "a": [
+        1560,
+        700
+       ],
+       "dur": 5.2
+      }
+     }
+    ]
+   },
+   "marcas": {
+    "abanico": "#rmWorld"
+   }
+  },
+  {
+   "id": "abanico-per",
+   "url": "personas.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "eval": "localStorage.setItem('atalaya.rutaper.layout','\"abanico\"')"
+    },
+    {
+     "click": "#rutaBtn",
+     "esperar": 2500
+    }
+   ],
+   "clip": {
+    "segundos": 6,
+    "lento": 0.02,
+    "guion": [
+     {
+      "t": 0.4,
+      "raton": {
+       "de": [
+        1500,
+        760
+       ],
+       "a": [
+        330,
+        860
+       ],
+       "dur": 5.2
+      }
+     }
+    ]
+   },
+   "marcas": {
+    "abanico": "#rmWorld"
+   }
+  }
+ ]
 }

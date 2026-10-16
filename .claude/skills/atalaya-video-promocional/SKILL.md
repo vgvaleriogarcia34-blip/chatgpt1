@@ -13,13 +13,13 @@ El protagonista es lo que Atalaya hace por quien lo compra: anticiparse y decidi
 
 | Pieza | Para qué |
 |---|---|
-| `scripts/capturar.js` | Capturas 3840×2160 de la app con la empresa modelo activa y las «marcas» (posición de lo que se quiere enseñar) |
+| `scripts/capturar.js` | Capturas 3840×2160 de la app con la empresa modelo activa, las «marcas» (posición de lo que se quiere enseñar) y clips en movimiento (planetas, abanicos) |
 | `scripts/revisar_marcas.py` | Hoja con cada captura y sus marcas dibujadas, para comprobar encuadres |
 | `scripts/voz.py` | Locución de cada bloque con Piper y su duración |
 | `scripts/componer.html` | Compositor: dibuja cada fotograma (encuadre, foco, rótulos, subtítulos, tarjetas) |
 | `scripts/render.js` | Línea de tiempo + fotogramas + sonido → MP4 (con `--borrador` para revisar rápido) |
 | `assets/capturas-atalaya.json` | Lista de pantallas que se capturan, con sus marcas |
-| `assets/promo-atalaya.json` | Guion y montaje del vídeo de unos 70 s (punto de partida) |
+| `assets/promo-atalaya.json` | Guion y montaje del vídeo de unos 85 s, que abre y cierra sobre los planetas (punto de partida) |
 | `references/guion.md` | Cómo se escribe un guion que vende (estructura, tono, frases) |
 | `references/ritmo.md` | Reglas de ritmo y edición: duración de planos, movimientos, focos, rótulos, cortes |
 | `references/planos.md` | Formato de los dos JSON (capturas y montaje), campo a campo |
@@ -36,12 +36,12 @@ El protagonista es lo que Atalaya hace por quien lo compra: anticiparse y decidi
 
 ### 1. Brief (dos minutos, sin rodeos)
 Fija:
-- **Duración:** 30 s, 60–75 s o 90 s.
+- **Duración:** 30 s, 75–90 s o 2 min.
 - **Público:** gerentes de pyme, consultores o asesorías.
 - **Dónde se verá:** web, LinkedIn, feria o correo.
 - **El mensaje único y la llamada a la acción.**
 
-Si la persona no lo dice, usa estos valores por defecto: 70 s, gerente de pyme, web y LinkedIn, «Vea el futuro de su empresa antes de decidir», «Pruébelo 14 días».
+Si la persona no lo dice, usa estos valores por defecto: 85 s, gerente de pyme, web y LinkedIn, «Vea el futuro de su empresa antes de decidir», «Pruébelo 14 días».
 
 Pregunta solo lo que cambie el vídeo de verdad.
 
@@ -60,7 +60,9 @@ python3 scripts/revisar_marcas.py <trabajo>/capturas <trabajo>/marcas.jpg
 ```
 Mira `marcas.jpg`. Cada marca debe rodear justo lo que se quiere enseñar. Si coge solo la cabecera de una tarjeta, sube un nivel (`"subir"`); si coge algo de otra zona, afina el texto. Repite hasta que encajen.
 
-Las pantallas en 3D (el puesto de mando) no se dibujan sin tarjeta gráfica: déjalas fuera o sustitúyelas por una tarjeta de título.
+**Escenas en movimiento.** El puesto de mando (los planetas) y los mapas en abanico son las imágenes más potentes de la aplicación: úsalas como clips (`"clip"` en la captura, `"tipo": "clip"` en el montaje; ver `references/planos.md`).
+- El 3D se dibuja por software (SwiftShader). `capturar.js` ya lanza Chromium con esa opción e ignora los errores de certificado, que tras un proxy impiden cargar la librería 3D de la CDN; sin eso los planetas no aparecen.
+- Mira una tira de fotogramas de cada clip antes de montar: los planetas deben verse y las capas del abanico elevarse.
 
 ### 4. Voz
 ```bash
@@ -88,7 +90,7 @@ El borrador tarda un par de minutos.
 ```bash
 node scripts/render.js assets/promo-atalaya.json <trabajo>/capturas <trabajo> atalaya/media/video/atalaya-promo.mp4
 ```
-Unos 5–10 minutos para 70 s a 1080p y 30 fps.
+Unos 10–15 minutos para 85 s a 1080p y 30 fps.
 
 ### 6. Comprobación y entrega
 - **Sonido:** que la voz suena al principio de cada bloque (`ffmpeg -af volumedetect` en ese instante) y que la sonoridad queda en torno a −16 LUFS (el render la normaliza).

@@ -12,9 +12,25 @@
       "pausa": 0.4,
       "planos": [
         {
-          "tipo": "titulo",
-          "kick": "Atalaya 360°",
-          "texto": "Vea el futuro\nde su empresa\n*antes de decidir*"
+          "tipo": "clip",
+          "img": "galaxia",
+          "de": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "a": [
+            300,
+            200,
+            1300,
+            730
+          ],
+          "titular": {
+            "kick": "Atalaya 360°",
+            "texto": "Vea el futuro\nde su empresa\n*antes de decidir*",
+            "desde": 0.3
+          }
         }
       ]
     },
@@ -79,12 +95,11 @@
       ]
     },
     {
-      "voz": "Atalaya conecta sus cuentas, sus ventas, sus cobros y su equipo en un solo modelo. Y le dice, con números, si puede dar el siguiente paso sin quedarse sin caja.",
+      "voz": "Todo vive en un mismo universo: el simulador de inversión, el sistema estratégico, las personas y la auditoría integral, conectados con los mismos datos.",
       "planos": [
         {
-          "tipo": "captura",
-          "img": "sim-puente",
-          "etiqueta": "Simulador de inversión",
+          "tipo": "clip",
+          "img": "mundos",
           "de": [
             0,
             0,
@@ -92,14 +107,82 @@
             1080
           ],
           "a": [
-            400,
+            160,
             120,
-            1200,
-            700
+            1600,
+            900
           ],
-          "rotulo": "Un solo modelo de *su empresa*",
-          "peso": 1.2
+          "etiqueta": "Puesto de mando",
+          "rotulo": "Un mismo *universo*",
+          "peso": 1.5
         },
+        {
+          "tipo": "clip",
+          "img": "mundos",
+          "desde": 3.4,
+          "de": [
+            260,
+            180,
+            1400,
+            790
+          ],
+          "a": [
+            420,
+            260,
+            1080,
+            610
+          ],
+          "peso": 1
+        }
+      ]
+    },
+    {
+      "voz": "Cada mundo se abre capa a capa: veintiún módulos del sistema estratégico y veintiuna herramientas para su equipo, cada una con su estado en vivo.",
+      "sub": "Cada mundo se abre capa a capa: 21 módulos del sistema estratégico y 21 herramientas para su equipo, cada una con su estado en vivo.",
+      "planos": [
+        {
+          "tipo": "clip",
+          "img": "abanico-est",
+          "de": [
+            0,
+            120,
+            1920,
+            960
+          ],
+          "a": [
+            120,
+            280,
+            1680,
+            800
+          ],
+          "etiqueta": "Sistema estratégico · 21 módulos",
+          "rotulo": "Capa a *capa*",
+          "peso": 1.1
+        },
+        {
+          "tipo": "clip",
+          "img": "abanico-per",
+          "desde": 0.4,
+          "de": [
+            0,
+            200,
+            1920,
+            880
+          ],
+          "a": [
+            80,
+            330,
+            1600,
+            740
+          ],
+          "etiqueta": "Personas y equipos · 21 herramientas",
+          "peso": 1
+        }
+      ]
+    },
+    {
+      "voz": "Con sus cuentas, sus ventas, sus cobros y su equipo, le dice con números si puede dar el siguiente paso sin quedarse sin caja.",
+      "planos": [
         {
           "tipo": "captura",
           "img": "sim-puente",
@@ -115,7 +198,9 @@
           },
           "resalta": "liquidez",
           "resaltaDesde": 0.35,
-          "peso": 1
+          "peso": 1,
+          "etiqueta": "Simulador de inversión",
+          "rotulo": "¿Puede dar *el paso*?"
         },
         {
           "tipo": "captura",
@@ -394,10 +479,27 @@
       "pausa": 1.6,
       "planos": [
         {
-          "tipo": "cierre",
-          "texto": "Atalaya *360°*",
-          "sub": "Anticípese. Decida con números.",
-          "cta": "Pruébelo 14 días"
+          "tipo": "clip",
+          "img": "galaxia",
+          "desde": 1.5,
+          "de": [
+            200,
+            130,
+            1500,
+            850
+          ],
+          "a": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "titular": {
+            "texto": "Atalaya *360°*",
+            "sub": "Anticípese. Decida con números.",
+            "cta": "Pruébelo 14 días",
+            "desde": 0.1
+          }
         }
       ]
     }

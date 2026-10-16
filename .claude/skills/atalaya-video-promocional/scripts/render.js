@@ -42,7 +42,7 @@ P.bloques.forEach((b, i) => {
     const q = Object.assign({}, p, { t0, t1: t0 + d, bloque: i });
     if (p.img) { q.de = rect(p.de, p.img, 120); q.a = rect(p.a, p.img, 60); q.resalta = rect(p.resalta, p.img, 6); }
     planos.push(q);
-    if (d < 1.5 && p.tipo === 'captura') console.warn(`  ritmo: el plano ${j + 1} del bloque ${i + 1} dura ${d.toFixed(1)} s (corto para leer una captura)`);
+    if (d < 1.5 && (p.tipo === 'captura' || p.tipo === 'clip')) console.warn(`  ritmo: el plano ${j + 1} del bloque ${i + 1} dura ${d.toFixed(1)} s (corto para leer una captura)`);
     if (d > 6) console.warn(`  ritmo: el plano ${j + 1} del bloque ${i + 1} dura ${d.toFixed(1)} s (largo: pártalo en dos encuadres)`);
     t0 += d;
   });
@@ -63,13 +63,18 @@ console.log(`Línea de tiempo: ${planos.length} planos, ${DUR.toFixed(1)} s, pla
 /* ---------- Fotogramas ---------- */
 (async () => {
   fs.mkdirSync(work, { recursive: true });
-  const imagenes = {}; planos.filter((p) => p.img).forEach((p) => { imagenes[p.img] = 'file://' + path.resolve(capDir, p.img + '.png'); });
+  const imagenes = {}, clips = {};
+  planos.filter((p) => p.img).forEach((p) => {
+    if (p.tipo !== 'clip') { imagenes[p.img] = 'file://' + path.resolve(capDir, p.img + '.png'); return; }
+    const c = (MAN.capturas[p.img] || {}).clip; if (!c) { console.error(`Falta el clip ${p.img}: añada "clip" a su captura y vuelva a capturar`); process.exit(1); }
+    clips[p.img] = { base: 'file://' + path.resolve(capDir, c.carpeta), n: c.fotogramas, fps: c.fps };
+  });
   const W = BORRADOR ? 960 : 1920, H = BORRADOR ? 540 : 1080, mudo = path.join(work, 'imagen.mp4');
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-vf', `scale=${W}:${H}:flags=lanczos`, '-c:v', 'libx264', '-preset', BORRADOR ? 'veryfast' : 'slow', '-crf', BORRADOR ? '28' : '18', '-pix_fmt', 'yuv420p', '-r', String(FPS), mudo], { stdio: ['pipe', 'inherit', 'inherit'] });
   const b = await chromium.launch(); const pg = await (await b.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
   pg.on('pageerror', (e) => console.error('compositor:', e.message));
   await pg.goto('file://' + path.join(__dirname, 'componer.html'));
-  await pg.evaluate((M) => { window.MONTAJE = M; }, { duracion: DUR, acento: P.acento || '#c9f24d', marca: P.marca || null, subtitulos: P.subtitulos !== false, planos, subs, imagenes });
+  await pg.evaluate((M) => { window.MONTAJE = M; }, { duracion: DUR, acento: P.acento || '#c9f24d', marca: P.marca || null, subtitulos: P.subtitulos !== false, planos, subs, imagenes, clips });
   await pg.evaluate(() => window.preparar());
   const N = Math.ceil(DUR * FPS);
   for (let f = 0; f < N; f++) {

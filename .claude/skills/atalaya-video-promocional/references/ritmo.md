@@ -28,6 +28,13 @@ El ritmo es lo que separa un vídeo profesional de una presentación grabada. Es
   - Más allá, el texto se ablanda y el contexto se pierde.
 - **Cambia de lugar entre planos seguidos de la misma pantalla.** Dos planos seguidos con el mismo encuadre parecen un error de montaje.
 
+## Imagen en movimiento
+
+- **Las escenas que más venden son las que se mueven:** el puesto de mando con sus planetas y los mapas que se abren en abanico. Una por tramo como mucho; si todo se mueve, nada destaca.
+- **Dónde:** abrir sobre la galaxia (con el titular encima), presentar los mundos con los planetas, enseñar la profundidad con los abanicos y cerrar otra vez sobre la galaxia. Así el vídeo empieza y acaba en el mismo universo.
+- **Encuadre:** el movimiento ya lo pone la escena; la cámara del montaje solo acompaña (acercamiento suave, como mucho 1,5 veces).
+- **Abanicos:** el recorrido del ratón debe cruzar el abanico entero en el plano, para que se vean elevarse varias capas.
+
 ## Foco (`resalta`)
 
 - **Dónde:** sobre lo que la voz nombra en ese plano.

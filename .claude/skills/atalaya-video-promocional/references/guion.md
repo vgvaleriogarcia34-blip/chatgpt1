@@ -1,15 +1,16 @@
 # Guion de venta para Atalaya 360°
 
-## Estructura (vídeo de 60–75 s)
+## Estructura (vídeo de 75–90 s)
 
 | Tramo | Tiempo | Qué hace | Ejemplo |
 |---|---|---|---|
 | **Gancho** | 0–4 s | Una pregunta o una promesa que toque a quien decide | «¿Y si pudiera ver el futuro de su empresa antes de tomar una decisión?» |
 | **Problema** | 4–14 s | El dolor reconocible, sin dramatizar | «Casi todas las decisiones se toman mirando hacia atrás… cuando el problema aparece en los números, ya es tarde.» |
-| **Solución** | 14–24 s | Qué es Atalaya en una frase | «Conecta cuentas, ventas, cobros y equipo en un solo modelo y le dice si puede dar el paso sin quedarse sin caja.» |
-| **Capacidades** | 24–55 s | 3 o 4, cada una con su pantalla y su beneficio | Anticipa · ensaya escenarios · avisa · dice qué palancas tocar |
-| **Prueba** | 55–62 s | Una cifra antes/después del caso | «−285.000 € → 71.000 €. Misma inversión. Otra decisión.» |
-| **Cierre** | 62–70 s | Marca, idea y llamada a la acción | «Atalaya 360°. Anticípese. Decida con números. Pruébelo 14 días.» |
+| **Universo** | 14–30 s | Los mundos como planetas de un mismo universo y, después, cada mundo abierto en abanico (imagen en movimiento) | «Todo vive en un mismo universo… Cada mundo se abre capa a capa.» |
+| **Solución** | 30–38 s | Qué hace Atalaya en una frase | «Conecta cuentas, ventas, cobros y equipo en un solo modelo y le dice si puede dar el paso sin quedarse sin caja.» |
+| **Capacidades** | 38–68 s | 3 o 4, cada una con su pantalla y su beneficio | Anticipa · ensaya escenarios · avisa · dice qué palancas tocar |
+| **Prueba** | 68–76 s | Una cifra antes/después del caso | «−285.000 € → 71.000 €. Misma inversión. Otra decisión.» |
+| **Cierre** | 76–86 s | Marca, idea y llamada a la acción, sobre los planetas | «Atalaya 360°. Anticípese. Decida con números. Pruébelo 14 días.» |
 
 En 30 s: gancho, una capacidad, prueba y cierre.
 

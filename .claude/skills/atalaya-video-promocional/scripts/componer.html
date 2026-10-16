@@ -31,6 +31,11 @@
   .cifra .de { color: #ff7b6b; } .cifra .a { color: #9be89b; } .cifra .fl { font: 400 90px 'Archivo', sans-serif; color: rgba(242, 239, 232, 0.5); }
   .cta { display: inline-block; margin-top: 46px; padding: 22px 46px; border-radius: 999px; background: var(--acento); color: #0b0f17; font: 800 40px 'Archivo', sans-serif; }
   .fundido { position: absolute; inset: 0; background: #05070b; pointer-events: none; }
+  .titular { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; background: radial-gradient(ellipse at center, rgba(3, 5, 9, 0.35) 0%, rgba(3, 5, 9, 0.72) 75%); }
+  .titular h1 { margin: 0; font: 800 124px/1.0 'Archivo', sans-serif; letter-spacing: -0.035em; text-shadow: 0 8px 60px rgba(0, 0, 0, 0.9); }
+  .titular h1 .ac { color: var(--acento); }
+  .titular .kick { font: 600 28px 'IBM Plex Mono', monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--acento); margin-bottom: 26px; }
+  .titular p { margin: 26px auto 0; max-width: 1300px; font: 400 40px/1.35 'Libre Franklin', sans-serif; color: rgba(242, 239, 232, 0.85); }
 </style>
 </head>
 <body>
@@ -67,17 +72,18 @@
   // Dibuja un plano en el instante local tl (segundos desde su inicio)
   function plano(p, tl) {
     const d = p.t1 - p.t0, k = clamp(tl / d, 0, 1);
-    if (p.tipo === 'captura') {
-      const de = ajustar(p.de || [0, 0, W, H]), a = ajustar(p.a || encoger(de, p.empuje || 0.93));
+    if (p.tipo === 'captura' || p.tipo === 'clip') {
+      const de = ajustar(p.de || [0, 0, W, H]), a = ajustar(p.a || encoger(de, p.empuje || (p.tipo === 'clip' ? 0.97 : 0.93)));
       const e = p.a ? easeIO(k) : k; // movimiento pedido: con aceleración; deriva por defecto: lineal y lenta
       const r = de.map((v, i) => lerp(v, a[i], e)), s = W / r[2];
-      let h = `<div class="capa"><img src="${imgs[p.img].src}" style="transform:scale(${s}) translate(${-r[0]}px,${-r[1]}px)"></div><div class="viñeta"></div>`;
+      let h = `<div class="capa"><img src="${p.tipo === 'clip' ? fotograma(p, tl) : imgs[p.img].src}" style="transform:scale(${s}) translate(${-r[0]}px,${-r[1]}px)"></div><div class="viñeta"></div>`;
       if (p.resalta) {
         const op = clamp((k - (p.resaltaDesde == null ? 0.3 : p.resaltaDesde)) / 0.12, 0, 1);
         if (op > 0) { const [x, y, w, hh] = p.resalta; h += `<div class="foco" style="opacity:${op};left:${(x - r[0]) * s - 10}px;top:${(y - r[1]) * s - 10}px;width:${w * s + 20}px;height:${hh * s + 20}px"></div>`; }
       }
       if (p.etiqueta) h += `<div class="etiqueta" style="opacity:${clamp(tl / 0.3, 0, 1)}">${esc(p.etiqueta)}</div>`;
       if (p.rotulo) h += rotulo(p.rotulo, tl);
+      if (p.titular) { const o = easeOut(clamp((tl - (p.titular.desde || 0.2)) / 0.7, 0, 1)), T = p.titular; h += `<div class="titular" style="opacity:${o}"><div style="transform:translateY(${(1 - o) * 30}px) scale(${1 + 0.025 * k})">${T.kick ? `<div class="kick">${esc(T.kick)}</div>` : ''}<h1>${marcado(T.texto)}</h1>${T.sub ? `<p>${marcado(T.sub)}</p>` : ''}${T.cta ? `<div class="cta" style="opacity:${easeOut(clamp((tl - (T.desde || 0.2) - 0.8) / 0.6, 0, 1))}">${esc(T.cta)}</div>` : ''}</div></div>`; }
       return h;
     }
     if (p.tipo === 'titulo') {
@@ -95,9 +101,15 @@
     return '';
   }
 
+  // Clip: el fotograma que toca en el instante local tl. «desde» salta segundos del clip y «velocidad» lo acelera o frena
+  function fotograma(p, tl) {
+    const c = window.MONTAJE.clips[p.img]; const i = clamp(Math.floor(((p.desde || 0) + tl * (p.velocidad || 1)) * c.fps), 0, c.n - 1);
+    return c.base + '/f' + String(i).padStart(4, '0') + '.jpg';
+  }
+
   window.preparar = async () => {
     const M = window.MONTAJE; document.documentElement.style.setProperty('--acento', M.acento || '#c9f24d');
-    const ids = [...new Set(M.planos.filter((p) => p.img).map((p) => p.img))];
+    const ids = [...new Set(M.planos.filter((p) => p.img && p.tipo !== 'clip').map((p) => p.img))];
     await Promise.all(ids.map((id) => new Promise((ok, ko) => { const im = new Image(); im.onload = () => ok(); im.onerror = () => ko(new Error('Falta la captura ' + id)); im.src = M.imagenes[id]; imgs[id] = im; })));
     if (document.fonts) await document.fonts.ready;
     return true;
@@ -110,11 +122,13 @@
     let h = `<div class="velo">${plano(p, t - p.t0)}</div>`;
     const tr = p.transicion === 'fundido' ? 0.45 : 0;
     if (tr && i > 0 && t - p.t0 < tr) { const q = ps[i - 1]; h = `<div class="velo">${plano(q, q.t1 - q.t0)}</div><div class="velo" style="opacity:${easeIO((t - p.t0) / tr)}">${plano(p, t - p.t0)}</div>`; }
-    if (M.marca && p.tipo === 'captura') h += `<div class="bug">${marcado(M.marca)}</div>`;
-    if (M.subtitulos) { const s = M.subs.find((x) => t >= x.t0 && t < x.t1); if (s && p.tipo === 'captura') h += `<div class="sub">${esc(s.texto)}</div>`; }
+    if (M.marca && (p.tipo === 'captura' || p.tipo === 'clip') && !p.titular) h += `<div class="bug">${marcado(M.marca)}</div>`;
+    if (M.subtitulos) { const s = M.subs.find((x) => t >= x.t0 && t < x.t1); if (s && (p.tipo === 'captura' || p.tipo === 'clip') && !p.titular) h += `<div class="sub">${esc(s.texto)}</div>`; }
     const fin = M.duracion; const negro = Math.max(clamp(1 - t / 0.5, 0, 1), clamp((t - (fin - 0.6)) / 0.6, 0, 1));
     if (negro > 0) h += `<div class="fundido" style="opacity:${negro}"></div>`;
     L.innerHTML = h;
+    // Los fotogramas de un clip cambian en cada instante: se espera a que estén decodificados antes de la captura
+    return Promise.all(Array.from(L.querySelectorAll('img')).map((im) => (im.decode ? im.decode().catch(() => {}) : null)));
   };
 })();
 </script>
