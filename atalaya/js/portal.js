@@ -27,6 +27,8 @@
     else location.href = DEST[w];
   }
   $$('[data-w]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); enter(b.dataset.w); }));
+  // Paseo virtual con la empresa modelo, a petición desde el mapa
+  const pb = $('#ptPaseo'); if (pb) pb.addEventListener('click', (e) => { e.stopPropagation(); if (A.paseo) A.paseo.iniciar(); });
 
   /* ---------- Cuenta y saludo ---------- */
   (async () => {

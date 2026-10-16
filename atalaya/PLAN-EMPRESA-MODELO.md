@@ -49,10 +49,14 @@ Una empresa ficticia completa, coherente en todos los mundos, para enseñar Atal
 ## 3. Paseo virtual
 
 - **Cuándo:** se activa a petición desde el mapa, con el botón «Paseo virtual».
-- **Cómo:** recorre los mundos en orden y entra en cada uno con la empresa modelo. En cada parada dice qué potencial tiene ese mundo y qué beneficio genera, con las cifras de Valdenorte. Por ejemplo: «los días de cobro han pasado de 68 a 86: recuperarlos libera 230.000 € de caja».
+- **Cómo:** recorre los mundos en orden y entra en cada uno con la empresa modelo. En cada parada dice qué potencial tiene ese mundo y qué beneficio genera, con las cifras de Valdenorte. Por ejemplo: «los días de cobro han pasado de 68 a 86: volver a 65 libera unos 266.000 € de caja».
 - **Control:** se puede pausar, volver atrás, saltar o salir; al salir vuelve a la empresa con la que se estaba trabajando.
 
-## 4. Fases
+## 4. Estado
+
+Hecho: las cuatro fases siguientes están construidas y probadas. Archivos: `js/modelo/datos.js` (fuente y generadores), `js/modelo/interv.js` (lectura de las conversaciones en la auditoría), `js/paseo.js` (paseo virtual) y la empresa modelo en `js/platform.js` (registro, lectura y escritura, ficha y vista por plan).
+
+## 5. Fases
 
 1. Datos maestros y generadores por mundo.
 2. Empresa modelo en el registro, en la ficha (conexiones y vista por plan) y en cada mundo.

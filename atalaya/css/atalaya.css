@@ -936,3 +936,27 @@ span.pdf-campo { display: inline-block; min-width: 60px; }
 .emf-planes { display: flex; flex-wrap: wrap; gap: 6px; }
 .emf-p { display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); cursor: pointer; font-size: 0.85rem; }
 @media (max-width: 640px) { .emf-kpis { grid-template-columns: 1fr 1fr; } .emf-mundos { grid-template-columns: 1fr; } }
+
+/* Paseo virtual: tarjeta fija que acompaña de un mundo a otro */
+.paseo { position: fixed; z-index: 120; left: 18px; bottom: 18px; width: min(400px, calc(100vw - 36px)); max-height: calc(100vh - 110px); overflow-y: auto; padding: 14px 16px 12px; border-radius: 18px; background: var(--panel-solid, #0b0d13); border: 1px solid rgba(201, 242, 77, 0.55); box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.9); color: var(--ink, #f5f3ee); font-size: 0.9rem; line-height: 1.45; }
+.paseo-h { display: flex; align-items: center; gap: 6px; } .paseo-sp { flex: 1; }
+.paseo-n { font-family: var(--font-mono, monospace); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold, #c9f24d); }
+.paseo-x { background: none; border: 1px solid var(--line, rgba(255,255,255,.14)); color: inherit; border-radius: 8px; width: 26px; height: 26px; cursor: pointer; }
+.paseo-m { margin-top: 8px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; }
+.paseo-t { margin: 2px 0 6px; font-family: var(--font-display, inherit); font-size: 1.2rem; letter-spacing: -0.01em; }
+.paseo-que { margin: 0 0 8px; opacity: 0.88; }
+.paseo-ben { padding: 8px 10px; border-left: 3px solid var(--gold, #c9f24d); border-radius: 0 10px 10px 0; background: rgba(201, 242, 77, 0.07); }
+.paseo-ben b { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold, #c9f24d); margin-bottom: 2px; } .paseo-ben p { margin: 0; }
+.paseo-aviso { margin: 8px 0 0; font-size: 0.8rem; opacity: 0.85; } .paseo-l { background: none; border: 0; color: var(--gold, #c9f24d); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+.paseo-dots { display: flex; gap: 4px; flex-wrap: wrap; margin: 10px 0 8px; } .paseo-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); } .paseo-dots i.ok { background: rgba(201, 242, 77, 0.5); } .paseo-dots i.on { background: var(--gold, #c9f24d); box-shadow: 0 0 0 3px rgba(201, 242, 77, 0.25); }
+.paseo-b { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.paseo-btn { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line-strong, rgba(255,255,255,.25)); background: none; color: inherit; cursor: pointer; font: inherit; font-size: 0.84rem; }
+.paseo-btn.solid { background: var(--gold, #c9f24d); color: #111; border-color: transparent; font-weight: 600; }
+.paseo.paseo-min { width: auto; padding: 0; border: 0; background: none; box-shadow: none; }
+.paseo-pill { padding: 10px 14px; border-radius: 999px; border: 1px solid var(--gold, #c9f24d); background: var(--panel-solid, #0b0d13); color: var(--gold, #c9f24d); cursor: pointer; font: inherit; font-size: 0.82rem; }
+.pt-paseo { margin-top: 14px; display: inline-flex; align-items: center; gap: 12px; padding: 10px 16px 10px 12px; border-radius: 14px; border: 1px solid rgba(201, 242, 77, 0.6); background: rgba(10, 12, 18, 0.72); color: inherit; cursor: pointer; text-align: left; pointer-events: auto; }
+.pt-paseo i { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--gold, #c9f24d); color: #111; font-style: normal; font-size: 0.8rem; }
+.pt-paseo span { display: grid; } .pt-paseo b { font-size: 0.98rem; } .pt-paseo small { font-size: 0.78rem; opacity: 0.75; }
+.pt-paseo:hover { border-color: var(--gold, #c9f24d); transform: translateY(-1px); }
+@media (max-width: 640px) { .paseo { left: 10px; right: 10px; bottom: 10px; width: auto; max-height: 62vh; } }
+@media print { .paseo { display: none !important; } }

@@ -125,7 +125,7 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
   <ol>
     <li><a href="#que-es">1. Qué es Atalaya</a></li>
     <li><a href="#empezar">2. Empezar</a>
-      <ol><li><a href="#cuenta">Crear la cuenta y entrar</a></li><li><a href="#contrasena">Contraseñas</a></li><li><a href="#modos">Demostración o servidor</a></li><li><a href="#navegar">Moverse por la aplicación</a></li></ol></li>
+      <ol><li><a href="#cuenta">Crear la cuenta y entrar</a></li><li><a href="#contrasena">Contraseñas</a></li><li><a href="#modos">Demostración o servidor</a></li><li><a href="#navegar">Moverse por la aplicación</a></li><li><a href="#modelo">La empresa modelo</a></li><li><a href="#paseo">Paseo virtual</a></li></ol></li>
     <li><a href="#simulador">3. Simulador de inversión</a>
       <ol><li><a href="#sim-empresa">I. Punto de partida</a></li><li><a href="#sim-historia">II. Historia</a></li><li><a href="#sim-inversion">III. El movimiento</a></li><li><a href="#sim-horizonte">IV. Horizonte 3D</a></li><li><a href="#sim-escenarios">V. Escenarios</a></li><li><a href="#sim-semaforos">VI. Semáforos y riesgos</a></li><li><a href="#sim-tamano">VII. Nuevo tamaño</a></li><li><a href="#sim-humano">VIII. Sistema humano</a></li><li><a href="#sim-estructuras">IX. Estructuras</a></li><li><a href="#sim-plan">X. Meta y plan</a></li><li><a href="#sim-dicc">XI. Diccionario</a></li><li><a href="#sim-informe">XII. Informe</a></li></ol></li>
     <li><a href="#estrategia">4. Sistema estratégico</a>
@@ -201,6 +201,38 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Nota de la empresa:</b> en la cabecera de cada mundo, dos notas de 0 a 10: la de la empresa (media de los mundos de su plan) y la del mundo en el que está. <b>El criterio es el mismo en toda Atalaya</b>: cada comprobación (indicadores con semáforo, datos que faltan o de ejemplo, objetivos, plan, riesgos altos y madurez de la gestión) vale verde 1, ámbar 0,5 y rojo 0 según su peso, y la nota es esa proporción sobre 100; sobre 10 es la misma cifra con una coma (58/100 = 5,8/10). Por eso «Este mundo» en el sistema estratégico es la nota del cuadro de mando, y la nota de cada módulo en su informe es la de su tarjeta en el cuadro de mando. La nota de la empresa es distinta porque suma los demás mundos; el cuadro de mando muestra la tabla con la nota de cada mundo y cuándo se calculó (la de un mundo calculado en otra fecha no recoge los cambios posteriores hasta que se abre). Al pulsar la nota se despliegan los puntos a tratar, primero los rojos.</li>
   <li><b>Manual en el lateral:</b> la pestaña «Manual» del borde derecho (y el botón «Manual» de cada cabecera) abre este manual en un panel, sin salir de la pantalla, directamente en el apartado de la zona en la que está. Arriba tiene un menú para saltar a cualquier apartado y un buscador; «Página completa» lo abre aparte (también con Ctrl o Cmd al pulsar el enlace).</li>
   <li><b>Pestañas</b> del sistema estratégico, agrupadas en Visión, Finanzas, Comercial, Operaciones y Estrategia. Cada módulo tiene su dirección propia (por ejemplo <span class="path">estrategia.html#presupuesto</span>) para enlazarlo.</li>
+</ul>
+<h3 id="modelo">La empresa modelo: Valdenorte</h3>
+<p>Para conocer Atalaya o enseñarla sin tocar datos de clientes hay una empresa de prueba completa: <b>Valdenorte Estructuras y Montajes, S.L.</b> Es inventada (cualquier parecido con una empresa real es casual): fabrica y monta estructuras metálicas en Asturias desde 1996, es familiar (el fundador y sus dos hijos) y tiene 33 personas.</p>
+<ul>
+  <li><b>Qué trae.</b>
+    <ul>
+      <li>Cinco años de cuentas (2021-2025) con balance cuadrado: las ventas pasan de 3,2 a 4,6 M€ mientras la caja baja y la póliza sube.</li>
+      <li>Doce clientes (el primero, con el 31 % de las ventas) y seis líneas de negocio, dos de ellas nuevas: mantenimiento industrial y naves modulares en kit.</li>
+      <li>Ocho proveedores, facturas pendientes de cobro y cobros de un año, y tesorería a 13 semanas.</li>
+      <li>Impuestos, mercado, plan de empresa (misión, DAFO, estrategias, objetivos y acciones) y la inversión en corte láser, plegadora y nave.</li>
+      <li>Plantilla con puestos, perfiles, equipos y organigrama.</li>
+      <li>Tres conversaciones (primera sesión, comercial y una sesión de trabajo), metas SMART, agenda, reuniones y delegaciones.</li>
+    </ul></li>
+  <li><b>Todo está enlazado.</b> Una sola fuente alimenta todos los mundos: las cifras del simulador, del sistema estratégico, de personas, de la auditoría y de la mesa cuadran entre sí. La auditoría lee sus conversaciones con la misma escucha que una empresa real.</li>
+  <li><b>Dónde está.</b> En el mapa de empresas (al final, «Empresa de prueba») y en el selector de empresa de cada mundo. No cuenta para el límite de empresas del plan y no se guarda en el servidor: vive en el navegador.</li>
+  <li><b>Su ficha: conectar o desconectar.</b> Desde «Ficha y conexiones» se marca qué mundos reciben sus datos. Un mundo desconectado se queda a cero y pide sus datos, como una empresa real a la que le falta esa documentación; los demás avisan de lo que falta.</li>
+  <li><b>Enseñarla como un plan.</b> En la misma ficha se elige un plan (Esencial, Profesional, Consultora o Grupos). Mientras la empresa modelo está activa, Atalaya se comporta como ese plan y conecta los mundos que incluye. Tu plan y tus empresas no cambian.</li>
+  <li><b>Restablecer sus datos.</b> Se puede tocar todo. «Restablecer sus datos» la deja otra vez como viene.</li>
+</ul>
+<h3 id="paseo">Paseo virtual</h3>
+<p>Un recorrido guiado de 17 paradas por todos los mundos con la empresa modelo. Empieza a petición desde el mapa: el botón <b>Paseo virtual</b> del puesto de mando, la tarjeta de la empresa modelo en el mapa de empresas o su ficha.</p>
+<ul>
+  <li><b>Cada parada</b> abre la pantalla de ese mundo con los datos de Valdenorte y explica <b>lo que hace</b> y <b>lo que gana la empresa</b> con sus cifras. Por ejemplo, volver de 86 a 65 días de cobro libera unos 266.000 € de caja.</li>
+  <li><b>Recorrido.</b>
+    <ul>
+      <li><b>Simulador:</b> historia, inversión y escenarios.</li>
+      <li><b>Sistema estratégico:</b> clientes, margen por línea, cobros, compras, tesorería y plan de empresa.</li>
+      <li><b>Personas:</b> organigrama y equipos.</li>
+      <li><b>Auditoría integral:</b> triaje y plan de intervención.</li>
+      <li><b>Final:</b> mesa de trabajo, libro corporativo y un resumen de lo que gana la empresa.</li>
+    </ul></li>
+  <li><b>Cómo moverse:</b> «Siguiente» y «Anterior» (o las flechas del teclado), «–» o Esc para plegarlo y × para salir. Durante el paseo se ven todos los mundos aunque tu plan no los incluya. Al salir, Atalaya vuelve a la empresa y a las conexiones que tenías.</li>
 </ul>
 </section>
 

@@ -80,6 +80,13 @@ Nota del 1 al 10 en la cabecera de cada mundo: global (media de los mundos del p
 - Datos reales por empresa (`P.modoReal`, botón en el menú de la cuenta): sin datos de ejemplo; se activa al subir transcripciones en la auditoría.
 - `js/conexiones.js`: conexiones comunes (`A.ia`, `A.calendario`, `A.conexiones`). Claude por el servidor (`ANTHROPIC_API_KEY`), el visor o una clave propia guardada solo en el navegador; aviso «Falta la conexión con la API de Claude» con guía la primera vez; guía de la grabadora y elección de calendario. También en el menú de la cuenta.
 
+## Empresa modelo y paseo virtual
+
+- `js/modelo/datos.js`: Valdenorte Estructuras y Montajes, S.L., empresa ficticia con cinco años de cuentas (2021-2025, balance cuadrado), clientes, líneas de negocio (dos nuevas), proveedores, 33 personas con puestos, equipos y organigrama, impuestos, tesorería, plan de empresa y plan de crecimiento (láser, plegadora y nave). Un generador por mundo (`A.modelo.generar(key)`) y las cifras del paseo (`A.modelo.cifras()`). Plan detallado en `PLAN-EMPRESA-MODELO.md`.
+- En `js/platform.js` (`P.modelo`): la empresa modelo está siempre en la lista con el id `modelo`, no se guarda en el servidor ni cuenta para el límite del plan; sus datos viven en el navegador (se generan la primera vez y se restablecen desde su ficha). La ficha (`P.fichaModelo`) conecta o desconecta cada mundo y la enseña como cualquier plan (`P.puede` usa ese plan mientras la empresa modelo está activa).
+- `js/modelo/interv.js`: la auditoría lee las tres conversaciones de la empresa modelo con la escucha real (síntomas, constantes, guion, objetivos, actas), enlaza causas y genera el plan.
+- `js/paseo.js`: paseo virtual de 17 paradas por todos los mundos, con lo que hace cada uno y lo que gana Valdenorte, activado desde el mapa (botón del puesto de mando, mapa de empresas y ficha de la empresa modelo). Al salir se vuelve a la empresa y a las conexiones de antes.
+
 ## Libro corporativo (`libro.html`)
 
 - `js/libro-comun.js` (en los cuatro mundos): botón «Añadir al libro» en cualquier informe abierto (vigila `#report`), captura silenciosa de informes (`A.informe.open` envuelto) y recogida automática por mundos con una cola en `sessionStorage` (`?libro=1`). Datos por empresa en la clave `libro` (máx. 3,6 MB).
