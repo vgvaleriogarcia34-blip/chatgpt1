@@ -7,7 +7,7 @@
    - Guarda <id>.png y un capturas.manifest.json con el rectángulo (en px CSS de 1920×1080) de cada «marca»
      (selector CSS) para encuadrar después los zooms. Las marcas que no aparezcan quedan como null.
    Formato de capturas.json: ver references/planos.md. */
-const fs = require('fs'), path = require('path');
+const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 
 // Reloj virtual de la página: performance.now, Date.now, requestAnimationFrame y setTimeout/setInterval avanzan a
@@ -37,6 +37,14 @@ const RELOJ = () => {
   // la librería 3D que se carga de la CDN no llega y los planetas no se dibujan.
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await b.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: C.densidad || 2, locale: 'es-ES', ignoreHTTPSErrors: true });
+  // Librerías de la CDN (la 3D) servidas desde una copia local descargada con curl: tras un proxy la descarga desde el
+  // navegador falla a ratos y, sin la librería, los planetas no se dibujan.
+  const cdnDir = path.join(out, '.cdn'); fs.mkdirSync(cdnDir, { recursive: true });
+  const cdn = async (r) => {
+    const url = r.request().url(), f = path.join(cdnDir, url.replace(/[^\w.-]+/g, '_').slice(-150));
+    try { if (!fs.existsSync(f)) execFileSync('curl', ['-sSfL', '--max-time', '60', '-o', f, url]); await r.fulfill({ path: f, contentType: /\.css/.test(url) ? 'text/css' : 'application/javascript' }); } catch (e) { await r.abort(); }
+  };
+  await ctx.route('https://cdnjs.cloudflare.com/**', cdn);
   const p = await ctx.newPage(); const errores = []; let clipCtx = null;
   p.on('pageerror', (e) => errores.push(e.message));
 
@@ -99,7 +107,7 @@ const RELOJ = () => {
     const dir = path.join(out, k.id); fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
     if (!clipCtx) {
       clipCtx = await b.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1, locale: 'es-ES', ignoreHTTPSErrors: true, storageState: await ctx.storageState() });
-      await clipCtx.addInitScript(RELOJ);
+      await clipCtx.addInitScript(RELOJ); await clipCtx.route('https://cdnjs.cloudflare.com/**', cdn);
       await clipCtx.addInitScript(() => { try { ['atalaya.ruta.intro', 'atalaya.rutaest.intro', 'atalaya.rutaper.intro'].forEach((x) => sessionStorage.setItem(x, '1')); sessionStorage.setItem('atalaya.emp.elegida', 'modelo'); } catch (e) { /* sin almacenamiento */ } });
     }
     const q = await clipCtx.newPage(); const cdp = await clipCtx.newCDPSession(q); await cdp.send('Animation.enable');
