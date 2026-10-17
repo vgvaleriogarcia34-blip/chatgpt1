@@ -68,7 +68,7 @@
     if (sinDatos || ej) return evalSimulador({ sinDatos: sinDatos || (real && ej), ejemplo: ej });
     const r = A.analyze(st, A.scenarioMods(st, st.escenario || 'base'));
     // Preguntas del equipo sin responder: el semáforo del sistema humano no puntúa
-    const hum = !!(st.humano && Object.keys(st.humano).some((k) => +st.humano[k] > 0));
+    const hum = !!(st.humano && (A.simVacio ? Object.keys(A.simVacio().humano) : Object.keys(st.humano)).some((k) => +st.humano[k] > 0));
     return evalSimulador({ historico: !!(st.historico && st.historico.anios && st.historico.anios.length && !st.historico.ejemplo), inversion, humano: hum, veredicto: r.verdict, luces: r.lights.map((l) => ({ key: l.key, nombre: l.nombre, valor: l.valor, st: l.estado === 'go' ? 'ok' : l.estado })), deudaEbitda: r.deudaEbitda });
   };
   // Sistema estratégico: indicadores, datos que faltan, ejemplo, ABC, plan de empresa, objetivos y riesgos

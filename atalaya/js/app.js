@@ -289,7 +289,7 @@
   // Semáforos que solo existen con una inversión: tamaño, retorno, TIR, circulante de la venta nueva y cambio de margen
   const LUZ_INV = ['dimension', 'retorno', 'rentabilidad', 'circulante', 'margen'];
   // Preguntas del equipo sin responder (todo a cero): el sistema humano queda «sin datos», no se puntúa
-  const humanoSinDatos = () => { const h = state.humano || {}; return !Object.keys(h).some((k) => +h[k] > 0); };
+  const humanoSinDatos = () => { const h = state.humano || {}, ks = A.simVacio ? Object.keys(A.simVacio().humano) : Object.keys(h); return !ks.some((k) => +h[k] > 0); };
   const lucesEmpresa = (r) => r.lights.filter((l) => LUZ_INV.indexOf(l.key) < 0 && !(l.key === 'humano' && humanoSinDatos()));
   function irModelo() { try { if (P && P.modelo && P.modelo.ID && P.empresas && P.empresas.cambiar) { P.empresas.cambiar(P.modelo.ID); return; } } catch (e) { /* al portal */ } location.href = 'portal.html'; }
   function irCuentas() { location.hash = '#empresa'; const el = document.getElementById('empresa'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }

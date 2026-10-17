@@ -134,7 +134,9 @@
     const i = idx === undefined ? Y.length - 1 : idx;
     const a = Y[i], p = Y[i - 1];
     if (!p) return null;
-    const d = (k) => g(a, k) - g(p, k);
+    // Variación de una partida: si falta en alguno de los dos años no se calcula (no es cero) y se avisa como año incompleto
+    const falta = [];
+    const d = (k) => { if (!isFinite(a[k]) || !isFinite(p[k])) { if (falta.indexOf(k) < 0) falta.push(k); return 0; } return a[k] - p[k]; };
     const ventas = g(a, 'ventas');
     const ebitda = ventas - g(a, 'costeVentas') - g(a, 'personal') - g(a, 'otrosGastos');
     const bn = isFinite(a.beneficio) ? a.beneficio : ebitda - g(a, 'amortizacion') - g(a, 'gastosFinancieros') - g(a, 'impuestos');
@@ -155,7 +157,8 @@
     ];
     const calculado = items.reduce((s, x) => s + x.v, 0);
     const cajaReal = d('tesoreria');
-    items.push({ k: 'otros', n: 'Otras partidas del balance', v: cajaReal - calculado, tipo: 'otros', d: 'Cuentas no detalladas (Hacienda, otros deudores y acreedores, provisiones). Si es grande, revisa esas partidas con tu contable.' });
+    // Con un año incompleto la diferencia no es «sin explicar»: falta el dato, y no se reparte aquí
+    items.push({ k: 'otros', n: 'Otras partidas del balance', v: falta.length ? 0 : cajaReal - calculado, tipo: 'otros', d: 'Cuentas no detalladas (Hacienda, otros deudores y acreedores, provisiones). Si es grande, revisa esas partidas con tu contable.' });
     const base = Math.max(1, Math.abs(bn));
     // ¿Dónde está cada 100 € de beneficio? (solo los usos: lo que consume el beneficio)
     const destinos = [
@@ -177,8 +180,9 @@
     if (capex > 0) lectura.push(`${A.fmt.eur(capex)} se invirtieron en activos.`);
     if (deuda < 0) lectura.push(`${A.fmt.eur(-deuda)} se usaron para devolver préstamos.`);
     if (div > 0) lectura.push(`${A.fmt.eur(div)} salieron como dividendos.`);
-    if (Math.abs(cajaReal - calculado) > base * 0.15) lectura.push(`Hay ${A.fmt.eur(Math.abs(cajaReal - calculado))} en otras partidas que no se explican con los datos cargados: revisa Hacienda pública, otros deudores y acreedores.`);
-    return { anio: a.anio, previo: p.anio, beneficio: bn, recursos, cajaReal, items, destinos, lectura, atrapado };
+    if (falta.length) lectura.push(`Año incompleto: sin dato de ${falta.map((k) => ((FIN.CONCEPTS.find((c) => c.k === k) || {}).l || k).replace(/ \(.*\)$/, '').toLowerCase()).join(', ')} en ${p.anio} o en ${a.anio}; esa variación no se calcula (no se toma como cero).`);
+    if (!falta.length && Math.abs(cajaReal - calculado) > base * 0.15) lectura.push(`Hay ${A.fmt.eur(Math.abs(cajaReal - calculado))} en otras partidas que no se explican con los datos cargados: revisa Hacienda pública, otros deudores y acreedores.`);
+    return { anio: a.anio, previo: p.anio, beneficio: bn, recursos, cajaReal, items, destinos, lectura, atrapado, falta };
   };
 
   FIN.templateCSV = function () {

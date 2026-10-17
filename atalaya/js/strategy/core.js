@@ -25,7 +25,8 @@
   // Datos reales de una empresa del usuario (la empresa modelo es una demostración: conserva su contenido completo)
   S.real = () => !!(A.platform && A.platform.modoReal && A.platform.modoReal() && !(A.platform.modelo && A.platform.modelo.activa && A.platform.modelo.activa()));
   S.simConDatos = () => { const e = S.sim && S.sim.empresa; return !!(e && S.num(e.ventas) > 0 && !(S.real() && A.simEsEjemplo && A.simEsEjemplo(S.sim))); };
-  S.humanoConDatos = () => { const h = S.sim && S.sim.humano; return !!(h && Object.keys(h).some((k) => S.num(h[k]) > 0)); };
+  // Preguntas del equipo respondidas: las de la simulación a cero (A.simVacio) no pueden estar todas a cero
+  S.humanoConDatos = () => { const h = S.sim && S.sim.humano; return !!(h && (A.simVacio ? Object.keys(A.simVacio().humano) : Object.keys(h)).some((k) => S.num(h[k]) > 0)); };
   S.invDefinida = () => { const v = S.sim && S.sim.inversion; return !!(v && (S.num(v.importe) > 0 || (v.lineas || []).some((l) => S.num(l.importe) > 0))); };
   S.conDatos = (m) => { m = typeof m === 'string' ? S.mod(m) : m; if (!m || !m.datos) return true; try { return !!m.datos(); } catch (e) { return false; } };
   S.SIN_DATO = 'Sin datos';
@@ -458,7 +459,7 @@
     return v;
   };
   S.aDatosReales = () => {
-    if (A.simEsEjemplo && A.simEsEjemplo(S.sim)) { const ea = A.platform && A.platform.empresas && A.platform.empresas.activa(); S.sim = Object.assign(A.defaultState(), A.simVacio(S.sim.empresaNombre || (ea && ea.nombre) || '', S.sim.sector)); S.sim.empresa = Object.assign(A.defaultState().empresa, A.simVacio().empresa); S.sim.historico = undefined; delete S.sim.historico; S.saveSim(); }
+    if (S.simEjemplo()) { const ea = A.platform && A.platform.empresas && A.platform.empresas.activa(); S.sim = Object.assign(A.defaultState(), A.simVacio(S.sim.empresaNombre || (ea && ea.nombre) || '', S.sim.sector)); S.sim.empresa = Object.assign(A.defaultState().empresa, A.simVacio().empresa); S.sim.historico = undefined; delete S.sim.historico; S.saveSim(); }
     else if (S.sim && S.sim.historico && S.sim.historico.ejemplo) { delete S.sim.historico; S.saveSim(); }
     const antes = JSON.stringify(S.state);
     Object.keys(S.defaults).concat(Object.keys(S.alVaciar)).filter((k, i, a) => a.indexOf(k) === i).forEach((k) => {
@@ -471,10 +472,10 @@
   };
   // ¿Módulo sin datos con la cuenta en datos reales? (se mantiene por compatibilidad: ahora lo decide «datos()» de cada módulo)
   S.pideDatos = (id) => S.real() && !S.conDatos(id);
-  /* ¿Tiene el sistema estratégico datos propios (no de ejemplo)? Decide si el mundo tiene nota.
-     Cuenta el simulador con cuentas propias o cualquier módulo con datos que no sean los de ejemplo. */
   // Simulación de ejemplo: marcada como tal o con las cifras y el proyecto de la empresa de ejemplo (aunque se le haya cambiado el nombre)
   S.simEjemplo = () => { const s = S.sim; if (!s || !s.empresa || (A.simEsEjemplo && A.simEsEjemplo(s))) return true; const d = A.defaultState(); return S.num(s.empresa.ventas) === d.empresa.ventas && S.num(s.empresa.fijos) === d.empresa.fijos && s.proyecto === d.proyecto; };
+  /* ¿Tiene el sistema estratégico datos propios (no de ejemplo)? Decide si el mundo tiene nota.
+     Cuenta el simulador con cuentas propias o cualquier módulo con datos que no sean los de ejemplo. */
   S.datosPropios = () => {
     if (!S.simEjemplo() && S.num(S.sim.empresa.ventas) > 0) return true;
     const o = S.state && S.state.origen; if (o && ((o.archivos || []).some((a) => a.estado === 'ok') || Object.keys(o.manual || {}).length)) return true;
