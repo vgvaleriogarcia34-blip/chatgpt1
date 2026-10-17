@@ -24,7 +24,7 @@
     deudaEbitda: { n: 'Deuda neta / EBITDA', u: '×', dir: 'bajar' },
     ventasEmpleado: { n: 'Ventas por persona', u: '€', dir: 'subir' }
   };
-  const fv = (v, u) => (v == null || !isFinite(v) ? '—' : u === '€' ? F.eur(v) : u === '%' ? F.pct(v) : u === '×' ? v.toFixed(1).replace('.', ',') + '×' : F.num(Math.round(v)) + (u ? ' ' + u : ''));
+  const fv = (v, u) => (v == null || !isFinite(v) ? '—' : u === '€' ? F.eur(v) : u === '%' ? F.pct(v) : u === '×' ? (Math.round(v * 10) / 10 || 0).toFixed(1).replace('.', ',') + '×' : F.num(Math.round(v) || 0) + (u ? ' ' + u : '')); // «|| 0»: sin «-0»
 
   let user, plan, grupo, lista, G, E = [];
 
@@ -40,9 +40,9 @@
     const em = s.empresa, an = r && r.tamano ? r.tamano.antes : null;
     const ventas = an ? an.ventas : em.ventas, ebitda = an ? an.ebitda : em.ventas * em.margen / 100 - em.personal - em.fijos;
     out.m = {
-      ventas, ebitda, ebitdaPct: ventas ? ebitda / ventas * 100 : 0, caja: em.caja, deuda: em.deudaViva, deudaNeta: em.deudaViva - em.caja,
+      ventas, ebitda, ebitdaPct: ventas > 0 ? ebitda / ventas * 100 : null, caja: em.caja, deuda: em.deudaViva, deudaNeta: em.deudaViva - em.caja,
       deudaEbitda: ebitda > 0 ? (em.deudaViva - em.caja) / ebitda : null, dso: em.dso, plantilla: an ? an.plantilla : em.plantilla, ventasEmpleado: an ? an.ventasEmpleado : ventas / Math.max(1, em.plantilla),
-      liquidezMin: r ? r.cajaRef : null, verdict: r ? r.verdict : null, rojos: r ? r.lights.filter((l) => l.estado === 'stop').map((l) => l.nombre) : [], ambar: r ? r.lights.filter((l) => l.estado === 'warn').length : 0,
+      liquidezMin: r ? r.cajaRef : null, serieLiq: r && r.w ? (r.contarPoliza ? r.w.liquidez : r.w.cash) : null, verdict: r ? r.verdict : null, rojos: r ? r.lights.filter((l) => l.estado === 'stop').map((l) => l.nombre) : [], ambar: r ? r.lights.filter((l) => l.estado === 'warn').length : 0,
       sector: (A.SECTORS[s.sector] || {}).nombre || '', inversion: s.inversion ? s.inversion.importe : 0, nombre: s.empresaNombre
     };
     try { const v = (est && est.valoracion) || {}; out.m.valor = A.valorar ? A.valorar(sim, { multiplo: v.multiplo, wacc: v.wacc, g: v.g, pesoMult: v.pesoMult, ajustes: v.ajustes || {}, noOperativos: v.noOperativos, contingencias: v.contingencias }).central : null; } catch (x) { out.m.valor = null; }
@@ -59,7 +59,14 @@
     const att = (k) => L.reduce((a, x) => a + (x.m[k] || 0) * ((x.e.participacion != null ? x.e.participacion : 100) / 100), 0);
     const ventas = sum('ventas') - (+el.ventas || 0), ebitda = sum('ebitda') - (+el.margen || 0);
     const caja = sum('caja'), deuda = sum('deuda') - (+el.prestamos || 0);
-    return { n: L.length, ventas, ebitda, ebitdaPct: ventas ? ebitda / ventas * 100 : 0, caja, deuda, deudaNeta: deuda - caja, deudaEbitda: ebitda > 0 ? (deuda - caja) / ebitda : null, plantilla: sum('plantilla'), liquidezMin: sum('liquidezMin'), ventasAtr: att('ventas') - (+el.ventas || 0), ebitdaAtr: att('ebitda'), valor: sum('valor'), valorAtr: att('valor'), bruto: { ventas: sum('ventas'), ebitda: sum('ebitda'), deuda: sum('deuda') } };
+    // Liquidez mínima del grupo: mínimo de la suma mes a mes (no la suma de mínimos de meses distintos).
+    // Si alguna sociedad no tiene serie mensual, se cae a la suma de mínimos y se dice así.
+    const series = L.map((x) => x.m.serieLiq), conSerie = L.length && series.every((v) => Array.isArray(v) && v.length);
+    const nM = conSerie ? Math.min(...series.map((v) => v.length)) : 0;
+    const liquidezMin = conSerie ? Math.min(...Array.from({ length: nM }, (_, i) => series.reduce((a, v) => a + (+v[i] || 0), 0))) : sum('liquidezMin');
+    // Lo atribuible a la holding: las eliminaciones intragrupo se reparten en la misma proporción que las ventas atribuibles
+    const share = sum('ventas') > 0 ? att('ventas') / sum('ventas') : 1;
+    return { n: L.length, ventas, ebitda, ebitdaPct: ventas > 0 ? ebitda / ventas * 100 : null, caja, deuda, deudaNeta: deuda - caja, deudaEbitda: ebitda > 0 ? (deuda - caja) / ebitda : null, plantilla: sum('plantilla'), liquidezMin, liqSumaMin: !conSerie, ventasAtr: att('ventas') - (+el.ventas || 0) * share, ebitdaAtr: att('ebitda') - (+el.margen || 0) * share, valor: sum('valor'), valorAtr: att('valor'), bruto: { ventas: sum('ventas'), ebitda: sum('ebitda'), deuda: sum('deuda') } };
   }
   /* Riesgos que solo se ven mirando el conjunto */
   function cruzados() {
@@ -70,7 +77,7 @@
     L.filter((x) => x.m.liquidezMin != null && x.m.liquidezMin < 0).forEach((x) => out.push({ t: `${x.e.nombre} se queda sin liquidez`, d: `La previsión baja a ${F.eur(x.m.liquidezMin)}. Valora financiarla desde otra sociedad del grupo o reforzar su póliza.`, st: 'stop' }));
     const c = consolidado(); const top = L.slice().sort((a, b) => b.m.ventas - a.m.ventas)[0];
     if (top && L.length > 1 && top.m.ventas / Math.max(1, c.bruto.ventas) > 0.6) out.push({ t: 'El grupo depende de una sociedad', d: `${top.e.nombre} aporta el ${F.pct(top.m.ventas / c.bruto.ventas * 100)} de las ventas del grupo.`, st: 'warn' });
-    if (c.deudaEbitda != null && c.deudaEbitda > 3.5) out.push({ t: 'Endeudamiento del grupo alto', d: `Deuda neta de ${c.deudaEbitda.toFixed(1).replace('.', ',')} veces el EBITDA consolidado.`, st: c.deudaEbitda > 5 ? 'stop' : 'warn' });
+    if (c.deudaEbitda != null && c.deudaEbitda > 3.5) out.push({ t: 'Endeudamiento del grupo alto', d: `Deuda neta de ${fv(c.deudaEbitda, '×').replace('×', '')} veces el EBITDA consolidado.`, st: c.deudaEbitda > 5 ? 'stop' : 'warn' });
     if (grupo && G.tes) {
       const t = tesoreria();
       t.prop.filter((r) => !r.de).forEach((r) => out.push({ t: `${r.a.e.nombre} necesita caja que el grupo no tiene`, d: `Le faltan ${F.eur(r.importe)} según su previsión y ninguna sociedad puede prestárselos sin bajar de su colchón.`, st: 'stop' }));
@@ -142,17 +149,16 @@
     const main = $('#gMain'), L = E.filter((x) => x.ok), c = consolidado(), cr = cruzados();
     const kind = grupo ? 'grupo' : 'cartera';
     const pr = P.precio(user.plan, user.periodo, lista.length);
-    const holding = E.find((x) => x.e.rol === 'holding') || E[0];
     main.innerHTML = `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${grupo ? 'Plan Grupos' : 'Plan Consultora'} · ${lista.length} ${grupo ? 'sociedades' : 'empresas'}${grupo ? ` · tramo ${pr.tramo ? pr.tramo.n.toLowerCase() : ''}: ${P.eur(pr.mes)}/mes${pr.periodo === 'anual' ? ' (anual)' : ''}` : ''}</span><h2 class="st-title">${grupo ? 'Vista de grupo' : 'Cartera de clientes'}</h2><p class="st-q">${grupo ? '¿Cómo está el grupo en conjunto y cada sociedad dentro de él?' : '¿Cómo están todas las empresas que acompaño?'}</p></div><span class="spacer"></span><button class="btn solid" id="gRep">${grupo ? 'Informe del grupo' : 'Informe de la cartera'}</button></div>
       ${grupo && (tesoreria().sinResp.length || (!G.tes.prestamos.length && !G.tes.sinPrestamos)) && E.filter((x) => x.ok).length > 1 ? `<div class="gr-ask glass"><span class="c3-orb" aria-hidden="true"></span><div><b>Pregunta pendiente: ¿quién financia a quién dentro del grupo?</b><span class="small muted">${!G.tes.prestamos.length ? 'No hay préstamos entre sociedades apuntados. ' : ''}${tesoreria().sinResp.length ? `Faltan ${tesoreria().sinResp.length} respuesta${tesoreria().sinResp.length > 1 ? 's' : ''} sobre cómo se gobierna la caja del grupo.` : ''}</span></div><span class="spacer"></span><button class="btn solid" data-goto="#gTes">Responder</button>${!G.tes.prestamos.length ? '<button class="btn ghost" data-noloans>No hay préstamos entre sociedades</button>' : ''}</div>` : ''}
-      <section class="glass pad gr-const"><div class="gr-sky">${constelacion(holding)}</div>
-        <div class="gr-legend small muted">El tamaño es la venta de cada ${grupo ? 'sociedad' : 'empresa'}; el color, su veredicto en el simulador. Pulsa una para entrar en ella.</div></section>
+      <section class="glass pad gr-const"><div class="gr-sky"></div>
+        <div class="gr-legend small muted">El tamaño es la venta de cada ${grupo ? 'sociedad' : 'empresa'}; el anillo, su veredicto en el simulador (verde, ámbar o rojo; gris sin datos); el relleno la identifica, como en la tabla. Contorno discontinuo: ventas negativas. Pulse una para entrar en ella.</div></section>
       ${grupo ? S_kpis(c) : ''}
       <section class="glass pad stack mt"><div class="row"><h4>${grupo ? 'Sociedades' : 'Empresas'}</h4><span class="spacer"></span><span class="small muted">Cifras del último año cargado y previsión del escenario activo de cada una</span></div>
         <div class="table-wrap"><table class="gr-tab"><thead><tr><th style="text-align:left">${grupo ? 'Sociedad' : 'Empresa'}</th>${grupo ? '<th>Rol</th><th>%</th>' : ''}<th>Ventas</th><th>EBITDA</th><th>EBITDA %</th><th>Caja</th><th>Deuda neta</th><th>Valor estimado</th><th>Días de cobro</th><th>Personas</th><th>Liquidez mín.</th><th>Veredicto</th><th></th></tr></thead><tbody>
-        ${E.map((x, i) => x.ok ? `<tr><td style="text-align:left"><i class="gr-dot" style="background:${PAL[lista.indexOf(x.e) % PAL.length]}"></i><b>${esc(x.e.nombre)}</b><br><span class="muted small">${esc(x.m.sector)}${x.reales ? '' : ' · cifras sin cuentas cargadas'}</span></td>${grupo ? `<td>${x.e.rol === 'holding' ? 'Holding' : 'Filial'}</td><td>${x.e.participacion != null ? x.e.participacion : 100} %</td>` : ''}<td>${F.eur(x.m.ventas)}</td><td>${F.eur(x.m.ebitda)}</td><td>${F.pct(x.m.ebitdaPct)}</td><td>${F.eur(x.m.caja)}</td><td>${F.eur(x.m.deudaNeta)}</td><td>${fv(x.m.valor, '€')}</td><td>${x.m.dso}</td><td>${x.m.plantilla}</td><td style="color:${x.m.liquidezMin < 0 ? 'var(--stop)' : 'inherit'}">${fv(x.m.liquidezMin, '€')}</td><td>${x.m.verdict ? `<span class="state st-${ST[x.m.verdict.key]}">${esc(x.m.verdict.titulo)}</span>` : '—'}</td><td><button class="btn ghost" data-go="${x.e.id}">Entrar</button></td></tr>`
+        ${E.map((x, i) => x.ok ? `<tr><td style="text-align:left"><i class="gr-dot" style="background:${PAL[lista.indexOf(x.e) % PAL.length]}"></i><b>${esc(x.e.nombre)}</b><br><span class="muted small">${esc(x.m.sector)}${x.reales ? '' : ' · cifras sin cuentas cargadas'}</span></td>${grupo ? `<td>${x.e.rol === 'holding' ? 'Holding' : 'Filial'}</td><td>${x.e.participacion != null ? x.e.participacion : 100} %</td>` : ''}<td>${F.eur(x.m.ventas)}</td><td>${F.eur(x.m.ebitda)}</td><td>${fv(x.m.ebitdaPct, '%')}</td><td>${F.eur(x.m.caja)}</td><td>${F.eur(x.m.deudaNeta)}</td><td>${fv(x.m.valor, '€')}</td><td>${fv(x.m.dso, '')}</td><td>${fv(x.m.plantilla, '')}</td><td style="color:${x.m.liquidezMin < 0 ? 'var(--stop)' : 'inherit'}">${fv(x.m.liquidezMin, '€')}</td><td>${x.m.verdict ? `<span class="state st-${ST[x.m.verdict.key]}">${esc(x.m.verdict.titulo)}</span>` : '—'}</td><td><button class="btn ghost" data-go="${x.e.id}">Entrar</button></td></tr>`
           : `<tr><td style="text-align:left"><b>${esc(x.e.nombre)}</b><br><span class="muted small">Sin datos todavía</span></td>${grupo ? '<td></td><td></td>' : ''}<td colspan="9" class="muted small" style="text-align:left">Entra en ella y carga sus cifras, o sube su documentación en la zona de origen.</td><td><button class="btn ghost" data-go="${x.e.id}">Entrar</button></td></tr>`).join('')}
-        ${grupo && L.length ? `<tr class="gr-tot"><td style="text-align:left"><b>Consolidado</b><br><span class="muted small">integración global, con eliminaciones</span></td><td></td><td></td><td>${F.eur(c.ventas)}</td><td>${F.eur(c.ebitda)}</td><td>${F.pct(c.ebitdaPct)}</td><td>${F.eur(c.caja)}</td><td>${F.eur(c.deudaNeta)}</td><td title="Valor atribuible a la holding según participaciones">${F.eur(c.valorAtr)}<br><span class="muted small">atribuible</span></td><td></td><td>${c.plantilla}</td><td>${F.eur(c.liquidezMin)}</td><td></td><td></td></tr>` : ''}
+        ${grupo && L.length ? `<tr class="gr-tot"><td style="text-align:left"><b>Consolidado</b><br><span class="muted small">integración global, con eliminaciones</span></td><td></td><td></td><td>${F.eur(c.ventas)}</td><td>${F.eur(c.ebitda)}</td><td>${fv(c.ebitdaPct, '%')}</td><td>${F.eur(c.caja)}</td><td>${F.eur(c.deudaNeta)}</td><td title="Valor atribuible a la holding según participaciones">${F.eur(c.valorAtr)}<br><span class="muted small">atribuible</span></td><td></td><td>${fv(c.plantilla, '')}</td><td title="${c.liqSumaMin ? 'Suma de los mínimos de cada sociedad, que pueden caer en meses distintos' : 'Mínimo de la suma mes a mes de las previsiones de todas las sociedades'}">${F.eur(c.liquidezMin)}<br><span class="muted small">${c.liqSumaMin ? 'suma de mínimos' : 'mes más bajo del grupo'}</span></td><td></td><td></td></tr>` : ''}
         </tbody></table></div></section>
       ${grupo ? `<section class="glass pad stack mt"><h4>Operaciones dentro del grupo</h4><p class="small muted">Lo que unas sociedades venden o prestan a otras no es venta ni deuda del grupo: se elimina al consolidar. Escribe los importes anuales (los encontrarás en la contabilidad de cada sociedad, cuentas de empresas del grupo).</p>
         <div class="gr-elim">${[['ventas', 'Ventas entre sociedades del grupo', 'se restan de las ventas'], ['margen', 'Margen de esas ventas aún no vendido fuera', 'se resta del EBITDA'], ['prestamos', 'Préstamos entre sociedades del grupo', 'se restan de la deuda']].map(([k, l, d]) => `<label class="field"><span>${l}</span><input class="input" data-elim="${k}" value="${(G.elim || {})[k] ? F.num(G.elim[k]) : ''}" placeholder="0"><small class="muted">${d}</small></label>`).join('')}</div></section>` : ''}
@@ -161,7 +167,7 @@
       <section class="glass pad stack mt"><h4>Riesgos que solo se ven en conjunto</h4>${cr.length ? `<div class="risklist">${cr.map((r) => `<div class="risk"><span class="state st-${r.st}">${r.st === 'stop' ? 'Alto' : 'Medio'}</span><div><b>${esc(r.t)}</b><p>${esc(r.d)}</p></div><span></span></div>`).join('')}</div>` : '<p class="small muted">Sin riesgos cruzados con los datos actuales.</p>'}</section>
       ${grupo ? objetivosHTML() : ''}`;
     $$('[data-go]', main).forEach((b) => b.onclick = () => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(b.dataset.go)); location.href = 'estrategia.html'; });
-    $$('.gr-planet', main).forEach((g) => g.addEventListener('click', () => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(g.dataset.id)); location.href = 'estrategia.html'; }));
+    pintaSky();
     $$('[data-elim]', main).forEach((inp) => inp.onchange = () => { G.elim = G.elim || {}; G.elim[inp.dataset.elim] = A.fin ? A.fin.parseNum(inp.value) || 0 : +inp.value || 0; guardar(); render(true); });
     $('#gRep', main).onclick = informe;
     if (grupo) { wireObjetivos(main); wireTesoreria(main); }
@@ -171,7 +177,7 @@
     if (A.cosmos) A.cosmos.type3d(main);
   }
   function S_kpis(c) {
-    const items = [['Ventas consolidadas', F.eur(c.ventas), c.bruto.ventas !== c.ventas ? `${F.eur(c.bruto.ventas)} antes de eliminar` : 'sin operaciones intragrupo marcadas'], ['EBITDA consolidado', F.eur(c.ebitda), F.pct(c.ebitdaPct) + ' sobre ventas'], ['Deuda neta / EBITDA', c.deudaEbitda == null ? '—' : c.deudaEbitda.toFixed(1).replace('.', ',') + '×', `${F.eur(c.deudaNeta)} de deuda neta`], ['Atribuible a la holding', F.eur(c.ventasAtr), `ventas según participaciones · EBITDA ${F.eur(c.ebitdaAtr)}`], ['Valor atribuible', F.eur(c.valorAtr), `valor orientativo de las sociedades según participaciones (suma: ${F.eur(c.valor)})`]];
+    const items = [['Ventas consolidadas', F.eur(c.ventas), c.bruto.ventas !== c.ventas ? `${F.eur(c.bruto.ventas)} antes de eliminar` : 'sin operaciones intragrupo marcadas'], ['EBITDA consolidado', F.eur(c.ebitda), fv(c.ebitdaPct, '%') + ' sobre ventas'], ['Deuda neta / EBITDA', fv(c.deudaEbitda, '×'), `${F.eur(c.deudaNeta)} de deuda neta`], ['Atribuible a la holding', F.eur(c.ventasAtr), `ventas según participaciones · EBITDA ${F.eur(c.ebitdaAtr)}`], ['Valor atribuible', F.eur(c.valorAtr), `valor orientativo de las sociedades según participaciones (suma: ${F.eur(c.valor)})`]];
     return `<div class="kpis mt">${items.map(([k, v, d]) => `<div class="kpi"><div class="k"><span>${k}</span></div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('')}</div>`;
   }
   function barras(k) {
@@ -179,22 +185,64 @@
     const mx = Math.max(1, ...L.map((x) => Math.abs(x.m[k])));
     return `<div class="gr-bars"><b class="small">${d.n}</b>${L.map((x) => `<div class="gr-bar"><span>${esc(x.e.nombre)}</span><i><b style="width:${Math.abs(x.m[k]) / mx * 100}%;background:${x.m[k] < 0 ? 'var(--stop)' : PAL[lista.indexOf(x.e) % PAL.length]}"></b></i><em>${fv(x.m[k], d.u)}</em></div>`).join('')}<small class="muted">${d.dir === 'bajar' ? 'Mejor cuanto más bajo' : 'Mejor cuanto más alto'}</small></div>`;
   }
-  /* Constelación: holding en el centro, sociedades en órbita */
-  function constelacion(holding) {
-    const W = 760, H = 300, cx = W / 2, cy = H / 2, others = E.filter((x) => x !== holding);
-    const mx = Math.max(1, ...E.filter((x) => x.ok).map((x) => x.m.ventas));
-    const rad = (x) => (x.ok ? 14 + Math.sqrt(x.m.ventas / mx) * 30 : 12);
+  /* Constelación: holding en el centro, sociedades en órbita (dos órbitas con más de ocho).
+     En pantallas estrechas, lista vertical ordenada por ventas con el mismo código: tamaño = ventas, anillo = veredicto.
+     El lienzo se ajusta a lo dibujado (planetas y nombres nunca quedan fuera) y los nombres largos se recortan con su <title>. */
+  function constelacion(holding, ancho) {
+    const okE = E.filter((x) => x.ok), mx = Math.max(1, ...okE.map((x) => Math.max(0, x.m.ventas)));
+    const others = E.filter((x) => x !== holding), n = others.length, dos = n > 8, lista1 = ancho && ancho < 600;
+    const rad = (x) => (x.ok ? (dos || lista1 ? 9 : 14) + Math.sqrt(Math.max(0, x.m.ventas) / mx) * (lista1 ? 14 : dos ? 22 : 30) : (lista1 ? 9 : 12));
     const col = (x) => (!x.ok || !x.m.verdict ? '#737a8e' : x.m.verdict.key === 'go' ? '#2fb24a' : x.m.verdict.key === 'warn' ? '#fab219' : '#e04848');
-    const planet = (x, px, py, big) => { const r = rad(x) * (big ? 1.15 : 1), i = lista.indexOf(x.e); return `<g class="gr-planet" data-id="${x.e.id}" tabindex="0" role="button" aria-label="Entrar en ${esc(x.e.nombre)}"><circle cx="${px}" cy="${py}" r="${r + 10}" fill="url(#halo${i})"/><circle cx="${px}" cy="${py}" r="${r}" fill="url(#pl${i})" stroke="${col(x)}" stroke-width="2.5"/><text x="${px}" y="${py + r + 18}" text-anchor="middle" class="gr-pn">${esc(x.e.nombre)}</text><text x="${px}" y="${py + r + 32}" text-anchor="middle" class="gr-ps">${x.ok ? F.eur(x.m.ventas) : 'sin datos'}${grupo && x.e.rol !== 'holding' ? ` · ${x.e.participacion != null ? x.e.participacion : 100} %` : ''}</text></g>`; };
+    const sub = (x) => `${x.ok ? F.eur(x.m.ventas) : 'sin datos'}${grupo && x.e.rol !== 'holding' ? ` · ${x.e.participacion != null ? x.e.participacion : 100} %` : ''}`;
+    const tit = (x) => `${x.e.nombre}${x.e === holding.e && grupo ? ' (holding)' : ''} · ${x.ok ? 'ventas ' + F.eur(x.m.ventas) : 'sin datos'}${x.ok && x.m.verdict ? ' · veredicto: ' + x.m.verdict.titulo : ''}`;
     const defs = E.map((x, i) => { const c = PAL[lista.indexOf(x.e) % PAL.length]; return `<radialGradient id="pl${i}" cx="35%" cy="35%"><stop offset="0" stop-color="#fff6dc"/><stop offset=".45" stop-color="${c}"/><stop offset="1" stop-color="#0b0d13"/></radialGradient><radialGradient id="halo${i}"><stop offset=".6" stop-color="${c}" stop-opacity=".25"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`; }).join('');
-    const n = others.length, R = Math.min(W * 0.4, 190 + n * 10);
-    // Las sociedades se reparten en la órbita empezando por los lados, donde hay más sitio para su nombre
-    const pos = others.map((x, i) => { const a = Math.PI + (i / Math.max(1, n)) * Math.PI * 2 + (n > 2 ? Math.PI / n : 0); return [cx + Math.cos(a) * R, cy + Math.sin(a) * R * 0.55]; });
-    return `<svg viewBox="0 0 ${W} ${H + 40}" class="gr-svg" role="img" aria-label="Constelación del ${grupo ? 'grupo' : 'conjunto de empresas'}"><defs>${defs}</defs>
-      <ellipse cx="${cx}" cy="${cy}" rx="${R}" ry="${R * 0.55}" fill="none" stroke="rgba(201, 242, 77, .25)" stroke-dasharray="3 6"/>
-      ${pos.map(([x, y]) => `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(134,180,255,.22)"/>`).join('')}
-      ${others.map((x, i) => planet(x, pos[i][0], pos[i][1])).join('')}${planet(holding, cx, cy, true)}</svg>`;
+    const box = [Infinity, Infinity, -Infinity, -Infinity], abarca = (x0, y0, x1, y1) => { box[0] = Math.min(box[0], x0); box[1] = Math.min(box[1], y0); box[2] = Math.max(box[2], x1); box[3] = Math.max(box[3], y1); };
+    // Planeta con su nombre (abajo o a la derecha) y el texto completo en <title>
+    const planet = (x, px, py, big, lado, fit) => {
+      const r = rad(x) * (big ? 1.15 : 1), i = E.indexOf(x), neg = x.ok && x.m.ventas < 0;
+      const tx = lado ? px + r + 12 : px, ta = lado ? 'start' : 'middle', y1 = lado ? py - 2 : py + r + 18, y2 = lado ? py + 15 : py + r + 32;
+      abarca(px - r - 10, py - r - 10, px + r + 10, py + r + 10); abarca(lado ? tx : px - fit / 2, y1 - 14, lado ? tx + fit : px + fit / 2, y2 + 4);
+      return `<g class="gr-planet" data-id="${x.e.id}" tabindex="0" role="button" aria-label="Entrar en ${esc(tit(x))}"><title>${esc(tit(x))}</title><circle cx="${px}" cy="${py}" r="${r + 10}" fill="url(#halo${i})"/><circle cx="${px}" cy="${py}" r="${r}" fill="url(#pl${i})" stroke="${col(x)}" stroke-width="2.5"${neg ? ' stroke-dasharray="5 4"' : ''}/><text x="${tx}" y="${y1}" text-anchor="${ta}" class="gr-pn" data-fit="${fit}">${esc(x.e.nombre)}</text><text x="${tx}" y="${y2}" text-anchor="${ta}" class="gr-ps" data-fit="${fit}">${sub(x)}</text></g>`;
+    };
+    let body = '';
+    if (lista1) {
+      // Lista: holding arriba y el resto por ventas
+      const L = [holding].concat(others.slice().sort((a, b) => (b.ok ? b.m.ventas : -Infinity) - (a.ok ? a.m.ventas : -Infinity))), W = Math.max(320, Math.min(600, ancho)), fila = 58;
+      body = L.map((x, k) => planet(x, 34, 30 + k * fila, false, true, W - 90)).join('');
+      abarca(0, 0, W, 30 + (L.length - 1) * fila + 30);
+    } else {
+      const W = dos ? 900 : 760, cx = W / 2, cy = dos ? 190 : 150, fit = dos ? 120 : 160;
+      const rx = W / 2 - fit / 2 - 20, ry = dos ? 150 : 100;
+      const orb = (k, m, frx, fry, desf) => { const a = Math.PI + (k / Math.max(1, m)) * Math.PI * 2 + desf; return [cx + Math.cos(a) * frx, cy + Math.sin(a) * fry]; };
+      // Con dos órbitas: las de más ventas fuera (más sitio para el nombre), el resto dentro, desfasadas
+      const ord = others.slice().sort((a, b) => (b.ok ? b.m.ventas : -Infinity) - (a.ok ? a.m.ventas : -Infinity));
+      const ext = dos ? ord.slice(0, Math.ceil(n * 0.6)) : others, int = dos ? ord.slice(Math.ceil(n * 0.6)) : [];
+      const pos = new Map();
+      ext.forEach((x, k) => pos.set(x, orb(k, ext.length, rx, ry, ext.length > 2 ? Math.PI / ext.length : 0)));
+      int.forEach((x, k) => pos.set(x, orb(k, int.length, rx * 0.5, ry * 0.5, Math.PI / 2 + Math.PI / Math.max(1, int.length))));
+      body = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="rgba(201, 242, 77, .25)" stroke-dasharray="3 6"/>${int.length ? `<ellipse cx="${cx}" cy="${cy}" rx="${rx * 0.5}" ry="${ry * 0.5}" fill="none" stroke="rgba(201, 242, 77, .18)" stroke-dasharray="3 6"/>` : ''}
+        ${others.map((x) => { const [px, py] = pos.get(x); return `<line x1="${cx}" y1="${cy}" x2="${px}" y2="${py}" stroke="rgba(134,180,255,.22)"/>`; }).join('')}
+        ${others.map((x) => { const [px, py] = pos.get(x); return planet(x, px, py, false, false, int.includes(x) ? fit * 0.8 : fit); }).join('')}${planet(holding, cx, cy, true, false, fit)}`;
+      abarca(cx - rx, cy - ry, cx + rx, cy + ry);
+    }
+    const pad = 6, vb = [box[0] - pad, box[1] - pad, box[2] - box[0] + pad * 2, box[3] - box[1] + pad * 2].map((v) => Math.round(v));
+    return `<svg viewBox="${vb.join(' ')}" class="gr-svg${lista1 ? ' lista' : ''}" role="img" aria-label="Constelación del ${grupo ? 'grupo' : 'conjunto de empresas'}: ${E.length} ${grupo ? 'sociedades' : 'empresas'}"><defs>${defs}</defs>${body}</svg>`;
   }
+  /* Recorta los nombres que no caben en su sitio (data-fit) y deja el completo en el <title> del planeta */
+  const encajar = (root) => $$('text[data-fit]', root).forEach((t) => { const mx = +t.dataset.fit; if (!mx || !t.getComputedTextLength || t.getComputedTextLength() <= mx) return; let s = t.textContent; while (s.length > 2 && t.getComputedTextLength() > mx) { s = s.slice(0, -1); t.textContent = s.trimEnd() + '…'; } });
+  /* Pinta la constelación según el ancho disponible y conecta ratón y teclado (Intro o espacio para entrar) */
+  let skyW = 0;
+  function pintaSky() {
+    const sky = $('.gr-sky'); if (!sky) return;
+    const holding = E.find((x) => x.e.rol === 'holding') || E[0]; if (!holding) return;
+    skyW = sky.clientWidth || 900;
+    sky.innerHTML = constelacion(holding, skyW); encajar(sky);
+    const entrar = (g) => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(g.dataset.id)); location.href = 'estrategia.html'; };
+    $$('.gr-planet', sky).forEach((g) => { g.addEventListener('click', () => entrar(g)); g.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); entrar(g); } }); });
+  }
+  // Un solo oyente de cambio de tamaño para la constelación (con espera), sin oyentes nuevos en cada pintado
+  let skyT = null;
+  addEventListener('resize', () => { clearTimeout(skyT); skyT = setTimeout(() => { const sky = $('.gr-sky'); if (sky && Math.abs((sky.clientWidth || 0) - skyW) > 24) pintaSky(); }, 200); });
 
   /* ---------- Objetivos de la holding en cascada ---------- */
   function objetivosHTML() {
@@ -222,8 +270,8 @@
     const L = E.filter((x) => x.ok), c = consolidado(), cr = cruzados();
     const rojas = L.filter((x) => x.m.verdict && x.m.verdict.key === 'stop'), verdes = L.filter((x) => x.m.verdict && x.m.verdict.key === 'go');
     const st = rojas.length ? 'stop' : cr.some((r) => r.st === 'stop') ? 'stop' : cr.length ? 'warn' : 'ok';
-    const resumen = `<p><b>${grupo ? 'El grupo' : 'La cartera'} reúne ${E.length} ${grupo ? 'sociedades' : 'empresas'}${E.length !== L.length ? ` (${E.length - L.length} todavía sin datos)` : ''}.</b> ${grupo ? `Ventas consolidadas de ${F.eur(c.ventas)} y EBITDA de ${F.eur(c.ebitda)} (${F.pct(c.ebitdaPct)}); ${c.deudaEbitda == null ? 'con el EBITDA en negativo, la deuda no se puede medir en años de EBITDA' : `deuda neta de ${c.deudaEbitda.toFixed(1).replace('.', ',')} veces el EBITDA`}.` : `Suman ${F.eur(c.bruto.ventas)} de ventas.`} ${verdes.length} en verde, ${rojas.length} en rojo.</p>${cr.length ? `<p><b>Lo primero:</b> ${esc(cr[0].t)}. ${esc(cr[0].d)}</p>` : ''}`;
-    const tabla = I.table([grupo ? 'Sociedad' : 'Empresa'].concat(grupo ? ['Rol', '%'] : []).concat(['Ventas', 'EBITDA', 'EBITDA %', 'Deuda neta', 'Valor estimado', 'Liquidez mín.', 'Veredicto']), E.map((x) => [x.e.nombre].concat(grupo ? [x.e.rol === 'holding' ? 'Holding' : 'Filial', (x.e.participacion != null ? x.e.participacion : 100) + ' %'] : []).concat(x.ok ? [F.eur(x.m.ventas), F.eur(x.m.ebitda), F.pct(x.m.ebitdaPct), F.eur(x.m.deudaNeta), fv(x.m.valor, '€'), fv(x.m.liquidezMin, '€'), { h: x.m.verdict ? I.pill(ST[x.m.verdict.key], x.m.verdict.titulo) : '—' }] : ['Sin datos', '', '', '', '', '', ''])), { num: grupo ? [3, 4, 5, 6, 7, 8] : [1, 2, 3, 4, 5, 6] });
+    const resumen = `<p><b>${grupo ? 'El grupo' : 'La cartera'} reúne ${E.length} ${grupo ? 'sociedades' : 'empresas'}${E.length !== L.length ? ` (${E.length - L.length} todavía sin datos)` : ''}.</b> ${grupo ? `Ventas consolidadas de ${F.eur(c.ventas)} y EBITDA de ${F.eur(c.ebitda)} (${fv(c.ebitdaPct, '%')}); ${c.deudaEbitda == null ? 'con el EBITDA en negativo, la deuda no se puede medir en años de EBITDA' : `deuda neta de ${fv(c.deudaEbitda, '×').replace('×', '')} veces el EBITDA`}.` : `Suman ${F.eur(c.bruto.ventas)} de ventas.`} ${verdes.length} en verde, ${rojas.length} en rojo.</p>${cr.length ? `<p><b>Lo primero:</b> ${esc(cr[0].t)}. ${esc(cr[0].d)}</p>` : ''}`;
+    const tabla = I.table([grupo ? 'Sociedad' : 'Empresa'].concat(grupo ? ['Rol', '%'] : []).concat(['Ventas', 'EBITDA', 'EBITDA %', 'Deuda neta', 'Valor estimado', 'Liquidez mín.', 'Veredicto']), E.map((x) => [x.e.nombre].concat(grupo ? [x.e.rol === 'holding' ? 'Holding' : 'Filial', (x.e.participacion != null ? x.e.participacion : 100) + ' %'] : []).concat(x.ok ? [F.eur(x.m.ventas), F.eur(x.m.ebitda), fv(x.m.ebitdaPct, '%'), F.eur(x.m.deudaNeta), fv(x.m.valor, '€'), fv(x.m.liquidezMin, '€'), { h: x.m.verdict ? I.pill(ST[x.m.verdict.key], x.m.verdict.titulo) : '—' }] : ['Sin datos', '', '', '', '', '', ''])), { num: grupo ? [3, 4, 5, 6, 7, 8] : [1, 2, 3, 4, 5, 6] });
     const cons = grupo ? I.table(['Concepto', 'Suma de sociedades', 'Eliminaciones', 'Consolidado'], [['Ventas', F.eur(c.bruto.ventas), F.eur(-(+(G.elim || {}).ventas || 0)), F.eur(c.ventas)], ['EBITDA', F.eur(c.bruto.ebitda), F.eur(-(+(G.elim || {}).margen || 0)), F.eur(c.ebitda)], ['Deuda bancaria', F.eur(c.bruto.deuda), F.eur(-(+(G.elim || {}).prestamos || 0)), F.eur(c.deuda)], ['Caja', F.eur(c.caja), '—', F.eur(c.caja)]], { num: [1, 2, 3] }) + `<p class="rp-muted">Integración global de todas las sociedades. Atribuible a la holding según participaciones: ventas ${F.eur(c.ventasAtr)}, EBITDA ${F.eur(c.ebitdaAtr)} y valor orientativo ${F.eur(c.valorAtr)} (múltiplos y flujos descontados de cada sociedad; si la holding ya recoge en sus cuentas el resultado de las filiales, no se suman dos veces).</p>` : '';
     const cmp = I.table(['Indicador'].concat(L.map((x) => x.e.nombre)), ['ebitdaPct', 'ventasEmpleado', 'dso', 'deudaEbitda', 'liquidezMin'].map((k) => [IND[k].n].concat(L.map((x) => fv(x.m[k], IND[k].u)))));
     const objs = (G.objetivos || []).filter((o) => o.meta !== '' && o.meta != null);

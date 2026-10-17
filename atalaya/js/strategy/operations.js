@@ -231,17 +231,32 @@
             <p class="small">Puntuación 5S: <b>${Math.round(L.cincoS.reduce((a, b) => a + b, 0) / 25 * 100)} %</b>. Por debajo del 60 %, empieza por clasificar y ordenar el puesto del cuello de botella.</p></div>
         </div>
         <div class="glass pad mt" id="kzTable"></div>`;
-      // Mapa del flujo de valor (VSM simplificado)
-      const W = 900, Hh = 190, n = l.P.length, bw = Math.min(150, (W - 40) / Math.max(1, n) - 30);
-      let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Mapa del flujo de valor">`;
-      l.P.forEach((p, i) => {
-        const x = 20 + i * ((W - 40) / n), isC = p === l.cuello;
-        svg += `<rect x="${x}" y="20" width="${bw}" height="70" rx="8" fill="${css('--panel-solid')}" stroke="${isC ? css('--stop') : css('--line-strong')}" stroke-width="${isC ? 2 : 1}"/><text x="${x + bw / 2}" y="40" text-anchor="middle" style="fill:${css('--fg')};font-family:var(--font-body);font-size:11px">${esc(p.nombre.length > 22 ? p.nombre.slice(0, 21) + '…' : p.nombre)}</text>
-          <text x="${x + bw / 2}" y="58" text-anchor="middle">ciclo ${fmtMin(p.ciclo)}</text><text x="${x + bw / 2}" y="74" text-anchor="middle">${p.maquina ? 'OEE ' + Math.round(p.oee * 100) + ' %' : p.puestos + ' puesto' + (p.puestos > 1 ? 's' : '')}</text>`;
-        if (i < n - 1) { const x2 = x + bw, mid = (x2 + 20 + (i + 1) * ((W - 40) / n)) / 2; svg += `<path d="M${mid - 9},118 L${mid + 9},118 L${mid},102 Z" fill="${css('--warn')}" opacity="0.8"/><text x="${mid}" y="134" text-anchor="middle">${fmtMin(S.num(p.espera))}</text>${S.num(p.inventario) ? `<text x="${mid}" y="148" text-anchor="middle">${F.num(p.inventario)} uds</text>` : ''}<line x1="${x2}" x2="${x2 + 24}" y1="55" y2="55" stroke="${css('--gold')}" stroke-width="1.5"/>`; }
-      });
-      svg += `<line x1="20" x2="${W - 20}" y1="${Hh - 22}" y2="${Hh - 22}" stroke="${css('--line')}"/><text x="20" y="${Hh - 6}">Valor añadido ${fmtMin(l.va)} de ${fmtMin(l.lead)} (${F.pct(l.eficiencia)}) · triángulo: espera e inventario entre pasos · borde rojo: cuello de botella</text></svg>`;
-      $('#vsm', host).innerHTML = svg;
+      // Mapa del flujo de valor (VSM simplificado). El ancho sigue al contenedor; por debajo de 600 px
+      // o si los pasos no caben en horizontal, los pasos se apilan en vertical. Textos recortados a su caja.
+      const vsmHost = $('#vsm', host);
+      const pintaVsm = () => {
+        const W = S.anchoSvg(vsmHost), n = l.P.length;
+        if (!n) { vsmHost.innerHTML = '<p class="small muted chart-vacio">Añada los pasos del proceso en la tabla para ver el mapa.</p>'; return; }
+        const vert = W < 600 || (W - 40) / n < 110;
+        const lbl = (p) => (p.maquina ? 'OEE ' + Math.round(p.oee * 100) + ' %' : p.puestos + ' puesto' + (p.puestos > 1 ? 's' : ''));
+        const caja = (p, x, y, w, h) => { const isC = p === l.cuello; return `<rect class="vsm-box${isC ? ' cuello' : ''}" x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/><title>${esc(p.nombre)}: ciclo ${fmtMin(p.ciclo)} · ${lbl(p)}${isC ? ' · cuello de botella' : ''}</title>`; };
+        const espera = (p, x, y) => `<path class="vsm-wait" d="M${x - 9},${y + 8} L${x + 9},${y + 8} L${x},${y - 8} Z"/><title>Espera ${fmtMin(S.num(p.espera))}${S.num(p.inventario) ? ' · ' + F.num(p.inventario) + ' uds en curso' : ''}</title>`;
+        let svg, Hh;
+        if (vert) {
+          const bh = 54, gap = 40, bw = W - 40; Hh = 10 + n * bh + (n - 1) * gap + 10;
+          svg = l.P.map((p, i) => { const y = 10 + i * (bh + gap); return `<g>${caja(p, 20, y, bw, bh)}</g><text class="vsm-n" x="34" y="${y + 22}" data-fit="${bw - 28}">${esc(p.nombre)}</text><text x="34" y="${y + 41}" data-fit="${bw - 28}">ciclo ${fmtMin(p.ciclo)} · ${lbl(p)}</text>`
+            + (i < n - 1 ? `<line class="vsm-flow" x1="40" x2="40" y1="${y + bh}" y2="${y + bh + gap}"/><g>${espera(p, 66, y + bh + gap / 2)}</g><text x="84" y="${y + bh + gap / 2 + 4}" data-fit="${bw - 70}">espera ${fmtMin(S.num(p.espera))}${S.num(p.inventario) ? ' · ' + F.num(p.inventario) + ' uds' : ''}</text>` : ''); }).join('');
+        } else {
+          const paso = (W - 40) / n, bw = Math.min(150, paso - 30); Hh = 160;
+          svg = l.P.map((p, i) => { const x = 20 + i * paso; let t = `<g>${caja(p, x, 20, bw, 70)}</g><text class="vsm-n" x="${x + bw / 2}" y="40" text-anchor="middle" data-fit="${bw - 10}">${esc(p.nombre)}</text><text x="${x + bw / 2}" y="58" text-anchor="middle" data-fit="${bw - 8}">ciclo ${fmtMin(p.ciclo)}</text><text x="${x + bw / 2}" y="74" text-anchor="middle" data-fit="${bw - 8}">${lbl(p)}</text>`;
+            if (i < n - 1) { const x2 = x + bw, mid = (x2 + 20 + (i + 1) * paso) / 2, gw = paso - bw + 10; t += `<g>${espera(p, mid, 110)}</g><text x="${mid}" y="134" text-anchor="middle" data-fit="${gw}">${fmtMin(S.num(p.espera))}</text>${S.num(p.inventario) ? `<text x="${mid}" y="148" text-anchor="middle" data-fit="${gw}">${F.num(p.inventario)} uds</text>` : ''}<line class="vsm-flow" x1="${x2}" x2="${x2 + paso - bw}" y1="55" y2="55"/>`; }
+            return t; }).join('');
+        }
+        vsmHost.innerHTML = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Mapa del flujo de valor: ${n} pasos, cuello de botella en ${esc(l.cuello ? l.cuello.nombre : '—')}; valor añadido ${fmtMin(l.va)} de ${fmtMin(l.lead)}">${svg}</svg>
+          <p class="small muted" style="margin:6px 0 0">Valor añadido ${fmtMin(l.va)} de ${fmtMin(l.lead)} (${F.pct(l.eficiencia)}) · triángulo: espera e inventario entre pasos · borde rojo: cuello de botella.</p>`;
+        S.encajar(vsmHost);
+      };
+      pintaVsm(); S.alRedimensionar(vsmHost, pintaVsm);
       $('#lnSec', host).onchange = (e) => { S.state.lean = Object.assign(leanDefault(e.target.value), { auto: false }); S.save(); S.rerender(); };
       $('#lnDem', host).onchange = (e) => { L.demandaDia = S.num(e.target.value); L.auto = false; S.save(); S.rerender(); };
       $('#lnMin', host).onchange = (e) => { L.minutosDia = S.num(e.target.value); L.auto = false; S.save(); S.rerender(); };
@@ -282,7 +297,7 @@
       const w = (k) => R.reduce((a, x) => a + S.num(x[k]) * S.num(x.personas), 0) / tot;
       host.innerHTML = `${S.section('Personas', 'Plantilla por áreas, coste, absentismo, rotación y vacantes, junto con la preparación del sistema humano para el crecimiento que calcula el simulador.')}
         ${S.kpiTiles([{ k: 'Plantilla', v: F.num(tot) }, { k: 'Coste medio', v: F.eur(w('coste')) }, { k: 'Absentismo medio', v: F.pct(w('absentismo')), st: w('absentismo') > 5 ? 'warn' : 'ok', info: 'Absentismo' }, { k: 'Rotación media', v: F.pct(w('rotacion')), st: w('rotacion') > 15 ? 'warn' : 'ok', info: 'Rotación' }, { k: 'Preparación para crecer', v: Math.round(h.score) + '/100', st: h.score >= 70 ? 'ok' : h.score >= 50 ? 'warn' : 'stop' }])}
-        <div class="grid cols-2 mt"><div class="glass pad stack"><h4>¿Está el equipo listo para crecer? (del simulador)</h4><p class="small muted" style="margin:0">Preparación: <b>${Math.round(h.score)}/100</b>. Para afinarla, responde las catorce preguntas del equipo en el <a href="app.html#humano">simulador</a>: cada respuesta coloca una pieza de esta foto.</p>${S.hbars(h.dims.map((d) => ({ n: d.nombre, v: d.score, c: d.score >= 70 ? css('--go') : d.score >= 50 ? css('--warn') : css('--stop') })), (v) => Math.round(v))}<a class="btn ghost" href="app.html#humano">Ajustar en el simulador</a></div>
+        <div class="grid cols-2 mt"><div class="glass pad stack"><h4>¿Está el equipo listo para crecer? (del simulador)</h4><p class="small muted" style="margin:0">Preparación: <b>${Math.round(h.score)}/100</b>. Para afinarla, responde las catorce preguntas del equipo en el <a href="app.html#humano">simulador</a>: cada respuesta coloca una pieza de esta foto.</p>${S.hbars(h.dims.map((d) => ({ n: d.nombre, v: d.score, c: d.score >= 70 ? 'var(--go)' : d.score >= 50 ? 'var(--warn)' : 'var(--stop)' })), (v) => Math.round(v) + '/100', null, { max: 100 })}<a class="btn ghost" href="app.html#humano">Ajustar en el simulador</a></div>
           <div class="glass pad stack"><h4>Lo que necesita para estarlo</h4><div class="timeline">${h.acciones.slice().sort((a, b) => a.cuando - b.cuando).map((a) => `<div class="ev"><div class="when">MES ${a.cuando}${a.coste ? ' · ' + F.eur(a.coste) : ''}</div><div>${esc(a.que)}</div></div>`).join('')}</div></div></div>
         <div class="glass pad mt stack" id="ogHost"></div>
         <div class="glass pad mt" id="arTable"></div>`;

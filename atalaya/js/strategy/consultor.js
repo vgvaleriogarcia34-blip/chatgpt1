@@ -32,7 +32,7 @@
     try {
       if (o.fn && FN[o.fn]) return FN[o.fn]();
       const m = S.mod(modId); if (!m || !m.kpis) return null;
-      const k = m.kpis().find((x) => x.k === (o.kpi || o.k)); return k ? parseKpi(k.v) : null;
+      const key = o.kpi || o.k, nk = (t) => String(t).replace(/\d+/g, '#'); const k = m.kpis().find((x) => x.k === key) || m.kpis().find((x) => nk(x.k) === nk(key)); return k ? parseKpi(k.v) : null; /* «Saldo mínimo 13 semanas» sigue al horizonte elegido */
     } catch (e) { return null; }
   }
   const fmtV = (v, u) => (v == null || v === '' ? '—' : u === '€' ? F.eur(v) : u === '%' ? F.pct(v) : F.num(v) + (u && !/^(riesgos|clientes|zonas)$/.test(u) ? ' ' + u : ''));

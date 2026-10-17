@@ -323,8 +323,9 @@
   const CATS_OUT = ['Proveedores', 'Nóminas', 'Seguridad Social', 'Impuestos', 'Cuotas de préstamos', 'Gastos fijos', 'Inversiones', 'Otros pagos'];
   function cashWeeks() {
     const Ts = S.state.tesoreria, T = S.state.impuestos, e = S.sim.empresa;
-    // Los extractos bancarios traen importes con signo: los negativos son salidas
-    Ts.movimientos.forEach((m) => { if (S.num(m.importe) < 0) { m.importe = -S.num(m.importe); m.tipo = 'salida'; if (CATS_IN.includes(m.categoria)) m.categoria = 'Otros pagos'; } });
+    // Los extractos bancarios traen importes con signo: los negativos son salidas. Se leen sobre una copia;
+    // los guardados se corrigen al importarlos o editarlos (normalizarMov), no durante el cálculo
+    const movs = Ts.movimientos.map(movNorm);
     const r = S.analysis(Ts.escenario), w = r.w;
     const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // lunes
     const N = Ts.semanas;
@@ -347,7 +348,7 @@
       if (i === r.start - 1 && d.getDate() === 15 && r.p.capexOperativa) put(d, 'salida', 'Inversiones', r.p.capexOperativa - r.loan - r.p.aportacion, 'Parte de la inversión pagada con caja propia');
     }
     taxCalc().pagos.forEach((p) => put(p.fecha, 'salida', p.modelo === 'TC' ? 'Seguridad Social' : 'Impuestos', p.importe, `${p.modelo} · ${p.concepto}`));
-    Ts.movimientos.forEach((mv) => {
+    movs.forEach((mv) => {
       const d0 = new Date(mv.fecha); if (isNaN(d0)) return;
       const step = mv.recurrente === 'semanal' ? 7 : mv.recurrente === 'mensual' ? 'm' : 0;
       let d = new Date(d0); let guard = 0;
@@ -361,6 +362,8 @@
     weeks.forEach((wk) => { wk.tin = Object.values(wk.inn).reduce((a, b) => a + b, 0); wk.tout = Object.values(wk.out).reduce((a, b) => a + b, 0); wk.ini = saldo; saldo += wk.tin - wk.tout; wk.fin = saldo; wk.conPoliza = saldo + (e.polizaLimite || 0) - (e.polizaDispuesta || 0); wk.st = wk.fin < 0 ? (wk.conPoliza < 0 ? 'stop' : 'warn') : wk.fin < colchon ? 'warn' : 'ok'; });
     return { weeks, colchon };
   }
+  function movNorm(m) { return S.num(m.importe) < 0 ? Object.assign({}, m, { importe: -S.num(m.importe), tipo: 'salida', categoria: CATS_IN.includes(m.categoria) ? 'Otros pagos' : m.categoria }) : m; }
+  const normalizarMov = (L) => L.forEach((m, i) => { L[i] = Object.assign(m, movNorm(m)); });
   S.cashWeeks = cashWeeks;
   S.register({
     id: 'tesoreria', nombre: 'Tesorería semanal', grupo: 'Finanzas',
@@ -396,13 +399,13 @@
         </tbody></table></div></div>
         <div class="glass pad mt" id="tsMov"></div>`;
       const W = weeks.map(lbl);
-      S.vbars($('#tsChart', host), W, [{ n: 'Entradas', data: weeks.map((x) => x.tin), c: css('--s3') }, { n: 'Salidas', data: weeks.map((x) => -x.tout), c: css('--s2') }], F.eur, { line: { n: 'Saldo final', data: weeks.map((x) => x.fin), c: css('--gold') }, aria: 'Tesorería semanal' });
+      S.vbars($('#tsChart', host), W, [{ n: 'Entradas', data: weeks.map((x) => x.tin), c: 'var(--s3)' }, { n: 'Salidas', data: weeks.map((x) => -x.tout), c: 'var(--s2)' }], F.eur, { line: { n: 'Saldo final', data: weeks.map((x) => x.fin), c: 'var(--gold)' }, aria: 'Tesorería semanal', vacio: 'Sin entradas ni salidas previstas en estas semanas.' });
       $$('#tsN button', host).forEach((b) => b.onclick = () => { Ts.semanas = +b.dataset.n; S.save(); S.rerender(); });
       $('#tsIni', host).onchange = (ev) => { Ts.saldoInicial = ev.target.value.trim() === '' ? null : S.num(ev.target.value); S.save(); S.rerender(); };
       $('#tsCol', host).onchange = (ev) => { Ts.colchonDias = S.num(ev.target.value) || 15; S.save(); S.rerender(); };
       $('#tsEsc', host).onchange = (ev) => { Ts.escenario = ev.target.value; S.save(); S.rerender(); };
       S.etable($('#tsMov', host), {
-        titulo: 'Movimientos conocidos', rows: Ts.movimientos, onChange: () => { S.save(); S.rerender(); },
+        titulo: 'Movimientos conocidos', rows: Ts.movimientos, onChange: () => { normalizarMov(Ts.movimientos); S.save(); S.rerender(); },
         nuevo: () => ({ fecha: isoPlus(7), concepto: '', tipo: 'salida', categoria: 'Otros pagos', importe: 0, recurrente: 'no' }),
         cols: [
           { k: 'fecha', l: 'Fecha', type: 'date', syn: ['fecha', 'f. valor', 'fecha valor', 'dia'] },
@@ -420,7 +423,7 @@
         }
       });
     },
-    kpis() { const { weeks } = cashWeeks(); const mn = weeks.reduce((a, b) => (b.fin < a.fin ? b : a)); return [{ k: 'Saldo mínimo 13 semanas', v: F.eur(mn.fin), st: mn.st }]; },
+    kpis() { const { weeks } = cashWeeks(); const mn = weeks.reduce((a, b) => (b.fin < a.fin ? b : a)); return [{ k: `Saldo mínimo ${weeks.length} semanas`, v: F.eur(mn.fin), st: mn.st }]; },
     risks() { const { weeks } = cashWeeks(); const neg = weeks.filter((w) => w.st !== 'ok'); return neg.length ? [S.mkRisk(`${neg.length} semanas con tesorería por debajo del colchón`, 4, neg.some((w) => w.st === 'stop') ? 5 : 3, 'Adelanta cobros, negocia fechas de pago o amplía la póliza antes de esas semanas.')] : []; }
   });
 
@@ -605,7 +608,8 @@
           <button class="btn" id="pvSim">Llevar la desviación al escenario «Hipótesis» del simulador</button></div>
         ${tab === 'desv' ? `<div class="glass pad mt stack"><div class="row"><h4>Presupuesto frente a real</h4><span class="spacer"></span><label class="small">Periodo <select class="input" id="pvPer">${PER.map(([k, l]) => `<option value="${k}" ${k === periodo ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
             <p class="small muted">${conReal.length ? `Se comparan los meses con datos reales del periodo (${conReal.map((m) => MESES[m]).join(', ')}).` : 'Este periodo aún no tiene datos reales.'} «% s/ventas» es el peso de cada partida sobre las ventas; la diferencia de peso, en puntos (pp), enseña qué gasto ha crecido más que la venta.</p>${devTable}</div>
-          <div class="glass pad mt"><div class="chart" id="pvChart"></div></div>`
+          <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Ventas presupuestadas y reales</h4><div class="chart" id="pvChart"></div></div><div class="glass pad stack"><h4>EBITDA presupuestado y real</h4><div class="chart" id="pvChartE"></div></div></div>
+          <p class="small muted">Los meses sin datos reales no se dibujan: no cuentan como cero.</p>`
         : `<div class="glass pad mt stack"><h4>${tab === 'ppto' ? 'Presupuesto · ' + esc(V.nombre) : 'Reales por partida y mes'}</h4><div id="pvGrid"></div></div>`}`;
       // Generador
       $$('input[name="pvMet"]', host).forEach((r) => r.onchange = () => { prm.metodo = r.value; S.save(); S.rerender(); });
@@ -619,7 +623,11 @@
       $$('#pvTab button', host).forEach((bt) => bt.onclick = () => { host.dataset.tab = bt.dataset.t; S.rerender(); });
       const per = $('#pvPer', host); if (per) per.onchange = () => { host.dataset.periodo = per.value; S.rerender(); };
       $('#pvSim', host).onclick = () => { S.sim.custom.ventasF = Math.round(b.ratio * 100) / 100; S.sim.escenario = 'hipotesis'; S.saveSim(); $('#pvSim', host).textContent = 'Hecho: abre el simulador para verlo'; };
-      if (tab === 'desv') S.vbars($('#pvChart', host), MESES, [{ n: 'Ventas presupuestadas', data: b.rows.map((x) => x.p.ventas), c: css('--s1') }, { n: 'Ventas reales', data: b.rows.map((x) => (x.has ? S.num(x.r.ventas) : 0)), c: css('--gold') }], F.eur, { aria: 'Ventas presupuestadas y reales', line: { n: 'EBITDA real', data: b.rows.map((x) => (x.has ? x.rE : 0)), c: css('--s3') } });
+      if (tab === 'desv') {
+        // Ventas y EBITDA en gráficos separados (escalas muy distintas); los meses sin real quedan en blanco
+        S.vbars($('#pvChart', host), MESES, [{ n: 'Ventas presupuestadas', data: b.rows.map((x) => x.p.ventas), c: 'var(--s1)' }, { n: 'Ventas reales', data: b.rows.map((x) => (x.has ? S.num(x.r.ventas) : null)), c: 'var(--gold)' }], F.eur, { aria: 'Ventas presupuestadas y reales por mes', h: 200 });
+        S.vbars($('#pvChartE', host), MESES, [{ n: 'EBITDA presupuestado', data: b.rows.map((x) => x.pE), c: 'var(--s1)' }, { n: 'EBITDA real', data: b.rows.map((x) => (x.has ? x.rE : null)), c: 'var(--s3)' }], F.eur, { aria: 'EBITDA presupuestado y real por mes', h: 200 });
+      }
       else if (tab === 'ppto') grid($('#pvGrid', host), V, (l, m) => l.meses[m], (l, m, v) => { l.meses[m] = v === null ? 0 : v; }, { editNames: true, onChange: () => { S.save(); S.rerender(); }, onRename: (o, n) => { if (B.reales[o] && !B.reales[n]) { B.reales[n] = B.reales[o]; } } });
       else grid($('#pvGrid', host), V, (l, m) => (B.reales[l.nombre] || [])[m], (l, m, v) => { B.reales[l.nombre] = B.reales[l.nombre] || Array(12).fill(null); B.reales[l.nombre][m] = v; }, { onChange: () => { B.ejemplo = false; S.save(); S.rerender(); } });
     },

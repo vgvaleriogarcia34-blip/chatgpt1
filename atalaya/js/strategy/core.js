@@ -96,30 +96,92 @@
     if (vb) vb.onclick = async () => { msg('Escuchando…'); try { const t = await A.docs.dictate(); const r = dictar(t); if (!r) throw new Error('No lo he entendido: «' + t + '»'); rows.push(r); onChange(); msg('Añadido: «' + t + '»'); } catch (x) { msg(x.message, true); } };
   };
 
-  /* Gráfico de barras horizontal sencillo */
-  S.hbars = (items, fmt, color) => {
-    const mx = Math.max(1, ...items.map((i) => Math.abs(i.v)));
-    return `<div class="stack">${items.map((i) => `<div class="mfrow"><span>${esc(i.n)}</span><span class="track"><b style="width:${(Math.abs(i.v) / mx) * 100}%;background:${i.c || color || css('--gold')}"></b></span><span class="num" style="min-width:70px">${fmt(i.v)}</span></div>`).join('')}</div>`;
+  /* ---------- Ejes y tamaño de los gráficos ---------- */
+  /* Marcas «redondas» del eje (1, 2, 2,5 o 5 por potencia de diez) que siempre incluyen el cero si cae en el rango */
+  S.ticks = (mn, mx, n, pasoMin) => {
+    if (!isFinite(mn) || !isFinite(mx)) { mn = 0; mx = 1; }
+    if (!(mx > mn)) mx = mn + (Math.abs(mn) || 1);
+    const raw = (mx - mn) / Math.max(1, n || 4), p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+    const step = Math.max(pasoMin || 0, (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p);
+    const lo = Math.floor(mn / step + 1e-9) * step, hi = Math.ceil(mx / step - 1e-9) * step, t = [];
+    for (let k = 0, v = lo; v <= hi + step / 2 && k < 40; k++, v = lo + k * step) t.push(Math.abs(v) < step / 1e6 ? 0 : +v.toPrecision(12));
+    return { t, lo, hi };
   };
-  /* Barras verticales con tooltip */
-  S.vbars = (host, labels, series, fmt, opts) => {
+  /* Ancho del dibujo según su contenedor (entre 360 y el máximo): en el móvil el texto conserva su tamaño */
+  S.anchoSvg = (host, mx) => { mx = mx || 900; const w = host && host.clientWidth; return Math.round(w ? Math.max(360, Math.min(mx, w)) : mx); };
+  /* Un único oyente de cambio de tamaño para todos los gráficos: cada uno se registra con su función de pintado
+     y se vuelve a dibujar solo si cambia su ancho; los que ya no están en la página se olvidan */
+  const RZ = new Map(); let rzT = null;
+  S.alRedimensionar = (host, fn, mx) => { if (host) RZ.set(host, { fn, mx, w: S.anchoSvg(host, mx) }); };
+  addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { RZ.forEach((o, h) => { if (!h.isConnected) { RZ.delete(h); return; } const w = S.anchoSvg(h, o.mx); if (w === o.w) return; o.w = w; try { o.fn(); } catch (e) { console.error(e); } }); }, 180); });
+  /* Recorta con «…» los textos SVG marcados con data-fit (ancho máximo) y deja el texto completo en su <title> */
+  S.encajar = (root) => { $$('text[data-fit]', root).forEach((t) => { const mx = +t.dataset.fit, full = t.textContent; if (!mx || !t.getComputedTextLength || t.getComputedTextLength() <= mx) return; let s = full; while (s.length > 2 && t.getComputedTextLength() > mx) { s = s.slice(0, -1); t.textContent = s.trimEnd() + '…'; } const ti = document.createElementNS('http://www.w3.org/2000/svg', 'title'); ti.textContent = full; t.appendChild(ti); }); };
+
+  /* Gráfico de barras horizontal sencillo.
+     opts.max: escala fija (100 para notas y porcentajes). Con valores negativos se dibuja divergente, con el cero marcado. */
+  S.hbars = (items, fmt, color, opts) => {
     opts = opts || {};
-    const W = 900, Hh = opts.h || 220, m = { l: 62, r: 10, t: 10, b: 26 };
-    const all = series.flatMap((s) => s.data).concat(opts.line ? opts.line.data : []); const mx = Math.max(1, ...all), mn = Math.min(0, ...all);
-    const y = (v) => m.t + (1 - (v - mn) / (mx - mn)) * (Hh - m.t - m.b);
-    const gw = (W - m.l - m.r) / labels.length, bw = (gw * 0.8) / series.length;
-    let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(opts.aria || 'Gráfico')}"><g class="grid">`;
-    [0, 0.25, 0.5, 0.75, 1].forEach((k) => { const v = mn + (mx - mn) * k; svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 6}" y="${y(v) + 3}" text-anchor="end">${fmt(v)}</text>`; });
-    svg += '</g>';
-    labels.forEach((l, i) => {
-      series.forEach((s, j) => { const v = s.data[i]; const top = y(Math.max(0, v)), bot = y(Math.min(0, v)); svg += `<rect class="vb" data-i="${i}" x="${m.l + i * gw + gw * 0.1 + j * bw}" y="${top}" width="${Math.max(1, bw - 2)}" height="${Math.max(1, bot - top)}" rx="2" fill="${s.c}"/>`; });
-      if (labels.length <= 16 || i % Math.ceil(labels.length / 13) === 0) svg += `<text x="${m.l + i * gw + gw / 2}" y="${Hh - 8}" text-anchor="middle">${esc(l)}</text>`;
-    });
-    if (opts.line) { svg += `<polyline points="${opts.line.data.map((v, i) => `${m.l + i * gw + gw / 2},${y(v)}`).join(' ')}" fill="none" stroke="${opts.line.c}" stroke-width="2"/>`; }
-    host.innerHTML = svg + '</svg>' + `<div class="chart-legend small">${series.map((s) => `<span><i style="background:${s.c}"></i> ${esc(s.n)}</span>`).join('')}${opts.line ? `<span><i style="background:${opts.line.c};height:2px"></i> ${esc(opts.line.n)}</span>` : ''}</div>`;
-    $$('.vb', host).forEach((b) => { const i = +b.dataset.i; b.addEventListener('pointermove', (ev) => A.charts.tip(`<h5>${esc(labels[i])}</h5><dl>${series.map((s) => `<dt>${esc(s.n)}</dt><dd>${fmt(s.data[i])}</dd>`).join('')}${opts.line ? `<dt>${esc(opts.line.n)}</dt><dd>${fmt(opts.line.data[i])}</dd>` : ''}</dl>`, ev.clientX, ev.clientY)); b.addEventListener('pointerleave', A.charts.hideTip); });
+    if (!items.length) return '<p class="small muted">Sin datos que mostrar.</p>';
+    const vals = items.map((i) => (isFinite(i.v) ? i.v : 0));
+    const neg = Math.max(0, ...vals.map((v) => -v)), pos = Math.max(0, ...vals);
+    const fill = (i) => i.c || color || 'var(--gold)';
+    const fila = (i, bar) => `<div class="mfrow" title="${esc(i.n)}: ${esc(String(fmt(i.v)).replace(/<[^>]+>/g, ''))}"><span>${esc(i.n)}</span>${bar}<span class="num" style="min-width:70px">${fmt(i.v)}</span></div>`;
+    if (neg > 0 || opts.signed) {
+      const tot = Math.max(opts.max || 0, neg + pos) || 1, z = (neg / tot) * 100;
+      return `<div class="stack">${items.map((i, k) => { const v = vals[k], w = (Math.abs(v) / tot) * 100; return fila(i, `<span class="track div"><i class="cero" style="left:${z}%"></i><b style="left:${v < 0 ? z - w : z}%;width:${w}%;background:${fill(i)}"></b></span>`); }).join('')}</div>`;
+    }
+    const mx = opts.max || Math.max(1, pos);
+    return `<div class="stack">${items.map((i, k) => fila(i, `<span class="track"><b style="width:${Math.min(100, (Math.abs(vals[k]) / mx) * 100)}%;background:${fill(i)}"></b></span>`)).join('')}</div>`;
   };
-  S.riskBlock = (risks) => (risks.length ? `<div class="risklist">${risks.map((r) => `<div class="risk"><span class="state st-${r.estado}">${r.nivel}</span><div><b>${esc(r.nombre)}</b><p>${esc(r.mitigacion || '')}</p></div><span class="src">${esc(r.fuente || '')}</span></div>`).join('')}</div>` : '<p class="small muted">Sin riesgos relevantes con los datos actuales.</p>');
+  /* Barras verticales con tooltip.
+     Valores null = sin dato (sin barra y la línea se corta). opts.dom: [mín, máx] fijo del eje (p. ej. [0, 100] para notas); opts.enteros: marcas de uno en uno como mínimo (recuentos).
+     opts.vacio: texto cuando todo es cero o no hay datos. El ancho sigue al contenedor y se redibuja al cambiar. */
+  S.vbars = (host, labels, series, fmt, opts) => {
+    if (!host) return;
+    opts = opts || {};
+    const ok = (v) => v != null && isFinite(v);
+    const pinta = () => {
+      const W = S.anchoSvg(host), Hh = opts.h || 220, estrecho = W < 600, m = { l: estrecho ? 54 : 64, r: 10, t: 10, b: 26 };
+      const all = series.flatMap((s) => s.data).concat(opts.line ? opts.line.data : []).filter(ok);
+      if (!all.length || all.every((v) => v === 0)) { host.innerHTML = `<p class="small muted chart-vacio">${esc(opts.vacio || 'Sin datos que dibujar todavía.')}</p>`; return; }
+      const d0 = opts.dom || [Math.min(0, ...all), Math.max(0, ...all)];
+      const { t, lo, hi } = S.ticks(Math.min(d0[0], ...all), Math.max(d0[1], ...all), estrecho ? 3 : 5, opts.enteros ? 1 : 0);
+      const y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (Hh - m.t - m.b);
+      const gw = (W - m.l - m.r) / Math.max(1, labels.length), bw = (gw * 0.8) / Math.max(1, series.length);
+      const cada = Math.max(1, Math.ceil(labels.length / Math.max(2, Math.floor((W - m.l) / (estrecho ? 46 : 58)))));
+      const cx = (i) => m.l + i * gw + gw / 2;
+      // Descripción para lectores de pantalla: qué se dibuja, cuántos periodos y los extremos de la primera serie
+      const s0 = series[0] || opts.line, v0 = s0 ? s0.data.map((v, i) => [v, i]).filter((x) => ok(x[0])) : [];
+      const hiP = v0.length ? v0.reduce((a, b) => (b[0] > a[0] ? b : a)) : null, loP = v0.length ? v0.reduce((a, b) => (b[0] < a[0] ? b : a)) : null;
+      const aria = `${opts.aria || 'Gráfico'}: ${labels.length} periodos; ${series.map((s) => s.n).concat(opts.line ? [opts.line.n] : []).join(', ')}${hiP ? `. ${s0.n}: máximo ${String(fmt(hiP[0])).replace(/<[^>]+>/g, '')} (${labels[hiP[1]]}), mínimo ${String(fmt(loP[0])).replace(/<[^>]+>/g, '')} (${labels[loP[1]]})` : ''}`;
+      let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(aria)}"><g class="grid">`;
+      t.forEach((v) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 6}" y="${y(v) + 3}" text-anchor="end">${fmt(v)}</text>`; });
+      svg += `</g><line class="eje0" x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}"/>`;
+      labels.forEach((l, i) => {
+        series.forEach((s, j) => { const v = s.data[i]; if (!ok(v)) return; const top = y(Math.max(0, v)), bot = y(Math.min(0, v)); svg += `<rect class="vb" data-i="${i}" x="${m.l + i * gw + gw * 0.1 + j * bw}" y="${top}" width="${Math.max(1, bw - 2)}" height="${Math.max(1, bot - top)}" rx="2" style="fill:${s.c}"><title>${esc(l)} · ${esc(s.n)}: ${esc(String(fmt(v)).replace(/<[^>]+>/g, ''))}</title></rect>`; });
+        if (i % cada === 0) svg += `<text x="${cx(i)}" y="${Hh - 8}" text-anchor="middle">${esc(l)}</text>`;
+      });
+      if (opts.line) {
+        const L = opts.line; let seg = [], segs = [];
+        L.data.forEach((v, i) => { if (ok(v)) seg.push(`${cx(i)},${y(v)}`); else { if (seg.length) segs.push(seg); seg = []; } }); if (seg.length) segs.push(seg);
+        svg += segs.map((sg) => `<polyline points="${sg.join(' ')}" fill="none" style="stroke:${L.c}" stroke-width="2"/>`).join('');
+        svg += L.data.map((v, i) => (ok(v) ? `<circle class="vb vl" data-i="${i}" cx="${cx(i)}" cy="${y(v)}" r="${labels.length > 26 ? 2.5 : 3.5}" style="fill:${L.c}"><title>${esc(labels[i])} · ${esc(L.n)}: ${esc(String(fmt(v)).replace(/<[^>]+>/g, ''))}</title></circle>` : '')).join('');
+      }
+      host.innerHTML = svg + '</svg>' + `<div class="chart-legend small">${series.map((s) => `<span><i style="background:${s.c}"></i> ${esc(s.n)}</span>`).join('')}${opts.line ? `<span><i style="background:${opts.line.c};height:2px"></i> ${esc(opts.line.n)}</span>` : ''}</div>`;
+      const dd = (v) => (ok(v) ? fmt(v) : 'sin dato');
+      $$('.vb', host).forEach((b) => { const i = +b.dataset.i; b.addEventListener('pointermove', (ev) => A.charts.tip(`<h5>${esc(labels[i])}</h5><dl>${series.map((s) => `<dt>${esc(s.n)}</dt><dd>${dd(s.data[i])}</dd>`).join('')}${opts.line ? `<dt>${esc(opts.line.n)}</dt><dd>${dd(opts.line.data[i])}</dd>` : ''}</dl>`, ev.clientX, ev.clientY)); b.addEventListener('pointerleave', A.charts.hideTip); });
+    };
+    pinta(); S.alRedimensionar(host, pinta);
+  };
+  /* Lista de riesgos. opts.num: numerada como la matriz; opts.total: cuántos hay en total (avisa de los que no se muestran) */
+  S.riskBlock = (risks, opts) => {
+    opts = opts || {};
+    const resto = opts.total && opts.total > risks.length ? opts.total - risks.length : 0;
+    return risks.length ? `<div class="risklist">${risks.map((r, i) => `<div class="risk"><span class="state st-${r.estado}">${r.nivel}</span><div><b>${opts.num ? `${i + 1}. ` : ''}${esc(r.nombre)}</b><p>${esc(r.mitigacion || '')}</p></div><span class="src">${esc(r.fuente || '')}</span></div>`).join('')}</div>${resto ? `<p class="small muted">+${resto} riesgo${resto > 1 ? 's' : ''} de menor nivel no mostrado${resto > 1 ? 's' : ''} aquí: los encontrará en cada módulo.</p>` : ''}` : '<p class="small muted">Sin riesgos relevantes con los datos actuales.</p>';
+  };
+  /* Riesgos para la matriz: los mismos que la lista numerada, con probabilidad e impacto dentro de 1–5 */
+  S.riesgosMatriz = (risks, n) => risks.slice(0, n).map((r) => Object.assign({}, r, { prob: Math.max(1, Math.min(5, Math.round(S.num(r.prob)) || 1)), impacto: Math.max(1, Math.min(5, Math.round(S.num(r.impacto)) || 1)) }));
+  S.N_RIESGOS = 10;
   S.mkRisk = (nombre, prob, impacto, mitigacion, fuente) => { const nivel = prob * impacto; return { nombre, prob, impacto, nivel, estado: nivel >= 15 ? 'stop' : nivel >= 8 ? 'warn' : 'ok', mitigacion, fuente }; };
 
   /* Ficha explicativa de un término: qué es, cómo se calcula, cómo se lee, tu dato y cómo mejorarlo */
@@ -294,7 +356,7 @@
         veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin datos suficientes' : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes) + '. ' : ''}${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
           luces: k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
         kpis: [
-          { k: 'Nota del sistema estratégico', v: global === null ? '—' : global + '/100', st: stS(global), d: `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc || 5, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
+          { k: 'Nota del sistema estratégico', v: global === null ? '—' : global + '/100', st: stS(global), d: `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc == null ? 0 : x.sc, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
           { k: 'Riesgos altos', v: String(R.filter((r) => r.estado === 'stop').length), st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados`, barras: R.slice(0, 16).map((r) => ({ n: r.nombre, v: r.nivel, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[r.estado] })) },
           { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual`, barras: Fi.slice().sort((x, y) => (y.impactoEUR || 0) - (x.impactoEUR || 0)).slice(0, 12).map((f) => ({ n: f.hallazgo, v: f.impactoEUR || 0 })) },
           { k: 'Veredicto de inversión', v: veredicto.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base'), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[veredicto.key] || null, fn: () => { location.href = 'app.html'; } }
@@ -308,7 +370,7 @@
         ])}`}
         <div class="glass pad stack mt" id="tbNota"><small class="muted">Calculando la nota de la empresa…</small></div>
         <div class="areas mt">${areas.map((a) => { const l = k.filter((x) => x.area === a); const sc = score(l); return `<button class="glass area" data-mod="${l[0].mod}"><div class="row"><b>${a}</b><span class="spacer"></span>${sc === null ? '' : `<span class="state st-${sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop'}">${sc}</span>`}</div>${l.slice(0, 4).map((x) => `<div class="arow"><span>${x.k}</span><b class="num">${x.v}</b>${x.st ? `<i class="dotc ${x.st}"></i>` : '<i></i>'}</div>`).join('')}</button>`; }).join('')}</div>
-        <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Mapa de riesgos de todas las áreas</h4><div class="chart" id="tbRisk"></div></div><div class="glass pad stack"><h4>Riesgos principales</h4>${S.riskBlock(R.slice(0, 8))}</div></div>
+        <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Mapa de riesgos de todas las áreas</h4><div class="chart" id="tbRisk"></div></div><div class="glass pad stack"><h4>Riesgos principales</h4>${S.riskBlock(R.slice(0, S.N_RIESGOS), { num: true, total: R.length })}</div></div>
         <div class="glass pad mt stack"><h4>Mayores oportunidades de mejora</h4>${Fi.length ? `<div class="table-wrap"><table><thead><tr><th>Área</th><th style="text-align:left">Hallazgo</th><th>Impacto anual</th><th style="text-align:left">Acción</th><th>Plazo</th></tr></thead><tbody>${Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0)).slice(0, 12).map((f) => `<tr><td>${esc(f.area)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.hallazgo)}</td><td>${F.eur(f.impactoEUR || 0)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.accion)}</td><td>${f.plazo} días</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Completa los módulos para ver oportunidades.</p>'}</div>`;
       if (A.nota && A.nota.calcular) A.nota.calcular().then((u) => { const el = host.querySelector('#tbNota'); if (!el || !u) return; const ks = Object.keys(u.mundos), f = (n) => (n == null ? '—' : String(n).replace('.', ','));
         el.innerHTML = `<div class="row"><h4>Cómo se calcula la nota</h4><span class="spacer"></span><span class="state st-${u.global == null ? '' : u.global >= 7 ? 'ok' : u.global >= 5 ? 'warn' : 'stop'}">Empresa ${f(u.global)}/10 · ${u.global == null ? '—' : Math.round(u.global * 10)}/100</span></div>
@@ -317,7 +379,7 @@
           <p class="small muted" style="margin:0">La nota de la empresa (${f(u.global)}/10) es la media de los mundos; la de este mundo (${f(u.mundos.estrategia && u.mundos.estrategia.nota)}/10) es la del cuadro de mando y la de los informes del sistema estratégico. Si un mundo se calculó en otra fecha, su nota no recoge los cambios posteriores hasta que se abre.</p>`; }).catch(() => {});
       $$('.area', host).forEach((b) => b.onclick = () => show(b.dataset.mod));
       if (A.heroMundo) A.heroMundo.wire(host, hc);
-      A.charts.riskMatrix($('#tbRisk', host), R.slice(0, 14), () => {});
+      A.charts.riskMatrix($('#tbRisk', host), S.riesgosMatriz(R, S.N_RIESGOS), () => {});
     }
   });
 

@@ -70,11 +70,12 @@
   function analisisClientes() {
     const L = cliRows();
     const abcV = S.abc(L, 'ventas'), abcM = S.abc(L, 'mc');
-    const tot = L.reduce((a, c) => a + S.num(c.ventas), 0) || 1;
+    // Sin clientes o sin ventas: total a cero y semáforos sin estado (nada de «1 €» ni verdes sin datos)
+    const tot = L.reduce((a, c) => a + S.num(c.ventas), 0), vacio = !(tot > 0);
     const sorted = L.slice().sort((a, b) => b.ventas - a.ventas);
     const top1 = S.pct(sorted[0] ? sorted[0].ventas : 0, tot), top5 = S.pct(sorted.slice(0, 5).reduce((a, c) => a + c.ventas, 0), tot);
-    const hhi = L.reduce((a, c) => a + Math.pow((c.ventas / tot) * 100, 2), 0);
-    return { L, abcV, abcM, tot, top1, top5, hhi, sorted };
+    const hhi = vacio ? 0 : S.hhi(L.map((c) => S.num(c.ventas)));
+    return { L, abcV, abcM, tot, top1, top5, hhi, sorted, vacio };
   }
   /* HHI y su lectura en lenguaje claro */
   S.hhi = (vals) => { const t = vals.reduce((a, v) => a + Math.max(0, v), 0) || 1; return vals.reduce((a, v) => a + Math.pow((Math.max(0, v) / t) * 100, 2), 0); };
@@ -86,24 +87,32 @@
     return `Tu índice es ${S.miles(h)}, concentración ${nivel}. Equivale a depender de unos ${eq} ${quien} del mismo tamaño. ${mayor ? `El mayor, ${mayor}, pesa el ${F.pct(pesoMayor)}: ${pesoMayor > 25 ? 'perderlo pondría en riesgo la caja y el margen' : pesoMayor > 15 ? 'su pérdida se notaría mucho; conviene tener un plan de sustitución' : 'su pérdida sería asumible'}.` : ''}`;
   };
   /* Pareto genérico: barras por elemento coloreadas por clase ABC y línea de % acumulado */
+  /* Los valores negativos o nulos no caben en un Pareto: se quedan fuera y se avisa de cuántos son */
   function pareto(host, sorted, val, cls, tip, aria) {
-    const tot = sorted.reduce((s, x) => s + Math.max(0, val(x)), 0) || 1;
-    const W = 520, Hh = 220, m = { l: 50, r: 34, t: 10, b: 40 }, n = sorted.length, bw = (W - m.l - m.r) / Math.max(1, n);
-    const mx = Math.max(1, ...sorted.map(val));
-    let acc = 0; const pts = [];
-    let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(aria)}"><g class="grid">${[0, 0.5, 1].map((k) => `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t + (1 - k) * (Hh - m.t - m.b)}" y2="${m.t + (1 - k) * (Hh - m.t - m.b)}"/><text x="${m.l - 6}" y="${m.t + (1 - k) * (Hh - m.t - m.b) + 3}" text-anchor="end">${F.eur(mx * k)}</text><text x="${W - m.r + 4}" y="${m.t + (1 - k) * (Hh - m.t - m.b) + 3}">${k * 100} %</text>`).join('')}</g>`;
-    sorted.forEach((c, i) => { const h = (Math.max(0, val(c)) / mx) * (Hh - m.t - m.b); const cl = cls(c); svg += `<rect class="pb" data-i="${i}" x="${m.l + i * bw + 1}" y="${Hh - m.b - h}" width="${Math.max(1, bw - 2)}" height="${h}" rx="2" fill="${cl === 'A' ? css('--s3') : cl === 'B' ? css('--s4') : css('--s2')}"/>`; acc += Math.max(0, val(c)); pts.push(`${m.l + i * bw + bw / 2},${m.t + (1 - acc / tot) * (Hh - m.t - m.b)}`); });
-    svg += `<polyline points="${pts.join(' ')}" fill="none" stroke="${css('--gold')}" stroke-width="2"/><line x1="${m.l}" x2="${W - m.r}" y1="${m.t + 0.2 * (Hh - m.t - m.b)}" y2="${m.t + 0.2 * (Hh - m.t - m.b)}" class="target"/></svg>`;
-    host.innerHTML = svg + `<div class="chart-legend small"><span><i style="background:${css('--s3')}"></i> A</span><span><i style="background:${css('--s4')}"></i> B</span><span><i style="background:${css('--s2')}"></i> C</span><span><i style="background:${css('--gold')};height:2px"></i> % acumulado (línea del 80 %)</span></div>`;
-    $$('.pb', host).forEach((b) => { const c = sorted[+b.dataset.i]; b.addEventListener('pointermove', (ev) => A.charts.tip(tip(c), ev.clientX, ev.clientY)); b.addEventListener('pointerleave', A.charts.hideTip); });
+    const P = sorted.filter((x) => val(x) > 0), fuera = sorted.length - P.length;
+    if (!P.length) { host.innerHTML = '<p class="small muted chart-vacio">Sin datos que dibujar todavía: añada importes positivos en la tabla.</p>'; return; }
+    const pinta = () => {
+      const tot = P.reduce((s, x) => s + val(x), 0);
+      const W = S.anchoSvg(host, 560), Hh = 220, m = { l: 70, r: 42, t: 10, b: 30 }, n = P.length, bw = (W - m.l - m.r) / n, ih = Hh - m.t - m.b;
+      const { t, hi } = S.ticks(0, Math.max(...P.map(val)), W < 480 ? 2 : 4);
+      const col = (cl) => (cl === 'A' ? 'var(--s3)' : cl === 'B' ? 'var(--s4)' : 'var(--s2)');
+      const txt = (c) => tip(c).replace(/<\/(dd|h5)>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      let acc = 0; const pts = [];
+      let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(aria)}: ${n} elementos${fuera ? `, ${fuera} sin dibujar por valor negativo o nulo` : ''}"><g class="grid">${t.map((v) => `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t + (1 - v / hi) * ih}" y2="${m.t + (1 - v / hi) * ih}"/><text x="${m.l - 6}" y="${m.t + (1 - v / hi) * ih + 3}" text-anchor="end">${F.eur(v)}</text>`).join('')}${[0, 0.5, 1].map((k) => `<text x="${W - m.r + 4}" y="${m.t + (1 - k) * ih + 3}">${k * 100} %</text>`).join('')}</g>`;
+      P.forEach((c, i) => { const h = (val(c) / hi) * ih; svg += `<rect class="pb" data-i="${i}" x="${m.l + i * bw + 1}" y="${Hh - m.b - h}" width="${Math.max(1, bw - 2)}" height="${h}" rx="2" style="fill:${col(cls(c))}"><title>${esc(txt(c))}</title></rect>`; acc += val(c); pts.push(`${m.l + i * bw + bw / 2},${m.t + (1 - acc / tot) * ih}`); });
+      svg += `<polyline points="${pts.join(' ')}" fill="none" style="stroke:var(--gold)" stroke-width="2"/><line x1="${m.l}" x2="${W - m.r}" y1="${m.t + 0.2 * ih}" y2="${m.t + 0.2 * ih}" class="target"/></svg>`;
+      host.innerHTML = svg + `<div class="chart-legend small"><span><i style="background:var(--s3)"></i> A</span><span><i style="background:var(--s4)"></i> B</span><span><i style="background:var(--s2)"></i> C</span><span><i style="background:var(--gold);height:2px"></i> % acumulado (línea del 80 %)</span></div>${fuera ? `<p class="small muted">${fuera} elemento${fuera > 1 ? 's' : ''} con importe negativo o nulo no se dibuja${fuera > 1 ? 'n' : ''} en el Pareto.</p>` : ''}`;
+      $$('.pb', host).forEach((b) => { const c = P[+b.dataset.i]; b.addEventListener('pointermove', (ev) => A.charts.tip(tip(c), ev.clientX, ev.clientY)); b.addEventListener('pointerleave', A.charts.hideTip); });
+    };
+    pinta(); S.alRedimensionar(host, pinta, 560);
   }
   const matrix = (items, abcV, abcM, rowLbl, colLbl, val) => `<div class="matrix3"><div></div>${['A', 'B', 'C'].map((m) => `<div class="h">${m}′ ${colLbl}</div>`).join('')}
     ${['A', 'B', 'C'].map((v) => `<div class="h">${v} ${rowLbl}</div>` + ['A', 'B', 'C'].map((m) => { const l = items.filter((c) => abcV.get(c) === v && abcM.get(c) === m); const k = CROSS[v + m]; return `<div class="c" data-cell="${v}${m}" style="border-color:${v + m === 'AC' || v + m === 'CC' ? 'rgba(224,72,72,.45)' : v + m === 'AA' || v + m === 'CA' || v + m === 'BA' ? 'rgba(47,178,74,.45)' : 'var(--line)'}"><small>${k[0]}</small><b>${l.length}</b><small>${F.eur(l.reduce((s, c) => s + val(c), 0))}</small></div>`; }).join('')).join('')}</div>`;
 
   function analisisProductos() {
     const L = C().productos.map((p) => Object.assign(p, { ventas: S.num(p.unidades) * S.num(p.precio), mc: S.num(p.unidades) * (S.num(p.precio) - S.num(p.cv)) }));
-    const tot = L.reduce((a, p) => a + p.ventas, 0) || 1;
-    return { L, tot, abcV: S.abc(L, 'ventas'), abcM: S.abc(L, 'mc'), sorted: L.slice().sort((a, b) => b.ventas - a.ventas), hhi: S.hhi(L.map((p) => p.ventas)) };
+    const tot = L.reduce((a, p) => a + p.ventas, 0);
+    return { L, tot, vacio: !(tot > 0), abcV: S.abc(L, 'ventas'), abcM: S.abc(L, 'mc'), sorted: L.slice().sort((a, b) => b.ventas - a.ventas), hhi: S.hhi(L.map((p) => p.ventas)) };
   }
   function renderProductos(body) {
     const a = analisisProductos();
@@ -111,9 +120,9 @@
     body.innerHTML = `<p class="small muted">Los productos se editan en «Margen de contribución». Aquí se ordenan por venta (ABC) y por margen (ABC′).</p>
       ${S.kpiTiles([
         { k: 'Ventas por producto', v: F.eur(a.tot), d: `${a.L.length} líneas` },
-        { k: 'Primer producto', v: F.pct(S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot)), d: a.sorted[0] ? a.sorted[0].nombre : '' },
-        { k: 'Concentración (HHI)', v: S.miles(a.hhi), st: S.hhiSt(a.hhi), d: 'toca para ver qué significa', info: 'Concentración (HHI)', exp: S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot), 'productos') },
-        { k: 'Margen de contribución', v: F.pct(S.pct(mcT, a.tot)), info: 'Margen de contribución', exp: `${F.eur(mcT)} al año entre todos los productos.` }
+        { k: 'Primer producto', v: a.vacio ? '—' : F.pct(S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot)), d: a.vacio ? 'sin ventas por producto' : a.sorted[0] ? a.sorted[0].nombre : '' },
+        { k: 'Concentración (HHI)', v: a.vacio ? '—' : S.miles(a.hhi), st: a.vacio ? null : S.hhiSt(a.hhi), d: 'toca para ver qué significa', info: 'Concentración (HHI)', exp: S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot), 'productos') },
+        { k: 'Margen de contribución', v: a.vacio ? '—' : F.pct(S.pct(mcT, a.tot)), info: 'Margen de contribución', exp: `${F.eur(mcT)} al año entre todos los productos.` }
       ])}
       <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Matriz ABC (ventas) × ABC′ (margen)</h4>${matrix(a.L, a.abcV, a.abcM, 'ventas', 'margen', (c) => c.ventas)}<p class="small" id="abcRead">Toca una casilla.</p></div>
         <div class="glass pad stack"><h4>Pareto de ventas por producto</h4><div class="chart" id="abcPareto"></div></div></div>
@@ -158,10 +167,10 @@
       body.innerHTML = `${C().ejemplo ? '<p class="small muted">Datos de ejemplo: importa tu listado de ventas por cliente (Excel, CSV o PDF) o escríbelo en la tabla de abajo.</p>' : ''}
         ${S.kpiTiles([
           { k: 'Ventas de la cartera', v: F.eur(a.tot), d: `${a.L.length} clientes` },
-          { k: 'Primer cliente', v: F.pct(a.top1), st: a.top1 > 25 ? 'stop' : a.top1 > 15 ? 'warn' : 'ok', d: 'de la facturación' },
-          { k: 'Cinco primeros', v: F.pct(a.top5), st: a.top5 > 70 ? 'warn' : 'ok' },
-          { k: 'Concentración (HHI)', v: S.miles(a.hhi), st: S.hhiSt(a.hhi), d: 'toca para ver qué significa', info: 'Concentración (HHI)', exp: S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, a.top1, 'clientes') },
-          { k: 'Margen de contribución', v: F.pct(S.pct(a.L.reduce((s, c) => s + c.mc, 0), a.tot)), info: 'Margen de contribución', exp: 'Margen medio de la cartera después de los costes variables de servir a cada cliente.' }
+          { k: 'Primer cliente', v: a.vacio ? '—' : F.pct(a.top1), st: a.vacio ? null : a.top1 > 25 ? 'stop' : a.top1 > 15 ? 'warn' : 'ok', d: a.vacio ? 'sin ventas por cliente' : 'de la facturación' },
+          { k: 'Cinco primeros', v: a.vacio ? '—' : F.pct(a.top5), st: a.vacio ? null : a.top5 > 70 ? 'warn' : 'ok' },
+          { k: 'Concentración (HHI)', v: a.vacio ? '—' : S.miles(a.hhi), st: a.vacio ? null : S.hhiSt(a.hhi), d: 'toca para ver qué significa', info: 'Concentración (HHI)', exp: a.vacio ? 'Sin ventas por cliente todavía.' : S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, a.top1, 'clientes') },
+          { k: 'Margen de contribución', v: a.vacio ? '—' : F.pct(S.pct(a.L.reduce((s, c) => s + c.mc, 0), a.tot)), info: 'Margen de contribución', exp: 'Margen medio de la cartera después de los costes variables de servir a cada cliente.' }
         ])}
         <div class="grid cols-2 mt">
           <div class="glass pad stack"><h4>Matriz ABC (ventas) × ABC′ (margen)</h4>${matrix(a.L, a.abcV, a.abcM, 'ventas', 'margen', (c) => c.ventas)}
@@ -184,7 +193,7 @@
         ]
       });
     },
-    kpis() { const a = analisisClientes(); return [{ k: 'Peso del primer cliente', v: F.pct(a.top1), st: a.top1 > 25 ? 'stop' : a.top1 > 15 ? 'warn' : 'ok' }, { k: 'Clientes «grandes no rentables»', v: a.L.filter((c) => a.abcV.get(c) === 'A' && a.abcM.get(c) === 'C').length, st: a.L.some((c) => a.abcV.get(c) === 'A' && a.abcM.get(c) === 'C') ? 'warn' : 'ok' }]; },
+    kpis() { const a = analisisClientes(); if (a.vacio) return [{ k: 'Peso del primer cliente', v: '—', st: null }, { k: 'Clientes «grandes no rentables»', v: '—', st: null }]; return [{ k: 'Peso del primer cliente', v: F.pct(a.top1), st: a.top1 > 25 ? 'stop' : a.top1 > 15 ? 'warn' : 'ok' }, { k: 'Clientes «grandes no rentables»', v: a.L.filter((c) => a.abcV.get(c) === 'A' && a.abcM.get(c) === 'C').length, st: a.L.some((c) => a.abcV.get(c) === 'A' && a.abcM.get(c) === 'C') ? 'warn' : 'ok' }]; },
     risks() {
       const a = analisisClientes(), R = [];
       if (a.top1 > 15) R.push(S.mkRisk(`Dependencia de ${a.sorted[0].nombre} (${F.pct(a.top1)} de las ventas)`, 3, a.top1 > 25 ? 5 : 4, 'Diversificar cartera y blindar contrato con el cliente principal.'));
@@ -202,14 +211,15 @@
   function mcModel(lev) {
     lev = lev || C().palancas;
     const P = C().productos;
-    const base = P.map((p) => ({ p, u: S.num(p.unidades), precio: S.num(p.precio), cv: S.num(p.cv) }));
+    // Las filas sin precio (p. ej. recién añadidas) no cuentan: sin precio no hay margen que medir
+    const base = P.map((p) => ({ p, u: S.num(p.unidades), precio: S.num(p.precio), cv: S.num(p.cv) })).filter((b) => b.precio > 0);
     const fijos = S.sim.empresa.personal + S.sim.empresa.fijos;
     const mcU = base.map((b) => b.precio - b.cv);
     const avgMcPct = base.reduce((a, b) => a + (b.precio - b.cv) * b.u, 0) / Math.max(1, base.reduce((a, b) => a + b.precio * b.u, 0));
     const est = base.map((b) => {
       const precio = b.precio * (1 + lev.precio / 100);
       const cv = b.cv * (1 + lev.costeVariable / 100);
-      const mixF = 1 + (lev.mix / 100) * ((b.precio - b.cv) / b.precio - avgMcPct) * 4; // el mix desplaza volumen hacia lo de más margen
+      const mixF = 1 + (lev.mix / 100) * ((b.precio > 0 ? (b.precio - b.cv) / b.precio : avgMcPct) - avgMcPct) * 4; // el mix desplaza volumen hacia lo de más margen
       const demanda = b.u * (1 + lev.volumen / 100) * (1 + S.num(b.p.elasticidad) * lev.precio / 100) * Math.max(0, mixF);
       const u = Math.max(0, Math.min(S.num(b.p.capacidad) || Infinity, demanda));
       return { nombre: b.p.nombre, u, precio, cv, ventas: u * precio, mc: u * (precio - cv), limitado: demanda > (S.num(b.p.capacidad) || Infinity), demanda };
@@ -217,7 +227,8 @@
     const sum = (arr, k) => arr.reduce((a, x) => a + x[k], 0);
     const actual = base.map((b) => ({ nombre: b.p.nombre, u: b.u, precio: b.precio, cv: b.cv, ventas: b.u * b.precio, mc: b.u * (b.precio - b.cv) }));
     const fijosE = fijos * (1 + lev.fijos / 100);
-    const res = (arr, fx) => ({ ventas: sum(arr, 'ventas'), mc: sum(arr, 'mc'), fijos: fx, baii: sum(arr, 'mc') - fx, equilibrio: fx / Math.max(1e-9, sum(arr, 'mc') / Math.max(1, sum(arr, 'ventas'))), seguridad: 1 - (fx / Math.max(1e-9, sum(arr, 'mc') / Math.max(1, sum(arr, 'ventas')))) / Math.max(1, sum(arr, 'ventas')) });
+    // Con margen de contribución nulo o negativo no hay punto de equilibrio: se devuelve null y no un importe absurdo
+    const res = (arr, fx) => { const v = sum(arr, 'ventas'), mc = sum(arr, 'mc'), eq = mc > 0 && v > 0 ? fx / (mc / v) : null; return { ventas: v, mc, fijos: fx, baii: mc - fx, equilibrio: eq, seguridad: eq == null ? null : 1 - eq / v }; };
     // Descomposición del cambio de margen: precio, volumen, mix y coste
     const efPrecio = est.reduce((a, x, i) => a + x.u * (x.precio - actual[i].precio), 0);
     const efCoste = -est.reduce((a, x, i) => a + x.u * (x.cv - actual[i].cv), 0);
@@ -225,7 +236,7 @@
     const mcMedioU = sum(actual, 'mc') / Math.max(1, totU0);
     const efVolumen = (totU1 - totU0) * mcMedioU;
     const efMix = sum(est, 'mc') - sum(actual, 'mc') - efPrecio - efCoste - efVolumen;
-    return { actual, est, A0: res(actual, fijos), A1: res(est, fijosE), efectos: { precio: efPrecio, volumen: efVolumen, mix: efMix, coste: efCoste, fijos: -(fijosE - fijos) } };
+    return { actual, est, sinPrecio: P.length - base.length, A0: res(actual, fijos), A1: res(est, fijosE), efectos: { precio: efPrecio, volumen: efVolumen, mix: efMix, coste: efCoste, fijos: -(fijosE - fijos) } };
   }
   S.levers = () => C().palancas;
   S.setLever = (k, v) => { if (!(k in C().palancas)) throw new Error('Palanca no válida'); const before = mcModel().A1.baii; C().palancas[k] = Number(v); S.save(); if (S.mod('margen')) S.rerender(); const after = mcModel().A1.baii; return { palanca: k, valor: v, resultadoAntes: F.eur(before), resultadoAhora: F.eur(after) }; };
@@ -247,11 +258,11 @@
       const paint = () => {
         const M = mcModel();
         $('#mcKpis', host).innerHTML = S.kpiTiles([
-          { k: 'Margen de contribución', v: F.eur(M.A1.mc), d: `hoy ${F.eur(M.A0.mc)}`, st: M.A1.mc >= M.A0.mc ? 'ok' : 'warn', info: 'Margen de contribución' },
+          { k: 'Margen de contribución', v: F.eur(M.A1.mc), d: `hoy ${F.eur(M.A0.mc)}`, st: M.A1.mc <= 0 ? 'stop' : M.A1.mc >= M.A0.mc ? 'ok' : 'warn', info: 'Margen de contribución' },
           { k: 'Resultado operativo', v: F.eur(M.A1.baii), d: `hoy ${F.eur(M.A0.baii)}`, st: M.A1.baii >= M.A0.baii ? 'ok' : 'stop' },
-          { k: 'Punto de equilibrio', v: F.eur(M.A1.equilibrio), d: `hoy ${F.eur(M.A0.equilibrio)}`, info: 'Punto de equilibrio' },
-          { k: 'Margen de seguridad', v: F.pct(M.A1.seguridad * 100), st: M.A1.seguridad > 0.15 ? 'ok' : M.A1.seguridad > 0 ? 'warn' : 'stop', d: 'cuánto pueden caer las ventas sin pérdidas' }
-        ]);
+          { k: 'Punto de equilibrio', v: M.A1.equilibrio == null ? 'No alcanzable' : F.eur(M.A1.equilibrio), st: M.A1.equilibrio == null ? 'stop' : null, d: M.A1.equilibrio == null ? 'el margen de contribución no cubre nada de los fijos' : `hoy ${M.A0.equilibrio == null ? 'no alcanzable' : F.eur(M.A0.equilibrio)}`, info: 'Punto de equilibrio' },
+          { k: 'Margen de seguridad', v: M.A1.seguridad == null ? '—' : F.pct(M.A1.seguridad * 100), st: M.A1.seguridad == null ? 'stop' : M.A1.seguridad > 0.15 ? 'ok' : M.A1.seguridad > 0 ? 'warn' : 'stop', d: 'cuánto pueden caer las ventas sin pérdidas' }
+        ]) + (M.sinPrecio ? `<p class="small muted">${M.sinPrecio} producto${M.sinPrecio > 1 ? 's' : ''} sin precio no se ${M.sinPrecio > 1 ? 'cuentan' : 'cuenta'} en el cálculo: complete su precio medio en la tabla.</p>` : '');
         $('#mcEf', host).innerHTML = S.hbars([{ n: 'Efecto precio', v: M.efectos.precio }, { n: 'Efecto volumen', v: M.efectos.volumen }, { n: 'Efecto mix', v: M.efectos.mix }, { n: 'Efecto coste variable', v: M.efectos.coste }, { n: 'Efecto costes fijos', v: M.efectos.fijos }].map((x) => Object.assign(x, { c: x.v >= 0 ? css('--s1') : css('--s2') })), (v) => (v >= 0 ? '+' : '') + F.eur(v)) +
           `<p class="small">Resultado: ${F.eur(M.A0.baii)} → <b>${F.eur(M.A1.baii)}</b> (${M.A1.baii - M.A0.baii >= 0 ? '+' : ''}${F.eur(M.A1.baii - M.A0.baii)}).</p>`;
         $('#mcProd', host).innerHTML = `<table><thead><tr><th>Producto</th><th>Unidades hoy</th><th>Unidades estrategia</th><th>Precio</th><th>MC unitario</th><th>MC %</th><th>MC total</th><th>Capacidad</th></tr></thead><tbody>
@@ -270,7 +281,7 @@
         cols: [{ k: 'nombre', l: 'Producto', type: 'text', syn: ['producto', 'articulo', 'referencia', 'familia'] }, { k: 'unidades', l: 'Demanda (uds/año)', type: 'num', syn: ['unidades', 'cantidad', 'demanda'] }, { k: 'precio', l: 'Precio medio', type: 'num', syn: ['precio', 'pvp', 'precio medio'] }, { k: 'cv', l: 'Coste variable unitario', type: 'num', syn: ['coste', 'coste unitario', 'coste variable'] }, { k: 'capacidad', l: 'Capacidad (uds/año)', type: 'num', syn: ['capacidad'] }, { k: 'elasticidad', l: 'Elasticidad precio', type: 'num', syn: ['elasticidad'] }]
       });
     },
-    kpis() { const M = mcModel(); return [{ k: 'Margen de seguridad', v: F.pct(M.A0.seguridad * 100), st: M.A0.seguridad > 0.15 ? 'ok' : M.A0.seguridad > 0 ? 'warn' : 'stop' }, { k: 'Mejora de la estrategia', v: F.eur(M.A1.baii - M.A0.baii), st: M.A1.baii >= M.A0.baii ? 'ok' : 'warn' }]; },
+    kpis() { const M = mcModel(); return [{ k: 'Margen de seguridad', v: M.A0.seguridad == null ? '—' : F.pct(M.A0.seguridad * 100), st: M.A0.seguridad == null ? 'stop' : M.A0.seguridad > 0.15 ? 'ok' : M.A0.seguridad > 0 ? 'warn' : 'stop' }, { k: 'Mejora de la estrategia', v: F.eur(M.A1.baii - M.A0.baii), st: M.A1.baii >= M.A0.baii ? 'ok' : 'warn' }]; },
     risks() { const M = mcModel(); const lim = M.est.filter((x) => x.limitado); return lim.length ? [S.mkRisk(`Capacidad al límite en ${lim.map((x) => x.nombre).join(', ')}`, 3, 3, 'La demanda supera la capacidad: subir precio en esas líneas o ampliar capacidad (ver simulador).')] : []; },
     findings() {
       const M = mcModel(); const out = [];
@@ -289,7 +300,7 @@
       const abiertas = O.filter((o) => o.etapa !== 'Ganada');
       const pipe = abiertas.reduce((a, o) => a + S.num(o.importe), 0), pond = abiertas.reduce((a, o) => a + S.num(o.importe) * S.num(o.prob) / 100, 0);
       const ganada = O.filter((o) => o.etapa === 'Ganada').reduce((a, o) => a + S.num(o.importe), 0);
-      const porCom = {}; O.forEach((o) => { porCom[o.comercial || 'Sin asignar'] = (porCom[o.comercial || 'Sin asignar'] || 0) + S.num(o.importe) * S.num(o.prob) / 100; });
+      const porCom = {}; abiertas.forEach((o) => { porCom[o.comercial || 'Sin asignar'] = (porCom[o.comercial || 'Sin asignar'] || 0) + S.num(o.importe) * S.num(o.prob) / 100; });
       host.innerHTML = `${S.section('Pipeline comercial', 'Las oportunidades abiertas, su probabilidad y la previsión ponderada frente al objetivo de venta nueva del año.')}
         ${S.kpiTiles([
           { k: 'Pipeline abierto', v: F.eur(pipe), d: `${abiertas.length} oportunidades` },
@@ -299,7 +310,7 @@
         ])}
         <div class="row mt"><label class="small">Objetivo anual de venta nueva <input class="input" id="obj" style="width:130px" value="${C().objetivoAnual || ''}" placeholder="${Math.round(objetivo)}"></label></div>
         <div class="kanban mt">${ETAPAS.slice(0, 5).map((e) => { const l = O.filter((o) => o.etapa === e); return `<div class="col"><h4>${e}</h4><b class="num">${F.eur(l.reduce((a, o) => a + S.num(o.importe), 0))}</b>${l.map((o) => `<p class="small">${esc(o.cliente)} · ${F.eur(o.importe)} · ${o.prob} %</p>`).join('')}</div>`; }).join('')}</div>
-        <div class="glass pad mt stack"><h4>Previsión ponderada por comercial</h4>${S.hbars(Object.keys(porCom).map((k) => ({ n: k, v: porCom[k] })), F.eur)}</div>
+        <div class="glass pad mt stack"><h4>Previsión ponderada por comercial</h4><p class="small muted" style="margin:0">Solo oportunidades abiertas; lo ganado ya no es previsión.</p>${S.hbars(Object.keys(porCom).map((k) => ({ n: k, v: porCom[k] })), F.eur)}</div>
         <div class="glass pad mt" id="opTable"></div>`;
       $('#obj', host).onchange = (e) => { C().objetivoAnual = S.num(e.target.value); S.save(); S.rerender(); };
       S.etable($('#opTable', host), {
@@ -318,10 +329,10 @@
     render(host) {
       const R = C().canales.map((c) => { const inv = S.num(c.inversion), cli = S.num(c.clientes); const cac = cli ? inv / cli : Infinity; const ltv = S.num(c.ticket) * S.num(c.margen) / 100 * S.num(c.recurrencia); return Object.assign({}, c, { cpl: S.num(c.leads) ? inv / S.num(c.leads) : 0, conv: S.pct(cli, S.num(c.leads)), cac, ltv, ratio: cac ? ltv / cac : 0, roi: inv ? (cli * S.num(c.ticket) * S.num(c.margen) / 100 - inv) / inv : 0 }); });
       const inv = R.reduce((a, c) => a + S.num(c.inversion), 0), cli = R.reduce((a, c) => a + S.num(c.clientes), 0);
-      const best = R.slice().sort((a, b) => b.ratio - a.ratio);
+      const best = R.filter((c) => S.num(c.clientes) > 0).sort((a, b) => b.ratio - a.ratio);
       host.innerHTML = `${S.section('Marketing', 'Lo que cuesta conseguir un cliente en cada canal (CAC) frente a lo que deja a lo largo de la relación (LTV). Por encima de 3 veces, el canal merece más presupuesto.')}
         ${S.kpiTiles([{ k: 'Inversión anual', v: F.eur(inv) }, { k: 'Clientes nuevos', v: F.num(cli) }, { k: 'CAC medio', v: F.eur(inv / Math.max(1, cli)), info: 'CAC' }, { k: 'Mejor canal', v: best[0] ? best[0].canal : '—', d: best[0] ? `LTV/CAC ${F.x(best[0].ratio)}` : '' }])}
-        <div class="glass pad mt stack"><h4>Rendimiento por canal</h4><div class="table-wrap"><table><thead><tr><th>Canal</th><th>Coste por lead</th><th>Conversión</th><th>CAC</th><th>LTV</th><th>LTV/CAC</th><th>ROI 1.er año</th></tr></thead><tbody>${R.map((c) => `<tr><td>${esc(c.canal)}</td><td>${F.eur(c.cpl)}</td><td>${F.pct(c.conv)}</td><td>${F.eur(c.cac)}</td><td>${F.eur(c.ltv)}</td><td><span class="state st-${c.ratio >= 3 ? 'ok' : c.ratio >= 1.5 ? 'warn' : 'stop'}">${F.x(c.ratio)}</span></td><td>${F.pct(c.roi * 100)}</td></tr>`).join('')}</tbody></table></div>
+        <div class="glass pad mt stack"><h4>Rendimiento por canal</h4><div class="table-wrap"><table><thead><tr><th>Canal</th><th>Coste por lead</th><th>Conversión</th><th>CAC</th><th>LTV</th><th>LTV/CAC</th><th>ROI 1.er año</th></tr></thead><tbody>${R.map((c) => S.num(c.clientes) > 0 ? `<tr><td>${esc(c.canal)}</td><td>${F.eur(c.cpl)}</td><td>${F.pct(c.conv)}</td><td>${F.eur(c.cac)}</td><td>${F.eur(c.ltv)}</td><td><span class="state st-${c.ratio >= 3 ? 'ok' : c.ratio >= 1.5 ? 'warn' : 'stop'}">${F.x(c.ratio)}</span></td><td>${F.pct(c.roi * 100)}</td></tr>` : `<tr><td>${esc(c.canal)}</td><td>${F.eur(c.cpl)}</td><td>${F.pct(c.conv)}</td><td colspan="4" class="muted" style="text-align:center">sin clientes captados: CAC y retorno no se pueden medir</td></tr>`).join('')}</tbody></table></div>
         ${best.length > 1 ? `<p class="small">Reasignar un 20 % del presupuesto de <b>${esc(best[best.length - 1].canal)}</b> a <b>${esc(best[0].canal)}</b> aportaría unos ${F.num(Math.round(S.num(best[best.length - 1].inversion) * 0.2 / Math.max(1, best[0].cac)))} clientes más al año con el mismo gasto.</p>` : ''}</div>
         <div class="glass pad mt" id="chTable"></div>`;
       S.etable($('#chTable', host), {

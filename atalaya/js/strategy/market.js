@@ -107,12 +107,13 @@
         <div class="grid cols-2 mt"><div class="glass pad" id="mkTg"></div><div class="glass pad" id="mkTp"></div></div>
         <div class="glass pad mt" id="mkComp"></div>
         <div class="glass pad mt stack"><h4>Implicaciones sobre los planes</h4><div class="table-wrap"><table><thead><tr><th style="text-align:left">Señal</th><th>Plan</th><th style="text-align:left">Qué hacer</th></tr></thead><tbody>${m.indicadores.filter((i) => i.impacto !== 'neutro').map((i) => { const x = implicacion(i); return `<tr><td style="text-align:left;font-family:var(--font-body)">${esc(i.indicador)} · ${i.impacto === 'negativo' ? 'desfavorable' : 'favorable'}</td><td>${x.plan}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${x.accion}</td></tr>`; }).join('') || '<tr><td colspan="3" class="muted">Marca el impacto de cada indicador para ver sus implicaciones.</td></tr>'}</tbody></table></div></div>
-        <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Matriz de riesgos de la empresa</h4><div class="chart" id="mkMatrix"></div></div><div class="glass pad stack"><h4>Riesgos priorizados</h4>${S.riskBlock(R.slice(0, 10))}</div></div>`;
+        <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Matriz de riesgos de la empresa</h4><div class="chart" id="mkMatrix"></div></div><div class="glass pad stack"><h4>Riesgos priorizados</h4>${S.riskBlock(R.slice(0, S.N_RIESGOS), { num: true, total: R.length })}</div></div>`;
       ['actividad', 'region', 'productos', 'clientes'].forEach((k) => { $('#mp_' + k, host).onchange = (e) => { m.perfil[k] = e.target.value; S.save(); }; });
-      A.charts.riskMatrix($('#mkMatrix', host), R.slice(0, 14), () => {});
+      A.charts.riskMatrix($('#mkMatrix', host), S.riesgosMatriz(R, S.N_RIESGOS), () => {});
       // Agente
       (async () => {
         await A.platform.ready;
+        if (!host.isConnected || !$('#mkMode', host)) return; // el módulo se cerró mientras tanto
         const srv = A.platform.mode === 'server' && A.platform.serverInfo && A.platform.serverInfo.ia;
         $('#mkMode', host).textContent = srv ? 'El agente buscará en fuentes oficiales y citará cada dato.' : 'El agente necesita el servidor de Atalaya con la API de Claude configurada. Mientras tanto, completa los indicadores a mano con las fuentes oficiales.';
         if (!srv) $('#mkAgent', host).disabled = true;
@@ -129,7 +130,7 @@
           if (Array.isArray(r.analisis.porCliente) && r.analisis.porCliente.length) m.targets = r.analisis.porCliente.map((c) => ({ target: c.target, peso: (m.targets.find((t) => t.target === c.target) || {}).peso || 0, ciclo: 3, riesgo: +c.nivel || 3 }));
           if (Array.isArray(r.analisis.porProducto) && r.analisis.porProducto.length) m.tipologias = r.analisis.porProducto.map((c) => ({ tipologia: c.tipologia, peso: (m.tipologias.find((t) => t.tipologia === c.tipologia) || {}).peso || 0, ciclo: 3, riesgo: +c.nivel || 3 }));
           S.save(); S.rerender();
-        } catch (e) { $('#mkMsg', host).textContent = e.message; b.disabled = false; }
+        } catch (e) { if (!host.isConnected) return; const mm = $('#mkMsg', host); if (mm) mm.textContent = e.message; b.disabled = false; }
       };
       $('#mkRef', host).onclick = () => {
         const R = S.MACRO_2026;

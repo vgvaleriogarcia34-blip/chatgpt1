@@ -4,9 +4,19 @@
 (function () {
   const A = window.Atalaya, S = A.strat;
   const { $, $$, esc, css } = S;
-  const W = 1200, H = 720, NW = 168, NH = 58;
-  const cut = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+  const W = 1200, NW = 168, NH = 58;
   const uid = () => 'n' + Math.random().toString(36).slice(2, 8);
+  // Ocho colores distinguibles: con más áreas no se repiten hasta la novena
+  const PAL8 = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#8b6fe0', '#22a6b3', '#7f8c2d'];
+  // Firma de las áreas (nombre y personas) para saber si el organigrama propuesto se ha quedado atrás
+  const firma = (areas) => (areas || []).map((a) => `${String(a.area || '').trim()}:${Math.round(S.num(a.personas))}`).join('|');
+  /* Lienzo ajustado a los puestos: crece con el árbol (niveles y columnas) y nunca deja nodos fuera */
+  function lienzo(nodos) {
+    if (!nodos.length) return { x: 0, y: 0, w: W, h: 360 };
+    const x0 = Math.min(0, ...nodos.map((n) => n.x - 20)), y0 = Math.min(0, ...nodos.map((n) => n.y - 20));
+    const x1 = Math.max(W, ...nodos.map((n) => n.x + NW + 20)), y1 = Math.max(360, ...nodos.map((n) => n.y + NH + 40));
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
 
   function ensure() {
     const P = S.state.personas;
@@ -25,6 +35,7 @@
       if (n > 0) out.push({ id: uid(), puesto: `Equipo de ${String(a.area || '').toLowerCase()}`, persona: `${n} persona${n > 1 ? 's' : ''}`, area: a.area, jefe: r.id, x: 0, y: 0, equipo: n });
     });
     ordenar(out);
+    if (S.state.personas.organigrama) S.state.personas.organigrama.firma = firma(areas);
     return out;
   }
   /* Orden automático en árbol: cada nivel en una fila, hijos centrados bajo su responsable */
@@ -42,9 +53,7 @@
     };
     const seen = new Set();
     raices.forEach((r) => colocar(r, 0, seen));
-    // Si no cabe, se comprime en horizontal
-    const maxX = Math.max(...nodos.map((n) => n.x + NW), W);
-    if (maxX > W - 10) { const k = (W - 40 - NW) / (maxX - NW - 30); nodos.forEach((n) => { n.x = 30 + (n.x - 30) * k; }); }
+    // Sin comprimir (los puestos se solaparían): si no cabe, el lienzo crece y se desplaza en horizontal
   }
   function analisis(nodos) {
     const hijos = (id) => nodos.filter((n) => n.jefe === id);
@@ -61,7 +70,11 @@
     const O = ensure();
     let modo = host.dataset.modo || 'mover', sel = host.dataset.sel || null, enlazando = false;
     const areas = Array.from(new Set(O.nodos.map((n) => n.area).filter(Boolean)));
-    const color = (a) => A.seriesColor(Math.max(0, areas.indexOf(a)));
+    const color = (a) => PAL8[Math.max(0, areas.indexOf(a)) % PAL8.length];
+    const VB = lienzo(O.nodos);
+    // ¿Han cambiado las áreas desde que se propuso? Con firma guardada se compara; si no, por el total de personas
+    const P0 = S.state.personas, totA = (P0.areas || []).reduce((a, x) => a + Math.round(S.num(x.personas)), 0), totO = O.nodos.reduce((a, n) => a + (n.equipo || 1), 0);
+    const desfase = O.nodos.length && (O.firma != null ? O.firma !== firma(P0.areas) : totO !== totA && totO !== totA + 1);
     const save = () => { S.save(); };
     const an = analisis(O.nodos);
 
@@ -69,10 +82,11 @@
         <div class="seg" style="margin:0" id="ogModo">${[['mover', 'Mover y editar'], ['lapiz', 'Lápiz'], ['goma', 'Borrar trazos']].map(([k, l]) => `<button data-m="${k}" aria-pressed="${k === modo}">${l}</button>`).join('')}</div></div>
       <div class="row"><button class="btn" id="ogAdd">Añadir puesto</button><button class="btn ghost" id="ogSort">Ordenar automáticamente</button><button class="btn ghost" id="ogGen">Proponer desde las áreas</button><button class="btn ghost" id="ogClear">Vaciar</button>
         <span class="small muted">${modo === 'lapiz' ? 'Dibuja a mano alzada sobre el organigrama.' : modo === 'goma' ? 'Toca un trazo para borrarlo.' : 'Arrastra los puestos. Toca uno para editarlo y decir de quién depende.'}</span></div>
-      <div class="ogwrap"><svg id="ogSvg" viewBox="0 0 ${W} ${H}" class="og ${modo}" role="img" aria-label="Organigrama de la empresa">
-        <g class="oglinks">${O.nodos.filter((n) => n.jefe && O.nodos.some((m) => m.id === n.jefe)).map((n) => { const j = O.nodos.find((m) => m.id === n.jefe); const x1 = j.x + NW / 2, y1 = j.y + NH, x2 = n.x + NW / 2, y2 = n.y, ym = (y1 + y2) / 2; return `<path d="M${x1},${y1} V${ym} H${x2} V${y2}" fill="none" stroke="${css('--line-strong') || '#8a7a55'}" stroke-width="1.6"/>`; }).join('')}</g>
-        <g class="ognodes">${O.nodos.map((n) => `<g class="ognode${n.id === sel ? ' sel' : ''}" data-id="${n.id}" transform="translate(${n.x},${n.y})"><rect width="${NW}" height="${NH}" rx="10" fill="${css('--panel-solid') || '#0d1428'}" stroke="${n.id === sel ? css('--gold') : color(n.area)}" stroke-width="${n.id === sel ? 2.4 : 1.4}"/><rect width="5" height="${NH}" rx="2" fill="${color(n.area)}"/>
-          <text x="14" y="23" class="ogt">${esc(cut(n.puesto || 'Puesto', 21))}<title>${esc(n.puesto)}</title></text><text x="14" y="42" class="ogs">${esc(cut(n.persona || (n.equipo ? n.equipo + ' personas' : 'Sin asignar'), 25))}</text>${an.saturados.includes(n) ? `<circle cx="${NW - 12}" cy="12" r="6" fill="${css('--warn')}"><title>Más de 10 personas a su cargo</title></circle>` : ''}</g>`).join('')}</g>
+      ${desfase ? `<div class="alert warn small og-desfase"><span>Las áreas de la tabla han cambiado desde que se preparó este organigrama (${totA} personas en las áreas, ${totO} en el organigrama).</span> <button class="btn ghost" id="ogRegen">Regenerar desde las áreas</button> <button class="btn ghost" id="ogKeep">Mantener este</button></div>` : ''}
+      <div class="ogwrap"><svg id="ogSvg" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}" class="og ${modo}" style="min-width:${Math.max(760, Math.round(VB.w * 0.62))}px" role="img" aria-label="Organigrama de la empresa: ${O.nodos.length} puestos en ${an.niveles} niveles">
+        <g class="oglinks">${O.nodos.filter((n) => n.jefe && O.nodos.some((m) => m.id === n.jefe)).map((n) => { const j = O.nodos.find((m) => m.id === n.jefe); const x1 = j.x + NW / 2, y1 = j.y + NH, x2 = n.x + NW / 2, y2 = n.y, ym = (y1 + y2) / 2; return `<path class="oglink" d="M${x1},${y1} V${ym} H${x2} V${y2}" fill="none" stroke-width="1.6"/>`; }).join('')}</g>
+        <g class="ognodes">${O.nodos.map((n) => `<g class="ognode${n.id === sel ? ' sel' : ''}" data-id="${n.id}" transform="translate(${n.x},${n.y})"><rect class="ogbox" width="${NW}" height="${NH}" rx="10" style="stroke:${n.id === sel ? 'var(--gold)' : color(n.area)}" stroke-width="${n.id === sel ? 2.4 : 1.4}"/><rect width="5" height="${NH}" rx="2" style="fill:${color(n.area)}"/>
+          <text x="14" y="23" class="ogt" data-fit="${NW - 22}">${esc(n.puesto || 'Puesto')}</text><text x="14" y="42" class="ogs" data-fit="${NW - 22}">${esc(n.persona || (n.equipo ? n.equipo + ' personas' : 'Sin asignar'))}</text><title>${esc(n.puesto || 'Puesto')}${n.persona ? ' · ' + esc(n.persona) : ''}${n.area ? ' · ' + esc(n.area) : ''}</title>${an.saturados.includes(n) ? `<circle cx="${NW - 12}" cy="12" r="6" fill="${css('--warn')}"><title>Más de 10 personas a su cargo</title></circle>` : ''}</g>`).join('')}</g>
         <g class="ogink">${(O.trazos || []).map((t, i) => `<path data-t="${i}" d="${t.d}" fill="none" stroke="${t.c || css('--gold')}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g>
       </svg></div>
       <div id="ogEdit"></div>
@@ -83,11 +97,14 @@
       </div>`;
 
     const svg = $('#ogSvg', host);
-    const pt = (ev) => { const r = svg.getBoundingClientRect(); return { x: (ev.clientX - r.left) * W / r.width, y: (ev.clientY - r.top) * H / r.height }; };
+    S.encajar(svg);
+    const pt = (ev) => { const r = svg.getBoundingClientRect(); return { x: VB.x + (ev.clientX - r.left) * VB.w / r.width, y: VB.y + (ev.clientY - r.top) * VB.h / r.height }; };
+    const rg = $('#ogRegen', host); if (rg) rg.onclick = () => { O.nodos = generar(S.state.personas.areas); O.trazos = []; O.vacio = false; O.firma = firma(S.state.personas.areas); host.dataset.sel = ''; save(); S.orgChart(host); };
+    const kp = $('#ogKeep', host); if (kp) kp.onclick = () => { O.firma = firma(S.state.personas.areas); save(); S.orgChart(host); };
     $$('#ogModo button', host).forEach((b) => b.onclick = () => { host.dataset.modo = b.dataset.m; S.orgChart(host); });
-    $('#ogAdd', host).onclick = () => { const n = { id: uid(), puesto: 'Nuevo puesto', persona: '', area: areas[0] || '', jefe: sel || (O.nodos[0] && O.nodos[0].id) || null, x: 40 + Math.random() * 300, y: 560 }; O.nodos.push(n); host.dataset.sel = n.id; host.dataset.modo = 'mover'; save(); S.orgChart(host); };
+    $('#ogAdd', host).onclick = () => { const n = { id: uid(), puesto: 'Nuevo puesto', persona: '', area: areas[0] || '', jefe: sel || (O.nodos[0] && O.nodos[0].id) || null, x: 40 + Math.random() * 300, y: Math.max(40, ...O.nodos.map((m) => m.y + 120)) }; O.nodos.push(n); host.dataset.sel = n.id; host.dataset.modo = 'mover'; save(); S.orgChart(host); };
     $('#ogSort', host).onclick = () => { ordenar(O.nodos); save(); S.orgChart(host); };
-    $('#ogGen', host).onclick = () => { O.nodos = generar(S.state.personas.areas); O.trazos = []; O.vacio = false; host.dataset.sel = ''; save(); S.orgChart(host); };
+    $('#ogGen', host).onclick = () => { O.nodos = generar(S.state.personas.areas); O.trazos = []; O.vacio = false; O.firma = firma(S.state.personas.areas); host.dataset.sel = ''; save(); S.orgChart(host); };
     let armed = false;
     $('#ogClear', host).onclick = (e) => { if (!armed) { armed = true; e.target.textContent = 'Pulsa otra vez para vaciar'; return; } O.nodos = []; O.trazos = []; O.vacio = true; host.dataset.sel = ''; save(); S.orgChart(host); };
 
@@ -97,7 +114,7 @@
           ev.preventDefault();
           const n = O.nodos.find((m) => m.id === g.dataset.id), p0 = pt(ev), x0 = n.x, y0 = n.y; let moved = false;
           g.setPointerCapture(ev.pointerId);
-          const mv = (e) => { const p = pt(e); const dx = p.x - p0.x, dy = p.y - p0.y; if (Math.abs(dx) + Math.abs(dy) > 3) moved = true; n.x = Math.max(0, Math.min(W - NW, x0 + dx)); n.y = Math.max(0, Math.min(H - NH, y0 + dy)); g.setAttribute('transform', `translate(${n.x},${n.y})`); };
+          const mv = (e) => { const p = pt(e); const dx = p.x - p0.x, dy = p.y - p0.y; if (Math.abs(dx) + Math.abs(dy) > 3) moved = true; n.x = Math.max(VB.x, Math.min(VB.x + VB.w - NW, x0 + dx)); n.y = Math.max(VB.y, Math.min(VB.y + VB.h - NH, y0 + dy)); g.setAttribute('transform', `translate(${n.x},${n.y})`); };
           const up = () => { g.removeEventListener('pointermove', mv); g.removeEventListener('pointerup', up);
             if (enlazando && !moved) { const s = O.nodos.find((m) => m.id === sel); if (s && s.id !== n.id && !esDescendiente(n.id, s.id)) s.jefe = n.id; enlazando = false; save(); S.orgChart(host); return; }
             if (!moved) host.dataset.sel = n.id === sel ? '' : n.id; save(); S.orgChart(host); };
@@ -127,7 +144,7 @@
       const set = (id, k, re) => { $(id, ed).onchange = (e) => { n[k] = e.target.value || (k === 'jefe' ? null : ''); const m = /^(\d+)\s*personas?$/i.exec(n.persona || ''); n.equipo = m ? +m[1] : undefined; save(); if (re) S.orgChart(host); }; };
       set('#ogP', 'puesto', true); set('#ogN', 'persona', true); set('#ogA', 'area', true); set('#ogJ', 'jefe', true);
       $('#ogLink', ed).onclick = (e) => { enlazando = true; e.target.textContent = 'Ahora toca el puesto del que depende'; };
-      $('#ogChild', ed).onclick = () => { const c = { id: uid(), puesto: 'Nuevo puesto', persona: '', area: n.area, jefe: n.id, x: Math.min(W - NW, n.x + 30), y: Math.min(H - NH, n.y + 120) }; O.nodos.push(c); host.dataset.sel = c.id; save(); S.orgChart(host); };
+      $('#ogChild', ed).onclick = () => { const c = { id: uid(), puesto: 'Nuevo puesto', persona: '', area: n.area, jefe: n.id, x: n.x + 30, y: n.y + 120 }; O.nodos.push(c); host.dataset.sel = c.id; save(); S.orgChart(host); };
       $('#ogDel', ed).onclick = () => { O.nodos.forEach((m) => { if (m.jefe === n.id) m.jefe = n.jefe; }); O.nodos = O.nodos.filter((m) => m.id !== n.id); host.dataset.sel = ''; save(); S.orgChart(host); };
     }
   };

@@ -342,3 +342,26 @@ body.rj-window { margin: 0; padding: 14px; background: var(--abyss, #05060a); co
 input.vl-in { display: inline-block; width: 7.5em; padding: 2px 8px; height: auto; }
 @media (max-width: 560px) { .vl-row { grid-template-columns: 1fr auto; } .vl-row i { grid-column: 1 / -1; grid-row: 2; } }
 @media (max-width: 560px) { .mfrow .num { min-width: 60px !important; } }
+
+/* ---------- Gráficos del sistema estratégico: eje cero, barras divergentes, cascada, VSM y organigrama ---------- */
+.chart .eje0 { stroke: var(--faint); stroke-width: 1; }
+.chart-vacio { margin: 10px 0; }
+.mfrow .track.div { position: relative; }
+.mfrow .track.div b { position: absolute; top: 0; }
+.mfrow .track.div .cero, .vl-bridge.wf .cero { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); z-index: 1; }
+.vl-bridge.wf .vl-row i { position: relative; }
+.vl-bridge.wf .vl-row i b { position: absolute; top: 0; border-radius: 3px; }
+.vsm-box { fill: var(--panel-solid); stroke: var(--line-strong); stroke-width: 1; }
+.vsm-box.cuello { stroke: var(--stop); stroke-width: 2; }
+.vsm-wait { fill: var(--warn); opacity: 0.8; }
+.vsm-flow { stroke: var(--gold); stroke-width: 1.5; }
+.chart text.vsm-n { fill: var(--fg); font-family: var(--font-body); font-size: 11px; }
+.ogbox { fill: var(--panel-solid); }
+.oglink { stroke: var(--line-strong); }
+.og-desfase { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+/* En el papel del informe (fondo claro) */
+.rp-block .vsm-box, .rp-block .ogbox { fill: #ffffff; }
+.rp-block .oglink, .rp-block .vsm-box { stroke: #b8bcc6; }
+.rp-block text.vsm-n, .rp-block .ogt { fill: #1f2430; }
+.rp-block .chart .eje0 { stroke: #9aa0aa; }
+.gr-svg.lista { max-height: none; }
