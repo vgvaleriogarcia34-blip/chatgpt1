@@ -41,7 +41,7 @@
     // Planes con varias empresas: acceso a la vista de grupo o a la cartera desde el puesto de mando
     if (P.esGrupo && P.esGrupo()) {
       const g = !!(P.PLANES[P.user.plan] || {}).grupo, ea = P.empresas.activa();
-      $('.pt-dock').insertAdjacentHTML('beforeend', `<a class="pt-grp" href="grupo.html"><i class="d-grp"></i><span><b>${g ? 'Vista de grupo' : 'Cartera de clientes'}</b><small>${P.empresas.lista().length} ${g ? 'sociedades' : 'empresas'}${ea ? ' · ahora en ' + ea.nombre.replace(/</g, '&lt;') : ''}</small></span></a>`);
+      $('.pt-dock').insertAdjacentHTML('beforeend', `<a class="pt-grp" href="grupo.html"><i class="d-grp"></i><span><b>${g ? 'Vista de grupo' : 'Cartera de clientes'}</b><small>${P.empresas.reales().length} ${g ? 'sociedades' : 'empresas'}${ea ? ' · ahora en ' + ea.nombre.replace(/</g, '&lt;') : ''}</small></span></a>`);
     }
     // Paso 1: el mapa de empresas. En planes con varias empresas se elige antes de entrar en los mundos;
     // con una sola, se enseña mientras la ficha esté a medias. Siempre se puede volver desde la barra de empresa.
@@ -56,7 +56,7 @@
       const e = P.empresas.activa(), b = $('#empBar'); if (!e) return;
       const g = !!(P.PLANES[P.user.plan] || {}).grupo;
       b.hidden = false;
-      b.innerHTML = `<span class="small muted">Trabajando en</span><b>${e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ')}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : 'Ver la ficha'}</button>`;
+      b.innerHTML = `<span class="small muted">Trabajando en</span><b>${e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : 'Ver la ficha'}</button>`;
       b.querySelector('[data-cambiar]').onclick = abrirPaso;
     }
     // Balizas del mundo de la auditoría integral: si la empresa tiene triaje, cada baliza toma el color de su área

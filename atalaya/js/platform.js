@@ -10,9 +10,11 @@
   const A = (window.Atalaya = window.Atalaya || {});
   const LS = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } },
+    // Si el navegador se queda sin sitio no se calla: se avisa en la banda de guardado (lo demás, sin almacenamiento, se ignora)
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (lleno(e)) sinSitio(); return false; } },
     del(k) { try { localStorage.removeItem(k); } catch (e) { /* sin almacenamiento */ } }
   };
+  const lleno = (e) => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
   const today = () => new Date().toISOString().slice(0, 10);
   const uid = () => 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
@@ -57,7 +59,9 @@
   async function api(path, opts) {
     const r = await fetch('/api' + path, Object.assign({ credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } }, opts || {}));
     let body = null; try { body = await r.json(); } catch (e) { /* sin cuerpo */ }
-    if (!r.ok) throw new Error((body && body.error) || 'Error del servidor (' + r.status + ')');
+    if (!r.ok) throw Object.assign(new Error((body && body.error) || 'Error del servidor (' + r.status + ')'), { status: r.status });
+    // Cada respuesta buena es una ocasión para reenviar lo que quedó pendiente
+    if (hayPend && !reenviando) setTimeout(reenviar, 0);
     return body;
   }
   P.api = api;
@@ -175,6 +179,7 @@
     if (!acc.ok) { location.href = 'acceso.html' + (acc.motivo === 'sin-sesion' ? '' : '#' + acc.motivo); return false; }
     P.access = acc;
     startHeartbeat();
+    if (P.mode === 'server' && pendientes().length) { hayPend = true; programar(); setTimeout(reenviar, 0); }
     await P.empresas.cargar();
     return true;
   };
@@ -235,8 +240,38 @@
       if (obj == null) LS.del(MK('d.' + key)); else LS.set(MK('d.' + key), obj);
     },
     limpiarEspejos(keys) { (keys || Object.keys(MBASE)).forEach((k) => LS.del(P.k(MBASE[k], MID))); },
-    restablecer(keys) { (keys || Object.keys(MBASE)).forEach((k) => LS.del(MK('d.' + k))); P.modelo.limpiarEspejos(keys); }
+    restablecer(keys) { (keys || Object.keys(MBASE)).forEach((k) => LS.del(MK('d.' + k))); P.modelo.limpiarEspejos(keys); },
+    /* Vuelta del paseo virtual. Antes de empezar se apunta a qué empresa volver y cómo estaba configurada la empresa modelo
+       (en la sesión de la pestaña y, por si se cierra la ventana, en el navegador con una marca de tiempo que el paseo
+       renueva). Al terminar o abandonar el paseo, la siguiente página que se carga lo deja todo como estaba y lo dice. */
+    vuelta: {
+      apuntar() {
+        if (ssGet(VSS)) return; // ya hay un paseo en marcha en esta pestaña: se conserva la vuelta original
+        const c = P.modelo.cfg(), v = { emp: P.empresaId(), cfg: { plan: c.plan, con: Object.assign({}, c.con) }, ts: Date.now() };
+        ssSet(VSS, v); LS.set(VK(), v);
+      },
+      // El paseo sigue vivo en esta pestaña: renueva la marca para que otra pestaña no lo deshaga
+      vivo() { const v = ssGet(VSS) || LS.get(VK()); if (!v) return; v.ts = Date.now(); ssSet(VSS, v); LS.set(VK(), v); },
+      pendiente: () => ssGet(VSS) || LS.get(VK()),
+      // Restaura empresa activa y configuración. quedarse: se sigue con la empresa modelo, pero con la configuración de antes
+      restaurar(quedarse) {
+        const v = P.modelo.vuelta.pendiente(); try { sessionStorage.removeItem(VSS); } catch (e) { /* sin almacenamiento */ } LS.del(VK());
+        if (!v) return null;
+        const c = P.modelo.cfg(); c.plan = (v.cfg && v.cfg.plan) || ''; if (v.cfg && v.cfg.con) c.con = Object.assign(c.con, v.cfg.con); P.modelo.guardarCfg(c);
+        const l = REG ? REG.lista : [], id = quedarse ? MID : (l.some((e) => e.id === v.emp) ? v.emp : 'principal');
+        LS.set(ACT, id);
+        const e = l.find((x) => x.id === id);
+        // El aviso se enseña al cargar la página siguiente (la vuelta suele terminar en una recarga)
+        ssSet('atalaya.aviso', id === MID ? (quedarse ? 'Sigue con la empresa modelo, con los mundos y el plan que tenía antes del paseo.' : 'Ha vuelto a la empresa modelo, con los mundos y el plan que tenía antes del paseo.') : `Ha vuelto a su empresa: ${(e && e.nombre) || 'Mi empresa'}`);
+        return id;
+      }
+    }
   };
+  const VSS = 'atalaya.paseo.volver', VK = () => `atalaya.paseo.volver.${(P.user && P.user.id) || 'anon'}`;
+  const ssGet = (k) => { try { return JSON.parse(sessionStorage.getItem(k)); } catch (e) { return null; } };
+  const ssSet = (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } };
+  // ¿Hay que deshacer un paseo? Si no está activo en esta pestaña y, o bien lo empezó esta pestaña, o nadie lo renueva desde hace 90 s
+  const vueltaPendiente = () => { const v = P.modelo.vuelta.pendiente(); if (!v || ssGet('atalaya.paseo')) return false; return !!ssGet(VSS) || Date.now() - (v.ts || 0) > 90e3; };
   P.k = (base, id) => { id = id || P.empresaId(); return id === 'principal' ? base : base + '@' + id; };
   const dk = (key, id) => { id = id || P.empresaId(); return SCOPED.includes(key) && id !== 'principal' ? key + '--' + id : key; };
   P.limiteEmpresas = (u) => { u = u || P.user; const p = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional; return p.empresas; };
@@ -270,8 +305,11 @@
       // La empresa modelo siempre está en la lista (al final), con lo que se haya tocado de su ficha
       REG.lista = REG.lista.filter((e) => e && !e.modelo);
       REG.lista.push(Object.assign({}, (A.modelo && A.modelo.EMPRESA) || M_FICHA, P.modelo.cfg().ficha, { id: MID, modelo: true, datosReales: true, datosRealesTs: M_FICHA.datosRealesTs }));
+      // Un paseo virtual terminado o abandonado: se vuelve a la empresa y a la configuración de antes
+      if (vueltaPendiente()) P.modelo.vuelta.restaurar();
       // Si el navegador recuerda una empresa que no es de esta cuenta, se vuelve a la principal
-      if (!REG.lista.some((e) => e.id === P.empresaId())) { LS.set(ACT, 'principal'); location.reload(); }
+      if (!REG.lista.some((e) => e.id === P.empresaId())) { LS.set(ACT, 'principal'); location.reload(); return REG; }
+      const av = ssGet('atalaya.aviso'); if (av) { try { sessionStorage.removeItem('atalaya.aviso'); } catch (x) { /* sin almacenamiento */ } P.toast(av, 6000); }
       return REG;
     },
     lista: () => (REG ? REG.lista : []),
@@ -309,7 +347,7 @@
     await P.ready;
     if ((id || P.empresaId()) === MID && SCOPED.includes(key)) return P.modelo.leer(key);
     const k = dk(key, id);
-    if (P.mode === 'server') { try { const r = await api('/data/' + encodeURIComponent(k)); return r && r.data; } catch (e) { return null; } }
+    if (P.mode === 'server') { const pd = leerPend(k); if (pd) return pd.v; try { const r = await api('/data/' + encodeURIComponent(k)); return r && r.data; } catch (e) { return null; } }
     const s = L.session(); return s ? LS.get(`atalaya.data.${s.id}.${k}`) : null;
   };
 
@@ -317,15 +355,114 @@
     await P.ready;
     if (P.empresaId() === MID && SCOPED.includes(key)) { P.modelo.guardar(key, obj); return; }
     key = dk(key);
-    if (P.mode === 'server') { try { await api('/data/' + encodeURIComponent(key), { method: 'PUT', body: JSON.stringify(obj) }); } catch (e) { /* se queda en local */ } return; }
+    if (P.mode === 'server') {
+      // Si el servidor no lo recibe, se queda una copia en este navegador marcada como pendiente y se reenvía después
+      try { await api('/data/' + encodeURIComponent(key), { method: 'PUT', body: JSON.stringify(obj) }); quitarPend(key); }
+      catch (e) { ponerPend(key, obj, e); }
+      return;
+    }
     const s = L.session(); if (s) LS.set(`atalaya.data.${s.id}.${key}`, obj);
   };
   P.loadData = async function (key) {
     await P.ready;
     if (P.empresaId() === MID && SCOPED.includes(key)) return P.modelo.leer(key);
     key = dk(key);
-    if (P.mode === 'server') { try { const r = await api('/data/' + encodeURIComponent(key)); return r && r.data; } catch (e) { return null; } }
+    if (P.mode === 'server') {
+      // Una copia pendiente es más nueva que lo que tiene el servidor (no llegó a guardarse): manda la copia
+      const pd = leerPend(key); if (pd) { setTimeout(reenviar, 0); return pd.v; }
+      try { const r = await api('/data/' + encodeURIComponent(key)); return r && r.data; } catch (e) { return null; }
+    }
     const s = L.session(); return s ? LS.get(`atalaya.data.${s.id}.${key}`) : null;
+  };
+
+  /* ---------- Guardado pendiente (modo servidor) ----------
+     Cada dato que el servidor no acepta (sin conexión, sesión caducada, prueba terminada, plan, tamaño, cupo) se guarda en
+     este navegador con la clave atalaya.pend.<usuario>.<dato> (el dato ya lleva la empresa). Se reenvía con la siguiente
+     respuesta buena del servidor, cada 60 s y al recuperar la conexión. Una sola banda avisa y se va actualizando. */
+  const PK = (key) => `atalaya.pend.${(P.user && P.user.id) || 'anon'}.${key}`;
+  let hayPend = false, reenviando = false, tReint = null, ultimoMotivo = '';
+  const pendientes = () => { const pre = PK(''), out = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf(pre) === 0) out.push(k.slice(pre.length)); } } catch (e) { /* sin almacenamiento */ } return out; };
+  const leerPend = (key) => { try { return JSON.parse(localStorage.getItem(PK(key))); } catch (e) { return null; } };
+  const quitarPend = (key) => { try { localStorage.removeItem(PK(key)); } catch (e) { /* sin almacenamiento */ } };
+  const motivoDe = (e) => {
+    const st = e && e.status;
+    if (!st) return 'no hay conexión con el servidor';
+    if (st === 401) return 'su sesión ha caducado; vuelva a entrar con su correo y su contraseña';
+    if (st === 402) return 'su periodo de prueba ha terminado o su acceso necesita activarse';
+    if (st === 403) return 'su plan no permite guardar estos datos' + (e.message ? ` (${e.message.replace(/\.$/, '')})` : '');
+    if (st === 409) return 'la sesión abierta en este navegador es de otra cuenta';
+    if (st === 413) return 'los datos son demasiado grandes para guardarlos de una vez';
+    if (st === 429) return 'se ha alcanzado el límite de guardados por ahora';
+    return `el servidor ha respondido con un error (${st})`;
+  };
+  function ponerPend(key, obj, e) {
+    let ok = true;
+    try { localStorage.setItem(PK(key), JSON.stringify({ v: obj, ts: Date.now(), st: (e && e.status) || 0 })); } catch (x) { ok = false; }
+    hayPend = true; programar();
+    avisoFallo(e, ok);
+  }
+  function programar() {
+    if (!tReint) tReint = setInterval(() => { if (pendientes().length) reenviar(); else { clearInterval(tReint); tReint = null; } }, 60000);
+  }
+  addEventListener('online', () => { if (hayPend) reenviar(); });
+  function avisoFallo(e, copia) {
+    const mot = motivoDe(e);
+    banda(`<b>No se ha podido guardar en el servidor:</b> ${escH(mot)}. ${copia === false ? 'Tampoco queda sitio en este navegador para conservar la copia: no cierre esta página y libere espacio antes de seguir.' : 'Sus cambios se conservan en este navegador y se reenviarán.'}`,
+      { tipo: e && e.status === 401 ? 'stop' : 'warn', clave: 'srv:' + mot, reintentar: true, entrar: !!(e && (e.status === 401 || e.status === 409)) });
+    ultimoMotivo = mot;
+  }
+  /* Reenvía lo pendiente. Antes comprueba que la sesión sigue siendo de este usuario: así nunca se guarda en otra cuenta. */
+  async function reenviar() {
+    if (reenviando || P.mode !== 'server' || !P.user) return;
+    const ks = pendientes(); hayPend = ks.length > 0; if (!ks.length) return;
+    reenviando = true;
+    try {
+      const me = await api('/me');
+      if (!me || !me.user || me.user.id !== P.user.id) throw Object.assign(new Error('Otra cuenta'), { status: 409 });
+      for (const k of ks) {
+        const pd = leerPend(k); if (!pd) continue;
+        await api('/data/' + encodeURIComponent(k), { method: 'PUT', body: JSON.stringify(pd.v) });
+        // Solo se quita si no ha llegado otra versión mientras se enviaba
+        const ya = leerPend(k); if (ya && ya.ts === pd.ts) quitarPend(k);
+      }
+      hayPend = pendientes().length > 0;
+      if (!hayPend) { ultimoMotivo = ''; banda('Sus cambios pendientes ya están guardados en el servidor.', { tipo: 'ok', clave: 'ok', dura: 5000 }); }
+    } catch (e) { avisoFallo(e, true); }
+    finally { reenviando = false; }
+  }
+  P.pendientes = () => pendientes().length;
+  P.reenviar = reenviar;
+  /* Sin sitio en el navegador (modo local o copias de la empresa modelo) */
+  function sinSitio() {
+    banda('<b>No se ha podido guardar en este navegador:</b> el almacenamiento está lleno. Los últimos cambios no se han guardado; libere espacio (por ejemplo, borrando empresas o archivos que ya no use) y vuelva a intentarlo.', { tipo: 'stop', clave: 'lleno' });
+  }
+  /* Banda de aviso: una sola, que se actualiza. Si la persona la cierra, no vuelve a salir hasta que cambie el motivo. */
+  let bandaOculta = '';
+  function banda(html, o) {
+    o = o || {};
+    const pon = () => {
+      let b = document.getElementById('atGuardado');
+      if (!html) { if (b) b.remove(); return; }
+      if (o.clave && bandaOculta === o.clave) return;
+      if (!b) { b = document.createElement('div'); b.id = 'atGuardado'; b.className = 'at-aviso'; b.setAttribute('role', 'status'); b.setAttribute('aria-live', 'polite'); document.body.appendChild(b); }
+      b.dataset.tipo = o.tipo || 'warn'; b.dataset.clave = o.clave || '';
+      b.innerHTML = `<span class="at-aviso-t">${html}</span>${o.entrar ? '<a class="btn ghost small" href="acceso.html" target="_blank" rel="noopener">Entrar de nuevo</a>' : ''}${o.reintentar ? '<button type="button" class="btn ghost small" data-reint>Reintentar ahora</button>' : ''}<button type="button" class="icon-btn at-aviso-x" aria-label="Ocultar el aviso">×</button>`;
+      const rb = b.querySelector('[data-reint]'); if (rb) rb.onclick = () => { rb.disabled = true; rb.textContent = 'Reintentando…'; reenviar().then(() => { if (rb.isConnected) { rb.disabled = false; rb.textContent = 'Reintentar ahora'; } }); };
+      b.querySelector('.at-aviso-x').onclick = () => { bandaOculta = o.clave || ''; b.remove(); };
+      if (o.dura) setTimeout(() => { if (b.isConnected && b.dataset.clave === (o.clave || '')) b.remove(); }, o.dura);
+    };
+    if (o.clave !== bandaOculta) bandaOculta = '';
+    if (document.body) pon(); else document.addEventListener('DOMContentLoaded', pon, { once: true });
+  }
+  P.banda = banda;
+  /* Aviso breve abajo (se va solo) */
+  P.toast = function (msg, ms) {
+    const pon = () => {
+      let t = document.getElementById('atToast');
+      if (!t) { t = document.createElement('div'); t.id = 'atToast'; t.className = 'toast at-toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); document.body.appendChild(t); }
+      t.textContent = msg; clearTimeout(t._t); t._t = setTimeout(() => t.remove(), ms || 5000);
+    };
+    if (document.body) pon(); else document.addEventListener('DOMContentLoaded', pon, { once: true });
   };
 
   /* ---------- Administración ----------
@@ -467,7 +604,8 @@
   P.cambiarPlan = async function (plan, periodo) {
     if (!PLANES[plan]) throw new Error('Plan no válido');
     await P.empresas.cargar();
-    const n = P.empresas.lista().length, lim = PLANES[plan].empresas;
+    // Cuentan solo las empresas reales (la principal incluida); la empresa modelo no ocupa plaza del plan
+    const n = P.empresas.reales().length, lim = PLANES[plan].empresas;
     if (n > lim) throw new Error(`Tienes ${n} empresas dadas de alta y ${PLANES[plan].nombre} admite ${lim}. Borra antes las que no necesites (desde el mapa de empresas) y vuelve a intentarlo.`);
     const antes = P.user && P.user.plan;
     const u = await P.updateMe({ plan, periodo: periodo || (P.user && P.user.periodo) || 'mensual' });
@@ -520,13 +658,13 @@
     opts = opts || {};
     const u = P.user; if (!u) return;
     const acc = P.accessOf(u); let periodo = u.periodo || 'mensual';
-    const n = P.empresas.lista().length || 1;
+    const n = P.empresas.reales().length || 1; // sin la empresa modelo: ni ocupa plaza ni cambia el tramo
     const back = document.createElement('div'); back.className = 'ef-back';
     const draw = () => {
       back.innerHTML = `<div class="ef-card pl-card glass" role="dialog" aria-modal="true" aria-label="Mi plan">
         <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
         <div class="eyebrow">Mi plan</div>
-        <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.6rem">Ahora tienes <em>${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan}</em> · pago ${(u.periodo || 'mensual') === 'anual' ? 'anual' : 'mensual'}</h3>
+        <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.6rem">Ahora tienes <em>${PLANES[u.plan] ? PLANES[u.plan].nombre : escH(u.plan)}</em> · pago ${(u.periodo || 'mensual') === 'anual' ? 'anual' : 'mensual'}</h3>
         <p class="small" style="margin:0">Tu cuota: <b>${(() => { const c = P.cuota(P.precio(u.plan, u.periodo, n, u.cuotaPactada)); return P.eur(c.importe) + c.unidad; })()}</b></p>
         <p class="small muted" style="margin:0">${acc.motivo === 'prueba' ? `Estás en la prueba gratuita (quedan ${acc.diasPrueba} días). Puedes cambiar de plan cuando quieras sin coste: la prueba sigue contando desde tu alta.` : acc.motivo === 'pagado' ? 'Tu acceso está activado. El cambio se aplica al momento y la diferencia de cuota se ajusta en tu siguiente cobro; te lo confirmaremos por correo.' : 'Elige el plan que quieres activar.'}${opts.motivo ? `<br><b style="color:var(--gold-soft)">${opts.motivo}</b>` : ''}</p>
         <div class="seg" style="margin:0;justify-self:start"><button data-per="mensual" aria-pressed="${periodo === 'mensual'}">Pago mensual</button><button data-per="anual" aria-pressed="${periodo === 'anual'}">Pago anual · −30 %</button></div>
@@ -539,7 +677,7 @@
             ${pl.aMedida ? '<div class="pl-precio" style="font-size:1.1rem">Precio a medida</div><div class="small muted">Lo preparamos con nuestro equipo según tus sociedades</div>' : (() => { const c = P.cuota(pr); return `<div class="pl-precio">${pl.tramos && n <= 1 ? '<small>desde </small>' : ''}${P.eur(c.importe)}<small>${c.unidad}</small></div>${c.detalle ? `<div class="small muted">${c.detalle}</div>` : ''}`; })()}
             <div class="small muted">${pl.para || ''}</div>
             <ul class="small"><li>${r.mundos}</li><li>${r.empresas}</li>${r.vista !== '—' ? `<li>${r.vista}</li>` : ''}</ul>
-            ${pl.aMedida && !cur ? '<button class="btn solid small" data-contacto>Contactar con nuestro equipo</button>' : cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es tu plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas y este plan admite ${pl.empresas}. Para bajar, antes hay que borrar ${n - pl.empresas}.</p><a class="btn ghost small" href="portal.html#empresas">Ir al mapa de empresas</a>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
+            ${pl.aMedida && !cur ? '<button class="btn solid small" data-contacto>Contactar con nuestro equipo</button>' : cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es tu plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tienes ${n} empresas (sin contar la empresa modelo) y este plan admite ${pl.empresas}. Para bajar, antes hay que borrar ${n - pl.empresas}.</p><a class="btn ghost small" href="portal.html#empresas">Ir al mapa de empresas</a>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
           </div>`;
         }).join('')}</div>
         <p class="small" data-msg style="margin:0"></p>
@@ -579,11 +717,11 @@
     if (e && e.modelo) return P.fichaModelo(e);
     const u = P.user, plan = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional, grupo = !!plan.grupo;
     const d = Object.assign({ nombre: '', forma: P.FORMAS[0], cif: '', constitucion: '', sector: '', actividad: '', provincia: '', plantilla: '', socios: [], rol: grupo ? 'filial' : (e && e.id === 'principal' ? 'holding' : 'cliente'), matriz: '', participacion: 100, contacto: '' }, e || {});
-    const S = sectores(), lista = P.empresas.lista();
+    const S = sectores(), lista = P.empresas.reales(); // la empresa modelo no puede ser dominante de una sociedad real
     const holdings = lista.filter((x) => x.rol === 'holding' && (!e || x.id !== e.id));
     return new Promise((resolve) => {
       const back = document.createElement('div'); back.className = 'ef-back';
-      const socioRow = (s) => `<div class="ef-socio"><input class="input" data-sn placeholder="Nombre del socio o sociedad" value="${escH(s.nombre)}"><input class="input" data-sp type="number" min="0" max="100" step="0.01" value="${s.pct != null ? s.pct : ''}" placeholder="%"><button type="button" class="icon-btn" data-sdel aria-label="Quitar socio">×</button></div>`;
+      const socioRow = (s) => `<div class="ef-socio"><input class="input" data-sn placeholder="Nombre del socio o sociedad" value="${escH(s.nombre)}"><input class="input" data-sp type="number" min="0" max="100" step="0.01" value="${s.pct != null ? escH(s.pct) : ''}" placeholder="%"><button type="button" class="icon-btn" data-sdel aria-label="Quitar socio">×</button></div>`;
       back.innerHTML = `<form class="ef-card glass" role="dialog" aria-modal="true" aria-label="Ficha de la empresa">
         <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
         <div class="eyebrow">${opts.nuevo ? (grupo ? 'Nueva sociedad' : 'Nueva empresa') : 'Ficha de la empresa'}</div>
@@ -600,7 +738,7 @@
         </div>
         ${grupo ? `<h4>En el grupo</h4><div class="ef-grid">
           <label><span>Papel</span><select class="input" name="rol"><option value="holding" ${d.rol === 'holding' ? 'selected' : ''}>Holding · sociedad dominante</option><option value="filial" ${d.rol !== 'holding' ? 'selected' : ''}>Filial o participada</option></select></label>
-          <label data-fil><span>Depende de</span><select class="input" name="matriz"><option value="">${holdings.length ? 'Elegir la sociedad dominante…' : 'Primero da de alta la holding'}</option>${holdings.map((h) => `<option value="${h.id}" ${h.id === d.matriz ? 'selected' : ''}>${escH(h.nombre)}</option>`).join('')}</select></label>
+          <label data-fil><span>Depende de</span><select class="input" name="matriz"><option value="">${holdings.length ? 'Elegir la sociedad dominante…' : 'Primero da de alta la holding'}</option>${holdings.map((h) => `<option value="${escH(h.id)}" ${h.id === d.matriz ? 'selected' : ''}>${escH(h.nombre)}</option>`).join('')}</select></label>
           <label data-fil><span>% que tiene la dominante</span><input class="input" name="participacion" type="number" min="0" max="100" step="0.01" value="${escH(d.participacion)}"></label>
         </div>` : ''}
         <h4>Socios y porcentaje</h4>
@@ -793,15 +931,15 @@
       if (e.modelo) return cardModelo(e);
       const i = lista.indexOf(e), pc = P.fichaCompleta(e);
       const soc = (e.socios || []).filter((s) => s.pct > 0);
-      return `<div class="em-card ${e.id === act.id ? 'on' : ''}" data-id="${e.id}">
+      return `<div class="em-card ${e.id === act.id ? 'on' : ''}" data-id="${escH(e.id)}">
         <div class="em-top"><i style="background:${PAL[i % PAL.length]}"></i><b>${escH(e.nombre)}</b>${e.id === act.id ? '<span class="em-act">activa</span>' : ''}</div>
         <div class="em-meta">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.cif].filter(Boolean).map(escH).join(' · ') || '<span class="muted">Sin forma jurídica ni CIF</span>'}</div>
-        <div class="em-meta">${e.constitucion ? `Constituida en ${e.constitucion} · ${anio - e.constitucion} años` : '<span class="muted">Año de constitución sin indicar</span>'}</div>
+        <div class="em-meta">${e.constitucion ? `Constituida en ${escH(e.constitucion)} · ${anio - e.constitucion} años` : '<span class="muted">Año de constitución sin indicar</span>'}</div>
         <div class="em-meta">${[e.sector && S && S[e.sector] ? S[e.sector].nombre : e.sector, e.provincia, e.plantilla !== '' && e.plantilla != null ? e.plantilla + ' personas' : ''].filter(Boolean).map(escH).join(' · ') || '<span class="muted">Sector y plantilla sin indicar</span>'}</div>
-        ${grupo && e.rol !== 'holding' ? `<div class="em-meta">Filial · ${e.participacion != null ? e.participacion : 100} % de ${escH((lista.find((x) => x.id === e.matriz) || {}).nombre || 'la holding')}</div>` : ''}
-        ${soc.length ? `<div class="em-socios" title="${escH(soc.map((s) => `${s.nombre}: ${s.pct} %`).join(' · '))}">${soc.map((s, k) => `<span style="width:${s.pct}%;background:${PAL[(k + 2) % PAL.length]}"></span>`).join('')}</div><div class="em-meta small">${soc.slice(0, 3).map((s) => `${escH(s.nombre)} ${String(s.pct).replace('.', ',')} %`).join(' · ')}${soc.length > 3 ? ' …' : ''}</div>` : '<div class="em-meta muted">Socios sin indicar</div>'}
+        ${grupo && e.rol !== 'holding' ? `<div class="em-meta">Filial · ${escH(e.participacion != null ? e.participacion : 100)} % de ${escH((lista.find((x) => x.id === e.matriz) || {}).nombre || 'la holding')}</div>` : ''}
+        ${soc.length ? `<div class="em-socios" title="${escH(soc.map((s) => `${s.nombre}: ${s.pct} %`).join(' · '))}">${soc.map((s, k) => `<span style="width:${Math.max(0, Math.min(100, +s.pct || 0))}%;background:${PAL[(k + 2) % PAL.length]}"></span>`).join('')}</div><div class="em-meta small">${soc.slice(0, 3).map((s) => `${escH(s.nombre)} ${escH(String(s.pct).replace('.', ','))} %`).join(' · ')}${soc.length > 3 ? ' …' : ''}</div>` : '<div class="em-meta muted">Socios sin indicar</div>'}
         <div class="em-prog" title="Ficha completa al ${pc} %"><span style="width:${pc}%"></span></div>
-        <div class="em-btns"><button class="btn solid small" data-enter="${e.id}">${e.id === act.id ? 'Seguir con esta' : 'Entrar con esta'}</button><button class="btn ghost small" data-ficha="${e.id}">Ficha${pc < 100 ? ` · ${pc} %` : ''}</button>${e.id !== 'principal' ? `<button class="icon-btn" data-del="${e.id}" aria-label="Borrar ${escH(e.nombre)}" title="Borrar">×</button>` : ''}</div>
+        <div class="em-btns"><button class="btn solid small" data-enter="${escH(e.id)}">${e.id === act.id ? 'Seguir con esta' : 'Entrar con esta'}</button><button class="btn ghost small" data-ficha="${escH(e.id)}">Ficha${pc < 100 ? ` · ${pc} %` : ''}</button>${e.id !== 'principal' ? `<button class="icon-btn" data-del="${escH(e.id)}" aria-label="Borrar ${escH(e.nombre)}" title="Borrar">×</button>` : ''}</div>
       </div>`;
     };
     const nReales = P.empresas.reales().length;
@@ -841,17 +979,18 @@
     if (!el) return;
     const u = P.user; if (!u) { el.innerHTML = ''; return; }
     const acc = P.accessOf(u);
-    const ini = (u.nombre || u.email).split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase();
-    el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${u.email}"><span>${ini}</span></button>
+    // Todo lo que escribe la persona (nombre, correo, empresa) se escapa antes de pintarlo
+    const esc = escH, planN = PLANES[u.plan] ? PLANES[u.plan].nombre : esc(u.plan);
+    const ini = String(u.nombre || u.email || '').split(/\s+/).map((x) => x[0] || '').slice(0, 2).join('').toUpperCase();
+    el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${esc(u.email)}"><span>${esc(ini)}</span></button>
       <div class="acc-menu glass" hidden>
-        <div class="acc-head"><b>${(u.nombre || u.email).replace(/</g, '&lt;')}</b><small>${u.email}</small><small>Plan ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="portal.html">Inicio · elegir herramienta</a><a href="tablero.html">Tablero general de la empresa</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a>${P.puede && P.puede('intervencion', u) ? '<a href="intervencion.html">Auditoría integral</a>' : ''}<a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button><button data-planes>Mi plan: ${PLANES[u.plan] ? PLANES[u.plan].nombre : u.plan} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <div class="acc-head"><b>${esc(u.nombre || u.email)}</b><small>${esc(u.email)}</small><small>Plan ${planN} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
+        <a href="portal.html">Inicio · elegir herramienta</a><a href="tablero.html">Tablero general de la empresa</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a>${P.puede && P.puede('intervencion', u) ? '<a href="intervencion.html">Auditoría integral</a>' : ''}<a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button><button data-planes>Mi plan: ${planN} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
     const lista = P.empresas.lista(), act = P.empresas.activa(), lim = P.limiteEmpresas(u);
     const plan = PLANES[u.plan] || PLANES.profesional, grupo = !!plan.grupo;
-    const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     if (act && lim === 1 && lista.length <= 1) {
       const sel = document.createElement('div'); sel.className = 'emp';
       sel.innerHTML = `<button class="emp-btn" title="Ficha de la empresa"><i style="background:#c9f24d"></i><span>${esc(act.nombre === 'Mi empresa' ? 'Ficha de mi empresa' : act.nombre)}</span><b>✎</b></button>`;
@@ -864,7 +1003,7 @@
       sel.innerHTML = `<button class="emp-btn" aria-haspopup="true" title="Cambiar de ${grupo ? 'sociedad' : 'empresa'}"><i style="background:${pal[lista.indexOf(act) % pal.length]}"></i><span>${esc(act.nombre)}</span><b>▾</b></button>
         <div class="emp-menu glass" hidden>
           <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : 'Empresas cliente'}</b><small>${P.empresas.reales().length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ' · plan a medida' : ''} · más la empresa modelo</small></div>
-          <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${e.id}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.modelo ? 'Empresa modelo · datos ficticios' : e.rol === 'holding' ? 'Holding · sociedad dominante' : e.rol === 'filial' ? `Filial · ${e.participacion != null ? e.participacion : 100} %` : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' && !e.modelo ? `<button class="icon-btn" data-empdel="${e.id}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${e.id}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
+          <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${esc(e.id)}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.modelo ? 'Empresa modelo · datos ficticios' : e.rol === 'holding' ? 'Holding · sociedad dominante' : e.rol === 'filial' ? `Filial · ${esc(e.participacion != null ? e.participacion : 100)} %` : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' && !e.modelo ? `<button class="icon-btn" data-empdel="${esc(e.id)}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${esc(e.id)}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
           <a class="emp-group" href="portal.html#empresas">Mapa de ${grupo ? 'sociedades' : 'empresas'} y fichas →</a>
           ${P.empresas.reales().length < lim ? `<form class="emp-new stack" data-empnew><input class="input" name="nombre" placeholder="Nombre de la ${grupo ? 'sociedad' : 'empresa'}" required>${grupo ? '<div class="row"><select class="input" name="rol"><option value="filial">Filial</option><option value="holding">Holding</option></select><input class="input" name="participacion" type="number" min="0" max="100" value="100" title="% de participación" style="width:90px"></div>' : ''}<button class="btn solid" type="submit">Añadir ${grupo ? 'sociedad' : 'empresa'}</button><small class="muted" data-empmsg></small></form>` : `<p class="small muted" style="padding:8px 12px">Has llegado al máximo de tu plan.</p>`}
           <a class="emp-group" href="grupo.html">${grupo ? 'Vista de grupo →' : 'Cartera de clientes →'}</a>

@@ -2,8 +2,8 @@
    Un recorrido guiado por todos los mundos con la empresa modelo (Valdenorte). Se activa a petición desde el mapa
    (puesto de mando o mapa de empresas). En cada parada: qué hace ese mundo y qué beneficio le da a la empresa, con sus cifras.
    El paseo pasa de una página a otra: su estado vive en la sesión del navegador y cada página lo retoma al cargarse.
-   Durante el paseo la empresa modelo se enseña con todos los mundos conectados; al salir se vuelve a la empresa y a las
-   conexiones que había. */
+   Durante el paseo la empresa modelo se enseña con todos los mundos conectados; al salir (o si se abandona a medias) se
+   vuelve a la empresa y a las conexiones que había, con un aviso (platform.js · P.modelo.vuelta). */
 (function () {
   const A = (window.Atalaya = window.Atalaya || {});
   const KEY = 'atalaya.paseo';
@@ -80,8 +80,10 @@
   const P = () => A.platform;
   function iniciar() {
     const Pl = P(); if (!Pl || !Pl.modelo) return;
+    // Se apunta a qué empresa y a qué configuración de la empresa modelo hay que volver (lo deshace la plataforma al salir)
+    if (Pl.modelo.vuelta) Pl.modelo.vuelta.apuntar();
     const c = Pl.modelo.cfg();
-    SS.set({ i: 0, prevEmp: Pl.empresaId(), prevCfg: { plan: c.plan, con: c.con } });
+    SS.set({ i: 0, prevEmp: Pl.empresaId(), prevCfg: { plan: c.plan, con: Object.assign({}, c.con) } });
     // Durante el paseo se enseñan todos los mundos (como en el plan Consultora)
     c.plan = 'consultora'; Object.keys(c.con).forEach((k) => { c.con[k] = true; }); Pl.modelo.guardarCfg(c);
     try { sessionStorage.setItem('atalaya.ruta.intro', '1'); localStorage.setItem('atalaya.empresa.activa', JSON.stringify(Pl.modelo.ID)); } catch (e) { /* sin almacenamiento */ }
@@ -94,16 +96,21 @@
     if (f === s.p && !s.h && !location.hash) { pintar(); return; }
     location.href = url(s); if (f === s.p) location.reload();
   }
+  // Salir: sin paseo activo, la página siguiente devuelve la empresa activa y la configuración de antes y lo avisa
   function salir() {
     const st = SS.get(), Pl = P(); SS.del();
+    if (Pl && Pl.modelo && Pl.modelo.vuelta && Pl.modelo.vuelta.pendiente()) { Pl.modelo.vuelta.restaurar(); location.href = 'portal.html'; return; }
     if (st && Pl && Pl.modelo) {
       const c = Pl.modelo.cfg(); c.plan = (st.prevCfg && st.prevCfg.plan) || ''; if (st.prevCfg && st.prevCfg.con) c.con = st.prevCfg.con; Pl.modelo.guardarCfg(c);
       try { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(st.prevEmp || 'principal')); } catch (e) { /* sin almacenamiento */ }
     }
     location.href = 'portal.html';
   }
-  // Terminar el paseo quedándose con la empresa modelo (con todos sus mundos conectados)
-  function quedarse() { SS.del(); const el = document.getElementById('paseo'); if (el) el.remove(); }
+  // Terminar el paseo quedándose con la empresa modelo, pero con los mundos y el plan que tenía antes del paseo
+  function quedarse() {
+    SS.del(); const el = document.getElementById('paseo'); if (el) el.remove();
+    const Pl = P(); if (Pl && Pl.modelo && Pl.modelo.vuelta && Pl.modelo.vuelta.pendiente()) { Pl.modelo.vuelta.restaurar(true); location.reload(); }
+  }
 
   /* ---------- Tarjeta ---------- */
   function pintar() {
@@ -137,6 +144,9 @@
   });
 
   A.paseo = { iniciar, ir, salir, activo: () => !!SS.get(), PASOS };
-  const arrancar = () => setTimeout(pintar, 600);
+  // Mientras el paseo sigue en esta pestaña, se renueva su marca: así otra pestaña no lo da por abandonado
+  const vivo = () => { const Pl = P(); if (SS.get() && Pl && Pl.user && Pl.modelo && Pl.modelo.vuelta) Pl.modelo.vuelta.vivo(); };
+  setInterval(vivo, 30000);
+  const arrancar = () => setTimeout(() => { pintar(); vivo(); }, 600);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar); else arrancar();
 })();
