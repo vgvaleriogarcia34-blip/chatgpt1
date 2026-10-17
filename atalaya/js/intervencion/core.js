@@ -204,15 +204,17 @@
      Lo que quiere con sus palabras → objetivo SMART que depende de él, con su beneficio pesado y cómo lo va a alcanzar.
      Misma estructura que las metas de la mesa de trabajo, adonde se envía con un clic. */
   const CUANT = /\d[\d.,]*\s*(€|eur|euros|k€|mil|millones|%|horas?|h\b|d[ií]as?|semanas?|meses|minutos|clientes|pedidos|unidades|visitas|puntos)/i;
-  const TERCEROS = /\b(que (los |las )?(clientes|bancos?|proveedores|empleados|trabajadores|equipo|mercado|ventas?)|que me (paguen|compren|llamen)|que suba[n]? (las )?ventas|que el banco)\b/i;
+  const TERCEROS = /\b(que (los |las )?(clientes|bancos?|proveedores|empleados|trabajadores|equipo|mercado|ventas?)|que me (paguen|compren|llamen)|que suba[n]? (las )?ventas|que el banco|que (mi|mis|el|la|los|las|nuestros?|nuestras?|su|sus)\s+\S+\s+(se\s+)?\S+(e|en|a|an)\b)/i;
+  // Frases que no dicen qué se hará: verbos o complementos tan genéricos que no se pueden comprobar
+  const VAGO = /\b(mejorar (la empresa|las cosas|el negocio)|las cosas|todo|estar (mas|mejor)|tranquil|apagar fuegos|ir mejor|que funcione|mas dinero|vender mas|ganar mas|crecer mas|organizarme mejor)\b/;
   // Si se borra la frase del bloque 1, el objetivo se queda sin base: todas las letras se apagan hasta que se vuelva a escribir
   const smartObj = (o) => o.borrada ? smartBase(o).map((y) => Object.assign(y, { ok: false })) : smartBase(o);
   const smartBase = (o) => [
-    { k: 'S', n: 'Específico', ok: (o.especifica || '').trim().split(/\s+/).length >= 4 && /^\s*\S+(ar|er|ir)(se|lo|la|le)?\b/i.test(o.especifica || ''), h: 'Una frase que empieza por un verbo de lo que hará él.' },
+    { k: 'S', n: 'Específico', ok: /^\s*\S+(ar|er|ir)(se|lo|la|le|me)?\b/i.test(o.especifica || '') && !VAGO.test(norm(o.especifica || '')) && ((o.especifica || '').trim().split(/\s+/).length >= 3 || /\d/.test(o.especifica || '')), h: 'Una frase que empieza por un verbo de lo que hará él, sobre algo concreto (no «mejorar la empresa» ni «vender más»).' },
     { k: 'M', n: 'Medible', ok: !!((o.indicador || '').trim() && String(o.valor || '').trim()), h: 'Indicador y valor meta (y, si puede, desde dónde parte).' },
     { k: 'A', n: 'Depende de él', ok: !!o.solo && !TERCEROS.test((o.especifica || '') + ' ' + (o.dice || '')), h: 'Que dependa solo de quien lo ejecuta, no de clientes, bancos o terceros.' },
     { k: 'R', n: 'Rentable', ok: evalObj(o).st === 'ok', h: 'Beneficio cuantificado, contras anotados y confirmado que compensa.' },
-    { k: 'T', n: 'Con fecha', ok: !!o.fecha, h: 'Fecha límite.' }
+    { k: 'T', n: 'Con fecha', ok: !!o.fecha && o.fecha >= hoy(), h: 'Fecha límite, posterior a hoy.' }
   ];
   const evalObj = (o) => {
     const b = (o.beneficio || '').trim();
@@ -443,7 +445,7 @@
   };
 
   /* La lógica de síntomas, triaje, auditoría, plan, sesiones e informes está en vistas.js */
-  V.int = { ETAPAS, TABS, hecho, etapaDe, recVacio, objetivosHTML: () => objetivosHTML(), wireObjetivos: (h) => wireObjetivos(h), prioArea, PRIN_N, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
+  V.int = { ETAPAS, TABS, hecho, etapaDe, recVacio, objetivosHTML: () => objetivosHTML(), wireObjetivos: (h) => wireObjetivos(h), prioArea, PRIN_N, TERCEROS, VAGO, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
 
   /* ---------- Arranque ---------- */
   V.start = async () => {

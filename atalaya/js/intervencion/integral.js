@@ -46,25 +46,37 @@
     { id: 'gobierno', k: ['mi padre', 'relevo', 'sucesion', 'familia en la empresa', 'socio', 'socios', 'quien decide'], ind: 'Acuerdo de gobierno firmado', u: 'acuerdo', solo: false,
       esp: 'Acordar y firmar con la familia o los socios quién decide qué', ben: () => '', coste: 'Conversaciones difíciles con la familia o los socios' },
     { id: 'personal', k: ['vacaciones', 'familia', 'mi mujer', 'mi marido', 'mis hijos', 'estres', 'descansar', 'calidad de vida'], ind: 'Semanas de vacaciones al año sin llamadas del trabajo', u: 'semanas', solo: true,
-      esp: 'Recuperar tiempo personal y de descanso sin que la empresa se pare', ben: () => '', coste: 'Que la empresa funcione sin él: equipo y procesos' }
+      esp: 'Recuperar tiempo personal y de descanso sin que la empresa se pare', ben: () => '', coste: 'Que la empresa funcione sin él: equipo y procesos' },
+    { id: 'gastos', k: ['gastos', 'costes', 'coste', 'gastamos', 'compras', 'ahorrar'], ind: 'Gastos de estructura anuales', u: '€', solo: true,
+      esp: 'Revisar y recortar los gastos de estructura partida a partida', ben: () => '', coste: 'Renegociar contratos y renunciar a algunos gastos' },
+    { id: 'actividad', k: ['llamar', 'llamadas', 'visitar', 'visitas', 'ofertas', 'presupuestos', 'presentar'], ind: 'Acciones comerciales por semana', u: 'acciones', solo: true,
+      esp: 'Hacer cada semana un número fijo de acciones comerciales', ben: () => '', coste: 'Horas de agenda comercial cada semana' }
   ];
   const temaDe = (t) => { const n = norm(t); let mejor = null, sc = 0; TEMAS.forEach((T) => { const s = T.k.filter((k) => n.includes(norm(k))).length; if (s > sc) { sc = s; mejor = T; } }); return mejor; };
   const UNID = { horas: /horas?/, '%': /(%|por ciento)/, '€': /(€|euros?|millon|mil\b)/, meses: /mes(es)?/, 'días': /d[ií]as?/, personas: /(personas|responsables|mandos)/, semanas: /semanas?/ };
   // Lee hoy → meta de una frase («si paso de 50 horas a 20», «cerrar el año con un 10 % de beneficio»)
+  // Quita de la frase los números que son tiempo (plazos, fechas, años) para no tomarlos como la meta
+  const sinTiempo = (c) => c.replace(/\b(?:en|durante|dentro de|los proximos|proximos)\s+(?:los\s+|unos\s+)?\d+\s+(?:meses|mes|anos|ano|semanas|semana|dias|dia)\b/g, ' ')
+    .replace(/\b\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/g, ' ').replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]20\d\d\b/g, ' ').replace(/\b20\d\d\b/g, ' ');
+  const UNID_ALGUNA = /(%|por ciento|€|euros?|millon|\bmil\b|horas?|d[ií]as?|clientes|llamadas|visitas|ofertas|pedidos|personas|unidades)/;
   const medida = (frase, T) => {
-    const c = cifras(frase), m = c.match(/(?:pas[oa]r?|pasamos|bajar|bajamos|subir|subimos|de)\s+(?:de\s+)?(?:unas?\s+|unos?\s+)?(\d+(?:[.,]\d+)?)\s*([a-z%€]*)[^\d]{0,60}?\ba\s+(?:unas?\s+|unos?\s+)?(\d+(?:[.,]\d+)?)/);
+    const c = sinTiempo(cifras(frase)), m = c.match(/(?:pas[oa]r?|pasamos|bajar|bajamos|subir|subimos|de)\s+(?:de\s+)?(?:unas?\s+|unos?\s+)?(\d+(?:[.,]\d+)?)\s*([a-z%€]*)[^\d]{0,60}?\ba\s+(?:unas?\s+|unos?\s+)?(\d+(?:[.,]\d+)?)/);
     if (m) return { actual: m[1].replace(',', '.'), valor: m[3].replace(',', '.') };
-    const n = nums(frase); if (!n.length) return null;
-    if (T && UNID[T.u] && !UNID[T.u].test(c)) return null;
-    return { valor: String(n[n.length - 1]) };
+    const n = (c.match(/\d+(?:[.,]\d+)?/g) || []).map((x) => parseFloat(x.replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'))); if (!n.length) return null;
+    const txt = norm(frase) + ' ' + c;
+    if (T && UNID[T.u] && !UNID[T.u].test(txt) && !UNID_ALGUNA.test(txt)) return null;
+    // Mejor el número que lleva unidad detrás («10 %», «45 días», «2000000 euros»); si no, el último
+    const conU = c.match(/(\d+(?:[.,]\d+)?)\s*(%|€|euros?|horas?|dias?|clientes|llamadas|visitas|ofertas|pedidos|personas|unidades)/);
+    return { valor: conU ? String(parseFloat(conU[1].replace(',', '.'))) : String(n[n.length - 1]) };
   };
   // Fecha límite que se dice en la conversación («en los próximos doce meses», «este año», «en dos años»)
   const fechaDe = (t, base) => {
-    const c = cifras(t); let m = c.match(/(?:proximos|en|dentro de)\s+(?:los\s+)?(\d+)\s+(meses|mes|anos|ano|semanas)/);
+    const c = cifras(t); let m = c.match(/(?:proximos|en|dentro de|durante)\s+(?:los\s+)?(\d+)\s+(meses|mes|anos|ano|semanas)/);
     if (m) { const n = +m[1], u = m[2]; return sumar(base, u.startsWith('sem') ? n * 7 : u.startsWith('mes') ? Math.round(n * 30.4) : n * 365); }
     if (/\b(un|1) ano\b/.test(c)) return sumar(base, 365);
     if (/(este ano|cerrar el ano|cerramos el ano|final de ano|fin de ano)/.test(c)) return base.slice(0, 4) + '-12-31';
-    m = c.match(/\b(?:antes de|para)\s+(?:el\s+)?(20\d\d)\b/); if (m) return m[1] + '-12-31';
+    m = c.match(/\b(?:antes de|para|en|hasta|a final(?:es)? de|al cierre de)\s+(?:el\s+)?(?:ano\s+)?(20\d\d)\b/); if (m) return m[1] + '-12-31';
+    if (/\b(el ano que viene|el proximo ano)\b/.test(c)) return (+base.slice(0, 4) + 1) + '-12-31';
     // «antes de junio», «para finales de marzo de 2027», «el 30 de junio»: último día de ese mes (o ese día), la próxima vez que llegue
     m = c.match(/\b(?:(\d{1,2})\s+de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:\s+(?:de|del)\s+(20\d\d))?\b/);
     if (m) { const mes = MESES.indexOf(m[2] === 'setiembre' ? 'septiembre' : m[2]) + 1, b = new Date(base + 'T12:00:00'); let an = m[3] ? +m[3] : b.getFullYear(); if (!m[3] && mes < b.getMonth() + 1) an++; const ult = new Date(an, mes, 0).getDate(), d = m[1] ? Math.min(+m[1], ult) : ult; return `${an}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`; }
@@ -82,7 +94,12 @@
     // La cifra y la fecha van en sus campos: se quitan del «qué hará» para que la frase final no las repita
     if (r.especifica) r.especifica = r.especifica.replace(/\s+(?:de|desde)\s+(?:unas?\s+|unos?\s+)?\d+(?:[.,]\d+)?\s*\S*\s+a\s+(?:unas?\s+|unos?\s+)?\d+(?:[.,]\d+)?(?:\s*(?:%|€|horas?|d[ií]as?|semanas?|meses|euros?))?/i, '')
       .replace(/,?\s+(?:antes de(?:l)?|para(?: el)?|a finales de|en)\s+(?:finales de\s+)?(?:(?:\d{1,2}\s+de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:\s+de(?:l)?\s+20\d\d)?|20\d\d|\d+\s+(?:meses|mes|a[ñn]os?|semanas))\b/i, '').replace(/\s{2,}/g, ' ').trim();
-    if (T) { r.indicador = T.ind; r.unidad = T.u; if (T.solo) r.solo = true; }
+    if (T) { r.indicador = T.ind; r.unidad = T.u; }
+    const nt = norm(t), uf = /(%|por ciento)/.test(nt) ? '%' : /(€|euros?|millon|\bmil\b)/.test(nt) ? '€' : (nt.match(/\d\s*(horas|dias|clientes|llamadas|visitas|ofertas|pedidos)\b/) || [])[1];
+    if (uf) r.unidad = uf === 'dias' ? 'días' : uf;
+    // Depende de él si dice lo que hará él (verbo suyo), no habla de otros y no es solo un resultado que decide el mercado
+    const RESULTADO = /^(vender|facturar|crecer|captar|conseguir (mas )?clientes|que )/;
+    r.solo = !!r.especifica && !(V.int.TERCEROS && V.int.TERCEROS.test(t)) && !(V.int.VAGO && V.int.VAGO.test(norm(r.especifica))) && (T ? T.solo : !RESULTADO.test(norm(r.especifica)));
     if (md) { if (md.actual) r.actual = md.actual; if (md.valor) r.valor = md.valor; }
     if (f) r.fecha = f;
     if (T && T.ben) { const b = T.ben(Object.assign({}, r), {}); if (b) r.beneficio = b; }
