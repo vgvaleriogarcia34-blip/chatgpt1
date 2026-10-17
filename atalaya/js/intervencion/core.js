@@ -205,7 +205,9 @@
      Misma estructura que las metas de la mesa de trabajo, adonde se envía con un clic. */
   const CUANT = /\d[\d.,]*\s*(€|eur|euros|k€|mil|millones|%|horas?|h\b|d[ií]as?|semanas?|meses|minutos|clientes|pedidos|unidades|visitas|puntos)/i;
   const TERCEROS = /\b(que (los |las )?(clientes|bancos?|proveedores|empleados|trabajadores|equipo|mercado|ventas?)|que me (paguen|compren|llamen)|que suba[n]? (las )?ventas|que el banco)\b/i;
-  const smartObj = (o) => [
+  // Si se borra la frase del bloque 1, el objetivo se queda sin base: todas las letras se apagan hasta que se vuelva a escribir
+  const smartObj = (o) => o.borrada ? smartBase(o).map((y) => Object.assign(y, { ok: false })) : smartBase(o);
+  const smartBase = (o) => [
     { k: 'S', n: 'Específico', ok: (o.especifica || '').trim().split(/\s+/).length >= 4 && /^\s*\S+(ar|er|ir)(se|lo|la|le)?\b/i.test(o.especifica || ''), h: 'Una frase que empieza por un verbo de lo que hará él.' },
     { k: 'M', n: 'Medible', ok: !!((o.indicador || '').trim() && String(o.valor || '').trim()), h: 'Indicador y valor meta (y, si puede, desde dónde parte).' },
     { k: 'A', n: 'Depende de él', ok: !!o.solo && !TERCEROS.test((o.especifica || '') + ' ' + (o.dice || '')), h: 'Que dependa solo de quien lo ejecuta, no de clientes, bancos o terceros.' },
@@ -222,7 +224,7 @@
   const fraseObj = (o) => { const q = (o.especifica || o.dice || '').trim().replace(/[.\s]+$/, ''); if (!q) return ''; return `${q}${o.valor ? `, ${o.actual ? 'pasando de ' + o.actual + ' a ' : 'hasta '}${o.valor} ${o.unidad || ''}`.replace(/\s+$/, '') : ''}${o.fecha ? ', antes del ' + fLarga(o.fecha) : ''}${o.beneficio ? ', para ' + o.beneficio.charAt(0).toLowerCase() + o.beneficio.slice(1).replace(/[.\s]+$/, '') : ''}.`; };
   const objNuevo = () => ({ id: uid(), dice: '', especifica: '', indicador: '', actual: '', valor: '', unidad: '', fecha: '', responsable: '', solo: false, beneficio: '', contras: '', merece: '', como: '' });
   const objetivosHTML = () => `<div class="iv-objs" id="ivObjs"><div class="row"><div><div class="eyebrow">Objetivos del empresario</div><small class="muted">Que los ponga él. Tú le ayudas a que sean SMART y a decir cómo los va a alcanzar.</small></div><span class="spacer"></span><button class="btn small" id="ivObjN">Añadir un objetivo</button></div>
-    ${(ST.objetivos || []).map((o, i) => { const sm = smartObj(o), ev = evalObj(o); return `<div class="iv-obj" data-o="${o.id}"><div class="row"><b class="iv-oid">O${i + 1}</b><span class="iv-smart">${sm.map((y) => `<i class="${y.ok ? 'ok' : ''}" title="${esc(y.n + ': ' + y.h)}">${y.k}</i>`).join('')}</span><span class="ms-luz ${ev.st}" title="${esc(ev.t)}"></span><small class="muted iv-oev">${esc(ev.t)}</small><span class="spacer"></span><button class="icon-btn" data-odel aria-label="Quitar el objetivo">×</button></div>
+    ${(ST.objetivos || []).map((o, i) => { const sm = smartObj(o), ev = evalObj(o); return `<div class="iv-obj" data-o="${o.id}"><div class="row"><b class="iv-oid">O${i + 1}</b><span class="iv-smart">${sm.map((y) => `<i class="${y.ok ? 'ok' : ''}" title="${esc(y.n + ': ' + y.h)}">${y.k}</i>`).join('')}</span><span class="ms-luz ${o.borrada ? '' : ev.st}" title="${esc(o.borrada ? 'Sin frase' : ev.t)}"></span><small class="muted iv-oev">${esc(o.borrada ? 'Sin frase: escriba lo que quiere con sus palabras.' : ev.t)}</small><span class="spacer"></span><button class="icon-btn" data-odel aria-label="Quitar el objetivo">×</button></div>
       <label class="small">1 · Lo que quiere, con sus palabras<textarea class="input" rows="2" data-ok="dice" placeholder="«Quiero dejar de apagar fuegos y que la empresa gane dinero de verdad»">${esc(o.dice)}</textarea></label>
       <p class="iv-oaviso small" data-oaviso></p>
       <label class="small">2 · Qué hará él (empieza por un verbo y depende de él)<input class="input" data-ok="especifica" value="${esc(o.especifica)}" placeholder="Dedicar las mañanas del lunes a dirigir y delegar la operativa del almacén"></label>
@@ -267,11 +269,14 @@
     const n = $('#ivObjN', host); if (n) n.onclick = () => { ST.objetivos.push(objNuevo()); render(); const l = $$('.iv-obj', host); const u = l[l.length - 1]; if (u) { u.scrollIntoView({ block: 'center' }); $('[data-ok=dice]', u).focus(); } };
     $$('.iv-obj', host).forEach((d) => {
       const o = ST.objetivos.find((x) => x.id === d.dataset.o), i = ST.objetivos.indexOf(o);
-      const refrescar = () => { const sm = smartObj(o), ev = evalObj(o); $('.iv-smart', d).innerHTML = sm.map((y) => `<i class="${y.ok ? 'ok' : ''}" title="${esc(y.n + ': ' + y.h)}">${y.k}</i>`).join(''); $('.ms-luz', d).className = 'ms-luz ' + ev.st; $('.iv-oev', d).textContent = ev.t; $('[data-ofr]', d).textContent = fraseObj(o) || '—'; };
-      $$('[data-ok]', d).forEach((x) => (x.oninput = x.onchange = () => { o[x.dataset.ok] = x.type === 'checkbox' ? x.checked : x.value; if (o.auto && x.dataset.ok in o.auto) delete o.auto[x.dataset.ok]; guardar(); refrescar(); }));
+      const refrescar = () => { const sm = smartObj(o), ev = evalObj(o); $('.iv-smart', d).innerHTML = sm.map((y) => `<i class="${y.ok ? 'ok' : ''}" title="${esc(y.n + ': ' + y.h)}">${y.k}</i>`).join(''); $('.ms-luz', d).className = 'ms-luz ' + (o.borrada ? '' : ev.st); $('.iv-oev', d).textContent = o.borrada ? 'Sin frase: escriba lo que quiere con sus palabras.' : ev.t; $('[data-ofr]', d).textContent = fraseObj(o) || '—'; };
+      // Frase borrada: se quitan los campos que se rellenaron leyéndola y se apagan las luces
+      const apagar = () => { const au = o.auto || {}; Object.keys(au).forEach((k) => { if (String(o[k]) !== String(au[k])) return; o[k] = k === 'solo' ? false : ''; const inp = $(`[data-ok="${k}"]`, d); if (inp) { if (inp.type === 'checkbox') inp.checked = false; else inp.value = ''; } }); o.auto = {}; o.borrada = true; const av = $('[data-oaviso]', d); if (av) av.innerHTML = '<span class="muted">Frase borrada: las letras SMART se apagan hasta que vuelva a escribir lo que quiere.</span>'; };
+      $$('[data-ok]', d).forEach((x) => (x.oninput = x.onchange = () => { const k = x.dataset.ok; o[k] = x.type === 'checkbox' ? x.checked : x.value; if (o.auto && k in o.auto) delete o.auto[k]; if (k === 'dice') { if (!x.value.trim()) apagar(); else delete o.borrada; } guardar(); refrescar(); }));
       // Al salir del bloque 1 se vuelve a leer lo que ha dicho: se completan los campos vacíos y se repasa el SMART
       const dice = $('[data-ok=dice]', d), aviso = $('[data-oaviso]', d);
       if (dice) dice.addEventListener('blur', () => {
+        if (!(o.dice || '').trim()) return;
         const antes = smartObj(o).map((y) => y.ok), leido = V.objSmart && V.objSmart.leerFrase ? V.objSmart.leerFrase(o.dice) : {};
         o.auto = o.auto || {};
         Object.keys(leido).forEach((k) => { const vacio = k === 'solo' ? !o.solo : !String(o[k] || '').trim(), mio = k in o.auto && String(o.auto[k]) === String(o[k]); if (!vacio && !mio) return; if (k === 'solo' && TERCEROS.test(o.dice)) return; o[k] = leido[k]; o.auto[k] = leido[k]; const inp = $(`[data-ok="${k}"]`, d); if (inp) { if (inp.type === 'checkbox') inp.checked = !!leido[k]; else inp.value = leido[k]; } });
