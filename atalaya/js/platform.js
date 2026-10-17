@@ -656,6 +656,22 @@
   /* ---------- Ficha de la empresa modelo ----------
      Qué es, qué mundos están conectados y con qué plan se enseña. Un mundo desconectado se queda a cero (como una empresa
      real a la que le faltan esos datos) y los demás avisan de lo que falta: así se ve qué aporta cada mundo y cada plan. */
+  /* ---------- Vídeo de presentación (89 s) en una ventana flotante ----------
+     Se abre desde el puesto de mando, la ficha de la empresa modelo y el final del paseo. Esc, × o pulsar fuera lo cierran. */
+  P.VIDEO = 'media/video/atalaya-promo.mp4';
+  P.verVideo = function () {
+    if (document.querySelector('.vp-back')) return;
+    const back = document.createElement('div'); back.className = 'vp-back'; back.setAttribute('role', 'dialog'); back.setAttribute('aria-label', 'Vídeo: anticiparse y decidir mejor');
+    back.innerHTML = `<div class="vp-box"><button class="vp-x" type="button" aria-label="Cerrar el vídeo">×</button>
+      <video class="vp-v" src="${P.VIDEO}" controls autoplay playsinline preload="auto"></video>
+      <div class="vp-pie"><span>Atalaya 360° · Anticiparse y decidir mejor</span><a href="${P.VIDEO}" download>Descargar MP4</a></div></div>`;
+    const cerrar = () => { const v = back.querySelector('video'); if (v) v.pause(); back.remove(); removeEventListener('keydown', tecla); };
+    const tecla = (ev) => { if (ev.key === 'Escape') cerrar(); };
+    back.addEventListener('click', (ev) => { if (ev.target === back) cerrar(); });
+    back.querySelector('.vp-x').onclick = cerrar; addEventListener('keydown', tecla);
+    document.body.appendChild(back); back.querySelector('.vp-x').focus();
+  };
+
   P.fichaModelo = function (e) {
     const c = P.modelo.cfg(), mio = (P.user && P.user.plan) || 'profesional', K = A.modelo && A.modelo.cifras ? A.modelo.cifras() : null;
     const eur = (x) => P.eur(Math.round(x / 1000) * 1000).replace(/\.000 €$/, '.000 €');
@@ -679,7 +695,7 @@
           <button class="btn solid" type="submit">Guardar las conexiones</button>
           <button type="button" class="btn ghost" data-entrar>${P.modelo.activa() ? 'Seguir con la empresa modelo' : 'Probar con la empresa modelo'}</button>
           ${A.paseo ? '<button type="button" class="btn ghost" data-paseo>Paseo virtual</button>' : ''}
-          <a class="btn ghost" href="video.html">Vídeo con voz</a>
+          <button type="button" class="btn ghost" data-video>Ver el vídeo</button>
           <span class="spacer"></span>
           <button type="button" class="btn ghost small" data-reset title="Vuelve a crear los datos de la empresa modelo tal como vienen">Restablecer sus datos</button>
         </div>
@@ -696,6 +712,7 @@
       f.onsubmit = (ev) => { ev.preventDefault(); aplicar(false); };
       f.querySelector('[data-entrar]').onclick = () => aplicar(true);
       const pb = f.querySelector('[data-paseo]'); if (pb) pb.onclick = () => { P.modelo.guardarCfg(leer()); close(true); A.paseo.iniciar(); };
+      const vb = f.querySelector('[data-video]'); if (vb) vb.onclick = () => P.verVideo();
       const rb = f.querySelector('[data-reset]');
       rb.onclick = () => {
         if (!rb.dataset.ok) { rb.dataset.ok = '1'; rb.textContent = 'Pulsa otra vez: se pierde lo que hayas cambiado en la empresa modelo'; return; }

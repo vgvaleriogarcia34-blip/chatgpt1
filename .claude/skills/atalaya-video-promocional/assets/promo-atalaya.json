@@ -4,7 +4,7 @@
   "acento": "#c9f24d",
   "marca": "Atalaya *360°*",
   "subtitulos": true,
-  "velocidad_voz": 1.06,
+  "velocidad_voz": 1.0,
   "musica": null,
   "bloques": [
     {
@@ -264,7 +264,7 @@
       ]
     },
     {
-      "voz": "Ensaya cinco escenarios a la vez, del estrés al optimista, para decidir sabiendo qué pasa si las cosas salen peor de lo previsto.",
+      "voz": "Ensaya cinco escenarios a la vez, del estrés al optimista, para decidir sabiendo qué ocurre si las cosas salen peor de lo previsto.",
       "planos": [
         {
           "tipo": "captura",
@@ -369,8 +369,8 @@
       ]
     },
     {
-      "voz": "Y le enseña qué palancas mover. En el caso de ejemplo, nueve palancas llevan la liquidez mínima de menos doscientos ochenta y cinco mil euros a setenta y un mil.",
-      "sub": "Y le enseña qué palancas mover. En el caso de ejemplo, nueve palancas llevan la liquidez mínima de −285.000 € a 71.000 €.",
+      "voz": "Y le enseña qué palancas mover. En el caso de ejemplo, nueve palancas cambian el resultado. La liquidez mínima pasa de menos doscientos ochenta y cinco mil euros a setenta y un mil.",
+      "sub": "Y le enseña qué palancas mover. En el caso de ejemplo, nueve palancas cambian el resultado. La liquidez mínima pasa de −285.000 € a 71.000 €.",
       "planos": [
         {
           "tipo": "captura",
@@ -402,7 +402,7 @@
       ]
     },
     {
-      "voz": "Detecta los puestos críticos sin suplente, ordena el diagnóstico por urgencias y lo convierte en metas con fecha y responsable.",
+      "voz": "Detecta los puestos críticos sin suplente, ordena el diagnóstico por urgencias y lo convierte en metas, cada una con su fecha y su responsable.",
       "planos": [
         {
           "tipo": "captura",
@@ -503,5 +503,7 @@
         }
       ]
     }
-  ]
+  ],
+  "motor": "kokoro",
+  "voz_nombre": "em_alex"
 }

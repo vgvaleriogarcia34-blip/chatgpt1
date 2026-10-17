@@ -1,6 +1,6 @@
 ---
 name: atalaya-video-promocional
-description: Produce vídeos promocionales profesionales para vender Atalaya 360° a partir de capturas reales de la propia aplicación — guion de venta, capturas nítidas con Playwright, voz en off en español (Piper), montaje fotograma a fotograma con encuadres en movimiento, focos, rótulos y subtítulos, y MP4 1080p. Usar SIEMPRE que se pida un vídeo para vender, presentar o anunciar Atalaya (promo, anuncio, teaser, vídeo para la web, para redes, para una feria o para enviar a clientes), cuando se quiera «montar», «editar» o «rehacer» un vídeo con pantallas de la aplicación, cambiar su ritmo, su guion o su voz, o hacer versiones (más corta, para LinkedIn, con otro mensaje), aunque no se diga la palabra «skill».
+description: Produce vídeos promocionales profesionales para vender Atalaya 360° a partir de capturas reales de la propia aplicación — guion de venta, capturas nítidas con Playwright, voz en off natural en español (Kokoro, sin conexión), montaje fotograma a fotograma con encuadres en movimiento, focos, rótulos y subtítulos, y MP4 1080p. Usar SIEMPRE que se pida un vídeo para vender, presentar o anunciar Atalaya (promo, anuncio, teaser, vídeo para la web, para redes, para una feria o para enviar a clientes), cuando se quiera «montar», «editar» o «rehacer» un vídeo con pantallas de la aplicación, cambiar su ritmo, su guion o su voz, o hacer versiones (más corta, para LinkedIn, con otro mensaje), aunque no se diga la palabra «skill».
 ---
 
 # Vídeo promocional de Atalaya 360°
@@ -15,7 +15,7 @@ El protagonista es lo que Atalaya hace por quien lo compra: anticiparse y decidi
 |---|---|
 | `scripts/capturar.js` | Capturas 3840×2160 de la app con la empresa modelo activa, las «marcas» (posición de lo que se quiere enseñar) y clips en movimiento (planetas, abanicos) |
 | `scripts/revisar_marcas.py` | Hoja con cada captura y sus marcas dibujadas, para comprobar encuadres |
-| `scripts/voz.py` | Locución de cada bloque con Piper y su duración |
+| `scripts/voz.py` | Locución de cada bloque (Kokoro por defecto, Piper como alternativa), frase a frase con pausas naturales, y su duración |
 | `scripts/componer.html` | Compositor: dibuja cada fotograma (encuadre, foco, rótulos, subtítulos, tarjetas) |
 | `scripts/render.js` | Línea de tiempo + fotogramas + sonido → MP4 (con `--borrador` para revisar rápido) |
 | `assets/capturas-atalaya.json` | Lista de pantallas que se capturan, con sus marcas |
@@ -29,7 +29,11 @@ El protagonista es lo que Atalaya hace por quien lo compra: anticiparse y decidi
 - La aplicación servida en local: `cd atalaya && python3 -m http.server 8765`.
 - Node con Playwright y Chromium. En este entorno: `PLAYWRIGHT=/opt/node22/lib/node_modules/playwright`.
 - `ffmpeg`.
-- Piper: `pip install piper-tts` y la voz `es_ES-davefx-medium.onnx` (con su `.json`), que se descarga de `huggingface.co/rhasspy/piper-voices` en `es/es_ES/davefx/medium/`.
+- **Voz (Kokoro, por defecto):** `pip install kokoro-onnx soundfile` y los archivos `kokoro-v1.0.onnx` y `voices-v1.0.bin`, que se descargan de las versiones de `github.com/thewh1teagle/kokoro-onnx` (`model-files-v1.0`).
+  - Voces en español: `em_alex` (hombre, la de por defecto), `em_santa` (hombre) y `ef_dora` (mujer). Se elige con `"voz_nombre"` en el montaje.
+  - Por qué Kokoro: con el mismo texto, `em_alex` tiene un 55 % más de variación de entonación que Piper `davefx` y se transcribe sin errores; suena menos mecánica.
+- **Voz alternativa (Piper):** `pip install piper-tts` y `es_ES-davefx-medium.onnx` (con su `.json`) de `huggingface.co/rhasspy/piper-voices`. Se usa con `"motor": "piper"` o pasando solo el modelo de Piper.
+- **Comprobar la voz sin oírla (opcional):** `pip install faster-whisper` y transcribir cada `voz-<n>.wav`. Si el texto transcrito no coincide (por ejemplo «fecha y responsable» → «fecha irresponsable»), reformula la frase.
   - Hay otras voces: `sharvard`, con hablante femenino (`-s 1`) y masculino.
 
 ## Flujo de trabajo
@@ -66,9 +70,10 @@ Mira `marcas.jpg`. Cada marca debe rodear justo lo que se quiere enseñar. Si co
 
 ### 4. Voz
 ```bash
-python3 scripts/voz.py assets/promo-atalaya.json <trabajo> <ruta>/es_ES-davefx-medium.onnx
+python3 scripts/voz.py assets/promo-atalaya.json <trabajo> <ruta>/kokoro-v1.0.onnx <ruta>/voices-v1.0.bin
 ```
-- **Velocidad:** `velocidad_voz` en el montaje (1,0 natural; 1,05–1,1 para un anuncio con más pulso).
+- **Naturalidad:** cada frase se genera por separado y se une con una pausa breve; la voz pasa por un tratamiento suave de locutor. Frases de 8 a 18 palabras, una idea cada una; una cifra grande, mejor en su propia frase.
+- **Velocidad:** `velocidad_voz` en el montaje (1,0 natural con Kokoro; con Piper, 1,05–1,1 para más pulso).
 - **Volver a generar:** hay que hacerlo cada vez que cambie un texto de `voz`.
 
 ### 5. Borrador → revisión → final
@@ -92,7 +97,16 @@ node scripts/render.js assets/promo-atalaya.json <trabajo>/capturas <trabajo> at
 ```
 Unos 10–15 minutos para 85 s a 1080p y 30 fps.
 
-### 6. Comprobación y entrega
+### 6. Versión para la web
+El máster sale a calidad alta (unos 60 MB para 90 s). Para la aplicación, GitHub y la publicación (límite de 15 MB por archivo), haz una versión de ≤14 MB en dos pasadas; el texto de las pantallas se mantiene nítido:
+```bash
+B=$(python3 -c "print(int(13.5*8192/<duración_s> - 110))")k   # vídeo; el resto es el sonido a 96k
+ffmpeg -y -i maestro.mp4 -c:v libx264 -preset slower -b:v $B -pass 1 -passlogfile web -an -f null /dev/null
+ffmpeg -y -i maestro.mp4 -c:v libx264 -preset slower -b:v $B -maxrate 2500k -bufsize 4000k -pass 2 -passlogfile web -pix_fmt yuv420p -c:a aac -b:a 96k -movflags +faststart atalaya/media/video/atalaya-promo.mp4
+```
+En la aplicación, el vídeo se abre en ventana flotante con `Atalaya.platform.verVideo()` (botón pequeño del puesto de mando, ficha de la empresa modelo y final del paseo) y en `video.html`.
+
+### 7. Comprobación y entrega
 - **Sonido:** que la voz suena al principio de cada bloque (`ffmpeg -af volumedetect` en ese instante) y que la sonoridad queda en torno a −16 LUFS (el render la normaliza).
 - **Entrega:** el MP4 y una línea con su duración y número de planos. Si la persona puede escucharlo y tú no, díselo: es la comprobación que falta.
 

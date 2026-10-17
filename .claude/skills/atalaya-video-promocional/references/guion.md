@@ -47,4 +47,4 @@ En 30 s: gancho, una capacidad, prueba y cierre.
 - **Con las nueve palancas:** la liquidez mínima pasa a 71.000 €, la recuperación de 7,4 a 6 años, la deuda / EBITDA de 3,9 a 2,4 y la caja a cinco años de 0,9 a 2,2 M€.
 - **Concentración:** un cliente supone el 31 % de las ventas. Cobros a 86 días.
 
-Si el motor o los datos cambian, vuelve a comprobarlas con `js/video/guion.js` (`A.videoModelo.calcular()`).
+Si el motor o los datos cambian, vuelve a comprobarlas en la aplicación con la empresa modelo activa: puente de mando del simulador (liquidez mínima, veredicto) y «Meta y plan» (efecto de las palancas).

@@ -29,6 +29,7 @@
   $$('[data-w]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); enter(b.dataset.w); }));
   // Paseo virtual con la empresa modelo, a petición desde el mapa
   const pb = $('#ptPaseo'); if (pb) pb.addEventListener('click', (e) => { e.stopPropagation(); if (A.paseo) A.paseo.iniciar(); });
+  const vb = $('#ptVideo'); if (vb) vb.addEventListener('click', (e) => { e.stopPropagation(); P.verVideo(); });
 
   /* ---------- Cuenta y saludo ---------- */
   (async () => {
