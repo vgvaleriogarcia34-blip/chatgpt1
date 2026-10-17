@@ -69,6 +69,7 @@
 @media (max-width: 600px) { .iv-e small { display: none; } }
 .iv-monitor { width: 100%; background: #04110a; border-radius: 12px; padding: 10px; border: 1px solid rgba(47, 178, 74, 0.3); }
 .iv-monitor.claro { background: #f6f5f0; border-color: #d6d3c8; }
+.iv-monitor.claro .iv-mt { fill: #3d434d; }
 .iv-radar { overflow: visible; }
 .iv-mt { font: 600 11px var(--font-display); fill: #9fb4a6; }
 .iv-mv { font: 600 12px var(--font-data); }

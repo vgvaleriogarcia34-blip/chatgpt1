@@ -14,12 +14,12 @@
     const todas = porPeso(), tot = todas.reduce((a, x) => a + x.base, 0);
     if (!todas.length || !tot) return '<p class="small muted" style="margin:0">Sin peso todavía: enlaza síntomas o hallazgos a las causas para ver el Pareto.</p>';
     const v = veinteDe(), l = todas.length > 20 ? todas.slice(0, 15).concat([{ resto: true, base: todas.slice(15).reduce((a, x) => a + x.base, 0), n: todas.length - 15 }]) : todas;
-    const W = estrecho ? 360 : 560, H = estrecho ? 220 : 190, L = 34, Rr = 40, T = 14, Bt = 24, max = Math.max(...l.map((x) => x.base)), gap = l.length > 12 ? 3 : 6, bw = Math.min(46, (W - L - Rr) / l.length - gap), alto = H - T - Bt;
+    const W = estrecho ? 360 : 560, H = estrecho ? 220 : 190, L = 34, Rr = 40, T = 14, Bt = 24, max = Math.max(...l.filter((x) => !x.resto).map((x) => x.base)), gap = l.length > 12 ? 3 : 6, bw = Math.min(46, (W - L - Rr) / l.length - gap), alto = H - T - Bt;
     const y = (f) => T + alto * (1 - f);
     let acc = 0; const pts = [];
-    const bars = l.map((x, i) => { acc += x.base; const h = (x.base / max) * alto, X = L + i * (bw + gap), dentro = !x.resto && v.set.has(x.c.id), nom = x.resto ? `Resto: ${x.n} causas` : x.c.t;
+    const bars = l.map((x, i) => { acc += x.base; const h = Math.min(1, x.base / max) * alto, X = L + i * (bw + gap), dentro = !x.resto && v.set.has(x.c.id), nom = x.resto ? `Resto: ${x.n} causas` : x.c.t;
       pts.push([X + bw / 2, y(acc / tot)]);
-      return `<rect x="${X}" y="${y(0) - h}" width="${bw}" height="${Math.max(1, h)}" rx="3" fill="${dentro ? '#c9f24d' : '#4a5363'}"><title>${esc(nom)} · peso ${x.base.toFixed(1).replace('.', ',')} · ${Math.round((x.base / tot) * 100)} % · acumulado ${Math.round((acc / tot) * 100)} %</title></rect><text x="${X + bw / 2}" y="${H - 8}" text-anchor="middle" class="iv-rt">${x.resto ? '+' + x.n : i + 1}</text>`; }).join('');
+      return `<rect x="${X}" y="${y(0) - h}" width="${bw}" height="${Math.max(1, h)}" rx="3" fill="${dentro ? '#c9f24d' : '#4a5363'}"><title>${esc(nom)} · peso ${x.base.toFixed(1).replace('.', ',')} · ${Math.round((x.base / tot) * 100)} % · acumulado ${Math.round((acc / tot) * 100)} %</title></rect><text x="${X + bw / 2}" y="${H - 8}" text-anchor="middle" class="iv-rt">${x.resto ? '+' + x.n : i + 1}</text>${x.resto && x.base > max ? `<text x="${X + bw / 2}" y="${y(0) - h + 12}" text-anchor="middle" class="iv-rt" style="fill:#f3f2ee">${Math.round((x.base / tot) * 100)} %</text>` : ''}`; }).join('');
     const lect = l.map((x, i) => `${x.resto ? 'resto' : i + 1 + ' ' + x.c.t} ${Math.round((x.base / tot) * 100)} %`).join('; ');
     return `<svg class="iv-pareto" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pareto de causas por peso: ${esc(lect)}. ${v.n} de ${v.de} explican el ${v.pct} %"><title>Pareto de causas: ${esc(lect)}</title>
       ${[0, 50, 100].map((k) => `<text x="${W - Rr + 4}" y="${y(k / 100) + 3}" class="iv-rt">${k} %</text>`).join('')}<line x1="${L}" x2="${W - Rr}" y1="${y(0)}" y2="${y(0)}" stroke="rgba(128,128,128,.35)"/>
