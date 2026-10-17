@@ -51,7 +51,8 @@
     const out = [{ st: 'ok', peso: 3, t: 'Datos de la empresa cargados', zona: 'empresa' }];
     if (o.veredicto && o.inversion) out.push({ st: o.veredicto.key === 'stop' ? 'stop' : o.veredicto.key === 'warn' ? 'warn' : 'ok', peso: 3, t: 'Veredicto de la inversión: ' + o.veredicto.titulo, zona: 'puente' });
     if (!o.inversion) out.push({ st: 'nd', peso: 1, t: 'Inversión sin definir: sin veredicto', d: 'Defina la inversión para obtener el veredicto.', zona: 'inversion' });
-    (o.luces || []).filter((l) => o.inversion || !LUZ_INV.has(l.key)).forEach((l) => out.push({ st: l.st, peso: l.key === 'liquidez' ? 2 : 1, t: (l.st === 'stop' ? 'En rojo: ' : l.st === 'warn' ? 'En ámbar: ' : '') + l.nombre + (l.valor ? ' (' + l.valor + ')' : ''), d: l.st !== 'ok' ? 'Toque para ver qué lo mueve y cómo ponerlo en verde.' : '', zona: 'riesgos' }));
+    if (o.humano === false) out.push({ st: 'nd', peso: 1, t: 'Equipo sin evaluar: preguntas del sistema humano sin responder', zona: 'humano' });
+    (o.luces || []).filter((l) => (o.inversion || !LUZ_INV.has(l.key)) && !(o.humano === false && l.key === 'humano')).forEach((l) => out.push({ st: l.st, peso: l.key === 'liquidez' ? 2 : 1, t: (l.st === 'stop' ? 'En rojo: ' : l.st === 'warn' ? 'En ámbar: ' : '') + l.nombre + (l.valor ? ' (' + l.valor + ')' : ''), d: l.st !== 'ok' ? 'Toque para ver qué lo mueve y cómo ponerlo en verde.' : '', zona: 'riesgos' }));
     if (o.deudaEbitda != null && isFinite(o.deudaEbitda)) out.push({ st: o.deudaEbitda > 4 ? 'stop' : o.deudaEbitda > 3 ? 'warn' : 'ok', peso: 2, t: o.deudaEbitda > 3 ? `Carga financiera alta: deuda de ${o.deudaEbitda.toFixed(1).replace('.', ',')} veces el EBITDA` : 'Carga financiera asumible', d: o.deudaEbitda > 3 ? 'Alinee la financiación con lo que genera el negocio: plazo, carencia o aportación.' : '', zona: 'inversion' });
     if (!o.historico) out.push({ st: 'warn', peso: 1, t: 'Sin cuentas de años anteriores', d: 'Con dos o tres ejercicios la proyección es más fiable.', zona: 'historia' });
     return out;
@@ -66,7 +67,9 @@
     const sinDatos = !(+st.empresa.ventas > 0), inv = st.inversion || {}, inversion = +inv.importe > 0 || (inv.lineas || []).some((l) => +l.importe > 0);
     if (sinDatos || ej) return evalSimulador({ sinDatos: sinDatos || (real && ej), ejemplo: ej });
     const r = A.analyze(st, A.scenarioMods(st, st.escenario || 'base'));
-    return evalSimulador({ historico: !!(st.historico && st.historico.anios && st.historico.anios.length && !st.historico.ejemplo), inversion, veredicto: r.verdict, luces: r.lights.map((l) => ({ key: l.key, nombre: l.nombre, valor: l.valor, st: l.estado === 'go' ? 'ok' : l.estado })), deudaEbitda: r.deudaEbitda });
+    // Preguntas del equipo sin responder: el semáforo del sistema humano no puntúa
+    const hum = !!(st.humano && Object.keys(st.humano).some((k) => +st.humano[k] > 0));
+    return evalSimulador({ historico: !!(st.historico && st.historico.anios && st.historico.anios.length && !st.historico.ejemplo), inversion, humano: hum, veredicto: r.verdict, luces: r.lights.map((l) => ({ key: l.key, nombre: l.nombre, valor: l.valor, st: l.estado === 'go' ? 'ok' : l.estado })), deudaEbitda: r.deudaEbitda });
   };
   // Sistema estratégico: indicadores, datos que faltan, ejemplo, ABC, plan de empresa, objetivos y riesgos
   const estDesdeMotor = () => {
@@ -225,7 +228,7 @@
     const rojos = ptos.filter((x) => x.st === 'stop').length, nds = ptos.filter((x) => x.st === 'nd').length;
     panel.innerHTML = `<div class="nt-head"><div><div class="nt-k">Nota de la empresa</div><div class="nt-big ${stDeNota(ultima.global)}">${ultima.global == null ? 'Sin nota' : fmt(ultima.global)}${ultima.global == null ? '' : '<small>/10</small>'}</div></div><span class="ml-sp"></span><button class="icon-btn" data-x aria-label="Cerrar">×</button></div>
       <p class="nt-exp">Media de los mundos de su plan que tienen nota. Cada mundo puntúa sus comprobaciones: verde suma, ámbar suma la mitad y rojo no suma; lo que no tiene datos no puntúa, y un mundo sin datos propios no tiene nota.</p>
-      <div class="nt-mundos">${ks.map((k) => { const m = ultima.mundos[k]; return `<button class="nt-m ${filtro === k ? 'on' : ''} ${k === ultima.actual ? 'aqui' : ''}" data-f="${k}"><b class="${stDeNota(m.nota)}">${m.nota == null ? 'Sin nota' : fmt(m.nota)}</b><span>${esc(m.n)}</span><small>${m.nota == null ? esc(m.motivo || 'Ábralo para calcularla') : esc(A.nota.desglose(puntuar(m.puntos)))} · ${esc(A.nota.fechaTxt(m))}</small></button>`; }).join('')}</div>
+      <div class="nt-mundos">${ks.map((k) => { const m = ultima.mundos[k]; return `<button class="nt-m ${filtro === k ? 'on' : ''} ${k === ultima.actual ? 'aqui' : ''}" data-f="${k}"><b class="${stDeNota(m.nota)}">${m.nota == null ? '—' : fmt(m.nota)}</b><span>${esc(m.n)}</span><small>${m.nota == null ? (m.fecha ? 'Sin nota' + (m.motivo ? ': ' + esc(m.motivo) : '') + ' · ' + esc(A.nota.fechaTxt(m)) : 'Sin nota: ábralo para calcularla') : esc(A.nota.desglose(puntuar(m.puntos))) + ' · ' + esc(A.nota.fechaTxt(m))}</small></button>`; }).join('')}</div>
       <div class="nt-k">${filtro ? 'Puntos a tratar en ' + esc(ultima.mundos[filtro].n) : 'Puntos a tratar'} · ${pl(rojos, 'en rojo', 'en rojo')}, ${ptos.length - rojos - nds} en ámbar, ${nds} sin datos</div>
       <ol class="nt-list">${ptos.slice(0, 40).map((x, i) => `<li><button data-i="${i}" class="nt-p ${x.st}"><i${x.st === 'nd' ? ' style="background:var(--muted);opacity:.6"' : ''}></i><span><b>${esc(x.t)}</b>${x.d ? `<small>${esc(x.d)}</small>` : ''}<em>${esc(MUNDOS[x.mundo].n)}</em></span><span class="nt-go">→</span></button></li>`).join('') || '<li class="nt-vacio">Nada en rojo ni en ámbar.</li>'}</ol>
       ${ptos.length > 40 ? `<p class="nt-exp">Y ${ptos.length - 40} más.</p>` : ''}`;

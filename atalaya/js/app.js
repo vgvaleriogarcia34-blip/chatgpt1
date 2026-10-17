@@ -231,7 +231,8 @@
     tQuick = setTimeout(computeQuick, 40);
     tHeavy = setTimeout(() => computeHeavy(g), 450);
     store.set(STORE, state);
-    clearTimeout(saveT); saveT = setTimeout(() => P && P.saveData('simulador', state), 1500);
+    // Se guarda y se recalcula la nota con las cifras nuevas (la nota no depende del orden en que se abran los mundos)
+    clearTimeout(saveT); saveT = setTimeout(() => { if (P) P.saveData('simulador', state); if (A.nota && A.nota.refrescar) A.nota.refrescar(); }, 1500);
   }
   function computeQuick() {
     const all = A.SCENARIOS.map((sc, i) => ({ key: sc.key, nombre: sc.nombre, desc: sc.desc, i, r: A.analyze(state, A.scenarioMods(state, sc.key)) }));
@@ -287,7 +288,9 @@
   const sinInversion = () => { const v = state.inversion || {}; return !(+v.importe > 0 || (v.lineas || []).some((l) => +l.importe > 0)); };
   // Semáforos que solo existen con una inversión: tamaño, retorno, TIR, circulante de la venta nueva y cambio de margen
   const LUZ_INV = ['dimension', 'retorno', 'rentabilidad', 'circulante', 'margen'];
-  const lucesEmpresa = (r) => r.lights.filter((l) => LUZ_INV.indexOf(l.key) < 0);
+  // Preguntas del equipo sin responder (todo a cero): el sistema humano queda «sin datos», no se puntúa
+  const humanoSinDatos = () => { const h = state.humano || {}; return !Object.keys(h).some((k) => +h[k] > 0); };
+  const lucesEmpresa = (r) => r.lights.filter((l) => LUZ_INV.indexOf(l.key) < 0 && !(l.key === 'humano' && humanoSinDatos()));
   function irModelo() { try { if (P && P.modelo && P.modelo.ID && P.empresas && P.empresas.cambiar) { P.empresas.cambiar(P.modelo.ID); return; } } catch (e) { /* al portal */ } location.href = 'portal.html'; }
   function irCuentas() { location.hash = '#empresa'; const el = document.getElementById('empresa'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
 
@@ -348,7 +351,7 @@
       { k: r.contarPoliza ? 'Liquidez mínima' : 'Caja mínima', info: 'cajaMin', v: F.eur(r.cajaRef), d: `mes ${r.mesCajaRef} · colchón mínimo ${fmtMeses(r.colMin)}`, st: lt.liquidez, spark: C.spark(r.contarPoliza ? r.w.liquidez : r.w.cash, r.cajaRef < 0 ? css('--stop') : css('--gold'), true) },
       r.payback == null ? { k: 'Recuperación', info: 'payback', v: 'Sin inversión', d: 'no hay importe que recuperar', st: 'neutral' } : { k: 'Recuperación', info: 'payback', v: F.months(r.payback), d: `caja de la propiedad: ${F.months(r.paybackCaja)}`, st: lt.retorno },
       { k: 'Cobertura deuda', info: 'dscr', v: F.x(r.dscrMin), d: `deuda neta ${F.x(r.deudaEbitda)} EBITDA`, st: lt.cobertura },
-      { k: 'Equipo', info: 'humano', v: Math.round(r.humano.score) + '/100', d: `${r.humano.nuevas} incorporaciones · ${r.humano.gapMandos} mandos por cubrir`, st: lt.humano }
+      humanoSinDatos() ? { k: 'Equipo', info: 'humano', v: 'Sin datos', d: 'responda las preguntas del equipo', st: 'neutral' } : { k: 'Equipo', info: 'humano', v: Math.round(r.humano.score) + '/100', d: `${r.humano.nuevas} incorporaciones · ${r.humano.gapMandos} mandos por cubrir`, st: lt.humano }
     ];
     $('#kpis').innerHTML = tiles.map((t) => `<button class="kpi" data-info="${t.info}"><div class="k"><span>${t.k}</span>${stName[t.st] ? `<span class="state ${stCls(t.st)}" aria-label="Estado: ${stName[t.st]}">${stName[t.st]}</span>` : ''}</div><div class="v">${t.v}</div><div class="d">${t.d}</div>${t.spark || ''}</button>`).join('');
   }

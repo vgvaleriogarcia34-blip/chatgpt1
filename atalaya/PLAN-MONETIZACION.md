@@ -100,3 +100,10 @@ Si además una de cada cinco cuentas añade un perfil de equipo, son 240 € má
 - **Perfiles de equipo:** 2 incluidos en Profesional y 12 €/mes por perfil adicional, o sin límite.
 - **Esencial:** si puede añadir el pack Banca (recomendado: es el complemento natural del simulador).
 - **Comparación sectorial:** la básica en el núcleo y el informe detallado en Banca, o todo en el núcleo.
+
+## Notas · fin de la prueba y portabilidad (hecho)
+
+- **Aviso de fin de prueba:** desde el día 10 de 14, una banda bajo la cabecera de cada mundo: «Su prueba termina en N días · Activar ahora · Descargar mis datos». Hasta los tres últimos días se puede ocultar hasta el día siguiente; en los tres últimos vuelve en cada página (`P.avisoPrueba` en `js/platform.js`).
+- **Activar ahora / `acceso.html#pago`:** plan, cuota «+ IVA», enlace de pago si está configurado (`P.PAGO_URL` o `P.PAGO_URLS` por plan o plan-periodo; vacíos por defecto) y, si no, «Le enviaremos el enlace de pago» con teléfono y datos de facturación opcionales (marca `solicitudPago` y, si hay datos, deja un contacto a la administración). Contacto directo: `P.CONTACTO` (teléfono +34 678 447 296; el correo está vacío hasta que se configure). Respuesta «en 24 horas laborables».
+- **Copia de datos:** «Descargar todos mis datos» e «Importar una copia» en el menú de la cuenta. JSON con versión, fecha, correo y plan; la importación enseña un resumen y, si la cuenta ya tiene datos, solo ofrece «Reemplazar todo» con confirmación expresa. La empresa modelo no va en la copia.
+- **Pendiente en el servidor:** con la prueba terminada, `GET /api/data/:clave` responde 402 y la descarga desde `acceso.html#pago` no funciona en modo servidor (sí en modo local). Para permitir la lectura (y, si se quiere, un acceso de solo lectura de 30 días) basta con marcar esa ruta `{ noAccess: true }` y rechazar solo las cuentas bloqueadas.

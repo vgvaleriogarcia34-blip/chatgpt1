@@ -178,7 +178,7 @@ function bloqueado(tipo, clave) {
   return a.length >= max;
 }
 function anotar(tipo, clave) { const k = tipo + '|' + clave; if (!intentos.has(k)) intentos.set(k, []); intentos.get(k).push(Date.now()); }
-const demasiados = (msg) => fallo(429, msg || 'Demasiados intentos. Espera unos minutos.');
+const demasiados = (msg) => fallo(429, msg || 'Demasiados intentos. Espere unos minutos.');
 
 /* ---------- Administración: contraseña propia, separada de las cuentas de usuario ---------- */
 function setAdminPassword(pw) { const salt = crypto.randomBytes(16).toString('hex'); db.admin = { salt, hash: hashPw(pw, salt), cambiado: now() }; db.adminSessions = {}; save(); }
@@ -310,7 +310,7 @@ async function ask(params) {
 const textOf = (msg) => msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
 function jsonOf(text) {
   const a = text.indexOf('{'), b = text.lastIndexOf('}');
-  try { if (a < 0 || b < a) throw new Error(); return JSON.parse(text.slice(a, b + 1)); } catch { throw fallo(502, 'La IA no ha devuelto datos legibles. Inténtalo de nuevo.'); }
+  try { if (a < 0 || b < a) throw new Error(); return JSON.parse(text.slice(a, b + 1)); } catch { throw fallo(502, 'La IA no ha devuelto datos legibles. Inténtelo de nuevo.'); }
 }
 
 /* ---------- Cuota diaria de IA por cuenta ----------
@@ -333,8 +333,8 @@ async function conIA(u, funcion, peso, chars, fn) {
   u.usoIA = u.usoIA || {}; const d = (u.usoIA[today()] = u.usoIA[today()] || { n: 0, c: 0 });
   if (d.n + peso > lim.n || d.c + chars > lim.c) {
     throw fallo(429, tipo === 'prueba'
-      ? `Has llegado al límite diario de IA de la prueba gratuita (${lim.n} consultas o su volumen de texto). Se renueva mañana; con el plan activado el límite es mayor.`
-      : `Has llegado al límite diario de IA de tu cuenta (${lim.n} consultas o su volumen de texto). Se renueva mañana; si necesitas más, escríbenos.`);
+      ? `Ha llegado al límite diario de IA de la prueba gratuita (${lim.n} consultas o su volumen de texto). Se renueva mañana; con el plan activado el límite es mayor.`
+      : `Ha llegado al límite diario de IA de su cuenta (${lim.n} consultas o su volumen de texto). Se renueva mañana; si necesita más, escríbanos.`);
   }
   d.n += peso; d.c += chars; u.iaTotal = (u.iaTotal || 0) + peso;
   Object.keys(u.usoIA).sort().slice(0, -60).forEach((k) => delete u.usoIA[k]); // solo los últimos 60 días
@@ -399,7 +399,7 @@ const DUMMY = (() => { const salt = crypto.randomBytes(16).toString('hex'); retu
 
 route('POST', /^\/api\/register$/, async (req, res, body) => {
   const ip = ipDe(req);
-  if (bloqueado('registro', ip)) throw demasiados('Se han creado demasiadas cuentas desde esta conexión. Inténtalo dentro de una hora.');
+  if (bloqueado('registro', ip)) throw demasiados('Se han creado demasiadas cuentas desde esta conexión. Inténtelo dentro de una hora.');
   const email = String(body.email || '').trim().toLowerCase();
   if (!emailOk(email) || email.length > 160) throw fallo(400, 'Correo no válido');
   if (String(body.password || '').length < 8) throw fallo(400, 'La contraseña debe tener al menos 8 caracteres');
@@ -443,10 +443,10 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
   ['nombre', 'empresa', 'telefono'].forEach((k) => { if (typeof body[k] === 'string') u[k] = body[k].slice(0, 160); });
   if (PLANES.includes(body.plan) && body.plan !== u.plan) {
     const nuevo = body.plan;
-    if (nuevo === 'grupos') throw fallo(403, 'El plan Grupos se contrata a medida: pide la propuesta con «Contactar con nuestro equipo».');
+    if (nuevo === 'grupos') throw fallo(403, 'El plan Grupos se contrata a medida: pida la propuesta con «Contactar con nuestro equipo».');
     // Bajar a un plan con menos empresas exige borrar antes las que sobran
     const lim = LIMITE_EMPRESAS[nuevo];
-    if (nEmpresas(u) > lim) throw fallo(400, `Tienes ${nEmpresas(u)} empresas y ese plan admite ${lim}. Borra antes las que sobran.`);
+    if (nEmpresas(u) > lim) throw fallo(400, `Tiene ${nEmpresas(u)} empresas y ese plan admite ${lim}. Borre antes las que sobran.`);
     if (u.pagado && ORDEN_PLAN[nuevo] > (ORDEN_PLAN[u.plan] || 0)) {
       const periodo = PERIODOS.includes(body.periodo) ? body.periodo : u.periodo || 'mensual';
       u.planPendiente = { plan: nuevo, periodo, fecha: now() };
@@ -455,7 +455,7 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
       db.contactos.unshift({ fecha: now(), plan: nuevo, nombre: u.nombre || '', email: u.email, telefono: u.telefono || '', empresa: u.empresa || '', mensaje: `Cambio de plan solicitado: de ${NOMBRE_PLAN[u.plan] || u.plan} a ${NOMBRE_PLAN[nuevo]} (pago ${periodo}), con el acceso ya pagado. Para confirmarlo, cambia su plan en la tabla de usuarios.`, origen: 'cambio-plan', cuenta: u.id });
       db.contactos = db.contactos.slice(0, 500);
       save();
-      throw fallo(409, `Hemos recibido tu petición de pasar al plan ${NOMBRE_PLAN[nuevo]}. Como tu acceso ya está activado, el cambio se aplica cuando nuestro equipo confirme la nueva cuota; te avisaremos. Mientras, sigues con tu plan actual.`, { pendiente: true, planPendiente: u.planPendiente });
+      throw fallo(409, `Hemos recibido su petición de pasar al plan ${NOMBRE_PLAN[nuevo]}. Como su acceso ya está activado, el cambio se aplica cuando nuestro equipo confirme la nueva cuota; le avisaremos. Mientras, sigue con su plan actual.`, { pendiente: true, planPendiente: u.planPendiente });
     }
     (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: nuevo, fecha: now() });
     u.plan = nuevo;
@@ -467,10 +467,10 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
 // Solicitudes de contacto para el plan Grupos (a medida): públicas, con límite de envíos
 route('POST', /^\/api\/contacto$/, async (req, res, body) => {
   const ip = ipDe(req);
-  if (bloqueado('contacto', ip)) throw demasiados('Demasiados envíos. Espera unos minutos.');
+  if (bloqueado('contacto', ip)) throw demasiados('Demasiados envíos. Espere unos minutos.');
   anotar('contacto', ip);
   const t = (k, n) => String(body[k] || '').slice(0, n || 160);
-  if (!emailOk(t('email'))) throw fallo(400, 'Escribe un correo válido');
+  if (!emailOk(t('email'))) throw fallo(400, 'Escriba un correo válido');
   db.contactos = db.contactos || [];
   db.contactos.unshift({ fecha: now(), plan: t('plan', 20), nombre: t('nombre'), email: t('email'), telefono: t('telefono', 40), empresa: t('empresa'), sociedades: t('sociedades', 6), mensaje: t('mensaje', 2000), origen: t('origen', 40) });
   db.contactos = db.contactos.slice(0, 500); save();
@@ -505,7 +505,7 @@ route('POST', /^\/api\/password\/olvido$/, async (req, res, body) => {
   if (u) {
     const token = newResetToken(u, 'usuario');
     const link = `${APP_URL}/acceso.html#reset=${token}`;
-    const sent = await sendMail(u.email, 'Atalaya · Restablecer tu contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abre este enlace (caduca en ${RESET_MIN} minutos):\n${link}\n\nSi no lo has pedido tú, ignora este mensaje.`);
+    const sent = await sendMail(u.email, 'Atalaya · Restablecer su contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abra este enlace (caduca en ${RESET_MIN} minutos):\n${link}\n\nSi no lo ha pedido usted, ignore este mensaje.`);
     // El enlace nunca se escribe en el registro: sin correo, la administración ve la solicitud y genera uno nuevo
     if (!sent) { u.solicitudReset = now(); save(); }
     console.log(`Recuperación de contraseña pedida para la cuenta ${u.id}: ${sent ? 'enlace enviado por correo' : 'sin correo; queda como aviso en la administración'}.`);
@@ -516,7 +516,7 @@ route('POST', /^\/api\/password\/restablecer$/, async (req, res, body) => {
   const ip = ipDe(req);
   if (bloqueado('restablecer', ip)) throw demasiados();
   const k = sha(String(body.token || '')), r = db.resets[k];
-  if (!r || Date.parse(r.exp) < Date.now()) { anotar('restablecer', ip); throw fallo(400, 'El enlace no es válido o ha caducado. Pide uno nuevo.'); }
+  if (!r || Date.parse(r.exp) < Date.now()) { anotar('restablecer', ip); throw fallo(400, 'El enlace no es válido o ha caducado. Pida uno nuevo.'); }
   if (String(body.password || '').length < 8) throw fallo(400, 'La contraseña debe tener al menos 8 caracteres');
   const u = db.users.find((x) => x.id === r.userId); if (!u) throw fallo(404, 'Usuario no encontrado');
   u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(String(body.password), u.salt); delete u.solicitudReset;
@@ -566,7 +566,7 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/password$/, async (req, res, body
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/reset$/, async (req, res, body, me, m) => {
   const u = db.users.find((x) => x.id === m[1]); if (!u) throw fallo(404, 'Usuario no encontrado');
   const token = newResetToken(u, 'administración');
-  const enviado = body.enviar ? await sendMail(u.email, 'Atalaya · Restablecer tu contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abre este enlace (caduca en ${RESET_MIN} minutos):\n${APP_URL}/acceso.html#reset=${token}`) : false;
+  const enviado = body.enviar ? await sendMail(u.email, 'Atalaya · Restablecer su contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abra este enlace (caduca en ${RESET_MIN} minutos):\n${APP_URL}/acceso.html#reset=${token}`) : false;
   delete u.solicitudReset; save();
   return { token, minutos: RESET_MIN, enviado };
 }, { admin: true });
@@ -625,7 +625,8 @@ function tamanosDe(id) {
   return tamanos.get(id);
 }
 const mb = (b) => (b < 1048576 ? Math.ceil(b / 1024) + ' KB' : (b / 1048576).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' MB');
-route('GET', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => { claveDe(m[1]); return { data: (db.data[u.id] || {})[m[1]] ?? null }; });
+// Lectura permitida aunque la prueba o el pago hayan vencido, para que el cliente pueda descargar sus datos; la escritura sigue bloqueada.
+route('GET', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => { if (access(u).motivo === 'bloqueado') throw fallo(402, 'Su acceso está suspendido'); claveDe(m[1]); return { data: (db.data[u.id] || {})[m[1]] ?? null }; }, { noAccess: true });
 // Empresas por plan: el servidor también lo comprueba (no basta con el navegador)
 const LIMITE_EMPRESAS = { esencial: 1, profesional: 1, consultora: 15, grupos: Infinity };
 route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => {
@@ -640,18 +641,18 @@ route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m
     const lim = LIMITE_EMPRESAS[u.plan] != null ? LIMITE_EMPRESAS[u.plan] : 1;
     const antes = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.length : 1;
     // Se puede quedar igual o bajar aunque se esté por encima (p. ej. tras cambiar a un plan menor), pero no subir del límite
-    if (lista.length > lim && lista.length > antes) throw fallo(403, lim === 1 ? 'Tu plan incluye una empresa. Para varias, pasa a Consultora o a Grupos.' : `Tu plan incluye hasta ${lim} empresas.`);
+    if (lista.length > lim && lista.length > antes) throw fallo(403, lim === 1 ? 'Su plan incluye una empresa. Para varias, pase a Consultora o a Grupos.' : `Su plan incluye hasta ${lim} empresas.`);
   }
   if (empresa && !borrar) {
     const ids = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.map((e) => e && e.id) : [];
-    if (!ids.includes(empresa)) throw fallo(403, 'Esa empresa no está dada de alta en tu cuenta');
+    if (!ids.includes(empresa)) throw fallo(403, 'Esa empresa no está dada de alta en su cuenta');
   }
   const t = tamanosDe(u.id);
   if (borrar) { delete mine[key]; delete t[key]; save(); return { ok: true }; }
   const bytes = Buffer.byteLength(JSON.stringify(body));
-  if (bytes > DATA_MAX_CLAVE) throw fallo(413, `Este dato ocupa ${mb(bytes)} y el máximo es ${mb(DATA_MAX_CLAVE)}. Borra documentos o cargas antiguas y vuelve a guardar.`);
+  if (bytes > DATA_MAX_CLAVE) throw fallo(413, `Este dato ocupa ${mb(bytes)} y el máximo es ${mb(DATA_MAX_CLAVE)}. Borre documentos o cargas antiguas y vuelva a guardar.`);
   const total = Object.values(t).reduce((a, b) => a + b, 0) - (t[key] || 0) + bytes;
-  if (total > DATA_MAX_CUENTA) throw fallo(413, `Tu cuenta llegaría a ${mb(total)} y el máximo es ${mb(DATA_MAX_CUENTA)}. Borra empresas o datos que no uses, o escríbenos para ampliarlo.`);
+  if (total > DATA_MAX_CUENTA) throw fallo(413, `Su cuenta llegaría a ${mb(total)} y el máximo es ${mb(DATA_MAX_CUENTA)}. Borre empresas o datos que no use, o escríbanos para ampliarlo.`);
   mine[key] = body; t[key] = bytes; save(); return { ok: true };
 });
 
@@ -684,7 +685,7 @@ route('POST', /^\/api\/invitaciones$/, async (req, res, body, u) => {
   if (u.plan !== 'consultora') throw fallo(403, 'Los test por enlace están incluidos en el plan Consultora.');
   const lista = Array.isArray(body.lista) ? body.lista : [body];
   if (!lista.length || lista.length > 100) throw fallo(400, 'Entre 1 y 100 invitaciones por envío');
-  if (Object.values(db.invitaciones).filter((x) => x.owner === u.id).length + lista.length > 5000) throw fallo(413, 'Has llegado al máximo de invitaciones guardadas. Borra las antiguas.');
+  if (Object.values(db.invitaciones).filter((x) => x.owner === u.id).length + lista.length > 5000) throw fallo(413, 'Ha llegado al máximo de invitaciones guardadas. Borre las antiguas.');
   const out = [];
   for (const b of lista) {
     if (!b || !TESTS_INV[b.test]) throw fallo(400, 'Test no válido');
@@ -914,21 +915,21 @@ async function manejar(req, res) {
     const body = req.method === 'GET' ? {} : await readBody(req);
     const u = currentUser(req);
     if (r.opts.admin) {
-      if (!isAdmin(req)) return send(res, 401, { error: 'Entra con la contraseña de administración' });
+      if (!isAdmin(req)) return send(res, 401, { error: 'Entre con la contraseña de administración' });
     } else if (!r.opts.public) {
-      if (!u) return send(res, 401, { error: 'Inicia sesión' });
-      if (!r.opts.noAccess && !access(u).ok) return send(res, 402, { error: 'Tu acceso necesita activarse' });
+      if (!u) return send(res, 401, { error: 'Inicie sesión' });
+      if (!r.opts.noAccess && !access(u).ok) return send(res, 402, { error: 'Su acceso necesita activarse' });
     }
     const out = await r.fn(req, res, body, u, url.pathname.match(r.re));
     send(res, 200, out);
   } catch (e) {
     // Los errores propios (con código) se explican al cliente; los demás se registran y el cliente recibe un mensaje genérico
-    let code = 500, msg = 'Error interno del servidor. Inténtalo de nuevo.';
+    let code = 500, msg = 'Error interno del servidor. Inténtelo de nuevo.';
     if (Number.isInteger(e.code) && e.code >= 400 && e.code < 600) { code = e.code; msg = e.message; }
     else if (e.status || /Connection|Timeout/.test((e.constructor && e.constructor.name) || '')) {
       // Error de la API de Claude: no se reenvía su mensaje
       code = e.status === 429 || e.status === 529 ? 503 : 502;
-      msg = code === 503 ? 'La IA está saturada en este momento. Inténtalo de nuevo en unos minutos.' : 'La IA no ha podido responder. Inténtalo de nuevo.';
+      msg = code === 503 ? 'La IA está saturada en este momento. Inténtelo de nuevo en unos minutos.' : 'La IA no ha podido responder. Inténtelo de nuevo.';
       console.error(`Claude (${req.method} ${url.pathname}):`, e.status || '', e.message);
     } else console.error(`Error en ${req.method} ${url.pathname}:`, e);
     if (!res.headersSent) send(res, code, Object.assign({}, e.code === code && e.extra ? e.extra : {}, { error: msg }));

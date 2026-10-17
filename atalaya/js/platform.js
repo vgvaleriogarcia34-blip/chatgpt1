@@ -508,6 +508,8 @@
     await P.ready;
     const u = P.user || {}, { empresas: emp, datos } = await P.leerCuenta();
     const lista = emp && Array.isArray(emp.lista) ? emp.lista.filter((e) => e && !e.modelo) : [{ id: 'principal', nombre: u.empresa || 'Mi empresa' }];
+    // Sin registro guardado todavía: la copia lleva el de siempre (solo la principal) para poder importarse
+    if (!datos.empresas) datos.empresas = { lista: lista.map((e) => Object.assign({ rol: 'holding', participacion: 100 }, e)) };
     const copia = { formato: COPIA, version: 1, app: 'Atalaya 360°', appVersion: P.VERSION, fecha: new Date().toISOString(), modo: P.mode,
       cuenta: { email: u.email || '', nombre: u.nombre || '', plan: u.plan || '', periodo: u.periodo || '' },
       empresas: lista.map((e) => ({ id: e.id, nombre: e.nombre || '' })), claves: Object.keys(datos), datos };

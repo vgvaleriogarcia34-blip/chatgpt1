@@ -140,7 +140,7 @@
     } else if (mundo === 'mesa') {
       await hasta(() => A.mesa && A.mesa.informe && A.mesa.listo, 80);
       let ag = null; try { ag = P() && P().loadData ? await P().loadData('agenda') : null; } catch (e) { ag = null; }
-      if (ag && !((ag.tareas || []).length || (ag.metas || []).length)) return 0; // mesa vacía: sin capítulo
+      if (!ag || !((ag.tareas || []).length || (ag.metas || []).length)) { quitar(['Plan de trabajo']); await L.guardar(lib); return 0; } // mesa vacía: sin capítulo
       progreso('Mesa de trabajo · plan de trabajo');
       await meter(await capturar(() => A.mesa.informe()));
     } else if (mundo === 'simulador') {

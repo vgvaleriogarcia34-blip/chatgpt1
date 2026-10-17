@@ -370,6 +370,7 @@
   S.cashWeeks = cashWeeks;
   S.register({
     id: 'tesoreria', nombre: 'Tesorería semanal', grupo: 'Finanzas',
+    propios: () => (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
     datos: () => S.simConDatos() || (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
     render(host) {
       const Ts = S.state.tesoreria, e = S.sim.empresa;
@@ -581,6 +582,7 @@
 
   S.register({
     id: 'presupuesto', nombre: 'Presupuesto', grupo: 'Finanzas',
+    propios: () => presupuestoConReales(),
     datos: () => S.simConDatos() || presupuestoConReales(),
     render(host) {
       const B = S.state.presupuesto, b = budget(), V = b.V, prm = B.params;

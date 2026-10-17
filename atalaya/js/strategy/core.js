@@ -22,8 +22,10 @@
   /* ---------- Módulos ---------- */
   /* Sin dato no es cero: un módulo con «datos()» que devuelve false no tiene indicadores con estado, ni riesgos ni hallazgos.
      Sus indicadores salen como «Sin datos» (st null, sinDato) y quedan fuera de la nota, del DAFO, de las prioridades y del tablero. */
-  S.real = () => !!(A.platform && A.platform.modoReal && A.platform.modoReal());
+  // Datos reales de una empresa del usuario (la empresa modelo es una demostración: conserva su contenido completo)
+  S.real = () => !!(A.platform && A.platform.modoReal && A.platform.modoReal() && !(A.platform.modelo && A.platform.modelo.activa && A.platform.modelo.activa()));
   S.simConDatos = () => { const e = S.sim && S.sim.empresa; return !!(e && S.num(e.ventas) > 0 && !(S.real() && A.simEsEjemplo && A.simEsEjemplo(S.sim))); };
+  S.humanoConDatos = () => { const h = S.sim && S.sim.humano; return !!(h && Object.keys(h).some((k) => S.num(h[k]) > 0)); };
   S.invDefinida = () => { const v = S.sim && S.sim.inversion; return !!(v && (S.num(v.importe) > 0 || (v.lineas || []).some((l) => S.num(l.importe) > 0))); };
   S.conDatos = (m) => { m = typeof m === 'string' ? S.mod(m) : m; if (!m || !m.datos) return true; try { return !!m.datos(); } catch (e) { return false; } };
   S.SIN_DATO = 'Sin datos';
@@ -39,8 +41,9 @@
   S.register = (m) => { envolver(m); if (m.first) S.modules.unshift(m); else S.modules.push(m); };
   S.mod = (id) => S.modules.find((m) => m.id === id);
   S.defaults = {};
-  S.save = (() => { let t; return () => { LS.set(LSK, S.state); clearTimeout(t); t = setTimeout(() => A.platform && A.platform.saveData('estrategia', S.state), 1200); S.refreshKpis(); }; })();
-  S.saveSim = () => { LS.set(SIMK, S.sim); A.platform && A.platform.saveData('simulador', S.sim); };
+  // Al guardar se recalcula también la nota (así la de este mundo no se queda con la foto de antes del cambio)
+  S.save = (() => { let t; return () => { LS.set(LSK, S.state); clearTimeout(t); t = setTimeout(() => { if (A.platform) A.platform.saveData('estrategia', S.state); if (A.nota && A.nota.refrescar) A.nota.refrescar(); }, 1200); S.refreshKpis(); }; })();
+  S.saveSim = () => { LS.set(SIMK, S.sim); A.platform && A.platform.saveData('simulador', S.sim); if (A.nota && A.nota.refrescar) setTimeout(() => A.nota.refrescar(), 600); };
 
   /* Datos de la empresa que vienen del simulador */
   S.empresa = () => S.sim.empresa;
@@ -380,7 +383,7 @@
         empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
         datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]],
         acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaEst && A.rutaEst.openMap() }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
-        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes) + '. ' : ''}${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo${nSD ? `, ${nSD} sin datos (no cuentan)` : ''} y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
+        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes).replace(/^s/, 'S') + '. ' : ''}${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo${nSD ? `, ${nSD} sin datos (no cuentan)` : ''} y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
           luces: k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
         kpis: [
           { k: 'Nota del sistema estratégico', v: global === null ? 'Sin nota' : global + '/100', st: stS(global), d: global === null ? motivoSinNota : `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc == null ? 0 : x.sc, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
@@ -470,11 +473,14 @@
   S.pideDatos = (id) => S.real() && !S.conDatos(id);
   /* ¿Tiene el sistema estratégico datos propios (no de ejemplo)? Decide si el mundo tiene nota.
      Cuenta el simulador con cuentas propias o cualquier módulo con datos que no sean los de ejemplo. */
+  // Simulación de ejemplo: marcada como tal o con las cifras y el proyecto de la empresa de ejemplo (aunque se le haya cambiado el nombre)
+  S.simEjemplo = () => { const s = S.sim; if (!s || !s.empresa || (A.simEsEjemplo && A.simEsEjemplo(s))) return true; const d = A.defaultState(); return S.num(s.empresa.ventas) === d.empresa.ventas && S.num(s.empresa.fijos) === d.empresa.fijos && s.proyecto === d.proyecto; };
   S.datosPropios = () => {
-    if (S.sim && !(A.simEsEjemplo && A.simEsEjemplo(S.sim)) && S.num(S.sim.empresa && S.sim.empresa.ventas) > 0) return true;
+    if (!S.simEjemplo() && S.num(S.sim.empresa.ventas) > 0) return true;
     const o = S.state && S.state.origen; if (o && ((o.archivos || []).some((a) => a.estado === 'ok') || Object.keys(o.manual || {}).length)) return true;
     return Object.keys(S.state || {}).some((k) => { const ms = S.modules.filter((m) => m.datos && !m.datosSim && (m.clave || m.id) === k), ant = S.state[k]; if (!ms.length || !ant || ant.ejemplo === true) return false;
-      try { S.state[k] = S.quitarEjemplo(k, ant); return ms.some((m) => S.conDatos(m)); } catch (e) { return false; } finally { S.state[k] = ant; } });
+      // «propios()» decide en los módulos que se generan solos a partir de las cifras (presupuesto, tesorería, Lean)
+      try { S.state[k] = S.quitarEjemplo(k, ant); return ms.some((m) => (m.propios ? !!m.propios() : S.conDatos(m))); } catch (e) { return false; } finally { S.state[k] = ant; } });
   };
   S.start = async function () {
     A.sky();
@@ -502,7 +508,7 @@
     if (P) { const remote = await P.loadData('estrategia'); if (remote) S.state = remote; }
     S.state = Object.assign({}, A.clone(S.defaults), S.state || {});
     Object.keys(S.defaults).forEach((k) => { if (S.state[k] === undefined) S.state[k] = A.clone(S.defaults[k]); });
-    if (P && P.modoReal && P.modoReal()) S.aDatosReales();
+    if (S.real()) S.aDatosReales();
     buildTabs();
     const h = location.hash.replace('#', '');
     show(S.mod(h) ? h : 'tablero');

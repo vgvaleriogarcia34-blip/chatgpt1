@@ -1071,7 +1071,7 @@ body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(56px + var(--pt-dock-h
    (manual, mesa, otros mundos) siguen en el menú de la cuenta. Nada sale de la pantalla. */
 @media (max-width: 560px) {
   .topbar { gap: 6px; padding: 6px 6px 6px 12px; width: calc(100% - 20px); }
-  .topbar > a.btn, .topbar > .spacer + a.btn { display: none; }
+  .topbar:not(.site-nav) > a.btn { display: none; }
   .topbar .brand { flex: none; }
   .topbar .brand b { font-size: 1.1rem; }
   .topbar .spacer { flex: 1 1 0; min-width: 0; }
@@ -1090,3 +1090,6 @@ body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(56px + var(--pt-dock-h
   .topbar .acc-menu, .topbar .emp-menu { max-width: calc(100vw - 20px); }
 }
 @media (max-width: 380px) { .topbar .emp-btn { max-width: 78px; } }
+/* Menú de la cuenta: si no cabe en la pantalla, se desplaza por dentro */
+.acc-menu { max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px); overflow-y: auto; overscroll-behavior: contain; }
+.acc-menu button[data-exp], .acc-menu button[data-activar] { color: var(--gold-soft); }

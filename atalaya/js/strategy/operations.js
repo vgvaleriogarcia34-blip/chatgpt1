@@ -215,6 +215,7 @@
   }
   S.register({
     id: 'lean', nombre: 'Lean', grupo: 'Operaciones',
+    propios: () => !!(S.state.lean && !S.state.lean.auto && (S.state.lean.pasos || []).length),
     datos: () => lean().P.length > 0,
     render(host) {
       const l = lean(), L = l.L;
@@ -308,7 +309,7 @@
     datos: () => (S.state.personas.areas || []).some((a) => S.num(a.personas) > 0),
     render(host) {
       const R = S.state.personas.areas; const tot = R.reduce((a, x) => a + S.num(x.personas), 0) || 1;
-      const h = A.humanReadiness(S.sim, S.analysis()), hOk = S.simConDatos() && isFinite(h.score);
+      const h = A.humanReadiness(S.sim, S.analysis()), hOk = S.simConDatos() && S.humanoConDatos() && isFinite(h.score);
       const w = (k) => R.reduce((a, x) => a + S.num(x[k]) * S.num(x.personas), 0) / tot;
       host.innerHTML = `${S.section('Personas', 'Plantilla por áreas, coste, absentismo, rotación y vacantes, junto con la preparación del sistema humano para el crecimiento que calcula el simulador.')}
         ${S.kpiTiles([{ k: 'Plantilla', v: F.num(tot) }, { k: 'Coste medio', v: F.eur(w('coste')) }, { k: 'Absentismo medio', v: F.pct(w('absentismo')), st: w('absentismo') > 5 ? 'warn' : 'ok', info: 'Absentismo' }, { k: 'Rotación media', v: F.pct(w('rotacion')), st: w('rotacion') > 15 ? 'warn' : 'ok', info: 'Rotación' }, hOk ? { k: 'Preparación para crecer', v: Math.round(h.score) + '/100', st: h.score >= 70 ? 'ok' : h.score >= 50 ? 'warn' : 'stop' } : { k: 'Preparación para crecer', v: S.SIN_DATO, d: 'responda las preguntas del equipo en el simulador' }])}
@@ -320,7 +321,7 @@
       S.etable($('#arTable', host), { titulo: 'Áreas', rows: R, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ area: '', personas: 0, coste: 30000, absentismo: 4, rotacion: 10, vacantes: 0, formacion: 12 }),
         cols: [{ k: 'area', l: 'Área', type: 'text', syn: ['area', 'departamento'] }, { k: 'personas', l: 'Personas', type: 'num' }, { k: 'coste', l: 'Coste medio anual', type: 'num' }, { k: 'absentismo', l: 'Absentismo %', type: 'num' }, { k: 'rotacion', l: 'Rotación %', type: 'num' }, { k: 'vacantes', l: 'Vacantes', type: 'num' }, { k: 'formacion', l: 'Formación h/año', type: 'num' }] });
     },
-    kpis() { const R = S.state.personas.areas; const tot = R.reduce((a, x) => a + S.num(x.personas), 0) || 1; const rot = R.reduce((a, x) => a + S.num(x.rotacion) * S.num(x.personas), 0) / tot; const hs = S.simConDatos() ? A.humanReadiness(S.sim, S.analysis()).score : NaN; return [{ k: 'Rotación media', v: F.pct(rot), st: rot > 15 ? 'warn' : 'ok' }, isFinite(hs) ? { k: 'Preparación para crecer', v: Math.round(hs) + '/100' } : { k: 'Preparación para crecer', v: S.SIN_DATO, st: null, sinDato: true }]; },
+    kpis() { const R = S.state.personas.areas; const tot = R.reduce((a, x) => a + S.num(x.personas), 0) || 1; const rot = R.reduce((a, x) => a + S.num(x.rotacion) * S.num(x.personas), 0) / tot; const hs = S.simConDatos() && S.humanoConDatos() ? A.humanReadiness(S.sim, S.analysis()).score : NaN; return [{ k: 'Rotación media', v: F.pct(rot), st: rot > 15 ? 'warn' : 'ok' }, isFinite(hs) ? { k: 'Preparación para crecer', v: Math.round(hs) + '/100' } : { k: 'Preparación para crecer', v: S.SIN_DATO, st: null, sinDato: true }]; },
     risks() {
       const R = S.state.personas.areas.filter((x) => S.num(x.rotacion) > 15).map((x) => S.mkRisk(`Rotación alta en ${x.area} (${x.rotacion} %)`, 4, 3, 'Entrevistas de salida, plan de carrera y revisión salarial selectiva.'));
       if (S.orgAnalisis) { const o = S.orgAnalisis(); o.saturados.forEach((n) => R.push(S.mkRisk(`${n.puesto}: ${o.span(n)} personas a cargo`, 3, 3, 'Crear un mando intermedio o repartir el equipo: por encima de 10 personas un responsable deja de poder dirigir.'))); }

@@ -274,7 +274,8 @@
     const o = O();
     return D.datos.map((d, i) => {
       const c = o.cargado[d.tipo];
-      const alt = d.alt === 'historico' && S.sim.historico && !S.sim.historico.ejemplo && S.sim.historico.anios && S.sim.historico.anios.length;
+      // Las cuentas cargadas en el simulador cuentan para cualquier dato de tipo «cuentas»
+      const alt = (d.alt === 'historico' || d.tipo === 'cuentas') && S.sim.historico && !S.sim.historico.ejemplo && S.sim.historico.anios && S.sim.historico.anios.length;
       const man = o.manual[modId + ':' + i];
       return Object.assign({}, d, { i, ok: !!(c || alt || man), via: c ? `Cargado desde ${c.archivo}` : alt ? 'Introducido en el módulo' : man ? 'Marcado como introducido a mano' : '', manual: !!man });
     });

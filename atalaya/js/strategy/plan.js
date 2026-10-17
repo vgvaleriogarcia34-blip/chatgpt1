@@ -66,7 +66,7 @@
     const r = S.analysis(), conInv = S.simConDatos() && S.invDefinida();
     if (conInv && r.verdict && r.verdict.key === 'go') out.f.push({ t: 'La inversión prevista se puede pagar con el negocio sin romper la liquidez', i: 4, por: 'Simulador' });
     if (conInv && r.verdict && r.verdict.key === 'stop') out.d.push({ t: 'La inversión prevista, tal como está planteada, tensiona la liquidez', i: 5, por: 'Simulador' });
-    const h = r.humano; if (S.simConDatos() && h && isFinite(h.score) && h.score < 60) out.d.push({ t: `Organización poco preparada para crecer (${Math.round(h.score)}/100)`, i: 4, por: 'Sistema humano' });
+    const h = r.humano; if (S.simConDatos() && S.humanoConDatos() && h && isFinite(h.score) && h.score < 60) out.d.push({ t: `Organización poco preparada para crecer (${Math.round(h.score)}/100)`, i: 4, por: 'Sistema humano' });
     const m = S.state.mercado || {};
     (m.indicadores || []).forEach((x) => { if (x.impacto === 'negativo') out.a.push({ t: `${x.indicador}${x.valor ? ': ' + x.valor : ''}`, i: 3, por: x.fuente || 'Mercado' }); if (x.impacto === 'positivo') out.o.push({ t: `${x.indicador}${x.valor ? ': ' + x.valor : ''}`, i: 3, por: x.fuente || 'Mercado' }); });
     (m.competidores || []).filter((c) => c.nombre && S.num(c.amenaza) >= 4).forEach((c) => out.a.push({ t: `Presión competitiva de ${c.nombre}`, i: S.num(c.amenaza), por: 'Competencia' }));
