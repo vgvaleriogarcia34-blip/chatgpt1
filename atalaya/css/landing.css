@@ -288,3 +288,12 @@
   .rw-bar b { position: static; transform: none; width: auto; justify-self: start; white-space: normal; text-align: left; }
   .rw-m9, .rw-m15 { top: auto !important; }
 }
+
+/* Vídeo de presentación al inicio de la landing */
+.lp-video { display: grid; gap: 14px; padding-block: 26px 6px; justify-items: center; text-align: center; }
+.lp-video-h { display: grid; gap: 8px; justify-items: center; max-width: 760px; }
+.lp-video-h b { font-family: var(--font-display); font-size: clamp(1.15rem, 1rem + 0.9vw, 1.7rem); font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; }
+.lp-video-h em { color: var(--gold-soft); font-style: normal; }
+.lp-video-marco { width: min(100%, 980px, calc((100vh - 230px) * 16 / 9)); min-width: min(100%, 520px); aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: #05070b; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(201, 242, 77, 0.08); }
+.lp-video-v { display: block; width: 100%; height: 100%; object-fit: cover; background: #05070b; }
+@media (max-width: 640px) { .lp-video { padding-block: 14px 0; } .lp-video-marco { border-radius: 12px; } }
