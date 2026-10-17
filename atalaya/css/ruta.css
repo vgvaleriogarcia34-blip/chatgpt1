@@ -142,3 +142,22 @@ body.est-ruta .ruta-bar.est { display: flex; }
 @media (max-width: 760px) { .rm-fases.n6 { grid-template-columns: repeat(6, minmax(40px, 1fr)); } }
 .rm-fases.n6 ~ .rm-stage[data-layout="abanico"] .rm-world { transform: translateY(-30px) rotateX(var(--tx, 0deg)) rotateY(var(--ty, 0deg)); }
 .pe-page .rm-card.e0 { --fc: #c9f24d; } .pe-page .rm-card.e1 { --fc: #9b7cf0; } .pe-page .rm-card.e2 { --fc: #2fb4a0; } .pe-page .rm-card.e3 { --fc: #3987e5; } .pe-page .rm-card.e4 { --fc: #e0794a; } .pe-page .rm-card.e5 { --fc: #d55181; }
+
+/* Prioridades hacia el equilibrio viable, marcadas en el mapa */
+.ruta-map:has(.pr-banda) { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+.pr-banda { width: min(1180px, 100%); margin: 10px auto 0; display: grid; grid-template-columns: minmax(220px, 0.9fr) 2fr; gap: 12px; align-items: stretch; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(9, 11, 15, 0.78); }
+.pr-banda.stop { border-color: rgba(224, 72, 72, 0.55); } .pr-banda.warn { border-color: rgba(250, 178, 25, 0.5); } .pr-banda.ok { border-color: rgba(47, 178, 74, 0.5); }
+.pr-eq { display: flex; gap: 10px; align-items: flex-start; } .pr-eq b { display: block; font-size: 0.9rem; } .pr-eq small { color: var(--muted); font-size: 0.74rem; line-height: 1.35; display: block; }
+.pr-lista { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .pr-lista > small { width: 100%; color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.pr-it { display: flex; gap: 8px; align-items: flex-start; text-align: left; flex: 1 1 220px; padding: 6px 9px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); color: inherit; font: inherit; font-size: 0.8rem; cursor: pointer; }
+.pr-it b { display: grid; place-items: center; min-width: 20px; height: 20px; border-radius: 50%; font-size: 0.7rem; color: #111; background: var(--warn); }
+.pr-it.stop b { background: var(--stop); color: #fff; } .pr-it em { display: block; font-style: normal; color: var(--muted); font-size: 0.7rem; }
+.pr-it:hover, .pr-it:focus-visible { border-color: var(--gold); }
+.pr-tab { font-size: 0.78rem; color: var(--gold); margin-left: auto; }
+.pr-badge { margin-left: auto; padding: 1px 7px; border-radius: 999px; font-size: 0.64rem; font-weight: 700; white-space: nowrap; background: var(--warn); color: #111; }
+.pr-badge.stop { background: var(--stop); color: #fff; }
+.rm-card.pr-top .rm-float { box-shadow: 0 0 0 2px var(--warn), 0 18px 40px -18px rgba(0, 0, 0, 0.8); }
+.rm-card.pr-top.pr-stop .rm-float { box-shadow: 0 0 0 2px var(--stop), 0 18px 40px -18px rgba(0, 0, 0, 0.8); }
+.pr-why { display: block; font-size: 0.72rem; line-height: 1.3; padding: 4px 7px; border-radius: 8px; background: rgba(250, 178, 25, 0.14); color: var(--fg, #f3f2ee); }
+.pr-why.stop { background: rgba(224, 72, 72, 0.18); }
+@media (max-width: 760px) { .pr-banda { grid-template-columns: 1fr; } .pr-it { flex-basis: 100%; } }
