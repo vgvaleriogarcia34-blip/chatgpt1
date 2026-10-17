@@ -8,6 +8,32 @@
   const A = (window.Atalaya = window.Atalaya || {});
   const D = (A.intervDatos = {});
 
+  /* ---------- Texto: frases y palabras clave (compartido por escucha, cruce, primera, integral…) ---------- */
+  const normT = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  D.norm = normT;
+  // (o.min: palabras mínimas; o.cita: solo frases que valen de cita; o.preg: corta también antes de «¿» y «¡»)
+  // Frases de un texto sin cortar en los miles (150.000), decimales (1.5), abreviaturas (Sr., D., p. ej., S.L., aprox.),
+  // iniciales (J. García) ni puntos suspensivos; tras un punto solo se corta si lo que sigue no empieza en minúscula.
+  const PH = '\u2024', ABREV = /(^|[^0-9A-Za-zÀ-ÿ])(sr|sra|srta|sres|sras|dr|dra|dña|dna|dn|d|ud|uds|vd|vds|p\. ?ej|ej|etc|aprox|nº|n\.º|núm|num|pág|pag|tel|tfno|avda|ctra|admón|dpto|depto|art|apdo|cía|cia|ref|vs|máx|mín|aa\. ?ss|ss\. ?aa)\./gi;
+  D.frases = (t, o) => {
+    o = o || {}; let s = String(t || '').replace(/\r/g, '').replace(/\.{3,}/g, '…'), prev;
+    do { prev = s; s = s.replace(/(\d)\.(\d)/g, '$1' + PH + '$2'); } while (s !== prev);
+    do { prev = s; s = s.replace(ABREV, (m) => m.replace(/\./g, PH)); } while (s !== prev);
+    do { prev = s; s = s.replace(/(^|[\s(«"'\u2024])([A-ZÁÉÍÓÚÑ])\.(?=\s?[A-ZÁÉÍÓÚÑ0-9]|[\s,;:]|$)/g, '$1$2' + PH); } while (s !== prev);
+    if (o.preg) s = s.replace(/\s+(?=[¿¡])/g, '\n');
+    const out = s.split(/\n+|(?<=[!?])["»”)]*\s+|(?<=\.)["»”)]*\s+(?![a-zà-ÿñ])/).map((x) => x.replace(/\u2024/g, '.').trim()).filter(Boolean);
+    const min = o.min || 0; return out.filter((x) => x.split(/\s+/).length >= min && (!o.cita || D.citaOk(x)));
+  };
+  // Una frase sirve de cita o de síntoma si tiene al menos cuatro palabras y no empieza por una cifra suelta (un corte mal hecho)
+  D.citaOk = (f) => { const x = String(f || '').trim(); return x.split(/\s+/).length >= 4 && !/^[\d.,]/.test(x) && !/^(y|o|de|que|pero)\s*[.,]?$/i.test(x); };
+  // Palabra clave por palabra entera y sin tildes («obra» no casa con «obrador»; admite el plural en -s / -es).
+  // Raíz explícita con «*» («cobr*» = cobrar, cobros, cobramos…) o una RegExp sobre el texto normalizado.
+  const reK = new Map(); let ultT = null, ultN = '';
+  const reDe = (k) => { let r = reK.get(k); if (r) return r; const n = normT(k).trim(), st = n.endsWith('*'), b = n.replace(/\*$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'); r = new RegExp('(^|[^a-z0-9])' + b + (st ? '' : '(s|es)?(?![a-z0-9])')); reK.set(k, r); return r; };
+  D.kw = (t, k) => { if (t !== ultT) { ultT = t; ultN = normT(t); } return k instanceof RegExp ? k.test(ultN) : reDe(k).test(ultN); };
+  D.kwAlguna = (t, ks) => (ks || []).some((k) => D.kw(t, k));
+  D.kwCuenta = (t, ks) => (ks || []).filter((k) => D.kw(t, k)).length;
+
   /* ---------- Áreas (las «alas» a las que se deriva cada síntoma) ---------- */
   D.AREAS = [
     { id: 'gob', n: 'Dirección y gobierno', c: '#c9f24d', est: ['plan', 'tablero'], per: ['organigrama', 'lid-modelo'], d: 'Quién decide qué, cómo se reúne la dirección y si el poder legal coincide con el real.' },
@@ -124,21 +150,21 @@
 
   /* ---------- Causas raíz tipo (la intervención trabaja sobre causas, no sobre síntomas) ---------- */
   D.CAUSAS = [
-    { id: 'gob-mando', area: 'gob', patron: 'mando', n: 'El mando real no coincide con el formal', k: ['mi padre', 'socio', 'fundador', 'decide', 'manda', 'firma'], esfuerzo: 3, linea: 'gobierno' },
+    { id: 'gob-mando', area: 'gob', patron: 'mando', n: 'El mando real no coincide con el formal', k: ['mi padre', 'socio', 'fundador', 'decid*', 'manda*', 'firma*'], esfuerzo: 3, linea: 'gobierno' },
     { id: 'gob-cuello', area: 'gob', patron: 'responsable', n: 'Todo pasa por el empresario: no hay segundo nivel', k: ['todo pasa', 'si no estoy', 'me llaman', 'encima', 'tiempo'], esfuerzo: 3, linea: 'organizacion' },
     { id: 'gob-rumbo', area: 'gob', patron: 'fecha', n: 'Sin rumbo escrito: objetivos y prioridades no compartidos', k: ['objetivo', 'rumbo', 'futuro', 'plan', 'no sé hacia'], esfuerzo: 2, linea: 'gobierno' },
-    { id: 'fin-margen', area: 'fin', patron: 'dato', n: 'No se conoce el margen real por cliente, producto o línea', k: ['margen', 'gano', 'dinero', 'rentable', 'beneficio'], esfuerzo: 2, linea: 'finanzas' },
-    { id: 'fin-caja', area: 'fin', patron: 'limite', n: 'Tesorería sin previsión: se vive al día', k: ['caja', 'pagar', 'nóminas', 'nominas', 'póliza', 'poliza', 'cobrar'], esfuerzo: 2, linea: 'finanzas' },
-    { id: 'fin-carga', area: 'fin', patron: 'limite', n: 'Cargas financieras que el negocio no genera', k: ['banco', 'préstamo', 'prestamo', 'deuda', 'cuota', 'leasing'], esfuerzo: 3, linea: 'finanzas' },
-    { id: 'com-concentracion', area: 'com', patron: 'dato', n: 'Dependencia de pocos clientes', k: ['cliente grande', 'principal cliente', 'depende', 'concentr'], esfuerzo: 4, linea: 'comercial' },
-    { id: 'com-precio', area: 'com', patron: 'limite', n: 'Precios sin revisar ni política de margen mínimo', k: ['precio', 'subir', 'tarifa', 'descuento', 'barato'], esfuerzo: 2, linea: 'comercial' },
-    { id: 'com-proceso', area: 'com', patron: 'metodo', n: 'Sin proceso comercial: se vende por inercia', k: ['ventas', 'comercial', 'clientes nuevos', 'captar', 'boca a boca'], esfuerzo: 3, linea: 'comercial' },
-    { id: 'ope-metodo', area: 'ope', patron: 'metodo', n: 'Procesos no escritos: el método vive en las personas', k: ['siempre se ha hecho', 'lo saben', 'cabeza', 'cada uno', 'apaña'], esfuerzo: 3, linea: 'procesos' },
-    { id: 'ope-umbral', area: 'ope', patron: 'limite', n: 'Sin umbrales: stock, calidad y plazos a ojo', k: ['stock', 'falta', 'sobra', 'a ojo', 'calidad', 'retraso'], esfuerzo: 2, linea: 'procesos' },
-    { id: 'ope-capacidad', area: 'ope', patron: 'limite', n: 'Capacidad saturada y cuellos de botella', k: ['no llegamos', 'saturad', 'horas extra', 'cuello', 'atasca'], esfuerzo: 3, linea: 'procesos' },
+    { id: 'fin-margen', area: 'fin', patron: 'dato', n: 'No se conoce el margen real por cliente, producto o línea', k: ['margen', 'gano', 'dinero', 'rentab*', 'beneficio'], esfuerzo: 2, linea: 'finanzas' },
+    { id: 'fin-caja', area: 'fin', patron: 'limite', n: 'Tesorería sin previsión: se vive al día', k: ['caja', 'pagar*', 'nómina', 'póliza', 'cobr*'], esfuerzo: 2, linea: 'finanzas' },
+    { id: 'fin-carga', area: 'fin', patron: 'limite', n: 'Cargas financieras que el negocio no genera', k: ['banco', 'préstamo', 'deuda', 'cuota', 'leasing'], esfuerzo: 3, linea: 'finanzas' },
+    { id: 'com-concentracion', area: 'com', patron: 'dato', n: 'Dependencia de pocos clientes', k: ['cliente grande', 'principal cliente', 'depend*', 'concentr*'], esfuerzo: 4, linea: 'comercial' },
+    { id: 'com-precio', area: 'com', patron: 'limite', n: 'Precios sin revisar ni política de margen mínimo', k: ['precio', 'subir', 'tarifa', 'descuento', 'barat*'], esfuerzo: 2, linea: 'comercial' },
+    { id: 'com-proceso', area: 'com', patron: 'metodo', n: 'Sin proceso comercial: se vende por inercia', k: ['ventas', 'comercial', 'clientes nuevos', 'capta*', 'boca a boca'], esfuerzo: 3, linea: 'comercial' },
+    { id: 'ope-metodo', area: 'ope', patron: 'metodo', n: 'Procesos no escritos: el método vive en las personas', k: ['siempre se ha hecho', 'lo saben', 'cabeza', 'cada uno', 'apaña*'], esfuerzo: 3, linea: 'procesos' },
+    { id: 'ope-umbral', area: 'ope', patron: 'limite', n: 'Sin umbrales: stock, calidad y plazos a ojo', k: ['stock', 'falta*', 'sobra*', 'a ojo', 'calidad', 'retras*'], esfuerzo: 2, linea: 'procesos' },
+    { id: 'ope-capacidad', area: 'ope', patron: 'limite', n: 'Capacidad saturada y cuellos de botella', k: ['no llegamos', 'saturad*', 'horas extra', 'cuello', 'atasc*'], esfuerzo: 3, linea: 'procesos' },
     { id: 'per-puestos', area: 'per', patron: 'puesto', n: 'Puestos sin definir y mandos intermedios sin funciones', k: ['hace de todo', 'puesto', 'encargado', 'responsable', 'funciones'], esfuerzo: 2, linea: 'equipos' },
     { id: 'per-clave', area: 'per', patron: 'puesto', n: 'Personas clave insustituibles', k: ['si se va', 'imprescindible', 'sin él', 'sin el', 'el que más sabe'], esfuerzo: 3, linea: 'equipos' },
-    { id: 'per-clima', area: 'per', patron: 'responsable', n: 'Rotación, desmotivación o conflicto en el equipo', k: ['se van', 'rotación', 'rotacion', 'motivad', 'conflicto', 'quejas'], esfuerzo: 3, linea: 'equipos' },
+    { id: 'per-clima', area: 'per', patron: 'responsable', n: 'Rotación, desmotivación o conflicto en el equipo', k: ['se van', 'rotación', 'motivad*', 'desmotiv*', 'conflicto', 'queja'], esfuerzo: 3, linea: 'equipos' },
     { id: 'inf-cuadro', area: 'inf', patron: 'dato', n: 'Sin cuadro de mando: se decide de oído', k: ['no sabemos', 'datos', 'creo que', 'me parece', 'whatsapp', 'gestoría', 'gestoria'], esfuerzo: 2, linea: 'informacion' },
     { id: 'inf-comunicacion', area: 'inf', patron: 'dato', n: 'Comunicación interna por pasillo y WhatsApp, sin reuniones con acta', k: ['whatsapp', 'pasillo', 'reunión', 'reunion', 'no se enteran'], esfuerzo: 1, linea: 'protocolos' },
     { id: 'tie-proyectos', area: 'tie', patron: 'fecha', n: 'Proyectos sin fecha ni responsable', k: ['pendiente', 'cuando se pueda', 'ya veremos', 'obra', 'proyecto'], esfuerzo: 1, linea: 'protocolos' },

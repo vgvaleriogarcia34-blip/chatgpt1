@@ -33,6 +33,7 @@
 .iv-st { display: inline-block; padding: 2px 9px; border-radius: 999px; font: 600 var(--t-xs) var(--font-display); border: 1px solid var(--line-strong); color: var(--muted); white-space: nowrap; }
 .iv-st.ok { color: var(--go); border-color: rgba(47, 178, 74, 0.55); background: rgba(47, 178, 74, 0.08); }
 .iv-st.warn { color: var(--warn); border-color: rgba(250, 178, 25, 0.55); background: rgba(250, 178, 25, 0.08); }
+.iv-hip { display: inline-block; padding: 2px 8px; border-radius: 999px; font: 600 var(--t-xs) var(--font-display); color: var(--warn); border: 1px dashed rgba(250, 178, 25, 0.6); white-space: nowrap; margin-right: 6px; }
 .iv-st.stop { color: var(--stop); border-color: rgba(224, 72, 72, 0.55); background: rgba(224, 72, 72, 0.1); }
 .iv-prog { height: 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
 .iv-prog span { display: block; height: 100%; background: var(--go); }

@@ -72,7 +72,7 @@
         j = await A.ia.json(`Eres consultor de pymes y fijas el precio de una propuesta por valor: el precio es un porcentaje (la «conversión») del beneficio que el proyecto genera a la empresa. Con los datos de la empresa, sus objetivos y las causas que más pesan, estima el beneficio anual en régimen activando solo las palancas que el caso justifica y con cifras prudentes (si un dato falta, usa una hipótesis conservadora y dilo en los supuestos). Elige la conversión entre el 8 y el 25 % para que el proyecto devuelva al menos 5 veces su precio en cinco años. Escribe el argumento de valor de usted, en frases cortas, sin superlativos ni promesas: qué gana la empresa, por qué y que la mayor parte se la queda ella. No escribas importes en euros en el argumento: la herramienta los calcula y los enseña al lado. Devuelve JSON: {"palancas":{"<id>":{"on":true,"<campo>":"número"}},"conversion":{"pct":15,"base":"anual|cinco"},"argumento":"3-5 frases","supuestos":"hipótesis usadas, en una frase cada una"}. Los ids y campos válidos están en "palancas". \nDatos: ${JSON.stringify(contexto()).slice(0, 20000)}`);
       } catch (e) { j = null; }
     }
-    // dimDe rehace pr.dim en cada llamada: se toma de nuevo antes de escribir en él
+    // dimDe completa pr.dim sin sustituirlo: la referencia sigue siendo la misma
     d = PRO().dimDe(pr);
     if (j && j.palancas) {
       const ids = new Set(PRO().PALANCAS.map((p) => p.id));

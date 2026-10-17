@@ -9,26 +9,26 @@
    integral. Las transcripciones de sesiones de trabajo se suben también desde «Sesiones y seguimiento». */
 (function () {
   const A = window.Atalaya, V = A.interv;
-  const { $, esc, norm, pl, fCorta, guardar, toast, render, VISTAS } = V.int;
+  const { D, $, esc, norm, pl, fCorta, guardar, toast, render, VISTAS } = V.int;
   const S = () => V.int.st();
   const C = () => V.cruce;
   const I = () => A.informe;
 
   const TEMAS = [
-    ['Caja y pagos', ['caja', 'poliza', 'nomina', 'pagar', 'tesoreria', 'liquidez', 'banco']],
-    ['Cobros', ['cobr', 'impago', 'vencid']],
-    ['Margen y beneficio', ['margen', 'beneficio', 'rentab', 'ganamos', 'gano', 'perdemos']],
-    ['Ventas y clientes', ['venta', 'vender', 'cliente', 'factur', 'pedido']],
-    ['Inversores e inversión', ['inversor', 'inversion', 'invertir', 'capital', 'aportacion']],
+    ['Caja y pagos', ['caja', 'poliza', 'nomina', 'pagar*', 'pago', 'tesoreria', 'liquidez', 'banco']],
+    ['Cobros', ['cobr*', 'impag*', 'vencid*']],
+    ['Margen y beneficio', ['margen', 'beneficio', 'rentab*', 'ganamos', 'gano', 'perdemos']],
+    ['Ventas y clientes', ['venta', 'vender*', 'cliente', 'factur*', 'pedido']],
+    ['Inversores e inversión', ['inversor', 'inversion', 'invertir*', 'capital', 'aportacion']],
     ['Equipo y responsables', ['equipo', 'encargado', 'responsable', 'plantilla', 'la gente', 'trabajador']],
-    ['Su tiempo y delegar', ['delegar', 'tiempo', 'horas', 'agenda', 'encima', 'todo pasa por mi']],
+    ['Su tiempo y delegar', ['deleg*', 'tiempo', 'horas', 'agenda', 'encima', 'todo pasa por mi']],
     ['Procesos y orden', ['proceso', 'orden', 'metodo', 'manual', 'procedimiento']],
-    ['Gobierno y socios', ['socio', 'mi padre', 'familia', 'decid', 'gobierno']],
-    ['Proyectos', ['proyecto', 'obra', 'nave', 'compra', 'reforma']]
+    ['Gobierno y socios', ['socio', 'mi padre', 'familia', 'decid*', 'gobierno']],
+    ['Proyectos', ['proyecto', 'obra', 'nave', 'compra*', 'reforma']]
   ];
   // Logros y mejoras contados por la empresa
   const BENEF = /(hemos conseguido|hemos logrado|lo hemos (hecho|cerrado|resuelto)|ya (no|tenemos|sabemos|hemos|funciona|cobramos|cerramos)|ahora (si|ya|tenemos|sabemos|puedo|podemos)|he (ganado|recuperado|liberado|conseguido)|hemos (cerrado|vendido|cobrado|reducido|subido|bajado|ahorrado|ganado|firmado)|ahorr(o|amos|ado)|mas tiempo|menos horas|por fin|funciona (mejor|bien)|esta funcionando|ha mejorado|hemos mejorado|mucho mejor)/;
-  const frasesE = (tr) => { const set = C().clientesDe(tr); return tr.turnos.filter((x) => set.has(x.h)).flatMap((x) => (C().soloEmpresa(x.t) || '').match(/[^.!?]+[.!?]*/g) || []).map((f) => f.trim()).filter((f) => f.split(/\s+/).length >= 3); };
+  const frasesE = (tr) => { const set = C().clientesDe(tr); return tr.turnos.filter((x) => set.has(x.h)).flatMap((x) => D.frases(C().soloEmpresa(x.t) || '', { min: 3 })); };
   const palabrasClave = (t) => [...new Set(norm(t).split(/[^a-zñ]+/).filter((w) => w.length > 4 && !/^(hacer|tener|sobre|entre|desde|hasta|para|quiero|queremos|empresa|pasando|antes|horas|semana)$/.test(w)))].slice(0, 8);
 
   const calcular = () => {
@@ -36,9 +36,9 @@
     const objs = (S().objetivos || []).filter((o) => (o.especifica || o.dice) && !(V.objSmart && V.objSmart.esContrato(o)));
     const filas = trs.map((tr, i) => {
       const fr = frasesE(tr), txt = norm(fr.join(' ')), an = tr.analisis || {}, est = C().estimar ? C().estimar(tr) : {};
-      const temas = TEMAS.filter(([, ks]) => ks.some((k) => txt.includes(k))).map(([n]) => n);
+      const temas = TEMAS.filter(([, ks]) => D.kwAlguna(txt, ks)).map(([n]) => n);
       const benef = fr.filter((f) => BENEF.test(norm(f)) && !/\?/.test(f)).slice(0, 6);
-      const alin = objs.map((o) => { const ks = palabrasClave((o.especifica || '') + ' ' + (o.indicador || '') + ' ' + (o.dice || '')); return ks.filter((k) => txt.includes(k)).length >= 2; });
+      const alin = objs.map((o) => { const ks = palabrasClave((o.especifica || '') + ' ' + (o.indicador || '') + ' ' + (o.dice || '')); return D.kwCuenta(txt, ks) >= 2; });
       return { tr, i, fase: tr.momento || 'primera', palabras: an.palabras || 0, pct: an.pctCliente || 0, huecos: an.huecos ? an.huecos.filter((h) => h.peso).length : 0, yo: an.yo || 0, nos: an.nos || 0, tension: est.tension || 0, temperatura: est.temperatura || 0, dependencia: est.dependencia || 0, temas, benef, alin };
     });
     return { filas, objs };

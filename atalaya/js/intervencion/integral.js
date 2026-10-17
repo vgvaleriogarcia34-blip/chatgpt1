@@ -31,28 +31,28 @@
   const TEMAS = [
     { id: 'horas', k: ['horas', 'taller', 'operativa', 'apagar fuegos', 'dependa de mi', 'todo pasa por mi', 'delegar', 'dedicarme a', 'dirigir', 'estar encima', 'agenda'], ind: 'Horas del empresario en la operativa por semana', u: 'horas', solo: true,
       esp: 'Delegar la operativa y dedicar ese tiempo a dirigir y vender', ben: (o) => (o.actual && o.valor ? `${(+o.actual - +o.valor)} horas a la semana para dirigir y vender` : ''), coste: 'Formar a un encargado y traspasarle tareas: de 3 a 6 meses de acompañamiento' },
-    { id: 'beneficio', k: ['beneficio', 'ganar dinero', 'gane dinero', 'rentab', 'margen', 'ganamos', 'ganancia'], ind: 'Beneficio neto sobre ventas', u: '%', solo: true,
+    { id: 'beneficio', k: ['beneficio', 'ganar dinero', 'gane dinero', 'rentab*', 'margen', 'ganamos', 'ganancia'], ind: 'Beneficio neto sobre ventas', u: '%', solo: true,
       esp: 'Llevar el beneficio neto de la empresa a un porcentaje fijado sobre las ventas', ben: (o, x) => (o.valor ? (x.ventas ? `${o.valor} % sobre ${fmtE(x.ventas)} de ventas: unos ${fmtE(x.ventas * o.valor / 100)} de beneficio al año` : `${o.valor} % de beneficio neto sobre las ventas`) : ''), coste: 'Revisar precios y costes por cliente y producto; sostener las decisiones' },
-    { id: 'ventas', k: ['facturar', 'facturacion', 'ventas', 'vender mas', 'crecer', 'clientes nuevos', 'mercado'], ind: 'Ventas anuales', u: '€', solo: false,
+    { id: 'ventas', k: ['facturar*', 'facturacion', 'ventas', 'vender mas', 'crecer*', 'clientes nuevos', 'mercado'], ind: 'Ventas anuales', u: '€', solo: false,
       esp: 'Aumentar las ventas con un plan comercial que dirija él', ben: (o) => (o.actual && o.valor ? `${fmtE(+o.valor - +o.actual)} más de ventas al año` : ''), coste: 'Tiempo comercial del empresario y, si hace falta, un comercial' },
     { id: 'caja', k: ['caja', 'poliza', 'nominas', 'tesoreria', 'vamos justos', 'ir justos', 'liquidez'], ind: 'Meses del año sin disponer de la póliza', u: 'meses', solo: true,
       esp: 'Planificar la tesorería a 13 semanas y dejar de depender de la póliza', ben: (o, x) => (x.poliza ? `Hasta ${fmtE(x.poliza * 0.06)} al año en intereses y comisiones de la póliza` : ''), coste: 'Una hora a la semana para la previsión de caja' },
-    { id: 'cobros', k: ['cobrar', 'cobros', 'pagan tarde', 'no pagan', 'impagados', 'plazo de cobro'], ind: 'Plazo medio de cobro', u: 'días', solo: true,
+    { id: 'cobros', k: ['cobrar*', 'cobros', 'pagan tarde', 'no pagan', 'impagad*', 'plazo de cobro'], ind: 'Plazo medio de cobro', u: 'días', solo: true,
       esp: 'Reducir el plazo medio de cobro con condiciones y seguimiento de cobros', ben: (o, x) => (x.ventas && o.actual && o.valor ? `${fmtE(x.ventas * (+o.actual - +o.valor) / 365)} de caja liberada` : ''), coste: 'Renegociar condiciones con algunos clientes' },
     { id: 'equipo', k: ['equipo', 'encargado', 'responsables', 'mandos', 'la gente', 'plantilla', 'personas'], ind: 'Responsables con funciones escritas y delegadas', u: 'personas', solo: true,
       esp: 'Nombrar responsables con funciones escritas y delegar en ellos las decisiones del día a día', ben: () => '', coste: 'Tiempo para definir puestos y acompañar a los responsables' },
-    { id: 'procesos', k: ['orden', 'procesos', 'metodo', 'a su manera', 'siempre se ha hecho', 'organizacion', 'organizar'], ind: 'Procesos clave escritos y en uso', u: 'procesos', solo: true,
+    { id: 'procesos', k: ['orden', 'procesos', 'metodo', 'a su manera', 'siempre se ha hecho', 'organizacion', 'organiz*'], ind: 'Procesos clave escritos y en uso', u: 'procesos', solo: true,
       esp: 'Escribir y poner en marcha los procesos clave de la empresa', ben: () => '', coste: 'Unas horas por proceso con quien lo hace' },
     { id: 'gobierno', k: ['mi padre', 'relevo', 'sucesion', 'familia en la empresa', 'socio', 'socios', 'quien decide'], ind: 'Acuerdo de gobierno firmado', u: 'acuerdo', solo: false,
       esp: 'Acordar y firmar con la familia o los socios quién decide qué', ben: () => '', coste: 'Conversaciones difíciles con la familia o los socios' },
     { id: 'personal', k: ['vacaciones', 'familia', 'mi mujer', 'mi marido', 'mis hijos', 'estres', 'descansar', 'calidad de vida'], ind: 'Semanas de vacaciones al año sin llamadas del trabajo', u: 'semanas', solo: true,
       esp: 'Recuperar tiempo personal y de descanso sin que la empresa se pare', ben: () => '', coste: 'Que la empresa funcione sin él: equipo y procesos' },
-    { id: 'gastos', k: ['gastos', 'costes', 'coste', 'gastamos', 'compras', 'ahorrar'], ind: 'Gastos de estructura anuales', u: '€', solo: true,
+    { id: 'gastos', k: ['gastos', 'costes', 'coste', 'gastamos', 'compras', 'ahorr*'], ind: 'Gastos de estructura anuales', u: '€', solo: true,
       esp: 'Revisar y recortar los gastos de estructura partida a partida', ben: () => '', coste: 'Renegociar contratos y renunciar a algunos gastos' },
     { id: 'actividad', k: ['llamar', 'llamadas', 'visitar', 'visitas', 'ofertas', 'presupuestos', 'presentar'], ind: 'Acciones comerciales por semana', u: 'acciones', solo: true,
       esp: 'Hacer cada semana un número fijo de acciones comerciales', ben: () => '', coste: 'Horas de agenda comercial cada semana' }
   ];
-  const temaDe = (t) => { const n = norm(t); let mejor = null, sc = 0; TEMAS.forEach((T) => { const s = T.k.filter((k) => n.includes(norm(k))).length; if (s > sc) { sc = s; mejor = T; } }); return mejor; };
+  const temaDe = (t) => { const n = norm(t); let mejor = null, sc = 0; TEMAS.forEach((T) => { const s = D.kwCuenta(n, T.k); if (s > sc) { sc = s; mejor = T; } }); return mejor; };
   const UNID = { horas: /horas?/, '%': /(%|por ciento)/, '€': /(€|euros?|millon|mil\b)/, meses: /mes(es)?/, 'días': /d[ií]as?/, personas: /(personas|responsables|mandos)/, semanas: /semanas?/ };
   /* ---------- Lectura de la M (cifra meta) y de la T (fecha límite) en lo que dice ---------- */
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -161,7 +161,7 @@
     const f = l.map((t) => t.fecha || '').sort().pop(); return f ? l.filter((t) => (t.fecha || '') === f) : l;
   };
   const clientesDe = (tr) => new Set(tr.clientes && tr.clientes.length ? tr.clientes : (tr.hablantes && tr.hablantes[0] ? [tr.hablantes[0].n] : []));
-  const frases = (t) => (String(t).match(/[^.!?¿¡\n]+[.!?]*/g) || []).map((x) => x.trim()).filter((x) => x.split(/\s+/).length >= 3);
+  const frases = (t) => D.frases(t, { min: 3 });
   const contexto = async () => {
     let ventas = 0, poliza = 0;
     try { const sim = await P().loadData('simulador'); if (sim && sim.empresa && !(A.simEsEjemplo && A.simEsEjemplo(sim))) { ventas = +sim.empresa.ventas || 0; poliza = +sim.empresa.polizaLimite || 0; } } catch (e) { /* sin datos */ }

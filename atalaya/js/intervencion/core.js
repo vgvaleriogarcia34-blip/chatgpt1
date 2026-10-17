@@ -84,10 +84,10 @@
   const sugerirCausa = (s) => {
     const f = norm(s.t + ' ' + (s.cita || ''));
     let mejor = null, pt = 0;
-    D.CAUSAS.forEach((c) => { let p = (c.area === s.area ? 3 : 0) + (c.patron === s.patron ? 2 : 0); c.k.forEach((k) => { if (f.includes(norm(k))) p += 3; }); if (p > pt) { pt = p; mejor = c; } });
+    D.CAUSAS.forEach((c) => { let p = (c.area === s.area ? 3 : 0) + (c.patron === s.patron ? 2 : 0); c.k.forEach((k) => { if (D.kw(f, k)) p += 3; }); if (p > pt) { pt = p; mejor = c; } });
     return pt >= 3 ? mejor : null;
   };
-  const asegurarCausa = (ref) => { let c = ST.causas.find((x) => x.ref === ref.id); if (!c) { c = { id: uid(), ref: ref.id, t: ref.n, area: ref.area, patron: ref.patron, esfuerzo: ref.esfuerzo, estado: 'hipotesis', porques: ['', '', ''] }; ST.causas.push(c); } return c; };
+  const asegurarCausa = (ref) => { let c = ST.causas.find((x) => x.ref === ref.id); if (!c) { c = { id: uid(), ref: ref.id, t: ref.n, area: ref.area, patron: ref.patron, esfuerzo: ref.esfuerzo, estado: 'hipotesis', auto: true, porques: ['', '', ''] }; ST.causas.push(c); } return c; };
   const ruta = () => D.AREAS.map((a) => ({ a, n: nivel(a.id), ss: sintomasDe(a.id), cs: ST.causas.filter((c) => c.area === a.id && c.estado !== 'descartada'), pr: prioArea(a.id) })).filter((x) => x.n || x.ss.length).sort((x, y) => ({ stop: 0, warn: 1, ok: 2, '': 3 }[x.n] - { stop: 0, warn: 1, ok: 2, '': 3 }[y.n]) || x.pr.o - y.pr.o || y.pr.score - x.pr.score);
   const capa = (k) => etapaDe(k);
 
@@ -460,7 +460,7 @@
   };
 
   /* La lógica de síntomas, triaje, auditoría, plan, sesiones e informes está en vistas.js */
-  V.int = { ETAPAS, TABS, hecho, etapaDe, recVacio, objetivosHTML: () => objetivosHTML(), wireObjetivos: (h) => wireObjetivos(h), prioArea, PRIN_N, TERCEROS, VAGO, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, veinteDe, porPeso, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, botonesAmpliar: () => botonesAmpliar(), st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
+  V.int = { frases: D.frases, citaOk: D.citaOk, kw: D.kw, kwAlguna: D.kwAlguna, ETAPAS, TABS, hecho, etapaDe, recVacio, objetivosHTML: () => objetivosHTML(), wireObjetivos: (h) => wireObjetivos(h), prioArea, PRIN_N, TERCEROS, VAGO, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, veinteDe, porPeso, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, botonesAmpliar: () => botonesAmpliar(), st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
 
   /* ---------- Arranque ---------- */
   V.start = async () => {

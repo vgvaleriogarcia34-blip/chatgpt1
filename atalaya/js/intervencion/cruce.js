@@ -83,7 +83,7 @@
      seguido), cada respuesta se limpia frase a frase: fuera las preguntas, lo que explica o propone el consultor
      (la sesión, la propuesta, la auditoría, «como os he comentado», «te explico»…) y la pregunta del guion leída. */
   const VOZ_CONS = /(\?|¿|\b(como (os|te|le|les) (he|hemos) (comentado|dicho|explicado|contado)|(te|os|le|les) (explico|cuento|propongo|pregunto|recomiendo|comento)|vamos a (ver|trabajar|hacer|empezar|repasar|hablar|centrarnos)|lo que vamos a hacer|lo que (yo )?(veo|haria|recomiendo)|mi recomendacion|nuestro (metodo|trabajo|equipo|enfoque)|nuestra (metodologia|propuesta)|la (propuesta|auditoria|intervencion|metodologia)|esta (sesion|hora|reunion)|en la (sesion|primera sesion)|cuentame|dime|hablame|imaginate|piensa en|antes de empezar|business avance|el consultor|consultoria)\b)/;
-  const frasesR = (t) => (String(t || '').match(/[^.!?¿¡\n]+[.!?]*|[¿¡][^?!]+[?!]?/g) || []).map((x) => x.trim()).filter(Boolean);
+  const frasesR = (t) => D.frases(t, { preg: true });
   const esDelConsultor = (f, q) => VOZ_CONS.test(norm(f)) || (q && parecido(q, f) >= 0.5);
   const soloEmpresa = (t, q) => frasesR(t).filter((f) => !esDelConsultor(f, q)).join(' ').replace(/\s+/g, ' ').trim();
   const descartada = (t) => { const d = S().sesion.descartadas || []; const n = norm(t); return d.some((x) => x && (n.includes(x) || x.includes(n.slice(0, 60)))); };
@@ -133,18 +133,41 @@
     if (!s || Math.abs(new Date(s.fecha) - new Date(tr.fecha)) > 9 * 864e5) { s = { id: uid(), tipo: 'seguimiento', fecha: tr.fecha, hora: '09:00', dur: 90, obj: 'Sesión de intervención (desde la transcripción «' + tr.nombre + '»).', acta: '', acuerdos: [] }; ST.sesiones.push(s); ST.sesiones.sort((a, b) => a.fecha.localeCompare(b.fecha)); }
     tr.sesion = s.id; return s;
   };
-  const frasesDe = (t) => (String(t).match(/[^.!?¿¡\n]+[.!?]*/g) || []).map((x) => x.trim()).filter((x) => x.split(/\s+/).length >= 4);
+  const frasesDe = (t) => D.frases(t, { min: 4 });
+  // Fecha de un acuerdo dicha en relativo («el viernes», «el martes», «el 30», «mañana», «la semana que viene»…) desde la fecha de la sesión
+  const DIAS_S = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'], MESES_A = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const fechaRel = (f, base) => {
+    const n = norm(f), b = new Date((base || hoy()) + 'T12:00:00'), iso = (d) => d.toISOString().slice(0, 10); let m;
+    if ((m = n.match(/\b(?:el (?:dia )?)?(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/))) { const d = new Date(b.getFullYear(), MESES_A.indexOf(m[2]), +m[1], 12); if (d < b) d.setFullYear(d.getFullYear() + 1); return iso(d); }
+    if (/\bpasado manana\b/.test(n)) return sumar(base, 2);
+    if (/\bmanana\b/.test(n) && !/\bpor la manana\b/.test(n)) return sumar(base, 1);
+    if ((m = n.match(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/))) { const dd = (DIAS_S.indexOf(m[1]) - b.getDay() + 7) % 7 || 7; return sumar(base, dd + (/\b(de la semana que viene|de la proxima semana)\b/.test(n) && dd < 7 ? 7 : 0)); }
+    if ((m = n.match(/\bel (?:dia )?(\d{1,2})\b(?! (?:de |por |%|euros|horas|personas|dias))/)) && +m[1] >= 1 && +m[1] <= 31) { const d = new Date(b.getFullYear(), b.getMonth(), +m[1], 12); if (d <= b) d.setMonth(d.getMonth() + 1); return iso(d); }
+    if ((m = n.match(/\ben (\d{1,2}|dos|tres|cuatro|cinco|diez|quince) dias\b/))) return sumar(base, { dos: 2, tres: 3, cuatro: 4, cinco: 5, diez: 10, quince: 15 }[m[1]] || +m[1]);
+    if (/\b(fin|final) de(l)? mes\b/.test(n)) return iso(new Date(b.getFullYear(), b.getMonth() + 1, 0, 12));
+    if (/\b(semana que viene|proxima semana)\b/.test(n)) return sumar(base, 7);
+    if (/\b(quincena|dos semanas|quince dias)\b/.test(n)) return sumar(base, 14);
+    if (/\b(mes que viene|proximo mes)\b/.test(n)) return sumar(base, 30);
+    return '';
+  };
   const extraerIntervencion = (tr) => {
-    const s = sesionPara(tr), todo = tr.turnos.map((x) => ({ h: x.h, f: frasesDe(x.t) })).flatMap((x) => x.f.map((f) => ({ h: x.h, f })));
+    const s = sesionPara(tr), set = clientesDe(tr), todo = tr.turnos.map((x) => ({ h: x.h, f: frasesDe(x.t) })).flatMap((x) => x.f.map((f) => ({ h: x.h, f })));
     const RE_ACU = /\b(vamos a|queda(mos)? en|acordamos|te encargas|se encarga|para el (lunes|martes|miercoles|miércoles|jueves|viernes|dia|día|proximo|próximo)|antes del|la semana que viene|hay que|tienes que|tiene que|me comprometo|lo dejamos)\b/i;
+    // Lo que dice el consultor solo es acuerdo si lo cierra («quedamos en», «te encargas»…); sus preguntas nunca
+    const RE_ACU_F = /\b(queda(mos)? en|acordamos|acordado|te encargas|se encarga|me comprometo|lo dejamos)\b/i;
+    // Personas conocidas: quien habla, los asistentes, el consultor y el equipo de la propuesta
+    const ST0 = S(), conocidas = [...new Set([].concat((tr.hablantes || []).map((x) => x.n), String(ST0.sesion.asistentes || '').split(/[,;\/]| y /), ST0.sesion.consultor || '', ((ST0.propuesta && ST0.propuesta.equipo && ST0.propuesta.equipo.items) || []).map((x) => x.n)).map((x) => String(x || '').trim().split(/\s+/)[0]).filter((x) => x && x.length > 2 && /^[A-ZÁÉÍÓÚÑ]/.test(x) && !/^(hablante|speaker|persona|consultor|interlocutor)/i.test(x)))];
+    const FUT = /\b[a-záéíóúñ]+(ará|erá|irá|arán|erán|irán)\b/i, NO_NOM = /^(Ahora|Luego|Vale|Bueno|Pues|También|Tambien|Entonces|Eso|Esto|Esta|Este|Todo|Nada|Mañana|Hoy|Ya|Yo|Nosotros|El|La|Los|Las|Lo|Un|Una|Si|No|Para|Con|En|De|Que|Y|Pero|Cuando|Antes|Después|Despues)$/;
+    const respDe = (f, h) => { const k = conocidas.find((c) => new RegExp('(^|[^\\wÀ-ÿ])' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^\\wÀ-ÿ]|$)').test(f)); if (k) return k; const m = f.match(/^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+(?:se encarga|revisar|llamar|prepar|hablar|enviar|mandar|hacer|traer|pasar|cerrar|firmar|[a-záéíóúñ]+(?:ará|erá|irá))/); if (m && !NO_NOM.test(m[1])) return m[1]; if (/\b(me comprometo|me encargo|lo hago yo|lo preparo yo)\b/i.test(f) && set.has(h)) return String(h).split(/\s+/)[0]; return ''; };
+    const esAcuerdo = (x) => { const f = x.f.trim(); if (/\?["»”)]*$/.test(f) || /^[¿]/.test(f)) return false; const fuerte = RE_ACU_F.test(f), compromiso = RE_ACU.test(f) || (FUT.test(f) && (!!respDe(f, x.h) || !!fechaRel(f, s.fecha))); return set.has(x.h) ? compromiso : fuerte; };
     const RE_AV = /\b(ya (esta|está|tenemos|hemos)|hemos (hecho|terminado|conseguido|implantado|empezado)|funciona|se ha (hecho|cerrado)|lo tenemos|completad|terminad)\b/i;
     const RE_BLQ = /\b(no (hemos|he) podido|no ha dado tiempo|bloquead|pendiente|se ha retrasado|no se ha hecho|falta|problema)\b/i;
-    const acuerdos = [...new Set(todo.filter((x) => RE_ACU.test(x.f)).map((x) => x.f))].slice(0, 10);
+    const vistos = new Set(), acuerdos = todo.filter((x) => esAcuerdo(x) && !vistos.has(x.f) && vistos.add(x.f)).slice(0, 10);
     const avances = [...new Set(todo.filter((x) => RE_AV.test(x.f)).map((x) => x.f))].slice(0, 8);
     const bloqueos = [...new Set(todo.filter((x) => RE_BLQ.test(x.f)).map((x) => x.f))].slice(0, 6);
     const objs = objetivosVivos().map((o) => { const k = [...new Set(palabras(o.t + ' ' + (o.ind || '') + ' ' + (o.como || '')))]; const men = todo.filter((x) => { const w = new Set(palabras(x.f)); return k.filter((c) => w.has(c)).length >= 2; }).map((x) => x.f).slice(0, 3); return { id: o.id, n: o.n, t: o.t, men }; }).filter((o) => o.men.length);
     s.acuerdos = s.acuerdos || []; const ya = new Set(s.acuerdos.map((a) => norm(a.t)));
-    acuerdos.forEach((a) => { if (!ya.has(norm(a))) s.acuerdos.push({ t: a.length > 160 ? a.slice(0, 157) + '…' : a, resp: '', fecha: sumar(s.fecha, 14), tr: tr.id }); });
+    acuerdos.forEach((x) => { const a = x.f; if (!ya.has(norm(a))) s.acuerdos.push({ t: a.length > 160 ? a.slice(0, 157) + '…' : a, resp: respDe(a, x.h), fecha: fechaRel(a, s.fecha) || sumar(s.fecha, 14), tr: tr.id }); });
     s.avances = (s.avances || []).filter((x) => x.tr !== tr.id).concat(objs.map((o) => ({ oid: o.id, n: o.n, t: o.t, texto: o.men.join(' '), tr: tr.id })));
     const resumen = `Desde «${tr.nombre}» (${fLarga(tr.fecha)}): ${pl(avances.length, 'avance', 'avances')}, ${pl(acuerdos.length, 'acuerdo', 'acuerdos')} y ${pl(bloqueos.length, 'bloqueo', 'bloqueos')}.${avances.length ? '\nAvances: ' + avances.slice(0, 4).join(' ') : ''}${bloqueos.length ? '\nBloqueos: ' + bloqueos.slice(0, 3).join(' ') : ''}`;
     if (!String(s.acta || '').includes('Desde «' + tr.nombre + '»')) s.acta = (s.acta ? s.acta + '\n\n' : '') + resumen;
@@ -304,8 +327,8 @@
       // Señales del documento: frases que encajan con causas tipo (con su cita)
       const vistas = new Set();
       // Una frase sobre inversores (acreedores) no es una señal de personas y equipos (trabajadores con nómina)
-      D.CAUSAS.forEach((c) => { const f = fr.find((x) => c.k.filter((k) => norm(x).includes(norm(k))).length >= 2 && !(c.area === 'per' && E.rolDe && E.rolDe(x) === 'inversor')); if (f && !vistas.has(f) && out[c.area].sintomas.filter((s) => s.de === d.nombre).length < 3) { vistas.add(f); sint(c.area, c.n, f.length > 200 ? f.slice(0, 197) + '…' : f, 3, d.nombre); } });
-      (areas.length ? areas : [...new Set(D.CAUSAS.filter((c) => fr.some((x) => c.k.some((k) => norm(x).includes(norm(k))))).map((c) => c.area))].slice(0, 2)).forEach((a) => out[a].docs.push({ n: d.nombre, fecha: d.fecha, chars: d.chars }));
+      D.CAUSAS.forEach((c) => { const f = fr.find((x) => D.citaOk(x) && D.kwCuenta(x, c.k) >= 2 && !(c.area === 'per' && E.rolDe && E.rolDe(x) === 'inversor')); if (f && !vistas.has(f) && out[c.area].sintomas.filter((s) => s.de === d.nombre).length < 3) { vistas.add(f); sint(c.area, c.n, f.length > 200 ? f.slice(0, 197) + '…' : f, 3, d.nombre); } });
+      (areas.length ? areas : [...new Set(D.CAUSAS.filter((c) => fr.some((x) => D.kwAlguna(x, c.k))).map((c) => c.area))].slice(0, 2)).forEach((a) => out[a].docs.push({ n: d.nombre, fecha: d.fecha, chars: d.chars }));
     });
     // Personas y equipos
     if (!P() || !P().puede || P().puede('personas')) {

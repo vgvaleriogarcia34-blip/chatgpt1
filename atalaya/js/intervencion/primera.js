@@ -22,7 +22,7 @@
     const f = S().sesion.fecha, mismo = l.filter((t) => t.fecha === f); if (mismo.length) return mismo;
     const u = l.map((t) => t.fecha || '').sort().pop(); return l.filter((t) => (t.fecha || '') === u);
   };
-  const pregCorta = (t) => { const q = (String(t).match(/¿[^?]+\?/g) || []).pop() || String(t).split(/(?<=[.!?])\s/)[0]; return q.length > 120 ? q.slice(0, 117).replace(/\s\S*$/, '') + '…' : q; };
+  const pregCorta = (t) => { const q = (String(t).match(/¿[^?]+\?/g) || []).pop() || D.frases(t)[0] || String(t); return q.length > 120 ? q.slice(0, 117).replace(/\s\S*$/, '') + '…' : q; };
   // Dónde se dijo una frase: transcripción, si la dijo la empresa y a qué pregunta respondía
   const localizar = (cita) => {
     const k = norm(cita).replace(/[«»"…]/g, '').slice(0, 60).trim(); if (k.length < 8) return null;
@@ -88,10 +88,11 @@
     'leg-societario': { q: 'Socios, avales, poderes o herencia sin ordenar: un riesgo patrimonial o de bloqueo.', no: 'Que pactos, poderes y avales estén ordenados (con validación jurídica externa).' },
     'leg-cumplimiento': { q: 'Hay requerimientos, inspecciones o litigios con plazo que no se están gestionando.', no: 'Que cada expediente tenga responsable y fecha (con validación jurídica externa).' }
   };
-  const PROY = /\b(proyecto|obra|nave|maquina|ampliacion|reforma|pagina web|la web|tienda|inversion|programa|erp|software|certificacion|furgoneta|camion|local|linea nueva|nueva linea|expansion|franquicia|exportar|exportacion)\w*/;
+  // Palabra entera (con su plural): «obra» no casa con «obrador» ni «local» con «localidad»
+  const PROY = /\b(proyecto|obra|nave|maquina|maquinaria|ampliacion|reforma|pagina web|la web|tienda|inversion|programa|erp|software|certificacion|furgoneta|camion|local|linea nueva|nueva linea|expansion|franquicia|exportar|exportacion)(s|es)?\b/;
   const proyectos = () => {
     const out = []; deSesion().forEach((tr) => { const set = clientesDe(tr), tu = tr.turnos || [];
-      tu.forEach((u, j) => { if (!set.has(u.h)) return; (String(u.t).match(/[^.!?]+[.!?]*/g) || []).forEach((fr) => { const nf = norm(fr), m = nf.match(PROY); if (!m || !/(pendiente|quiero|queremos|vamos a|tenemos que|cuando se pueda|ya veremos|nuev[oa]|proyecto|empezar|abrir|comprar|invertir|ampliar|montar|hacer la|hacer el)/.test(nf)) return;
+      tu.forEach((u, j) => { if (!set.has(u.h)) return; D.frases(u.t, { cita: true }).forEach((fr) => { const nf = norm(fr), m = nf.match(PROY); if (!m || !/(pendiente|quiero|queremos|vamos a|tenemos que|cuando se pueda|ya veremos|nuev[oa]|proyecto|empezar|abrir|comprar|invertir|ampliar|montar|hacer la|hacer el)/.test(nf)) return;
         out.push({ tema: m[0], cita: fr.trim(), tr, pregunta: (() => { for (let i = j - 1; i >= 0 && i >= j - 3; i--) if (!set.has(tu[i].h)) return pregCorta(tu[i].t); return ''; })(), fecha: /(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|20\d\d|semana que viene|el mes que viene)/.test(nf), resp: /(lo lleva|se encarga|responsable|encargad[oa] de)/.test(nf) }); }); }); });
     return out.slice(0, 10);
   };
@@ -106,11 +107,11 @@
   /* ---------- Constantes: de dónde sale cada lectura ---------- */
   const LEX = () => ({ tension: [].concat(D.LEXICO.emocion.w, D.LEXICO.obligacion.w), temperatura: D.LEXICO.urgencia.w, dependencia: D.LEXICO.centralizacion.w,
     pulso: ['pagar', 'pagos', 'nominas', 'banco', 'poliza', 'cobrar', 'cobros', 'impago', 'caja', 'liquidez', 'deuda', 'prestamo', 'descubierto', 'justos'],
-    respiracion: ['no llegamos', 'no damos abasto', 'horas extra', 'saturad', 'agotad', 'quemad', 'sobrecarga', 'faltan manos', 'no tengo gente', 'a tope', 'desbordad', 'no me da la vida'],
+    respiracion: ['no llegamos', 'no damos abasto', 'horas extra', 'saturad*', 'agotad*', 'quemad*', 'sobrecarga', 'faltan manos', 'no tengo gente', 'a tope', 'desbordad*', 'no me da la vida'],
     reflejos: ['ya veremos', 'no se', 'depende', 'lo pensare', 'mas adelante', 'cuando se pueda', 'esperar', 'dudas', 'no me decido', 'lo dejamos', 'lo cambia', 'al final decido'] });
   const apoyos = (id) => {
     const ws = (LEX()[id] || []).map(norm), out = [], usadas = new Set();
-    deSesion().forEach((tr) => { const set = clientesDe(tr), tu = tr.turnos || []; tu.forEach((u, j) => { if (!set.has(u.h)) return; (String(u.t).match(/[^.!?]+[.!?]*/g) || []).forEach((fr) => { const nf = norm(fr), w = ws.filter((x) => x !== 'solo' && nf.includes(x)); if (!w.length || (V.objSmart && V.objSmart.esContrato({ dice: fr }))) return; w.forEach((x) => usadas.add(x)); if (out.length < 3) { let q = ''; for (let i = j - 1; i >= 0 && i >= j - 3; i--) if (!set.has(tu[i].h)) { q = pregCorta(tu[i].t); break; } out.push({ cita: fr.trim(), tr, pregunta: q }); } }); }); });
+    deSesion().forEach((tr) => { const set = clientesDe(tr), tu = tr.turnos || []; tu.forEach((u, j) => { if (!set.has(u.h)) return; D.frases(u.t, { cita: true }).forEach((fr) => { const nf = norm(fr), w = ws.filter((x) => x !== 'solo' && D.kw(nf, x)); if (!w.length || (V.objSmart && V.objSmart.esContrato({ dice: fr }))) return; w.forEach((x) => usadas.add(x)); if (out.length < 3) { let q = ''; for (let i = j - 1; i >= 0 && i >= j - 3; i--) if (!set.has(tu[i].h)) { q = pregCorta(tu[i].t); break; } out.push({ cita: fr.trim(), tr, pregunta: q }); } }); }); });
     return { citas: out, palabras: [...usadas] };
   };
   const razonConstante = (c) => {
@@ -166,14 +167,14 @@
     if (sig.length) h += In.section('Lo más significativo', sig.map((s) => { const p = s.patron ? D.patron(s.patron) : null, lc = s.cita ? localizar(s.cita) : null; return `<div class="pdf-keep" style="margin:0 0 10px;padding:8px 10px;border-left:3px solid #c48a00;background:#faf9f5"><b>${esc(s.t)}</b> · ${esc((D.area(s.area) || {}).n || '')}<br>${s.cita ? `<i>«${esc(s.cita)}»</i>${lc && lc.pregunta ? ` <span class="rp-muted">(a la pregunta «${esc(lc.pregunta)}»)</span>` : ''}<br>` : ''}${p ? `<span>Qué nos dice: ${esc(paraUsted(p.vacio))}</span><br><span class="rp-muted">Lo que cuesta si sigue así: ${esc(paraUsted(p.cuesta))}</span>` : ''}</div>`; }).join(''), 'Un síntoma por área, el de más peso.');
     // 5. Triaje razonado
     if (r.length) {
-      h += In.section('Triaje por áreas', In.table(['Área', 'Prioridad', 'Por qué', 'Síntomas', 'Causa probable'], r.map((x) => { const ls = [...new Set(x.ss.map((s) => s.t))]; return [x.a.n, x.n ? { h: In.pill(x.n, TRIAJE[x.n].n) } : '—', x.pr.motivo.join(' · '), `${x.ss.length}: ${ls.slice(0, 4).join('; ')}${ls.length > 4 ? '…' : ''}`, x.cs.map((c) => c.t).join(' · ') || 'Por definir en la auditoría']; })), 'Urgente: resolver en 0-14 días. Preferente: este trimestre. Programable: sin urgencia.');
+      h += In.section('Triaje por áreas', In.table(['Área', 'Prioridad', 'Por qué', 'Síntomas', 'Causa probable'], r.map((x) => { const ls = [...new Set(x.ss.map((s) => s.t))]; return [x.a.n, x.n ? { h: In.pill(x.n, TRIAJE[x.n].n) } : '—', x.pr.motivo.join(' · '), `${x.ss.length}: ${ls.slice(0, 4).join('; ')}${ls.length > 4 ? '…' : ''}`, x.cs.map((c) => c.t + (c.estado === 'confirmada' ? '' : ' (hipótesis)')).join(' · ') || 'Por definir en la auditoría']; })), 'Urgente: resolver en 0-14 días. Preferente: este trimestre. Programable: sin urgencia.');
       const pares = []; r.forEach((x, i) => r.slice(i + 1).forEach((y) => { if (y.pr.o < x.pr.o && pares.length < 3) pares.push([x, y]); }));
       h += In.section('Por qué este orden', `<p>Las áreas se ordenan por los principios de la empresa, no por el número de síntomas: <b>1) liquidez</b> (que la empresa pueda pagar: caja, deuda, cobros y criterios de inversión), <b>2) rentabilidad</b> (que gane dinero con lo que hace: precios, margen y operaciones) y <b>3) crecimiento</b>; la <b>organización</b> (gobierno, personas, información y tiempo) es la base que sostiene las tres. Dentro de cada principio pesan la gravedad de lo escuchado, lo verificado y las constantes.</p><ol>${r.map((x) => `<li><b>${esc(x.a.n)}</b> · ${esc(x.n ? TRIAJE[x.n].n : '—')}: ${esc(x.pr.motivo.join('; '))}.</li>`).join('')}</ol>${pares.map(([x, y]) => `<p>${esc(y.a.n)} va por detrás de ${esc(x.a.n.toLowerCase())} aunque su principio va antes (${esc(PRIN_N[y.pr.p].split(':')[0].toLowerCase())}) porque su lectura es de ${esc(y.n ? TRIAJE[y.n].n.toLowerCase() : 'sin triaje')} frente a ${esc(x.n ? TRIAJE[x.n].n.toLowerCase() : '—')}: ${esc(y.pr.motivo.slice(1).join('; ') || 'tiene menos señales')}. ${esc(y.pr.p === 'liquidez' ? 'Si en la auditoría se confirma tensión de caja (pulso de 4 o más) o una desviación en la deuda o los cobros, pasa por delante.' : y.pr.p === 'rentabilidad' ? 'Si la auditoría confirma pérdida de margen o una desviación en sus datos, pasa por delante.' : 'Si la auditoría confirma que bloquea a las demás áreas, pasa por delante.')}</p>`).join('')}`);
     }
     // 6. Hipótesis bajadas a tierra
     if (l.length) h += In.section('Por qué pasa: las causas probables', l.slice(0, 7).map((x) => {
       const c = x.c, t = CAUSA_TXT[c.ref] || {}, ss = x.ss.length ? x.ss : ST.sintomas.filter((s) => s.area === c.area), ver = (D.VERIFICA[c.area] || []).slice(0, 3), pr = c.ref === 'tie-proyectos' ? proyectos() : [];
-      return `<div class="pdf-keep" style="margin:0 0 12px"><p style="margin:0 0 4px"><b>${esc(c.t)}</b> · ${esc((D.area(c.area) || {}).n || '')} · ${esc(PRIN_N[prioArea(c.area).p].split(':')[0])}</p>`
+      return `<div class="pdf-keep" style="margin:0 0 12px"><p style="margin:0 0 4px"><b>${esc(c.t)}</b>${c.estado === 'confirmada' ? '' : ' <i class="rp-muted">(hipótesis por confirmar)</i>'} · ${esc((D.area(c.area) || {}).n || '')} · ${esc(PRIN_N[prioArea(c.area).p].split(':')[0])}</p>`
         + (t.q ? `<p style="margin:0 0 4px">Qué queremos decir: ${esc(paraUsted(t.q))}</p>` : '')
         + (enEstaEmpresa(c, ss) ? `<p style="margin:0 0 4px">En esta empresa: ${esc(enEstaEmpresa(c, ss))}</p>` : '')
         + (ss.length ? `<p style="margin:0 0 2px">Por qué lo pensamos:</p><ul style="margin:0 0 4px">${ss.slice(0, 4).map((s) => `<li>${esc(s.t)}: ${esc(conContexto(s))} — ${esc(fuenteEmpresa(s))}</li>`).join('')}</ul>` : '')

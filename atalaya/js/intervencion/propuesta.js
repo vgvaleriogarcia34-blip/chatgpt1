@@ -138,7 +138,8 @@
   ];
   const costePersonal = (d) => num(d.personal) || num(d.plantilla) * num(d.costePersona);
   const dimVacia = () => ({ ventas: '', margen: '', ebitda: '', plantilla: '', costePersona: '32000', personal: '', horasEmp: '', valorHora: '60', financiero: '', crecimiento: '', multiplo: '5', rampa: [40, 80, 100, 100, 100], prudencia: 60, tasa: 8, palancas: Object.fromEntries(PALANCAS.map((x) => [x.id, { on: false }])), origen: '' });
-  const dimDe = (pr) => { pr.dim = Object.assign(dimVacia(), pr.dim || {}); pr.dim.palancas = Object.assign(dimVacia().palancas, pr.dim.palancas || {}); return pr.dim; };
+  // Completa pr.dim SIN sustituirlo: quien guarda la referencia (editor, conversión) sigue escribiendo en el mismo objeto
+  const dimDe = (pr) => { const v = dimVacia(); if (!pr.dim || typeof pr.dim !== 'object') pr.dim = {}; const d = pr.dim; Object.keys(v).forEach((k) => { if (d[k] === undefined) d[k] = v[k]; }); if (!d.palancas || typeof d.palancas !== 'object') d.palancas = {}; Object.keys(v.palancas).forEach((k) => { if (!d.palancas[k]) d.palancas[k] = v.palancas[k]; }); return d; };
   // Datos del simulador de la empresa (si no son de ejemplo)
   const traerSimulador = async (d) => {
     let st = null; const Pl = P();
@@ -244,13 +245,15 @@
         : `<p class="small muted" style="margin:0">${!vi.I ? 'Fija el precio en «Valor y precio» para calcular el retorno. ' : ''}${!vi.B ? 'Responde a las preguntas y activa las palancas que aplican (o pulsa «Proponer las palancas»).' : ''}</p>`}</section>`;
   };
   const wireDim = (host, pr) => {
-    const d = dimDe(pr), sec = $('.pc-dim', host); if (!sec) return;
-    $$('[data-dm]', sec).forEach((i) => { const k = i.dataset.dm; i.onchange = () => { if (k === 'rampa') { const r = i.value.split(/[\/,;\s]+/).map(num).filter((x) => x >= 0).slice(0, 5); while (r.length < 5) r.push(r[r.length - 1] || 100); d.rampa = r; } else if (k === 'enDossier') d.enDossier = i.checked; else d[k] = i.value; guardar(); render(); }; });
-    $$('[data-pon]', sec).forEach((c) => (c.onchange = () => { d.palancas[c.dataset.pon] = Object.assign({}, d.palancas[c.dataset.pon], { on: c.checked }); guardar(); render(); }));
-    $$('[data-pv]', sec).forEach((i) => (i.onchange = () => { const [id, k] = i.dataset.pv.split('.'); d.palancas[id][k] = i.value; guardar(); render(); }));
-    $('#pcSim', sec).onclick = async () => { const ok = await traerSimulador(d); guardar(); render(); toast(ok ? 'Datos traídos del simulador: revísalos.' : 'El simulador no tiene datos reales de esta empresa todavía.'); };
-    $('#pcPal', sec).onclick = () => { const u = proponerPalancas(d); guardar(); render(); toast(u.length ? 'Palancas propuestas por: ' + u.join('; ') + '. Ajusta las cifras con el empresario.' : 'No hay objetivos ni causas suficientes: activa las palancas a mano.'); };
-    const uv = $('#pcDimV', sec); if (uv) uv.onclick = () => { const vi = valorInversion(pr); Object.assign(pr.coste, { modo: 'beneficio', vMin: String(Math.round(vi.cons.suma)), vMax: String(Math.round(vi.base.suma)), pMin: '100', pMax: '100', supuestos: `Valor a cinco años según el tamaño de la empresa y sus objetivos: ${vi.lista.filter((l) => l.v).map((l) => l.x.n.toLowerCase() + ' ' + eur(l.v) + '/año').join('; ')}; rampa ${d.rampa.join('/')} %; escenario conservador al ${vi.prud} %.` }); guardar(); render(); toast('Valor a cinco años llevado a «Valor y precio».'); };
+    const sec = $('.pc-dim', host); if (!sec) return; dimDe(pr);
+    // Se lee pr.dim en el momento del evento (no una referencia guardada al pintar)
+    const D = () => dimDe(S().propuesta || pr);
+    $$('[data-dm]', sec).forEach((i) => { const k = i.dataset.dm; i.onchange = () => { const d = D(); if (k === 'rampa') { const r = i.value.split(/[\/,;\s]+/).map(num).filter((x) => x >= 0).slice(0, 5); while (r.length < 5) r.push(r[r.length - 1] || 100); d.rampa = r; } else if (k === 'enDossier') d.enDossier = i.checked; else d[k] = i.value; guardar(); render(); }; });
+    $$('[data-pon]', sec).forEach((c) => (c.onchange = () => { const d = D(); d.palancas[c.dataset.pon] = Object.assign({}, d.palancas[c.dataset.pon], { on: c.checked }); guardar(); render(); }));
+    $$('[data-pv]', sec).forEach((i) => (i.onchange = () => { const d = D(), [id, k] = i.dataset.pv.split('.'); d.palancas[id] = d.palancas[id] || { on: true }; d.palancas[id][k] = i.value; guardar(); render(); }));
+    $('#pcSim', sec).onclick = async () => { const ok = await traerSimulador(D()); guardar(); render(); toast(ok ? 'Datos traídos del simulador: revísalos.' : 'El simulador no tiene datos reales de esta empresa todavía.'); };
+    $('#pcPal', sec).onclick = () => { const u = proponerPalancas(D()); guardar(); render(); toast(u.length ? 'Palancas propuestas por: ' + u.join('; ') + '. Ajusta las cifras con el empresario.' : 'No hay objetivos ni causas suficientes: activa las palancas a mano.'); };
+    const uv = $('#pcDimV', sec); if (uv) uv.onclick = () => { const vi = valorInversion(pr); Object.assign(pr.coste, { modo: 'beneficio', vMin: String(Math.round(vi.cons.suma)), vMax: String(Math.round(vi.base.suma)), pMin: '100', pMax: '100', supuestos: `Valor a cinco años según el tamaño de la empresa y sus objetivos: ${vi.lista.filter((l) => l.v).map((l) => l.x.n.toLowerCase() + ' ' + eur(l.v) + '/año').join('; ')}; rampa ${vi.d.rampa.join('/')} %; escenario conservador al ${vi.prud} %.` }); guardar(); render(); toast('Valor a cinco años llevado a «Valor y precio».'); };
   };
   // Hoja del dossier: la inversión, en números
   const hojaNumeros = (pr, pieT) => {
@@ -446,8 +449,9 @@
   const NOMBRE_CAMPO = (p) => ({ t1: 'título', t2: 'título', subtitulo: 'subtítulo', alcance: 'alcance', duracion: 'duración', tipo: 'modelo', 'sit.items': 'situación', 'sit.intro': 'situación', 'riesgo.linea': 'riesgo', 'obtienen.items': 'beneficios', 'obtienen.resultado': 'resultado', 'pasos.items': 'pasos', 'pasos.regla': 'regla del proceso', 'inv.precio': 'precio', 'inv.hitos': 'hitos de pago', 'inv.incluye': 'incluye', 'inv.noIncluye': 'no incluye', 'inv.descuentos': 'descuentos', 'inv.objetivos': 'objetivos variables', 'inv.variable.on': 'parte variable', 'inv.variable.pct': 'parte variable', 'coste.riesgos': 'coste de no hacerlo' }[p.replace(/^\./, '')] || (p.replace(/^\./, '').startsWith('coste.') ? 'valor y retorno' : p.replace(/^\./, '').split('.')[0]));
 
   /* ================= EDITOR ================= */
-  const ruta1 = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
-  const pon1 = (o, p, v) => { const k = p.split('.'), u = k.pop(); ruta1(o, k.join('.'))[u] = v; };
+  // Ruta vacía = el propio objeto (t1, alcance, ciudad… viven en la raíz de la propuesta)
+  const ruta1 = (o, p) => (p ? String(p).split('.').reduce((a, k) => (a == null ? a : a[k]), o) : o);
+  const pon1 = (o, p, v) => { const k = String(p).split('.'), u = k.pop(); let a = o; k.forEach((x) => { if (a[x] == null || typeof a[x] !== 'object') a[x] = {}; a = a[x]; }); a[u] = v; };
   const campo = (p, label, val, o) => `<label class="small ${o && o.cls ? o.cls : ''}">${label}${o && o.area ? `<textarea class="input" rows="${o.rows || 2}" data-p="${p}" placeholder="${esc((o && o.ph) || '')}">${esc(val)}</textarea>` : `<input class="input" ${o && o.type ? `type="${o.type}"` : ''} data-p="${p}" value="${esc(val)}" placeholder="${esc((o && o.ph) || '')}">`}</label>`;
   const lista = (p, arr, cols, add) => `<div class="pc-ed-l" data-l="${p}">${arr.map((x, i) => `<div class="pc-ed-r" style="grid-template-columns:${cols.map((c) => c.w || '1fr').join(' ')} auto">${cols.map((c) => c.area ? `<textarea class="input" rows="2" data-p="${p}.${i}.${c.k}" placeholder="${esc(c.ph)}">${esc(x[c.k])}</textarea>` : `<input class="input" data-p="${p}.${i}.${c.k}" value="${esc(x[c.k])}" placeholder="${esc(c.ph)}">`).join('')}<button class="icon-btn" data-ldel="${p}" data-i="${i}" aria-label="Quitar">×</button></div>`).join('')}<button class="btn ghost small" data-ladd="${p}">${add}</button></div>`;
   const NUEVO = { 'sit.items': { t: '', d: '', c: '' }, 'riesgo.linea': { cuando: '', que: '' }, 'riesgo.stats': { v: '', t: '', fuente: '' }, 'obtienen.items': { t: '', elimina: '', d: '' }, 'pasos.items': { t: '', d: '', cuando: '', quien: '', ent: '', imp: '' }, 'equipo.items': { n: '', rol: '', d: '', pasos: '' }, 'valor.filas': { k: '', sep: '', con: '' }, 'coste.riesgos': { r: '', q: '', imp: '' }, 'inv.hitos': { t: '', pct: '' }, 'inv.descuentos': { t: '', imp: '' }, 'inv.objetivos': { t: '', peso: '', accion: '', tramos: null } };

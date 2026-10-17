@@ -58,13 +58,15 @@
   };
   // El síntoma es la carencia que delatan sus palabras (no la frase repetida): «Sin criterio con número en el stock»
   const CARENCIA = { responsable: 'Sin responsable con nombre', limite: 'Sin criterio con número', metodo: 'Sin método escrito', puesto: 'Funciones sin definir', dato: 'Se decide sin datos', fecha: 'Sin fecha ni seguimiento', mando: 'No está claro quién decide' };
-  const TEMA = [['stock', 'el stock'], ['pedido', 'los pedidos'], ['precio', 'los precios'], ['cobr', 'los cobros'], ['nomina', 'las nóminas y los pagos'], ['pagar', 'los pagos'], ['poliza', 'la caja'], ['caja', 'la caja'], ['banco', 'la relación con el banco'], ['prestamo', 'la deuda'], ['inversion', 'la inversión'], ['invertir', 'la inversión'], ['maquina', 'la maquinaria'], ['encargado', 'el encargado'], ['equipo', 'el equipo'], ['gente', 'el equipo'], ['decid', 'las decisiones'], ['decision', 'las decisiones'], ['proyecto', 'los proyectos'], ['obra', 'las obras'], ['cliente', 'los clientes'], ['venta', 'las ventas'], ['gestoria', 'la información económica'], ['ganamos', 'la información económica'], ['dinero', 'la información económica'], ['calidad', 'la calidad'], ['plazo', 'los plazos'], ['entrega', 'las entregas'], ['reunion', 'las reuniones'], ['whatsapp', 'la comunicación interna'], ['padre', 'el gobierno familiar'], ['socio', 'los socios'], ['estrategia', 'la estrategia'], ['objetivo', 'los objetivos'], ['tiempo', 'su agenda'], ['llaman', 'su agenda']];
-  E.temaDe = (cita) => { const f = norm(cita); const t = TEMA.find(([k]) => f.includes(k)); return t ? t[1] : ''; };
+  const TEMA = [['stock', 'el stock'], ['pedido', 'los pedidos'], ['precio', 'los precios'], ['cobr*', 'los cobros'], ['nomina', 'las nóminas y los pagos'], ['pagar*', 'los pagos'], ['pago', 'los pagos'], ['poliza', 'la caja'], ['caja', 'la caja'], ['banco', 'la relación con el banco'], ['prestamo', 'la deuda'], ['inversion', 'la inversión'], ['invertir*', 'la inversión'], ['maquina*', 'la maquinaria'], ['encargado', 'el encargado'], ['equipo', 'el equipo'], ['gente', 'el equipo'], ['decid*', 'las decisiones'], ['decision', 'las decisiones'], ['proyecto', 'los proyectos'], ['obra', 'las obras'], ['cliente', 'los clientes'], ['venta', 'las ventas'], ['gestoria', 'la información económica'], ['ganamos', 'la información económica'], ['dinero', 'la información económica'], ['calidad', 'la calidad'], ['plazo', 'los plazos'], ['entreg*', 'las entregas'], ['reunion', 'las reuniones'], ['whatsapp', 'la comunicación interna'], ['padre', 'el gobierno familiar'], ['socio', 'los socios'], ['estrategia', 'la estrategia'], ['objetivo', 'los objetivos'], ['tiempo', 'su agenda'], ['llaman', 'su agenda']];
+  E.temaDe = (cita) => { const f = norm(cita); const t = TEMA.find(([k]) => D().kw(f, k)); return t ? t[1] : ''; };
   E.carencia = (patron, cita) => { const b = CARENCIA[patron]; if (!b) return ''; const t = E.temaDe(cita); return t ? `${b}: ${t}` : b; };
 
   /* ---------- Leer entre líneas ---------- */
-  const frases = (t) => (String(t).match(/[^.!?¿¡\n]+[.!?]*/g) || []).map((x) => x.trim()).filter((x) => x.split(/\s+/).length >= 3);
-  const contiene = (fn, w) => { const n = norm(w); return n.includes(' ') ? fn.includes(n) : new RegExp('(^|[^a-zñ])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^a-zñ]|$)').test(fn); };
+  // Frases con el separador común (no corta en 150.000, Sr., S.L.…); citas solo si valen de cita (4+ palabras, no empiezan por cifra)
+  const frases = (t) => D().frases(t, { min: 3 });
+  const contiene = (fn, w) => D().kw(fn, w);
+  const vale = (f) => D().citaOk(f);
   E.analizar = (parsed, clientes) => {
     const set = new Set(clientes && clientes.length ? clientes : parsed.hablantes.slice(0, 1).map((h) => h.n));
     const texto = parsed.turnos.filter((x) => set.has(x.h)).map((x) => x.t).join(' ');
@@ -73,7 +75,7 @@
     const total = palabras.length || 1;
     // Huecos con su cita
     const huecos = D().PATRONES.map((p) => {
-      const citas = []; fn.forEach((f, i) => { const w = p.senales.find((s) => contiene(f, s)); if (w && citas.length < 6) citas.push({ cita: fs[i], senal: w }); });
+      const citas = []; fn.forEach((f, i) => { const w = p.senales.find((s) => contiene(f, s)); if (w && vale(fs[i]) && citas.length < 6) citas.push({ cita: fs[i], senal: w }); });
       return { id: p.id, n: p.n, citas, peso: citas.length };
     });
     // Cómo habla
@@ -86,7 +88,7 @@
     const freq = {}; palabras.filter((w) => w.length > 4 && !STOP.has(w)).forEach((w) => (freq[w] = (freq[w] || 0) + 1));
     const repite = Object.keys(freq).map((w) => ({ w, n: freq[w] })).filter((x) => x.n >= 3).sort((a, b) => b.n - a.n).slice(0, 14);
     // Resignificar
-    const resig = D().RESIGNIFICA.map((r) => { const i = fn.findIndex((f) => r.k.some((k) => contiene(f, k))); return i >= 0 ? Object.assign({ cita: fs[i] }, r) : null; }).filter(Boolean);
+    const resig = D().RESIGNIFICA.map((r) => { const i = fn.findIndex((f, j) => vale(fs[j]) && r.k.some((k) => contiene(f, k))); return i >= 0 ? Object.assign({ cita: fs[i] }, r) : null; }).filter(Boolean);
     // Síntomas sugeridos: uno por cita de cada hueco (con área del patrón) y uno por resignificación
     // Un síntoma por frase (aunque delate varios huecos), con sus palabras y el hueco que señala
     const sugeridos = [], vistas = new Set();
@@ -101,13 +103,13 @@
     return { clientes: [...set], palabras: total, pctCliente: pal ? Math.round((total / pal) * 100) : 0, frases: fs.length, huecos, lenguaje, yo, nos, repite, resig, sugeridos, estimadas };
   };
   // Afinar el área de una cita por sus palabras (dinero → finanzas, clientes → ventas…)
-  const AREA_K = { fin: ['dinero', 'caja', 'banco', 'pagar', 'cobrar', 'margen', 'nomina', 'impuesto', 'deuda', 'poliza'], com: ['cliente', 'venta', 'vender', 'precio', 'oferta', 'pedido'], ope: ['produccion', 'taller', 'almacen', 'stock', 'entrega', 'proceso', 'maquina', 'obra'], per: ['gente', 'equipo', 'trabajador', 'empleado', 'encargado', 'personal', 'plantilla'], inf: ['datos', 'whatsapp', 'informe', 'numeros', 'excel', 'programa'], leg: ['socio', 'aval', 'abogado', 'juicio', 'inspeccion', 'licencia', 'hacienda'], tie: ['proyecto', 'pendiente', 'fecha', 'plazo'] };
+  const AREA_K = { fin: ['dinero', 'caja', 'banco', 'pagar*', 'pago', 'cobr*', 'margen', 'nomina', 'impuesto', 'deuda', 'poliza'], com: ['cliente', 'venta', 'vender*', 'precio', 'oferta', 'pedido'], ope: ['produccion', 'taller', 'obrador', 'almacen', 'stock', 'entreg*', 'proceso', 'maquina*', 'obra'], per: ['gente', 'equipo', 'trabajador', 'persona', 'empleado', 'encargado', 'personal', 'plantilla'], inf: ['datos', 'whatsapp', 'informe', 'numeros', 'excel', 'programa'], leg: ['socio', 'aval', 'abogado', 'juicio', 'inspeccion', 'licencia', 'hacienda'], tie: ['proyecto', 'pendiente', 'fecha', 'plazo'] };
   // Inversor y trabajador no son lo mismo: el inversor aporta dinero y pasa a ser acreedor de la empresa (financiación);
   // el trabajador tiene nómina (personas). Una frase sobre inversores va a finanzas, no a personas y equipos.
   const INV = /(inversor|inversores|aporta(n|do|ron|cion)? (de )?capital|aportacion|aportaciones|capital (de|del|de los) (socio|inversor|participe)|acreedor|prestamista|partícipe|participe|rentabilidad (garantizada|preferente|pactada)|devolver (el|la) (capital|aportacion|prestamo)|prestamo participativo)/;
   const TRAB = /(nomina|nominas|salario|sueldo|contrato (laboral|de trabajo)|plantilla|empleado|trabajador|convenio|encargado|operario)/;
   E.rolDe = (t) => { const f = norm(t), i = INV.test(f), w = TRAB.test(f); return i && !w ? 'inversor' : w && !i ? 'trabajador' : i && w ? 'ambos' : ''; };
-  const areaDe = (cita, def) => { const f = norm(cita); const rol = E.rolDe(f); if (rol === 'inversor') return 'fin'; if (rol === 'trabajador' && !/(pagar|caja|poliza|banco|justos|cobrar|deuda)/.test(f)) return 'per'; const a = Object.keys(AREA_K).find((k) => AREA_K[k].some((w) => f.includes(w))); return a || def; };
+  const areaDe = (cita, def) => { const f = norm(cita); const rol = E.rolDe(f); if (rol === 'inversor') return 'fin'; if (rol === 'trabajador' && !/(pagar|caja|poliza|banco|justos|cobrar|deuda)/.test(f)) return 'per'; const a = Object.keys(AREA_K).find((k) => D().kwAlguna(f, AREA_K[k])); return a || def; };
   E.areaDe = areaDe;
 
   /* ---------- Lectura en profundidad con Claude (si está disponible) ---------- */
