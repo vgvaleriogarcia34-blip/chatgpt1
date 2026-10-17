@@ -16,6 +16,8 @@
   const F = ['D', 'I', 'S', 'C'];
 
   let meta = null, modo = null, token = null, resp = null, idx = 0, consent = false, lsKey = null, nac = '';
+  // Lectura complementaria de identidad: solo si la empresa la ha activado (viene en el enlace). Si no, no se pide la fecha de nacimiento
+  let idOn = false;
 
   /* ---------- Preguntas de cada test ---------- */
   const items = () => ({ disc: H.DISC_BLOQUES, roles: H.ROLES_ITEMS, enea: H.ENEA_ITEMS, lid: L.SITUACIONES, lid360: L.SITUACIONES, prep: L.PREP_ITEMS }[meta.test]);
@@ -25,7 +27,7 @@
     roles: () => `Son ${H.ROLES_ITEMS.length} frases sobre cómo trabaja en equipo. Indique en qué medida le describe cada una, de «nada» a «totalmente».`,
     enea: () => `Son ${H.ENEA_ITEMS.length} frases sobre lo que le mueve. Indique en qué medida le describe cada una, de «nada» a «totalmente».`,
     lid: () => `Son ${L.SITUACIONES.length} situaciones con alguien de su equipo. En cada una, elija lo que <b>haría de verdad</b>, no lo que cree que debería hacer. No hay respuestas buenas en abstracto: depende de cada situación.`,
-    lid360: () => `Son ${L.SITUACIONES.length} situaciones de trabajo. Piense en cómo actúa <b>${esc(meta.lider || 'su responsable')}</b> y elija lo que <b>haría su responsable</b> con alguien del equipo. Sus respuestas son <b>anónimas</b>: se suman a las del resto del equipo.`,
+    lid360: () => `Son ${L.SITUACIONES.length} situaciones de trabajo. Piense en cómo actúa <b>${esc(meta.lider || 'su responsable')}</b> y elija lo que <b>haría su responsable</b> con alguien del equipo. Sus respuestas son <b>confidenciales</b>: se muestran agregadas al responsable, nunca individualmente, y solo cuando han respondido al menos tres personas.`,
     prep: () => `Son ${L.PREP_ITEMS.length} frases sobre la tarea <b>«${esc(meta.tarea || '')}»</b>. Piense solo en esta tarea, no en su trabajo en general.`
   };
   const PARA = {
@@ -42,7 +44,7 @@
   const guardar = (fin) => {
     if (modo === 'codigo') { LS.set(lsKey, { resp, idx, consent, nac }); return Promise.resolve(); }
     clearTimeout(tSave);
-    const put = () => fetch('/api/t/' + token, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resp: limpia(), consent: true, fin: !!fin, nacimiento: nac || undefined }) })
+    const put = () => fetch('/api/t/' + token, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resp: limpia(), consent: true, fin: !!fin, nacimiento: (pideNac() && nac) || undefined }) })
       .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'No se pudo guardar'); return j; });
     if (fin) return put();
     tSave = setTimeout(() => put().catch(() => { /* se reintenta en la siguiente respuesta */ }), 600);
@@ -52,6 +54,29 @@
 
   /* ---------- Pantallas ---------- */
   const pantallaError = (t, d) => { main.innerHTML = `<div class="tp-card stack"><h1>${esc(t)}</h1>${d ? `<p>${d}</p>` : ''}</div>`; };
+  const pideNac = () => idOn && meta.test !== 'lid360';
+  /* Información de protección de datos (art. 13 RGPD) antes del consentimiento */
+  const infoRGPD = () => {
+    const emp = esc(meta.empresa || 'la empresa que le envía este cuestionario');
+    const cad = meta.caduca ? new Date(meta.caduca).toLocaleDateString('es-ES') : '';
+    const guarda = modo === 'servidor'
+      ? `Sus respuestas, su resultado, las fechas en que responde${pideNac() ? ', la fecha de nacimiento si la indica,' : ''} y la dirección IP desde la que guarda sus respuestas. Se guardan en el servidor de Atalaya 360° a medida que responde.`
+      : `Sus respuestas${pideNac() ? ' y, si la indica, su fecha de nacimiento' : ''}. No se envían a ningún sitio: quedan en este navegador y dentro del código que usted entrega al terminar.`;
+    const quien = meta.test === 'lid360'
+      ? `${emp} y la firma consultora. Su responsable solo ve el resultado agregado del equipo, nunca sus respuestas una a una, y solo cuando han respondido al menos tres personas.`
+      : `${emp} y la firma consultora que gestiona el cuestionario. No se ceden a terceros y no se usan con inteligencia artificial.`;
+    return `<details class="tp-info" open><summary>Información sobre protección de datos</summary><dl>
+      <dt>Responsable del tratamiento</dt><dd>${emp}, que le pide este cuestionario.</dd>
+      <dt>Encargado del tratamiento</dt><dd>La firma consultora que gestiona el cuestionario por cuenta de ${emp}, con la aplicación Atalaya 360° de Business Avance International Consulting${modo === 'servidor' ? ', que la presta y aloja los datos' : ''}.</dd>
+      <dt>Finalidad</dt><dd>${esc(PARA[meta.test].charAt(0).toUpperCase() + PARA[meta.test].slice(1))}.</dd>
+      <dt>Base jurídica</dt><dd>Su consentimiento, que da al marcar la casilla de abajo. Participar es voluntario: si no responde, lo deja a medias o retira después su consentimiento, no tendrá ninguna consecuencia para usted.</dd>
+      <dt>Qué datos se guardan</dt><dd>${guarda}</dd>
+      <dt>Quién los ve</dt><dd>${quien}</dd>
+      <dt>Cuánto tiempo</dt><dd>${cad ? `El enlace caduca el ${esc(cad)}. ` : ''}El servidor borra la invitación 30 días después de que el consultor incorpore sus respuestas. En la ficha, sus respuestas se conservan mientras dure la relación de ${emp} con la firma consultora, según la política de conservación de la empresa, o hasta que usted pida su borrado.</dd>
+      <dt>Sus derechos</dt><dd>Puede pedir acceso, rectificación, supresión, oposición, limitación y portabilidad, y retirar su consentimiento, dirigiéndose a ${emp} o a la persona que le envió este enlace. Si no le atienden, puede reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es" target="_blank" rel="noopener">aepd.es</a>).</dd>
+      <dt>Más información</dt><dd><a href="privacidad.html#personas" target="_blank" rel="noopener">Política de privacidad de Atalaya 360°</a></dd>
+    </dl></details>`;
+  };
   const intro = () => {
     const T = C.TESTS[meta.test], hechos = limpia().filter((x) => x != null).length;
     main.innerHTML = `<div class="tp-card stack">
@@ -60,8 +85,9 @@
       <p>${INTRO[meta.test]()}</p>
       <p class="tp-meta"><span>Unos ${T.min} minutos</span><span>Sin crear cuenta</span><span>${modo === 'servidor' ? 'Puede dejarlo y seguir luego con este enlace' : 'Su avance se guarda en este navegador'}</span></p>
       <div class="tp-legal"><b>Para qué se usan sus respuestas.</b> Para ${PARA[meta.test]}. Es una herramienta orientativa: no es un examen, no mide su valor y no debe usarse como único criterio para ninguna decisión sobre usted. Puede ver su resultado y pedir a ${esc(meta.empresa || 'la empresa')} que lo borre cuando quiera.</div>
-      ${meta.test === 'lid360' ? '' : `<label class="tp-nac"><span>Fecha de nacimiento <small>(opcional)</small></span><input class="input" type="date" id="tpNac" value="${esc(nac)}" max="${new Date().toISOString().slice(0, 10)}"><small>Si la indica, se usa para completar su perfil con una lectura complementaria de su identidad personal.</small></label>`}
-      <label class="tp-check"><input type="checkbox" id="tpOk" ${consent ? 'checked' : ''}> <span>He leído para qué se usan mis respuestas y acepto responder.</span></label>
+      ${infoRGPD()}
+      ${pideNac() ? `<label class="tp-nac"><span>Fecha de nacimiento <small>(opcional)</small></span><input class="input" type="date" id="tpNac" value="${esc(nac)}" max="${new Date().toISOString().slice(0, 10)}"><small>Si la indica, ${esc(meta.empresa || 'la empresa')} la usa para una lectura complementaria y orientativa de su perfil. No es un instrumento científico y no se usa para tomar decisiones sobre usted. Puede dejarla en blanco.</small></label>` : ''}
+      <label class="tp-check"><input type="checkbox" id="tpOk" ${consent ? 'checked' : ''}> <span>He leído la información sobre el uso de mis datos y doy mi consentimiento para responder.</span></label>
       <div class="row"><button class="btn solid big" id="tpGo" ${consent ? '' : 'disabled'}>${hechos ? `Seguir (${hechos} de ${resp.length})` : 'Empezar'}</button></div></div>`;
     $('#tpOk').onchange = (e) => { consent = e.target.checked; $('#tpGo').disabled = !consent; };
     const tn = $('#tpNac'); if (tn) tn.onchange = () => { nac = /^\d{4}-\d{2}-\d{2}$/.test(tn.value) && +tn.value.slice(0, 4) >= 1900 ? tn.value : ''; };
@@ -108,7 +134,7 @@
       main.innerHTML = `<div class="tp-card stack"><div class="eyebrow">Entregado</div><h1>Gracias${meta.nombre ? ', ' + nombre1() : ''}.</h1><p>Sus respuestas han llegado a ${esc(meta.empresa || 'la empresa')}. Ya puede cerrar esta página.</p>${resumen()}</div>`;
       return;
     }
-    const code = C.codificar(meta.test, resp, meta.pid, meta.tid, nac);
+    const code = C.codificar(meta.test, resp, meta.pid, meta.tid, pideNac() ? nac : '');
     LS.set(lsKey, { resp, idx, consent, nac, code });
     finCodigo(code);
   };
@@ -138,7 +164,7 @@
   async function start() {
     const h = new URLSearchParams(location.hash.replace(/^#/, ''));
     if (h.get('t')) {
-      modo = 'servidor'; token = h.get('t'); lsKey = 'atalaya.test.t.' + token.slice(0, 12);
+      modo = 'servidor'; token = h.get('t'); lsKey = 'atalaya.test.t.' + token.slice(0, 12); idOn = h.get('id') === '1';
       let j;
       try { const r = await fetch('/api/t/' + encodeURIComponent(token), { credentials: 'omit' }); j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Enlace no válido'); }
       catch (e) { pantallaError('No se puede abrir el cuestionario', esc(e.message) + ' Si el problema sigue, pida a quien se lo envió un enlace nuevo.'); return; }
@@ -150,13 +176,14 @@
       resp = Array.isArray(j.resp) ? j.resp : (loc && loc.resp) || null; consent = !!j.consent || !!(loc && loc.consent); nac = j.nacimiento || (loc && loc.nac) || '';
     } else if (h.get('c')) {
       modo = 'codigo';
-      try { const o = C.leerPaquete(h.get('c')); meta = { test: o.t, nombre: o.n, empresa: o.e, pid: o.p, tid: o.ti, tarea: o.ta, lider: o.l, email: o.m, resumen: o.r !== 0 }; } catch (e) { meta = null; }
+      try { const o = C.leerPaquete(h.get('c')); meta = { test: o.t, nombre: o.n, empresa: o.e, pid: o.p, tid: o.ti, tarea: o.ta, lider: o.l, email: o.m, resumen: o.r !== 0 }; idOn = o.id === 1; } catch (e) { meta = null; }
       if (!meta || !C.TESTS[meta.test]) { pantallaError('El enlace está incompleto', 'Pida a quien se lo envió que se lo mande de nuevo.'); return; }
       lsKey = 'atalaya.test.c.' + C.huella(h.get('c'), meta.test);
       const loc = LS.get(lsKey);
       if (loc && loc.code) { resp = loc.resp; finCodigo(loc.code); $('#tpEmp').textContent = meta.empresa || ''; return; }
       resp = loc && loc.resp; consent = !!(loc && loc.consent); nac = (loc && loc.nac) || '';
     } else { pantallaError('Falta el enlace del cuestionario', 'Abra el enlace completo que le enviaron.'); return; }
+    if (!pideNac()) nac = '';
     const n = C.TESTS[meta.test].len();
     if (!Array.isArray(resp) || resp.length !== n) resp = Array.from({ length: n }, () => null);
     $('#tpEmp').textContent = meta.empresa || '';

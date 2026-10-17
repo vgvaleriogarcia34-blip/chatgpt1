@@ -11,7 +11,7 @@
   const confirmar = (btn, fn) => { if (btn.dataset.ok) return fn(); btn.dataset.ok = '1'; const t = btn.textContent; btn.textContent = '¿Seguro? Toca otra vez'; btn.classList.add('del-btn'); setTimeout(() => { if (btn.isConnected) { delete btn.dataset.ok; btn.textContent = t; btn.classList.remove('del-btn'); } }, 3500); };
 
   /* Bloqueo amable: sin consentimiento no se pasan cuestionarios */
-  const pideConsent = (p) => `<div class="alert warn stack"><span>Antes de pasar un cuestionario a <b>${esc(p.nombre)}</b>, explícale para qué es y pide su consentimiento. Puede ver sus resultados y pedir que se borren. Si se indica su fecha de nacimiento, se usa para una lectura complementaria de su perfil. También puedes enviárselo por enlace: lo responde desde su móvil y da su consentimiento al abrirlo.</span><div class="row"><button class="btn solid small" id="peCons">Tengo su consentimiento</button></div></div>`;
+  const pideConsent = (p) => `<div class="alert warn stack"><span>Antes de pasar un cuestionario a <b>${esc(p.nombre)}</b>, explícale para qué es y pide su consentimiento. Puede ver sus resultados y pedir que se borren.${R.identidadActiva && R.identidadActiva() ? ' Si se indica su fecha de nacimiento, se usa para una lectura complementaria y orientativa de su perfil.' : ''} También puedes enviárselo por enlace: lo responde desde su móvil y da su consentimiento al abrirlo.</span><div class="row"><button class="btn solid small" id="peCons">Tengo su consentimiento</button></div></div>`;
   const wireConsent = (host, p) => { const b = $('#peCons', host); if (b) b.onclick = () => { p.consentimiento = true; p.consentFecha = R.hoy(); R.save(); R.rerender(); }; };
   /* Cabecera de herramienta: elegir persona */
   const cabPersona = (host, p, extra, test) => `<div class="glass pad row pe-who"><label class="small">Persona ${R.selPersona('pePer', p.id)}</label>${extra || ''}${test && R.envioBtns ? `<span class="spacer"></span>${R.envioBtns(p, test)}` : ''}</div>`;
@@ -24,7 +24,7 @@
   R.heroCfg = () => {
     const s = R.resumen(), ps = R.state.personas, n = s.n;
     const parte = (k) => (n ? Math.round((k / n) * 100) : null);
-    const ident = R.identidad ? ps.filter((p) => R.identidad(p)).length : 0;
+    const idAct = !!(R.identidadActiva && R.identidadActiva()), ident = idAct && R.identidad ? ps.filter((p) => R.identidad(p)).length : 0;
     const ls = R.lideres ? R.lideres() : [], filas = ls.flatMap((p) => R.mapaMando(p)), desj = filas.filter((f) => f.des && f.des.st !== 'ok').length;
     const graves = s.est.avisos.filter((a) => a.st === 'stop').length, revisar = s.est.avisos.filter((a) => a.st === 'warn').length;
     const luces = n ? [
@@ -32,7 +32,7 @@
       { n: 'DISC', v: `${s.disc}/${n}`, st: stP(parte(s.disc)), go: 'disc' },
       { n: 'Aportaciones al equipo', v: `${s.roles}/${n}`, st: stP(parte(s.roles)), go: 'roles' },
       { n: 'Eneagrama', v: `${s.enea}/${n}`, st: stP(parte(s.enea)), go: 'eneagrama' },
-      { n: 'Perfil de identidad', v: `${ident}/${n}`, st: stP(parte(ident)), go: 'identidad' },
+      ...(idAct ? [{ n: 'Perfil de identidad', v: `${ident}/${n}`, st: stP(parte(ident)), go: 'identidad' }] : []),
       { n: 'Puestos definidos', v: String(R.state.puestos.length), st: R.state.puestos.length ? 'ok' : 'warn', go: 'puestos' },
       { n: 'Encaje medio', v: s.encMedio == null ? '—' : s.encMedio + ' %', st: s.encMedio == null ? null : s.encMedio >= 75 ? 'ok' : s.encMedio >= 55 ? 'warn' : 'stop', go: 'encaje' },
       { n: 'Encaje bajo', v: String(s.encBajo), st: s.enc ? (s.encBajo ? 'stop' : 'ok') : null, go: 'encaje' },
@@ -67,7 +67,7 @@
         enlace: n ? { t: 'Por dónde empezar', fn: () => { const x = document.querySelector('.pe-prior'); if (x) x.scrollIntoView({ behavior: 'smooth', block: 'center' }); } } : null },
       kpis: n ? [
         { k: 'Estilos', v: `${s.disc}/${n}`, d: 'personas con DISC', st: stP(parte(s.disc)), barras: s.disc ? ['D', 'I', 'S', 'C'].map((k) => ({ n: H.DISC[k].n, v: s.todo.dist[k] || 0, c: H.DISC[k].c })) : null, max: s.disc, fn: () => R.show('disc') },
-        { k: 'Cuestionarios', v: String(s.disc + s.roles + s.enea + ident), d: `de ${n * 4} posibles (4 por persona)`, st: stP(Math.round(((s.disc + s.roles + s.enea + ident) / (n * 4)) * 100)), barras: [{ n: 'DISC', v: s.disc }, { n: 'Aportaciones', v: s.roles }, { n: 'Eneagrama', v: s.enea }, { n: 'Identidad', v: ident }], max: n, fn: () => R.show('envios') },
+        { k: 'Cuestionarios', v: String(s.disc + s.roles + s.enea + ident), d: `de ${n * (idAct ? 4 : 3)} posibles (${idAct ? 4 : 3} por persona)`, st: stP(Math.round(((s.disc + s.roles + s.enea + ident) / (n * (idAct ? 4 : 3))) * 100)), barras: [{ n: 'DISC', v: s.disc }, { n: 'Aportaciones', v: s.roles }, { n: 'Eneagrama', v: s.enea }].concat(idAct ? [{ n: 'Identidad', v: ident }] : []), max: n, fn: () => R.show('envios') },
         { k: 'Encaje medio', v: s.encMedio == null ? '—' : s.encMedio + ' %', d: `${s.enc} con puesto y perfil`, st: s.encMedio == null ? null : s.encMedio >= 75 ? 'ok' : s.encMedio >= 55 ? 'warn' : 'stop', barras: encs.length ? encs.map((x) => ({ n: x.p.nombre, v: x.e.total, c: C3[x.e.st] })) : null, max: 100, fn: () => R.show('encaje') },
         { k: 'Estructura', v: `${s.est.niveles} nivel${s.est.niveles === 1 ? '' : 'es'}`, d: `${s.est.mandos.length} mandos · ${graves} alertas graves`, st: graves ? 'stop' : revisar ? 'warn' : 'ok', barras: s.est.mandos.map((m) => ({ n: m.p.nombre, v: m.n, c: m.n > 8 ? C3.warn : null })), fn: () => R.show('organigrama') },
         { k: 'Liderazgo', v: `${filas.filter((f) => f.nv).length} tareas`, d: `${desj} desajuste${desj === 1 ? '' : 's'}`, st: filas.some((f) => f.nv) ? (desj ? 'warn' : 'ok') : null, barras: LN && filas.some((f) => f.nv) ? [1, 2, 3, 4].map((k) => ({ n: LN.NIVELES[k].n, v: niveles[k], c: LN.NIVELES[k].c })) : null, fn: () => R.show('lid-mapa') }

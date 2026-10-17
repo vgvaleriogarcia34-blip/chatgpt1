@@ -163,6 +163,12 @@ ANTHROPIC_API_KEY=sk-ant-... ADMIN_PASSWORD='una-clave-larga' APP_URL=https://at
 ### Pagos
 El control de acceso es real en el servidor: prueba de 14 días, acceso pagado con fecha de vencimiento y bloqueo. El cobro se registra desde el gestor de usuarios («Registrar pago»). Para cobrar con tarjeta de forma automática hay que conectar una pasarela (por ejemplo Stripe) que llame a `PATCH /api/admin/users/:id` al confirmar el pago; no está incluida. Los precios de los planes son de ejemplo: cámbialos en `js/platform.js`.
 
+## Legal y protección de datos
+**Borradores pendientes de validación jurídica.** Cada página lo indica arriba y lleva entre corchetes los datos que faltan ([RAZÓN SOCIAL], [NIF], [DOMICILIO], [DATOS REGISTRALES], [EMAIL DE CONTACTO], [DELEGADO DE PROTECCIÓN DE DATOS, si procede], proveedores de alojamiento, correo y pagos).
+- Páginas públicas: `aviso-legal.html` (LSSI art. 10), `privacidad.html` (RGPD arts. 13 y 14), `cookies.html` (solo cookies técnicas de sesión y almacenamiento local) y `condiciones.html` (servicio, prueba, planes y pago, baja, exportación de datos y responsabilidad). Enlazadas desde el pie de `index.html`, de `test.html` y del manual.
+- `RGPD.md`: registro de actividades de tratamiento, subencargados, plantilla de contrato de encargo del tratamiento (art. 28) para los clientes del plan Consultora, notas para la evaluación de impacto de los cuestionarios de personas, plazos de conservación implementados y pendientes.
+- En la aplicación: el cuestionario por enlace muestra la información del art. 13 antes del consentimiento; «Cómo le ve su equipo» solo se muestra agregado y con al menos tres respuestas; la lectura complementaria de identidad viene desactivada en cada empresa y se activa en Personas › Herramientas › Perfil de identidad.
+
 ## Avisos
 - Las cifras son estimaciones a partir de los datos introducidos. La fiscalidad y las decisiones societarias deben confirmarse con los asesores de la empresa; los porcentajes legales cambian con cada reforma.
 - El agente de mercado necesita el servidor con la API de Claude: consulta fuentes oficiales (INE, Banco de España, BCE, Eurostat, FMI, OCDE, ministerios…) y cita fecha y fuente de cada dato. Sin servidor, «Cargar datos macro 2026» rellena los indicadores con datos de referencia consultados el 1 de octubre de 2026 (con su fuente), y se pueden editar a mano.

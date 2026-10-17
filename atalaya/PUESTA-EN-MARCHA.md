@@ -23,6 +23,7 @@ Lo que hay que revisar el día que Atalaya pase de la demostración en el navega
 | `TRUST_PROXY` (sin valor) | Número de proxies de confianza delante del servidor. Con `1` (Caddy o Nginx en la misma máquina) la IP del cliente se toma de la última entrada de `X-Forwarded-For`, la que añade el proxy; las anteriores las puede inventar el cliente y se ignoran. Sin la variable, la cabecera no se lee (si se pone sin tener proxy, cualquiera podría saltarse los límites de intentos). El proxy debe **añadir** la IP (`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` en Nginx; Caddy lo hace solo). |
 | `ATALAYA_RECUPERAR=1` | Recuperación de una base de datos dañada (ver abajo). `ATALAYA_RECUPERAR=vacia` arranca con una base vacía. |
 | `IA_DIARIA_PRUEBA` (20) · `IA_DIARIA_PAGO` (200) | Consultas de IA al día por cuenta en la prueba gratuita y con el acceso pagado. El agente de mercado cuenta como 5 (hace búsquedas web). `0` deja sin IA. |
+| `INVITACIONES_DIAS` (30) | Días que se guardan las invitaciones a test después de importarse, caducar o anularse. Después se borran con sus respuestas. |
 | `IA_CARACTERES_PRUEBA` (1.500.000) · `IA_CARACTERES_PAGO` (10.000.000) | Texto enviado a la IA al día por cuenta (transcripciones, documentos, conversación). |
 | `REGISTROS_HORA` (5) | Altas de cuenta por hora desde una misma IP. |
 | `DATA_MAX_CLAVE_MB` (2) · `DATA_MAX_CUENTA_MB` (25) | Tamaño máximo de cada dato guardado (simulador, estrategia…) y del total de la cuenta. Por encima, el servidor responde 413 con un mensaje para el cliente. |

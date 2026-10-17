@@ -10,11 +10,21 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/atalaya.css">
 <link rel="stylesheet" href="css/test.css">
+<style>
+/* Información de protección de datos antes del consentimiento y enlaces legales del pie */
+.tp-info { font-size: var(--t-s); color: var(--muted); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: rgba(255, 255, 255, 0.02); }
+.tp-info summary { cursor: pointer; color: var(--fg); font-weight: 600; }
+.tp-info dl { display: grid; gap: 8px; margin: 10px 0 0; }
+.tp-info dt { color: var(--fg); font-weight: 600; }
+.tp-info dd { margin: 0; }
+.tp-info a, .tp-foot a { color: var(--gold); }
+.tp-foot nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin-top: 6px; }
+</style>
 </head>
 <body class="tp-page">
 <header class="tp-top"><span class="tp-brand"><b>Atalaya</b> <span>360°</span></span><span class="tp-emp" id="tpEmp"></span></header>
 <main class="tp-main" id="tp" aria-live="polite"><p class="muted">Cargando el cuestionario…</p></main>
-<footer class="tp-foot">Cuestionario orientativo para conocerse y trabajar mejor. No es un examen ni un diagnóstico.</footer>
+<footer class="tp-foot">Cuestionario orientativo para conocerse y trabajar mejor. No es un examen ni un diagnóstico.<nav aria-label="Información legal"><a href="privacidad.html" target="_blank" rel="noopener">Privacidad</a><a href="cookies.html" target="_blank" rel="noopener">Cookies</a><a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></nav></footer>
 <script src="js/personas/datos.js"></script>
 <script src="js/personas/liderazgo-datos.js"></script>
 <script src="js/personas/codigo.js"></script>

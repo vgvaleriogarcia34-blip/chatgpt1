@@ -33,7 +33,7 @@
         case 'disc': return n ? frac(c((p) => p.disc), 'con DISC') : null;
         case 'roles': return n ? frac(c((p) => p.roles && p.roles.scores), 'con aportaciones') : null;
         case 'eneagrama': return n ? frac(c((p) => p.enea && p.enea.tipo), 'con eneagrama') : null;
-        case 'identidad': return n ? frac(c((p) => S.identidad && S.identidad(p)), 'con perfil de identidad') : null;
+        case 'identidad': if (!(S.identidadActiva && S.identidadActiva())) return { t: 'Desactivada' }; return n ? frac(c((p) => S.identidad && S.identidad(p)), 'con perfil de identidad') : null;
         case 'envios': { const e = (st.envios || []).filter((x) => x.estado !== 'completado').length; return { t: e ? `${e} envío${e > 1 ? 's' : ''} pendiente${e > 1 ? 's' : ''}` : 'Sin envíos pendientes' }; }
         case 'puestos': return { t: `${st.puestos.length} puesto${st.puestos.length === 1 ? '' : 's'} definido${st.puestos.length === 1 ? '' : 's'}` };
         case 'encaje': { const r = S.resumen(); return r.encMedio != null ? { t: `Encaje medio ${r.encMedio} %`, st: r.encMedio >= 75 ? 'ok' : r.encMedio >= 55 ? 'warn' : 'stop' } : { t: 'Sin puestos con perfil' }; }

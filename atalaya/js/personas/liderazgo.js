@@ -41,10 +41,14 @@
     ks.map((k, i) => [k, ex[i] - Math.floor(ex[i])]).sort((a, b) => b[1] - a[1]).forEach(([k]) => { if (falta > 0) { out[k]++; falta--; } });
     return out;
   };
-  /* Estilo percibido: suma de todas las respuestas del equipo */
+  /* Estilo percibido: suma de todas las respuestas del equipo. Confidencial: solo se muestra agregado y con al menos
+     LID_MIN respuestas; con menos, no hay lectura (ni en pantalla ni en informes) */
+  const LID_MIN = 3;
+  R.LID_MIN = LID_MIN;
+  R.lidPercibidoN = (p) => ((p.lid && p.lid.percibido) || []).filter((x) => R.lidCalc(x.resp)).length;
   R.lidPercibido = (p) => {
     const lista = ((p.lid && p.lid.percibido) || []).map((x) => ({ x, c: R.lidCalc(x.resp) })).filter((o) => o.c);
-    if (!lista.length) return null;
+    if (lista.length < LID_MIN) return null;
     const uso = { 1: 0, 2: 0, 3: 0, 4: 0 }; lista.forEach((o) => [1, 2, 3, 4].forEach((k) => (uso[k] += o.c.uso[k])));
     const tot = lista.length, ord = [1, 2, 3, 4].sort((a, b) => uso[b] - uso[a] || a - b);
     return { n: tot, uso, pct: R.pctResto(uso, tot * L.SITUACIONES.length), pri: ord[0],
@@ -212,20 +216,20 @@
       wireLider(host);
       if (nuevo) {
         situaciones(host, { key: 'lid360r:' + p.id,
-          cabecera: `<div class="eyebrow">Estilo percibido · responde ${nuevo.de ? esc(R.nombre(nuevo.de)) : 'una persona del equipo (anónimo)'}</div><p class="small" style="margin:0">Piense en cómo actúa <b>${esc(p.nombre)}</b> de verdad. En cada situación, elija lo que <b>haría su responsable</b> con alguien del equipo. Sus respuestas se suman a las del resto del equipo.</p>`,
+          cabecera: `<div class="eyebrow">Estilo percibido · responde ${nuevo.de ? esc(R.nombre(nuevo.de)) : 'una persona del equipo (sin indicar quién)'}</div><p class="small" style="margin:0">Piense en cómo actúa <b>${esc(p.nombre)}</b> de verdad. En cada situación, elija lo que <b>haría su responsable</b> con alguien del equipo. Sus respuestas se suman a las del resto del equipo y solo se muestran agregadas, con al menos tres respuestas.</p>`,
           cancelar: () => { delete bor['lid360:' + p.id]; R.rerender(); },
           onFin: (resp) => { p.lid.percibido.push({ id: R.uid('v'), de: nuevo.de || '', resp, fecha: R.hoy() }); delete bor['lid360:' + p.id]; R.save(); R.rerender(); } });
         return;
       }
-      const c = p.lid.estilo && R.lidCalc(p.lid.estilo.resp), pe = R.lidPercibido(p);
+      const c = p.lid.estilo && R.lidCalc(p.lid.estilo.resp), pe = R.lidPercibido(p), nPe = R.lidPercibidoN(p);
       host.insertAdjacentHTML('beforeend', `<div class="glass pad stack"><p style="margin:0">Las personas que dependen de <b>${esc(p.nombre)}</b> responden las mismas 12 situaciones pensando en cómo actúa su responsable. Lo ideal es que respondan por su cuenta, por enlace o con código, y sin que el líder vea las respuestas una a una.</p>
-          <div class="row pe-add"><select class="input" id="lidDe"><option value="">Anónimo</option>${equipo.map((x) => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select><button class="btn solid" id="lidAdd">Añadir respuesta aquí</button>${R.envioBtns ? R.envioBtns(p, 'lid360') : ''}</div>
-          ${equipo.length ? '' : '<p class="small muted" style="margin:0">Nadie depende todavía de esta persona en la plantilla: puede añadir respuestas anónimas.</p>'}</div>
+          <div class="row pe-add"><select class="input" id="lidDe"><option value="">Sin indicar quién responde</option>${equipo.map((x) => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select><button class="btn solid" id="lidAdd">Añadir respuesta aquí</button>${R.envioBtns ? R.envioBtns(p, 'lid360') : ''}</div>
+          ${equipo.length ? '' : '<p class="small muted" style="margin:0">Nadie depende todavía de esta persona en la plantilla: puede añadir respuestas sin indicar quién responde.</p>'}</div>
         ${pe ? `<div class="grid pe-two"><div class="glass pad stack"><div class="eyebrow">Propio frente a percibido</div>${c ? usoBars(c, pe) : `<p class="small muted">${esc(primero(p))} aún no ha hecho su propio test.</p>${[1, 2, 3, 4].map((k) => `<div class="lid-u"><span>${esc(E[k].n)}</span>${R.bar(pe.pct[k], E[k].c, pe.pct[k] + ' %')}</div>`).join('')}`}</div>
           <div class="glass pad stack"><div class="eyebrow">Lectura</div>${R.kpis([{ k: 'Percibido', v: E[pe.pri].n, d: `${pe.n} respuesta${pe.n > 1 ? 's' : ''}` }, { k: 'Eficacia percibida', v: pe.eficacia + ' %', st: pe.eficacia >= 75 ? 'ok' : pe.eficacia >= 55 ? 'warn' : 'stop' }, { k: 'Flexibilidad percibida', v: pe.flex + ' %' }])}
             ${c ? (c.pri === pe.pri ? `<div class="alert ok">Coinciden: se ve y le ven como <b>${esc(E[c.pri].n)}</b>.</div>` : `<div class="alert warn">Se ve como <b>${esc(E[c.pri].n)}</b> y su equipo le vive como <b>${esc(E[pe.pri].n)}</b>. ${pe.pri < c.pri ? 'El equipo percibe más dirección y control de los que el líder cree dar.' : 'El equipo percibe menos dirección de la que el líder cree dar: puede que algunas personas se sientan solas.'}</div>`) + (Math.abs(c.eficacia - pe.eficacia) >= 15 ? `<p class="small" style="margin:0">Eficacia propia ${c.eficacia} % frente a percibida ${pe.eficacia} %.</p>` : '') : ''}
-            ${pe.n < 3 ? '<p class="small muted" style="margin:0">Con menos de tres respuestas, la lectura es orientativa y se pierde el anonimato.</p>' : ''}</div></div>
-          <div class="glass pad"><div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Respuesta</th><th>Fecha</th><th>Estilo percibido</th><th></th></tr></thead><tbody>${p.lid.percibido.map((x, i) => { const cc = R.lidCalc(x.resp); return `<tr><td>${pe.n >= 3 ? 'Respuesta ' + (i + 1) : esc(x.de ? R.nombre(x.de) : 'Anónimo')}</td><td style="text-align:center">${R.fechaES(x.fecha)}</td><td style="text-align:center">${cc ? chipE(cc.pri) : '—'}</td><td class="pe-act"><button class="btn ghost small" data-del="${x.id}">Borrar</button></td></tr>`; }).join('')}</tbody></table></div></div>` : '<div class="alert info">Todavía no hay respuestas de su equipo.</div>'}${aviso()}`);
+            <p class="small muted" style="margin:0">Resultado agregado de ${pe.n} respuestas: las respuestas no se muestran una a una.</p></div></div>` : nPe ? `<div class="alert info">Hay ${nPe} respuesta${nPe > 1 ? 's' : ''}. Se mostrarán cuando respondan al menos ${R.LID_MIN} personas, para que nadie pueda identificar las respuestas de cada una.</div>` : '<div class="alert info">Todavía no hay respuestas de su equipo.</div>'}
+          ${p.lid.percibido.length ? `<div class="glass pad"><div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Respuesta</th><th>Fecha</th><th></th></tr></thead><tbody>${p.lid.percibido.map((x, i) => `<tr><td>Respuesta ${i + 1}</td><td style="text-align:center">${R.fechaES(x.fecha)}</td><td class="pe-act"><button class="btn ghost small" data-del="${x.id}">Borrar</button></td></tr>`).join('')}</tbody></table></div></div>` : ''}${aviso()}`);
       $('#lidAdd', host).onclick = () => { bor['lid360:' + p.id] = { de: $('#lidDe', host).value }; R.rerender(); };
       $$('[data-del]', host).forEach((b) => (b.onclick = () => R.confirmar(b, () => { p.lid.percibido = p.lid.percibido.filter((x) => x.id !== b.dataset.del); R.save(); R.rerender(); })));
       if (R.wireEnvio) R.wireEnvio(host, p);
@@ -433,7 +437,7 @@
   R.pasosLider = (p) => {
     const c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp), f = R.mapaMando(p), out = [];
     if (!c) out.push({ q: 'Test de estilo del líder', c: 'Que responda las 12 situaciones; el consultor explica el modelo antes, en 10 minutos.', s: 'Test completado' });
-    if (!R.lidPercibido(p)) out.push({ q: 'Estilo percibido', c: 'Enviar el test a su equipo por enlace o código; mínimo tres respuestas para preservar el anonimato.', s: 'Tres respuestas o más' });
+    if (!R.lidPercibido(p)) out.push({ q: 'Estilo percibido', c: 'Enviar el test a su equipo por enlace o código; mínimo tres respuestas: hasta entonces no se muestra, para preservar la confidencialidad.', s: 'Tres respuestas o más' });
     if (f.some((x) => x.t && !x.nv) || !f.some((x) => x.t)) out.push({ q: 'Tareas clave de cada colaborador', c: 'Dos o tres tareas por persona, valoradas por el líder y por la persona.', s: 'Todas las tareas con nivel' });
     out.push({ q: 'Revisar el mapa de mando con el líder', c: 'Sesión de 60 minutos: recorrer cada desajuste y decidir el estilo que va a usar.', s: 'Desajustes con decisión tomada' });
     out.push({ q: 'Acuerdos de liderazgo', c: 'El líder pacta con cada colaborador el estilo, el seguimiento y el siguiente nivel (20 minutos por persona).', s: 'Un acuerdo por tarea clave' });

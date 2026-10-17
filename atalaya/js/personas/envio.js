@@ -15,13 +15,17 @@
   const ESTADOS = { enviado: ['info', 'Enviado'], abierto: ['warn', 'Abierto'], 'a medias': ['warn', 'A medias'], completado: ['ok', 'Completado'], caducado: ['stop', 'Caducado'], anulado: ['stop', 'Anulado'] };
   const pillEst = (e) => { const x = ESTADOS[e] || ['info', e]; return R.pill(x[0] === 'info' ? 'warn' : x[0], x[1]); };
   let cache = { lista: null, correo: false, err: null };
+  // Lectura complementaria de identidad (desactivada por defecto): si está activa, el enlace lo indica y el test pide la fecha de nacimiento
+  const idOn = () => !!(R.identidadActiva && R.identidadActiva());
+  const conId = (url, test) => (url && idOn() && test !== 'lid360' && url.indexOf('#t=') > 0 && !/[#&]id=1/.test(url) ? url + '&id=1' : url);
 
   /* ---------- Aplicar una respuesta a la ficha ---------- */
   R.aplicarRespuesta = (o) => {
     const p = R.persona(o.pid); if (!p) throw new Error('La persona ya no está en la plantilla.');
     if (!C.valida(o.test, o.resp)) throw new Error('Respuestas incompletas.');
     const f = R.hoy(), org = o.origen || 'enlace', r = o.resp;
-    if (o.nacimiento && o.test !== 'lid360' && R.fechaValida && R.fechaValida(o.nacimiento)) p.nacimiento = o.nacimiento;
+    // La fecha de nacimiento solo se guarda si la empresa tiene activada la lectura complementaria de identidad
+    if (o.nacimiento && o.test !== 'lid360' && idOn() && R.fechaValida && R.fechaValida(o.nacimiento)) p.nacimiento = o.nacimiento;
     const cons = () => { p.consentimiento = true; p.consentFecha = p.consentFecha || f; p.consentPropio = f; };
     if (o.test === 'disc') { p.disc = Object.assign(R.discDesdeResp(r), { resp: r, fecha: f, origen: org }); cons(); }
     else if (o.test === 'roles') { p.roles = { resp: r, scores: R.rolesDesdeResp(r), fecha: f, origen: org }; cons(); }
@@ -42,6 +46,10 @@
       const j = await P().api('/invitaciones?empresa=' + encodeURIComponent(empresaId()));
       cache = { lista: j.invitaciones, correo: j.correo, err: null };
       const hechos = [];
+      // 360 del responsable: el servidor entrega las respuestas sin nombre y solo a partir de tres
+      for (const b of (j.lid360 || []).filter((x) => x.resps && x.resps.length)) {
+        try { b.resps.forEach((r) => R.aplicarRespuesta({ test: 'lid360', pid: b.pid, resp: r, origen: 'enlace' })); await P().api('/lid360/' + encodeURIComponent(b.pid) + '/importado', { method: 'POST', body: JSON.stringify({ empresaId: b.empresaId }) }); hechos.push(`${b.resps.length} respuestas del equipo sobre ${R.nombre(b.pid)}`); } catch (e) { /* se reintenta en la próxima recogida */ }
+      }
       for (const v of j.invitaciones.filter((x) => x.estado === 'completado' && !x.importada && x.resp)) {
         try { hechos.push(R.aplicarRespuesta({ test: v.test, pid: v.pid, tid: v.tid, resp: v.resp, nacimiento: v.nacimiento, origen: 'enlace' })); await P().api('/invitaciones/' + v.id + '/importada', { method: 'POST', body: '{}' }); v.importada = R.hoy(); } catch (e) { /* persona o tarea borrada: queda en la lista */ }
       }
@@ -88,13 +96,13 @@
     const t = o.tid && (p.tareas || []).find((x) => x.id === o.tid), jefe = R.persona(p.responsable);
     return [{ p, body: { pid: p.id, nombre: p.nombre, tid: t ? t.id : null, tarea: t ? t.nombre : null, lider: jefe ? jefe.nombre : null } }];
   };
-  const enlaceCodigo = (b, test, email, resumen) => baseTest() + '#c=' + C.paqueteEnlace({ t: test, n: b.nombre, e: R.empresa().nombre, p: b.pid, ti: b.tid || undefined, ta: b.tarea || undefined, l: b.lider || undefined, m: email || undefined, r: resumen ? 1 : 0 });
+  const enlaceCodigo = (b, test, email, resumen) => baseTest() + '#c=' + C.paqueteEnlace({ t: test, n: b.nombre, e: R.empresa().nombre, p: b.pid, ti: b.tid || undefined, ta: b.tarea || undefined, l: b.lider || undefined, m: email || undefined, r: resumen ? 1 : 0, id: idOn() && test !== 'lid360' ? 1 : undefined });
 
   const envioDialog = async (o) => {
     const p = R.persona(o.pid); if (!p) return;
     const dest = o.lista || destinatarios(o), T = C.TESTS[o.test], srv = servidor();
     if (srv && !cache.lista) await R.importarInvitaciones();
-    const { back, close } = ventana(`<div class="row"><div><div class="eyebrow">Test a distancia</div><h3 style="margin:4px 0 0">${esc(T.n)}</h3><p class="small muted" style="margin:0">${o.lista ? dest.length + ' personas' : o.test === 'lid360' ? `El equipo de ${esc(p.nombre)} responde sobre su forma de dirigir. Las respuestas llegan anónimas y se suman.` : esc(p.nombre) + (o.tid ? ' · ' + esc(dest[0].body.tarea) : '')}</p></div><span class="spacer"></span><button class="btn ghost small" data-x>Cerrar</button></div>
+    const { back, close } = ventana(`<div class="row"><div><div class="eyebrow">Test a distancia</div><h3 style="margin:4px 0 0">${esc(T.n)}</h3><p class="small muted" style="margin:0">${o.lista ? dest.length + ' personas' : o.test === 'lid360' ? `El equipo de ${esc(p.nombre)} responde sobre su forma de dirigir. Las respuestas son confidenciales: se muestran agregadas al responsable, nunca individualmente, y solo cuando han respondido al menos tres personas.` : esc(p.nombre) + (o.tid ? ' · ' + esc(dest[0].body.tarea) : '')}</p></div><span class="spacer"></span><button class="btn ghost small" data-x>Cerrar</button></div>
       ${dest.length ? `<div class="pe-dest">${dest.map((d, i) => `<label class="pe-dr"><input type="checkbox" data-i="${i}" checked> <span>${esc(d.p.nombre)}</span><input class="input" type="email" data-mail="${i}" placeholder="correo (opcional)" value="${esc(d.p.email || '')}" autocomplete="off"></label>`).join('')}</div>` : '<div class="alert warn">Nadie depende todavía de esta persona en la plantilla.</div>'}
       <label class="tp-inline small"><input type="checkbox" id="envRes" checked> Mostrar a la persona un resumen breve de su resultado al terminar</label>
       <p class="small muted" style="margin:0">La persona verá para qué se usan sus respuestas y dará su propio consentimiento antes de empezar.</p>
@@ -107,9 +115,9 @@
       const s = sel(); if (!s.length) return;
       out.innerHTML = '<p class="small">Creando…</p>';
       try {
-        const j = await P().api('/invitaciones', { method: 'POST', body: JSON.stringify({ lista: s.map((x) => Object.assign({ test: o.test, empresaId: empresaId(), empresa: R.empresa().nombre, email: x.email || null, enviar, resumen: resumen() }, x.body)) }) });
+        const j = await P().api('/invitaciones', { method: 'POST', body: JSON.stringify({ lista: s.map((x) => Object.assign({ identidad: idOn() && o.test !== 'lid360', test: o.test, empresaId: empresaId(), empresa: R.empresa().nombre, email: x.email || null, enviar, resumen: resumen() }, x.body)) }) });
         cache.lista = null;
-        out.innerHTML = j.invitaciones.map((v, k) => `<div class="glass pad stack"><div class="row"><b>${esc(v.nombre)}</b><span class="spacer"></span>${v.enviado ? R.pill('ok', 'Correo enviado') : enviar && s[k].email ? R.pill('warn', 'Correo no enviado') : ''}</div>${compartir(v.url, s[k].p, o.test)}</div>`).join('') + '<p class="small muted" style="margin:0">El enlace caduca en 14 días. Puede seguir su estado en «Test a distancia».</p>';
+        out.innerHTML = j.invitaciones.map((v, k) => `<div class="glass pad stack"><div class="row"><b>${esc(v.nombre)}</b><span class="spacer"></span>${v.enviado ? R.pill('ok', 'Correo enviado') : enviar && s[k].email ? R.pill('warn', 'Correo no enviado') : ''}</div>${compartir(conId(v.url, o.test), s[k].p, o.test)}</div>`).join('') + '<p class="small muted" style="margin:0">El enlace caduca en 14 días. Puede seguir su estado en «Test a distancia».</p>';
         wireCopy(out);
       } catch (e) { out.innerHTML = `<div class="alert stop">${esc(e.message)}</div>`; }
     };
@@ -137,7 +145,7 @@
       ps.forEach((p) => { if (d.test === 'prep') (p.tareas || []).forEach((t) => { if (C.huella(p.id, t.id) === d.huella) cand.push({ p, t }); }); else if (C.huella(p.id, '') === d.huella) cand.push({ p }); });
       const unico = cand.length === 1 ? cand[0] : null, T = C.TESTS[d.test];
       const opts = d.test === 'prep' ? ps.flatMap((p) => (p.tareas || []).map((t) => `<option value="${p.id}|${t.id}" ${unico && unico.t === t ? 'selected' : ''}>${esc(p.nombre)} · ${esc(t.nombre)}</option>`)).join('') : ps.map((p) => `<option value="${p.id}|" ${unico && unico.p === p ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('');
-      out.innerHTML = `<div class="alert ${unico ? 'ok' : 'warn'}">${esc(T.n)}${d.test === 'lid360' ? ' (respuesta anónima sobre un responsable)' : ''}. ${unico ? `Corresponde a <b>${esc(unico.p.nombre)}</b>${unico.t ? ' · ' + esc(unico.t.nombre) : ''}.` : 'No se reconoce a quién corresponde: elija a la persona con cuidado.'}</div>
+      out.innerHTML = `<div class="alert ${unico ? 'ok' : 'warn'}">${esc(T.n)}${d.test === 'lid360' ? ' (respuesta confidencial sobre un responsable: se suma a las del equipo y no se muestra por separado)' : ''}. ${unico ? `Corresponde a <b>${esc(unico.p.nombre)}</b>${unico.t ? ' · ' + esc(unico.t.nombre) : ''}.` : 'No se reconoce a quién corresponde: elija a la persona con cuidado.'}</div>
         <label class="small">${d.test === 'lid360' ? 'Responsable evaluado' : d.test === 'prep' ? 'Persona y tarea' : 'Persona'}<select class="input" id="codP">${opts || '<option value="">— sin opciones —</option>'}</select></label>
         <div class="row"><button class="btn solid" id="codApl" ${opts ? '' : 'disabled'}>Guardar en su ficha</button></div>`;
       $('#codApl', back).onclick = () => {
@@ -189,7 +197,7 @@
     if (!filas.length) { box.innerHTML = `<div class="eyebrow">Envíos</div><p class="small muted" style="margin:0">${cache.err ? esc(cache.err) : 'Todavía no se ha enviado ningún cuestionario. Use «Enviar por enlace» en cada herramienta o «Enviar a varias personas».'}</p>`; return; }
     box.innerHTML = `<div class="eyebrow">Envíos · ${filas.length}</div><div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Persona</th><th style="text-align:left">Test</th><th>Estado</th><th>Fecha</th><th></th></tr></thead><tbody>
       ${filas.map(({ v, srv: s }) => `<tr data-id="${v.id}" data-s="${s ? 1 : 0}"><td>${esc(v.nombre || R.nombre(v.pid))}${v.test === 'lid360' && v.lider ? ` <span class="small muted">sobre ${esc(v.lider)}</span>` : ''}</td><td>${esc(C.TESTS[v.test] ? C.TESTS[v.test].n : v.test)}${v.tarea ? ' · ' + esc(v.tarea) : ''}<br><span class="small muted">${s ? (v.email ? 'Correo · ' + esc(v.email) : 'Enlace') : 'Enlace con código'}</span></td><td style="text-align:center">${pillEst(v.estado)}${s && !['completado', 'anulado'].includes(v.estado) && v.progreso ? `<br><span class="small muted">${v.progreso} de ${v.total}</span>` : ''}${s && v.estado === 'completado' && !v.importada ? '<br><span class="small muted">sin recoger</span>' : ''}</td><td style="text-align:center" class="small">${R.fechaES(s ? v.creado : v.fecha)}</td>
-        <td class="pe-act">${['completado', 'anulado'].includes(v.estado) ? '' : `<button class="btn ghost small" data-cp="${esc(v.url)}">Copiar enlace</button>`}${s && v.email && ['enviado', 'abierto', 'a medias'].includes(v.estado) ? '<button class="btn ghost small" data-a="recordar">Recordar</button>' : ''}${s && ['caducado', 'anulado', 'a medias', 'abierto', 'enviado'].includes(v.estado) ? '<button class="btn ghost small" data-a="reenviar">Reenviar</button>' : ''}${s && ['enviado', 'abierto', 'a medias'].includes(v.estado) ? '<button class="btn ghost small" data-a="anular">Anular</button>' : ''}${!s ? '<button class="btn ghost small" data-a="quitar">Quitar</button>' : ''}</td></tr>`).join('')}
+        <td class="pe-act">${['completado', 'anulado'].includes(v.estado) ? '' : `<button class="btn ghost small" data-cp="${esc(s ? conId(v.url, v.test) : v.url)}">Copiar enlace</button>`}${s && v.email && ['enviado', 'abierto', 'a medias'].includes(v.estado) ? '<button class="btn ghost small" data-a="recordar">Recordar</button>' : ''}${s && ['caducado', 'anulado', 'a medias', 'abierto', 'enviado'].includes(v.estado) ? '<button class="btn ghost small" data-a="reenviar">Reenviar</button>' : ''}${s && ['enviado', 'abierto', 'a medias'].includes(v.estado) ? '<button class="btn ghost small" data-a="anular">Anular</button>' : ''}${!s ? '<button class="btn ghost small" data-a="quitar">Quitar</button>' : ''}</td></tr>`).join('')}
       </tbody></table></div><p class="small muted" style="margin:0" id="envMsg"></p>`;
     $$('[data-cp]', box).forEach((b) => (b.onclick = () => (navigator.clipboard ? navigator.clipboard.writeText(b.dataset.cp) : Promise.reject()).then(() => (b.textContent = 'Copiado'), () => window.prompt('Copie el enlace:', b.dataset.cp))));
     $$('[data-a]', box).forEach((b) => (b.onclick = async () => {
@@ -200,7 +208,7 @@
         const j = await P().api('/invitaciones/' + id + '/' + a, { method: 'POST', body: '{}' });
         cache.lista = null; await pintarLista(box);
         const m2 = $('#envMsg', box);
-        if (a === 'reenviar' && j.invitacion) { m2.innerHTML = `Nuevo enlace para ${esc(j.invitacion.nombre)}${j.invitacion.enviado ? ' (enviado por correo)' : ''}: el anterior ya no vale.`; m2.insertAdjacentHTML('afterend', compartir(j.invitacion.url, R.persona(j.invitacion.de || j.invitacion.pid), j.invitacion.test)); wireCopy(box); }
+        if (a === 'reenviar' && j.invitacion) { m2.innerHTML = `Nuevo enlace para ${esc(j.invitacion.nombre)}${j.invitacion.enviado ? ' (enviado por correo)' : ''}: el anterior ya no vale.`; m2.insertAdjacentHTML('afterend', compartir(conId(j.invitacion.url, j.invitacion.test), R.persona(j.invitacion.de || j.invitacion.pid), j.invitacion.test)); wireCopy(box); }
         else if (a === 'recordar') m2.textContent = 'Recordatorio enviado.';
       } catch (e) { b.disabled = false; msg.textContent = e.message; }
     }));

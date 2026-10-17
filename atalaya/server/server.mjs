@@ -665,14 +665,18 @@ const INV_DIAS = 14;
 const TESTS_INV = { disc: 12, roles: 27, enea: 27, lid: 12, lid360: 12, prep: 8 };
 const TEST_NOMBRE = { disc: 'estilo de comportamiento (DISC)', roles: 'aportaciones al equipo', enea: 'motivación (eneagrama)', lid: 'estilo de liderazgo', lid360: 'cómo dirige su responsable', prep: 'preparación para una tarea' };
 db.invitaciones = db.invitaciones || {};
+db.lid360 = db.lid360 || {};
+const MIN_LID360 = 3; // por debajo de tres respuestas no se entregan: no serían confidenciales
 const invTok = (v) => v.token || crypto.createHmac('sha256', SECRETO).update('inv:' + v.id).digest('base64url');
 const invEstado = (v) => (['completado', 'anulado'].includes(v.estado) ? v.estado : Date.parse(v.caduca) < Date.now() ? 'caducado' : v.estado);
-const invPub = (v) => ({ id: v.id, empresaId: v.empresaId, pid: v.pid, nombre: v.nombre, test: v.test, tid: v.tid, tarea: v.tarea, lider: v.lider, email: v.email, estado: invEstado(v), creado: v.creado, caduca: v.caduca, abierto: v.abierto, actualizado: v.actualizado, completado: v.completado, importada: v.importada, recordatorios: v.recordatorios || 0, progreso: Array.isArray(v.resp) ? v.resp.filter((x) => x != null).length : 0, total: TESTS_INV[v.test], resp: v.estado === 'completado' ? v.resp : undefined, nacimiento: v.estado === 'completado' ? v.nacimiento : undefined, de: v.de, url: `${APP_URL}/test.html#t=${invTok(v)}` });
+const invPub = (v) => ({ id: v.id, empresaId: v.empresaId, pid: v.pid, nombre: v.nombre, test: v.test, tid: v.tid, tarea: v.tarea, lider: v.lider, email: v.email, estado: invEstado(v), creado: v.creado, caduca: v.caduca, abierto: v.abierto, actualizado: v.actualizado, completado: v.completado, importada: v.importada, recordatorios: v.recordatorios || 0, progreso: Array.isArray(v.resp) ? v.resp.filter((x) => x != null).length : 0, total: TESTS_INV[v.test], resp: v.estado === 'completado' && v.test !== 'lid360' ? v.resp : undefined, nacimiento: v.estado === 'completado' && v.identidad ? v.nacimiento : undefined, url: `${APP_URL}/test.html#t=${invTok(v)}${v.identidad ? '&id=1' : ''}` });
 const invDe = (u, id) => { const v = Object.values(db.invitaciones).find((x) => x.id === id && x.owner === u.id); if (!v) throw fallo(404, 'Invitación no encontrada'); return v; };
 const invMail = (v, recordatorio) => sendMail(v.email, `${recordatorio ? 'Recordatorio: ' : ''}${v.empresa || 'Su empresa'} le pide responder un cuestionario`,
-  `Hola${v.nombre ? ', ' + v.nombre : ''}:\n\n${v.empresa || 'Su empresa'} le invita a responder un cuestionario breve sobre ${TEST_NOMBRE[v.test]}${v.tarea ? ' («' + v.tarea + '»)' : ''}${v.lider && v.test === 'lid360' ? ', pensando en ' + v.lider : ''}.\n\nSe responde en unos minutos, sin crear ninguna cuenta. Antes de empezar verá para qué se usan sus respuestas y podrá aceptar o no.\n\n${APP_URL}/test.html#t=${invTok(v)}\n\nEl enlace es personal y caduca el ${new Date(v.caduca).toLocaleDateString('es-ES')}.\n\nAtalaya 360°`);
+  `Hola${v.nombre ? ', ' + v.nombre : ''}:\n\n${v.empresa || 'Su empresa'} le invita a responder un cuestionario breve sobre ${TEST_NOMBRE[v.test]}${v.tarea ? ' («' + v.tarea + '»)' : ''}${v.lider && v.test === 'lid360' ? ', pensando en ' + v.lider : ''}.\n\nSe responde en unos minutos, sin crear ninguna cuenta. Antes de empezar verá para qué se usan sus respuestas y podrá aceptar o no.\n\n${APP_URL}/test.html#t=${invTok(v)}${v.identidad ? '&id=1' : ''}\n\nEl enlace es personal y caduca el ${new Date(v.caduca).toLocaleDateString('es-ES')}.\n\nAtalaya 360°`);
 function nuevaInv(u, body) {
   const v = { id: 'i' + crypto.randomBytes(6).toString('hex'), owner: u.id, empresaId: String(body.empresaId || 'principal').slice(0, 40), empresa: String(body.empresa || '').slice(0, 120), pid: String(body.pid || '').slice(0, 40), nombre: String(body.nombre || '').slice(0, 120), test: body.test, tid: body.tid ? String(body.tid).slice(0, 40) : null, tarea: body.tarea ? String(body.tarea).slice(0, 160) : null, lider: body.lider ? String(body.lider).slice(0, 120) : null, de: body.de ? String(body.de).slice(0, 40) : null, email: body.email ? String(body.email).trim().toLowerCase().slice(0, 160) : null, resumen: body.resumen !== false, estado: 'enviado', creado: now(), caduca: new Date(Date.now() + INV_DIAS * 864e5).toISOString(), resp: null };
+  // La lectura complementaria de identidad (fecha de nacimiento) solo si la empresa la tiene activada; nunca en el 360
+  v.identidad = !!body.identidad && body.test !== 'lid360';
   db.invitaciones[sha(invTok(v))] = v;
   return v;
 }
@@ -694,7 +698,15 @@ route('POST', /^\/api\/invitaciones$/, async (req, res, body, u) => {
 });
 route('GET', /^\/api\/invitaciones$/, async (req, res, body, u) => {
   const url = new URL(req.url, 'http://x'), emp = url.searchParams.get('empresa');
-  return { invitaciones: Object.values(db.invitaciones).filter((v) => v.owner === u.id && (!emp || v.empresaId === emp)).sort((a, b) => b.creado.localeCompare(a.creado)).map(invPub), correo: !!env.SMTP_HOST };
+  // Bolsas del 360: solo con tres respuestas o más, en orden aleatorio y sin nombres
+  const lid360 = Object.entries(db.lid360).filter(([k]) => k.startsWith(u.id + '|') && (!emp || k.split('|')[1] === emp)).map(([k, l]) => ({ empresaId: k.split('|')[1], pid: k.split('|')[2], n: l.length, resps: l.length >= MIN_LID360 ? l.map((x) => x.resp).sort(() => Math.random() - 0.5) : null }));
+  return { invitaciones: Object.values(db.invitaciones).filter((v) => v.owner === u.id && (!emp || v.empresaId === emp)).sort((a, b) => b.creado.localeCompare(a.creado)).map(invPub), lid360, minLid360: MIN_LID360, correo: !!env.SMTP_HOST };
+});
+// La ficha ya recogió las respuestas del 360 de un responsable: se vacía su bolsa
+route('POST', /^\/api\/lid360\/([\w-]+)\/importado$/, async (req, res, body, u, m) => {
+  const emp = String(body.empresaId || 'principal').slice(0, 40), k = u.id + '|' + emp + '|' + m[1];
+  const l = db.lid360[k] || []; if (l.length < MIN_LID360) throw fallo(409, 'Aún no hay respuestas suficientes');
+  delete db.lid360[k]; save(); return { ok: true, n: l.length };
 });
 route('POST', /^\/api\/invitaciones\/([\w-]+)\/(anular|recordar|reenviar|importada|borrar)$/, async (req, res, body, u, m) => {
   const v = invDe(u, m[1]), acc = m[2];
@@ -740,8 +752,12 @@ route('PUT', /^\/api\/t\/([\w-]{20,64})$/, async (req, res, body, u, m) => {
   if (!resp.every(okItem)) throw fallo(400, 'Respuestas no válidas');
   v.resp = v.test === 'disc' ? resp.map((x) => (x ? { mas: x.mas, menos: x.menos } : null)) : resp;
   v.consent = v.consent || now(); v.actualizado = now(); v.ip = ip;
-  if (typeof body.nacimiento === 'string' && /^(19|20)\d{2}-\d{2}-\d{2}$/.test(body.nacimiento)) v.nacimiento = body.nacimiento;
-  if (body.fin) { if (resp.some((x) => x == null)) throw fallo(400, 'Faltan respuestas'); v.estado = 'completado'; v.completado = now(); }
+  if (v.identidad && typeof body.nacimiento === 'string' && /^(19|20)\d{2}-\d{2}-\d{2}$/.test(body.nacimiento)) v.nacimiento = body.nacimiento;
+  if (body.fin) {
+    if (resp.some((x) => x == null)) throw fallo(400, 'Faltan respuestas'); v.estado = 'completado'; v.completado = now();
+    // 360 del responsable: la respuesta pasa a una bolsa sin nombre por responsable y la invitación olvida quién respondió
+    if (v.test === 'lid360') { const k = v.owner + '|' + v.empresaId + '|' + v.pid; (db.lid360[k] = db.lid360[k] || []).push({ resp: v.resp, mes: now().slice(0, 7) }); v.resp = null; v.de = null; v.ip = null; v.importada = now(); }
+  }
   else v.estado = 'a medias';
   save(); return { ok: true, estado: v.estado };
 }, { public: true });
@@ -778,6 +794,7 @@ route('DELETE', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m)
   Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === id) delete db.sessions[k]; });
   Object.keys(db.resets).forEach((k) => { if (db.resets[k].userId === id) delete db.resets[k]; });
   Object.keys(db.invitaciones).forEach((k) => { if (db.invitaciones[k].owner === id) delete db.invitaciones[k]; });
+  Object.keys(db.lid360).forEach((k) => { if (k.startsWith(id + '|')) delete db.lid360[k]; });
   db.contactos = (db.contactos || []).filter((c) => String(c.email || '').toLowerCase() !== u.email && c.cuenta !== id);
   save(); return { ok: true };
 }, { admin: true });
@@ -934,6 +951,19 @@ server.listen(PORT, () => {
 setInterval(() => {
   for (const [k, a] of intentos) { const lim = LIMITES[k.split('|')[0]]; const f = a.filter((t) => Date.now() - t < (lim ? lim[1] : 60) * 60e3); if (f.length) intentos.set(k, f); else intentos.delete(k); }
 }, 10 * 60e3).unref();
+// Conservación: una invitación importada o cerrada (caducada o anulada) se borra a los 30 días; la IP de quien respondió, al importarla
+const PURGA_DIAS = +env.INVITACIONES_DIAS || 30;
+const purgarInvitaciones = () => {
+  let n = 0; const lim = Date.now() - PURGA_DIAS * 864e5;
+  Object.entries(db.invitaciones).forEach(([k, v]) => {
+    const st = invEstado(v), ref = v.importada || (st === 'caducado' ? v.caduca : st === 'anulado' ? (v.actualizado || v.creado) : null);
+    if (v.importada && v.ip) { v.ip = null; n++; }
+    if (ref && Date.parse(ref) < lim) { delete db.invitaciones[k]; n++; }
+  });
+  if (n) save();
+};
+purgarInvitaciones();
+setInterval(purgarInvitaciones, 6 * 3600e3).unref();
 setInterval(() => {
   let n = 0;
   [db.sessions, db.adminSessions, db.resets].forEach((o) => Object.keys(o).forEach((k) => { if (Date.parse(o[k].exp) < Date.now()) { delete o[k]; n++; } }));
