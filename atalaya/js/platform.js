@@ -59,7 +59,7 @@
   async function api(path, opts) {
     const r = await fetch('/api' + path, Object.assign({ credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } }, opts || {}));
     let body = null; try { body = await r.json(); } catch (e) { /* sin cuerpo */ }
-    if (!r.ok) throw Object.assign(new Error((body && body.error) || 'Error del servidor (' + r.status + ')'), { status: r.status });
+    if (!r.ok) throw Object.assign(new Error((body && body.error) || 'Error del servidor (' + r.status + ')'), { status: r.status, body });
     // Cada respuesta buena es una ocasión para reenviar lo que quedó pendiente
     if (hayPend && !reenviando) setTimeout(reenviar, 0);
     return body;
@@ -608,7 +608,10 @@
     const n = P.empresas.reales().length, lim = PLANES[plan].empresas;
     if (n > lim) throw new Error(`Tienes ${n} empresas dadas de alta y ${PLANES[plan].nombre} admite ${lim}. Borra antes las que no necesites (desde el mapa de empresas) y vuelve a intentarlo.`);
     const antes = P.user && P.user.plan;
-    const u = await P.updateMe({ plan, periodo: periodo || (P.user && P.user.periodo) || 'mensual' });
+    let u;
+    // Con el acceso pagado, subir de plan queda pendiente hasta que la administración lo confirme (el servidor responde 409)
+    try { u = await P.updateMe({ plan, periodo: periodo || (P.user && P.user.periodo) || 'mensual' }); }
+    catch (e) { if (e.status === 409 && e.body && e.body.pendiente) return { pendiente: true, mensaje: e.message }; throw e; }
     // La principal pasa a holding o a cliente según el nuevo plan, para que el mapa tenga sentido
     if (PLANES[plan].grupo !== (PLANES[antes] || {}).grupo) { const pr = P.empresas.lista().find((e) => e.id === 'principal'); if (pr && !pr.rolFijado) { pr.rol = PLANES[plan].grupo ? 'holding' : (plan === 'consultora' ? 'cliente' : 'holding'); try { await P.empresas.guardar(); } catch (x) { /* se corrige en el mapa */ } } }
     return u;
@@ -688,7 +691,7 @@
       back.querySelectorAll('[data-contacto]').forEach((b) => b.onclick = () => { back.remove(); P.formContacto({ plan: 'grupos', origen: 'mi-plan' }); });
       back.querySelectorAll('[data-plan]').forEach((b) => b.onclick = async () => {
         const k = b.dataset.plan, msg = back.querySelector('[data-msg]');
-        try { await P.cambiarPlan(k, periodo); const c = P.cuota(P.precio(k, periodo, n)); msg.style.color = 'var(--go)'; msg.textContent = `Hecho: ahora tienes ${PLANES[k].nombre} con pago ${periodo}: ${P.eur(c.importe)}${c.unidad}.`; setTimeout(() => { if (opts.onCambio) opts.onCambio(k); else location.reload(); }, 700); }
+        try { const r = await P.cambiarPlan(k, periodo); if (r && r.pendiente) { msg.style.color = 'var(--warn)'; msg.textContent = r.mensaje || `Hemos recibido su petición de pasar a ${PLANES[k].nombre}: la administración la confirmará y se ajustará en el siguiente cobro.`; return; } const c = P.cuota(P.precio(k, periodo, n)); msg.style.color = 'var(--go)'; msg.textContent = `Hecho: ahora tienes ${PLANES[k].nombre} con pago ${periodo}: ${P.eur(c.importe)}${c.unidad}.`; setTimeout(() => { if (opts.onCambio) opts.onCambio(k); else location.reload(); }, 700); }
         catch (x) { msg.style.color = 'var(--stop)'; msg.textContent = x.message; }
       });
     };
