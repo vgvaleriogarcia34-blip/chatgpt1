@@ -29,6 +29,9 @@
   $$('[data-w]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); enter(b.dataset.w); }));
   // Paseo virtual con la empresa modelo, a petición desde el mapa
   const pb = $('#ptPaseo'); if (pb) pb.addEventListener('click', (e) => { e.stopPropagation(); if (A.paseo) A.paseo.iniciar(); });
+  // Altura real de la barra de mundos (una o dos filas según la pantalla) para colocar encima los botones flotantes
+  const medirDock = () => { const d = $('.pt-dock'); if (d) document.documentElement.style.setProperty('--pt-dock-h', d.offsetHeight + 'px'); };
+  medirDock(); addEventListener('resize', medirDock); setTimeout(medirDock, 600);
   const vb = $('#ptVideo'); if (vb) vb.addEventListener('click', (e) => { e.stopPropagation(); P.verVideo(); });
 
   /* ---------- Cuenta y saludo ---------- */

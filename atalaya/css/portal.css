@@ -18,11 +18,13 @@ body.portal { margin: 0; height: 100%; min-height: 100vh; overflow: hidden; back
 .pt-intro p { color: var(--muted); margin: 0; text-shadow: 0 2px 12px #000; }
 
 .pt-labels { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
-.pt-world { position: absolute; left: 0; top: 0; pointer-events: auto; width: 270px; text-align: left; display: grid; gap: 6px; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--line-strong); background: linear-gradient(160deg, rgba(24, 29, 40, 0.82), rgba(9, 11, 15, 0.82)); backdrop-filter: blur(10px); color: var(--fg); box-shadow: 0 30px 60px -25px #000; transition: transform 0.25s ease-out, border-color 0.25s, box-shadow 0.25s, opacity 0.3s; will-change: transform; cursor: pointer; font: inherit; }
-.pt-world b { font-family: var(--font-display); letter-spacing: -0.02em; font-weight: 700; font-size: 1.45rem; line-height: 1.1; }
-.pt-w-kicker { font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
-.pt-q { font-size: var(--t-s); color: var(--muted); line-height: 1.45; }
-.pt-go { margin-top: 4px; width: fit-content; font-weight: 600; font-size: var(--t-s); color: #10162b; background: var(--gold); padding: 6px 14px; border-radius: 999px; }
+/* El cartel de cada mundo crece y decrece con la pantalla (ancho y alto): en un portátil no tapa los planetas y en una pantalla grande no se queda pequeño */
+.pt-world { position: absolute; left: 0; top: 0; pointer-events: auto; width: clamp(168px, calc(9vw + 9vh), 290px); text-align: left; display: grid; gap: clamp(3px, 0.55vmin, 6px); padding: clamp(9px, calc(1.1vmin + 2px), 16px) clamp(11px, calc(1.3vmin + 3px), 18px); border-radius: clamp(12px, 1.6vmin, 18px); border: 1px solid var(--line-strong); background: linear-gradient(160deg, rgba(24, 29, 40, 0.82), rgba(9, 11, 15, 0.82)); backdrop-filter: blur(10px); color: var(--fg); box-shadow: 0 30px 60px -25px #000; transition: transform 0.25s ease-out, border-color 0.25s, box-shadow 0.25s, opacity 0.3s; will-change: transform; cursor: pointer; font: inherit; }
+.pt-world b { font-family: var(--font-display); letter-spacing: -0.02em; font-weight: 700; font-size: clamp(1.02rem, calc(0.55vw + 0.6vh + 0.35rem), 1.5rem); line-height: 1.1; }
+.pt-w-kicker { font-size: clamp(0.56rem, calc(0.2vw + 0.2vh + 0.3rem), 0.68rem); letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
+.pt-q { font-size: clamp(0.72rem, calc(0.32vw + 0.32vh + 0.32rem), 0.92rem); color: var(--muted); line-height: 1.4; }
+@media (max-height: 780px) and (min-width: 761px) { .pt-q { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } }
+.pt-go { margin-top: 4px; width: fit-content; font-weight: 600; font-size: clamp(0.7rem, calc(0.3vw + 0.3vh + 0.34rem), 0.9rem); color: #10162b; background: var(--gold); padding: clamp(4px, 0.6vmin, 6px) clamp(10px, 1.3vmin, 14px); border-radius: 999px; }
 .pt-go i { font-style: normal; display: inline-block; transition: transform 0.2s; }
 .pt-world.on, .pt-world:hover, .pt-world:focus-visible { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 30px 70px -20px rgba(201, 242, 77, 0.45); outline: none; }
 .pt-world.on .pt-go i, .pt-world:hover .pt-go i { transform: translateX(4px); }

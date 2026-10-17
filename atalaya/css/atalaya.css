@@ -964,8 +964,9 @@ a.paseo-btn { text-decoration: none; display: inline-flex; align-items: center; 
 .pt-mini-v { border-color: rgba(106, 168, 255, 0.5); } .pt-mini-v i { background: #6aa8ff; }
 .pt-mini:hover, .pt-mini:focus-visible { border-color: var(--gold, #c9f24d); transform: translateY(-1px); }
 /* Con los mundos a la vista, la barra de mundos ocupa el pie: los botones se quedan en la esquina, justo encima */
-body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
-@media (max-width: 760px) { .pt-flota { flex-direction: row; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); } body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(166px + env(safe-area-inset-bottom, 0px)); } }
+/* --pt-dock-h la mide portal.js: si la barra ocupa dos filas, los botones suben con ella */
+body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(56px + var(--pt-dock-h, 56px) + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 760px) { .pt-flota { flex-direction: row; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); } body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(24px + var(--pt-dock-h, 130px) + env(safe-area-inset-bottom, 0px)); } }
 /* Ventana flotante del vídeo de presentación */
 .vp-back { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; padding: 16px; background: rgba(3, 5, 9, 0.82); backdrop-filter: blur(4px); }
 .vp-box { position: relative; width: min(1100px, 100%); border-radius: 14px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14); background: #05070b; box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8); }
