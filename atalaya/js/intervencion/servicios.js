@@ -252,6 +252,7 @@
   const propForm = (k) => { const pr = prop(k), T = PROP[k]; return `<div class="glass pad stack"><div class="row"><div><div class="eyebrow">${esc(T.titulo)}</div><small class="muted">${esc(T.sub)}</small></div></div>
       <div class="sv-g3"><label class="small">Honorarios<input class="input" data-pf="precio" value="${esc(pr.precio || '')}" placeholder="${k === 'propS3' ? 'p. ej. 1.200 € al mes' : 'p. ej. 4.500 €'}"></label><label class="small">Forma de pago<input class="input" data-pf="forma" value="${esc(pr.forma || '')}" placeholder="50 % al inicio, 50 % a la entrega"></label>${k === 'propS3' ? `<label class="small">Duración<select class="input" data-pf="meses">${[6, 9, 12].map((m) => `<option value="${m}" ${(+pr.meses || 6) === m ? 'selected' : ''}>${m} meses</option>`).join('')}</select></label>` : `<label class="small">Estado<select class="input" data-pf="estado">${ESTADO_PROP.map(([v, n]) => `<option value="${v}" ${(pr.estado || 'borrador') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`}</div>
       ${k === 'propS3' ? `<label class="small">Estado<select class="input" data-pf="estado">${ESTADO_PROP.map(([v, n]) => `<option value="${v}" ${(pr.estado || 'borrador') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+      <div data-conv="${k}"></div>
       <label class="small">Notas para la propuesta<textarea class="input" rows="2" data-pf="notas">${esc(pr.notas || '')}</textarea></label>
       <div class="row"><button class="btn solid" data-prop="${k}">Abrir la propuesta</button></div></div>`; };
   const wireProp = (host, k) => {
@@ -262,6 +263,7 @@
       guardar(); if (x.tagName === 'SELECT') render();
     }));
     $$('[data-prop]', host).forEach((b) => (b.onclick = () => informePropuesta(b.dataset.prop)));
+    if (V.conversion) V.conversion.wireServicio(host, k);
   };
   VISTAS.s1cierre = (host) => {
     const s1 = svc('s1');
