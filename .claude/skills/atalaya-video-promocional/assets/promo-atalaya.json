@@ -155,7 +155,8 @@
             845
           ],
           "etiqueta": "Puesto de mando",
-          "peso": 1
+          "peso": 1,
+          "desde": 1.2
         },
         {
           "tipo": "clip",
@@ -192,8 +193,8 @@
             945
           ],
           "etiqueta": "Hoja de ruta",
-          "peso": 1.1,
-          "desde": 0.8
+          "peso": 1.4,
+          "desde": 1.0
         }
       ]
     },
@@ -796,22 +797,22 @@
           "img": "iv-escucha",
           "de": [
             400,
-            150,
+            40,
             1200,
-            900
+            780
           ],
           "a": [
             984,
-            420,
+            100,
             560,
-            240
+            320
           ],
           "etiqueta": "Transcripciones con IA",
           "resalta": [
             984,
-            420,
+            110,
             560,
-            240
+            300
           ],
           "resaltaDesde": 0.45,
           "peso": 1.1
@@ -880,23 +881,23 @@
       "planos": [
         {
           "tipo": "captura",
-          "img": "mesa-objetivos",
+          "img": "mesa-prioridades",
           "de": [
             420,
-            150,
+            180,
             1150,
-            820
+            800
           ],
           "a": [
             436,
-            200,
+            330,
             1120,
-            520
+            560
           ],
           "etiqueta": "Mesa de trabajo",
           "resalta": [
             436,
-            320,
+            420,
             1120,
             380
           ],
@@ -932,15 +933,15 @@
           "img": "mesa-agenda",
           "de": [
             420,
-            100,
+            40,
             1150,
-            900
+            1000
           ],
           "a": [
             436,
-            150,
+            170,
             1120,
-            700
+            560
           ],
           "etiqueta": "Agenda",
           "rotulo": "Del diagnóstico *a la agenda*"
@@ -954,7 +955,7 @@
         {
           "tipo": "clip",
           "img": "mundos",
-          "desde": 5.5,
+          "desde": 4.0,
           "de": [
             160,
             120,
@@ -968,7 +969,8 @@
             1080
           ],
           "rotulo": "Integración *360°*",
-          "transicion": "fundido"
+          "transicion": "fundido",
+          "velocidad": 0.7
         }
       ]
     },
