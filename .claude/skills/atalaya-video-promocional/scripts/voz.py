@@ -59,7 +59,7 @@ def piper(modelo, P):
 def recortar(a, umbral=0.01):
     # Quita el silencio de los extremos de cada frase para que la pausa sea la que decidimos
     i = np.where(np.abs(a) > umbral)[0]
-    return a[max(0, i[0] - 400):i[-1] + 800] if len(i) else a
+    return a[max(0, i[0] - 2400):i[-1] + 2400] if len(i) else a  # 100 ms de margen: no comerse el arranque de la frase
 
 
 def main():

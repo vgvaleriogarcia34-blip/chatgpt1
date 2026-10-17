@@ -332,6 +332,198 @@
      }
     ]
    }
+  },
+  {
+   "id": "sim-inversion",
+   "url": "app.html#inversion",
+   "esperar": 3500
+  },
+  {
+   "id": "sim-tamano",
+   "url": "app.html#tamano",
+   "esperar": 3500
+  },
+  {
+   "id": "est-margen",
+   "url": "estrategia.html#margen",
+   "esperar": 3500
+  },
+  {
+   "id": "est-comercial",
+   "url": "estrategia.html#comercial",
+   "esperar": 3500
+  },
+  {
+   "id": "est-marketing",
+   "url": "estrategia.html#marketing",
+   "esperar": 3500
+  },
+  {
+   "id": "est-plan2",
+   "url": "estrategia.html#plan",
+   "esperar": 3500
+  },
+  {
+   "id": "per-disc",
+   "url": "personas.html#disc",
+   "esperar": 3500
+  },
+  {
+   "id": "per-encaje",
+   "url": "personas.html#encaje",
+   "esperar": 3500
+  },
+  {
+   "id": "per-equipos",
+   "url": "personas.html#equipos",
+   "esperar": 3500
+  },
+  {
+   "id": "per-lidplan",
+   "url": "personas.html#lid-plan",
+   "esperar": 3500
+  },
+  {
+   "id": "iv-escucha",
+   "url": "intervencion.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "click": "#ivTabs [data-t=escucha]",
+     "esperar": 1500
+    },
+    {
+     "scroll": "#ivPanel",
+     "esperar": 800
+    },
+    {
+     "eval": "window.scrollBy(0,-30)"
+    }
+   ]
+  },
+  {
+   "id": "iv-sintomas",
+   "url": "intervencion.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "click": "#ivTabs [data-t=sintomas]",
+     "esperar": 1500
+    },
+    {
+     "scroll": "#ivPanel",
+     "esperar": 800
+    },
+    {
+     "eval": "window.scrollBy(0,-30)"
+    }
+   ]
+  },
+  {
+   "id": "iv-plan",
+   "url": "intervencion.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "click": "#ivTabs [data-t=plan]",
+     "esperar": 1500
+    },
+    {
+     "scroll": "#ivPanel",
+     "esperar": 800
+    },
+    {
+     "eval": "window.scrollBy(0,900)"
+    }
+   ]
+  },
+  {
+   "id": "mesa-objetivos",
+   "url": "mesa.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "click": "#msTabs [data-t=objetivos]",
+     "esperar": 1500
+    },
+    {
+     "scroll": "#msTabs",
+     "esperar": 800
+    },
+    {
+     "eval": "window.scrollBy(0,-30)"
+    }
+   ]
+  },
+  {
+   "id": "mesa-agenda",
+   "url": "mesa.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "click": "#msTabs [data-t=agenda]",
+     "esperar": 1500
+    },
+    {
+     "scroll": "#msTabs",
+     "esperar": 800
+    },
+    {
+     "eval": "window.scrollBy(0,-30)"
+    }
+   ]
+  },
+  {
+   "id": "viaje-portal",
+   "url": "portal.html",
+   "esperar": 7000,
+   "css": "#intro,.pt-top,.pt-dock,.pt-hint,.pt-last,.pt-empbar,.pt-moon,.pt-flota{display:none!important}",
+   "clip": {
+    "segundos": 5,
+    "lento": 0.03,
+    "guion": [
+     {
+      "t": 0.5,
+      "hover": ".pt-world[data-w=sim]"
+     },
+     {
+      "t": 1.3,
+      "hover": ".pt-world[data-w=est]"
+     },
+     {
+      "t": 2.0,
+      "eval": "document.querySelector('.pt-world[data-w=est]').click()"
+     }
+    ]
+   }
+  },
+  {
+   "id": "viaje-mapa",
+   "url": "estrategia.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "eval": "localStorage.setItem('atalaya.rutaest.layout','\"abanico\"')"
+    },
+    {
+     "click": "#rutaBtn",
+     "esperar": 2500
+    }
+   ],
+   "clip": {
+    "segundos": 5,
+    "lento": 0.012,
+    "guion": [
+     {
+      "t": 0.4,
+      "hover": ".rm-fases li[data-f='1']"
+     },
+     {
+      "t": 2.6,
+      "click": ".rm-fases li[data-f='1']"
+     }
+    ]
+   }
   }
  ]
 }

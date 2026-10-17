@@ -95,7 +95,7 @@
       ]
     },
     {
-      "voz": "Todo vive en un mismo universo: el simulador de inversión, el sistema estratégico, las personas y la auditoría integral, conectados con los mismos datos.",
+      "voz": "Atalaya reúne su empresa en un mismo universo. Cada planeta trabaja una parte, y todos comparten los mismos datos.",
       "planos": [
         {
           "tipo": "clip",
@@ -137,9 +137,26 @@
       ]
     },
     {
-      "voz": "Cada mundo se abre capa a capa: veintiún módulos del sistema estratégico y veintiuna herramientas para su equipo, cada una con su estado en vivo.",
-      "sub": "Cada mundo se abre capa a capa: 21 módulos del sistema estratégico y 21 herramientas para su equipo, cada una con su estado en vivo.",
+      "voz": "Elija un planeta, entre en su mapa y marque la hoja de ruta: capa a capa, con el estado de cada módulo en vivo.",
       "planos": [
+        {
+          "tipo": "clip",
+          "img": "viaje-portal",
+          "de": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "a": [
+            200,
+            120,
+            1500,
+            845
+          ],
+          "etiqueta": "Puesto de mando",
+          "peso": 1
+        },
         {
           "tipo": "clip",
           "img": "abanico-est",
@@ -157,50 +174,148 @@
           ],
           "etiqueta": "Sistema estratégico · 21 módulos",
           "rotulo": "Capa a *capa*",
-          "peso": 1.1
+          "peso": 1
         },
         {
           "tipo": "clip",
-          "img": "abanico-per",
-          "desde": 0.4,
+          "img": "viaje-mapa",
           "de": [
             0,
-            200,
+            0,
             1920,
-            880
+            1080
           ],
           "a": [
+            120,
             80,
-            330,
-            1600,
-            740
+            1680,
+            945
           ],
-          "etiqueta": "Personas y equipos · 21 herramientas",
-          "peso": 1
+          "etiqueta": "Hoja de ruta",
+          "peso": 1.1
         }
       ]
     },
     {
-      "voz": "Con sus cuentas, sus ventas, sus cobros y su equipo, le dice con números si puede dar el siguiente paso sin quedarse sin caja.",
+      "voz": "Después, cada responsable sigue su parte desde su planeta: la dirección financiera, la mesa de dirección, recursos humanos o el consultor.",
       "planos": [
         {
           "tipo": "captura",
-          "img": "sim-puente",
+          "img": "est-tesoreria",
           "de": [
-            440,
-            150,
+            420,
+            90,
+            1150,
+            650
+          ],
+          "a": [
+            430,
+            110,
+            1100,
+            600
+          ],
+          "etiqueta": "Dirección financiera"
+        },
+        {
+          "tipo": "captura",
+          "img": "est-plan2",
+          "de": [
+            420,
+            560,
+            1150,
+            650
+          ],
+          "a": [
+            436,
+            600,
+            1120,
+            560
+          ],
+          "etiqueta": "Mesa de dirección"
+        },
+        {
+          "tipo": "captura",
+          "img": "per-equipos",
+          "de": [
+            420,
+            280,
+            1150,
+            700
+          ],
+          "a": [
+            436,
+            330,
             1120,
             640
           ],
-          "a": {
-            "marca": "kpis",
-            "margen": 40
-          },
-          "resalta": "liquidez",
-          "resaltaDesde": 0.35,
-          "peso": 1,
+          "etiqueta": "Recursos humanos"
+        },
+        {
+          "tipo": "captura",
+          "img": "iv-plan",
+          "de": [
+            400,
+            120,
+            1200,
+            940
+          ],
+          "a": [
+            430,
+            150,
+            1110,
+            700
+          ],
+          "etiqueta": "Consultor",
+          "rotulo": "Cada uno, *su planeta*"
+        }
+      ]
+    },
+    {
+      "voz": "En el planeta de la inversión, ensaya los movimientos de futuro: si puede generar el crecimiento que busca y pagarlo con lo que gana.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "sim-inversion",
+          "de": [
+            420,
+            250,
+            1150,
+            750
+          ],
+          "a": [
+            450,
+            290,
+            1090,
+            190
+          ],
           "etiqueta": "Simulador de inversión",
-          "rotulo": "¿Puede dar *el paso*?"
+          "resalta": [
+            450,
+            290,
+            1090,
+            190
+          ],
+          "resaltaDesde": 0.45,
+          "peso": 1
+        },
+        {
+          "tipo": "captura",
+          "img": "sim-tamano",
+          "de": [
+            420,
+            300,
+            1150,
+            760
+          ],
+          "a": [
+            460,
+            335,
+            1075,
+            375
+          ],
+          "etiqueta": "La empresa que será",
+          "rotulo": "¿Puede *crecer*?",
+          "peso": 1.1
         },
         {
           "tipo": "captura",
@@ -217,7 +332,8 @@
           },
           "resalta": "veredicto",
           "resaltaDesde": 0.25,
-          "peso": 1
+          "peso": 1,
+          "etiqueta": "Veredicto"
         }
       ]
     },
@@ -402,7 +518,191 @@
       ]
     },
     {
-      "voz": "Detecta los puestos críticos sin suplente, ordena el diagnóstico por urgencias y lo convierte en metas, cada una con su fecha y su responsable.",
+      "voz": "Y va más allá de la liquidez. Analiza la cartera de productos y la de clientes, y cómo repercute cada una en las ventas.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "est-margen",
+          "de": [
+            420,
+            560,
+            1150,
+            520
+          ],
+          "a": [
+            436,
+            600,
+            1120,
+            160
+          ],
+          "etiqueta": "Cartera de productos",
+          "resalta": [
+            436,
+            600,
+            1120,
+            160
+          ],
+          "resaltaDesde": 0.4
+        },
+        {
+          "tipo": "captura",
+          "img": "est-comercial",
+          "de": [
+            420,
+            540,
+            1150,
+            540
+          ],
+          "a": [
+            436,
+            560,
+            1120,
+            190
+          ],
+          "etiqueta": "Pipeline comercial"
+        },
+        {
+          "tipo": "captura",
+          "img": "est-ventas",
+          "etiqueta": "Cartera de clientes",
+          "de": [
+            430,
+            90,
+            1150,
+            700
+          ],
+          "a": {
+            "marca": "kpis",
+            "margen": 80
+          },
+          "resalta": {
+            "marca": "primerCliente",
+            "margen": 28
+          },
+          "resaltaDesde": 0.3,
+          "peso": 1.1
+        }
+      ]
+    },
+    {
+      "voz": "Y alinea el plan de empresa con el plan de marketing, para que toda la línea comercial empuje en la misma dirección.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "est-plan2",
+          "de": [
+            420,
+            180,
+            1150,
+            800
+          ],
+          "a": [
+            436,
+            600,
+            1120,
+            170
+          ],
+          "etiqueta": "Plan de empresa"
+        },
+        {
+          "tipo": "captura",
+          "img": "est-marketing",
+          "de": [
+            420,
+            520,
+            1150,
+            560
+          ],
+          "a": [
+            436,
+            560,
+            1120,
+            520
+          ],
+          "etiqueta": "Marketing",
+          "rotulo": "Plan y marketing, *alineados*",
+          "peso": 1.1
+        }
+      ]
+    },
+    {
+      "voz": "En el planeta de las personas, desarrolla los equipos: perfiles conductuales, el encaje de cada persona en su puesto y un plan de desarrollo para cada mando.",
+      "planos": [
+        {
+          "tipo": "clip",
+          "img": "abanico-per",
+          "desde": 0.4,
+          "de": [
+            0,
+            200,
+            1920,
+            880
+          ],
+          "a": [
+            80,
+            330,
+            1600,
+            740
+          ],
+          "etiqueta": "Personas y equipos · 21 herramientas",
+          "peso": 1
+        },
+        {
+          "tipo": "captura",
+          "img": "per-disc",
+          "de": [
+            420,
+            560,
+            1150,
+            520
+          ],
+          "a": [
+            436,
+            720,
+            1120,
+            360
+          ],
+          "etiqueta": "Perfiles conductuales"
+        },
+        {
+          "tipo": "captura",
+          "img": "per-encaje",
+          "de": [
+            420,
+            380,
+            1150,
+            700
+          ],
+          "a": [
+            436,
+            450,
+            1120,
+            620
+          ],
+          "etiqueta": "Encaje persona-puesto"
+        },
+        {
+          "tipo": "captura",
+          "img": "per-lidplan",
+          "de": [
+            420,
+            500,
+            1150,
+            560
+          ],
+          "a": [
+            450,
+            550,
+            500,
+            410
+          ],
+          "etiqueta": "Plan de desarrollo",
+          "rotulo": "Equipos *alineados*"
+        }
+      ]
+    },
+    {
+      "voz": "Y le avisa de los puestos críticos que no tienen suplente, antes de que falten.",
       "planos": [
         {
           "tipo": "captura",
@@ -426,7 +726,12 @@
           },
           "resaltaDesde": 0.35,
           "peso": 1
-        },
+        }
+      ]
+    },
+    {
+      "voz": "Para el consultor, Atalaya es un ecosistema completo. Da servicio a recursos humanos, a la dirección general y a la estratégica, y analiza cada inversión a la medida del tamaño de la empresa.",
+      "planos": [
         {
           "tipo": "captura",
           "img": "iv-triaje",
@@ -443,12 +748,163 @@
           },
           "resalta": "triaje",
           "resaltaDesde": 0.3,
-          "peso": 1
+          "peso": 1,
+          "rotulo": "Un ecosistema *para el consultor*"
+        },
+        {
+          "tipo": "captura",
+          "img": "sim-inversion",
+          "de": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "a": [
+            420,
+            130,
+            1150,
+            650
+          ],
+          "etiqueta": "Inversión a su medida"
+        },
+        {
+          "tipo": "captura",
+          "img": "per-equipos",
+          "de": [
+            420,
+            180,
+            1150,
+            800
+          ],
+          "a": [
+            436,
+            300,
+            1120,
+            700
+          ],
+          "etiqueta": "Recursos humanos"
+        }
+      ]
+    },
+    {
+      "voz": "Además, la inteligencia artificial procesa las transcripciones de cada sesión, lee los perfiles y prioriza lo que importa en ese momento.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "iv-escucha",
+          "de": [
+            400,
+            150,
+            1200,
+            900
+          ],
+          "a": [
+            984,
+            420,
+            560,
+            240
+          ],
+          "etiqueta": "Transcripciones con IA",
+          "resalta": [
+            984,
+            420,
+            560,
+            240
+          ],
+          "resaltaDesde": 0.45,
+          "peso": 1.1
+        },
+        {
+          "tipo": "captura",
+          "img": "iv-sintomas",
+          "de": [
+            400,
+            100,
+            1200,
+            950
+          ],
+          "a": [
+            430,
+            200,
+            1110,
+            640
+          ],
+          "etiqueta": "Síntomas y prioridades"
+        }
+      ]
+    },
+    {
+      "voz": "Con eso crea el plan y las partidas de intervención. Ninguna empresa recibe el mismo plan: se ajusta a sus prioridades de hoy.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "iv-plan",
+          "de": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "a": [
+            430,
+            150,
+            1110,
+            450
+          ],
+          "etiqueta": "Plan de intervención"
+        },
+        {
+          "tipo": "captura",
+          "img": "iv-plan",
+          "de": [
+            430,
+            400,
+            1110,
+            640
+          ],
+          "a": [
+            430,
+            560,
+            1110,
+            480
+          ],
+          "rotulo": "Un plan *para cada empresa*",
+          "peso": 1.1
+        }
+      ]
+    },
+    {
+      "voz": "En la mesa de trabajo se vuelcan las líneas de trabajo del consultor y de cada departamento: objetivos por prioridad, metas con su fecha y su responsable, y su hueco en la agenda.",
+      "planos": [
+        {
+          "tipo": "captura",
+          "img": "mesa-objetivos",
+          "de": [
+            420,
+            150,
+            1150,
+            820
+          ],
+          "a": [
+            436,
+            200,
+            1120,
+            520
+          ],
+          "etiqueta": "Mesa de trabajo",
+          "resalta": [
+            436,
+            320,
+            1120,
+            380
+          ],
+          "resaltaDesde": 0.45
         },
         {
           "tipo": "captura",
           "img": "mesa-metas",
-          "etiqueta": "Mesa de trabajo",
+          "etiqueta": "Metas",
           "de": [
             420,
             580,
@@ -468,8 +924,50 @@
             140
           ],
           "resaltaDesde": 0.3,
-          "rotulo": "Del diagnóstico *a la acción*",
           "peso": 1.1
+        },
+        {
+          "tipo": "captura",
+          "img": "mesa-agenda",
+          "de": [
+            420,
+            100,
+            1150,
+            900
+          ],
+          "a": [
+            436,
+            150,
+            1120,
+            700
+          ],
+          "etiqueta": "Agenda",
+          "rotulo": "Del diagnóstico *a la agenda*"
+        }
+      ]
+    },
+    {
+      "voz": "Y todo integrado entre planetas: lo que se decide en uno se refleja en los demás. Integración trescientos sesenta.",
+      "sub": "Y todo integrado entre planetas: lo que se decide en uno se refleja en los demás. Integración 360°.",
+      "planos": [
+        {
+          "tipo": "clip",
+          "img": "mundos",
+          "desde": 5.5,
+          "de": [
+            160,
+            120,
+            1600,
+            900
+          ],
+          "a": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "rotulo": "Integración *360°*",
+          "transicion": "fundido"
         }
       ]
     },
