@@ -152,14 +152,21 @@
     const a = Y[i], p = Y[i - 1]; if (!a || !p) return null;
     const d = (k) => g(a, k) - g(p, k);
     const ebitda = g(a, 'ventas') - g(a, 'costeVentas') - g(a, 'personal') - g(a, 'otrosGastos');
-    const bn = isFinite(a.beneficio) && a.beneficio !== '' ? +a.beneficio : ebitda - g(a, 'amortizacion') - g(a, 'gastosFinancieros') - g(a, 'impuestos');
+    const bn = a.beneficio != null && String(a.beneficio).trim() !== '' && isFinite(+a.beneficio) ? +a.beneficio : ebitda - g(a, 'amortizacion') - g(a, 'gastosFinancieros') - g(a, 'impuestos');
     const capex = d('inmovilizado') + g(a, 'amortizacion'), deuda = d('deudaLP') + d('deudaCP'), div = g(a, 'dividendos');
     const usos = [['Clientes que aún no han pagado', Math.max(0, d('clientes'))], ['Stock en el almacén', Math.max(0, d('existencias'))], ['Inversión en activos', Math.max(0, capex)], ['Devolución de préstamos', Math.max(0, -deuda)], ['Dividendos a los socios', div], ['Pagar antes a proveedores', Math.max(0, -d('proveedores'))], ['Aumento de la caja', Math.max(0, d('tesoreria'))]].filter((x) => x[1] > 0);
-    const tot = usos.reduce((s, x) => s + x[1], 0) || 1;
+    const tot = usos.reduce((s, x) => s + x[1], 0) || 1, cien = a100(usos.map((x) => (x[1] / tot) * 100));
     return { anio: a.anio, ventas: g(a, 'ventas'), ebitda, bn, recursos: bn + g(a, 'amortizacion'), caja: d('tesoreria'), atrapado: Math.max(0, d('clientes')) + Math.max(0, d('existencias')) - Math.max(0, d('proveedores')), capex, deuda, div,
       dso: g(a, 'ventas') ? (g(a, 'clientes') / g(a, 'ventas')) * 365 : null, dio: g(a, 'costeVentas') ? (g(a, 'existencias') / g(a, 'costeVentas')) * 365 : null, dpo: g(a, 'costeVentas') ? (g(a, 'proveedores') / g(a, 'costeVentas')) * 365 : null,
-      usos: usos.map(([n, v]) => ({ n, v, pct: (v / tot) * 100 })) };
+      usos: usos.map(([n, v], i) => ({ n, v, pct: (v / tot) * 100, e: cien[i] })) };
   };
+  // Redondeo que suma exactamente 100 (mayor resto): cada uso se lleva sus euros enteros y los que faltan van a los de más decimales
+  const a100 = (l) => { const b = l.map(Math.floor); let f = 100 - b.reduce((s, x) => s + x, 0); l.map((x, i) => [x - b[i], i]).sort((p, q) => q[0] - p[0]).forEach(([, i]) => { if (f > 0 && l.length) { b[i]++; f--; } }); return b; };
+  // Año que se mira: el elegido si existe en las cuentas; si no, el último
+  const anioSel = (an, dn) => { const i = dn.anio == null ? -1 : an.F.findIndex((f) => f.anio === dn.anio); return an.F[i < 0 ? an.F.length - 1 : i]; };
+  const barras100 = (f) => `<div class="eyebrow">¿Adónde fue el dinero en ${f.anio}? De cada 100 € que se movieron</div>
+            <div class="sv-barras">${f.usos.map((u) => `<div><span>${esc(u.n)}</span><i style="width:${Math.max(2, u.pct)}%"></i><b>${u.e} €</b></div>`).join('') || '<small class="muted">Sin usos que mostrar.</small>'}</div>
+            <small class="muted">Solo lo que se hizo con el dinero; de dónde salió (beneficio, recursos generados, deuda) está en la tabla.</small>`;
   const leerSim = async () => cargar('simulador', 'atalaya.v1');
   const aniosDe = (sim) => ((sim && sim.historico && Array.isArray(sim.historico.anios)) ? sim.historico.anios.slice().sort((a, b) => a.anio - b.anio) : []);
   const analisisDinero = (Y) => {
@@ -179,12 +186,12 @@
   VISTAS.s1dinero = (host0) => {
     const host = caja(host0, 'Leyendo las cuentas del simulador…');
     leerSim().then((sim) => {
+      if (!host.isConnected) return; // la vista ya cambió mientras se leían las cuentas
       const Y = aniosDe(sim), an = Y.length >= 2 ? analisisDinero(Y) : null, dn = R().dinero;
       if (!an) {
         host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 1 · ¿Dónde está el dinero?</div><div class="alert warn">Faltan las cuentas de al menos dos años. Cárgalas en el simulador (cuentas históricas) o súbelas en «Documentación»; Atalaya no inventa cifras.</div><div class="row"><a class="btn solid" href="app.html#historia">Cargar las cuentas</a><button class="btn" data-ir="s1docs">Ver la documentación pedida</button></div></div>${notasHTML(dn)}`;
       } else {
-        const i = Math.min(an.F.length - 1, Math.max(0, dn.anio == null ? an.F.length - 1 : an.F.findIndex((f) => f.anio === dn.anio)));
-        const f = an.F[i < 0 ? an.F.length - 1 : i];
+        const f = anioSel(an, dn);
         host.innerHTML = `<div class="glass pad stack">
             <div class="row"><div><div class="eyebrow">Servicio 1 · ¿Dónde está el dinero que gana la empresa?</div><small class="muted">Beneficio frente a caja, año a año, con las cuentas cargadas en el simulador.</small></div><span class="spacer"></span>${luz(an.st)}</div>
             <div class="sv-g4"><div class="sv-kpi"><span>Beneficio acumulado</span><b>${eur(an.benAc)}</b></div><div class="sv-kpi"><span>Variación de la caja</span><b>${eur(an.cajaAc)}</b></div><div class="sv-kpi ${an.atrAc > 0 ? 'warn' : ''}"><span>Atrapado en circulante</span><b>${eur(an.atrAc)}</b></div><div class="sv-kpi"><span>Invertido en activos</span><b>${eur(an.capAc)}</b></div></div>
@@ -192,15 +199,15 @@
           </div>
           <div class="glass pad stack"><div class="eyebrow">Año a año</div>
             <div class="rp-tw"><table class="sv-tab"><thead><tr><th>Año</th><th>Beneficio</th><th>Recursos generados</th><th>Variación de caja</th><th>Atrapado en circulante</th><th>Inversión</th><th>Deuda</th><th>Dividendos</th><th>Días cobro</th></tr></thead><tbody>
-              ${an.F.map((x) => `<tr class="${x === f ? 'on' : ''}" data-an="${x.anio}"><td>${x.anio}</td><td>${eur(x.bn)}</td><td>${eur(x.recursos)}</td><td class="${x.caja < 0 ? 'neg' : ''}">${eur(x.caja)}</td><td>${eur(x.atrapado)}</td><td>${eur(x.capex)}</td><td>${eur(x.deuda)}</td><td>${eur(x.div)}</td><td>${x.dso ? Math.round(x.dso) : '—'}</td></tr>`).join('')}</tbody></table></div>
-            <div class="eyebrow">¿Dónde está cada 100 € de ${f.anio}?</div>
-            <div class="sv-barras">${f.usos.map((u) => `<div><span>${esc(u.n)}</span><i style="width:${Math.max(2, u.pct)}%"></i><b>${Math.round(u.pct)} €</b></div>`).join('') || '<small class="muted">Sin usos que mostrar.</small>'}</div>
-            <small class="muted">Toca un año en la tabla para verlo.</small>
+              ${an.F.map((x) => `<tr class="${x === f ? 'on' : ''}" data-an="${x.anio}" tabindex="0" role="button" aria-pressed="${x === f}" aria-label="Ver ${x.anio}"><td>${x.anio}</td><td>${eur(x.bn)}</td><td>${eur(x.recursos)}</td><td class="${x.caja < 0 ? 'neg' : ''}">${eur(x.caja)}</td><td>${eur(x.atrapado)}</td><td>${eur(x.capex)}</td><td>${eur(x.deuda)}</td><td>${eur(x.div)}</td><td>${x.dso ? Math.round(x.dso) : '—'}</td></tr>`).join('')}</tbody></table></div>
+            ${barras100(f)}
+            <small class="muted">Toca un año en la tabla (o elígelo con el teclado y pulsa Intro) para verlo.</small>
           </div>${notasHTML(dn)}`;
-        $$('[data-an]', host).forEach((tr) => (tr.onclick = () => { dn.anio = +tr.dataset.an; guardar(); render(); }));
+        $$('[data-an]', host).forEach((tr) => { tr.onclick = () => { dn.anio = +tr.dataset.an; guardar(); render(); }; tr.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tr.onclick(); } }; });
       }
       wireNotas(host, dn);
       $$('[data-ir]', host).forEach((b) => (b.onclick = () => ir(b.dataset.ir, { ver: true })));
+      if (I.botonesAmpliar) I.botonesAmpliar();
     });
   };
   const notasHTML = (dn) => `<div class="glass pad stack"><div class="eyebrow">Tus conclusiones (van al informe)</div><textarea class="input" rows="5" id="svDinNotas" placeholder="Qué explica la diferencia entre beneficio y caja, qué decisión la causa y qué propones atacar primero…">${esc(dn.notas || '')}</textarea><div class="row"><button class="btn solid" data-ir="s1cierre">Informe y siguiente propuesta →</button></div></div>`;
@@ -215,8 +222,8 @@
     else {
       html += In.summary('En pocas palabras', `<ul>${an.lect.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`, an.st)
         + In.kpis([{ k: 'Beneficio acumulado', v: eur(an.benAc) }, { k: 'Variación de la caja', v: eur(an.cajaAc), st: an.cajaAc < 0 ? 'stop' : 'ok' }, { k: 'Atrapado en circulante', v: eur(an.atrAc), st: an.atrAc > an.benAc * 0.4 ? 'warn' : 'ok' }, { k: 'Invertido en activos', v: eur(an.capAc) }])
-        + In.section('Año a año', In.table(['Año', 'Beneficio', 'Variación de caja', 'Atrapado en circulante', 'Inversión', 'Deuda', 'Dividendos', 'Días de cobro'], an.F.map((x) => [String(x.anio), eur(x.bn), eur(x.caja), eur(x.atrapado), eur(x.capex), eur(x.deuda), eur(x.div), x.dso ? String(Math.round(x.dso)) : '—']), { num: [1, 2, 3, 4, 5, 6, 7] }))
-        + In.section(`¿Dónde está cada 100 € de ${an.F[an.F.length - 1].anio}?`, In.table(['Destino', 'De cada 100 €'], an.F[an.F.length - 1].usos.map((u) => [u.n, Math.round(u.pct) + ' €']), { num: [1] }))
+        + In.section('Año a año', In.table(['Año', 'Beneficio', 'Recursos generados', 'Variación de caja', 'Atrapado en circulante', 'Inversión', 'Deuda', 'Dividendos', 'Días de cobro'], an.F.map((x) => [String(x.anio), eur(x.bn), eur(x.recursos), eur(x.caja), eur(x.atrapado), eur(x.capex), eur(x.deuda), eur(x.div), x.dso ? String(Math.round(x.dso)) : '—']), { num: [1, 2, 3, 4, 5, 6, 7, 8] }))
+        + ((f) => In.section(`¿Adónde fue el dinero en ${f.anio}?`, In.table(['Destino', 'De cada 100 € que se movieron'], f.usos.map((u) => [u.n, u.e + ' €']), { num: [1] }), 'Solo lo que se hizo con el dinero; de dónde salió está en la tabla anterior.'))(anioSel(an, dn))
         + In.section('La regla que lo explica', '<p><b>La liquidez genera rentabilidad, la rentabilidad genera crecimiento.</b> Cuando se crece financiando a los clientes, al stock o a las inversiones con la caja del día a día, el beneficio se queda en el papel y la empresa depende del banco. Es una regla como la gravedad: puede no verse, pero está ahí.</p>');
     }
     if ((dn.notas || '').trim()) html += In.section('Conclusiones del consultor', `<p>${nl(dn.notas)}</p>`);
@@ -293,10 +300,12 @@
     if (estado) Object.entries(estado).forEach(([k, v]) => out.datos.unshift({ k: k[0].toUpperCase() + k.slice(1), v: v.det, st: v.ok ? 'ok' : 'stop' }));
     out.datos.push({ k: 'Documentos subidos', v: String((S().documentacion || []).length) });
     if (u) {
-      const v = g(u, 'ventas') || 1, mb = (v - g(u, 'costeVentas')) / v * 100, per = g(u, 'personal') / v * 100, otros = g(u, 'otrosGastos') / v * 100, ebitda = (v - g(u, 'costeVentas') - g(u, 'personal') - g(u, 'otrosGastos'));
+      const v0 = g(u, 'ventas'), v = v0 || 1, mb = (v - g(u, 'costeVentas')) / v * 100, per = g(u, 'personal') / v * 100, otros = g(u, 'otrosGastos') / v * 100, ebitda = (v - g(u, 'costeVentas') - g(u, 'personal') - g(u, 'otrosGastos'));
       const fijos = g(u, 'personal') + g(u, 'otrosGastos'), pe = mb > 0 ? fijos / (mb / 100) : null;
-      out.economica.push({ k: 'Margen bruto', v: pct(mb), st: mb < 30 ? 'warn' : 'ok' }, { k: 'Peso del personal', v: pct(per), st: per > 35 ? 'warn' : 'ok' }, { k: 'Otros gastos', v: pct(otros) }, { k: 'EBITDA sobre ventas', v: pct(ebitda / v * 100), st: ebitda <= 0 ? 'stop' : ebitda / v < 0.06 ? 'warn' : 'ok' });
-      if (pe) out.economica.push({ k: 'Punto de equilibrio', v: eur(pe), st: v < pe * 1.1 ? 'stop' : v < pe * 1.25 ? 'warn' : 'ok' });
+      // Sin ventas no hay porcentajes sobre ventas: se dice que falta el dato, sin semáforo
+      if (!v0) out.economica.push({ k: 'Ventas del último año', v: '— (sin dato)' }, { k: 'Margen bruto', v: '—' }, { k: 'Peso del personal', v: '—' }, { k: 'EBITDA sobre ventas', v: '—' });
+      else out.economica.push({ k: 'Margen bruto', v: pct(mb), st: mb < 30 ? 'warn' : 'ok' }, { k: 'Peso del personal', v: pct(per), st: per > 35 ? 'warn' : 'ok' }, { k: 'Otros gastos', v: pct(otros) }, { k: 'EBITDA sobre ventas', v: pct(ebitda / v * 100), st: ebitda <= 0 ? 'stop' : ebitda / v < 0.06 ? 'warn' : 'ok' });
+      if (pe && v0) out.economica.push({ k: 'Punto de equilibrio', v: eur(pe), st: v < pe * 1.1 ? 'stop' : v < pe * 1.25 ? 'warn' : 'ok' });
       const deuda = g(u, 'deudaLP') + g(u, 'deudaCP'), activo = g(u, 'inmovilizado') + g(u, 'existencias') + g(u, 'clientes') + g(u, 'tesoreria');
       out.financiero.push({ k: 'Deuda bancaria', v: eur(deuda) }, { k: 'Deuda / EBITDA', v: ebitda > 0 ? (deuda / ebitda).toFixed(1).replace('.', ',') + ' veces' : '—', st: ebitda <= 0 || deuda / ebitda > 4 ? 'stop' : deuda / ebitda > 3 ? 'warn' : 'ok' }, { k: 'Deuda a corto sobre el total', v: deuda ? pct(g(u, 'deudaCP') / deuda * 100) : '—', st: deuda && g(u, 'deudaCP') / deuda > 0.6 ? 'warn' : 'ok' }, { k: 'Autonomía (fondos propios / activo)', v: activo ? pct(g(u, 'fondosPropios') / activo * 100) : '—', st: activo && g(u, 'fondosPropios') / activo < 0.3 ? 'warn' : 'ok' });
       if (Y.length >= 2) { const an = analisisDinero(Y); if (an) out.caja.unshift({ k: 'Beneficio frente a caja (periodo)', v: `${eur(an.benAc)} ganados · caja ${eur(an.cajaAc)}`, st: an.st }, { k: 'Atrapado en circulante', v: eur(an.atrAc), st: an.atrAc > an.benAc * 0.4 ? 'warn' : 'ok' }); }
@@ -311,6 +320,7 @@
   VISTAS.foto360 = (host0) => {
     const host = caja(host0, 'Reuniendo los datos de todos los mundos…');
     datos360().then((dat) => {
+      if (!host.isConnected) return; // la vista ya cambió mientras se reunían los datos
       const F = R().foto360, pr = prioridades360();
       host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 2 · Foto 360</div><small class="muted">De los datos a la operativa. Cada bloque toma sus cifras de los mundos; pon tu semáforo y tu nota. Lo que falte, pídelo: el bloque lo dice.</small></div>
         <div class="sv-360">${BLOQUES.map((b, i) => { const l = dat[b.id] || [], auto = peor(l.map((x) => x.st).filter(Boolean)), f = F[b.id] || {}; return `<section class="glass pad stack sv-bl"><div class="row"><span class="sv-n">${i + 1}</span><div><b>${esc(b.n)}</b><small class="muted">${esc(b.q)}</small></div><span class="spacer"></span>${luz(f.st || auto)}</div>
@@ -323,6 +333,7 @@
       $$('[data-fs]', host).forEach((x) => (x.onchange = () => { F[x.dataset.fs] = Object.assign(F[x.dataset.fs] || {}, { st: x.value }); guardar(); render(); }));
       $$('[data-fn]', host).forEach((x) => (x.oninput = () => { F[x.dataset.fn] = Object.assign(F[x.dataset.fn] || {}, { nota: x.value }); guardar(); }));
       $$('[data-ir]', host).forEach((b) => (b.onclick = () => ir(b.dataset.ir, { ver: true })));
+      if (I.botonesAmpliar) I.botonesAmpliar();
     });
   };
   // El informe de la auditoría integral se amplía con la foto 360

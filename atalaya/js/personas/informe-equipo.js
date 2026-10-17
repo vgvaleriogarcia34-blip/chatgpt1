@@ -30,11 +30,12 @@
     if (an.conDisc.length) {
       pag('Equipo', 'Mapa conductual del equipo', `
         <p class="pp-intro">Dónde se sitúa cada persona respecto a las ocho tendencias de comportamiento. Un equipo con puntos repartidos cubre más situaciones; uno concentrado comparte fortalezas y puntos ciegos.</p>
-        <div class="pp-mapa-w">${pp.mapa(null, null, 'Cada círculo es una persona, con sus iniciales y el color de su estilo principal', an.conDisc.map((p) => ({ d: p.disc, t: ini(p.nombre), c: H.DISC[R.discEstilo(p.disc).pri].c })))}</div>
+        <div class="pp-mapa-w">${pp.mapa(null, null, 'Cada círculo es una persona, con sus iniciales y el color de su estilo principal', an.conDisc.map((p) => ({ d: p.disc, t: ini(p.nombre), nombre: p.nombre + ' · ' + R.discEstilo(p.disc).nombre, c: H.DISC[R.discEstilo(p.disc).pri].c })))}</div>
+        <ol class="pe-ley pp-ley">${an.conDisc.map((p) => `<li><b style="background:${H.DISC[R.discEstilo(p.disc).pri].c}">${esc(ini(p.nombre))}</b><span>${esc(p.nombre)}</span></li>`).join('')}</ol>
         <div class="pp-row"><div>${pp.banda('Perfil medio del equipo')}<p>${F4.map((k) => `<b style="color:${H.DISC[k].c}">${k}</b> ${esc(H.DISC[k].n.toLowerCase())}: ${media[k]}`).join(' · ')}. Reparto de estilos principales: ${F4.map((k) => `${an.dist[k]} ${esc(H.DISC[k].n.toLowerCase())}`).join(', ')}.</p></div>${pp.barras(media, 'Media del equipo')}</div>`);
       pag('Equipo', 'Perfiles de comportamiento', `
         <p class="pp-intro">El perfil DISC de cada persona del equipo.</p>
-        <div class="pp-minis">${an.conDisc.slice(0, 12).map((p) => `<div><b>${esc(p.nombre)}</b><small>${esc(R.discEstilo(p.disc).nombre)}</small>${pp.barras(p.disc, '')}</div>`).join('')}</div>`);
+        <div class="pp-minis">${an.conDisc.map((p) => `<div><b>${esc(p.nombre)}</b><small>${esc(R.discEstilo(p.disc).nombre)}</small>${pp.barras(p.disc, '')}</div>`).join('')}</div>`);
     }
     if (an.conRoles.length) {
       pag('Equipo', 'Aportaciones al equipo', `

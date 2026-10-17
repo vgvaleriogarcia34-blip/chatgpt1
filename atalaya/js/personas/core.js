@@ -48,8 +48,11 @@
   /* Posición en la rueda DISC: D arriba a la izquierda, I arriba a la derecha, S abajo a la derecha, C abajo a la izquierda */
   R.discXY = (d) => {
     const x = (d.I + d.S - d.D - d.C) / 200, y = (d.D + d.I - d.S - d.C) / 200;
-    const m = Math.hypot(x, y) || 1, k = Math.min(1, m * 1.6) / m;
-    return { x: x * k, y: y * k };
+    // Se amplía la distancia al centro (los perfiles reales rara vez pasan de 0,6) con una curva suave: solo un
+    // perfil extremo (un factor a 100 y el resto a 0) toca el borde, y los intensos no se amontonan en él
+    const m = Math.hypot(x, y); if (!m) return { x: 0, y: 0 };
+    const f = Math.pow(Math.min(1, m * Math.SQRT2), 0.75) / m;
+    return { x: x * f, y: y * f };
   };
 
   /* ---------- Roles de equipo ----------
@@ -231,18 +234,37 @@
   R.pill = (st, t) => `<span class="state st-${st}">${esc(t)}</span>`;
   R.bar = (v, color, lbl) => `<div class="pe-bar"><span style="width:${clamp(v, 0, 100)}%;background:${color || 'var(--gold)'}"></span>${lbl != null ? `<b>${lbl}</b>` : ''}</div>`;
   R.discBars = (d, ideal) => `<div class="pe-disc">${['D', 'I', 'S', 'C'].map((k) => `<div class="pe-dc"><div class="pe-dcol"><span class="pe-dfill" style="height:${d[k]}%;background:${H.DISC[k].c}"></span>${ideal ? `<span class="pe-dideal" style="bottom:${ideal[k]}%" title="Lo que pide el puesto: ${ideal[k]}"></span>` : ''}</div><b>${d[k]}</b><small>${k} · ${H.DISC[k].n}</small></div>`).join('')}</div>`;
-  /* Rueda DISC con un punto por persona */
+  /* Separa marcadores que caen casi en el mismo sitio (pts: [{x, y}] en píxeles; se modifican en el sitio): cada par
+     demasiado cerca se aparta por igual hasta minD, en varias pasadas. limite(p), si se da, devuelve el punto a su zona. */
+  R.desolapar = (pts, minD, limite) => {
+    pts.forEach((a, i) => pts.forEach((q, j) => { if (j > i && Math.abs(a.x - q.x) < 0.01 && Math.abs(a.y - q.y) < 0.01) { q.x += Math.cos(j * 2.4) * 0.5; q.y += Math.sin(j * 2.4) * 0.5; } }));
+    for (let it = 0; it < 80; it++) {
+      let mov = false;
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], q = pts[j], dx = q.x - a.x, dy = q.y - a.y, d = Math.hypot(dx, dy);
+        if (d < minD - 0.1) { const k = (minD - d) / 2 / (d || 1); a.x -= dx * k; a.y -= dy * k; q.x += dx * k; q.y += dy * k; mov = true; }
+      }
+      if (limite) pts.forEach(limite);
+      if (!mov) break;
+    }
+    return pts;
+  };
+  /* Rueda DISC con un punto por persona. opts.numeros: cada punto lleva su número y se acompaña de R.ruedaLeyenda
+     (para el papel, donde no se puede pasar el ratón por encima). */
   R.rueda = (personas, opts) => {
     opts = opts || {};
-    const S = 300, c = S / 2, rr = 120;
-    const pts = personas.filter((p) => p.disc).map((p) => ({ p, ...R.discXY(p.disc), e: R.discEstilo(p.disc) }));
+    const S = 300, c = S / 2, rr = 120, rad = opts.numeros ? 8 : opts.grande ? 9 : 7;
+    const pts = personas.filter((p) => p.disc).map((p) => { const o = R.discXY(p.disc); return { p, x: c + o.x * rr * 0.92, y: c - o.y * rr * 0.92, e: R.discEstilo(p.disc) }; });
+    R.desolapar(pts, rad * 2 + 1, (o) => { const d = Math.hypot(o.x - c, o.y - c), m = rr - rad; if (d > m) { o.x = c + ((o.x - c) * m) / d; o.y = c + ((o.y - c) * m) / d; } });
     const cuad = [['D', -1, -1], ['I', 1, -1], ['S', 1, 1], ['C', -1, 1]];
-    return `<svg class="pe-rueda" viewBox="0 0 ${S} ${S}" role="img" aria-label="Rueda DISC con ${pts.length} personas">
-      ${cuad.map(([k, sx, sy]) => { const a0 = { D: 180, I: 270, S: 0, C: 90 }[k] * Math.PI / 180, a1 = a0 + Math.PI / 2; return `<path d="M${c},${c} L${c + rr * Math.cos(a0)},${c + rr * Math.sin(a0)} A${rr},${rr} 0 0 1 ${c + rr * Math.cos(a1)},${c + rr * Math.sin(a1)} Z" fill="${H.DISC[k].c}" fill-opacity="0.13" stroke="${H.DISC[k].c}" stroke-opacity="0.35"/><text x="${c + sx * 100}" y="${c + sy * 100 + 5}" text-anchor="middle" class="pe-rk" fill="${H.DISC[k].c}">${k}</text>`; }).join('')}
+    const nombres = !opts.numeros && pts.length <= 14;
+    return `<svg class="pe-rueda" viewBox="0 0 ${S} ${S}" role="group" aria-label="Rueda DISC con ${pts.length} persona${pts.length === 1 ? '' : 's'}">
+      ${cuad.map(([k, sx, sy]) => { const a0 = { D: 180, I: 270, S: 0, C: 90 }[k] * Math.PI / 180, a1 = a0 + Math.PI / 2; return `<path d="M${c},${c} L${c + rr * Math.cos(a0)},${c + rr * Math.sin(a0)} A${rr},${rr} 0 0 1 ${c + rr * Math.cos(a1)},${c + rr * Math.sin(a1)} Z" fill="${H.DISC[k].c}" fill-opacity="0.13" stroke="${H.DISC[k].c}" stroke-opacity="0.35"/><text x="${c + sx * 100}" y="${c + sy * 100 + 5}" text-anchor="middle" class="pe-rk" style="fill:${H.DISC[k].c}" aria-hidden="true">${k}</text>`; }).join('')}
       <circle cx="${c}" cy="${c}" r="${rr * 0.5}" fill="none" stroke="rgba(255,255,255,0.08)"/>
-      ${pts.map((o, i) => { const x = c + o.x * rr * 0.92, y = c - o.y * rr * 0.92; return `<g class="pe-pt" data-pid="${o.p.id}"><circle cx="${x}" cy="${y}" r="${opts.grande ? 9 : 7}" fill="${H.DISC[o.e.pri].c}" stroke="#060a17" stroke-width="2"><title>${esc(o.p.nombre)} · ${esc(o.e.nombre)}</title></circle>${pts.length <= 14 ? `<text x="${x}" y="${y - 12}" text-anchor="middle" class="pe-pn">${esc(o.p.nombre.split(' ')[0])}</text>` : ''}</g>`; }).join('')}
+      ${pts.map((o, i) => { const x = o.x.toFixed(1), y = o.y.toFixed(1), lbl = `${opts.numeros ? i + 1 + '. ' : ''}${o.p.nombre} · ${o.e.nombre}`; return `<g class="pe-pt" data-pid="${o.p.id}" tabindex="0" role="button" aria-label="${esc(lbl)}"><circle cx="${x}" cy="${y}" r="${rad}" fill="${H.DISC[o.e.pri].c}" stroke="#060a17" stroke-width="${opts.numeros ? 1.2 : 2}"><title>${esc(lbl)}</title></circle>${opts.numeros ? `<text x="${x}" y="${(+y + 3.2).toFixed(1)}" text-anchor="middle" class="pe-pnum" style="fill:#fff">${i + 1}</text>` : nombres ? `<text x="${x}" y="${(+y - 12).toFixed(1)}" text-anchor="middle" class="pe-pn">${esc(o.p.nombre.split(' ')[0])}</text>` : ''}</g>`; }).join('')}
     </svg>`;
   };
+  R.ruedaLeyenda = (personas) => { const ps = personas.filter((p) => p.disc); return ps.length ? `<ol class="pe-ley">${ps.map((p, i) => { const e = R.discEstilo(p.disc); return `<li><b style="background:${H.DISC[e.pri].c}">${i + 1}</b><span>${esc(p.nombre)}</span><small>${esc(e.nombre)}</small></li>`; }).join('')}</ol>` : ''; };
   R.avisos = (list) => (list.length ? `<div class="pe-avisos">${list.map((a) => `<div class="alert ${a.st === 'info' ? 'info' : a.st}">${esc(a.t)}</div>`).join('')}</div>` : '<div class="alert info">Sin avisos con los datos actuales.</div>');
   R.selPersona = (id, actual, filtro) => `<select class="input" id="${id}">${R.state.personas.filter(filtro || (() => true)).map((p) => `<option value="${p.id}" ${p.id === actual ? 'selected' : ''}>${esc(p.nombre)}${R.puestoDe(p) ? ' · ' + esc(R.puestoDe(p).nombre) : ''}</option>`).join('')}</select>`;
   R.vacia = (txt, btn) => `<div class="glass pad stack pe-empty"><p>${txt}</p>${btn ? `<div class="row"><button class="btn solid" data-go="personas">${btn}</button></div>` : ''}</div>`;
@@ -318,6 +340,9 @@
     R.state = Object.assign(R.vacio(), R.state || {});
     ['personas', 'puestos', 'equipos'].forEach((k) => { if (!Array.isArray(R.state[k])) R.state[k] = []; });
     R.state.equipos.forEach((q) => { q.miembros = (q.miembros || []).filter((id) => R.persona(id)); });
+    // Acuerdos de liderazgo antiguos: estilo y siguiente nivel guardados como texto o fecha → número 1–4
+    const EST = { marcar: 1, dirigir: 1, entrenar: 2, acompanar: 3, 'acompañar': 3, apoyar: 3, confiar: 4, delegar: 4 }, n14 = (x) => { const v = EST[String(x).toLowerCase()] || +x; return v >= 1 && v <= 4 ? v : null; };
+    R.state.personas.forEach((p) => (p.tareas || []).forEach((t) => { const a = t.acuerdo; if (!a) return; a.estilo = n14(a.estilo) || 1; const s = n14(a.siguiente); if (s) a.siguiente = s; else delete a.siguiente; if (t.usa != null && !n14(t.usa)) delete t.usa; }));
     buildTabs();
     const h = location.hash.replace('#', '');
     show(R.mod(h) ? h : 'panorama');
@@ -325,5 +350,6 @@
     addEventListener('hashchange', () => { const k = location.hash.replace('#', ''); if (R.mod(k) && k !== current) show(k); });
     // Detalle de una persona al tocar su punto en la rueda
     document.addEventListener('click', (e) => { const g = e.target.closest('.pe-pt'); if (g && R.fichaPersona) R.fichaPersona(g.dataset.pid); });
+    document.addEventListener('keydown', (e) => { if (e.key !== 'Enter' && e.key !== ' ') return; const g = e.target.closest && e.target.closest('.pe-pt'); if (g && R.fichaPersona) { e.preventDefault(); R.fichaPersona(g.dataset.pid); } });
   };
 })();

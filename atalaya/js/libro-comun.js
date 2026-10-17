@@ -32,11 +32,22 @@
   };
   /* Limpia el HTML de un informe para guardarlo: sin scripts, sin controles de edición y sin espacios de más */
   const limpiar = (html) => String(html || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<(button|input|select|textarea)\b[^>]*>(?:[\s\S]*?<\/\1>)?/gi, '').replace(/\s{2,}/g, ' ');
+  /* Firma de los datos guardados de un mundo: cada capítulo guarda la de su momento y el libro la compara con la
+     actual para avisar de los capítulos desactualizados (los datos de su mundo han cambiado desde que se generó). */
+  const DATOS = { simulador: 'simulador', estrategia: 'estrategia', personas: 'personas', mesa: 'agenda', intervencion: 'intervencion' };
+  const hash = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + '.' + t.length.toString(36); };
+  const memo = {};
+  L.firma = async (mundo) => {
+    const k = DATOS[mundo]; if (!k || !P() || !P().loadData) return null;
+    const m = memo[mundo]; if (m && Date.now() - m.t < 4000) return m.v;
+    let v = null; try { const d = await P().loadData(k); v = d ? hash(JSON.stringify(d)) : null; } catch (e) { v = null; }
+    memo[mundo] = { t: Date.now(), v }; return v;
+  };
   L.anadir = async (cap, lib) => {
     const propio = !lib; lib = lib || (await L.cargar());
     const clave = cap.clave || cap.t;
     let c = lib.caps.find((x) => x.clave === clave);
-    const datos = { t: cap.t, mundo: cap.mundo, html: limpiar(cap.html), cls: cap.cls || '', fecha: new Date().toISOString() };
+    const datos = { t: cap.t, mundo: cap.mundo, html: limpiar(cap.html), cls: cap.cls || '', fecha: new Date().toISOString(), firma: await L.firma(cap.mundo) };
     if (c) Object.assign(c, datos);
     else { c = Object.assign({ id: uid(), clave, sec: cap.mundo && lib.secciones.some((s) => s.id === cap.mundo) ? cap.mundo : lib.secciones[0].id, incl: true }, datos); lib.caps.push(c); }
     if (propio) await L.guardar(lib);

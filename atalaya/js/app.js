@@ -166,15 +166,15 @@
   /* ---------------- Fichas informativas y modal ---------------- */
   const INFO = {
     veredicto: { t: 'Veredicto de movimiento', d: 'Síntesis de los diez semáforos del escenario activo. Rojo en liquidez o tres rojos obligan a rediseñar; un rojo o cuatro ámbar exigen condiciones previas.', v: (c) => c.active.verdict.titulo },
-    dimension: { t: 'Dimensión de la inversión', d: 'Cuánto pesa la inversión frente a la empresa actual. Por debajo del 15 % de las ventas es táctica; entre el 40 % y el 80 %, estratégica; por encima, transforma la empresa.', f: 'inversión ÷ ventas · inversión ÷ EBITDA', v: (c) => `${c.active.dim.clase} · ${F.x(c.active.dim.sobreEbitda)} EBITDA` },
-    sobreVentas: { t: 'Inversión sobre ventas', d: 'Mide el salto de escala. Una inversión que supera el 40 % de lo que facturas cambia la naturaleza del negocio.', f: 'inversión total ÷ ventas anuales', v: (c) => F.pct(c.active.dim.sobreVentas * 100) },
-    sobreEbitda: { t: 'Años de EBITDA', d: 'Cuántos años de beneficio operativo actual cuesta la inversión. Por encima de 4 años, la empresa no puede pagarla desde su rentabilidad sin financiación larga.', f: 'inversión total ÷ EBITDA actual', v: (c) => F.x(c.active.dim.sobreEbitda) },
+    dimension: { t: 'Dimensión de la inversión', d: 'Cuánto pesa la inversión frente a la empresa actual. Por debajo del 15 % de las ventas es táctica; entre el 40 % y el 80 %, estratégica; por encima, transforma la empresa.', f: 'inversión ÷ ventas · inversión ÷ EBITDA', v: (c) => `${c.active.dim.clase} · ${xEb(c.active.dim.sobreEbitda)}${isFinite(c.active.dim.sobreEbitda) ? ' EBITDA' : ''}` },
+    sobreVentas: { t: 'Inversión sobre ventas', d: 'Mide el salto de escala. Una inversión que supera el 40 % de lo que facturas cambia la naturaleza del negocio.', f: 'inversión total ÷ ventas anuales', v: (c) => (isFinite(c.active.dim.sobreVentas) ? F.pct(c.active.dim.sobreVentas * 100) : 'sin ventas') },
+    sobreEbitda: { t: 'Años de EBITDA', d: 'Cuántos años de beneficio operativo actual cuesta la inversión. Por encima de 4 años, la empresa no puede pagarla desde su rentabilidad sin financiación larga.', f: 'inversión total ÷ EBITDA actual', v: (c) => xEb(c.active.dim.sobreEbitda) },
     sobreFondos: { t: 'Sobre fondos propios', d: 'Qué parte del patrimonio se pone en juego. Por encima del 100 % la empresa apuesta más de lo que vale contablemente.', f: 'inversión total ÷ fondos propios', v: (c) => F.pct(c.active.dim.sobreFondos * 100) },
     sobreCaja: { t: 'Veces la caja', d: 'Cuántas veces la caja actual representa la inversión.', f: 'inversión total ÷ caja', v: (c) => F.x(c.active.dim.sobreCaja) },
     financiado: { t: 'Préstamo nuevo', d: 'Parte de la inversión que se financia con deuda en la estructura elegida.', f: 'inversión × % financiado', v: (c) => F.eur(c.active.loan) },
     cuota: { t: 'Cuota mensual nueva', d: 'Pago mensual del préstamo nuevo (capital más intereses) una vez acabada la carencia. Durante la carencia solo se pagan intereses.', f: 'sistema francés · plazo − carencia', v: (c) => `${F.eur(c.active.cuotaNueva)} · carencia ${F.eur(c.active.cuotaCarencia)}` },
     cajaMin: { t: 'Liquidez mínima', d: 'El punto más bajo de dinero disponible en los próximos 60 meses: caja en banco más la parte libre de la póliza (si eliges contarla). Es la prueba de fuego: si es negativa, la inversión rompe la tesorería aunque sea rentable.', f: 'caja + póliza libre, mes a mes', v: (c) => `${F.eur(c.active.cajaRef)} en el mes ${c.active.mesCajaRef}` },
-    payback: { t: 'Recuperación', d: 'Meses hasta que el flujo operativo incremental (después de impuestos y circulante) devuelve la inversión. La recuperación de caja mide cuándo la propiedad vuelve a tener la caja que habría tenido sin invertir.', f: 'Σ flujo incremental ≥ inversión', v: (c) => `${F.months(c.active.payback)} · caja ${F.months(c.active.paybackCaja)}` },
+    payback: { t: 'Recuperación', d: 'Meses hasta que el flujo operativo incremental (después de impuestos y circulante) devuelve la inversión. La recuperación de caja mide cuándo la propiedad vuelve a tener la caja que habría tenido sin invertir.', f: 'Σ flujo incremental ≥ inversión', v: (c) => (c.active.payback == null ? 'Sin inversión' : `${F.months(c.active.payback)} · caja ${F.months(c.active.paybackCaja)}`) },
     dscr: { t: 'Cobertura de la deuda (DSCR)', d: 'Cuántas veces el flujo operativo cubre el servicio total de la deuda en el peor año. La banca suele exigir 1,2× o más.', f: '(EBITDA − impuestos) ÷ (capital + intereses)', v: (c) => F.x(c.active.dscrMin) },
     salarial: { t: 'Peso salarial', d: 'Coste de personal sobre ventas en el año de crucero.', f: 'personal ÷ ventas', v: (c) => `${F.pct(c.active.tamano.antes.pesoSalarial)} → ${F.pct(c.active.tamano.despues.pesoSalarial)}` },
     humano: { t: 'Sistema operativo humano', d: 'Preparación de la organización para el nuevo tamaño, en nueve dimensiones.', v: (c) => `${Math.round(c.active.humano.score)}/100` }
@@ -295,7 +295,10 @@
   function setScenario(k) { state.escenario = k; schedule(); }
 
   /* ---------------- Puente de mando ---------------- */
-  const fmtMeses = (m) => (!isFinite(m) ? '—' : m < 0 ? 'negativo' : (Math.round(m * 10) / 10).toString().replace('.', ',') + ' meses');
+  const fmtMeses = (m) => (!isFinite(m) ? '—' : (m < 0 ? '−' : '') + (Math.round(Math.abs(m) * 10) / 10).toString().replace('.', ',') + ' meses');
+  // Cifras que dependen del EBITDA: con EBITDA ≤ 0 el cociente no tiene sentido y se dice así
+  const xEb = (v) => (isFinite(v) ? F.x(v) : 'EBITDA ≤ 0');
+  const pctEb = (v) => (isFinite(v) ? F.pct(v) : 'EBITDA ≤ 0');
   function renderHero() {
     const r = ctx.active, v = r.verdict, sc = A.SCENARIOS.find((s) => s.key === state.escenario);
     renderIdCard();
@@ -306,14 +309,14 @@
     $$('#verdictCard [data-light]').forEach((s) => s.addEventListener('click', () => openLight(s.dataset.light)));
     const lt = Object.fromEntries(r.lights.map((l) => [l.key, l.estado]));
     const tiles = [
-      { k: 'Dimensión', info: 'dimension', v: r.dim.clase, d: `${F.x(r.dim.sobreEbitda)} EBITDA · ${F.pct(r.dim.sobreVentas * 100)} ventas`, st: lt.dimension },
-      { k: 'Cuota mensual', info: 'cuota', v: F.eur(r.cuotaNueva), d: `${F.pct(r.cuotaSobreEbitda)} del EBITDA mensual con la deuda actual`, st: lt.cobertura },
+      { k: 'Dimensión', info: 'dimension', v: r.dim.clase, d: `${isFinite(r.dim.sobreEbitda) ? F.x(r.dim.sobreEbitda) + ' EBITDA' : 'EBITDA actual ≤ 0'} · ${isFinite(r.dim.sobreVentas) ? F.pct(r.dim.sobreVentas * 100) + ' ventas' : 'sin ventas'}`, st: lt.dimension },
+      { k: 'Cuota mensual', info: 'cuota', v: F.eur(r.cuotaNueva), d: `cuota total ${F.eur(r.cuotaTotal)} = ${isFinite(r.cuotaSobreEbitda) ? F.pct(r.cuotaSobreEbitda) + ' del EBITDA mensual' : 'EBITDA mensual ≤ 0'}`, st: lt.cobertura },
       { k: r.contarPoliza ? 'Liquidez mínima' : 'Caja mínima', info: 'cajaMin', v: F.eur(r.cajaRef), d: `mes ${r.mesCajaRef} · colchón mínimo ${fmtMeses(r.colMin)}`, st: lt.liquidez, spark: C.spark(r.contarPoliza ? r.w.liquidez : r.w.cash, r.cajaRef < 0 ? css('--stop') : css('--gold'), true) },
-      { k: 'Recuperación', info: 'payback', v: F.months(r.payback), d: `caja de la propiedad: ${F.months(r.paybackCaja)}`, st: lt.retorno },
+      r.payback == null ? { k: 'Recuperación', info: 'payback', v: 'Sin inversión', d: 'no hay importe que recuperar', st: 'neutral' } : { k: 'Recuperación', info: 'payback', v: F.months(r.payback), d: `caja de la propiedad: ${F.months(r.paybackCaja)}`, st: lt.retorno },
       { k: 'Cobertura deuda', info: 'dscr', v: F.x(r.dscrMin), d: `deuda neta ${F.x(r.deudaEbitda)} EBITDA`, st: lt.cobertura },
       { k: 'Equipo', info: 'humano', v: Math.round(r.humano.score) + '/100', d: `${r.humano.nuevas} incorporaciones · ${r.humano.gapMandos} mandos por cubrir`, st: lt.humano }
     ];
-    $('#kpis').innerHTML = tiles.map((t) => `<button class="kpi" data-info="${t.info}"><div class="k"><span>${t.k}</span><span class="state ${stCls(t.st)}">${stName[t.st]}</span></div><div class="v">${t.v}</div><div class="d">${t.d}</div>${t.spark || ''}</button>`).join('');
+    $('#kpis').innerHTML = tiles.map((t) => `<button class="kpi" data-info="${t.info}"><div class="k"><span>${t.k}</span>${stName[t.st] ? `<span class="state ${stCls(t.st)}" aria-label="Estado: ${stName[t.st]}">${stName[t.st]}</span>` : ''}</div><div class="v">${t.v}</div><div class="d">${t.d}</div>${t.spark || ''}</button>`).join('');
   }
 
   function renderDimension() {
@@ -324,19 +327,19 @@
     const s3 = d.sobreFondos < 0.6 ? 'ok' : d.sobreFondos < 1 ? 'warn' : 'stop';
     const s4 = d.sobreCaja < 1.5 ? 'ok' : d.sobreCaja < 3 ? 'warn' : 'stop';
     $('#dimension').innerHTML =
-      ring('sobreVentas', d.sobreVentas, 1, F.pct(d.sobreVentas * 100), 'Sobre ventas', s1) +
-      ring('sobreEbitda', d.sobreEbitda, 8, F.x(d.sobreEbitda), 'Años de EBITDA', s2) +
+      ring('sobreVentas', d.sobreVentas, 1, isFinite(d.sobreVentas) ? F.pct(d.sobreVentas * 100) : '—', 'Sobre ventas', s1) +
+      ring('sobreEbitda', d.sobreEbitda, 8, isFinite(d.sobreEbitda) ? F.x(d.sobreEbitda) : '—', isFinite(d.sobreEbitda) ? 'Años de EBITDA' : 'Años de EBITDA · EBITDA ≤ 0', s2) +
       ring('sobreFondos', d.sobreFondos, 1.5, F.pct(d.sobreFondos * 100), 'Sobre fondos propios', s3) +
       ring('sobreCaja', d.sobreCaja, 4, F.x(d.sobreCaja), 'Veces la caja', s4) +
-      ring('financiado', r.loan, Math.max(1, d.inversion), F.eur(r.loan), 'Préstamo nuevo', 'ok') +
-      ring('cuota', r.cuotaSobreEbitda, 100, F.pct(r.cuotaSobreEbitda), 'Cuota sobre EBITDA', r.cuotaSobreEbitda < 50 ? 'ok' : r.cuotaSobreEbitda < 80 ? 'warn' : 'stop');
+      ring('financiado', r.loan, Math.max(1, d.inversion), F.eur(r.loan), 'Préstamo nuevo', 'neutral') +
+      ring('cuota', r.cuotaSobreEbitda, 100, isFinite(r.cuotaSobreEbitda) ? F.pct(r.cuotaSobreEbitda) : '—', isFinite(r.cuotaSobreEbitda) ? 'Cuota sobre EBITDA' : 'Cuota sobre EBITDA · EBITDA ≤ 0', r.cuotaSobreEbitda < 50 ? 'ok' : r.cuotaSobreEbitda < 80 ? 'warn' : 'stop');
   }
 
   /* ---------------- Escenarios ---------------- */
   function renderScenarios() {
     $('#scenCards').innerHTML = ctx.all.map((x) => {
       const c = A.SCENARIO_CONTEXT[x.key], st = vMap[x.r.verdict.key];
-      return `<button class="glass scen ${x.key === state.escenario ? 'current' : ''}" data-k="${x.key}"><div class="row"><i class="sw" style="background:${A.seriesColor(x.i)}"></i><b>${x.nombre}</b><span class="spacer"></span><span class="state ${stCls(st)}">${stName[st]}</span></div><p class="small muted">${c.representa}</p><div class="small"><span class="muted">Probabilidad:</span> ${c.probabilidad.split('.')[0]}</div><div class="small more">Ver contexto →</div></button>`;
+      return `<button class="glass scen ${x.key === state.escenario ? 'current' : ''}" data-k="${x.key}"><div class="row"><i class="sw" style="background:${A.scenarioColor(x.key)}"></i><b>${x.nombre}</b><span class="spacer"></span><span class="state ${stCls(st)}">${stName[st]}</span></div><p class="small muted">${c.representa}</p><div class="small"><span class="muted">Probabilidad:</span> ${c.probabilidad.split('.')[0]}</div><div class="small more">Ver contexto →</div></button>`;
     }).join('');
     $$('#scenCards .scen').forEach((b) => b.addEventListener('click', () => openScenario(b.dataset.k)));
 
@@ -347,16 +350,16 @@
     $('#cashExplain').textContent = view.cash === 'liquidez'
       ? `Liquidez = caja en el banco + parte libre de la póliza (${F.eur(pol)} de límite). Es el dinero que podrías usar cada mes. La línea roja es cero: por debajo, ni con la póliza llegas.`
       : 'Caja neta = caja en el banco − póliza dispuesta. Es tu posición real sin contar con el banco. Si es negativa, estás viviendo de la póliza.';
-    const series = ctx.all.map((x) => ({ name: x.nombre, data: view.cash === 'liquidez' ? x.r.w.liquidez : x.r.w.cash, color: A.seriesColor(x.i), active: x.key === state.escenario, hidden: !!hidden[x.key] }));
+    const series = ctx.all.map((x) => ({ name: x.nombre, data: view.cash === 'liquidez' ? x.r.w.liquidez : x.r.w.cash, color: A.scenarioColor(x.key), active: x.key === state.escenario, hidden: !!hidden[x.key] }));
     C.cash($('#cashChart'), $('#cashLegend'), series, {
-      target: state.meta.cajaMin, start: ctx.active.start,
+      target: state.meta.cajaMin, start: ctx.active.start, mode: view.cash,
       onToggle: (i) => { const k = ctx.all[i].key; hidden[k] = !hidden[k]; renderScenarios(); }
     });
     renderCushion();
     let t = `<table><thead><tr><th>Escenario</th><th>Liquidez mín.</th><th>Colchón mín.</th><th>Recuperación</th><th>DSCR</th><th>Estado</th></tr></thead><tbody>`;
     ctx.all.forEach((x) => {
       const r = x.r, st = vMap[r.verdict.key];
-      t += `<tr class="clickable ${x.key === state.escenario ? 'active' : ''}" data-k="${x.key}"><td><span class="sw" style="background:${A.seriesColor(x.i)}"></span>${x.nombre}</td><td style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</td><td>${fmtMeses(r.colMin)}</td><td>${F.months(r.payback)}</td><td>${F.x(r.dscrMin)}</td><td><span class="state ${stCls(st)}">${stName[st]}</span></td></tr>`;
+      t += `<tr class="clickable ${x.key === state.escenario ? 'active' : ''}" data-k="${x.key}"><td><span class="sw" style="background:${A.scenarioColor(x.key)}"></span>${x.nombre}</td><td style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</td><td>${fmtMeses(r.colMin)}</td><td>${F.months(r.payback)}</td><td>${F.x(r.dscrMin)}</td><td><span class="state ${stCls(st)}">${stName[st]}</span></td></tr>`;
     });
     $('#scenarioTable').innerHTML = t + '</tbody></table><p class="small muted">Haz clic en una fila para convertirla en el escenario activo.</p>';
     $$('#scenarioTable tr[data-k]').forEach((tr) => tr.addEventListener('click', () => setScenario(tr.dataset.k)));
@@ -383,15 +386,31 @@
   }
   function renderCushion() {
     const r = ctx.active, s = r.colchonSerie;
-    const col = (m) => (m < 1 ? css('--stop') : m < 3 ? css('--warn') : css('--go'));
-    const W = 900, Hh = 64, cw = W / s.length;
-    const hgt = (m) => Math.max(4, Math.min(1, Math.max(0, m) / 6) * Hh);
-    let svg = `<svg viewBox="0 0 ${W} ${Hh + 22}" role="img" aria-label="Meses de colchón por mes">`;
-    s.forEach((m, i) => { svg += `<rect class="cm" data-i="${i}" x="${i * cw + 1}" y="${Hh - hgt(m)}" width="${cw - 2}" height="${hgt(m)}" rx="2" fill="${col(m)}" opacity="${i + 1 === r.mesColMin || i + 1 === r.mesColMax ? 1 : 0.7}"/>`; });
-    for (let y = 0; y <= 5; y++) svg += `<text x="${Math.min(W - 30, y * 12 * cw + 2)}" y="${Hh + 16}">${y === 0 ? 'mes 1' : 'año ' + y}</text>`;
-    svg += '</svg>';
+    const col = (m) => (m < 1 ? 'var(--stop)' : m < 3 ? 'var(--warn)' : 'var(--go)');
+    // Barras divergentes desde 0: por debajo, meses de gasto que faltan; marcas en 1 y 3 meses. Lo que pasa del tope se marca
+    const host = $('#cushion'), W = C.fit(host, 900, renderCushion), Hh = 150;
+    const fin = s.filter(isFinite), sMax = Math.max(3, ...fin), sMin = Math.min(0, ...fin);
+    const top = Math.min(12, Math.max(4, Math.ceil(sMax))), bot = Math.max(-6, Math.floor(sMin));
+    const m = { l: 34, r: 8, t: 8, b: 22 }, cw = (W - m.l - m.r) / s.length;
+    const y = (v) => m.t + (1 - (Math.max(bot, Math.min(top, v)) - bot) / (top - bot)) * (Hh - m.t - m.b);
+    const fy = (v) => (v < 0 ? '−' : '') + Math.abs(v) + ' m';
+    const resumen = `Meses de gasto fijo que cubre la liquidez, mes a mes. Mínimo ${fmtMeses(r.colMin)} en el mes ${r.mesColMin}; ${r.mesesBajoUno} de ${s.length} meses por debajo de uno.`;
+    let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title><g class="grid">`;
+    const rot = [];
+    Array.from(new Set([0, 1, 3, top, bot])).forEach((v) => {
+      const yy = y(v), txt = rot.every((q) => Math.abs(q - yy) >= 11); if (txt) rot.push(yy);
+      svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}" ${v === 1 || v === 3 ? 'style="stroke:var(--line-strong)" stroke-dasharray="2 4"' : ''}/>${txt ? `<text x="${m.l - 6}" y="${yy + 3}" text-anchor="end">${fy(v)}</text>` : ''}`;
+    });
+    [0, 11, 23, 35, 47, 59].filter((i) => i < s.length).forEach((i) => { svg += `<text x="${m.l + i * cw + cw / 2}" y="${Hh - 6}" text-anchor="middle">${i === 0 ? 'mes 1' : 'año ' + Math.round((i + 1) / 12)}</text>`; });
+    svg += '</g>';
+    s.forEach((v, i) => {
+      const y0 = y(0), y1 = y(v), cut = v > top || v < bot;
+      svg += `<rect class="cm" data-i="${i}" x="${m.l + i * cw + 1}" y="${Math.min(y0, y1)}" width="${Math.max(1, cw - 2)}" height="${Math.max(1, Math.abs(y1 - y0))}" rx="1.5" style="fill:${col(v)}" opacity="${i + 1 === r.mesColMin || i + 1 === r.mesColMax ? 1 : 0.7}"/>`;
+      if (cut) svg += `<rect x="${m.l + i * cw + 1}" y="${v > top ? y1 : y1 - 2}" width="${Math.max(1, cw - 2)}" height="2" style="fill:var(--fg)" opacity="0.7"/>`;
+    });
+    svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" style="stroke:var(--line-strong)"/></svg>`;
     const polUso = r.polLim ? (r.polizaMax / r.polLim) * 100 : 0;
-    $('#cushion').innerHTML = `<div class="chart">${svg}</div>
+    host.innerHTML = `<div class="chart">${svg}</div><p class="small muted" style="margin:4px 0 0">Líneas de puntos: 1 y 3 meses de colchón. Las barras que pasan del gráfico (${fy(bot)} a ${fy(top)}) llevan una raya; el dato exacto está al pasar el cursor.</p>
       <div class="cushion-stats">
         <div><span>Colchón mínimo</span><b style="color:${col(r.colMin)}">${fmtMeses(r.colMin)}</b><small>mes ${r.mesColMin}</small></div>
         <div><span>Colchón máximo</span><b>${fmtMeses(r.colMax)}</b><small>mes ${r.mesColMax}</small></div>
@@ -530,7 +549,7 @@
   }
 
   function renderRisks() {
-    C.riskMatrix($('#riskMatrix'), ctx.risks, (r, ev) => openCard(null, ev.target, { t: r.nombre, d: r.mitigacion, v: () => `Nivel ${r.nivel} · ${stName[r.estado]}` }));
+    C.riskMatrix($('#riskMatrix'), ctx.risks, (r, ev) => openCard(null, ev.target, { t: esc(r.nombre), d: esc(r.mitigacion), v: () => `Nivel ${r.nivel} · ${stName[r.estado]}` }));
     C.tornado($('#tornado'), ctx.sens);
     const s = ctx.sens, top = s.rows.slice(0, 3);
     const lines = top.map((r) => {
@@ -552,9 +571,9 @@
   const SIZE = [
     { n: 'Ventas', k: 'ventas', f: (v) => F.eur(v), up: 1 },
     { n: 'EBITDA', k: 'ebitda', f: (v) => F.eur(v), up: 1, sub: (t) => `${F.pct(t.antes.ebitdaPct)} → ${F.pct(t.despues.ebitdaPct)} sobre ventas` },
-    { n: 'Margen bruto', k: 'margen', f: (v) => F.pct(v), up: 1 },
+    { n: 'Margen bruto', k: 'margen', f: (v) => F.pct(v), up: 1, pp: 1 },
     { n: 'Plantilla', k: 'plantilla', f: (v) => F.num(v) + ' pers.', up: 0 },
-    { n: 'Peso salarial', k: 'pesoSalarial', f: (v) => F.pct(v), up: -1 },
+    { n: 'Peso salarial', k: 'pesoSalarial', f: (v) => F.pct(v), up: -1, pp: 1 },
     { n: 'Ventas por persona', k: 'ventasEmpleado', f: (v) => F.eur(v), up: 1 },
     { n: 'Punto de equilibrio', k: 'equilibrio', f: (v) => F.eur(v), up: -1, sub: () => 'ventas al año para no perder' },
     { n: 'Circulante extra', k: 'wc', f: (v) => F.eur(v), up: -1, sub: () => 'caja atrapada en clientes y stock en el pico' }
@@ -565,12 +584,15 @@
     $('#sizeLede').innerHTML = `A la izquierda, los <b>próximos doce meses sin el proyecto</b>; a la derecha, el <b>año de crucero</b> (meses ${t.mesCrucero} a ${t.mesCrucero + 11}), cuando lo nuevo ha terminado su rampa y vende lo previsto. Toca una tarjeta para ver de dónde sale cada cifra y qué hacer con ella.`;
     $('#sizeGrid').innerHTML = SIZE.map((it, i) => {
       const [a, b] = sizeVals(it, t);
-      const mx = Math.max(Math.abs(a), Math.abs(b)) || 1;
+      // Barras con signo: si alguna cifra es negativa, el cero se desplaza y la negativa crece hacia la izquierda en rojo
+      const neg = Math.max(0, -a, -b), pos = Math.max(0, a, b), span = neg + pos || 1, z = neg / span * 100;
+      const bar = (v, cls) => `<span${cls ? ` class="${cls}"` : ''} style="margin-left:${v < 0 ? z - (-v / span) * 100 : z}%;width:${(Math.abs(v) / span) * 100}%${v < 0 ? ';background:var(--stop)' : ''}"></span>`;
       const d = b - a, good = it.up === 0 ? null : (d * it.up >= 0);
-      const rel = a ? (d / Math.abs(a)) * 100 : null;
+      // En magnitudes en % la diferencia se da en puntos; en el resto, en % sobre el valor de partida
+      const delta = it.sub ? it.sub(t) : it.pp ? `${d >= 0 ? '+' : ''}${F.pp(d)}` : a ? `${d >= 0 ? '+' : ''}${F.pct((d / Math.abs(a)) * 100)}` : '';
       return `<button class="glass size" data-sz="${i}"><h4>${it.n}</h4><div class="from-to"><span class="a">${it.f(a)}</span><span class="muted">→</span><span class="b">${it.f(b)}</span></div>
-        <div class="bars"><span style="width:${(Math.abs(a) / mx) * 100}%"></span><span class="after" style="width:${(Math.abs(b) / mx) * 100}%"></span></div>
-        <div class="delta ${good === null ? '' : good ? 'up' : 'down'}">${it.sub ? it.sub(t) : rel !== null ? `${rel >= 0 ? '+' : ''}${F.pct(rel)}` : ''}</div><div class="mas">De dónde sale →</div></button>`;
+        <div class="bars" aria-hidden="true">${bar(a)}${bar(b, 'after')}</div>
+        <div class="delta ${good === null ? '' : good ? 'up' : 'down'}">${delta}</div><div class="mas">De dónde sale →</div></button>`;
     }).join('');
     $$('#sizeGrid [data-sz]').forEach((b) => b.onclick = () => openSize(+b.dataset.sz));
     C.debt($('#debtChart'), ctx.active);
@@ -641,7 +663,7 @@
     $('#structLede').innerHTML = `Seis formas de hacer la misma inversión con la meta de alcanzar el tamaño pleno antes del <b>mes ${state.meta.plazoObjetivo}</b>. Cada una cambia la liquidez, el retorno para la propiedad, el control y el tiempo. <b>Toca una</b> para ver cómo funciona, sus ventajas, su fiscalidad y los pasos para ponerla en marcha.`;
     $('#structs').innerHTML = S.map((s, i) => {
       const r = s.r;
-      const attr = (n, v, inv) => `<div class="attr"><span>${n}</span><span class="track"><b style="width:${v}%;background:${inv ? css('--s2') : css('--s1')}"></b></span><span>${v}</span></div>`;
+      const attr = (n, v, inv) => `<div class="attr"><span>${n}</span><span class="track"><b style="width:${v}%;background:${inv ? 'var(--s2)' : 'var(--s1)'}"></b></span><span>${v}</span></div>`;
       return `<button class="glass struct ${s.key === state.estructura ? 'current' : ''}" data-k="${s.key}">
         <div class="head"><span class="name">${s.nombre}</span><span class="score" title="Encaje de 0 a 100">${i === 0 ? '★ ' : ''}${Math.round(s.score)}<small>/100 encaje</small></span></div>
         <div class="small muted">${s.desc}</div>
@@ -654,13 +676,13 @@
   }
   function flowSVG(fl) {
     const W = 560, Hh = 190, xs = [90, 280, 470];
-    let s = `<svg viewBox="0 0 ${W} ${Hh}" class="flow" role="img" aria-label="Relación entre sociedades"><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${css('--gold')}"/></marker></defs>`;
-    fl.nodos.forEach((n, i) => { s += `<line x1="${xs[i]}" x2="${xs[i]}" y1="${Hh - 56}" y2="26" stroke="${css('--line')}" stroke-dasharray="2 4"/>`; });
+    let s = `<svg viewBox="0 0 ${W} ${Hh}" class="flow" role="img" aria-label="Relación entre sociedades"><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--gold)"/></marker></defs>`;
+    fl.nodos.forEach((n, i) => { s += `<line x1="${xs[i]}" x2="${xs[i]}" y1="${Hh - 56}" y2="26" style="stroke:var(--line)" stroke-dasharray="2 4"/>`; });
     fl.flechas.forEach(([a, b, t], i) => {
       const y = 40 + i * 34, x1 = xs[a], x2 = xs[b];
-      s += `<line x1="${x1}" y1="${y}" x2="${x2 + (x2 > x1 ? -6 : 6)}" y2="${y}" stroke="${css('--gold')}" stroke-width="1.5" marker-end="url(#ar)"/><text x="${(x1 + x2) / 2}" y="${y - 6}" text-anchor="middle" style="fill:${css('--gold-soft')};font-size:11px;font-family:var(--font-body)">${t}</text>`;
+      s += `<line x1="${x1}" y1="${y}" x2="${x2 + (x2 > x1 ? -6 : 6)}" y2="${y}" style="stroke:var(--gold)" stroke-width="1.5" marker-end="url(#ar)"/><text x="${(x1 + x2) / 2}" y="${y - 6}" text-anchor="middle" style="fill:var(--gold-soft);font-size:11px;font-family:var(--font-body)">${t}</text>`;
     });
-    fl.nodos.forEach((n, i) => { s += `<rect x="${xs[i] - 78}" y="${Hh - 52}" width="156" height="40" rx="10" fill="${css('--panel-solid')}" stroke="${css('--line-strong')}"/><text x="${xs[i]}" y="${Hh - 27}" text-anchor="middle" style="fill:${css('--fg')};font-size:12px;font-family:var(--font-body)">${n}</text>`; });
+    fl.nodos.forEach((n, i) => { s += `<rect x="${xs[i] - 78}" y="${Hh - 52}" width="156" height="40" rx="10" style="fill:var(--panel-solid);stroke:var(--line-strong)"/><text x="${xs[i]}" y="${Hh - 27}" text-anchor="middle" style="fill:var(--fg);font-size:12px;font-family:var(--font-body)">${n}</text>`; });
     return s + '</svg>';
   }
   // Bajada a tierra de cada relación de grupo, con las cifras de la simulación
@@ -825,8 +847,8 @@
       lg.innerHTML = `<span><i style="background:var(--go)"></i>Cumple la meta</span><span><i style="background:var(--warn)"></i>Zona de vigilancia</span><span><i style="background:var(--stop)"></i>Rompe el límite</span><span><i style="background:var(--gold);height:2px"></i>Plano de la meta · esfera: tu plan</span>`;
       if (has3D && ctx.surface) A.scene.surface(ctx.surface, state);
     } else {
-      lg.innerHTML = ctx.all.map((x) => `<span><i style="background:${A.seriesColor(x.i)}"></i>${x.nombre}</span>`).join('') + `<span><i style="background:var(--stop);height:2px"></i>Suelo de liquidez</span>`;
-      if (has3D) A.scene.trajectories(ctx.all.map((x) => ({ name: x.nombre, data: x.r.w.liquidez, color: A.seriesColor(x.i), active: x.key === state.escenario })), state);
+      lg.innerHTML = ctx.all.map((x) => `<span><i style="background:${A.scenarioColor(x.key)}"></i>${x.nombre}</span>`).join('') + `<span><i style="background:var(--stop);height:2px"></i>Suelo de liquidez</span>`;
+      if (has3D) A.scene.trajectories(ctx.all.map((x) => ({ name: x.nombre, data: x.r.w.liquidez, color: A.scenarioColor(x.key), active: x.key === state.escenario })), state);
     }
   }
   function renderTerrainRead() {
@@ -905,33 +927,37 @@
     const fmt = M.u === '€' ? F.eur : M.u === '%' ? (v) => F.pct(v) : (v) => Math.round(v) + ' d';
     const val = (c, sr) => { const v = c.d[sr.k]; return c.p && !sr.p ? null : v == null || !isFinite(v) ? null : v; };
     const vals = cols.flatMap((c) => M.series.map((sr) => val(c, sr))).filter((v) => v != null);
-    const W = 560, Hh = 250, m = { l: 62, r: 12, t: 22, b: 30 };
-    let mn = Math.min(0, ...vals), mx = Math.max(0, ...vals); if (mx === mn) mx = mn + 1; mx += (mx - mn) * 0.1;
+    const W = C.fit(host, 560, renderFinEvo, { of: () => $('#finChart', host) || host }), Hh = 250;
+    // Eje con marcas redondas que incluyen el 0 y una sola unidad
+    const { ticks, lo: mn, hi: hi0, step } = C.niceTicks(Math.min(0, ...vals), Math.max(0, ...vals), W < 480 ? 4 : 5);
+    const mx = hi0 + (hi0 - mn) * 0.08;
+    const fAx = M.u === '€' ? C.axisEur(ticks, step) : M.u === '%' ? (v) => F.pct(v) : (v) => F.num(v) + ' d';
+    const m = { l: Math.max(40, ...ticks.map((t) => C.textWidth(fAx(t)) + 12)), r: 12, t: 22, b: 30 };
     const y = (v) => m.t + (1 - (v - mn) / (mx - mn)) * (Hh - m.t - m.b);
     const cw = (W - m.l - m.r) / Math.max(1, cols.length), bars = M.series.filter((x) => x.t === 'bar'), bw = (cw * 0.72) / Math.max(1, bars.length);
     const cx = (i) => m.l + i * cw + cw / 2;
     let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${M.n} por año"><g class="grid">`;
-    [0, 0.25, 0.5, 0.75, 1].forEach((k) => { const v = mn + (mx - mn) * k; svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 6}" y="${y(v) + 3}" text-anchor="end">${fmt(v)}</text>`; });
+    ticks.forEach((v) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 6}" y="${y(v) + 3}" text-anchor="end">${fAx(v)}</text>`; });
     svg += '</g>';
-    if (horiz) svg += `<rect x="${m.l + nR * cw}" y="${m.t - 16}" width="${horiz * cw}" height="${Hh - m.b - m.t + 16}" fill="${css('--gold')}" opacity="0.05"/><text x="${m.l + nR * cw + 6}" y="${m.t - 5}" style="fill:${css('--gold-soft')}">proyección</text>`;
-    if (mn < 0) svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" stroke="${css('--line-strong')}"/>`;
-    const etiquetas = cols.length <= 7;
+    if (horiz) svg += `<rect x="${m.l + nR * cw}" y="${m.t - 16}" width="${horiz * cw}" height="${Hh - m.b - m.t + 16}" style="fill:var(--gold)" opacity="0.05"/><text x="${m.l + nR * cw + 6}" y="${m.t - 5}" style="fill:var(--gold-soft)">proyección</text>`;
+    if (mn < 0) svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" style="stroke:var(--line-strong)"/>`;
+    const etiquetas = cols.length <= (W < 480 ? 4 : 7);
     cols.forEach((c, i) => {
       bars.forEach((sr, j) => {
         const v = val(c, sr); if (v == null) return;
         const x0 = m.l + i * cw + cw * 0.14 + j * bw, top = y(Math.max(0, v)), bot = y(Math.min(0, v));
-        svg += `<rect x="${x0}" y="${top}" width="${Math.max(2, bw - 3)}" height="${Math.max(1, bot - top)}" rx="3" fill="${css(sr.c)}" opacity="${c.p ? 0.4 : 0.92}" ${c.p ? `stroke="${css(sr.c)}" stroke-dasharray="3 2"` : ''}/>`;
-        if (etiquetas) svg += `<text x="${x0 + (bw - 3) / 2}" y="${v >= 0 ? top - 4 : bot + 11}" text-anchor="middle" style="font-size:9px;fill:${css('--fg')}">${fmt(v)}</text>`;
+        svg += `<rect x="${x0}" y="${top}" width="${Math.max(2, bw - 3)}" height="${Math.max(1, bot - top)}" rx="3" style="fill:var(${sr.c})${c.p ? `;stroke:var(${sr.c})` : ''}" opacity="${c.p ? 0.4 : 0.92}" ${c.p ? 'stroke-dasharray="3 2"' : ''}/>`;
+        if (etiquetas) svg += `<text x="${x0 + (bw - 3) / 2}" y="${v >= 0 ? top - 4 : bot + 11}" text-anchor="middle" style="font-size:9px;fill:var(--fg)">${fmt(v)}</text>`;
       });
-      svg += `<text x="${cx(i)}" y="${Hh - 10}" text-anchor="middle" style="${c.p ? `fill:${css('--gold-soft')}` : ''}">${c.anio}${c.p ? '*' : ''}</text>`;
+      svg += `<text x="${cx(i)}" y="${Hh - 10}" text-anchor="middle" style="${c.p ? 'fill:var(--gold-soft)' : ''}">${c.anio}${c.p ? '*' : ''}</text>`;
     });
     M.series.filter((x) => x.t === 'line').forEach((sr) => {
       const pts = cols.map((c, i) => ({ i, v: val(c, sr), p: c.p })).filter((q) => q.v != null);
       const real = pts.filter((q) => !q.p), proj = pts.filter((q, k) => q.p || (k + 1 < pts.length && pts[k + 1].p));
       const pl = (a) => a.map((q) => `${cx(q.i)},${y(q.v)}`).join(' ');
-      if (real.length > 1) svg += `<polyline points="${pl(real)}" fill="none" stroke="${css(sr.c)}" stroke-width="2.4"/>`;
-      if (proj.length > 1) svg += `<polyline points="${pl(proj)}" fill="none" stroke="${css(sr.c)}" stroke-width="2" stroke-dasharray="5 4" opacity="0.8"/>`;
-      pts.forEach((q) => { svg += `<circle cx="${cx(q.i)}" cy="${y(q.v)}" r="4" fill="${css(sr.c)}" opacity="${q.p ? 0.55 : 1}"/>${etiquetas ? `<text x="${cx(q.i)}" y="${y(q.v) - 8}" text-anchor="middle" style="font-size:9px;fill:${css('--fg')}">${fmt(q.v)}</text>` : ''}`; });
+      if (real.length > 1) svg += `<polyline points="${pl(real)}" fill="none" style="stroke:var(${sr.c})" stroke-width="2.4"/>`;
+      if (proj.length > 1) svg += `<polyline points="${pl(proj)}" fill="none" style="stroke:var(${sr.c})" stroke-width="2" stroke-dasharray="5 4" opacity="0.8"/>`;
+      pts.forEach((q) => { svg += `<circle cx="${cx(q.i)}" cy="${y(q.v)}" r="4" style="fill:var(${sr.c})" opacity="${q.p ? 0.55 : 1}"/>${etiquetas ? `<text x="${cx(q.i)}" y="${y(q.v) - 8}" text-anchor="middle" style="font-size:9px;fill:var(--fg)">${fmt(q.v)}</text>` : ''}`; });
     });
     cols.forEach((c, i) => { svg += `<rect class="fy" data-i="${i}" x="${m.l + i * cw}" y="${m.t - 16}" width="${cw}" height="${Hh - m.b - m.t + 16}" fill="transparent" style="cursor:${c.p ? 'default' : 'pointer'}"/>`; });
     svg += '</svg>';
@@ -945,7 +971,7 @@
     host.innerHTML = `<div class="row"><h4>Evolución${horiz ? ` y proyección a ${horiz} año${horiz > 1 ? 's' : ''}` : ''}</h4><span class="spacer"></span><select class="input" id="feMetric" style="max-width:240px">${Object.keys(FIN_METRICS).map((k) => `<option value="${k}" ${k === finView.metric ? 'selected' : ''}>${FIN_METRICS[k].n}</option>`).join('')}</select></div>
       <p class="small muted" style="margin:0">${nR} año${nR > 1 ? 's' : ''} con cuentas (${R.map((r) => r.anio).join(', ')})${nR < 2 ? '. Con un segundo año verás la evolución.' : ''}. Pasa el cursor por un año para el detalle; púlsalo para ver a dónde fue su dinero.</p>
       <div class="chart" id="finChart">${svg}</div>
-      <div class="chart-legend small">${M.series.map((sr) => `<span><i style="background:${css(sr.c)}"></i>${sr.n}</span>`).join('')}${horiz ? '<span class="muted">* proyección (más clara y discontinua)</span>' : ''}</div>
+      <div class="chart-legend small">${M.series.map((sr) => `<span><i style="background:var(${sr.c})"></i>${sr.n}</span>`).join('')}${horiz ? '<span class="muted">* proyección (más clara y discontinua)</span>' : ''}</div>
       ${lect.length ? `<p class="small" style="margin:0">${lect.join(' · ')}.</p>` : ''}
       ${conProj ? `<div class="fe-ctl small"><label>Años de proyección <select class="input" id="feHoriz">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${k === horiz ? 'selected' : ''}>${k ? k : 'sin proyección'}</option>`).join('')}</select></label>
         <label>Crecimiento proyectado <b id="feCrecV">${F.pct(an.crecProj)}</b>/año<input type="range" id="feCrec" min="-15" max="30" step="0.5" value="${Math.round(an.crecProj * 2) / 2}"></label>
@@ -976,19 +1002,22 @@
     $$('[data-mf]', host).forEach((b) => b.onclick = () => { mfIdx = +b.dataset.mf; renderMoneyFlow(); });
     // Cascada: del beneficio a la variación de caja
     const it = mf.items.filter((x) => Math.abs(x.v) > 1);
-    const W = 560, rowH = 26, m = { l: 220, r: 70, t: 6, b: 30 }, Hh = m.t + m.b + (it.length + 1) * rowH;
+    const W = C.fit(host, 560, renderMoneyFlow, { of: () => $('#mfChart', host) || host }), rowH = 26, m = { l: Math.round(Math.min(220, W * 0.4)), r: 70, t: 6, b: 30 }, Hh = m.t + m.b + (it.length + 1) * rowH;
+    // Concepto recortado con puntos suspensivos si no cabe; el nombre completo queda en <title>
+    const maxCh = Math.floor((m.l - 14) / 6), corta = (t) => (t.length > maxCh ? `<title>${esc(t)}</title>${esc(t.slice(0, maxCh - 1))}…` : esc(t));
     let acc = 0; const pts = it.map((x) => { const a = acc; acc += x.v; return { x, a, b: acc }; });
     const vals = pts.flatMap((p) => [p.a, p.b]).concat([0]);
     const mn = Math.min(...vals), mx = Math.max(...vals), sx = (v) => m.l + ((v - mn) / (mx - mn || 1)) * (W - m.l - m.r);
-    let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Del beneficio a la caja"><line x1="${sx(0)}" x2="${sx(0)}" y1="0" y2="${Hh - m.b}" stroke="${css('--line-strong')}"/>`;
+    const resumen = `Del beneficio a la variación de la caja: ${it.map((x) => `${x.n} ${x.v >= 0 ? '+' : ''}${F.eur(x.v)}`).join('; ')}; variación de la caja ${F.eur(mf.cajaReal)}.`;
+    let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title><line x1="${sx(0)}" x2="${sx(0)}" y1="0" y2="${Hh - m.b}" style="stroke:var(--line-strong)"/>`;
     pts.forEach((p, i) => {
       const y = m.t + i * rowH, x1 = sx(Math.min(p.a, p.b)), w = Math.max(2, Math.abs(sx(p.b) - sx(p.a)));
-      const col = p.x.tipo === 'origen' ? css('--s3') : p.x.v >= 0 ? css('--s1') : css('--s2');
-      svg += `<text x="${m.l - 8}" y="${y + 16}" text-anchor="end" style="font-family:var(--font-body);font-size:11px;fill:${css('--fg')}">${esc(p.x.n)}</text><rect class="mfb" data-i="${i}" x="${x1}" y="${y + 4}" width="${w}" height="${rowH - 8}" rx="3" fill="${col}"/><text x="${Math.max(sx(p.a), sx(p.b)) + 6}" y="${y + 16}">${p.x.v >= 0 ? '+' : ''}${F.eur(p.x.v)}</text>`;
+      const col = p.x.tipo === 'origen' ? 'var(--s3)' : p.x.v >= 0 ? 'var(--s1)' : 'var(--s2)';
+      svg += `<text x="${m.l - 8}" y="${y + 16}" text-anchor="end" style="font-family:var(--font-body);font-size:11px;fill:var(--fg)">${corta(p.x.n)}</text><rect class="mfb" data-i="${i}" x="${x1}" y="${y + 4}" width="${w}" height="${rowH - 8}" rx="3" style="fill:${col}"/><text x="${Math.max(sx(p.a), sx(p.b)) + 6}" y="${y + 16}">${p.x.v >= 0 ? '+' : ''}${F.eur(p.x.v)}</text>`;
     });
     const yC = m.t + pts.length * rowH;
-    svg += `<text x="${m.l - 8}" y="${yC + 16}" text-anchor="end" style="font-family:var(--font-body);font-size:11px;font-weight:700;fill:${css('--gold-soft')}">Variación de la caja</text><rect x="${sx(Math.min(0, mf.cajaReal))}" y="${yC + 4}" width="${Math.max(2, Math.abs(sx(mf.cajaReal) - sx(0)))}" height="${rowH - 8}" rx="3" fill="${css('--gold')}"/><text x="${Math.max(sx(0), sx(mf.cajaReal)) + 6}" y="${yC + 16}">${F.eur(mf.cajaReal)}</text></svg>`;
-    $('#mfChart').innerHTML = svg + `<div class="chart-legend small"><span><i style="background:${css('--s3')}"></i> lo que genera el negocio</span><span><i style="background:${css('--s2')}"></i> lo que consume caja</span><span><i style="background:${css('--s1')}"></i> lo que aporta caja</span></div>`;
+    svg += `<text x="${m.l - 8}" y="${yC + 16}" text-anchor="end" style="font-family:var(--font-body);font-size:11px;font-weight:700;fill:var(--gold-soft)">Variación de la caja</text><rect x="${sx(Math.min(0, mf.cajaReal))}" y="${yC + 4}" width="${Math.max(2, Math.abs(sx(mf.cajaReal) - sx(0)))}" height="${rowH - 8}" rx="3" style="fill:var(--gold)"/><text x="${Math.max(sx(0), sx(mf.cajaReal)) + 6}" y="${yC + 16}">${F.eur(mf.cajaReal)}</text></svg>`;
+    $('#mfChart').innerHTML = svg + `<div class="chart-legend small"><span><i style="background:var(--s3)"></i> lo que genera el negocio</span><span><i style="background:var(--s2)"></i> lo que consume caja</span><span><i style="background:var(--s1)"></i> lo que aporta caja</span></div>`;
     $$('#mfChart .mfb').forEach((b) => { const x = pts[+b.dataset.i].x; b.addEventListener('pointermove', (ev) => C.tip(`<h5>${esc(x.n)}</h5><div class="fv">${F.eur(x.v)}</div><p>${x.d}</p>`, ev.clientX, ev.clientY)); b.addEventListener('pointerleave', C.hideTip); });
   }
   function setupFin() {
@@ -1275,6 +1304,9 @@
   // La figura clásica: el gasto fijo es una línea plana; los costes totales nacen de ella y suben con lo que vendes;
   // donde la venta corta a los costes está el punto de equilibrio y, por encima, el beneficio
   let peModo = 'volumen';
+  // Tope estable de las barras de «Fijos nuevos» y «Contrataciones»: solo crece si el valor se acerca al tope, así el control no salta al moverlo
+  const peTopes = {};
+  const peTope = (k, v, min, paso) => { const t = Math.max(peTopes[k] || min, min); peTopes[k] = v > t * 0.8 ? Math.ceil((v * 1.5) / paso) * paso : t; return peTopes[k]; };
   function datosEquilibrio() {
     const r = ctx.active, w = r.w, b = r.b, c0 = r.tamano.mesCrucero - 1;
     const S = (a, i, j) => A.sum(a, i, j);
@@ -1291,52 +1323,68 @@
   function renderEquilibrio() {
     const host = $('#peBox'); if (!host || !ctx) return;
     const d = datosEquilibrio(), h = d.hoy, c = d.cru;
-    const W = 620, Hh = 420, m = { l: 62, r: 16, t: 18, b: 40 };
+    const W = C.fit(host, 620, renderEquilibrio, { of: () => $('.pe-grid .chart', host) || host }), narrow = W < 480, Hh = narrow ? 360 : 420;
     let svg = '';
     if (peModo === 'volumen') {
-      const xmax = Math.max(c.ventas, h.ventas, isFinite(c.eqC) ? c.eqC : 0) * 1.35 || 1;
-      const ymax = xmax;
-      const x = (v) => m.l + (v / xmax) * (W - m.l - m.r), y = (v) => m.t + (1 - v / ymax) * (Hh - m.t - m.b);
-      const coste = (o, v, cuotas) => o.fijos + (cuotas ? o.cuotas : 0) + (1 - o.mg) * v;
-      svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Punto de equilibrio"><g class="grid">`;
-      [0, 0.25, 0.5, 0.75, 1].forEach((k) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(ymax * k)}" y2="${y(ymax * k)}"/><text x="${m.l - 8}" y="${y(ymax * k) + 3}" text-anchor="end">${F.eur(ymax * k)}</text><text x="${x(xmax * k)}" y="${Hh - 22}" text-anchor="middle">${F.eur(xmax * k)}</text>`; });
-      svg += `<text x="${(m.l + W - m.r) / 2}" y="${Hh - 6}" text-anchor="middle">ventas al mes</text></g>`;
-      // Zonas de pérdida y beneficio entre la venta y los costes del año de crucero
-      if (isFinite(c.eq)) {
-        svg += `<polygon points="${x(0)},${y(coste(c, 0))} ${x(c.eq)},${y(c.eq)} ${x(0)},${y(0)}" fill="${css('--stop')}" opacity="0.12"/>`;
-        svg += `<polygon points="${x(c.eq)},${y(c.eq)} ${x(xmax)},${y(xmax)} ${x(xmax)},${y(coste(c, xmax))}" fill="${css('--go')}" opacity="0.14"/>`;
-        svg += `<text x="${x(xmax * 0.86)}" y="${y((xmax + coste(c, xmax)) / 2) + 4}" text-anchor="middle" style="fill:${css('--go')};font-weight:600">beneficio</text><text x="${x(c.eq * 0.35)}" y="${y(coste(c, c.eq * 0.35) * 0.55)}" text-anchor="middle" style="fill:${css('--stop')};font-weight:600">pérdida</text>`;
+      const fin = (v) => (isFinite(v) && v > 0 ? v : 0);
+      const base = Math.max(c.ventas, h.ventas, fin(c.eqC), fin(c.eq), fin(h.eq)) * 1.2;
+      if (!(c.mg > 0) || !(base > 0)) {
+        svg = `<div class="pe-vacio" role="img" aria-label="Sin punto de equilibrio" style="padding:40px 16px;text-align:center;border:1px dashed var(--line);border-radius:var(--r)"><b>Con margen ≤ 0 no hay punto de equilibrio</b><p class="small muted" style="margin:6px 0 0">${c.mg > 0 ? 'Sin ventas previstas no se puede dibujar la relación entre ventas y costes.' : `El margen de crucero es ${F.pct(c.mg * 100)}: cada venta cuesta lo mismo o más de lo que se cobra, así que vender más no cubre los fijos. Revise el margen de lo nuevo.`}</p></div>`;
+      } else {
+        const coste = (o, v, cuotas) => o.fijos + (cuotas ? o.cuotas : 0) + (1 - o.mg) * v;
+        const tx = C.niceTicks(0, base, narrow ? 3 : 4), xmax = tx.hi;
+        const ty = C.niceTicks(0, Math.max(xmax, coste(c, xmax, true), h.mg > 0 ? coste(h, xmax) : 0), narrow ? 4 : 5), ymax = ty.hi;
+        const fx = C.axisEur(tx.ticks, tx.step), fy = C.axisEur(ty.ticks, ty.step);
+        const m = { l: Math.max(40, ...ty.ticks.map((t) => C.textWidth(fy(t)) + 14)), r: 16, t: 18, b: 40 };
+        const x = (v) => m.l + (v / xmax) * (W - m.l - m.r), y = (v) => m.t + (1 - v / ymax) * (Hh - m.t - m.b);
+        const resumen = `Punto de equilibrio por volumen: con el proyecto hay que vender ${F.eur(c.eq)} al mes (${F.eur(c.eqC)} pagando las cuotas); en crucero se venden ${F.eur(c.ventas)}. Hoy el equilibrio está en ${F.eur(h.eq)}.`;
+        svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title><defs><clipPath id="peClip"><rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${Hh - m.t - m.b}"/></clipPath></defs><g class="grid">`;
+        ty.ticks.forEach((t) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/><text x="${m.l - 8}" y="${y(t) + 3}" text-anchor="end">${fy(t)}</text>`; });
+        tx.ticks.forEach((t) => { svg += `<text x="${x(t)}" y="${Hh - 22}" text-anchor="middle">${fx(t)}</text>`; });
+        svg += `<text x="${(m.l + W - m.r) / 2}" y="${Hh - 6}" text-anchor="middle">ventas al mes</text></g><g clip-path="url(#peClip)">`;
+        // Zonas de pérdida y beneficio entre la venta y los costes del año de crucero
+        if (isFinite(c.eq)) {
+          svg += `<polygon points="${x(0)},${y(coste(c, 0))} ${x(c.eq)},${y(c.eq)} ${x(0)},${y(0)}" style="fill:var(--stop)" opacity="0.12"/>`;
+          svg += `<polygon points="${x(c.eq)},${y(c.eq)} ${x(xmax)},${y(xmax)} ${x(xmax)},${y(coste(c, xmax))}" style="fill:var(--go)" opacity="0.14"/>`;
+        }
+        const line = (o, cuotas, col, dash, wdt) => `<line x1="${x(0)}" y1="${y(coste(o, 0, cuotas))}" x2="${x(xmax)}" y2="${y(coste(o, xmax, cuotas))}" style="stroke:var(${col})" stroke-width="${wdt || 2}" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+        svg += `<line x1="${x(0)}" y1="${y(c.fijos)}" x2="${x(xmax)}" y2="${y(c.fijos)}" style="stroke:var(--s3)" stroke-width="2"/>`;
+        svg += (h.mg > 0 ? line(h, false, '--faint', '5 5', 1.5) : '') + line(c, true, '--warn', '7 4', 1.8) + line(c, false, '--s2', '', 2.4);
+        svg += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(xmax)}" y2="${y(xmax)}" style="stroke:var(--s1)" stroke-width="2.6"/></g>`;
+        if (isFinite(c.eq)) svg += `<text x="${x(xmax * 0.86)}" y="${y((xmax + coste(c, xmax)) / 2) + 4}" text-anchor="middle" style="fill:var(--go);font-weight:600">beneficio</text><text x="${x(c.eq * 0.35)}" y="${y(coste(c, c.eq * 0.35) * 0.55)}" text-anchor="middle" style="fill:var(--stop);font-weight:600">pérdida</text>`;
+        // Puntos rotulados: la etiqueta se gira hacia dentro si queda cerca del borde derecho
+        const dot = (v, col, lbl, dy, izq) => {
+          if (!(isFinite(v) && v > 0 && v <= xmax)) return '';
+          const e = izq || x(v) > W - m.r - C.textWidth(lbl) - 12;
+          return `<circle cx="${x(v)}" cy="${y(v)}" r="6" style="fill:var(${col});stroke:var(--deep)" stroke-width="2"/><text x="${x(v) + (e ? -10 : 9)}" y="${y(v) + (dy || -8)}" text-anchor="${e ? 'end' : 'start'}" style="fill:var(--fg)">${lbl}</text>`;
+        };
+        svg += dot(c.eq, '--gold', 'equilibrio ' + F.eur(c.eq), -10, true) + dot(c.eqC, '--warn', 'con cuotas ' + F.eur(c.eqC), 18) + (h.mg > 0 ? dot(h.eq, '--faint', 'hoy ' + F.eur(h.eq), 18) : '');
+        const vline = (v, lbl, col, dy) => { const e = x(v) > W - m.r - C.textWidth(lbl) - 8; return `<line x1="${x(v)}" x2="${x(v)}" y1="${m.t}" y2="${Hh - m.b}" style="stroke:var(${col})" stroke-dasharray="2 4"/><text x="${x(v) + (e ? -4 : 4)}" y="${m.t + 12 + (dy || 0)}" text-anchor="${e ? 'end' : 'start'}" style="fill:var(${col})">${lbl}</text>`; };
+        svg += vline(h.ventas, 'vendes hoy', '--faint') + vline(c.ventas, 'venderás en crucero', '--gold', Math.abs(x(c.ventas) - x(h.ventas)) < 120 ? 14 : 0);
+        svg += '</svg>';
+        svg += `<div class="chart-legend small"><span><i style="background:var(--s3)"></i>gasto fijo (personal y estructura)</span><span><i style="background:var(--s2)"></i>costes totales: fijos + compras</span><span><i style="background:var(--warn)"></i>costes + cuotas de los préstamos</span><span><i style="background:var(--s1)"></i>ventas</span><span><i style="background:var(--faint)"></i>costes de hoy, sin el proyecto</span></div>`;
       }
-      const line = (o, cuotas, col, dash, wdt) => `<line x1="${x(0)}" y1="${y(coste(o, 0, cuotas))}" x2="${x(xmax)}" y2="${y(coste(o, xmax, cuotas))}" stroke="${col}" stroke-width="${wdt || 2}" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
-      svg += `<line x1="${x(0)}" y1="${y(c.fijos)}" x2="${x(xmax)}" y2="${y(c.fijos)}" stroke="${css('--s3')}" stroke-width="2"/>`;
-      svg += line(h, false, css('--faint'), '5 5', 1.5) + line(c, true, css('--warn'), '7 4', 1.8) + line(c, false, css('--s2'), '', 2.4);
-      svg += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(xmax)}" y2="${y(xmax)}" stroke="${css('--s1')}" stroke-width="2.6"/>`;
-      const dot = (v, col, lbl, dy) => (isFinite(v) && v <= xmax ? `<circle cx="${x(v)}" cy="${y(v)}" r="6" fill="${col}" stroke="${css('--deep')}" stroke-width="2"/><text x="${x(v) + 9}" y="${y(v) + (dy || -8)}" style="fill:${css('--fg')}">${lbl}</text>` : '');
-      const dotL = (v, col, lbl) => (isFinite(v) && v <= xmax ? `<circle cx="${x(v)}" cy="${y(v)}" r="6" fill="${col}" stroke="${css('--deep')}" stroke-width="2"/><text x="${x(v) - 10}" y="${y(v) - 10}" text-anchor="end" style="fill:${css('--fg')}">${lbl}</text>` : '');
-      svg += dotL(c.eq, css('--gold'), 'equilibrio ' + F.eur(c.eq)) + dot(c.eqC, css('--warn'), 'con cuotas ' + F.eur(c.eqC), 18) + dot(h.eq, css('--faint'), 'hoy ' + F.eur(h.eq), 18);
-      const vline = (v, lbl, col) => `<line x1="${x(v)}" x2="${x(v)}" y1="${m.t}" y2="${Hh - m.b}" stroke="${col}" stroke-dasharray="2 4"/><text x="${x(v) + 4}" y="${m.t + 12}" style="fill:${col}">${lbl}</text>`;
-      svg += vline(h.ventas, 'vendes hoy', css('--faint')) + vline(c.ventas, 'venderás en crucero', css('--gold'));
-      svg += '</svg>';
-      svg += `<div class="chart-legend small"><span><i style="background:${css('--s3')}"></i>gasto fijo (personal y estructura)</span><span><i style="background:${css('--s2')}"></i>costes totales: fijos + compras</span><span><i style="background:${css('--warn')}"></i>costes + cuotas de los préstamos</span><span><i style="background:${css('--s1')}"></i>ventas</span><span><i style="background:${css('--faint')}"></i>costes de hoy, sin el proyecto</span></div>`;
     } else {
       const w = ctx.active.w, n = w.sales.length;
       const cost = w.sales.map((v, i) => w.staff[i] + w.fixed[i] + (v - w.gross[i]));
       const costC = cost.map((v, i) => v + w.debt[i]);
       const fij = w.staff.map((v, i) => v + w.fixed[i]);
-      const mx = Math.max(...w.sales, ...costC) * 1.08, mn = 0;
+      const ty = C.niceTicks(0, Math.max(1, ...w.sales, ...costC), narrow ? 4 : 5), mx = ty.hi, mn = 0, fy = C.axisEur(ty.ticks, ty.step);
+      const m = { l: Math.max(40, ...ty.ticks.map((t) => C.textWidth(fy(t)) + 14)), r: 16, t: 18, b: 40 };
       const x = (i) => m.l + (i / (n - 1)) * (W - m.l - m.r), y = (v) => m.t + (1 - (v - mn) / (mx - mn)) * (Hh - m.t - m.b);
       const pl = (a) => a.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-      svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Ventas y costes mes a mes"><g class="grid">`;
-      [0, 0.25, 0.5, 0.75, 1].forEach((k) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(mx * k)}" y2="${y(mx * k)}"/><text x="${m.l - 8}" y="${y(mx * k) + 3}" text-anchor="end">${F.eur(mx * k)}</text>`; });
-      for (let yr = 0; yr <= 5; yr++) svg += `<text x="${x(Math.min(n - 1, yr * 12))}" y="${Hh - 18}" text-anchor="middle">${yr === 0 ? 'mes 1' : 'año ' + yr}</text>`;
+      const resumen = `Ventas y costes mes a mes durante ${n} meses. ${d.mesCuotas ? `Las ventas cubren costes y cuotas de forma estable desde el mes ${d.mesCuotas}.` : 'Las ventas no llegan a cubrir costes y cuotas de forma estable.'}`;
+      svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title><g class="grid">`;
+      ty.ticks.forEach((t) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/><text x="${m.l - 8}" y="${y(t) + 3}" text-anchor="end">${fy(t)}</text>`; });
+      [0, 11, 23, 35, 47, 59].filter((i) => i < n).forEach((i) => { svg += `<text x="${x(i)}" y="${Hh - 18}" text-anchor="middle">${i === 0 ? 'mes 1' : 'año ' + Math.round((i + 1) / 12)}</text>`; });
       svg += '</g>';
       // Relleno entre ventas y costes totales: verde si gana, rojo si pierde
-      for (let i = 0; i < n - 1; i++) { const gana = w.sales[i] + w.sales[i + 1] >= cost[i] + cost[i + 1]; svg += `<polygon points="${x(i)},${y(w.sales[i])} ${x(i + 1)},${y(w.sales[i + 1])} ${x(i + 1)},${y(cost[i + 1])} ${x(i)},${y(cost[i])}" fill="${gana ? css('--go') : css('--stop')}" opacity="0.13"/>`; }
-      svg += `<polyline points="${pl(fij)}" fill="none" stroke="${css('--s3')}" stroke-width="2"/><polyline points="${pl(cost)}" fill="none" stroke="${css('--s2')}" stroke-width="2.2"/><polyline points="${pl(costC)}" fill="none" stroke="${css('--warn')}" stroke-width="1.6" stroke-dasharray="6 4"/><polyline points="${pl(w.sales)}" fill="none" stroke="${css('--s1')}" stroke-width="2.6"/>`;
-      svg += `<line x1="${x(d.start - 1)}" x2="${x(d.start - 1)}" y1="${m.t}" y2="${Hh - m.b}" stroke="${css('--line-strong')}" stroke-dasharray="2 4"/><text x="${x(d.start - 1) + 4}" y="${m.t + 12}">arranque</text>`;
-      if (d.mesCuotas) svg += `<line x1="${x(d.mesCuotas - 1)}" x2="${x(d.mesCuotas - 1)}" y1="${m.t}" y2="${Hh - m.b}" stroke="${css('--gold')}" stroke-dasharray="4 3"/><text x="${x(d.mesCuotas - 1) + 4}" y="${m.t + 26}" style="fill:${css('--gold')}">cubre todo desde el mes ${d.mesCuotas}</text>`;
+      for (let i = 0; i < n - 1; i++) { const gana = w.sales[i] + w.sales[i + 1] >= cost[i] + cost[i + 1]; svg += `<polygon points="${x(i)},${y(w.sales[i])} ${x(i + 1)},${y(w.sales[i + 1])} ${x(i + 1)},${y(cost[i + 1])} ${x(i)},${y(cost[i])}" style="fill:var(${gana ? '--go' : '--stop'})" opacity="0.13"/>`; }
+      svg += `<polyline points="${pl(fij)}" fill="none" style="stroke:var(--s3)" stroke-width="2"/><polyline points="${pl(cost)}" fill="none" style="stroke:var(--s2)" stroke-width="2.2"/><polyline points="${pl(costC)}" fill="none" style="stroke:var(--warn)" stroke-width="1.6" stroke-dasharray="6 4"/><polyline points="${pl(w.sales)}" fill="none" style="stroke:var(--s1)" stroke-width="2.6"/>`;
+      svg += `<line x1="${x(d.start - 1)}" x2="${x(d.start - 1)}" y1="${m.t}" y2="${Hh - m.b}" style="stroke:var(--line-strong)" stroke-dasharray="2 4"/><text x="${x(d.start - 1) + 4}" y="${m.t + 12}">arranque</text>`;
+      if (d.mesCuotas) { const lbl = `cubre todo desde el mes ${d.mesCuotas}`, e = x(d.mesCuotas - 1) > W - m.r - C.textWidth(lbl) - 8; svg += `<line x1="${x(d.mesCuotas - 1)}" x2="${x(d.mesCuotas - 1)}" y1="${m.t}" y2="${Hh - m.b}" style="stroke:var(--gold)" stroke-dasharray="4 3"/><text x="${x(d.mesCuotas - 1) + (e ? -4 : 4)}" y="${m.t + 26}" text-anchor="${e ? 'end' : 'start'}" style="fill:var(--gold)">${lbl}</text>`; }
       svg += '</svg>';
-      svg += `<div class="chart-legend small"><span><i style="background:${css('--s1')}"></i>ventas del mes</span><span><i style="background:${css('--s2')}"></i>costes totales</span><span><i style="background:${css('--warn')}"></i>costes + cuotas</span><span><i style="background:${css('--s3')}"></i>gasto fijo</span><span><i style="background:${css('--go')};opacity:.5"></i>gana</span><span><i style="background:${css('--stop')};opacity:.5"></i>pierde</span></div>`;
+      svg += `<div class="chart-legend small"><span><i style="background:var(--s1)"></i>ventas del mes</span><span><i style="background:var(--s2)"></i>costes totales</span><span><i style="background:var(--warn)"></i>costes + cuotas</span><span><i style="background:var(--s3)"></i>gasto fijo</span><span><i style="background:var(--go);opacity:.5"></i>gana</span><span><i style="background:var(--stop);opacity:.5"></i>pierde</span></div>`;
     }
     const segTxt = (v) => (v >= 0 ? `${F.pct(v)} por encima` : `${F.pct(-v)} por debajo`);
     const inc = state.inversion;
@@ -1353,7 +1401,7 @@
         </div>
       </div>
       <div class="pe-mueve"><span class="small muted">Mueve lo nuevo y mira cómo se desplaza el equilibrio:</span>
-        ${[['inversion.incVentas', 'Venta nueva', 0, 150, 1, (v) => F.eur(state.empresa.ventas * v / 100) + '/año'], ['inversion.margenNuevo', 'Margen de lo nuevo', 5, 90, 0.5, (v) => F.pct(v)], ['inversion.fijosNuevos', 'Fijos nuevos', 0, Math.max(300000, inc.fijosNuevos * 2), 1000, (v) => F.eur(v) + '/año'], ['inversion.contrataciones', 'Contrataciones', 0, Math.max(20, inc.contrataciones * 2), 1, (v) => v + ' pers.']].map(([p, l, a, z, st, f]) => `<label><span>${l} <b data-pev="${p}">${f(getPath(p))}</b></span><input type="range" data-pe-p="${p}" min="${a}" max="${z}" step="${st}" value="${getPath(p)}"></label>`).join('')}
+        ${[['inversion.incVentas', 'Venta nueva', 0, 150, 1, (v) => F.eur(state.empresa.ventas * v / 100) + '/año'], ['inversion.margenNuevo', 'Margen de lo nuevo', 5, 90, 0.5, (v) => F.pct(v)], ['inversion.fijosNuevos', 'Fijos nuevos', 0, peTope('fijos', inc.fijosNuevos, 300000, 50000), 1000, (v) => F.eur(v) + '/año'], ['inversion.contrataciones', 'Contrataciones', 0, peTope('contr', inc.contrataciones, 20, 10), 1, (v) => v + ' pers.']].map(([p, l, a, z, st, f]) => `<label><span>${l} <b data-pev="${p}">${f(getPath(p))}</b></span><input type="range" data-pe-p="${p}" min="${a}" max="${z}" step="${st}" value="${getPath(p)}"></label>`).join('')}
       </div>`;
     $$('[data-pe]', host).forEach((b) => b.onclick = () => { peModo = b.dataset.pe; renderEquilibrio(); });
     const fmts = { 'inversion.incVentas': (v) => F.eur(state.empresa.ventas * v / 100) + '/año', 'inversion.margenNuevo': (v) => F.pct(v), 'inversion.fijosNuevos': (v) => F.eur(v) + '/año', 'inversion.contrataciones': (v) => v + ' pers.' };
@@ -1539,7 +1587,7 @@
   }
   function drawPaper() {
     $('#paper').innerHTML = A.report.build(state, ctx, { scenarios: repSc });
-    const series = ctx.all.filter((x) => repSc.indexOf(x.key) >= 0).map((x) => ({ name: x.nombre, data: x.r.w.liquidez, color: A.seriesColor(x.i), active: x.key === state.escenario }));
+    const series = ctx.all.filter((x) => repSc.indexOf(x.key) >= 0).map((x) => ({ name: x.nombre, data: x.r.w.liquidez, color: A.scenarioColor(x.key), active: x.key === state.escenario }));
     if (series.length) C.cash($('#repCash'), null, series, { target: state.meta.cajaMin, start: ctx.active.start });
   }
   function closeReport() { const ov = $('#report'); if (ov && !ov.hidden) { ov.hidden = true; document.body.style.overflow = ''; } }

@@ -75,8 +75,11 @@
   const causaDe = (c) => (c.ref ? D.causa(c.ref) : null);
   const pesoCausa = (c) => { const ss = ST.sintomas.filter((s) => s.causa === c.id), base = ss.reduce((a, s) => a + (+s.gravedad || 3) * (nivel(s.area) === 'stop' ? 1.3 : 1), 0) + ST.hallazgos.filter((h) => h.causa === c.id).reduce((a, h) => a + (+h.gravedad || 3), 0); return { ss, base, score: base / (1 + ((+c.esfuerzo || 3) - 1) * 0.25) }; };
   const causasOrdenadas = () => ST.causas.filter((c) => c.estado !== 'descartada').map((c) => Object.assign({ c, o: prioArea(c.area).o }, pesoCausa(c))).sort((a, b) => (a.score && b.score ? a.o - b.o : 0) || b.score - a.score);
-  // El 20 %: las causas de mayor peso que, juntas, explican el 80 % de la gravedad de los síntomas
-  const veinte = () => { const l = causasOrdenadas(), tot = l.reduce((a, x) => a + x.base, 0); let acc = 0; const out = []; for (const x of l) { if (tot && acc / tot >= 0.8) break; acc += x.base; out.push(x.c.id); } return new Set(out.slice(0, Math.max(1, Math.ceil(l.length * 0.35)))); };
+  // El 20/80: las causas de mayor peso (de más a menos) que, juntas, explican al menos el 80 % de la gravedad.
+  // Se calcula por peso, no por el orden de los principios; las causas sin peso no cuentan
+  const porPeso = () => causasOrdenadas().filter((x) => x.base > 0).sort((a, b) => b.base - a.base);
+  const veinteDe = () => { const l = porPeso(), tot = l.reduce((a, x) => a + x.base, 0); let acc = 0; const out = []; for (const x of l) { if (!tot || acc / tot >= 0.8) break; acc += x.base; out.push(x.c.id); } return { set: new Set(out), n: out.length, de: l.length, pct: tot ? Math.round((acc / tot) * 100) : 0, tot }; };
+  const veinte = () => veinteDe().set;
   // Causa sugerida para un síntoma: misma área y patrón, y palabras en común
   const sugerirCausa = (s) => {
     const f = norm(s.t + ' ' + (s.cita || ''));
@@ -159,7 +162,9 @@
     maxIdx = on ? recuadros().indexOf(sec) : -1;
     if (on) { sec.scrollTop = 0; b && b.focus(); } else if (b) b.focus({ preventScroll: true });
   };
+  // Se puede volver a llamar (vistas que pintan tarde): solo añade el botón a los recuadros que aún no lo tienen
   const botonesAmpliar = () => recuadros().forEach((sec, i) => {
+    if (sec.querySelector(':scope > .iv-amp')) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'iv-amp'; b.textContent = '⤢'; b.title = 'Ampliar para leer mejor'; b.setAttribute('aria-label', b.title);
     b.onclick = (e) => { e.stopPropagation(); ampliar(sec, !sec.classList.contains('iv-max')); };
     sec.prepend(b);
@@ -178,6 +183,8 @@
     if (maxIdx < 0) document.body.classList.remove('iv-maxon');
     scrollTo({ top: y });
     pintarHero();
+    // Triaje de cada área, en el orden de D.AREAS: lo leen las balizas del puesto de mando (portal.js)
+    ST.triajeAreas = D.AREAS.map((a) => nivel(a.id) || '');
     guardar();
   }
   V.render = () => render();
@@ -194,7 +201,7 @@
         const u = ST.recorrido && ST.recorrido.ultimo, tu = u && TABS.find((t) => t[0] === u.tab);
         if (tu && Object.keys(ST.sesion.hechas || {}).length + ST.transcripciones.length > 0) return { t: `Continuar donde lo dejó · ${tu[2]}: ${tu[1].toLowerCase()}${u.fecha ? ' (' + fCorta(u.fecha) + ')' : ''}`, cls: 'solid', fn: () => ir(tu[0], { ver: true }) };
         const sig = TABS.find((t) => !hecho(t[0])) || TABS[TABS.length - 1], i = TABS.indexOf(sig); return { t: i === 0 && !Object.keys(ST.sesion.hechas || {}).length ? 'Empezar: guion de la sesión previa' : `Seguir · paso ${i + 1}: ${sig[1].toLowerCase()}`, cls: 'solid', fn: () => ir(sig[0], { ver: true }) }; })(), { t: 'Hoja de preguntas para la sesión', cls: 'ghost', fn: () => V.informes.guia() }],
-      veredicto: { kicker: 'Triaje de la empresa', st: g || 'warn', titulo: !g ? 'Sin constantes todavía' : g === 'stop' ? `${pl(urg.length, 'área', 'áreas')} en urgencias` : g === 'warn' ? 'Atención preferente este trimestre' : 'Estable: intervención programable', texto: top ? `Causa con más peso: ${top.c.t}. Cada franja es un área: toca para ver su triaje.` : 'Cada franja es un área de la empresa. Escucha la sesión y anota los síntomas para colorearlas.',
+      veredicto: { kicker: 'Triaje de la empresa', st: g || null, titulo: !g ? 'Sin triaje todavía' : g === 'stop' ? `${pl(urg.length, 'área', 'áreas')} en urgencias` : g === 'warn' ? 'Atención preferente este trimestre' : 'Estable: intervención programable', texto: top ? `Causa prioritaria: ${top.c.t}. Cada franja es un área: toca para ver su triaje.` : 'Cada franja es un área de la empresa. Escucha la sesión y anota los síntomas para colorearlas.',
         luces: D.AREAS.map((a) => ({ n: a.n, v: (TRIAJE[nivel(a.id)] || { n: 'Sin datos' }).n, st: nivel(a.id) || null, fn: () => ir('triaje', { ver: true }) })) },
       kpis: D.CONSTANTES.filter((c) => ['tension', 'temperatura', 'pulso', 'dependencia'].includes(c.id)).map((c) => ({ k: c.n, v: cte(c.id) ? cte(c.id) + '/5' : '—', d: c.q.toLowerCase(), st: cte(c.id) ? D.nivelConst(cte(c.id)) : null, fn: () => ir('constantes', { ver: true }) })) };
     hero.innerHTML = A.heroMundo.html(hc); A.heroMundo.wire(hero, hc);
@@ -331,29 +338,37 @@
     tick();
   };
 
-  /* Monitor de constantes: una línea de pulso por constante, con su color */
-  const monitor = () => {
-    const W = 560, H = 22;
-    const HH = D.CONSTANTES.length * (H + 12);
-    return `<svg class="iv-monitor" viewBox="-10 -8 ${W + 20} ${HH + 12}" role="img" aria-label="Monitor de constantes vitales" style="background:#04110a;border-radius:12px"><rect x="-10" y="-8" width="${W + 20}" height="${HH + 12}" rx="12" fill="#04110a"/>${D.CONSTANTES.map((c, i) => {
-      const v = cte(c.id), y = i * (H + 12) + H / 2 + 4, col = v ? { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[D.nivelConst(v)] : '#4a5363';
-      const amp = v ? 3 + v * 1.6 : 1, paso = v ? 52 - v * 6 : 60; let d = `M110,${y}`; for (let x = 110; x < W - 50; x += paso) d += ` L${x + paso * 0.35},${y} L${x + paso * 0.45},${y - amp * 2} L${x + paso * 0.55},${y + amp} L${x + paso * 0.62},${y}`;
-      return `<text x="0" y="${y + 4}" class="iv-mt" fill="#9fb4a6" style="font:600 11px sans-serif">${esc(c.n)}</text><path d="${d} L${W - 50},${y}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round"/><text x="${W - 4}" y="${y + 5}" text-anchor="end" class="iv-mv" fill="${col}" style="font:600 12px monospace">${v ? v + '/5' : '—'}</text>`; }).join('')}</svg>`;
+  /* Monitor de constantes: una línea de pulso por constante, con su color.
+     tema 'claro' para los informes en papel (fondo claro, texto oscuro) */
+  const monitor = (tema) => {
+    const W = 560, H = 22, claro = tema === 'claro', HH = D.CONSTANTES.length * (H + 12);
+    const fondo = claro ? '#f6f5f0' : '#04110a', txt = claro ? '#3d434d' : '#9fb4a6', vacio = claro ? '#a7abb3' : '#4a5363';
+    const lect = D.CONSTANTES.map((c) => `${c.n} ${cte(c.id) ? cte(c.id) + ' de 5' : 'sin tomar'}`).join(', ');
+    return `<svg class="iv-monitor ${claro ? 'claro' : ''}" viewBox="-10 -8 ${W + 20} ${HH + 12}" role="img" aria-label="Monitor de constantes vitales (1 = bien, 5 = grave): ${esc(lect)}"><title>Constantes: ${esc(lect)}</title><rect x="-10" y="-8" width="${W + 20}" height="${HH + 12}" rx="12" fill="${fondo}"/>${D.CONSTANTES.map((c, i) => {
+      const v = cte(c.id), y = i * (H + 12) + H / 2 + 4, col = v ? { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[D.nivelConst(v)] : vacio;
+      // Sin lectura: línea plana discontinua. Con lectura: latidos que nunca pasan del final de la línea
+      let d = `M110,${y}`; const amp = 3 + v * 1.6, paso = 52 - v * 6;
+      if (v) for (let x = 110; x + paso * 0.62 <= W - 50; x += paso) d += ` L${x + paso * 0.35},${y} L${x + paso * 0.45},${y - amp * 2} L${x + paso * 0.55},${y + amp} L${x + paso * 0.62},${y}`;
+      return `<text x="0" y="${y + 4}" class="iv-mt" fill="${txt}" style="font:600 11px sans-serif">${esc(c.n)}</text><path d="${d} L${W - 50},${y}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" ${v ? '' : 'stroke-dasharray="4 5"'}/><text x="${W - 4}" y="${y + 5}" text-anchor="end" class="iv-mv" fill="${col}" style="font:600 12px monospace">${v ? v + '/5' : '—'}</text>`; }).join('')}</svg>`;
   };
-  /* Radar de áreas: gravedad de los síntomas por área */
+  /* Radar de áreas: gravedad de los síntomas, los hallazgos y las desviaciones de cada área,
+     relativa al área que más pesa (la más grave llega al borde) */
+  const gravedadArea = (aid) => sintomasDe(aid).reduce((x, s) => x + (+s.gravedad || 3), 0) + ST.hallazgos.filter((h) => h.area === aid).reduce((x, h) => x + (+h.gravedad || 3), 0) + desvDe(aid) * 3;
   const radar = () => {
-    const R = 120, cx = 160, cy = 150, n = D.AREAS.length, val = D.AREAS.map((a) => Math.min(1, (sintomasDe(a.id).reduce((x, s) => x + (+s.gravedad || 3), 0) + desvDe(a.id) * 3) / 15));
+    const R = 110, cx = 160, cy = 150, n = D.AREAS.length, g = D.AREAS.map((a) => gravedadArea(a.id)), mx = Math.max(...g), val = g.map((x) => (mx ? x / mx : 0));
     const pt = (i, r) => [cx + Math.sin((i / n) * 2 * Math.PI) * r, cy - Math.cos((i / n) * 2 * Math.PI) * r];
-    return `<svg class="iv-radar" viewBox="0 0 320 300" role="img" aria-label="Mapa de síntomas por área">${[0.33, 0.66, 1].map((k) => `<polygon points="${D.AREAS.map((a, i) => pt(i, R * k).join(',')).join(' ')}" fill="none" stroke="rgba(255,255,255,.12)"/>`).join('')}
-      <polygon points="${val.map((v, i) => pt(i, R * Math.max(0.04, v)).join(',')).join(' ')}" fill="rgba(224,72,72,.22)" stroke="#e04848" stroke-width="1.6"/>
-      ${D.AREAS.map((a, i) => { const [x, y] = pt(i, R + 16), st = nivel(a.id); return `<circle cx="${pt(i, R)[0]}" cy="${pt(i, R)[1]}" r="5" fill="${st ? { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[st] : '#4a5363'}"/><text x="${x}" y="${y}" text-anchor="middle" class="iv-rt">${esc(a.n.split(' ')[0])}</text>`; }).join('')}</svg>`;
+    const COLR = { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' };
+    const lect = D.AREAS.map((a, i) => `${a.n} ${String(Math.round(g[i] * 10) / 10).replace('.', ',')}${nivel(a.id) ? ' (' + TRIAJE[nivel(a.id)].n.toLowerCase() + ')' : ''}`).join(', ');
+    return `<svg class="iv-radar" viewBox="-40 0 400 300" role="img" aria-label="Gravedad por área (síntomas, hallazgos y desviaciones): ${esc(mx ? lect : 'sin datos todavía')}"><title>${esc(mx ? lect : 'Sin síntomas, hallazgos ni desviaciones todavía')}</title>${[0.33, 0.66, 1].map((k) => `<polygon points="${D.AREAS.map((a, i) => pt(i, R * k).join(',')).join(' ')}" fill="none" stroke="rgba(128,128,128,.25)"/>`).join('')}
+      ${mx ? `<polygon points="${val.map((v, i) => pt(i, R * Math.max(0.04, v)).join(',')).join(' ')}" fill="rgba(224,72,72,.22)" stroke="#e04848" stroke-width="1.6"/>` : ''}
+      ${D.AREAS.map((a, i) => { const [x, y] = pt(i, R + 22), st = nivel(a.id), dx = x - cx; return `<circle cx="${pt(i, R)[0]}" cy="${pt(i, R)[1]}" r="5" fill="${st ? COLR[st] : '#4a5363'}"><title>${esc(a.n)}: ${st ? TRIAJE[st].n : 'sin datos'}</title></circle><text x="${x}" y="${y}" text-anchor="${Math.abs(dx) < 8 ? 'middle' : dx > 0 ? 'start' : 'end'}" dominant-baseline="middle" class="iv-rt">${esc(a.n.split(' ')[0])}</text>`; }).join('')}</svg>`;
   };
   V.radar = radar; V.monitor = monitor;
   VISTAS.constantes = (host) => {
     const est = (ST.transcripciones[ST.transcripciones.length - 1] || {}).analisis;
     host.innerHTML = `<div class="grid iv-two"><section class="glass pad stack"><div class="eyebrow">Constantes vitales</div><p class="small" style="margin:0">Tómalas al final de la sesión con lo que has visto y oído. ${est ? 'La marca blanca es la estimación que sale de su lenguaje en la transcripción: si no coincide con la tuya, pregunta por qué.' : 'Si subes la transcripción, verás también la estimación que sale de su lenguaje.'}</p>
         ${D.CONSTANTES.map((c) => `<div class="iv-cte" data-c="${c.id}"><div class="row"><b>${esc(c.n)}</b><small class="muted">${esc(c.q)}</small></div><div class="iv-esc">${c.e.map((t, i) => `<button class="iv-e ${cte(c.id) === i + 1 ? 'on ' + D.nivelConst(i + 1) : ''} ${est && est.estimadas && est.estimadas[c.id] === i + 1 ? 'est' : ''}" data-v="${i + 1}" title="${esc(t)}"><span>${i + 1}</span><small>${esc(t)}</small></button>`).join('')}</div></div>`).join('')}</section>
-      <section class="glass pad stack"><div class="eyebrow">Monitor</div>${monitor()}<div class="eyebrow">Síntomas por área</div>${radar()}<p class="small muted" style="margin:0">El mapa crece con la gravedad de los síntomas apuntados en cada área; el punto de cada vértice es su triaje.</p></section></div>`;
+      <section class="glass pad stack"><div class="eyebrow">Monitor</div>${monitor()}<div class="eyebrow">Gravedad por área (síntomas, hallazgos y desviaciones)</div>${radar()}<p class="small muted" style="margin:0">El mapa crece con la gravedad de los síntomas, los hallazgos y las desviaciones de cada área, comparada con el área que más pesa (que llega al borde). El punto de cada vértice es su triaje.</p></section></div>`;
     $$('.iv-cte', host).forEach((d) => $$('[data-v]', d).forEach((b) => (b.onclick = () => { ST.constantes[d.dataset.c] = +b.dataset.v; render(); })));
   };
 
@@ -445,7 +460,7 @@
   };
 
   /* La lógica de síntomas, triaje, auditoría, plan, sesiones e informes está en vistas.js */
-  V.int = { ETAPAS, TABS, hecho, etapaDe, recVacio, objetivosHTML: () => objetivosHTML(), wireObjetivos: (h) => wireObjetivos(h), prioArea, PRIN_N, TERCEROS, VAGO, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
+  V.int = { ETAPAS, TABS, hecho, etapaDe, recVacio, objetivosHTML: () => objetivosHTML(), wireObjetivos: (h) => wireObjetivos(h), prioArea, PRIN_N, TERCEROS, VAGO, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, veinteDe, porPeso, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, botonesAmpliar: () => botonesAmpliar(), st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
 
   /* ---------- Arranque ---------- */
   V.start = async () => {
@@ -466,6 +481,8 @@
     const h = location.hash.replace('#', ''); if (VISTAS[h]) tab = h;
     else if (ST.recorrido && ST.recorrido.ultimo && VISTAS[ST.recorrido.ultimo.tab]) tab = ST.recorrido.ultimo.tab; // vuelve donde se quedó
     render();
+    // Al cambiar los datos de la empresa activa (nombre, ficha) se repinta con ellos
+    addEventListener('atalaya:empresa', () => { if (ST) render(); });
     V.listo = true;
   };
 })();

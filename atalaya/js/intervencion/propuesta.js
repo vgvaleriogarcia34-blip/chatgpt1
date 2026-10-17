@@ -20,7 +20,7 @@
   // Separador de miles también en cuatro cifras (7.500 €), como en los documentos de referencia
   const eur = (n, dec) => { const v = Math.abs(+n || 0).toFixed(dec ? 2 : 0).split('.'); return ((+n || 0) < 0 ? '−' : '') + v[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (v[1] ? ',' + v[1] : '') + ' €'; };
   const corto = (n) => (n >= 1e6 ? (n / 1e6).toLocaleString('es-ES', { maximumFractionDigits: 2 }) + ' M€' : n >= 1e4 ? Math.round(n / 1000).toLocaleString('es-ES') + '.000 €' : eur(n));
-  const xx = (n) => (n >= 10 ? Math.round(n) : Math.round(n * 10) / 10).toLocaleString('es-ES') + '×';
+  const xx = (n) => (n == null || !isFinite(n) ? '—' : n >= 10 ? Math.round(n) : Math.round(n * 10) / 10).toLocaleString('es-ES') + '×';
   const redondea = (n, a) => Math.round(n / (a || 500)) * (a || 500);
   const mesAnio = (s) => new Date((s || hoy()) + 'T12:00:00').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -173,39 +173,58 @@
     const out = Array(61).fill(0), N = neto(pr) || precio(pr);
     if (!N) return out;
     if (pr.tipo === 'programa') { const cu = cuotas(pr); cu.lista.forEach((x, i) => { out[Math.min(60, i)] += x.v; }); if (pr.inv.variable.on) out[Math.min(60, cu.lista.length)] += cu.variable; }
-    else { const h = pr.inv.hitos.length ? pr.inv.hitos : [{ pct: 100 }], dur = mesesDur(pr); h.forEach((x, i) => { out[Math.min(60, i === 0 ? 0 : Math.round((dur * i) / (h.length - 1 || 1)))] += (N * num(x.pct)) / 100; }); }
+    else {
+      // Si los hitos no suman el 100 %, el cálculo cobra igualmente el precio entero: lo que falta va al último hito
+      // (y si pasan del 100 %, se reparten en proporción). Así la inversión es siempre el precio neto
+      const h = pr.inv.hitos.length ? pr.inv.hitos : [{ pct: 100 }], dur = mesesDur(pr), sp = h.reduce((a, x) => a + num(x.pct), 0);
+      h.forEach((x, i) => { const m = Math.min(60, i === 0 ? 0 : Math.round((dur * i) / (h.length - 1 || 1))); out[m] += sp > 100 ? (N * num(x.pct)) / sp : (N * num(x.pct)) / 100 + (i === h.length - 1 ? (N * (100 - sp)) / 100 : 0); });
+    }
     return out;
   };
   const tir = (flujos) => { const van = (r) => flujos.reduce((a, f, i) => a + f / Math.pow(1 + r, i), 0); let lo = -0.99, hi = 1; if (van(lo) * van(hi) > 0) return null; for (let k = 0; k < 120; k++) { const m = (lo + hi) / 2; if (van(lo) * van(m) <= 0) hi = m; else lo = m; } return (lo + hi) / 2; };
+  // Escenario conservador: % del base; vacío o no numérico, el 60 % de partida
+  const prudDe = (d) => (String(d.prudencia == null ? '' : d.prudencia).trim() === '' || !isFinite(parseFloat(String(d.prudencia).replace(',', '.'))) ? 60 : Math.max(0, num(d.prudencia)));
   const valorInversion = (pr) => {
-    const d = dimDe(pr), inv = pagos(pr), I = inv.reduce((a, x) => a + x, 0);
+    const d = dimDe(pr), inv = pagos(pr), I = neto(pr) || precio(pr), prud = prudDe(d), tasa = num(d.tasa);
     const lista = PALANCAS.map((x) => { const p = d.palancas[x.id] || {}; return { x, p, v: p.on ? Math.max(0, x.calc(p, d)) : 0 }; });
     const B = lista.reduce((a, l) => a + l.v, 0);
     const esc = (f) => {
       const anual = d.rampa.map((r) => (B * num(r) / 100) * f), flujos = Array(61).fill(0);
       for (let m = 1; m <= 60; m++) flujos[m] = anual[Math.floor((m - 1) / 12)] / 12;
       const neto = flujos.map((b, m) => b - inv[m]); let acc = 0, pay = null; neto.forEach((x, m) => { acc += x; if (pay == null && m > 0 && acc >= 0) pay = m; });
-      const suma = anual.reduce((a, x) => a + x, 0), r = tir(neto), rm = Math.pow(1 + num(d.tasa) / 100, 1 / 12) - 1;
-      return { anual, suma, pay, roi: I ? (suma - I) / I : null, mult: I ? suma / I : null, tir: r == null ? null : Math.pow(1 + r, 12) - 1, van: neto.reduce((a, x, i) => a + x / Math.pow(1 + rm, i), 0), acumulado: anual.map((_, y) => anual.slice(0, y + 1).reduce((a, x) => a + x, 0) - inv.slice(0, (y + 1) * 12 + 1).reduce((a, x) => a + x, 0)) };
+      const suma = anual.reduce((a, x) => a + x, 0), r = tir(neto), rm = tasa > -100 ? Math.pow(1 + tasa / 100, 1 / 12) - 1 : null;
+      return { anual, suma, pay, roi: I ? (suma - I) / I : null, mult: I ? suma / I : null, tir: r == null ? null : Math.pow(1 + r, 12) - 1, van: rm == null ? null : neto.reduce((a, x, i) => a + x / Math.pow(1 + rm, i), 0), acumulado: anual.map((_, y) => anual.slice(0, y + 1).reduce((a, x) => a + x, 0) - inv.slice(0, (y + 1) * 12 + 1).reduce((a, x) => a + x, 0)) };
     };
-    const base = esc(1), cons = esc(num(d.prudencia) / 100);
+    const base = esc(1), cons = esc(prud / 100);
     // Semáforo: cuántas veces devuelve la inversión en cinco años (escenario base); el conservador se enseña al lado
     const st = !I || !B ? null : base.mult >= 5 ? 'ok' : base.mult >= 3 ? 'warn' : 'stop';
-    return { d, lista, B, I, base, cons, st, pctVentas: num(d.ventas) ? (I / num(d.ventas)) * 100 : null, pctEbitda: num(d.ebitda) > 0 ? (I / num(d.ebitda)) * 100 : null, valorCreado: B * num(d.multiplo) };
+    const sh = pr.tipo === 'programa' ? 100 : (pr.inv.hitos || []).reduce((a, x) => a + num(x.pct), 0);
+    return { d, lista, B, I, inv0: inv[0], prud, hitosPct: pr.inv.hitos && pr.inv.hitos.length ? sh : 100, base, cons, st, pctVentas: num(d.ventas) ? (I / num(d.ventas)) * 100 : null, pctEbitda: num(d.ebitda) > 0 ? (I / num(d.ebitda)) * 100 : null, valorCreado: B * num(d.multiplo) };
   };
   const meses = (m) => (m == null ? 'más de 5 años' : m <= 1 ? 'el primer mes' : m < 24 ? m + ' meses' : (m / 12).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' años');
-  const pct0 = (x) => (x == null ? '—' : Math.round(x * 100).toLocaleString('es-ES') + ' %');
+  const pct0 = (x) => (x == null || !isFinite(x) ? '—' : Math.round(x * 100).toLocaleString('es-ES').replace('-', '−') + ' %');
+  const vanTxt = (v) => (v == null || !isFinite(v) ? '—' : eur(v));
   const tirTxt = (x) => (x == null ? '—' : x > 3 ? 'más del 300 %' : pct0(x));
-  // Gráfica a cinco años: barras del beneficio anual y línea del neto acumulado (inversión descontada)
-  const grafica5 = (vi, tema) => {
-    const W = 640, H = 230, L = 60, Rr = 20, T = 18, Bt = 36, e = vi.base, c2 = vi.cons, max = Math.max(1, ...e.anual, ...e.acumulado.map(Math.abs)), min = Math.min(0, ...e.acumulado, -vi.I);
+  // Gráfica a cinco años: barras del beneficio anual (base y conservador) y líneas del neto acumulado
+  // (inversión descontada) en cada cierre de año, desde «Hoy» (el primer pago). Eje con marcas redondas que incluyen el 0.
+  // estrecho: lienzo más alto y leyenda en varias líneas, para pantallas de móvil
+  const eje = (v) => { const a = Math.abs(v), t = a >= 1e6 ? (a / 1e6).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' M' : a >= 1e3 ? Math.round(a / 1e3).toLocaleString('es-ES') + ' k' : String(Math.round(a)); return (v < 0 ? '−' : '') + t; };
+  const marcas = (lo, hi, n) => { const r = (hi - lo) / n, m = Math.pow(10, Math.floor(Math.log10(r))), p = [1, 2, 2.5, 5, 10].map((k) => k * m).find((k) => k >= r) || 10 * m, out = []; for (let v = Math.floor(lo / p) * p; v <= Math.ceil(hi / p) * p + p / 2; v += p) out.push(Math.round(v * 100) / 100); return out; };
+  const grafica5 = (vi, tema, estrecho) => {
+    const fs = estrecho ? 12 : 10, W = estrecho ? 360 : 640, H = estrecho ? 300 : 250, L = estrecho ? 50 : 52, Rr = 12, T = 22, Bt = estrecho ? 82 : 50, e = vi.base, c2 = vi.cons, hoy0 = -(vi.inv0 || 0);
+    const tk = marcas(Math.min(0, hoy0, ...e.acumulado, ...c2.acumulado), Math.max(1, ...e.anual, ...e.acumulado, ...c2.acumulado), estrecho ? 4 : 5), min = tk[0], max = tk[tk.length - 1];
     const y = (v) => T + (H - T - Bt) * (1 - (v - min) / (max - min)), bw = (W - L - Rr) / 5;
-    const col = tema === 'claro' ? { t: '#5d626c', g: '#d6d3c8', b: '#6e7d14', b2: '#c9cdb0', l: '#0b0d13' } : { t: '#9aa1ab', g: 'rgba(255,255,255,.12)', b: '#c9f24d', b2: 'rgba(201,242,77,.35)', l: '#f3f2ee' };
-    const pts = e.acumulado.map((v, i) => [L + bw * i + bw / 2, y(v)]);
-    return `<svg viewBox="0 0 ${W} ${H}" class="pc-g5" role="img" aria-label="Beneficio anual y neto acumulado a cinco años"><line x1="${L}" x2="${W - Rr}" y1="${y(0)}" y2="${y(0)}" stroke="${col.g}"/>${[max, min].filter((v) => v).map((v) => `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="${col.t}">${corto(v).replace(' €', '')}</text>`).join('')}
-      ${e.anual.map((v, i) => `<rect x="${L + bw * i + bw * 0.2}" y="${y(Math.max(v, 0))}" width="${bw * 0.28}" height="${Math.abs(y(v) - y(0))}" fill="${col.b}"/><rect x="${L + bw * i + bw * 0.5}" y="${y(Math.max(c2.anual[i], 0))}" width="${bw * 0.28}" height="${Math.abs(y(c2.anual[i]) - y(0))}" fill="${col.b2}"/><text x="${L + bw * i + bw / 2}" y="${H - 16}" text-anchor="middle" font-size="11" fill="${col.t}">Año ${i + 1}</text>`).join('')}
-      <polyline points="${pts.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${col.l}" stroke-width="2"/>${pts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${col.l}"/>`).join('')}
-      <g font-size="10" fill="${col.t}"><rect x="${L}" y="${H - 8}" width="10" height="6" fill="${col.b}"/><text x="${L + 14}" y="${H - 2}">Beneficio anual (base)</text><rect x="${L + 150}" y="${H - 8}" width="10" height="6" fill="${col.b2}"/><text x="${L + 164}" y="${H - 2}">Conservador</text><line x1="${L + 260}" x2="${L + 276}" y1="${H - 5}" y2="${H - 5}" stroke="${col.l}" stroke-width="2"/><text x="${L + 280}" y="${H - 2}">Neto acumulado (inversión descontada)</text></g></svg>`;
+    const col = tema === 'claro' ? { t: '#5d626c', g: '#d6d3c8', z: '#9a9686', b: '#6e7d14', b2: '#c9cdb0', l: '#0b0d13' } : { t: '#9aa1ab', g: 'rgba(255,255,255,.10)', z: 'rgba(255,255,255,.35)', b: '#c9f24d', b2: 'rgba(201,242,77,.35)', l: '#f3f2ee' };
+    const ptsB = [[L, y(hoy0)]].concat(e.acumulado.map((v, i) => [L + bw * (i + 1), y(v)])), ptsC = [[L, y(hoy0)]].concat(c2.acumulado.map((v, i) => [L + bw * (i + 1), y(v)]));
+    const lect = e.anual.map((v, i) => `año ${i + 1}: beneficio ${eur(v)}, conservador ${eur(c2.anual[i])}, neto acumulado ${eur(e.acumulado[i])} (conservador ${eur(c2.acumulado[i])})`).join('; ');
+    const yl = H - Bt + 18, ley = [['r', col.b, 'Beneficio anual (base)'], ['r', col.b2, 'Beneficio anual (conservador)'], ['l', col.l, 'Neto acumulado (inversión descontada)'], ['d', col.l, 'Neto acumulado conservador']];
+    const leyenda = ley.map(([k, c, t], i) => { const x = estrecho ? L : L + [0, 150, 340, 0][i], yy = estrecho ? yl + 12 + i * 14 : yl + 12 + (i === 3 ? 13 : 0), xx2 = estrecho || i < 3 ? x : L + 340; return `${k === 'r' ? `<rect x="${xx2}" y="${yy - 7}" width="10" height="7" fill="${c}"/>` : `<line x1="${xx2}" x2="${xx2 + 14}" y1="${yy - 4}" y2="${yy - 4}" stroke="${c}" stroke-width="2" ${k === 'd' ? 'stroke-dasharray="4 3"' : ''}/>`}<text x="${xx2 + 18}" y="${yy}">${t}</text>`; }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" class="pc-g5" role="img" aria-label="Beneficio anual y neto acumulado a cinco años. Hoy: ${eur(hoy0)}; ${esc(lect)}"><title>Beneficio y neto acumulado a cinco años</title>
+      <text x="${L - 6}" y="${T - 10}" text-anchor="end" font-size="${fs}" fill="${col.t}">€</text>${tk.map((v) => `<line x1="${L}" x2="${W - Rr}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 0 ? col.z : col.g}"/><text x="${L - 6}" y="${y(v) + 3.5}" text-anchor="end" font-size="${fs}" fill="${col.t}">${eje(v)}</text>`).join('')}
+      ${e.anual.map((v, i) => `<rect x="${L + bw * i + bw * 0.2}" y="${y(Math.max(v, 0))}" width="${bw * 0.28}" height="${Math.abs(y(v) - y(0))}" fill="${col.b}"><title>Año ${i + 1} · beneficio ${eur(v)}</title></rect><rect x="${L + bw * i + bw * 0.5}" y="${y(Math.max(c2.anual[i], 0))}" width="${bw * 0.28}" height="${Math.abs(y(c2.anual[i]) - y(0))}" fill="${col.b2}"><title>Año ${i + 1} · conservador ${eur(c2.anual[i])}</title></rect><text x="${L + bw * i + bw / 2}" y="${H - Bt + 14}" text-anchor="middle" font-size="${fs + 1}" fill="${col.t}">Año ${i + 1}</text>`).join('')}
+      <polyline points="${ptsC.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${col.l}" stroke-width="1.5" stroke-dasharray="4 3" opacity=".7"/><polyline points="${ptsB.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${col.l}" stroke-width="2"/>
+      ${ptsB.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${col.l}"><title>${i ? 'Fin del año ' + i + ' · neto acumulado ' + eur(e.acumulado[i - 1]) : 'Hoy · primer pago ' + eur(hoy0)}</title></circle>`).join('')}<text x="${L + 4}" y="${y(hoy0) + (hoy0 < 0 ? 14 : -6)}" font-size="${fs}" fill="${col.t}">Hoy</text>
+      <g font-size="${fs}" fill="${col.t}">${leyenda}</g></svg>`;
   };
   const dimHTML = (pr) => {
     const vi = valorInversion(pr), d = vi.d, e = vi.base, c = vi.cons;
@@ -217,8 +236,8 @@
       <div class="eyebrow">Palancas de valor (al año, en régimen)</div>
       <div class="pc-pals">${vi.lista.map(({ x, p, v }) => `<div class="pc-pal ${p.on ? 'on' : ''}"><label class="iv-inl"><input type="checkbox" data-pon="${x.id}" ${p.on ? 'checked' : ''}> <b>${esc(x.n)}</b></label><small class="muted">${esc(x.q)} ${esc(x.d)}</small>${p.on ? `<div class="iv-g3">${x.campos.map(([k, l]) => `<label class="small">${l}<input class="input" data-pv="${x.id}.${k}" value="${esc(p[k] != null ? p[k] : '')}" placeholder="${esc(k === 'valorHora' ? d.valorHora : k === 'contrib' ? d.margen : '')}"></label>`).join('')}</div><b class="pc-pal-v">${eur(v)} al año</b>` : ''}</div>`).join('')}</div>
       <div class="iv-g3"><label class="small">Rampa de implantación (% del efecto, años 1 a 5)<input class="input" data-dm="rampa" value="${esc(d.rampa.join(' / '))}"></label><label class="small">Escenario conservador (% del base)<input class="input" type="number" data-dm="prudencia" value="${esc(d.prudencia)}"></label><label class="small">Tasa para el VAN (%)<input class="input" type="number" data-dm="tasa" value="${esc(d.tasa)}"></label></div>
-      ${vi.B && vi.I ? `<div class="pc-roi-ed"><div><small>Valor que aporta al año</small><b>${eur(vi.B)}</b><span>en régimen · ${vi.pctVentas != null ? (vi.B / num(d.ventas) * 100).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' % de la facturación' : ''}</span></div><div><small>Inversión</small><b>${eur(vi.I)}</b><span>${vi.pctVentas != null ? vi.pctVentas.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' % de la facturación' : ''}${vi.pctEbitda != null ? ' · ' + Math.round(vi.pctEbitda) + ' % del EBITDA' : ''}</span></div><div class="${vi.st}"><small>Recupera la inversión</small><b>${meses(e.pay)}</b><span>conservador: ${meses(c.pay)}</span></div><div class="${vi.st}"><small>Rentabilidad a 5 años</small><b>${pct0(e.roi)}</b><span>conservador: ${pct0(c.roi)} · cada euro devuelve ${(c.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })}–${(e.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })} €</span></div><div><small>TIR · VAN (${d.tasa} %)</small><b>${tirTxt(e.tir)}</b><span>VAN ${eur(e.van)} · conservador ${eur(c.van)}</span></div><div><small>Valor de empresa creado</small><b>${corto(vi.valorCreado)}</b><span>${d.multiplo} × la mejora anual del beneficio</span></div></div>
-        ${grafica5(vi)}
+      ${vi.B && vi.I ? `<div class="pc-roi-ed"><div><small>Valor que aporta al año</small><b>${eur(vi.B)}</b><span>en régimen · ${vi.pctVentas != null ? (vi.B / num(d.ventas) * 100).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' % de la facturación' : ''}</span></div><div><small>Inversión</small><b>${eur(vi.I)}</b><span>${vi.hitosPct !== 100 ? `<b class="iv-baja">Los hitos suman ${vi.hitosPct} %: para el cálculo, ${vi.hitosPct < 100 ? 'el resto se cobra en el último hito' : 'se reparten en proporción al precio'}.</b> ` : ''}${vi.pctVentas != null ? vi.pctVentas.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' % de la facturación' : ''}${vi.pctEbitda != null ? ' · ' + Math.round(vi.pctEbitda) + ' % del EBITDA' : ''}</span></div><div class="${vi.st}"><small>Recupera la inversión</small><b>${meses(e.pay)}</b><span>conservador: ${meses(c.pay)}</span></div><div class="${vi.st}"><small>Rentabilidad a 5 años</small><b>${pct0(e.roi)}</b><span>conservador: ${pct0(c.roi)} · cada euro devuelve ${(c.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })}–${(e.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })} €</span></div><div><small>TIR · VAN (${d.tasa} %)</small><b>${tirTxt(e.tir)}</b><span>VAN ${vanTxt(e.van)} · conservador ${vanTxt(c.van)}</span></div><div><small>Valor de empresa creado</small><b>${corto(vi.valorCreado)}</b><span>${d.multiplo} × la mejora anual del beneficio</span></div></div>
+        ${grafica5(vi, '', estrechoG5)}
         <div class="table-wrap"><table class="ms-tab"><thead><tr><th style="text-align:left">Año</th><th>Beneficio (base)</th><th>Conservador</th><th>Neto acumulado</th></tr></thead><tbody>${e.anual.map((v, i) => `<tr><td style="text-align:left">Año ${i + 1} · rampa ${d.rampa[i]} %</td><td>${eur(v)}</td><td>${eur(c.anual[i])}</td><td>${eur(e.acumulado[i])}</td></tr>`).join('')}<tr><td style="text-align:left"><b>Total 5 años</b></td><td><b>${eur(e.suma)}</b></td><td><b>${eur(c.suma)}</b></td><td><b>${eur(e.acumulado[4])}</b></td></tr></tbody></table></div>
         ${vi.st === 'warn' ? '<div class="alert small">Devuelve entre tres y cinco veces la inversión en cinco años: es rentable, pero conviene reforzar el valor (objetivos más ambiciosos, más palancas) o ajustar el alcance para llegar a cinco veces o más.</div>' : ''}${vi.st === 'stop' ? '<div class="alert warn small">Con estos objetivos y este tamaño, el proyecto no devuelve al menos tres veces la inversión en cinco años. Si los objetivos son pequeños, la propuesta no es rentable para el cliente: plantee objetivos mayores o ajuste el alcance.</div>' : ''}
         <div class="row"><button class="btn ghost small" id="pcDimV">Usar estos valores en «Valor y precio»</button><label class="iv-inl small"><input type="checkbox" data-dm="enDossier" ${d.enDossier !== false ? 'checked' : ''}> Incluir la hoja «La inversión, en números» en el dossier</label></div>`
@@ -231,7 +250,7 @@
     $$('[data-pv]', sec).forEach((i) => (i.onchange = () => { const [id, k] = i.dataset.pv.split('.'); d.palancas[id][k] = i.value; guardar(); render(); }));
     $('#pcSim', sec).onclick = async () => { const ok = await traerSimulador(d); guardar(); render(); toast(ok ? 'Datos traídos del simulador: revísalos.' : 'El simulador no tiene datos reales de esta empresa todavía.'); };
     $('#pcPal', sec).onclick = () => { const u = proponerPalancas(d); guardar(); render(); toast(u.length ? 'Palancas propuestas por: ' + u.join('; ') + '. Ajusta las cifras con el empresario.' : 'No hay objetivos ni causas suficientes: activa las palancas a mano.'); };
-    const uv = $('#pcDimV', sec); if (uv) uv.onclick = () => { const vi = valorInversion(pr); Object.assign(pr.coste, { modo: 'beneficio', vMin: String(Math.round(vi.cons.suma)), vMax: String(Math.round(vi.base.suma)), pMin: '100', pMax: '100', supuestos: `Valor a cinco años según el tamaño de la empresa y sus objetivos: ${vi.lista.filter((l) => l.v).map((l) => l.x.n.toLowerCase() + ' ' + eur(l.v) + '/año').join('; ')}; rampa ${d.rampa.join('/')} %; escenario conservador al ${d.prudencia} %.` }); guardar(); render(); toast('Valor a cinco años llevado a «Valor y precio».'); };
+    const uv = $('#pcDimV', sec); if (uv) uv.onclick = () => { const vi = valorInversion(pr); Object.assign(pr.coste, { modo: 'beneficio', vMin: String(Math.round(vi.cons.suma)), vMax: String(Math.round(vi.base.suma)), pMin: '100', pMax: '100', supuestos: `Valor a cinco años según el tamaño de la empresa y sus objetivos: ${vi.lista.filter((l) => l.v).map((l) => l.x.n.toLowerCase() + ' ' + eur(l.v) + '/año').join('; ')}; rampa ${d.rampa.join('/')} %; escenario conservador al ${vi.prud} %.` }); guardar(); render(); toast('Valor a cinco años llevado a «Valor y precio».'); };
   };
   // Hoja del dossier: la inversión, en números
   const hojaNumeros = (pr, pieT) => {
@@ -241,7 +260,7 @@
       <div class="pc-roi four"><div><small>Recupera la inversión</small><b>${meses(e.pay)}</b><p>Conservador: ${meses(c.pay)}.</p></div><div><small>Rentabilidad a 5 años</small><b>${pct0(e.roi)}</b><p>Conservador: ${pct0(c.roi)}.</p></div><div><small>Cada euro invertido</small><b>${(e.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })} €</b><p>Conservador: ${(c.mult || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })} €.</p></div><div class="on"><small>Valor de empresa creado</small><b>${corto(vi.valorCreado)}</b><p>${d.multiplo} veces la mejora anual del beneficio.</p></div></div>
       <div class="pdf-keep" style="margin-top:16px">${grafica5(vi, 'claro')}</div>
       <table class="pc-riesgos" style="margin-top:8px"><thead><tr><th>De dónde sale el valor</th><th>Cálculo</th><th>Al año</th></tr></thead><tbody>${vi.lista.filter((l) => l.v).map((l) => `<tr><th>${esc(l.x.n)}</th><td>${esc(l.x.campos.map(([k, lb]) => lb + ': ' + (l.p[k] || (k === 'valorHora' ? d.valorHora : k === 'contrib' ? d.margen : '—'))).join(' · '))}</td><td>${eur(l.v)}</td></tr>`).join('')}</tbody></table>
-      <p class="pc-nota">Rampa de implantación ${d.rampa.join(' / ')} % en los años 1 a 5; escenario conservador al ${d.prudencia} % del base; TIR ${tirTxt(e.tir)} y VAN al ${d.tasa} % de ${eur(e.van)}. Cifras orientativas con los datos facilitados por la empresa; se revisan en el diagnóstico. No son una garantía de resultado.</p>`, { t: pieT, n });
+      <p class="pc-nota">Rampa de implantación ${d.rampa.join(' / ')} % en los años 1 a 5; escenario conservador al ${vi.prud} % del base; TIR ${tirTxt(e.tir)} y VAN al ${d.tasa} % de ${vanTxt(e.van)}. Cifras orientativas con los datos facilitados por la empresa; se revisan en el diagnóstico. No son una garantía de resultado.</p>`, { t: pieT, n });
   };
 
   /* ================= EL DOSSIER (hojas A4) ================= */
@@ -433,7 +452,9 @@
   const lista = (p, arr, cols, add) => `<div class="pc-ed-l" data-l="${p}">${arr.map((x, i) => `<div class="pc-ed-r" style="grid-template-columns:${cols.map((c) => c.w || '1fr').join(' ')} auto">${cols.map((c) => c.area ? `<textarea class="input" rows="2" data-p="${p}.${i}.${c.k}" placeholder="${esc(c.ph)}">${esc(x[c.k])}</textarea>` : `<input class="input" data-p="${p}.${i}.${c.k}" value="${esc(x[c.k])}" placeholder="${esc(c.ph)}">`).join('')}<button class="icon-btn" data-ldel="${p}" data-i="${i}" aria-label="Quitar">×</button></div>`).join('')}<button class="btn ghost small" data-ladd="${p}">${add}</button></div>`;
   const NUEVO = { 'sit.items': { t: '', d: '', c: '' }, 'riesgo.linea': { cuando: '', que: '' }, 'riesgo.stats': { v: '', t: '', fuente: '' }, 'obtienen.items': { t: '', elimina: '', d: '' }, 'pasos.items': { t: '', d: '', cuando: '', quien: '', ent: '', imp: '' }, 'equipo.items': { n: '', rol: '', d: '', pasos: '' }, 'valor.filas': { k: '', sep: '', con: '' }, 'coste.riesgos': { r: '', q: '', imp: '' }, 'inv.hitos': { t: '', pct: '' }, 'inv.descuentos': { t: '', imp: '' }, 'inv.objetivos': { t: '', peso: '', accion: '', tramos: null } };
   let abierto = 'base';
+  let estrechoG5 = false;
   VISTAS.propuesta = (host) => {
+    estrechoG5 = host.clientWidth > 0 && host.clientWidth < 600;
     const ST = S();
     if (!ST.propuesta || !ST.propuesta.generada) {
       host.innerHTML = `<section class="glass pad stack"><div class="eyebrow">Propuesta comercial</div><h3 class="iv-bt">De la primera sesión a la propuesta</h3><p style="margin:0">Con lo escuchado, los objetivos del empresario, las causas que más pesan y el plan, se prepara la propuesta comercial: un dossier con su situación, lo que obtiene, el protocolo de trabajo, el coste de no hacerlo, la inversión y el siguiente paso.</p>

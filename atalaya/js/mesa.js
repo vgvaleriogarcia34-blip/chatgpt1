@@ -141,14 +141,30 @@
     };
     wireTareas(host);
   };
-  /* Horario del día: horas reservadas y bloques de la semana ideal */
-  const horario = (s) => {
-    const ini = 7 * 60, fin = 21 * 60, px = 0.9;
-    const res = ST.tareas.filter((t) => t.fecha === s && t.hora).map((t) => ({ a: aMin(t.hora), d: +t.dur || 30, t: t.t, cls: t.clave ? 'clave' : t.estado === 'hecha' ? 'hecha' : '' }));
+  /* Franja horaria visible: de 07 a 21 h, ampliada por horas enteras si hay bloques antes o después */
+  const franjaH = (bl) => { let ini = 7 * 60, fin = 21 * 60; bl.forEach((x) => { if (!isFinite(x.a)) return; ini = Math.min(ini, Math.floor(x.a / 60) * 60); fin = Math.max(fin, Math.min(24 * 60, Math.ceil((x.a + x.d) / 60) * 60)); }); return { ini: Math.max(0, ini), fin }; };
+  /* Carriles: los bloques que se solapan se reparten el ancho (la semana ideal queda de fondo, a todo el ancho) */
+  const carriles = (bl) => {
+    let grupo = [], finG = -1;
+    const cerrar = () => { const n = Math.max(1, ...grupo.map((x) => x.lane + 1)); grupo.forEach((x) => (x.n = n)); grupo = []; };
+    bl.filter((x) => !/ideal/.test(x.cls)).sort((a, b) => a.a - b.a).forEach((x) => {
+      if (x.a >= finG) { cerrar(); finG = -1; }
+      const usados = new Set(grupo.filter((y) => y.a + y.d > x.a).map((y) => y.lane)); let k = 0; while (usados.has(k)) k++;
+      x.lane = k; grupo.push(x); finG = Math.max(finG, x.a + x.d);
+    });
+    cerrar(); return bl;
+  };
+  const estBlk = (x, ini, fin, px, minH) => `top:${(x.a - ini) * px}px;height:${Math.max(minH, Math.min(x.d, fin - x.a) * px - 2)}px${x.n > 1 ? `;left:calc(${((x.lane / x.n) * 100).toFixed(2)}% + 2px);right:auto;width:calc(${(100 / x.n).toFixed(2)}% - 4px)` : ''}`;
+  const bloquesDia = (s) => {
+    const res = ST.tareas.filter((t) => t.fecha === s && t.hora).map((t) => ({ id: t.id, a: aMin(t.hora), d: +t.dur || 30, t: t.t, cls: (t.clave ? 'clave ' : '') + (t.estado === 'hecha' ? 'hecha' : '') }));
     const ideal = ST.semana.filter((b) => +b.dia === dow(s)).map((b) => ({ a: aMin(b.desde), d: Math.max(15, aMin(b.hasta) - aMin(b.desde)), t: b.t, cls: 'ideal ' + (b.tipo || '') }));
     const reps = repDe(s).filter((r) => r.hora).map((r) => ({ a: aMin(r.hora), d: +r.dur || 30, t: r.t, cls: 'rep' }));
-    const all = ideal.concat(reps, res).filter((x) => x.a >= ini && x.a < fin);
-    return `<div class="ms-hor" style="height:${(fin - ini) * px}px">${Array.from({ length: (fin - ini) / 60 }, (_, i) => `<span class="ms-h" style="top:${i * 60 * px}px">${String(7 + i).padStart(2, '0')}:00</span>`).join('')}${all.map((x) => `<div class="ms-blk ${x.cls}" style="top:${(x.a - ini) * px}px;height:${Math.max(16, x.d * px - 2)}px" title="${esc(x.t)}">${esc(deMin(x.a))} ${esc(x.t)}</div>`).join('')}</div>`;
+    return carriles(ideal.concat(reps, res).filter((x) => isFinite(x.a)));
+  };
+  /* Horario del día: horas reservadas y bloques de la semana ideal */
+  const horario = (s) => {
+    const px = 0.9, all = bloquesDia(s), { ini, fin } = franjaH(all);
+    return `<div class="ms-hor" style="height:${(fin - ini) * px}px">${Array.from({ length: (fin - ini) / 60 }, (_, i) => `<span class="ms-h" style="top:${i * 60 * px}px">${String(ini / 60 + i).padStart(2, '0')}:00</span>`).join('')}${all.map((x) => `<div class="ms-blk ${x.cls}" style="${estBlk(x, ini, fin, px, 16)}" title="${esc(deMin(x.a) + ' ' + x.t)}">${esc(deMin(x.a))} ${esc(x.t)}</div>`).join('')}</div>`;
   };
 
   /* ---------- BANDEJA ---------- */
@@ -165,7 +181,7 @@
     $$('[data-fm]', host).forEach((b) => (b.onclick = () => { filtro.mundo = b.dataset.fm; render(); }));
     $$('tr[data-id]', host).forEach((tr) => {
       const t = tarea(tr.dataset.id);
-      $$('[data-k]', tr).forEach((i) => (i.onchange = () => { const k = i.dataset.k; t[k] = i.type === 'checkbox' ? i.checked : ['impacto', 'esfuerzo'].includes(k) ? +i.value : i.value; guardar(); }));
+      $$('[data-k]', tr).forEach((i) => (i.onchange = () => { const k = i.dataset.k; t[k] = i.type === 'checkbox' ? i.checked : ['impacto', 'esfuerzo'].includes(k) ? +i.value : i.value; guardar(); if (A.mesa.pintaHero) A.mesa.pintaHero(); }));
       $('[data-ed]', tr).onclick = () => editar(t);
       $('[data-ok]', tr).onclick = () => { t.estado = t.estado === 'hecha' ? 'pendiente' : 'hecha'; t.hecha = t.estado === 'hecha' ? M.hoy() : null; if (t.metaId) syncMeta(t); guardar(); render(); };
     });
@@ -251,16 +267,12 @@
   /* ---------- AGENDA SEMANAL ---------- */
   const vAgenda = (host) => {
     semana0 = semana0 || lunes(M.hoy());
-    const dias = Array.from({ length: 7 }, (_, i) => sumar(semana0, i)), ini = 7 * 60, fin = 21 * 60, px = 0.8;
+    const dias = Array.from({ length: 7 }, (_, i) => sumar(semana0, i)), px = 0.8;
+    const porDia = Object.fromEntries(dias.map((s) => [s, bloquesDia(s)])), { ini, fin } = franjaH([].concat(...Object.values(porDia)));
     const sinHora = pend().filter((t) => t.fecha && t.fecha >= semana0 && t.fecha <= dias[6] && !t.hora);
-    const col = (s) => {
-      const res = ST.tareas.filter((t) => t.fecha === s && t.hora).map((t) => ({ id: t.id, a: aMin(t.hora), d: +t.dur || 30, t: t.t, cls: (t.clave ? 'clave ' : '') + (t.estado === 'hecha' ? 'hecha' : '') }));
-      const ideal = ST.semana.filter((b) => +b.dia === dow(s)).map((b) => ({ a: aMin(b.desde), d: Math.max(15, aMin(b.hasta) - aMin(b.desde)), t: b.t, cls: 'ideal ' + (b.tipo || '') }));
-      const reps = repDe(s).filter((r) => r.hora).map((r) => ({ a: aMin(r.hora), d: +r.dur || 30, t: r.t, cls: 'rep' }));
-      return `<div class="ms-col ${s === M.hoy() ? 'hoy' : ''}" data-s="${s}" style="height:${(fin - ini) * px}px">${ideal.concat(reps, res).filter((x) => x.a >= ini && x.a < fin).map((x) => `<div class="ms-blk ${x.cls}" ${x.id ? `data-id="${x.id}"` : ''} style="top:${(x.a - ini) * px}px;height:${Math.max(14, x.d * px - 2)}px" title="${esc(deMin(x.a) + ' ' + x.t)}">${esc(deMin(x.a))} ${esc(x.t)}</div>`).join('')}</div>`;
-    };
+    const col = (s) => `<div class="ms-col ${s === M.hoy() ? 'hoy' : ''}" data-s="${s}" style="height:${(fin - ini) * px}px">${porDia[s].map((x) => `<div class="ms-blk ${x.cls}" ${x.id ? `data-id="${x.id}"` : ''} style="${estBlk(x, ini, fin, px, 14)}" title="${esc(deMin(x.a) + ' ' + x.t)}">${esc(deMin(x.a))} ${esc(x.t)}</div>`).join('')}</div>`;
     host.innerHTML = `<div class="glass pad row"><button class="btn ghost small" data-w="-7">←</button><div><div class="eyebrow">Semana</div><h2 class="ms-fecha">${fCorta(dias[0])} – ${fCorta(dias[6])}</h2></div><button class="btn ghost small" data-w="7">→</button><button class="btn ghost small" data-w="0">Esta semana</button><span class="spacer"></span><button class="btn" id="msIcs">Exportar al calendario (.ics)</button></div>
-      <div class="glass pad"><div class="ms-sem"><div class="ms-hcol" style="height:${(fin - ini) * px}px">${Array.from({ length: (fin - ini) / 60 }, (_, i) => `<span style="top:${i * 60 * px}px">${String(7 + i).padStart(2, '0')}</span>`).join('')}</div>${dias.map((s) => `<div class="ms-dcol"><div class="ms-dh ${s === M.hoy() ? 'hoy' : ''}">${DIAS[dow(s)].slice(0, 3)} ${D(s).getDate()}</div>${col(s)}</div>`).join('')}</div>
+      <div class="glass pad"><div class="ms-sem"><div class="ms-hcol" style="height:${(fin - ini) * px}px">${Array.from({ length: (fin - ini) / 60 }, (_, i) => `<span style="top:${i * 60 * px}px">${String(ini / 60 + i).padStart(2, '0')}</span>`).join('')}</div>${dias.map((s) => `<div class="ms-dcol"><div class="ms-dh ${s === M.hoy() ? 'hoy' : ''}">${DIAS[dow(s)].slice(0, 3)} ${D(s).getDate()}</div>${col(s)}</div>`).join('')}</div>
         <p class="small muted" style="margin:6px 0 0">Toque un hueco para reservar tiempo a una tarea. En color suave, la semana ideal protegida; con estrella dorada, las actividades clave.</p></div>
       ${sinHora.length ? `<div class="glass pad stack"><div class="eyebrow">Con fecha esta semana, sin hora reservada</div><ul class="ms-list">${sinHora.map((t) => filaTarea(t)).join('')}</ul></div>` : ''}`;
     $$('[data-w]', host).forEach((b) => (b.onclick = () => { const n = +b.dataset.w; semana0 = n ? sumar(semana0, n) : lunes(M.hoy()); render(); }));
@@ -504,7 +516,7 @@
     const e = P() && P().empresas && P().empresas.activa(), l = pend(), top = l.slice().sort((a, b) => score(b) - score(a)).slice(0, Math.max(1, Math.ceil(l.length * 0.2)));
     const w0 = lunes(M.hoy()), sem = ST.tareas.filter((t) => t.hora && t.fecha >= w0 && t.fecha <= sumar(w0, 6)).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
     let h = In.cover({ tipo: 'Mesa de trabajo', kicker: 'Plan de trabajo', titulo: 'Prioridades, metas y agenda', subtitulo: (() => { const na = ST.metas.filter((m) => m.estado !== 'cumplida').length; return `${l.length} tarea${l.length === 1 ? '' : 's'} pendiente${l.length === 1 ? '' : 's'} · ${na} meta${na === 1 ? '' : 's'} activa${na === 1 ? '' : 's'}`; })(), empresa: (e && e.nombre) || 'Mi empresa' });
-    h += In.summary('Resumen', `<p>${top.length} tarea${top.length > 1 ? 's' : ''} concentran el impacto (el 20 %). ${ST.metas.length} meta${ST.metas.length === 1 ? '' : 's'}, ${ST.metas.filter((m) => smart(m).every((y) => y.ok)).length} completamente SMART. ${sem.length} bloques reservados esta semana.</p>`);
+    h += In.summary('Resumen', `<p>${top.length} tarea${top.length > 1 ? 's' : ''} concentran el impacto (el 20 %). ${ST.metas.length} meta${ST.metas.length === 1 ? '' : 's'}, ${ST.metas.filter((m) => smart(m).every((y) => y.ok)).length} completamente SMART. ${sem.length} bloques reservados esta semana${(() => { const mT = sem.reduce((a, t) => a + (+t.dur || 30), 0), mC = sem.filter((t) => t.clave).reduce((a, t) => a + (+t.dur || 30), 0); return mT ? `; el ${Math.round((mC / mT) * 100)} % de ese tiempo va a actividades clave (★)` : ''; })()}.</p>`);
     if (top.length) h += In.section('Su 20 %', In.table(['Tarea', 'Área', 'Impacto', 'Esfuerzo', 'Fecha'], top.map((t) => [t.t, t.area || '—', String(t.impacto), String(t.esfuerzo), t.fecha ? fCorta(t.fecha) + (t.hora ? ' ' + t.hora : '') : '—'])));
     ST.metas.filter((m) => m.estado !== 'cumplida').forEach((m) => {
       const s = smart(m);
@@ -604,15 +616,22 @@
       if (!A.heroMundo || !hero) return;
       const l = pend(), hoyL = ST.tareas.filter((t) => t.fecha === M.hoy()), atras = l.filter((t) => t.fecha && t.fecha < M.hoy()), metasL = ST.metas.filter((m) => m.estado !== 'cumplida'), smartOk = metasL.filter((m) => smart(m).every((y) => y.ok)).length;
       const w0 = lunes(M.hoy()), sem = ST.tareas.filter((t) => t.hora && t.fecha >= w0 && t.fecha <= sumar(w0, 6)), minT = sem.reduce((a, t) => a + (+t.dur || 30), 0), minC = sem.filter((t) => t.clave).reduce((a, t) => a + (+t.dur || 30), 0);
+      // Una sola definición y un solo umbral (los de la nota común): parte del tiempo reservado que va a actividades
+      // clave (★); verde desde el 40 %, ámbar desde el 20 %. Sin tiempo reservado no hay semáforo de tiempo.
+      const pc = minT ? minC / minT : null, stC = pc == null ? null : pc >= 0.4 ? 'ok' : pc >= 0.2 ? 'warn' : 'stop', stA = atras.length > 5 ? 'stop' : atras.length ? 'warn' : 'ok';
+      const RK = { ok: 0, warn: 1, stop: 2 }, stV = stC == null ? (atras.length ? stA : null) : RK[stA] > RK[stC] ? stA : stC;
+      // Franja: las atrasadas más recientes (hasta 10) y luego hoy y los próximos días, en orden de fecha
+      const hoyS = M.hoy(), conF = l.filter((t) => t.fecha && t.fecha <= sumar(hoyS, 6)).sort((a, b) => a.fecha.localeCompare(b.fecha));
+      const atrL = conF.filter((t) => t.fecha < hoyS), proxL = conF.filter((t) => t.fecha >= hoyS), lucesL = atrL.slice(-Math.max(10, 30 - proxL.length)).concat(proxL).slice(0, 30);
       const hc = { kicker: 'Mesa de trabajo', titulo: '¿Está haciendo <em>lo que de verdad importa</em>?', lede: 'Todo el trabajo del simulador, del sistema estratégico y de personas y equipos en una sola mesa: pensar, priorizar y proteger el tiempo para el 20 % que da el resultado, con metas que dependen solo de quien las ejecuta.',
         empresa: (e && e.nombre) || 'Mi empresa', datos: [['Pendientes', String(l.length)], ['Hoy', String(hoyL.length)], ['Metas activas', String(metasL.length)], ['Repetitivas', String(ST.repetitivas.length)]],
         acciones: [{ t: 'Traer el trabajo del ecosistema', cls: 'solid', fn: async () => { const n = await importar(); toast(resumenImp(n)); pintaHero(); render(); } }, { t: 'Nueva meta SMART', fn: () => { const m = nuevaMeta(); metaSel = m.id; tab = 'metas'; guardar(); render(); } }, { t: 'Informe del plan de trabajo', cls: 'ghost', fn: informe }],
-        veredicto: { kicker: 'Su semana', st: atras.length > 5 ? 'stop' : atras.length || (minT && minC / minT < 0.3) ? 'warn' : 'ok', titulo: minT ? `${Math.round((minC / minT) * 100)} % del tiempo reservado va al 20 %` : 'Sin tiempo reservado esta semana', texto: `${atras.length} tarea${atras.length === 1 ? '' : 's'} atrasada${atras.length === 1 ? '' : 's'}, ${smartOk} de ${metasL.length} metas SMART completas. Cada franja es una tarea de hoy y de los próximos días.`,
-          luces: l.filter((t) => t.fecha && t.fecha <= sumar(M.hoy(), 6)).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, 30).map((t) => ({ n: t.t, v: fCorta(t.fecha), st: t.fecha < M.hoy() ? 'stop' : t.clave ? 'ok' : 'warn', fn: () => editar(t) })) },
-        kpis: [{ k: 'Horas reservadas', v: hm(minT), d: 'esta semana', fn: () => { tab = 'agenda'; render(); } }, { k: 'En actividades clave', v: (minT ? Math.round((minC / minT) * 100) : 0) + ' %', d: 'del tiempo reservado', st: minT ? (minC / minT >= 0.4 ? 'ok' : minC / minT >= 0.2 ? 'warn' : 'stop') : null, fn: () => { tab = 'prioridades'; render(); } }, { k: 'Atrasadas', v: String(atras.length), st: atras.length ? 'stop' : 'ok', fn: () => { tab = 'hoy'; render(); } }, { k: 'Metas SMART', v: `${smartOk}/${metasL.length}`, d: 'completas', fn: () => { tab = 'metas'; metaSel = null; render(); } }] };
+        veredicto: { kicker: 'Su semana', st: stV, nulo: 'sin marcar como clave', titulo: minT ? `${Math.round(pc * 100)} % del tiempo reservado va a actividades clave` : 'Sin tiempo reservado esta semana', texto: `${atras.length} tarea${atras.length === 1 ? '' : 's'} atrasada${atras.length === 1 ? '' : 's'}, ${smartOk} de ${metasL.length} metas SMART completas.${minT ? '' : ' Reserve horas en la agenda para sus actividades clave.'} Cada franja es una tarea con fecha: en rojo las atrasadas${atrL.length > lucesL.filter((t) => t.fecha < hoyS).length ? ' (las más recientes)' : ''}, en verde las actividades clave de hoy y los próximos días y en gris el resto.`,
+          luces: lucesL.map((t) => ({ n: t.t, v: fCorta(t.fecha), st: t.fecha < hoyS ? 'stop' : t.clave ? 'ok' : null, fn: () => editar(t) })) },
+        kpis: [{ k: 'Horas reservadas', v: hm(minT), d: 'esta semana', fn: () => { tab = 'agenda'; render(); } }, { k: 'En actividades clave', v: minT ? Math.round(pc * 100) + ' %' : '—', d: 'del tiempo reservado (★)', st: stC, fn: () => { tab = 'prioridades'; render(); } }, { k: 'Atrasadas', v: String(atras.length), st: atras.length ? 'stop' : 'ok', fn: () => { tab = 'hoy'; render(); } }, { k: 'Metas SMART', v: `${smartOk}/${metasL.length}`, d: 'completas', fn: () => { tab = 'metas'; metaSel = null; render(); } }] };
       hero.innerHTML = A.heroMundo.html(hc); A.heroMundo.wire(hero, hc);
     };
-    pintaHero();
+    pintaHero(); A.mesa.pintaHero = pintaHero;
     const r0 = render; render = function () { r0(); pintaHero(); }; // eslint-disable-line no-func-assign
     render();
     if (A.assistant) A.assistant.init({ page: 'mesa' });

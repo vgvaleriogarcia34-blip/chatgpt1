@@ -49,7 +49,10 @@
 .paper.rp .lb-pp > .pp-page { transform: scale(0.85); transform-origin: top center; margin: 0 auto !important; box-shadow: none; }
 .lb-paper.pp-doc { width: auto; }
 .lb-paper.pp-doc > .pp-page { margin: 0 auto 22px !important; }
-@media (max-width: 860px) { .lb-paper.pp-doc > .pp-page { transform: scale(0.45); transform-origin: top left; margin-bottom: -600px !important; } }
+/* En el lector, las hojas A4 se escalan al ancho disponible con zoom (libro.js · ajustarLector) */
+.lb-paperwrap:has(.lb-paper.pp-doc) { overflow-x: hidden; }
+.lb-st { font-weight: 600; color: var(--warn, #e8a33b); }
+.lb-aviso { color: var(--warn, #e8a33b); max-width: 70ch; }
 
 /* En el PDF por trozos los saltos de página los pone el propio troceado */
 .pdf-trozo .lb-secp, .pdf-trozo .lb-cap, .pdf-trozo .lb-pp { break-before: auto !important; page-break-before: auto !important; }

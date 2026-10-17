@@ -17,9 +17,9 @@
   const banda = (t) => `<h3 class="pp-band">${esc(t)}</h3>`;
   const barras = (d, titulo, ideal) => {
     const W = 172, Hh = 150, bw = 22, gap = 12, x0 = 26, c = COL();
-    return `<figure class="pp-chart"><svg width="172" height="${Hh + 26}" viewBox="0 0 ${W} ${Hh + 26}" aria-label="${esc(titulo)}">
-      ${[0, 25, 50, 75, 100].map((v) => `<line x1="${x0 - 4}" x2="${W - 4}" y1="${Hh - (v / 100) * (Hh - 14)}" y2="${Hh - (v / 100) * (Hh - 14)}" stroke="${v === 50 ? '#9a9688' : '#dcd9cf'}" stroke-width="${v === 50 ? 0.9 : 0.5}"/><text x="${x0 - 7}" y="${Hh - (v / 100) * (Hh - 14) + 3}" text-anchor="end" font-size="7" fill="#7d828c">${v}</text>`).join('')}
-      ${F4.map((k, i) => { const v = d[k], x = x0 + 6 + i * (bw + gap), h = (v / 100) * (Hh - 14); return `<rect x="${x}" y="${Hh - h}" width="${bw}" height="${h}" fill="${c[k]}" rx="1.5"/>${ideal ? `<line x1="${x - 3}" x2="${x + bw + 3}" y1="${Hh - (ideal[k] / 100) * (Hh - 14)}" y2="${Hh - (ideal[k] / 100) * (Hh - 14)}" stroke="#0b0d13" stroke-width="1.6"/>` : ''}<text x="${x + bw / 2}" y="${Hh - h - 3}" text-anchor="middle" font-size="7.5" font-weight="700" fill="#14171e">${v}</text><circle cx="${x + bw / 2}" cy="${Hh + 11}" r="6.5" fill="${c[k]}"/><text x="${x + bw / 2}" y="${Hh + 14}" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">${k}</text>`; }).join('')}
+    return `<figure class="pp-chart"><svg width="172" height="${Hh + 26}" viewBox="0 0 ${W} ${Hh + 26}" role="img" aria-label="${esc((titulo || 'Perfil DISC') + ': ' + F4.map((k) => k + ' ' + d[k]).join(', '))}">
+      ${[0, 25, 50, 75, 100].map((v) => `<line x1="${x0 - 4}" x2="${W - 4}" y1="${Hh - (v / 100) * (Hh - 14)}" y2="${Hh - (v / 100) * (Hh - 14)}" stroke="${v === 50 ? '#9a9688' : '#dcd9cf'}" stroke-width="${v === 50 ? 0.9 : 0.5}"/><text x="${x0 - 7}" y="${Hh - (v / 100) * (Hh - 14) + 3}" text-anchor="end" font-size="8.5" fill="#5f646e">${v}</text>`).join('')}
+      ${F4.map((k, i) => { const v = d[k], x = x0 + 6 + i * (bw + gap), h = (v / 100) * (Hh - 14); return `<rect x="${x}" y="${Hh - h}" width="${bw}" height="${h}" fill="${c[k]}" rx="1.5"/>${ideal ? `<line x1="${x - 3}" x2="${x + bw + 3}" y1="${Hh - (ideal[k] / 100) * (Hh - 14)}" y2="${Hh - (ideal[k] / 100) * (Hh - 14)}" stroke="#0b0d13" stroke-width="1.6"/>` : ''}<text x="${x + bw / 2}" y="${Hh - h - 3}" text-anchor="middle" font-size="9" font-weight="700" fill="#14171e">${v}</text><circle cx="${x + bw / 2}" cy="${Hh + 11}" r="6.5" fill="${c[k]}"/><text x="${x + bw / 2}" y="${Hh + 14}" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">${k}</text>`; }).join('')}
     </svg><figcaption>${esc(titulo)}</figcaption></figure>`;
   };
   const cajas = (l, cls) => `<div class="pp-boxes ${cls || ''}">${l.map((x, i) => `<div class="pp-box ${i % 2 ? 'der' : 'izq'}">${esc(x)}</div>`).join('')}</div>`;
@@ -39,28 +39,81 @@
     const pos = (dd) => { const o = R.discXY(dd); return [c + o.x * (R0 - 40), c - o.y * (R0 - 40)]; };
     const [nx, ny] = d ? pos(d) : [0, 0];
     const pp = ideal ? pos(ideal) : null;
-    const multi = (puntos || []).map((q) => { const [x, y] = pos(q.d); return `<circle cx="${x}" cy="${y}" r="13" fill="${q.c}" stroke="#fff" stroke-width="2"/><text x="${x}" y="${y + 4}" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">${esc(q.t)}</text>`; }).join('');
+    const mp = (puntos || []).map((q) => { const [x, y] = pos(q.d); return { q, x, y }; });
+    R.desolapar(mp, 27, (o) => { const dd = Math.hypot(o.x - c, o.y - c), m = R0 - 47; if (dd > m) { o.x = c + ((o.x - c) * m) / dd; o.y = c + ((o.y - c) * m) / dd; } });
+    const multi = mp.map(({ q, x, y }) => { return `<g role="img" aria-label="${esc(q.nombre || q.t)}"><title>${esc(q.nombre || q.t)}</title><circle cx="${x}" cy="${y}" r="13" fill="${q.c}" stroke="#fff" stroke-width="2"/><text x="${x}" y="${y + 4}" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">${esc(q.t)}</text></g>`; }).join('');
     return `<svg class="pp-mapa" width="500" height="500" viewBox="0 0 ${S} ${S}" role="img" aria-label="Mapa conductual">${seg}${lab}${rings}${spokes}${sub}
       ${pp ? `<circle cx="${pp[0]}" cy="${pp[1]}" r="12" fill="#fff" stroke="#0b0d13" stroke-width="2.5"/><text x="${pp[0]}" y="${pp[1] + 4}" text-anchor="middle" font-size="12" font-weight="800" fill="#0b0d13">P</text>` : ''}
       ${d ? `<circle cx="${nx}" cy="${ny}" r="14" fill="#0b0d13"/><text x="${nx}" y="${ny + 4.5}" text-anchor="middle" font-size="13" font-weight="800" fill="#c9f24d">N</text>` : ''}${multi}
       ${nombre ? `<text x="${c}" y="${S - 6}" text-anchor="middle" font-size="10" fill="#7d828c">${d ? 'N = ' + esc(nombre) : esc(nombre)}${pp ? ' · P = lo que pide su puesto' : ''}</text>` : ''}</svg>`;
   };
-  const tendenciaDe = (d) => { const o = R.discXY(d), a = (Math.atan2(o.y, o.x) * 180) / Math.PI; let best = X.MAPA[0], dm = 999; X.MAPA.forEach((m) => { let dd = Math.abs(((a - m.a + 540) % 360) - 180); if (dd < dm) { dm = dd; best = m; } }); return best; };
+  // Perfil equilibrado (cerca del centro de la rueda): sin tendencia dominante
+  const tendenciaDe = (d) => { const o = R.discXY(d); if (Math.hypot(o.x, o.y) < 0.12) return { k: '', n: 'Equilibrado', d: 'Sin una tendencia dominante', a: null }; const a = (Math.atan2(o.y, o.x) * 180) / Math.PI; let best = X.MAPA[0], dm = 999; X.MAPA.forEach((m) => { let dd = Math.abs(((a - m.a + 540) % 360) - 180); if (dd < dm) { dm = dd; best = m; } }); return best; };
 
   /* ---------- Montaje común de los informes paginados ---------- */
   const portada = (o) => `<section class="pp-page pp-portada"><div class="pp-circ c1" style="background:${H.DISC.D.c}"></div><div class="pp-circ c2" style="background:${H.DISC.C.c}"></div><div class="pp-circ c3" style="background:${H.DISC.S.c}"></div><div class="pp-circ c4" style="background:${H.DISC.I.c}"></div>
       <div class="pp-mb-top">${A.informe.membrete()}</div>
       <div class="pp-tit"><span>${esc(o.kicker)}</span><h1>${esc(o.titulo)}</h1><h2>${esc(o.nombre)}</h2><p>${esc(o.linea)}</p><small>${esc(A.informe.fecha())}</small></div>
       <div class="pp-incl">${(o.incl || []).map((t) => `<span>${esc(t)}</span>`).join('')}</div></section>`;
+  /* Paginación medida: cada hoja se monta fuera de pantalla y lo que no cabe sobre el pie pasa a una hoja de
+     continuación con la misma cabecera. Las tablas se parten por filas (repitiendo la cabecera), las listas por
+     elementos y los bloques por sus partes; un rótulo nunca se queda solo al final de una hoja. */
+  const NOPARTE = 'svg, figure, img, p, li, tr, h1, h2, h3, h4, .pp-kp, .pp-firma, .pp-tab, .pp-row, .pp-cols, .pp-cb, .pp-resumen, .pp-nota, .pp-mide, .pp-gotas, .pp-boxes, .rp-callout, .rp-kpi';
+  const ROTULO = 'h1, h2, h3, h4, .pp-band, .rp-kicker';
+  const partir = (el, lim, raiz) => {
+    const kids = Array.from(el.children), bot = (x) => x.getBoundingClientRect().bottom, top = (x) => x.getBoundingClientRect().top;
+    let i = kids.findIndex((x) => bot(x) > lim);
+    if (i < 0) return null;
+    while (i > 0 && Math.abs(top(kids[i - 1]) - top(kids[i])) < 2) i--; // en rejillas, la fila entera
+    const x = kids[i], solo = !kids[i + 1] || Math.abs(top(kids[i + 1]) - top(x)) >= 2;
+    let parte = null;
+    if (solo && top(x) < lim - 40 && !x.matches(NOPARTE)) {
+      if (x.tagName === 'TABLE') {
+        const tb = x.tBodies[0], filas = tb ? Array.from(tb.rows) : [], j = filas.findIndex((r) => bot(r) > lim);
+        if (j > 0) { parte = x.cloneNode(false); if (x.tHead) parte.appendChild(x.tHead.cloneNode(true)); const nb = tb.cloneNode(false); filas.slice(j).forEach((r) => nb.appendChild(r)); parte.appendChild(nb); }
+      } else if (x.children.length > 1) {
+        parte = partir(x, lim, false);
+        // Si en la hoja solo quedan rótulos del bloque, se va entero
+        if (parte && !(raiz && i === 0) && Array.from(x.children).every((y) => y.matches(ROTULO) || y.classList.contains('pp-intro'))) { Array.from(x.children).reverse().forEach((y) => parte.prepend(y)); x.remove(); }
+      }
+    }
+    const resto = el.cloneNode(false); resto.removeAttribute('id');
+    if (parte) resto.appendChild(parte); else { if (raiz && i === 0) return null; resto.appendChild(x); }
+    kids.slice(i + 1).forEach((y) => resto.appendChild(y));
+    // El rótulo que queda al final se va con lo que encabeza
+    let ult = el.lastElementChild; while (ult && ult.matches(ROTULO) && el.children.length > 1) { resto.prepend(ult); ult = el.lastElementChild; }
+    return resto.children.length ? resto : null;
+  };
+  let zPaper = null; // un solo ajuste de zoom para el informe abierto (no se acumulan escuchas)
+  addEventListener('resize', () => { if (zPaper && zPaper.isConnected) zPaper.style.zoom = Math.min(1, (innerWidth - 24) / 794); });
   const montar = (o) => {
-    const In = A.informe, pages = o.pages;
-    // Hoja 1 portada, 2 la primera página (introducción), 3 el índice y desde la 4 el resto
-    const idx = pages.map((pg, i) => ({ t: pg.sub, n: i === 0 ? 2 : i + 3, ok: pg.idx })).filter((x2) => x2.ok);
-    const indice = { titulo: pages[0] ? pages[0].titulo : 'Informe', sub: 'Índice', html: `<ol class="pp-indice">${idx.map((x2) => `<li><span>${esc(x2.t)}</span><i></i><b>${x2.n}</b></li>`).join('')}</ol>` };
-    const ordenadas = [pages[0], indice].concat(pages.slice(1));
-    const hoja = (pg, i) => `<section class="pp-page"><header class="pp-h"><div class="pp-hl"><b>${esc(pg.titulo)}</b><span>${esc(pg.sub)}</span></div><div class="pp-hr">${discBadges()}<small>${In.membrete()}</small></div></header><div class="pp-c">${pg.html}</div><footer class="pp-f"><span>${o.pie}</span><b>${i + 2}</b></footer></section>`;
-    const html = o.portada + ordenadas.map(hoja).join('');
-    In.open({ titulo: o.titulo, html, paginado: true, after: (paper) => { paper.classList.add('pp-doc'); const z = () => { paper.style.zoom = Math.min(1, (innerWidth - 24) / 794); }; z(); addEventListener('resize', z); } });
+    const In = A.informe;
+    const hoja = (pg, i) => `<section class="pp-page"><header class="pp-h"><div class="pp-hl"><b>${esc(pg.titulo)}</b><span>${esc(pg.sub)}</span></div><div class="pp-hr">${discBadges()}<small>${In.membrete()}</small></div></header><div class="pp-c">${pg.html}</div><footer class="pp-f"><span>${o.pie}</span><b>${i}</b></footer></section>`;
+    // Se mide cada hoja con los mismos estilos y se reparte lo que no cabe
+    const med = document.createElement('article'); med.className = 'paper rp pp-doc'; med.setAttribute('aria-hidden', 'true');
+    med.style.cssText = 'position:absolute;left:-12000px;top:0;visibility:hidden;zoom:1'; document.body.appendChild(med);
+    const repartir = (pg) => {
+      const out = []; let cur = pg;
+      for (let k = 0; cur && k < 30; k++) {
+        med.innerHTML = hoja(cur, 0);
+        const sec = med.firstElementChild, c = sec.querySelector('.pp-c'), f = sec.querySelector('.pp-f');
+        const lim = sec.getBoundingClientRect().top + sec.offsetHeight - f.offsetHeight - parseFloat(getComputedStyle(c).paddingBottom) - 4;
+        const resto = partir(c, lim, true);
+        out.push(Object.assign({}, cur, { html: c.innerHTML }));
+        cur = resto ? { titulo: pg.titulo, sub: pg.sub + ' (continuación)', html: resto.innerHTML, idx: false, sigue: true } : null;
+      }
+      return out;
+    };
+    let grupos;
+    try { grupos = o.pages.map(repartir); } finally { med.remove(); }
+    // Hoja 1 portada; luego la introducción (con sus continuaciones), el índice y el resto
+    const primeras = grupos[0] || [], resto = [].concat(...grupos.slice(1)), nIdx = primeras.length + 2;
+    let n = nIdx + 1;
+    const idx = [].concat(primeras.map((pg, i) => ({ pg, n: 2 + i })), resto.map((pg) => ({ pg, n: n++ }))).filter((x2) => x2.pg.idx).map((x2) => ({ t: x2.pg.sub, n: x2.n }));
+    const indice = { titulo: o.pages[0] ? o.pages[0].titulo : 'Informe', sub: 'Índice', html: `<ol class="pp-indice">${idx.map((x2) => `<li><span>${esc(x2.t)}</span><i></i><b>${x2.n}</b></li>`).join('')}</ol>` };
+    const ordenadas = primeras.concat([indice], resto);
+    const html = o.portada + ordenadas.map((pg, i) => hoja(pg, i + 2)).join('');
+    In.open({ titulo: o.titulo, html, paginado: true, after: (paper) => { paper.classList.add('pp-doc'); zPaper = paper; paper.style.zoom = Math.min(1, (innerWidth - 24) / 794); } });
   };
   R.pp = { esc, lista, banda, barras, cajas, gotas, filaBar, mapa, tendenciaDe, portada, montar, discBadges };
 

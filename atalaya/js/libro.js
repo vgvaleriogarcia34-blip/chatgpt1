@@ -12,7 +12,15 @@
   const MUNDO_N = { intervencion: 'Auditoría integral', simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Mesa de trabajo' };
   const URL = { intervencion: 'intervencion.html', simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html' };
   const fCorta = (s) => (s ? new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
-  let lib = null, sel = null, empresa = 'Mi empresa';
+  let lib = null, sel = null, empresa = 'Mi empresa', firmas = {};
+  /* Estado de un capítulo: desactualizado si los datos de su mundo han cambiado desde que se generó (firma distinta);
+     antiguo si tiene más de 30 días o no tiene fecha válida */
+  const fechaOk = (c) => c.fecha && isFinite(new Date(c.fecha).getTime());
+  const viejo = (c) => !fechaOk(c) || Date.now() - new Date(c.fecha).getTime() > 30 * 864e5;
+  const cambiado = (c) => !!(c.firma && firmas[c.mundo] && c.firma !== firmas[c.mundo]);
+  const estadoCap = (c) => (cambiado(c) ? 'cambiado' : viejo(c) ? (fechaOk(c) ? 'viejo' : 'sinfecha') : 'ok');
+  const EST_T = { cambiado: 'desactualizado: los datos de su mundo han cambiado', viejo: 'de hace más de un mes', sinfecha: 'sin fecha', ok: 'al día' };
+  const calcFirmas = async () => { const ms = [...new Set(lib.caps.map((c) => c.mundo).filter(Boolean))]; const out = {}; for (const m of ms) out[m] = L.firma ? await L.firma(m) : null; firmas = out; };
   const guardar = (() => { let t; return () => { clearTimeout(t); t = setTimeout(async () => { try { await L.guardar(lib); } catch (e) { toast(e.message); } }, 400); }; })();
   const toast = (t) => { $$('.ms-toast').forEach((x) => x.remove()); const d = document.createElement('div'); d.className = 'alert ok ms-toast lb-toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 6000); };
   const capsDe = (sid) => lib.caps.filter((c) => c.sec === sid);
@@ -70,11 +78,11 @@
         <div class="row"><div class="eyebrow">Índice</div><span class="spacer"></span><button class="btn ghost small" id="lbSecN">Nueva sección</button></div>
         <ol class="lb-secs">${lib.secciones.map((s, i) => { const cs = capsDe(s.id); return `<li class="lb-sec" data-s="${s.id}">
           <div class="lb-sech"><span class="lb-n">${i + 1}</span><input class="input lb-sect" value="${esc(s.t)}" aria-label="Nombre de la sección"><span class="lb-acc"><button class="icon-btn" data-su title="Subir la sección" aria-label="Subir">↑</button><button class="icon-btn" data-sd title="Bajar la sección" aria-label="Bajar">↓</button>${cs.some((x) => x.incl) ? '<button class="icon-btn" data-spdf title="Ver o descargar solo esta sección" aria-label="Solo esta sección">⤓</button>' : ''}${cs.length ? '' : '<button class="icon-btn" data-sx title="Quitar la sección vacía" aria-label="Quitar">×</button>'}</span></div>
-          ${cs.length ? `<ol class="lb-caps">${cs.map((x) => `<li class="lb-c ${x.id === sel ? 'on' : ''} ${x.incl ? '' : 'fuera'}" data-c="${x.id}"><input type="checkbox" data-in ${x.incl ? 'checked' : ''} aria-label="Incluir en el libro"><button class="lb-ct" data-ver><span>${num[x.id] || '—'}</span>${esc(x.t)}<small>${esc(MUNDO_N[x.mundo] || '')} · ${fCorta(x.fecha)}</small></button><span class="lb-acc"><button class="icon-btn" data-cu aria-label="Subir">↑</button><button class="icon-btn" data-cd aria-label="Bajar">↓</button></span></li>`).join('')}</ol>` : '<p class="small muted lb-vacia">Sin capítulos. Mueva aquí capítulos de otra sección o añada informes desde los mundos.</p>'}
+          ${cs.length ? `<ol class="lb-caps">${cs.map((x) => `<li class="lb-c ${x.id === sel ? 'on' : ''} ${x.incl ? '' : 'fuera'}" data-c="${x.id}"><input type="checkbox" data-in ${x.incl ? 'checked' : ''} aria-label="Incluir en el libro"><button class="lb-ct" data-ver><span>${num[x.id] || '—'}</span>${esc(x.t)}<small>${esc(MUNDO_N[x.mundo] || '')} · ${fCorta(x.fecha)}${estadoCap(x) !== 'ok' ? ` · <b class="lb-st ${estadoCap(x)}">${esc(estadoCap(x) === 'cambiado' ? 'desactualizado' : EST_T[estadoCap(x)])}</b>` : ''}</small></button><span class="lb-acc"><button class="icon-btn" data-cu aria-label="Subir">↑</button><button class="icon-btn" data-cd aria-label="Bajar">↓</button></span></li>`).join('')}</ol>` : '<p class="small muted lb-vacia">Sin capítulos. Mueva aquí capítulos de otra sección o añada informes desde los mundos.</p>'}
         </li>`; }).join('')}</ol>
         <p class="small muted" style="margin:0">Marque los capítulos que van al libro. ↑ ↓ ordenan; ⤓ abre solo esa sección para verla o descargarla.</p>
       </aside>
-      <section class="lb-read" aria-live="polite">${c ? `<div class="glass pad row lb-rbar"><div><div class="eyebrow">${num[c.id] ? 'Capítulo ' + num[c.id] : 'No incluido en el libro'} · ${esc(MUNDO_N[c.mundo] || '')}</div><h2 class="lb-rt">${esc(c.t)}</h2><small class="muted">Actualizado el ${fCorta(c.fecha)}</small></div><span class="spacer"></span>
+      <section class="lb-read" aria-live="polite">${c ? `<div class="glass pad row lb-rbar"><div><div class="eyebrow">${num[c.id] ? 'Capítulo ' + num[c.id] : 'No incluido en el libro'} · ${esc(MUNDO_N[c.mundo] || '')}</div><h2 class="lb-rt">${esc(c.t)}</h2><small class="muted">Actualizado el ${fCorta(c.fecha)}</small>${cambiado(c) ? `<p class="small lb-aviso" style="margin:4px 0 0">Los datos de ${esc(MUNDO_N[c.mundo] || 'su mundo')} han cambiado desde que se generó este capítulo. Vuelva a abrir el informe en su mundo y pulse «Añadir al libro», o use «Recoger todos los informes».</p>` : ''}</div><span class="spacer"></span>
           <label class="small">Sección<select class="input" id="lbMover">${lib.secciones.map((s) => `<option value="${s.id}" ${s.id === c.sec ? 'selected' : ''}>${esc(s.t)}</option>`).join('')}</select></label>
           <a class="btn ghost small" href="${URL[c.mundo] || 'portal.html'}">Ir a su mundo</a><button class="btn ghost small" id="lbQuitar">Quitar del libro</button></div>
         <div class="lb-paperwrap"><article class="paper rp ${esc(c.cls || '')} lb-paper">${c.html}</article></div>`
@@ -106,8 +114,12 @@
       $('#lbMover', host).onchange = (e) => { c.sec = e.target.value; guardar(); pintar(); };
       $('#lbQuitar', host).onclick = (e) => { if (!e.target.dataset.ok) { e.target.dataset.ok = 1; e.target.textContent = '¿Seguro? Toque otra vez'; return; } lib.caps = lib.caps.filter((y) => y !== c); sel = null; guardar(); pintar(); };
     }
+    ajustarLector();
     pintarHero();
   }
+  /* Las hojas A4 (794 px) de los informes paginados se escalan al ancho del lector, sin recortes */
+  const ajustarLector = () => { const w = $('.lb-paperwrap'), a = w && $('.lb-paper.pp-doc', w); if (!a) return; a.style.width = '794px'; a.style.zoom = Math.min(1, (w.clientWidth - 2) / 794); };
+  addEventListener('resize', ajustarLector);
   const recoger = () => {
     const m = mundosPlan();
 
@@ -116,12 +128,16 @@
   function pintarHero() {
     const hero = $('#lbHero'); if (!hero || !A.heroMundo) return;
     const inc = incluidos(), ult = lib.caps.reduce((a, c) => (c.fecha > a ? c.fecha : a), '');
-    const viejo = (c) => Date.now() - new Date(c.fecha).getTime() > 30 * 864e5;
+    const malos = inc.filter((c) => estadoCap(c) !== 'ok'), camb = inc.filter(cambiado).length;
+    // Franja: primero los capítulos del libro y luego los que están fuera; como mucho 40
+    const orden = inc.concat(lib.caps.filter((c) => !c.incl)), vis = orden.slice(0, 40);
     const hc = { kicker: 'Libro corporativo', titulo: 'El libro de <em>la empresa</em>', lede: 'Todos los informes del ecosistema reunidos en un solo documento: con su portada, su índice y sus secciones, para consultarlo, compartirlo y guardarlo como el manual de la empresa.',
       empresa, datos: [['Capítulos', String(lib.caps.length)], ['En el libro', String(inc.length)], ['Secciones', String(lib.secciones.length)], ['Actualizado', ult ? fCorta(ult) : '—']],
       acciones: [{ t: 'Recoger todos los informes', cls: 'solid', fn: recoger }, { t: 'Ver el libro completo', fn: () => verLibro() }, { t: 'Descargar en PDF', cls: 'ghost', fn: () => { verLibro(); setTimeout(() => { const b = document.getElementById('rpPdf'); if (b) b.click(); }, 400); } }],
-      veredicto: { kicker: 'Estado del libro', st: !inc.length ? 'stop' : inc.some(viejo) ? 'warn' : 'ok', titulo: !inc.length ? 'Aún sin capítulos' : inc.some(viejo) ? 'Hay capítulos de hace más de un mes' : 'Libro al día', texto: 'Cada franja es un capítulo: verde si está al día, ámbar si tiene más de un mes. Tóquela para leerlo.',
-        luces: lib.caps.slice(0, 40).map((c) => ({ n: c.t, v: fCorta(c.fecha), st: !c.incl ? 'stop' : viejo(c) ? 'warn' : 'ok', fn: () => { sel = c.id; pintar(); $('.lb-read').scrollIntoView({ behavior: 'smooth' }); } })) } };
+      veredicto: { kicker: 'Estado del libro', st: !inc.length ? 'stop' : malos.length ? 'warn' : 'ok', nulo: 'fuera del libro',
+        titulo: !inc.length ? 'Aún sin capítulos' : camb ? `${camb} capítulo${camb === 1 ? '' : 's'} desactualizado${camb === 1 ? '' : 's'}` : malos.length ? `${malos.length} capítulo${malos.length === 1 ? '' : 's'} de hace más de un mes` : 'Libro al día',
+        texto: `Cada franja es un capítulo: verde si está al día; ámbar si los datos de su mundo han cambiado desde que se generó, si tiene más de un mes o si no tiene fecha; gris si está fuera del libro. Tóquela para leerlo.${orden.length > vis.length ? ` Se muestran ${vis.length} de ${orden.length}.` : ''}`,
+        luces: vis.map((c) => ({ n: c.t, v: fCorta(c.fecha) + (c.incl ? (estadoCap(c) !== 'ok' ? ' · ' + EST_T[estadoCap(c)] : '') : ' · fuera del libro'), st: !c.incl ? null : estadoCap(c) === 'ok' ? 'ok' : 'warn', fn: () => { sel = c.id; pintar(); $('.lb-read').scrollIntoView({ behavior: 'smooth' }); } })) } };
     hero.innerHTML = A.heroMundo.html(hc); A.heroMundo.wire(hero, hc);
   }
 
@@ -137,6 +153,8 @@
         if (q && q.hechos) toast('Informes recogidos: ' + Object.keys(q.hechos).map((k) => `${MUNDO_N[k]} ${typeof q.hechos[k] === 'number' ? q.hechos[k] : '(' + q.hechos[k] + ')'}`).join(' · ') + '.');
       }
       pintar();
+      // Firma actual de los datos de cada mundo: marca los capítulos desactualizados
+      await calcFirmas(); pintar();
     }
   };
 })();

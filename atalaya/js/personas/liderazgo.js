@@ -34,13 +34,20 @@
     return { uso, pri: ord[0], sec: uso[ord[1]] >= 3 ? ord[1] : null, menos: [1, 2, 3, 4].filter((k) => uso[k] <= 1),
       eficacia: r0((pts / (n * 3)) * 100), flex: r0(100 - (dev / maxDev) * 100), porNivel, demas, demenos };
   };
+  /* Porcentajes enteros que suman 100 (mayor resto): {1: n, 2: n…} sobre el total */
+  R.pctResto = (o, tot) => {
+    const ks = Object.keys(o), ex = ks.map((k) => (tot ? (o[k] / tot) * 100 : 0)), out = {}; ks.forEach((k, i) => (out[k] = Math.floor(ex[i])));
+    let falta = tot ? 100 - ks.reduce((a, k) => a + out[k], 0) : 0;
+    ks.map((k, i) => [k, ex[i] - Math.floor(ex[i])]).sort((a, b) => b[1] - a[1]).forEach(([k]) => { if (falta > 0) { out[k]++; falta--; } });
+    return out;
+  };
   /* Estilo percibido: suma de todas las respuestas del equipo */
   R.lidPercibido = (p) => {
     const lista = ((p.lid && p.lid.percibido) || []).map((x) => ({ x, c: R.lidCalc(x.resp) })).filter((o) => o.c);
     if (!lista.length) return null;
     const uso = { 1: 0, 2: 0, 3: 0, 4: 0 }; lista.forEach((o) => [1, 2, 3, 4].forEach((k) => (uso[k] += o.c.uso[k])));
     const tot = lista.length, ord = [1, 2, 3, 4].sort((a, b) => uso[b] - uso[a] || a - b);
-    return { n: tot, uso, pct: Object.fromEntries([1, 2, 3, 4].map((k) => [k, r0((uso[k] / (tot * L.SITUACIONES.length)) * 100)])), pri: ord[0],
+    return { n: tot, uso, pct: R.pctResto(uso, tot * L.SITUACIONES.length), pri: ord[0],
       eficacia: r0(lista.reduce((a, o) => a + o.c.eficacia, 0) / tot), flex: r0(lista.reduce((a, o) => a + o.c.flex, 0) / tot) };
   };
   /* Preparación por tarea: capacidad y disposición de 0 a 100 y nivel resultante */
@@ -124,7 +131,8 @@
     const c = $('#lidCan', host); if (c) c.onclick = () => { delete bor[cfg.key]; cfg.cancelar(); };
   };
   /* Barras de uso de los cuatro estilos (propio y, si lo hay, percibido) */
-  const usoBars = (c, pe) => `<div class="lid-uso">${[1, 2, 3, 4].map((k) => `<div class="lid-u"><span>${esc(E[k].n)}</span>${R.bar((c.uso[k] / L.SITUACIONES.length) * 100, E[k].c, c.uso[k])}${pe ? `<div class="lid-pe">${R.bar(pe.pct[k], E[k].c + '88', pe.pct[k] + ' %')}</div>` : ''}</div>`).join('')}</div>${pe ? '<p class="small muted" style="margin:0">Barra superior: cómo se ve el líder (número de situaciones). Barra inferior: cómo le ve su equipo (porcentaje de respuestas).</p>' : ''}`;
+  // Las dos barras en la misma unidad (porcentaje de situaciones), para poder compararlas
+  const usoBars = (c, pe) => { const pc = R.pctResto(c.uso, L.SITUACIONES.length); return `<div class="lid-uso">${[1, 2, 3, 4].map((k) => `<div class="lid-u"><span>${esc(E[k].n)}</span>${R.bar(pc[k], E[k].c, `${pc[k]} % · ${c.uso[k]}`)}${pe ? `<div class="lid-pe">${R.bar(pe.pct[k], E[k].c + '88', pe.pct[k] + ' %')}</div>` : ''}</div>`).join('')}</div><p class="small muted" style="margin:0">${pe ? 'Barra superior: cómo se ve el líder (porcentaje y número de las ' + L.SITUACIONES.length + ' situaciones). Barra inferior: cómo le ve su equipo (porcentaje de respuestas).' : 'Porcentaje y número de las ' + L.SITUACIONES.length + ' situaciones en que elige cada estilo.'}</p>`; };
   /* Matriz del modelo: cuatro estilos según dirección y apoyo */
   const matriz = (marca) => `<div class="lid-mat" role="img" aria-label="Cuatro estilos según la dirección y el apoyo">
     <span class="lid-ax lid-ay">Apoyo →</span><span class="lid-ax lid-ax2">Dirección →</span>
@@ -302,7 +310,7 @@
           ${filas.map((f, i) => f.t ? `<tr data-c="${f.c.id}" data-t="${f.t.id}"><td>${esc(f.c.nombre)}</td><td>${esc(f.t.nombre)}</td><td style="text-align:center">${f.nv ? chipN(f.nv.nivel) + (f.nv.discrepa ? ' <span title="' + esc(f.nv.discrepa) + '">⚠</span>' : '') : '<button class="btn ghost small" data-val>Valorar</button>'}</td><td style="text-align:center">${f.toca ? chipE(f.toca) : '—'}</td>
             <td><select class="input" data-usa aria-label="Estilo que usa"><option value="">${c ? 'Su estilo principal (' + E[c.pri].n + ')' : '— elegir —'}</option>${[1, 2, 3, 4].map((k) => `<option value="${k}" ${+f.t.usa === k ? 'selected' : ''}>${E[k].n}</option>`).join('')}</select></td>
             <td class="small">${f.des ? R.pill(f.des.st, f.des.st === 'ok' ? 'Ajustado' : f.des.tipo === 'mas' ? 'Dirige de más' : 'Suelta de más') + ' ' + (f.des.st === 'ok' ? '' : esc(f.des.t)) : '<span class="muted">—</span>'}</td>
-            <td style="text-align:center">${f.t.acuerdo ? `<button class="btn ghost small" data-acu>${esc(E[f.t.acuerdo.estilo].n)} · ${esc(L.FRECUENCIAS[f.t.acuerdo.freq] || '')}</button>` : `<button class="btn small" data-acu ${f.nv ? '' : 'disabled'}>Pactar</button>`}</td></tr>`
+            <td style="text-align:center">${f.t.acuerdo ? `<button class="btn ghost small" data-acu>${esc((E[+f.t.acuerdo.estilo] || {}).n || '—')} · ${esc(L.FRECUENCIAS[f.t.acuerdo.freq] || '')}</button>` : `<button class="btn small" data-acu ${f.nv ? '' : 'disabled'}>Pactar</button>`}</td></tr>`
             : `<tr><td>${esc(f.c.nombre)}</td><td colspan="6" class="small muted">Sin tareas clave. <button class="btn ghost small" data-tareas="${f.c.id}">Añadir tareas</button></td></tr>`).join('')}
         </tbody></table></div></div>
         ${des.length ? `<div class="glass pad stack"><div class="eyebrow">Qué cambiar primero</div>${des.sort((a, b) => (a.des.st === 'stop' ? -1 : 1) - (b.des.st === 'stop' ? -1 : 1)).slice(0, 6).map((f) => `<div class="alert ${f.des.st}"><b>${esc(f.c.nombre)} · ${esc(f.t.nombre)}.</b> ${esc(f.des.t)} Toca <b>${esc(E[f.toca].n)}</b>: ${esc(E[f.toca].que.toLowerCase())}</div>`).join('')}</div>` : ''}${aviso()}`);
@@ -358,7 +366,7 @@
   const pie = 'Herramienta orientativa para conversar sobre cómo se dirige cada tarea. El nivel de preparación es de una tarea, no de la persona. Datos tratados con el consentimiento de cada persona.';
   const cover = (o) => { const e = R.empresa(); return I().cover(Object.assign({ empresa: e.nombre, sector: e.sector, tipo: 'Liderazgo a medida' }, o)); };
   const mapaTabla = (In, filas) => In.table(['Colaborador', 'Tarea', 'Nivel', 'Toca', 'Usa', 'Ajuste'], filas.filter((f) => f.t).map((f) => [f.c.nombre, f.t.nombre, f.nv ? N[f.nv.nivel].n : 'Sin valorar', f.toca ? E[f.toca].n : '—', f.usa ? E[f.usa.e].n : '—', f.des ? { h: In.pill(f.des.st, f.des.st === 'ok' ? 'Ajustado' : f.des.tipo === 'mas' ? 'Dirige de más' : 'Suelta de más') } : '—']));
-  const acuerdosTabla = (In, filas) => In.table(['Colaborador', 'Tarea', 'Estilo pactado', 'Seguimiento', 'Siguiente nivel', 'Revisión'], filas.filter((f) => f.t && f.t.acuerdo).map((f) => { const a = f.t.acuerdo; return [f.c.nombre, f.t.nombre, E[a.estilo].n, L.FRECUENCIAS[a.freq] || '—', N[a.siguiente] ? N[a.siguiente].n : '—', R.fechaES(a.revision)]; }));
+  const acuerdosTabla = (In, filas) => In.table(['Colaborador', 'Tarea', 'Estilo pactado', 'Seguimiento', 'Siguiente nivel', 'Revisión'], filas.filter((f) => f.t && f.t.acuerdo).map((f) => { const a = f.t.acuerdo; return [f.c.nombre, f.t.nombre, (E[+a.estilo] || {}).n || '—', L.FRECUENCIAS[a.freq] || '—', N[a.siguiente] ? N[a.siguiente].n : '—', R.fechaES(a.revision)]; }));
 
   R.informeLider = (p) => {
     if (!p) return; const In = I(); In.reset();
@@ -389,7 +397,7 @@
     const porC = {}; filas.filter((f) => f.t).forEach((f) => (porC[f.c.id] = porC[f.c.id] || []).push(f));
     Object.keys(porC).forEach((id) => {
       const fs = porC[id], col = R.persona(id);
-      h += In.section(col.nombre, In.table(['Tarea', 'Nivel', 'Estilo pactado', 'Seguimiento', 'Qué hará el responsable', 'Qué hará la persona', 'Siguiente nivel', 'Revisión'], fs.map((f) => { const a = f.t.acuerdo || {}; const est = a.estilo || f.toca; return [f.t.nombre, f.nv ? N[f.nv.nivel].n : 'Sin valorar', est ? E[est].n : '—', L.FRECUENCIAS[a.freq] || (est ? E[est].seguimiento : '—'), a.lider || '—', a.colab || '—', a.siguiente ? N[a.siguiente].n : '—', a.revision ? R.fechaES(a.revision) : '—']; })));
+      h += In.section(col.nombre, In.table(['Tarea', 'Nivel', 'Estilo pactado', 'Seguimiento', 'Qué hará el responsable', 'Qué hará la persona', 'Siguiente nivel', 'Revisión'], fs.map((f) => { const a = f.t.acuerdo || {}; const est = a.estilo || f.toca; return [f.t.nombre, f.nv ? N[f.nv.nivel].n : 'Sin valorar', E[+est] ? E[+est].n : '—', L.FRECUENCIAS[a.freq] || (E[+est] ? E[+est].seguimiento : '—'), a.lider || '—', a.colab || '—', a.siguiente ? N[a.siguiente].n : '—', a.revision ? R.fechaES(a.revision) : '—']; })));
     });
     h += In.section('Los cuatro estilos', In.table(['Estilo', 'Qué significa', 'Seguimiento habitual'], [1, 2, 3, 4].map((k) => [E[k].n, E[k].que, E[k].seguimiento])));
     h += In.foot(pie);

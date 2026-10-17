@@ -15,28 +15,33 @@
 
   // Valores por defecto de cada propuesta: proyecto principal, servicio 2 (auditoría 360) y servicio 3 (acompañamiento)
   const DEF = { main: { pct: 15, base: 'anual' }, propS2: { pct: 5, base: 'anual' }, propS3: { pct: 20, base: 'anual' } };
-  const convDe = (k) => { const ST = S(); const pr = k === 'main' ? ST.propuesta : (ST.recorrido && ST.recorrido[k]); if (!pr) return null; pr.conv = Object.assign({}, DEF[k], pr.conv || {}); return pr.conv; };
+  // La conversión siempre entre el 1 y el 60 % (vacía o no numérica, la de partida)
+  const pctOk = (v, k) => { const n = num(v); return n > 0 ? Math.min(60, Math.max(1, n)) : DEF[k].pct; };
+  const convDe = (k) => { const ST = S(); const pr = k === 'main' ? ST.propuesta : (ST.recorrido && ST.recorrido[k]); if (!pr) return null; pr.conv = Object.assign({}, DEF[k], pr.conv || {}); pr.conv.pct = pctOk(pr.conv.pct, k); return pr.conv; };
 
   // Beneficio que genera el proyecto según las palancas de la propuesta principal
   const beneficio = () => {
     const pr = S().propuesta; if (!pr || !pr.generada) return null;
     const vi = PRO().valorInversion(pr);
-    return vi.B ? { anual: vi.B, anualCons: vi.B * num(vi.d.prudencia) / 100, cinco: vi.base.suma, cincoCons: vi.cons.suma, vi } : null;
+    return vi.B ? { anual: vi.B, anualCons: vi.B * vi.prud / 100, cinco: vi.base.suma, cincoCons: vi.cons.suma, vi } : null;
   };
   const calc = (k) => {
     const c = convDe(k), b = beneficio(); if (!c || !b) return null;
     const base = c.base === 'cinco' ? b.cinco : b.anual, precio = redondea(base * num(c.pct) / 100, base > 200000 ? 500 : 100);
     return { c, b, base, precio, queda: base - precio, retorno: precio ? base / precio : null, ret5: precio ? b.cinco / precio : null, ret5c: precio ? b.cincoCons / precio : null };
   };
-  const st = (r) => (r == null ? '' : r >= 5 ? 'ok' : r >= 3 ? 'warn' : 'stop');
+  const st = (r) => (r == null || !isFinite(r) ? '' : r >= 5 ? 'ok' : r >= 3 ? 'warn' : 'stop');
+  // Precio que ya figura en la propuesta (neto de descuentos): el retorno del sello se calcula sobre él, como en el resto de la propuesta
+  const aplicado = () => { const pr = S().propuesta; return pr && pr.generada ? PRO().neto(pr) || PRO().precio(pr) : 0; };
 
   /* ---------- Bloque en «Valor y precio» de la propuesta principal ---------- */
   const htmlMain = () => {
-    const x = calc('main'), c = convDe('main');
-    return `<section class="glass pad stack cv-sec" id="cvMain"><div class="row"><div><div class="eyebrow">Precio por conversión sobre beneficio</div><small class="muted">El precio es una parte del beneficio que el proyecto genera; la empresa se queda el resto.</small></div><span class="spacer"></span>${x ? `<span class="iv-st ${st(x.ret5)}">Devuelve ${xx(x.ret5)} en 5 años</span>` : ''}</div>
+    const x = calc('main'), c = convDe('main'), ap = aplicado(), b = x ? x.b : beneficio();
+    const rAp = ap && b ? b.cinco / ap : null, rApC = ap && b ? b.cincoCons / ap : null, igual = x && ap && Math.abs(ap - x.precio) < 1;
+    return `<section class="glass pad stack cv-sec" id="cvMain"><div class="row"><div><div class="eyebrow">Precio por conversión sobre beneficio</div><small class="muted">El precio es una parte del beneficio que el proyecto genera; la empresa se queda el resto.</small></div><span class="spacer"></span>${rAp != null ? `<span class="iv-st ${st(rAp)}" title="Con el precio de la propuesta (${eur(ap)})">Devuelve ${xx(rAp)} en 5 años</span>` : ''}</div>
       <div class="iv-g3"><label class="small">Conversión sobre el beneficio (%)<input class="input" type="number" min="1" max="60" step="0.5" data-cv="pct" value="${esc(c.pct)}"></label><label class="small">Beneficio de referencia<select class="input" data-cv="base"><option value="anual" ${c.base !== 'cinco' ? 'selected' : ''}>Un año en régimen</option><option value="cinco" ${c.base === 'cinco' ? 'selected' : ''}>Cinco años (con la rampa)</option></select></label></div>
-      ${x ? `<div class="pc-roi-ed"><div><small>Beneficio que genera</small><b>${eur(x.base)}</b><span>${c.base === 'cinco' ? 'en cinco años' : 'al año, en régimen'} · conservador ${eur(c.base === 'cinco' ? x.b.cincoCons : x.b.anualCons)}</span></div><div><small>Precio (${pct1(c.pct)} del beneficio)</small><b>${eur(x.precio)}</b><span>la empresa se queda ${eur(x.queda)}</span></div><div class="${st(x.ret5)}"><small>Retorno a cinco años</small><b>${xx(x.ret5)}</b><span>conservador ${xx(x.ret5c)}</span></div></div>
-        <div class="row"><button class="btn small" id="cvAplicar">Usar ${eur(x.precio)} como precio</button><button class="btn ghost small" id="cvIA">Proponer valor y precio con Claude</button></div>`
+      ${x ? `<div class="pc-roi-ed"><div><small>Beneficio que genera</small><b>${eur(x.base)}</b><span>${c.base === 'cinco' ? 'en cinco años' : 'al año, en régimen'} · conservador ${eur(c.base === 'cinco' ? x.b.cincoCons : x.b.anualCons)}</span></div><div><small>Precio sugerido (${pct1(c.pct)} del beneficio)</small><b>${eur(x.precio)}</b><span>Si el precio fuera ${eur(x.precio)}: devuelve ${xx(x.ret5)} en cinco años (conservador ${xx(x.ret5c)}) y la empresa se queda ${eur(x.queda)}</span></div><div class="${st(rAp)}"><small>Con el precio de la propuesta</small><b>${ap ? eur(ap) : '—'}</b><span>${ap ? `devuelve ${xx(rAp)} en cinco años · conservador ${xx(rApC)}${igual ? ' · es el sugerido' : ''}` : 'Sin precio en «Valor y precio» todavía'}</span></div></div>
+        <div class="row">${igual ? '' : `<button class="btn small" id="cvAplicar">Usar ${eur(x.precio)} como precio</button>`}<button class="btn ghost small" id="cvIA">Proponer valor y precio con Claude</button></div>`
       : `<p class="small muted" style="margin:0">Aún no hay beneficio calculado: activa las palancas en «Dimensión de la empresa y valor de la inversión», o deja que lo proponga Claude.</p><div class="row"><button class="btn small" id="cvIA">Proponer valor y precio con Claude</button></div>`}
       ${c.argumento ? `<div class="cv-arg"><div class="eyebrow">Argumento de valor</div><p class="small" style="margin:0;white-space:pre-line">${esc(c.argumento)}</p>${c.ia ? `<small class="muted">${esc(c.ia)}</small>` : ''}</div>` : ''}</section>`;
   };
@@ -86,7 +91,7 @@
   };
   const wireMain = (host) => {
     const sec = $('#cvMain', host); if (!sec) return;
-    sec.querySelectorAll('[data-cv]').forEach((i) => (i.onchange = () => { const c = convDe('main'); c[i.dataset.cv] = i.dataset.cv === 'pct' ? num(i.value) : i.value; guardar(); render(); }));
+    sec.querySelectorAll('[data-cv]').forEach((i) => (i.onchange = () => { const c = convDe('main'); c[i.dataset.cv] = i.dataset.cv === 'pct' ? pctOk(i.value, 'main') : i.value; guardar(); render(); }));
     const ap = $('#cvAplicar', sec); if (ap) ap.onclick = () => { const x = calc('main'); if (!x) return; aplicar(x); render(); toast(`Precio ${eur(x.precio)} aplicado, con el valor a cinco años y sus supuestos.`); };
     const ia = $('#cvIA', sec); if (ia) ia.onclick = () => proponerIA(ia);
   };
@@ -109,7 +114,7 @@
   const wireServicio = (host, k) => {
     const box = host.querySelector(`[data-conv="${k}"]`); if (!box) return;
     box.innerHTML = htmlServicio(k);
-    box.querySelectorAll('[data-cvs]').forEach((i) => (i.onchange = () => { convDe(k).pct = num(i.value); guardar(); wireServicio(host, k); }));
+    box.querySelectorAll('[data-cvs]').forEach((i) => (i.onchange = () => { convDe(k).pct = pctOk(i.value, k); guardar(); wireServicio(host, k); }));
     const b = box.querySelector('[data-cvsap]'); if (b) b.onclick = () => {
       const x = calc(k), pr = S().recorrido[k], meses = k === 'propS3' ? Math.max(1, +pr.meses || 6) : 0; if (!x) return;
       pr.precio = meses ? `${eur(redondea(x.precio / meses, 50))} al mes` : eur(x.precio); guardar(); render(); toast('Honorarios calculados por conversión sobre el beneficio.');

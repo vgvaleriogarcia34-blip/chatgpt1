@@ -59,7 +59,14 @@
       b.innerHTML = `<span class="small muted">Trabajando en</span><b>${e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ')}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : 'Ver la ficha'}</button>`;
       b.querySelector('[data-cambiar]').onclick = abrirPaso;
     }
-    addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); if (!$('#empPaso').hidden) return; pintarBarra(); });
+    // Balizas del mundo de la auditoría integral: si la empresa tiene triaje, cada baliza toma el color de su área
+    const COL_TRI = { ok: 0x2fb24a, warn: 0xe8a33b, stop: 0xe04848 };
+    const colorBalizas = () => { try {
+      const st = JSON.parse(localStorage.getItem(P.k ? P.k('atalaya.intervencion.v1') : 'atalaya.intervencion.v1')) || {}, t = Array.isArray(st.triajeAreas) ? st.triajeAreas : [];
+      ((W.iv && W.iv.beacons) || []).forEach((b, i) => { const c = COL_TRI[t[i]] != null ? COL_TRI[t[i]] : b.c0; b.m.material.color.setHex(c); b.m.material.emissive.setHex(c); b.gl.material.color.setHex(c); });
+    } catch (e) { /* sin datos: colores de siempre */ } };
+    colorBalizas();
+    addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); colorBalizas(); if (!$('#empPaso').hidden) return; pintarBarra(); });
     // Esencial: el mundo del sistema estratégico se ve, pero marcado como incluido desde Profesional
     if (!P.puede('intervencion')) $$('[data-w="iv"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido en el plan Consultora · toca para ver los planes'; });
     if (!P.puede('personas')) $$('[data-w="per"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido en el plan Consultora · toca para ver los planes'; });
@@ -276,7 +283,7 @@
       m.position.set(Math.cos(a) * 4.6, Math.sin(a * 2) * 0.25, Math.sin(a) * 4.6);
       const gl = sprite(glow(255, 255, 255), c, 1.3, 0.6); gl.position.copy(m.position);
       const hold = new T.Group(); hold.rotation.x = -0.12; hold.add(m); hold.add(gl); g.add(hold);
-      return { m, gl, a };
+      return { m, gl, a, c0: c };
     });
     const hit = new T.Mesh(new T.SphereGeometry(5.4, 16, 12), new T.MeshBasicMaterial({ visible: false })); g.add(hit);
     scene.add(g);

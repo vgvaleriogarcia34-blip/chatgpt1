@@ -301,7 +301,7 @@
     if (nota && Object.keys(nota.mundos).length) h += In.section('Nota de cada mundo', In.table(['Mundo', 'Nota', 'En rojo', 'En ámbar', 'Lo más urgente'], Object.keys(nota.mundos).map((k) => { const m = nota.mundos[k], ro = m.puntos.filter((x) => x.st === 'stop'); return [m.n, m.nota != null ? String(m.nota).replace('.', ',') + '/10' : '—', String(ro.length), String(m.puntos.filter((x) => x.st === 'warn').length), ro.slice(0, 3).map((x) => x.t).join(' · ') || '—']; })), 'De 0 a 10, con el mismo criterio en todas las herramientas: lo que está en orden suma, lo que hay que vigilar suma la mitad y lo que hay que corregir no suma.');
     // Constantes vitales
     const O = ST.cteOrigen || {}, Lg = ST.cteLenguaje || (c1 && c1.est) || {};
-    h += In.section('Constantes vitales', `<div class="pdf-keep" style="max-width:560px;margin:0 0 10px">${monitor()}</div>` + In.table(['Constante', 'Lectura', 'Estado'], D.CONSTANTES.map((c) => [c.n, cte(c.id) ? String(c.e[cte(c.id) - 1]).replace(/todo pasa por él/i, 'todo pasa por una persona') : 'Sin tomar', cte(c.id) ? { h: In.pill(D.nivelConst(cte(c.id)), ST_N[D.nivelConst(cte(c.id))]) } : '—'])), '1 = bien, 5 = grave.');
+    h += In.section('Constantes vitales', `<div class="pdf-keep" style="max-width:560px;margin:0 0 10px">${monitor('claro')}</div>` + In.table(['Constante', 'Lectura', 'Estado'], D.CONSTANTES.map((c) => [c.n, cte(c.id) ? String(c.e[cte(c.id) - 1]).replace(/todo pasa por él/i, 'todo pasa por una persona') : 'Sin tomar', cte(c.id) ? { h: In.pill(D.nivelConst(cte(c.id)), ST_N[D.nivelConst(cte(c.id))]) } : '—'])), '1 = bien, 5 = grave.');
     // Lo escuchado
     if (trs.length) {
       const R = ST.sesion.respuestas || {}, nPreg = D.GUION.reduce((a, b) => a + b.p.length, 0);

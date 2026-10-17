@@ -41,19 +41,30 @@
 
   /* ---------- Motor ---------- */
   const base = A.defaultState();
-  const SC = [['base', '--s1', 'Base'], ['pesimista', '--s2', 'Pesimista'], ['optimista', '--s3', 'Optimista'], ['estres', '--s5', 'Estrés']];
+  // Mismos colores por escenario que en el simulador (A.SCENARIO_VAR en charts.js)
+  const SC = [['base', 'Base'], ['pesimista', 'Pesimista'], ['optimista', 'Optimista'], ['estres', 'Estrés']].map(([k, n]) => [k, (A.SCENARIO_VAR || {})[k] || '--s1', n]);
+  const C = A.charts;
+  // El viewBox toma el ancho real del contenedor y la altura de su CSS: el texto no se deforma
   const lineChart = (host, series, opts) => {
     opts = opts || {};
-    const W = opts.w || 600, H = opts.h || 220, m = { l: opts.axis ? 58 : 6, r: 8, t: 10, b: opts.axis ? 24 : 6 };
-    const all = series.flatMap((s) => s.data).concat([0]); const mx = Math.max(...all), mn = Math.min(...all);
+    const W = C.fit(host, opts.w || 600, () => lineChart(host, series, opts), { min: 280 }), H = opts.h || 220, narrow = W < 480;
+    const all = series.flatMap((s) => s.data).concat([0]);
+    let mn = Math.min(...all), mx = Math.max(...all), fy = F.eur, ticks = [];
+    if (opts.axis) { const t = C.niceTicks(mn, mx, narrow ? 3 : 4); mn = t.lo; mx = t.hi; ticks = t.ticks; fy = C.axisEur(ticks, t.step); }
+    const m = { l: opts.axis ? Math.max(36, ...ticks.map((v) => C.textWidth(fy(v), 10) + 12)) : 6, r: opts.axis ? 14 : 8, t: 10, b: opts.axis ? 24 : 6 };
     const X = (i, n) => m.l + (i / (n - 1)) * (W - m.l - m.r), Y = (v) => m.t + (1 - (v - mn) / (mx - mn || 1)) * (H - m.t - m.b);
-    let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(opts.aria || 'Liquidez por escenario')}">`;
-    if (opts.axis) { [mn, (mn + mx) / 2, mx].forEach((v) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="lp-grid"/><text x="${m.l - 6}" y="${Y(v) + 3}" text-anchor="end" class="lp-ax">${F.eur(v)}</text>`; }); [0, 12, 24, 36, 48, 59].forEach((i) => { svg += `<text x="${X(i, 60)}" y="${H - 6}" text-anchor="middle" class="lp-ax">${i === 0 ? 'mes 1' : i === 59 ? 'mes 60' : 'mes ' + i}</text>`; }); }
+    const resumen = (opts.aria || 'Liquidez por escenario') + ': ' + series.map((s) => { const v = Math.min(...s.data); return `${s.n}, mínimo ${F.eur(v)} en el mes ${s.data.indexOf(v) + 1}`; }).join('; ') + '.';
+    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title>`;
+    if (opts.axis) {
+      ticks.forEach((v) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="lp-grid"/><text x="${m.l - 6}" y="${Y(v) + 3}" text-anchor="end" class="lp-ax">${fy(v)}</text>`; });
+      // Marcas al final de cada año: meses 1, 12, 24, 36, 48 y 60
+      (narrow ? [0, 23, 59] : [0, 11, 23, 35, 47, 59]).forEach((i) => { svg += `<text x="${X(i, 60)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === 59 ? 'end' : 'middle'}" class="lp-ax">mes ${i + 1}</text>`; });
+    }
     if (mn < 0) svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(0)}" y2="${Y(0)}" class="lp-zero"/>`;
     series.forEach((s, k) => {
       const pts = s.data.map((v, i) => `${X(i, s.data.length).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
-      if (k === 0) svg += `<polygon points="${m.l},${Y(Math.max(0, mn))} ${pts} ${W - m.r},${Y(Math.max(0, mn))}" fill="${s.c}" opacity="0.1"/>`;
-      svg += `<polyline points="${pts}" fill="none" stroke="${s.c}" stroke-width="${k === 0 ? 2.6 : 1.6}" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="lp-line"/>`;
+      if (k === 0) svg += `<polygon points="${m.l},${Y(Math.max(0, mn))} ${pts} ${W - m.r},${Y(Math.max(0, mn))}" style="fill:var(${s.c})" opacity="0.1"/>`;
+      svg += `<polyline points="${pts}" fill="none" style="stroke:var(${s.c})" stroke-width="${k === 0 ? 2.6 : 1.6}" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="lp-line"/>`;
     });
     if (opts.hover) svg += `<line id="${host.id}X" class="lp-cross" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" visibility="hidden"/><rect class="lp-hit" x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent"/>`;
     host.innerHTML = svg + '</svg>';
@@ -62,7 +73,7 @@
       hit.addEventListener('pointermove', (ev) => {
         const r = host.getBoundingClientRect(), i = Math.max(0, Math.min(59, Math.round(((ev.clientX - r.left) / r.width * W - m.l) / (W - m.l - m.r) * 59)));
         cross.setAttribute('x1', X(i, 60)); cross.setAttribute('x2', X(i, 60)); cross.setAttribute('visibility', 'visible');
-        A.charts.tip(`<h5>Mes ${i + 1}</h5><dl>${series.map((s) => `<dt><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${s.c}"></i> ${esc(s.n)}</dt><dd style="color:${s.data[i] < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(s.data[i])}</dd>`).join('')}</dl>`, ev.clientX, ev.clientY);
+        A.charts.tip(`<h5>Mes ${i + 1}</h5><dl>${series.map((s) => `<dt><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(${s.c})"></i> ${esc(s.n)}</dt><dd style="color:${s.data[i] < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(s.data[i])}</dd>`).join('')}</dl>`, ev.clientX, ev.clientY);
       });
       hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); A.charts.hideTip(); });
     }
@@ -70,8 +81,8 @@
 
   // Portada con números reales del motor
   (function hero() {
-    const rs = SC.slice(0, 3).map(([k, c, n]) => ({ r: A.analyze(base, A.scenarioMods(base, k)), c: css(c), n }));
-    lineChart($('#hChart'), rs.map((x) => ({ n: x.n, c: x.c, data: x.r.w.liquidez })), { w: 420, h: 150 });
+    const rs = SC.slice(0, 3).map(([k, c, n]) => ({ r: A.analyze(base, A.scenarioMods(base, k)), c, n }));
+    lineChart($('#hChart'), rs.map((x) => ({ n: x.n, c: x.c, data: x.r.w.liquidez })), { w: 900, h: 150 });
     $('#hLights').innerHTML = rs[0].r.lights.map((l) => `<i class="hd ${l.estado}" title="${esc(l.nombre)}"></i>`).join('');
     const v = rs[0].r.verdict; $('#hVerdict').className = 'verdict-pill v-' + v.key; $('#hVerdict span:last-child').textContent = v.titulo;
   })();
@@ -103,17 +114,19 @@
     $('#dInvV').textContent = F.eur(s.inversion.importe); $('#dFinV').textContent = s.inversion.pctFin + ' %'; $('#dVenV').textContent = '+' + s.inversion.incVentas + ' %';
     $('#dDsoV').textContent = s.empresa.dso + ' días'; $('#dPlaV').textContent = s.inversion.plazo + ' años';
     ctrls.forEach((id) => { const r = $('#' + id); r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min)) * 100 + '%'); });
-    const runs = SC.map(([k, c, n]) => ({ k, n, c: css(c), r: A.analyze(s, A.scenarioMods(s, k)) }));
+    const runs = SC.map(([k, c, n]) => ({ k, n, c, r: A.analyze(s, A.scenarioMods(s, k)) }));
     const cur = runs.find((x) => x.k === escDemo), r = cur.r, v = r.verdict;
     $('#dVerdict').innerHTML = `<span class="lp-vlbl">Veredicto · ${esc(cur.n.toLowerCase())}</span><div class="verdict-pill v-${v.key}"><span class="dot"></span>${esc(v.titulo)}</div><p class="small muted">${esc(v.texto)}</p>`;
     $('#dKpis').innerHTML = `<div class="tilt" data-k><span>Liquidez mínima</span><b id="kLiq" style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}"></b><small>mes ${r.mesCajaRef}</small></div>
       <div class="tilt" data-k><span>Cuota mensual nueva</span><b id="kCuo"></b><small>tras ${s.inversion.carencia} meses de carencia</small></div>
       <div class="tilt" data-k><span>Recuperación</span><b id="kPay"></b><small>de la inversión</small></div>
-      <div class="tilt" data-k><span>Colchón mínimo</span><b id="kCol"></b><small>meses de gastos cubiertos</small></div>`;
-    animateNum($('#kLiq'), r.cajaRef, F.eur); animateNum($('#kCuo'), r.cuotaNueva, F.eur);
-    $('#kPay').textContent = F.months(r.payback); animateNum($('#kCol'), Math.max(0, r.colMin), (x) => x.toFixed(1).replace('.', ','));
-    lineChart($('#dChart'), [cur].concat(runs.filter((x) => x !== cur)).map((x) => ({ n: x.n, c: x.c, data: x.r.w.liquidez })), { w: 720, h: 240, axis: true, hover: true });
-    $('#dLegend').innerHTML = runs.map((x) => `<span><i style="background:${x.c}"></i>${x.n}${x.r.cajaRef < 0 ? ' · <b style="color:var(--stop)">falta caja</b>' : ''}</span>`).join('');
+      <div class="tilt" data-k><span>Colchón mínimo</span><b id="kCol" style="color:${r.colMin < 0 ? 'var(--stop)' : 'inherit'}"></b><small>meses de gastos cubiertos</small></div>`;
+    // La liquidez va con su mes: se escribe directa para no mostrar la cifra anterior junto al mes nuevo
+    $('#kLiq').textContent = F.eur(r.cajaRef); prev.kLiq = r.cajaRef; animateNum($('#kCuo'), r.cuotaNueva, F.eur);
+    $('#kPay').textContent = r.payback == null ? 'Sin inversión' : F.months(r.payback);
+    animateNum($('#kCol'), r.colMin, (x) => (x < 0 ? '−' : '') + Math.abs(x).toFixed(1).replace('.', ','));
+    lineChart($('#dChart'), [cur].concat(runs.filter((x) => x !== cur)).map((x) => ({ n: x.n, c: x.c, data: x.r.w.liquidez })), { w: 1100, h: 240, axis: true, hover: true });
+    $('#dLegend').innerHTML = runs.map((x) => `<span><i style="background:var(${x.c})"></i>${x.n}${x.r.cajaRef < 0 ? ' · <b style="color:var(--stop)">falta caja</b>' : ''}</span>`).join('');
     $('#dLights').innerHTML = r.lights.map((l, i) => `<button class="lp-light ${l.estado}" data-i="${i}"><i></i><span>${esc(l.nombre)}</span><b>${esc(l.valor)}</b></button>`).join('');
     $$('#dLights .lp-light').forEach((b) => {
       const l = r.lights[+b.dataset.i];

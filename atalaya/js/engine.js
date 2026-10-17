@@ -340,7 +340,7 @@
     const wacc = 0.08;
     const van = flows.reduce((a, f, i) => a + f / Math.pow(1 + wacc, i), 0);
     const tir = inversion > 0 ? irr(flows) : null;
-    if (!(inversion > 0)) payback = 0;
+    if (!(inversion > 0)) payback = null; // sin inversión no hay nada que recuperar: «sin inversión», no «0 meses»
 
     // Caja
     let cajaMin = Infinity, mesCajaMin = 0;
@@ -411,12 +411,12 @@
     // Peso de la cuota
     const cuotaTotal = w.cuotaNueva + e.cuotaDeuda;
     const ebitdaMesCrucero = yr(w.ebitda) / 12;
-    const cuotaSobreEbitda = ebitdaMesCrucero > 0 ? cuotaTotal / ebitdaMesCrucero * 100 : 999;
+    const cuotaSobreEbitda = ebitdaMesCrucero > 0 ? cuotaTotal / ebitdaMesCrucero * 100 : Infinity; // con EBITDA ≤ 0 no hay porcentaje: se muestra «EBITDA ≤ 0»
 
     const dim = {
       inversion,
-      sobreVentas: e.ventas > 0 ? inversion / e.ventas : 99,
-      sobreEbitda: ebitdaActual > 0 ? inversion / ebitdaActual : 99,
+      sobreVentas: e.ventas > 0 ? inversion / e.ventas : Infinity,
+      sobreEbitda: ebitdaActual > 0 ? inversion / ebitdaActual : Infinity,
       sobreFondos: inversion / Math.max(1, e.fondosPropios),
       sobreCaja: inversion / Math.max(1, e.caja)
     };
@@ -551,7 +551,7 @@
       value: (r) => Math.min(r.payback, 600), fmt: (v) => A.fmt.months(v),
       ok: (s) => s.meta.paybackMax * 12, warn: (s) => s.inversion.vidaUtil * 12,
       que: 'Tiempo que tarda el flujo que genera la inversión en devolver lo invertido.',
-      lectura: (r, s) => r.payback > s.inversion.vidaUtil * 12 ? 'No se recupera dentro de la vida útil del activo: el proyecto destruye valor.' : `Se recupera en ${A.fmt.months(r.payback)}.`,
+      lectura: (r, s) => r.payback == null ? 'Sin inversión: no hay importe que recuperar.' : r.payback > s.inversion.vidaUtil * 12 ? 'No se recupera dentro de la vida útil del activo: el proyecto destruye valor.' : `Se recupera en ${A.fmt.months(r.payback)}.`,
       directas: [V('inversion.importe', 'Importe'), V('inversion.incVentas', 'Venta nueva'), V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.fijosNuevos', 'Fijos nuevos'), V('inversion.contrataciones', 'Contrataciones')],
       indirectas: [V('inversion.rampa', 'Meses de rampa'), V('empresa.dso', 'Días de cobro'), V('inversion.salario', 'Coste por persona')],
       consejo: 'La financiación no acorta el retorno: solo lo hacen más margen, más venta, menos coste o menos inversión.' },
@@ -900,22 +900,26 @@
   };
 
   /* ---------- Formato ---------- */
-  const nf0 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
-  const nf1 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+  // Separador de miles también con cuatro cifras (9.458 €) y signo menos tipográfico (−) en todas las cifras
+  const nf0 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0, useGrouping: 'always' });
+  const nf1 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1, minimumFractionDigits: 1, useGrouping: 'always' });
+  const mn = (t) => t.replace(/-/g, '−');
   A.fmt = {
     eur: (v) => {
-      if (!isFinite(v)) return '—';
-      const a = Math.abs(v), sg = v < 0 ? '−' : '';
+      if (v == null || !isFinite(v)) return '—';
+      const a = Math.abs(v), sg = v < 0 && Math.round(a) > 0 ? '−' : '';
+      if (a >= 1e8) return sg + nf0.format(a / 1e6) + ' M€';
       if (a >= 1e6) return sg + nf1.format(a / 1e6) + ' M€';
       if (a >= 1e4) return sg + nf0.format(a / 1e3) + ' k€';
       return sg + nf0.format(a) + ' €';
     },
-    eurFull: (v) => (isFinite(v) ? nf0.format(Math.round(v)) + ' €' : '—'),
-    pct: (v) => (isFinite(v) ? nf1.format(v) + ' %' : '—'),
-    pp: (v) => (isFinite(v) ? nf1.format(v) + ' pp' : '—'),
-    x: (v) => (!isFinite(v) || v >= 99 ? '—' : nf1.format(v) + '×'),
-    num: (v) => (isFinite(v) ? nf0.format(v) : '—'),
+    eurFull: (v) => (v != null && isFinite(v) ? mn(nf0.format(Math.round(v) || 0)) + ' €' : '—'),
+    pct: (v) => (v != null && isFinite(v) ? mn(nf1.format(v)) + ' %' : '—'),
+    pp: (v) => (v != null && isFinite(v) ? mn(nf1.format(v)) + ' pp' : '—'),
+    x: (v) => (v == null || !isFinite(v) || v >= 99 ? '—' : mn(nf1.format(v)) + '×'),
+    num: (v) => (v != null && isFinite(v) ? mn(nf0.format(v)) : '—'),
     months: (v) => {
+      if (v == null) return '—';
       if (!isFinite(v) || v > 600) return 'No recupera';
       const m = Math.round(v);
       if (m < 24) return m + ' meses';

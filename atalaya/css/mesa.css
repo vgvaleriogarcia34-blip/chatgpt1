@@ -49,7 +49,7 @@
 .ms-blk.ideal.clave, .ms-blk.ideal.metas { border-color: rgba(201, 242, 77, 0.45); color: var(--gold-soft); }
 .ms-blk.ideal.personal { border-color: rgba(213, 81, 129, 0.5); }
 .ms-sem { display: grid; grid-template-columns: 30px repeat(7, minmax(92px, 1fr)); gap: 4px; overflow-x: auto; padding-bottom: 4px; }
-.ms-hcol { position: relative; margin-top: 30px; }
+.ms-hcol { position: sticky; left: 0; z-index: 2; margin-top: 30px; background: var(--panel-solid, #0b0d13); border-radius: 6px; } /* la columna de horas no se va al desplazar la semana */
 .ms-hcol span { position: absolute; right: 4px; font: 500 0.64rem var(--font-data); color: var(--faint); transform: translateY(-50%); }
 .ms-dcol { display: grid; grid-template-rows: 26px auto; gap: 4px; min-width: 0; }
 .ms-dh { text-align: center; font: 600 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 4px 0; border-radius: 6px; }

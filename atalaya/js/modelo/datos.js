@@ -331,7 +331,7 @@
       return o;
     });
     // Tareas y acuerdos de liderazgo del jefe de taller (la persona clave sin segundo)
-    ps[3].tareas = [{ id: 'tm1', nombre: 'Planificar las órdenes de la semana', alta: dia(-40), acuerdo: { fecha: dia(-30), estilo: 'entrenar', freq: 'semanal', siguiente: dia(4), lider: 'Ramón Valdés', colab: 'Andrés Prieto', revision: dia(4) } }];
+    ps[3].tareas = [{ id: 'tm1', nombre: 'Planificar las órdenes de la semana', alta: dia(-40), acuerdo: { fecha: dia(-30), estilo: 2, freq: 'semanal', siguiente: 3, lider: 'Ramón Valdés', colab: 'Andrés Prieto', revision: dia(4) } }];
     puestos.forEach((q) => { if (q.critico && /taller/i.test(q.nombre)) q.sucesor = ps[12].id; });
     const equipos = [
       { id: 'eqm1', nombre: 'Comité de dirección', objetivo: 'Decidir con criterio escrito y sin cuellos de botella', miembros: [0, 1, 2, 3, 4, 5].map(pid) },

@@ -10,7 +10,7 @@
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const host = $('#lab'); if (!host) return;
   const nf = { format: (v) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') };
-  const pct = (v, d) => (v * 100).toFixed(d == null ? 1 : d).replace('.', ',') + ' %';
+  const pct = (v, d) => (v * 100).toFixed(d == null ? 1 : d).replace('.', ',').replace('-', '−') + ' %';
 
   // La empresa de ejemplo, común a todos los escenarios
   const E = { ventas: 4200000, margenBruto: 0.38, personal: 1100000, personalPlanta: 620000, plantilla: 34, otrosFijos: 260000, caja: 380000, servicioDeuda: 120000, dso: 75 };
@@ -18,14 +18,16 @@
   E.ebitda = E.ventas * E.margenBruto - E.personal - E.otrosFijos;
 
   /* ---------- Gráficos sencillos (SVG) ---------- */
-  const W = 640;
+  let W = 640; // se ajusta al ancho del panel antes de cada dibujo (texto legible en móvil)
   function barras(items, opts) {
     opts = opts || {}; const H = opts.h || 200, m = { l: 8, r: 8, t: 22, b: 34 };
-    const max = Math.max(...items.map((x) => Math.abs(x.v)), 1), bw = (W - m.l - m.r) / items.length;
-    const base = opts.cero ? m.t + (H - m.t - m.b) * (max / (2 * max)) : H - m.b;
+    // Con valores negativos el cero se coloca según el peso de lo positivo y lo negativo, no siempre a media altura
+    const pos = Math.max(0, ...items.map((x) => x.v)), neg = opts.cero ? Math.max(0, ...items.map((x) => -x.v)) : 0;
+    const tot = pos + neg || 1, alto = H - m.t - m.b - (neg ? 14 : 0), bw = (W - m.l - m.r) / items.length;
+    const base = m.t + alto * (pos / tot);
     let g = `<line x1="${m.l}" x2="${W - m.r}" y1="${base}" y2="${base}" class="lab-axis"/>`;
     items.forEach((x, i) => {
-      const h = (Math.abs(x.v) / max) * (opts.cero ? (H - m.t - m.b) / 2 : H - m.t - m.b), X = m.l + i * bw + bw * 0.18, w = bw * 0.64;
+      const h = (Math.abs(x.v) / tot) * alto, X = m.l + i * bw + bw * 0.18, w = bw * 0.64;
       const y = x.v >= 0 ? base - h : base;
       g += `<rect x="${X}" y="${y}" width="${w}" height="${Math.max(1, h)}" rx="2" fill="${x.c}"/>`;
       g += `<text x="${X + w / 2}" y="${x.v >= 0 ? y - 6 : y + h + 13}" text-anchor="middle" class="lab-val">${esc(x.t || F.eur(x.v))}</text>`;
@@ -35,10 +37,11 @@
   }
   function linea(data, opts) {
     opts = opts || {}; const H = opts.h || 200, m = { l: 56, r: 10, t: 12, b: 26 };
-    const mx = Math.max(...data, 0), mn = Math.min(...data, 0), X = (i) => m.l + (i / (data.length - 1)) * (W - m.l - m.r), Y = (v) => m.t + (1 - (v - mn) / (mx - mn || 1)) * (H - m.t - m.b);
+    const t = A.charts.niceTicks(Math.min(...data, 0), Math.max(...data, 0), 4), fy = A.charts.axisEur(t.ticks, t.step);
+    const mx = t.hi, mn = t.lo, X = (i) => m.l + (i / (data.length - 1)) * (W - m.l - m.r), Y = (v) => m.t + (1 - (v - mn) / (mx - mn || 1)) * (H - m.t - m.b);
     const pts = data.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
     let g = `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(0)}" y2="${Y(0)}" class="lab-axis"/>`;
-    [mn, mx].forEach((v) => { g += `<text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end" class="lab-lbl">${esc(F.eur(v))}</text>`; });
+    t.ticks.forEach((v) => { g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="lab-axis" opacity="0.35"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end" class="lab-lbl">${esc(fy(v))}</text>`; });
     g += `<polygon points="${m.l},${Y(0)} ${pts} ${W - m.r},${Y(0)}" fill="${opts.c || css('--gold')}" opacity="0.1"/><polyline points="${pts}" fill="none" stroke="${opts.c || css('--gold')}" stroke-width="2.4" stroke-linejoin="round"/>`;
     if (opts.marca != null && opts.marca >= 0) { const x = X(opts.marca); g += `<line x1="${x}" x2="${x}" y1="${m.t}" y2="${H - m.b}" class="lab-mark"/><text x="${x + 6}" y="${m.t + 12}" class="lab-val">${esc(opts.marcaTxt || '')}</text>`; }
     (opts.ticks || []).forEach(([i, t]) => { g += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" class="lab-lbl">${esc(t)}</text>`; });
@@ -116,8 +119,8 @@
         const real = p.cu / 100 > cap * 1.2;
         const st = rec > 0 && rec <= 30 && !real ? 'go' : rec > 0 && rec <= 48 ? 'warn' : 'stop';
         return {
-          kpis: [['Ventas en el año 3', F.eur(v3), 'cuota ' + pct(cuota)], ['Cuota razonable', pct(cap, 0), `con ${p.co} competidores`], ['Contribución anual', F.eur(v3 * mc - p.fi), 'tras el gasto fijo'], ['Recuperación', rec > 0 ? `mes ${rec}` : 'más de 48 meses', 'del coste de entrada']],
-          veredicto: [st, st === 'go' ? 'La zona se paga sola' : st === 'warn' ? 'Viable, con recuperación lenta' : 'No se recupera en cuatro años', real ? `Una cuota del ${p.cu} % es optimista con ${p.co} competidores: el cálculo la limita a ${pct(cuota, 0)}.` : `Con una cuota del ${p.cu} %, la zona aporta ${F.eur(v3 * mc - p.fi)} al año desde el tercer año.`],
+          kpis: [['Ventas en el año 3', F.eur(v3), 'cuota ' + pct(cuota)], ['Cuota máxima razonable', pct(cap * 1.2, 0), `con ${p.co} competidores`], ['Contribución anual', F.eur(v3 * mc - p.fi), 'tras el gasto fijo'], ['Recuperación', rec > 0 ? `mes ${rec}` : 'más de 48 meses', 'del coste de entrada']],
+          veredicto: [st, st === 'go' ? 'La zona se paga sola' : st === 'warn' ? 'Viable, con recuperación lenta' : 'No se recupera en cuatro años', real ? `Una cuota del ${p.cu} % es optimista con ${p.co} competidores: el cálculo la limita a ${pct(cuota, 0)}.` : v3 * mc - p.fi >= 0 ? `Con una cuota del ${p.cu} %, la zona aporta ${F.eur(v3 * mc - p.fi)} al año desde el tercer año.` : `Con una cuota del ${p.cu} %, la zona pierde ${F.eur(p.fi - v3 * mc)} al año incluso en el tercer año: el gasto fijo supera la contribución.`],
           grafico: linea(acc, { aria: 'Caja acumulada de la zona', marca: rec, marcaTxt: rec > 0 ? 'recuperada' : '', ticks: [[0, 'Mes 0'], [12, '12'], [24, '24'], [36, '36'], [48, '48']] }),
           pie: 'Caja acumulada de la zona, mes a mes. Margen de contribución del 32 % y arranque progresivo hasta el mes 24.'
         };
@@ -128,7 +131,7 @@
       intro: 'Una palanca de cada área sobre la misma empresa. Ninguna decide sola: cobrar antes libera caja, el precio y el Lean mueven el margen, y la rotación lo consume.',
       palancas: [
         { k: 'dso', l: 'Finanzas · días que tardan en pagarle', min: 30, max: 120, step: 5, v: 75, f: (v) => v + ' días' },
-        { k: 'pr', l: 'Comercial · subida media de precio', min: -5, max: 8, step: 0.5, v: 0, f: (v) => (v > 0 ? '+' : '') + String(v).replace('.', ',') + ' %' },
+        { k: 'pr', l: 'Comercial · subida media de precio', min: -5, max: 8, step: 0.5, v: 0, f: (v) => (v > 0 ? '+' : '') + String(v).replace('.', ',').replace('-', '−') + ' %' },
         { k: 'le', l: 'Operaciones · esperas y retrabajos eliminados', min: 0, max: 60, step: 5, v: 0, f: (v) => v + ' %' },
         { k: 'ro', l: 'Personas · rotación anual', min: 2, max: 25, step: 1, v: 12, f: (v) => v + ' %' }
       ],
@@ -140,8 +143,8 @@
         const L = [['Margen EBITDA', pct(mg), mg >= 0.1 ? 'ok' : mg >= 0.06 ? 'warn' : 'stop'], ['Caja a 12 meses', F.eur(caja12), caja12 >= 500000 ? 'ok' : caja12 >= 250000 ? 'warn' : 'stop'], ['Días de cobro', p.dso + ' días', p.dso <= 60 ? 'ok' : p.dso <= 90 ? 'warn' : 'stop'], ['Rotación', p.ro + ' %', p.ro <= 8 ? 'ok' : p.ro <= 14 ? 'warn' : 'stop']];
         const rojos = L.filter((x) => x[2] === 'stop').length, verdes = L.filter((x) => x[2] === 'ok').length;
         return {
-          kpis: [['EBITDA', F.eur(ebitda), 'antes ' + F.eur(E.ebitda)], ['Caja a 12 meses', F.eur(caja12), 'tras el servicio de la deuda'], ['Valor de la empresa', F.eur(ebitda * 6), '6 veces el EBITDA'], ['Circulante liberado', F.eur(circ), 'por cobrar antes']],
-          veredicto: [rojos ? 'stop' : verdes >= 3 ? 'go' : 'warn', rojos ? `${rojos} indicador${rojos > 1 ? 'es' : ''} en rojo` : verdes >= 3 ? 'La empresa entera mejora a la vez' : 'Mejora parcial', `El valor de la empresa pasa de ${F.eur(E.ebitda * 6)} a ${F.eur(ebitda * 6)}. Así se lee en Atalaya 360°: una decisión en un área se ve en todas las demás.`],
+          kpis: [['EBITDA', F.eur(ebitda), 'antes ' + F.eur(E.ebitda)], ['Caja a 12 meses', F.eur(caja12), 'tras el servicio de la deuda'], ['Valor de la empresa', ebitda > 0 ? F.eur(ebitda * 6) : '—', ebitda > 0 ? '6 veces el EBITDA' : 'con EBITDA negativo no se valora por múltiplo'], ['Circulante liberado', F.eur(circ), 'por cobrar antes']],
+          veredicto: [rojos ? 'stop' : verdes >= 3 ? 'go' : 'warn', rojos ? `${rojos} indicador${rojos > 1 ? 'es' : ''} en rojo` : verdes >= 3 ? 'La empresa entera mejora a la vez' : 'Mejora parcial', `${ebitda > 0 ? `El valor de la empresa pasa de ${F.eur(E.ebitda * 6)} a ${F.eur(ebitda * 6)}.` : 'Con EBITDA negativo la empresa deja de valorarse por múltiplo: destruye valor cada mes.'} Así se lee en Atalaya 360°: una decisión en un área se ve en todas las demás.`],
           luces: L,
           grafico: barras([{ n: 'EBITDA hoy', v: E.ebitda, c: css('--muted') }, { n: 'Precio', v: precio, c: css('--s1') }, { n: 'Lean', v: lean, c: css('--s3') }, { n: 'Rotación', v: -rot, c: rot > 0 ? css('--stop') : css('--go') }, { n: 'EBITDA nuevo', v: ebitda, c: css('--gold') }], { cero: true, h: 230, aria: 'De dónde sale el nuevo EBITDA' }),
           pie: 'De dónde sale el nuevo EBITDA. Rotación: cada salida cuesta la mitad de un salario medio de 35.000 €.'
@@ -164,6 +167,7 @@
     const draw = () => {
       const p = {}; $$('input[type=range]', el).forEach((r) => { p[r.dataset.k] = +r.value; r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min)) * 100 + '%'); });
       S.palancas.forEach((x) => { $(`[data-v="${x.k}"]`, el).textContent = x.f(p[x.k]); });
+      W = A.charts.fit($('[data-grafico]', el), 640, draw);
       const o = S.calc(p);
       $('[data-kpis]', el).innerHTML = o.kpis.map(([t, v, d]) => `<div><span>${esc(t)}</span><b>${esc(v)}</b><small>${esc(d)}</small></div>`).join('');
       const [st, ti, tx] = o.veredicto;
