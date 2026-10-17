@@ -24,7 +24,9 @@
   const TRIAJE = { stop: { n: 'Urgencias', d: 'Cerrar ya: de 0 a 14 días' }, warn: { n: 'Preferente', d: 'Este trimestre' }, ok: { n: 'Programable', d: 'Sin urgencia' } };
 
   /* ---------- Estado ---------- */
-  const vacio = () => ({ v: 1, sesion: { fecha: hoy(), consultor: '', asistentes: '', notas: {}, hechas: {} }, constantes: {}, areas: {}, objetivos: [], transcripciones: [], sintomas: [], causas: [], verifica: {}, hallazgos: [], plan: { inicio: '', acciones: [] }, sesiones: [], volcado: null, informes: {} });
+  const vacio = () => ({ v: 1, sesion: { fecha: hoy(), consultor: '', asistentes: '', notas: {}, hechas: {} }, constantes: {}, areas: {}, objetivos: [], transcripciones: [], sintomas: [], causas: [], verifica: {}, hallazgos: [], plan: { inicio: '', acciones: [] }, sesiones: [], volcado: null, informes: {}, recorrido: recVacio() });
+  /* Recorrido del cliente: dónde se quedó el consultor y en qué punto está cada servicio (ver PLAN-RECORRIDO-CONSULTOR.md) */
+  const recVacio = () => ({ ultimo: null, propuesta: { estado: 'borrador', fecha: '', motivo: '' }, servicios: { s1: { contratado: false, estado: '' }, s2: { contratado: false, estado: '' }, s3: { contratado: false, estado: '', meses: 6 } }, docs: {}, dinero: { notas: '', anio: null }, foto360: {}, propS2: {}, propS3: {}, arranque: {}, autoeval: {} });
   let ST = null, tab = 'guion', patSel = 'responsable', trSel = null, sesSel = null, vistaPlan = 'fase';
   const guardar = (() => { let t; return () => { clearTimeout(t); t = setTimeout(guardarYa, 500); }; })();
   async function guardarYa() { try { localStorage.setItem(LSK(), JSON.stringify(ST)); } catch (e) { /* sin almacenamiento */ } if (P() && P().saveData) { try { await P().saveData('intervencion', ST); } catch (e) { /* se queda en local */ } } }
@@ -34,6 +36,7 @@
     st = Object.assign(vacio(), st || {});
     ['objetivos', 'transcripciones', 'sintomas', 'causas', 'hallazgos', 'sesiones'].forEach((k) => { if (!Array.isArray(st[k])) st[k] = []; });
     st.sesion = Object.assign(vacio().sesion, st.sesion || {}); st.plan = Object.assign(vacio().plan, st.plan || {});
+    const rv = recVacio(); st.recorrido = Object.assign(rv, st.recorrido || {}); st.recorrido.servicios = Object.assign(rv.servicios, st.recorrido.servicios || {}); st.recorrido.propuesta = Object.assign(recVacio().propuesta, st.recorrido.propuesta || {});
     return st;
   }
   V.estado = () => ST;
@@ -83,16 +86,23 @@
   };
   const asegurarCausa = (ref) => { let c = ST.causas.find((x) => x.ref === ref.id); if (!c) { c = { id: uid(), ref: ref.id, t: ref.n, area: ref.area, patron: ref.patron, esfuerzo: ref.esfuerzo, estado: 'hipotesis', porques: ['', '', ''] }; ST.causas.push(c); } return c; };
   const ruta = () => D.AREAS.map((a) => ({ a, n: nivel(a.id), ss: sintomasDe(a.id), cs: ST.causas.filter((c) => c.area === a.id && c.estado !== 'descartada'), pr: prioArea(a.id) })).filter((x) => x.n || x.ss.length).sort((x, y) => ({ stop: 0, warn: 1, ok: 2, '': 3 }[x.n] - { stop: 0, warn: 1, ok: 2, '': 3 }[y.n]) || x.pr.o - y.pr.o || y.pr.score - x.pr.score);
-  const capa = (k) => ({ guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, propuesta: 1, documentacion: 2, auditoria: 2, ecosistema: 2, plan: 3, sesiones: 3, informes: 3 }[k]);
+  const capa = (k) => etapaDe(k);
 
   /* ---------- Pestañas y recorrido ---------- */
+  /* Seis etapas, del primer contacto al acompañamiento. Las claves antiguas se conservan (enlaces #clave, paseo, mesa) */
+  const ETAPAS = ['Sesión previa', 'Propuesta integral', 'Servicio 1 · El dinero', 'Servicio 2 · Auditoría 360', 'Servicio 3 · Acompañamiento', 'Documentos'];
   const TABS = [
-    ['guion', 'Guion de la sesión', 'Primera sesión'], ['constantes', 'Constantes vitales', 'Primera sesión'], ['escucha', 'Escucha y transcripción', 'Primera sesión'], ['sintomas', 'Síntomas y causas', 'Primera sesión'], ['triaje', 'Triaje y hoja de ruta', 'Primera sesión'], ['propuesta', 'Propuesta comercial', 'Primera sesión'],
-    ['documentacion', 'Documentación', 'Auditoría integral'], ['auditoria', 'Verificación por áreas', 'Auditoría integral'], ['ecosistema', 'Desviaciones del ecosistema', 'Auditoría integral'],
-    ['plan', 'Plan de intervención', 'Intervención'], ['sesiones', 'Sesiones y seguimiento', 'Intervención'], ['informes', 'Informes', 'Intervención']
+    ['guion', 'Guion de la sesión', ETAPAS[0]], ['constantes', 'Constantes vitales', ETAPAS[0]], ['escucha', 'Escucha y transcripción', ETAPAS[0]], ['sintomas', 'Síntomas y causas', ETAPAS[0]], ['triaje', 'Triaje y prioridades', ETAPAS[0]], ['foto', 'Foto inicial', ETAPAS[0]],
+    ['propuesta', 'Propuesta integral', ETAPAS[1]], ['aceptacion', 'Aceptación y servicios', ETAPAS[1]],
+    ['s1docs', 'Documentación solicitada', ETAPAS[2]], ['s1dinero', '¿Dónde está el dinero?', ETAPAS[2]], ['s1cierre', 'Informe y siguiente propuesta', ETAPAS[2]],
+    ['documentacion', 'Documentación', ETAPAS[3]], ['auditoria', 'Verificación por áreas', ETAPAS[3]], ['ecosistema', 'Desviaciones del ecosistema', ETAPAS[3]], ['foto360', 'Foto 360', ETAPAS[3]], ['s2cierre', 'Informe y propuesta de acompañamiento', ETAPAS[3]],
+    ['arranque', 'Arranque: reglas y método', ETAPAS[4]], ['objetivos', 'Objetivos SMART', ETAPAS[4]], ['plan', 'Plan por prioridades', ETAPAS[4]], ['sesiones', 'Sesiones quincenales', ETAPAS[4]],
+    ['informes', 'Informes y documentos', ETAPAS[5]], ['autoeval', 'Autoevaluación', ETAPAS[5]]
   ];
+  const etapaDe = (k) => { const t = TABS.find((x) => x[0] === k); return t ? ETAPAS.indexOf(t[2]) + 1 : 1; };
   const nPreg = () => D.GUION.reduce((a, b) => a + b.p.length, 0);
   const hecho = (k) => {
+    if (V.hechoExtra && V.hechoExtra[k]) { try { return !!V.hechoExtra[k](ST); } catch (e) { return false; } }
     if (k === 'guion') return Object.keys(ST.sesion.hechas || {}).filter((x) => ST.sesion.hechas[x]).length >= nPreg() / 2;
     if (k === 'constantes') return D.CONSTANTES.every((c) => cte(c.id));
     if (k === 'escucha') return ST.transcripciones.length > 0;
@@ -108,14 +118,14 @@
     return false;
   };
   function pintarTabs() {
-    const grupos = ['Primera sesión', 'Auditoría integral', 'Intervención'];
+    const grupos = ETAPAS;
     $('#ivRuta').innerHTML = grupos.map((g, i) => { const ts = TABS.filter((t) => t[2] === g), h = ts.filter((t) => hecho(t[0])).length; return `<div class="iv-capa ${ts.some((t) => t[0] === tab) ? 'on' : ''}"><span class="iv-cn">${i + 1}</span><div><b>${g}</b><span class="iv-dots">${ts.map((t) => `<button class="iv-dot ${hecho(t[0]) ? 'ok' : ''} ${t[0] === tab ? 'on' : ''}" data-t="${t[0]}" title="${esc(t[1])}${hecho(t[0]) ? ' · hecho' : ''}" aria-label="${esc(t[1])}"></button>`).join('')}</span></div><small>${h}/${ts.length}</small></div>`; }).join('<span class="iv-flecha" aria-hidden="true">→</span>');
     $('#ivRuta').insertAdjacentHTML('beforeend', `<p class="iv-leyenda"><span><i class="iv-dot ok"></i> paso hecho</span><span><i class="iv-dot"></i> pendiente</span><span><i class="iv-dot on"></i> donde estás</span><span>Toca un punto o un grupo para ir allí. Los pasos se pueden hacer en cualquier orden.</span></p>`);
     $('#ivTabs').innerHTML = grupos.map((g) => `<button class="iv-tg" data-t="${TABS.find((t) => t[2] === g)[0]}" title="Ir al primer paso de «${g}»">${g}</button>${TABS.filter((t) => t[2] === g).map(([k, n]) => `<button role="tab" data-t="${k}" aria-selected="${k === tab}">${n}${hecho(k) ? ' <i class="iv-ok" title="Paso hecho" aria-label="hecho">●</i>' : ''}</button>`).join('')}`).join('');
     $$('#ivTabs [data-t], #ivRuta [data-t]').forEach((b) => (b.onclick = () => ir(b.dataset.t)));
   }
   // ver: lleva la vista hasta la pantalla del paso (desde la portada o desde Anterior/Siguiente)
-  const ir = (k, o) => { tab = k; try { history.replaceState(null, '', '#' + k); } catch (e) { /* nada */ } render(); const t = $('#ivRuta'); if (t && ((o && o.ver) || scrollY > t.offsetTop)) scrollTo({ top: t.offsetTop - 80, behavior: 'smooth' }); };
+  const ir = (k, o) => { tab = k; if (ST && ST.recorrido && VISTAS[k]) ST.recorrido.ultimo = { tab: k, fecha: hoy() }; try { history.replaceState(null, '', '#' + k); } catch (e) { /* nada */ } render(); const t = $('#ivRuta'); if (t && ((o && o.ver) || scrollY > t.offsetTop)) scrollTo({ top: t.offsetTop - 80, behavior: 'smooth' }); };
   const PASO_TXT = {
     guion: 'Durante la sesión: sigue el guion, recoge sus objetivos y apunta frases literales. Queda hecho al marcar la mitad de las preguntas.',
     constantes: 'Al terminar la sesión: puntúa del 1 al 5 las seis constantes con lo que has visto y oído.',
@@ -128,8 +138,10 @@
     ecosistema: 'Trae las desviaciones que ya detecta el resto de Atalaya (estrategia, personas, simulador y mesa).',
     plan: 'Genera el plan por fases y líneas. Toca cada acción para ver sus pasos, indicadores y responsable.',
     sesiones: 'Elige el ritmo de las sesiones, genéralas y añádelas a tu calendario.',
-    informes: 'Abre y descarga los informes para la empresa y la guía interna del auditor.'
+    informes: 'Todo el ecosistema documental: lo que se entrega a la empresa (propuestas, informes, actas y manuales) y lo interno del consultor.'
   };
+  // Los módulos de servicios y formación añaden aquí el texto de sus pasos
+  V.pasoTxt = PASO_TXT;
   /* Recorrido guiado: «Paso N de 10» arriba y Anterior/Siguiente al pie de cada pantalla */
   const pasos = (host) => {
     const i = TABS.findIndex((t) => t[0] === tab), T = TABS[i], prev = TABS[i - 1], next = TABS[i + 1];
@@ -174,10 +186,14 @@
   function pintarHero() {
     const hero = $('#ivHero'); if (!hero || !A.heroMundo) return;
     const g = global(), r = ruta(), urg = r.filter((x) => x.n === 'stop'), top = causasOrdenadas()[0];
-    const fase = ST.plan.acciones.length ? (D.FASES.find((f) => ST.plan.acciones.some((a) => a.f === f.id && a.estado !== 'hecha')) || D.FASES[3]).n : capa(tab) === 1 ? 'Primera sesión' : 'Auditoría';
+    const fase = ETAPAS[capa((ST.recorrido && ST.recorrido.ultimo && ST.recorrido.ultimo.tab) || tab) - 1];
     const hc = { kicker: 'Auditoría integral', titulo: '¿Dónde le duele <em>de verdad</em> a la empresa?', lede: 'Como en un triaje: se toman las constantes, se escucha al empresario, se separan los síntomas de las causas y cada uno va a su área. De aquí sale la hoja de ruta de la auditoría integral y, después, el plan de intervención completo.',
-      empresa: empresa(), datos: [['Síntomas', String(ST.sintomas.length)], ['Causas', String(ST.causas.filter((c) => c.estado !== 'descartada').length)], ['Áreas en urgencias', String(urg.length)], ['Fase', fase]],
-      acciones: [(() => { const sig = TABS.find((t) => !hecho(t[0])) || TABS[TABS.length - 1], i = TABS.indexOf(sig); return { t: i === 0 && !Object.keys(ST.sesion.hechas || {}).length ? 'Empezar: guion de la primera sesión' : `Seguir · paso ${i + 1}: ${sig[1].toLowerCase()}`, cls: 'solid', fn: () => ir(sig[0], { ver: true }) }; })(), { t: 'Hoja de preguntas para la sesión', cls: 'ghost', fn: () => V.informes.guia() }],
+      empresa: empresa(), datos: [['Síntomas', String(ST.sintomas.length)], ['Causas', String(ST.causas.filter((c) => c.estado !== 'descartada').length)], ['Áreas en urgencias', String(urg.length)], ['Etapa', fase]],
+      acciones: [(() => {
+        // Continuar donde se quedó el consultor con esta empresa; si es la primera vez, el primer paso sin hacer
+        const u = ST.recorrido && ST.recorrido.ultimo, tu = u && TABS.find((t) => t[0] === u.tab);
+        if (tu && Object.keys(ST.sesion.hechas || {}).length + ST.transcripciones.length > 0) return { t: `Continuar donde lo dejó · ${tu[2]}: ${tu[1].toLowerCase()}${u.fecha ? ' (' + fCorta(u.fecha) + ')' : ''}`, cls: 'solid', fn: () => ir(tu[0], { ver: true }) };
+        const sig = TABS.find((t) => !hecho(t[0])) || TABS[TABS.length - 1], i = TABS.indexOf(sig); return { t: i === 0 && !Object.keys(ST.sesion.hechas || {}).length ? 'Empezar: guion de la sesión previa' : `Seguir · paso ${i + 1}: ${sig[1].toLowerCase()}`, cls: 'solid', fn: () => ir(sig[0], { ver: true }) }; })(), { t: 'Hoja de preguntas para la sesión', cls: 'ghost', fn: () => V.informes.guia() }],
       veredicto: { kicker: 'Triaje de la empresa', st: g || 'warn', titulo: !g ? 'Sin constantes todavía' : g === 'stop' ? `${pl(urg.length, 'área', 'áreas')} en urgencias` : g === 'warn' ? 'Atención preferente este trimestre' : 'Estable: intervención programable', texto: top ? `Causa con más peso: ${top.c.t}. Cada franja es un área: toca para ver su triaje.` : 'Cada franja es un área de la empresa. Escucha la sesión y anota los síntomas para colorearlas.',
         luces: D.AREAS.map((a) => ({ n: a.n, v: (TRIAJE[nivel(a.id)] || { n: 'Sin datos' }).n, st: nivel(a.id) || null, fn: () => ir('triaje', { ver: true }) })) },
       kpis: D.CONSTANTES.filter((c) => ['tension', 'temperatura', 'pulso', 'dependencia'].includes(c.id)).map((c) => ({ k: c.n, v: cte(c.id) ? cte(c.id) + '/5' : '—', d: c.q.toLowerCase(), st: cte(c.id) ? D.nivelConst(cte(c.id)) : null, fn: () => ir('constantes', { ver: true }) })) };
@@ -398,7 +414,7 @@
   };
 
   /* La lógica de síntomas, triaje, auditoría, plan, sesiones e informes está en vistas.js */
-  V.int = { prioArea, PRIN_N, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
+  V.int = { ETAPAS, TABS, hecho, etapaDe, recVacio, objetivosHTML: () => objetivosHTML(), wireObjetivos: (h) => wireObjetivos(h), prioArea, PRIN_N, smartObj, evalObj, fraseObj, monitor, D, E, $, $$, esc, norm, uid, hoy, sumar, fCorta, fLarga, pl, ST_N, TRIAJE, guardar, guardarYa, toast, empresa, sintomasDe, desvDe, nivel, nivelAuto, global, cte, causaDe, pesoCausa, causasOrdenadas, veinte, sugerirCausa, asegurarCausa, ruta, render, ir, VISTAS, st: () => ST, set: (k, v) => { if (k === 'sesSel') sesSel = v; if (k === 'vistaPlan') vistaPlan = v; }, get: (k) => (k === 'sesSel' ? sesSel : k === 'vistaPlan' ? vistaPlan : null) };
 
   /* ---------- Arranque ---------- */
   V.start = async () => {
@@ -417,6 +433,7 @@
     }
     ST = await cargar();
     const h = location.hash.replace('#', ''); if (VISTAS[h]) tab = h;
+    else if (ST.recorrido && ST.recorrido.ultimo && VISTAS[ST.recorrido.ultimo.tab]) tab = ST.recorrido.ultimo.tab; // vuelve donde se quedó
     render();
     V.listo = true;
   };

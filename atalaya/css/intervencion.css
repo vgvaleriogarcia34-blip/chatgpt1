@@ -302,3 +302,66 @@ details.iv-fs summary.iv-fk { cursor: pointer; }
 @media (min-width: 1180px) { body.iv-ficha-on .st-main { width: min(1240px, calc(100% - 360px)); margin-left: auto; margin-right: 360px; } }
 @media (max-width: 1179px) { .iv-ficha { right: 12px; left: 12px; width: auto; top: auto; bottom: 84px; max-height: 60vh; } .iv-fab { right: auto; left: 16px; top: auto; bottom: 24px; } }
 @media print { .iv-ficha, .iv-fab { display: none !important; } }
+
+/* ---------- Recorrido por servicios, formación y autoevaluación (servicios.js, formacion.js) ---------- */
+.sv-g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sv-g4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .sv-g3, .sv-g4 { grid-template-columns: 1fr 1fr; } }
+.sv-kpi { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; background: rgba(255, 255, 255, 0.02); }
+.sv-kpi span { font-size: var(--t-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.sv-kpi b { font-family: var(--font-data, monospace); font-size: 1.25rem; }
+.sv-kpi.warn { border-color: rgba(240, 180, 60, 0.5); }
+.sv-prio, .sv-serv { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.sv-prio li { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
+.sv-prio li small { grid-column: 2; color: var(--muted); }
+.sv-serv li { display: grid; gap: 2px; } .sv-serv li small { color: var(--muted); }
+.sv-serv li.urg b { color: #ff8a7a; }
+.sv-cita { margin: 0; padding: 8px 12px; border-left: 3px solid var(--gold); background: rgba(201, 242, 77, 0.05); border-radius: 0 10px 10px 0; font-style: italic; }
+.sv-cita small { display: block; font-style: normal; color: var(--muted); margin-top: 4px; }
+.sv-sig { border-color: rgba(201, 242, 77, 0.35); }
+.sv-contr, .sv-docs, .sv-dat, .sv-q, .sv-ses, .sv-doclist, .sv-ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.sv-contr li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.sv-contr li label { flex: 1 1 260px; }
+.sv-docs li { display: grid; grid-template-columns: 1fr 150px minmax(120px, 220px); gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.sv-docs li small { display: block; color: var(--muted); }
+.sv-docs li.recibido, .sv-docs li.revisado { border-color: rgba(120, 220, 140, 0.45); }
+.sv-docs li.na { opacity: 0.6; }
+@media (max-width: 760px) { .sv-docs li { grid-template-columns: 1fr; } }
+.sv-lect { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.sv-tab { width: 100%; border-collapse: collapse; font-size: var(--t-s); }
+.sv-tab th, .sv-tab td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.sv-tab th:first-child, .sv-tab td:first-child { text-align: left; }
+.sv-tab tbody tr { cursor: pointer; } .sv-tab tbody tr.on { background: rgba(201, 242, 77, 0.08); }
+.sv-tab td.neg { color: #ff8a7a; }
+.sv-barras { display: grid; gap: 6px; }
+.sv-barras div { display: grid; grid-template-columns: minmax(150px, 220px) 1fr 52px; gap: 8px; align-items: center; font-size: var(--t-s); }
+.sv-barras i { display: block; height: 10px; border-radius: 6px; background: linear-gradient(90deg, var(--gold), rgba(201, 242, 77, 0.4)); }
+.sv-barras b { text-align: right; font-family: var(--font-data, monospace); }
+.sv-360 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 980px) { .sv-360 { grid-template-columns: 1fr; } }
+.sv-n { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--gold); color: var(--gold); font-weight: 700; flex: 0 0 auto; }
+.sv-bl .row > div small, .sv-arr .row > div small { display: block; }
+.sv-dat li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font-size: var(--t-s); padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.sv-dat li b { font-family: var(--font-data, monospace); font-weight: 500; text-align: right; }
+.sv-arr.ok { border-color: rgba(120, 220, 140, 0.45); }
+.sv-decir { padding: 10px 12px; border-radius: 10px; background: rgba(201, 242, 77, 0.05); border: 1px solid rgba(201, 242, 77, 0.2); }
+.sv-decir p { margin: 6px 0 0; font-style: italic; }
+.sv-ul { padding-left: 4px; } .sv-ul li::before { content: '✓ '; color: var(--gold); }
+.sv-cifra { margin: 0; color: var(--gold-soft, #d9f28a); }
+.sv-piedra { display: grid; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); color: var(--gold-soft, #d9f28a); }
+.sv-ses li { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+.sv-ses li > div:first-child { flex: 1 1 360px; display: grid; gap: 4px; }
+.sv-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sv-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; border: 1px solid rgba(201, 242, 77, 0.45); font-size: var(--t-xs); }
+.sv-chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 1rem; line-height: 1; }
+.sv-q li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; font-size: var(--t-s); }
+.sv-esc { display: inline-flex; gap: 4px; }
+.sv-esc button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-strong, rgba(255,255,255,.25)); background: none; color: inherit; cursor: pointer; }
+.sv-esc button.on { background: var(--gold); color: #111; border-color: transparent; font-weight: 700; }
+.sv-nota { font-family: var(--font-data, monospace); font-weight: 700; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
+.sv-nota.ok { border-color: rgba(120, 220, 140, 0.6); color: #9be89b; } .sv-nota.warn { border-color: rgba(240, 180, 60, 0.6); color: #f0c36a; } .sv-nota.stop { border-color: rgba(255, 120, 100, 0.6); color: #ff8a7a; }
+.sv-docgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .sv-docgrid { grid-template-columns: 1fr; } }
+.sv-doclist li { display: grid; gap: 2px; }
+.sv-doclist li .btn { justify-self: start; }
+.sv-async { display: grid; gap: 14px; }

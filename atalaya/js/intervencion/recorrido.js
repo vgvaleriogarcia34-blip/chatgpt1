@@ -199,6 +199,9 @@
     $$('[data-nv]', el).forEach((x) => (x.onclick = () => { escribir('atalaya.iv.nivel', x.dataset.nv); escribir(kFicha(), '1'); render(); }));
   };
 
+  // Fichas de los pasos del recorrido por servicios (servicios.js y formacion.js)
+  Object.assign(FICHA, V.fichaExtra || {});
+
   /* Cada vista pinta su ficha y sus «Cómo decírselo» */
   Object.keys(VISTAS).forEach((k) => {
     const v0 = VISTAS[k];
