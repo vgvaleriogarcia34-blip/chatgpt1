@@ -37,7 +37,7 @@
 .ms-acc { display: flex; gap: 4px; }
 
 /* Horario del día y agenda semanal */
-.ms-hor { position: relative; margin-left: 46px; border-left: 1px solid var(--line); }
+.ms-hor { position: relative; margin-left: 46px; border-left: 1px solid var(--line); overflow-x: clip; overflow-clip-margin: 48px; } /* los bloques no ensanchan la página; las horas (a la izquierda) siguen visibles */
 .ms-h { position: absolute; left: -46px; font: 500 0.66rem var(--font-data); color: var(--faint); transform: translateY(-50%); }
 .ms-h::after { content: ''; position: absolute; left: 46px; width: 2000px; max-width: calc(100vw - 120px); border-top: 1px dashed rgba(255, 255, 255, 0.06); top: 50%; }
 .ms-blk { position: absolute; left: 4px; right: 4px; overflow: hidden; padding: 2px 6px; border-radius: 6px; font-size: 0.7rem; line-height: 1.25; background: rgba(57, 135, 229, 0.22); border: 1px solid rgba(57, 135, 229, 0.6); color: var(--fg); cursor: default; white-space: nowrap; text-overflow: ellipsis; }
