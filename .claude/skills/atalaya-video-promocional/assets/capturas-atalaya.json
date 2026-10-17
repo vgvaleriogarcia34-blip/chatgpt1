@@ -390,14 +390,12 @@
    "acciones": [
     {
      "click": "#ivTabs [data-t=escucha]",
-     "esperar": 1500
+     "esperar": 2500
     },
     {
-     "scroll": "#ivPanel",
-     "esperar": 800
-    },
-    {
-     "eval": "window.scrollBy(0,-30)"
+     "scrollTexto": "Transcripción de la sesión",
+     "altura": 0.1,
+     "esperar": 1000
     }
    ]
   },
@@ -443,10 +441,6 @@
    "esperar": 4000,
    "acciones": [
     {
-     "click": "#msTabs [data-t=objetivos]",
-     "esperar": 1500
-    },
-    {
      "scroll": "#msTabs",
      "esperar": 800
     },
@@ -462,14 +456,12 @@
    "acciones": [
     {
      "click": "#msTabs [data-t=agenda]",
-     "esperar": 1500
+     "esperar": 2500
     },
     {
-     "scroll": "#msTabs",
-     "esperar": 800
-    },
-    {
-     "eval": "window.scrollBy(0,-30)"
+     "scrollTexto": "Exportar al calendario",
+     "altura": 0.08,
+     "esperar": 1000
     }
    ]
   },
