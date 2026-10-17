@@ -365,3 +365,7 @@ details.iv-fs summary.iv-fk { cursor: pointer; }
 .sv-doclist li { display: grid; gap: 2px; }
 .sv-doclist li .btn { justify-self: start; }
 .sv-async { display: grid; gap: 14px; }
+.iv-smart i { transition: background 0.3s, border-color 0.3s, transform 0.3s; }
+.iv-smart i.nuevo { transform: scale(1.25); box-shadow: 0 0 0 3px rgba(47, 178, 74, 0.35); }
+.iv-oaviso { margin: -4px 0 0; } .iv-oaviso:empty { display: none; }
+.iv-mejora { color: var(--go); }

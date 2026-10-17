@@ -65,7 +65,28 @@
     if (/\b(un|1) ano\b/.test(c)) return sumar(base, 365);
     if (/(este ano|cerrar el ano|cerramos el ano|final de ano|fin de ano)/.test(c)) return base.slice(0, 4) + '-12-31';
     m = c.match(/\b(?:antes de|para)\s+(?:el\s+)?(20\d\d)\b/); if (m) return m[1] + '-12-31';
+    // «antes de junio», «para finales de marzo de 2027», «el 30 de junio»: último día de ese mes (o ese día), la próxima vez que llegue
+    m = c.match(/\b(?:(\d{1,2})\s+de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:\s+(?:de|del)\s+(20\d\d))?\b/);
+    if (m) { const mes = MESES.indexOf(m[2] === 'setiembre' ? 'septiembre' : m[2]) + 1, b = new Date(base + 'T12:00:00'); let an = m[3] ? +m[3] : b.getFullYear(); if (!m[3] && mes < b.getMonth() + 1) an++; const ult = new Date(an, mes, 0).getDate(), d = m[1] ? Math.min(+m[1], ult) : ult; return `${an}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`; }
+    m = c.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](20\d\d)\b/); if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
     return '';
+  };
+  const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  // Lee una frase del empresario y saca lo que ya trae de SMART: qué hará, indicador, hoy → meta, unidad, fecha y si depende de él
+  const leerFrase = (frase, base) => {
+    const t = String(frase || '').trim(); if (!t) return {};
+    const T = temaDe(t), r = {}, md = medida(t, T), f = fechaDe(t, base || V.int.hoy());
+    const sinDeseo = t.replace(/^\s*(yo\s+)?(quiero|quisiera|me gustar[ií]a|necesito|mi objetivo es|el objetivo es|mi meta es|tengo que conseguir|aspiro a)\s+/i, '').replace(/[.\s]+$/, '');
+    if (sinDeseo !== t.replace(/[.\s]+$/, '') && /^\S+(ar|er|ir)(se|lo|la|le|me)?\b/i.test(sinDeseo)) r.especifica = sinDeseo.charAt(0).toUpperCase() + sinDeseo.slice(1);
+    else if (/^\s*\S+(ar|er|ir)(se|lo|la|le|me)?\b/i.test(t) && t.split(/\s+/).length >= 4) r.especifica = t.replace(/[.\s]+$/, '');
+    // La cifra y la fecha van en sus campos: se quitan del «qué hará» para que la frase final no las repita
+    if (r.especifica) r.especifica = r.especifica.replace(/\s+(?:de|desde)\s+(?:unas?\s+|unos?\s+)?\d+(?:[.,]\d+)?\s*\S*\s+a\s+(?:unas?\s+|unos?\s+)?\d+(?:[.,]\d+)?(?:\s*(?:%|€|horas?|d[ií]as?|semanas?|meses|euros?))?/i, '')
+      .replace(/,?\s+(?:antes de(?:l)?|para(?: el)?|a finales de|en)\s+(?:finales de\s+)?(?:(?:\d{1,2}\s+de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:\s+de(?:l)?\s+20\d\d)?|20\d\d|\d+\s+(?:meses|mes|a[ñn]os?|semanas))\b/i, '').replace(/\s{2,}/g, ' ').trim();
+    if (T) { r.indicador = T.ind; r.unidad = T.u; if (T.solo) r.solo = true; }
+    if (md) { if (md.actual) r.actual = md.actual; if (md.valor) r.valor = md.valor; }
+    if (f) r.fecha = f;
+    if (T && T.ben) { const b = T.ben(Object.assign({}, r), {}); if (b) r.beneficio = b; }
+    return r;
   };
 
   /* ---------- Extraer los objetivos de las transcripciones del día ---------- */
@@ -158,14 +179,14 @@
     const c = clasificar(); if (!c.smart.length && !c.trabajar.length && !c.fuera.length) return '';
     const letras = (sm) => sm.map((y) => (y.ok ? '✓ ' : '✗ ') + y.k).join('  ');
     let h = '';
-    h += c.smart.length ? In.table(['#', 'Objetivo SMART', 'Indicador · hoy → meta', 'Beneficio', 'Fecha', 'E M A R T'], c.smart.map((x, i) => ['O' + (i + 1), fraseObj(x.o), `${x.o.indicador}: ${x.o.actual || '?'} → ${x.o.valor} ${x.o.unidad || ''}`, x.o.beneficio, fLarga(x.o.fecha), letras(x.sm)]))
+    h += c.smart.length ? In.table(['#', 'Objetivo SMART', 'Indicador · hoy → meta', 'Beneficio', 'Fecha', 'S M A R T'], c.smart.map((x, i) => ['O' + (i + 1), fraseObj(x.o), `${x.o.indicador}: ${x.o.actual || '?'} → ${x.o.valor} ${x.o.unidad || ''}`, x.o.beneficio, fLarga(x.o.fecha), letras(x.sm)]))
       : In.callout('Todavía ningún objetivo cumple las cinco condiciones SMART. Los que ha planteado están abajo, con lo que falta para cerrarlos.', 'warn');
     if (c.trabajar.length) h += `<h4 style="margin:14px 0 6px">Objetivos que hay que trabajar</h4><p class="rp-muted" style="margin:0 0 6px">Los ha planteado, pero aún no cumplen las cinco condiciones. No se dan por objetivos hasta cerrarlos en la próxima sesión.</p>`
       + In.table(['Lo que dijo', 'Propuesta de objetivo', 'Indicador · hoy → meta', 'Beneficio', 'Qué falta'], c.trabajar.map((x) => [x.o.dice ? '«' + x.o.dice + '»' : '—', x.o.especifica || '—', x.o.indicador ? `${x.o.indicador}: ${x.o.actual || '?'} → ${x.o.valor || '?'} ${x.o.unidad || ''}` : '—', x.o.beneficio || 'Sin cuantificar', x.sm.filter((y) => !y.ok).map((y) => `${y.n}: ${FALTA_U[y.k] || y.h}`).join(' ')]));
     if (c.fuera.length) h += `<p class="rp-muted" style="margin:10px 0 0">Las condiciones del contrato o de la propuesta (por ejemplo, el componente variable) no son objetivos de la empresa y no figuran aquí.</p>`;
     return h;
   };
-  V.objSmart = { extraer, aplicar, desdeTranscripciones, conClaude, clasificar, seccion: seccionObjetivos, esContrato };
+  V.objSmart = { leerFrase, extraer, aplicar, desdeTranscripciones, conClaude, clasificar, seccion: seccionObjetivos, esContrato };
 
   // Al procesar transcripciones de primera sesión se sacan también los objetivos
   const proc0 = V.cruce.procesar;
