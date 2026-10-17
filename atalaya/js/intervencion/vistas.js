@@ -61,7 +61,7 @@
       $$('[data-ce]', li).forEach((i) => (i.onchange = () => { c[i.dataset.ce] = i.dataset.ce === 'esfuerzo' ? +i.value : i.value; render(); }));
       $$('[data-pq]', li).forEach((i) => (i.oninput = () => { c.porques = c.porques || []; c.porques[+i.dataset.pq] = i.value; guardar(); }));
     });
-    // El consultor valida la causa propuesta: deja de ser hipótesis y así sale en los informes de la empresa
+    // El consultor valida la causa propuesta: deja de figurar como «hipótesis por confirmar» en los informes de la empresa
     $$('[data-cok]', host).forEach((b) => (b.onclick = () => { const c = S().causas.find((x) => x.id === b.dataset.cok); if (c) { c.estado = 'confirmada'; c.validada = new Date().toISOString(); } render(); }));
     $$('[data-rec]', host).forEach((b) => (b.onclick = () => { S().causas.find((c) => c.id === b.dataset.rec).estado = 'hipotesis'; render(); }));
   };
