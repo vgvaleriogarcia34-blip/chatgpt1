@@ -22,19 +22,19 @@
     <div id="notice"></div>
 
     <form id="fIn" novalidate>
-      <h1>Bienvenido <em>de nuevo</em></h1>
+      <h1>Le damos <em>la bienvenida</em></h1>
       <label>Correo electrónico<input class="input" id="inEmail" type="email" autocomplete="email" required></label>
       <label>Contraseña<input class="input" id="inPass" type="password" autocomplete="current-password" required></label>
       <button class="btn solid" type="submit">Entrar</button>
       <p class="small muted" id="inMsg" role="alert"></p>
-      <button class="btn ghost" type="button" id="toForgot">¿Has olvidado tu contraseña?</button>
+      <button class="btn ghost" type="button" id="toForgot">¿Ha olvidado su contraseña?</button>
     </form>
 
     <form id="fForgot" novalidate hidden>
-      <h1>Recupera <em>tu acceso</em></h1>
-      <p class="small muted" style="margin:0">Escribe el correo de tu cuenta. Te enviaremos un enlace, válido durante 60 minutos, para crear una contraseña nueva.</p>
+      <h1>Recupere <em>su acceso</em></h1>
+      <p class="small muted" style="margin:0">Escriba el correo de su cuenta. Le enviaremos un enlace, válido durante 60 minutos, para crear una contraseña nueva.</p>
       <label>Correo electrónico<input class="input" id="fgEmail" type="email" autocomplete="email" required></label>
-      <button class="btn solid" type="submit">Enviar enlace</button>
+      <button class="btn solid" type="submit">Enviar el enlace</button>
       <p class="small" id="fgMsg" role="alert"></p>
       <button class="btn ghost" type="button" data-back>Volver a entrar</button>
     </form>
@@ -42,40 +42,39 @@
     <form id="fReset" novalidate hidden>
       <h1>Nueva <em>contraseña</em></h1>
       <label>Contraseña nueva (mínimo 8 caracteres)<input class="input" id="rsPass" type="password" autocomplete="new-password" minlength="8" required></label>
-      <label>Repítela<input class="input" id="rsPass2" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label>Repítala<input class="input" id="rsPass2" type="password" autocomplete="new-password" minlength="8" required></label>
       <button class="btn solid" type="submit">Guardar y entrar</button>
       <p class="small" id="rsMsg" role="alert"></p>
       <button class="btn ghost" type="button" data-back>Volver a entrar</button>
     </form>
 
     <form id="fUp" novalidate hidden>
-      <h1>Empieza tu <em>prueba</em></h1>
-      <p class="small muted" style="margin:0">14 días con todas las funciones. Sin tarjeta.</p>
-      <label>Nombre y apellidos<input class="input" id="upName" autocomplete="name" required></label>
-      <label>Empresa<input class="input" id="upCo" autocomplete="organization"></label>
-      <label>Correo electrónico<input class="input" id="upEmail" type="email" autocomplete="email" required></label>
-      <label>Teléfono (opcional)<input class="input" id="upTel" type="tel" autocomplete="tel"></label>
-      <label>Contraseña (mínimo 8 caracteres)<input class="input" id="upPass" type="password" autocomplete="new-password" minlength="8" required></label>
+      <h1>Empiece su <em>prueba</em></h1>
+      <p class="small muted" style="margin:0">14 días con todas las funciones de su plan. Sin tarjeta.</p>
+      <label for="upName">Nombre y apellidos<input class="input" id="upName" autocomplete="name" required aria-describedby="upNameErr"><small class="fld-err" id="upNameErr" hidden></small></label>
+      <label for="upCo">Nombre de su empresa<input class="input" id="upCo" autocomplete="organization" required aria-describedby="upCoErr"><small class="fld-err" id="upCoErr" hidden></small></label>
+      <label for="upSector">Sector (opcional)<select class="input" id="upSector"><option value="">Elegir más tarde</option></select></label>
+      <label for="upEmail">Correo electrónico<input class="input" id="upEmail" type="email" autocomplete="email" required aria-describedby="upEmailErr"><small class="fld-err" id="upEmailErr" hidden></small></label>
+      <label for="upTel">Teléfono (opcional)<input class="input" id="upTel" type="tel" autocomplete="tel" aria-describedby="upTelErr"><small class="fld-err" id="upTelErr" hidden></small></label>
+      <label for="upPass">Contraseña (mínimo 8 caracteres)<input class="input" id="upPass" type="password" autocomplete="new-password" minlength="8" required aria-describedby="upPassErr"><small class="fld-err" id="upPassErr" hidden></small></label>
       <div class="periodpick seg" id="perPick" role="group" aria-label="Forma de pago"><button type="button" data-per="mensual" aria-pressed="true">Pago mensual</button><button type="button" data-per="anual" aria-pressed="false">Pago anual <b>−30 %</b></button></div>
-      <div class="planpick" id="planPick"></div>
+      <div class="planpick" id="planPick" role="radiogroup" aria-label="Plan"></div>
       <p class="small muted" id="planNote" style="margin:0"></p>
-      <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="upOk" required> Acepto las condiciones de uso y el tratamiento de mis datos para prestar el servicio.</label>
-      <button class="btn solid" type="submit">Crear cuenta y entrar</button>
+      <p class="small muted up-priv" style="margin:0">Antes de crear la cuenta, lea la <a href="privacidad.html" target="_blank" rel="noopener">información sobre privacidad</a>: quién trata sus datos, para qué y cómo ejercer sus derechos.</p>
+      <div class="up-ok"><label class="small" style="display:flex;gap:8px;align-items:flex-start;color:var(--fg)"><input type="checkbox" id="upOk" required aria-describedby="upOkErr"> <span>Acepto las <a href="condiciones.html" target="_blank" rel="noopener">condiciones de uso</a> del servicio.</span></label><small class="fld-err" id="upOkErr" hidden></small></div>
+      <button class="btn solid" type="submit">Crear la cuenta y entrar</button>
       <p class="small muted" id="upMsg" role="alert"></p>
     </form>
 
     <div id="payBox" hidden>
-      <h1>Activa <em>tu plan</em></h1>
-      <p id="payTxt"></p>
-      <button class="btn solid" id="payReq">Solicitar la activación</button>
-      <button class="btn" id="payPlan">Cambiar de plan antes de activar</button>
-      <p class="small muted" id="payMsg"></p>
-      <button class="btn ghost" id="payOut">Cerrar sesión</button>
+      <div id="payHost"></div>
+      <button class="btn ghost" id="payOut" style="margin-top:12px">Cerrar sesión</button>
     </div>
   </section>
 </main>
 
 <script src="js/platform.js"></script>
+<script src="js/sectors.js"></script>
 <script src="js/cosmos.js"></script>
 <script>
 (function () {
@@ -97,6 +96,8 @@
   if (resetToken) { h = ''; try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } }
   const planSel = (h.match(/^alta-(esencial|profesional|consultora|grupos)/) || [])[1] || 'profesional';
   const planIni = planSel === 'grupos' ? 'profesional' : planSel;
+  // Sectores de la ficha de la empresa (los mismos que en el simulador)
+  if (A.SECTORS) $('#upSector').insertAdjacentHTML('beforeend', Object.keys(A.SECTORS).map((k) => `<option value="${k}">${A.SECTORS[k].nombre}</option>`).join(''));
   // Planes y forma de pago: el anual lleva un 30 % de descuento sobre el precio mensual
   let periodo = /anual/.test(h) ? 'anual' : 'mensual';
   const drawPlans = () => {
@@ -104,7 +105,7 @@
     $('#planPick').innerHTML = Object.keys(P.PLANES).filter((k) => !P.PLANES[k].aMedida).map((k) => { const pr = P.precio(k, periodo, 1); return `<label><input type="radio" name="plan" value="${k}" ${k === cur ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.eur(P.cuota(pr).importe)}${P.cuota(pr).unidad}${P.PLANES[k].tramos ? ' desde' : ''}</small></label>`; }).join('');
     document.querySelectorAll('#perPick button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
     const k = (document.querySelector('input[name="plan"]:checked') || {}).value || 'profesional', pr = P.precio(k, periodo, 1), pl = P.PLANES[k];
-    $('#planNote').innerHTML = `${pl.para || ''}${pl.tramos ? ` · ${pl.tramos.map((t) => `${t.n.toLowerCase()}: ${(() => { const c = P.cuota(P.precio(k, periodo, t.hasta === Infinity ? 11 : t.hasta)); return P.eur(c.importe) + c.unidad; })()}`).join(' · ')}` : ''}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}${pl.tramos ? ' (primer tramo)' : ''}, ahorras ${P.eur(pr.ahorro)}` : ''}. Los 14 días de prueba son gratis en todos.`;
+    $('#planNote').innerHTML = `${(pl.para || '').replace(/\btu\b/g, 'su')}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}, ahorra ${P.eur(pr.ahorro)}` : ''}. Precios sin IVA. Los 14 días de prueba son gratuitos en todos los planes.`;
     document.querySelectorAll('input[name="plan"]').forEach((r) => r.onchange = drawPlans);
   };
   document.querySelectorAll('#perPick button').forEach((b) => b.onclick = () => { periodo = b.dataset.per; drawPlans(); });
@@ -118,44 +119,34 @@
   addEventListener('hashchange', () => { if (location.hash.startsWith('#reset=')) location.reload(); else if (location.hash.startsWith('#alta')) show('up'); });
 
   P.ready.then(async (mode) => {
-    if (mode === 'local') $('#notice').innerHTML = '<div class="alert info">Modo demostración: no hay servidor conectado, así que las cuentas se guardan solo en este navegador. </div>';
+    if (mode === 'local') $('#notice').innerHTML = '<div class="alert info">Modo demostración: no hay servidor conectado, así que las cuentas se guardan solo en este navegador.</div>';
     if (resetToken) return;
     const u = await P.me();
     const acc = P.accessOf(u);
     // Con la sesión abierta, «Probar» un plan desde la página comercial lleva a cambiar de plan dentro de la aplicación
     if (u && acc.ok) { const quiere = (h.match(/^alta-(esencial|profesional|consultora|grupos)/) || [])[1]; location.href = 'portal.html' + (quiere && quiere !== u.plan ? '#plan-' + quiere : ''); return; }
     if (u && !acc.ok) payScreen(u, acc.motivo);
-    else if (h === 'pago' || h === 'bloqueado') $('#notice').insertAdjacentHTML('beforeend', '<div class="alert warn">Entra con tu cuenta para continuar.</div>');
+    else if (h === 'pago' || h === 'bloqueado') $('#notice').insertAdjacentHTML('beforeend', '<div class="alert warn">Entre con su cuenta para continuar: verá su plan y cómo activarlo, y podrá descargar sus datos.</div>');
   });
 
+  /* Prueba terminada o acceso suspendido: plan y precio, enlace de pago o solicitud, contacto directo y descarga de datos */
   function payScreen(u, motivo) {
     ['#fIn', '#fUp', '#fForgot', '#fReset'].forEach((x) => { $(x).hidden = true; }); document.querySelector('.tabs').hidden = true;
     $('#payBox').hidden = false;
-    const pl = P.PLANES[u.plan] || P.PLANES.profesional, pr = P.precio(u.plan, u.periodo, u.empresas);
-    $('#payTxt').innerHTML = motivo === 'bloqueado'
-      ? 'Tu acceso está suspendido. Escríbenos para revisarlo.'
-      : `Tu periodo de prueba ha terminado. Para seguir usando Atalaya activa el plan <b>${pl.nombre}</b> (${pr.periodo === 'anual' ? `cuota anual de ${P.eur(pr.total)}: doce meses con el 30 % de descuento` : `${P.eur(pr.mes)} al mes`}). Te enviaremos los datos de pago y, en cuanto se confirme, tu acceso se reactiva con todos tus datos.`;
-    $('#payReq').hidden = motivo === 'bloqueado';
-    $('#payReq').onclick = async () => {
-      try {
-        if (P.mode === 'server') await P.api('/me/solicitar-pago', { method: 'POST' });
-        else { const users = JSON.parse(localStorage.getItem('atalaya.users') || '[]'); const x = users.find((y) => y.id === u.id); if (x) { x.solicitudPago = new Date().toISOString(); localStorage.setItem('atalaya.users', JSON.stringify(users)); } }
-        $('#payMsg').textContent = 'Solicitud enviada. Te contactaremos con los datos de pago.';
-      } catch (e) { $('#payMsg').textContent = e.message; }
-    };
+    if (location.hash !== '#' + motivo) { try { history.replaceState(null, '', '#' + motivo); } catch (e) { /* sin historial */ } }
+    P.pintarPago($('#payHost'), u, { motivo, empresas: u.empresas || 1, onCambio: async () => { const u2 = await P.me(); document.querySelectorAll('.ef-back').forEach((x) => x.remove()); payScreen(u2, motivo); } });
     $('#payOut').onclick = P.logout;
-    const pc = $('#payPlan'); if (pc) pc.onclick = () => P.panelPlanes({ onCambio: async () => { const u2 = await P.me(); document.querySelectorAll('.ef-back').forEach((x) => x.remove()); payScreen(u2, motivo); } });
   }
 
   $('#fForgot').onsubmit = async (e) => {
     e.preventDefault();
-    if (!$('#fgEmail').value.includes('@')) { $('#fgMsg').textContent = 'Escribe un correo válido.'; return; }
+    if (!$('#fgEmail').value.includes('@')) { $('#fgMsg').textContent = 'Escriba un correo válido.'; return; }
     $('#fgMsg').textContent = 'Enviando…';
     try {
       const r = await P.forgot($('#fgEmail').value);
-      $('#fgMsg').innerHTML = r.local ? '<span class="muted">Modo demostración: no se envían correos. Hemos avisado a la administración, que puede generarte un enlace desde el gestor de usuarios.</span>'
-        : r.correo ? '<span style="color:var(--go)">Si el correo corresponde a una cuenta, recibirás un enlace en unos minutos. Revisa también el correo no deseado.</span>'
-        : '<span style="color:var(--go)">Solicitud recibida. Si el correo corresponde a una cuenta, la administración de Atalaya te enviará un enlace para restablecerla.</span>';
+      $('#fgMsg').innerHTML = r.local ? '<span class="muted">Modo demostración: no se envían correos. Hemos avisado a la administración, que puede generarle un enlace desde el gestor de usuarios.</span>'
+        : r.correo ? '<span style="color:var(--go)">Si el correo corresponde a una cuenta, recibirá un enlace en unos minutos. Revise también el correo no deseado.</span>'
+        : '<span style="color:var(--go)">Solicitud recibida. Si el correo corresponde a una cuenta, la administración de Atalaya le enviará un enlace para restablecerla.</span>';
     } catch (err) { $('#fgMsg').textContent = err.message; }
   };
   $('#fReset').onsubmit = async (e) => {
@@ -177,15 +168,29 @@
       if (acc.ok) location.href = 'portal.html'; else { $('#inMsg').textContent = ''; payScreen(u, acc.motivo); }
     } catch (err) { $('#inMsg').textContent = err.message; }
   };
+  /* Alta: cada campo se comprueba en el orden en que se ve; el error sale debajo del campo y el foco va al primero */
+  const REGLAS = [
+    ['#upName', (el) => el.value.trim().length >= 2, 'Escriba su nombre y apellidos.'],
+    ['#upCo', (el) => el.value.trim().length >= 2, 'Escriba el nombre de su empresa.'],
+    ['#upEmail', (el) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(el.value.trim()), 'Escriba un correo electrónico válido, por ejemplo nombre@empresa.es.'],
+    ['#upTel', (el) => !el.value.trim() || /^\+?[\d\s().-]{9,20}$/.test(el.value.trim()), 'Revise el teléfono (al menos 9 cifras) o déjelo en blanco.'],
+    ['#upPass', (el) => el.value.length >= 8, 'La contraseña debe tener al menos 8 caracteres.'],
+    ['#upOk', (el) => el.checked, 'Para crear la cuenta debe aceptar las condiciones de uso.']
+  ];
+  const marcar = (sel, msg) => { const el = $(sel), er = $(sel + 'Err'); el.setAttribute('aria-invalid', msg ? 'true' : 'false'); if (er) { er.textContent = msg || ''; er.hidden = !msg; } };
+  REGLAS.forEach(([sel, ok]) => { const el = $(sel); el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => { if (el.getAttribute('aria-invalid') === 'true' && ok(el)) marcar(sel, ''); }); });
   $('#fUp').onsubmit = async (e) => {
     e.preventDefault();
-    if (!$('#upOk').checked) { $('#upMsg').textContent = 'Acepta las condiciones para crear la cuenta.'; return; }
-    if (!$('#upName').value.trim() || !$('#upEmail').value.includes('@')) { $('#upMsg').textContent = 'Escribe tu nombre y un correo válido.'; return; }
-    $('#upMsg').textContent = 'Creando tu cuenta…';
+    let primero = null;
+    REGLAS.forEach(([sel, ok, msg]) => { const bien = ok($(sel)); marcar(sel, bien ? '' : msg); if (!bien && !primero) primero = $(sel); });
+    if (primero) { $('#upMsg').textContent = ''; primero.focus(); return; }
+    $('#upMsg').textContent = 'Creando su cuenta…';
     try {
-      await P.register({ nombre: $('#upName').value, empresa: $('#upCo').value, email: $('#upEmail').value, telefono: $('#upTel').value, password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value, periodo });
+      await P.register({ nombre: $('#upName').value.trim(), empresa: $('#upCo').value.trim(), email: $('#upEmail').value.trim(), telefono: $('#upTel').value.trim(), password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value, periodo });
+      // El nombre y el sector van a la ficha de la empresa principal
+      try { await P.fichaInicial({ nombre: $('#upCo').value.trim(), sector: $('#upSector').value }); } catch (x) { /* se completa en la ficha */ }
       location.href = 'portal.html';
-    } catch (err) { $('#upMsg').textContent = err.message; }
+    } catch (err) { $('#upMsg').textContent = /correo/i.test(err.message) && /cuenta/i.test(err.message) ? 'Ya hay una cuenta con ese correo. Entre con su contraseña o recupérela.' : err.message; if (/correo/i.test(err.message)) marcar('#upEmail', err.message); }
   };
 })();
 </script>

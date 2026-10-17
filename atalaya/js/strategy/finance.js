@@ -15,15 +15,16 @@
      ========================================================= */
   S.register({
     id: 'dinero', nombre: 'Flujo del dinero', grupo: 'Finanzas',
+    datosSim: true, datos: () => { const H = S.sim.historico; return !!(H && H.anios && H.anios.length >= 2 && !(S.real() && H.ejemplo)); },
     render(host) {
       const H = S.sim.historico;
       const an = A.fin.analyze(H);
       if (!H || !H.anios || H.anios.length < 2) {
         host.innerHTML = `${S.section('Auditoría del flujo del dinero', 'Responde a la pregunta «he ganado dinero, ¿dónde está?». Necesita el balance y la cuenta de resultados de al menos dos años.')}
-          <div class="glass pad stack"><p class="small">Tres formas de cargar los datos: escribirlos a mano en la rejilla de abajo (lo más rápido si tienes las cuentas a la vista), adjuntar las cuentas anuales en PDF, Excel o Word, o cargar el ejemplo para ver cómo funciona.</p><div class="row"><label class="btn" for="mfFile">Adjuntar cuentas</label><input type="file" id="mfFile" hidden multiple accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx"><button class="btn ghost" id="mfEx">Cargar ejemplo</button></div><p class="small" id="mfMsg"></p></div>
+          <div class="glass pad stack"><p class="small">${S.real() ? 'Dos formas de cargar los datos: escribirlos a mano en la rejilla de abajo (lo más rápido si tiene las cuentas a la vista) o adjuntar las cuentas anuales en PDF, Excel o Word.' : 'Tres formas de cargar los datos: escribirlos a mano en la rejilla de abajo (lo más rápido si tienes las cuentas a la vista), adjuntar las cuentas anuales en PDF, Excel o Word, o cargar el ejemplo para ver cómo funciona.'}</p><div class="row"><label class="btn" for="mfFile">Adjuntar cuentas</label><input type="file" id="mfFile" hidden multiple accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx">${S.real() ? '' : '<button class="btn ghost" id="mfEx">Cargar ejemplo</button>'}</div><p class="small" id="mfMsg"></p></div>
           <div class="glass pad mt" id="mfGrid"></div>`;
         A.fin.mountGrid($('#mfGrid', host), H, { empresa: S.sim.empresa, onSave: (h) => { S.sim.historico = h; S.saveSim(); S.rerender(); } });
-        $('#mfEx', host).onclick = () => { S.sim.historico = A.fin.example(); S.saveSim(); S.rerender(); };
+        if ($('#mfEx', host)) $('#mfEx', host).onclick = () => { S.sim.historico = A.fin.example(); S.saveSim(); S.rerender(); };
         $('#mfFile', host).onchange = async (e) => {
           const anios = [];
           for (const f of e.target.files) { try { const r = await A.fin.fromFile(f); r.anios.forEach((a) => { const t = anios.find((x) => x.anio === a.anio); if (t) Object.assign(t, a); else anios.push(a); }); } catch (x) { $('#mfMsg', host).textContent = f.name + ': ' + x.message; } }
@@ -244,7 +245,9 @@
 
   S.register({
     id: 'impuestos', nombre: 'Impuestos', grupo: 'Finanzas',
+    datosSim: true, datos: () => S.simConDatos(),
     render(host) {
+      if (!S.simConDatos()) return S.vacioSim(host, 'Impuestos: calendario y presión fiscal', 'Calendario de pagos de los próximos doce meses (IVA, retenciones, Seguridad Social y pagos a cuenta) y movimientos para reducir la factura fiscal.');
       const T = S.state.impuestos;
       const tc = taxCalc();
       const ESC = ['estres', 'pesimista', 'base', 'optimista'];
@@ -367,6 +370,7 @@
   S.cashWeeks = cashWeeks;
   S.register({
     id: 'tesoreria', nombre: 'Tesorería semanal', grupo: 'Finanzas',
+    datos: () => S.simConDatos() || (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
     render(host) {
       const Ts = S.state.tesoreria, e = S.sim.empresa;
       const { weeks, colchon } = cashWeeks();
@@ -495,16 +499,18 @@
     if (!B.reales || Array.isArray(B.reales)) {
       const old = Array.isArray(B.reales) ? B.reales : null; B.reales = {};
       const cerrados = B.anio === y0 ? m0 : B.anio < y0 ? 12 : 0;
+      // Reales de ejemplo solo si la empresa trabaja con datos de ejemplo y el simulador tiene cifras: con datos reales, los reales empiezan vacíos
+      const conEjemplo = !S.real() && S.simConDatos();
       const gk = { ventas: 'ventas', variable: 'costeVariable', personal: 'personal', fijos: 'fijos' };
       V.lineas.forEach((l, j) => {
         const totG = (m) => sum(V.lineas.filter((x) => x.grupo === l.grupo).map((x) => x.meses[m]));
         B.reales[l.nombre] = l.meses.map((v, m) => {
           if (old && old[m] && old[m][gk[l.grupo]] !== undefined && old[m][gk[l.grupo]] !== null && old[m][gk[l.grupo]] !== '') return Math.round(S.num(old[m][gk[l.grupo]]) * (totG(m) ? v / totG(m) : 0));
-          if (!old && m < cerrados) return Math.round(v * (l.grupo === 'ventas' ? 0.9 + ((m * 37 + j * 7) % 11) / 100 : l.grupo === 'personal' ? 1.03 : 0.95 + ((m * 13 + j * 5) % 9) / 100));
+          if (!old && m < cerrados && conEjemplo) return Math.round(v * (l.grupo === 'ventas' ? 0.9 + ((m * 37 + j * 7) % 11) / 100 : l.grupo === 'personal' ? 1.03 : 0.95 + ((m * 13 + j * 5) % 9) / 100));
           return null;
         });
       });
-      B.ejemplo = !old;
+      B.ejemplo = !old && conEjemplo;
     }
     return V;
   }
@@ -519,13 +525,23 @@
     });
     const done = rows.filter((x) => x.has);
     const ytd = (k, src) => done.reduce((a, x) => a + (src === 'p' ? (k === 'ebitda' ? x.pE : x.p[k]) : (k === 'ebitda' ? x.rE : S.num(x.r[k]))), 0);
-    const ratio = ytd('ventas', 'p') ? ytd('ventas', 'r') / ytd('ventas', 'p') : 1;
-    const escEq = ratio >= 1.05 ? 'optimista' : ratio >= 0.97 ? 'base' : ratio >= 0.85 ? 'pesimista' : 'estres';
-    const cierreVentas = ytd('ventas', 'r') + rows.filter((x) => !x.has).reduce((a, x) => a + x.p.ventas * ratio, 0);
+    // Sin meses con datos reales no hay comparación: sin dato (null), no un 100 %
+    const ratio = !done.length ? null : ytd('ventas', 'p') ? ytd('ventas', 'r') / ytd('ventas', 'p') : null;
+    const escEq = ratio == null ? null : ratio >= 1.05 ? 'optimista' : ratio >= 0.97 ? 'base' : ratio >= 0.85 ? 'pesimista' : 'estres';
+    const cierreVentas = ratio == null ? null : ytd('ventas', 'r') + rows.filter((x) => !x.has).reduce((a, x) => a + x.p.ventas * ratio, 0);
     const ventasAnual = sum(rows.map((x) => x.p.ventas));
     return { V, rows, done, ytd, ratio, escEq, cierreVentas, ventasAnual };
   }
   S.budget = budget;
+  // ¿Hay algún real introducido en el presupuesto?
+  function presupuestoConReales() { const B = S.state.presupuesto; return !!(B && B.reales && !Array.isArray(B.reales) && !B.ejemplo && Object.values(B.reales).some((l) => (l || []).some((v) => v !== null && v !== undefined && v !== ''))); }
+  // Con datos reales, un presupuesto generado desde la empresa de ejemplo (con reales de ejemplo) se descarta y se rehace desde las cifras propias
+  S.alVaciar = S.alVaciar || {};
+  S.alVaciar.presupuesto = (B) => {
+    const ea = A.platform && A.platform.empresas && A.platform.empresas.activa && A.platform.empresas.activa(), desde = (ea && ea.datosRealesTs) || '';
+    const inicial = B && B.versiones && B.versiones.length === 1 && /^Presupuesto inicial/.test(B.versiones[0].nombre || '') && String(B.versiones[0].creada || '') < desde && !presupuestoConReales();
+    return B && (B.ejemplo || inicial) ? Object.assign(B, { versiones: null, activa: null, reales: null, ejemplo: false }) : B;
+  };
   const fmt0 = (v) => (v === null || v === undefined || v === '' ? '' : new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(v));
   const pctTxt = (v) => (isFinite(v) ? (Math.round(v * 10) / 10).toLocaleString('es-ES') + ' %' : '—');
 
@@ -565,6 +581,7 @@
 
   S.register({
     id: 'presupuesto', nombre: 'Presupuesto', grupo: 'Finanzas',
+    datos: () => S.simConDatos() || presupuestoConReales(),
     render(host) {
       const B = S.state.presupuesto, b = budget(), V = b.V, prm = B.params;
       const tab = host.dataset.tab || 'ppto';
@@ -585,7 +602,12 @@
       const cmp = B.versiones.map((v) => { const t = (g) => sum(v.lineas.filter((l) => l.grupo === g).map((l) => sum(l.meses))); const ve = t('ventas'); return { v, ve, va: t('variable'), pe: t('personal'), fi: t('fijos'), eb: ve - t('variable') - t('personal') - t('fijos') }; });
       host.innerHTML = `${S.section('Presupuesto y desviaciones', 'Genera propuestas de presupuesto con distintos métodos, ajústalas partida a partida y compáralas. Después introduce el real de cada mes y Atalaya mide la desviación en euros, en porcentaje y en peso sobre las ventas, por mes, trimestre o año, te dice a qué escenario se parece la realidad y proyecta el cierre.')}
         ${B.ejemplo ? '<p class="small muted">Los reales son de ejemplo: sustitúyelos por los tuyos en la pestaña «Reales».</p>' : ''}
-        ${S.kpiTiles([
+        ${b.ratio == null ? S.kpiTiles([
+          { k: 'Ventas acumuladas', v: S.SIN_DATO, d: 'introduzca los reales de cada mes en la pestaña «Reales»' },
+          { k: 'EBITDA acumulado', v: S.SIN_DATO, info: 'EBITDA' },
+          { k: 'La realidad se parece a', v: S.SIN_DATO, d: 'sin meses con datos reales no hay comparación' },
+          { k: 'Presupuesto de ventas del año', v: F.eur(b.ventasAnual), d: esc(V.nombre), fijo: true }
+        ]) : S.kpiTiles([
           { k: 'Ventas acumuladas', v: F.eur(b.ytd('ventas', 'r')), d: `presupuesto ${F.eur(b.ytd('ventas', 'p'))} · ${pctTxt(S.pct(b.ytd('ventas', 'r') - b.ytd('ventas', 'p'), b.ytd('ventas', 'p')))}`, st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' },
           { k: 'EBITDA acumulado', v: F.eur(b.ytd('ebitda', 'r')), d: `presupuesto ${F.eur(b.ytd('ebitda', 'p'))}`, st: b.ytd('ebitda', 'r') >= b.ytd('ebitda', 'p') * 0.95 ? 'ok' : 'warn', info: 'EBITDA' },
           { k: 'La realidad se parece a', v: A.SCENARIOS.find((s) => s.key === b.escEq).nombre, d: `ventas al ${Math.round(b.ratio * 100)} % de lo previsto`, st: b.escEq === 'base' || b.escEq === 'optimista' ? 'ok' : b.escEq === 'pesimista' ? 'warn' : 'stop' },
@@ -622,7 +644,7 @@
       const dl = $('#pvDel', host); if (dl) { let armed = false; dl.onclick = () => { if (!armed) { armed = true; dl.textContent = 'Pulsa otra vez para eliminar'; return; } B.versiones = B.versiones.filter((v) => v.id !== V.id); B.activa = B.versiones[0].id; S.save(); S.rerender(); }; }
       $$('#pvTab button', host).forEach((bt) => bt.onclick = () => { host.dataset.tab = bt.dataset.t; S.rerender(); });
       const per = $('#pvPer', host); if (per) per.onchange = () => { host.dataset.periodo = per.value; S.rerender(); };
-      $('#pvSim', host).onclick = () => { S.sim.custom.ventasF = Math.round(b.ratio * 100) / 100; S.sim.escenario = 'hipotesis'; S.saveSim(); $('#pvSim', host).textContent = 'Hecho: abre el simulador para verlo'; };
+      $('#pvSim', host).onclick = () => { if (b.ratio == null) { $('#pvSim', host).textContent = 'Primero introduzca los reales de algún mes'; return; } S.sim.custom.ventasF = Math.round(b.ratio * 100) / 100; S.sim.escenario = 'hipotesis'; S.saveSim(); $('#pvSim', host).textContent = 'Hecho: abre el simulador para verlo'; };
       if (tab === 'desv') {
         // Ventas y EBITDA en gráficos separados (escalas muy distintas); los meses sin real quedan en blanco
         S.vbars($('#pvChart', host), MESES, [{ n: 'Ventas presupuestadas', data: b.rows.map((x) => x.p.ventas), c: 'var(--s1)' }, { n: 'Ventas reales', data: b.rows.map((x) => (x.has ? S.num(x.r.ventas) : null)), c: 'var(--gold)' }], F.eur, { aria: 'Ventas presupuestadas y reales por mes', h: 200 });
@@ -631,14 +653,14 @@
       else if (tab === 'ppto') grid($('#pvGrid', host), V, (l, m) => l.meses[m], (l, m, v) => { l.meses[m] = v === null ? 0 : v; }, { editNames: true, onChange: () => { S.save(); S.rerender(); }, onRename: (o, n) => { if (B.reales[o] && !B.reales[n]) { B.reales[n] = B.reales[o]; } } });
       else grid($('#pvGrid', host), V, (l, m) => (B.reales[l.nombre] || [])[m], (l, m, v) => { B.reales[l.nombre] = B.reales[l.nombre] || Array(12).fill(null); B.reales[l.nombre][m] = v; }, { onChange: () => { B.ejemplo = false; S.save(); S.rerender(); } });
     },
-    kpis() { const b = budget(); return [{ k: 'Ventas frente a presupuesto', v: Math.round(b.ratio * 100) + ' %', st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' }, { k: 'Escenario equivalente', v: A.SCENARIOS.find((s) => s.key === b.escEq).nombre }]; },
+    kpis() { const b = budget(); if (b.ratio == null) return [{ k: 'Ventas frente a presupuesto', v: S.SIN_DATO, st: null, sinDato: true }, { k: 'Escenario equivalente', v: S.SIN_DATO, st: null, sinDato: true }]; return [{ k: 'Ventas frente a presupuesto', v: Math.round(b.ratio * 100) + ' %', st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' }, { k: 'Escenario equivalente', v: A.SCENARIOS.find((s) => s.key === b.escEq).nombre }]; },
     risks() {
       const b = budget(), B = S.state.presupuesto, R = [];
-      if (b.ratio < 0.95) R.push(S.mkRisk('Las ventas reales van por debajo del presupuesto', 4, b.ratio < 0.85 ? 5 : 3, 'Revisa el plan comercial y lleva la desviación al simulador para ver el efecto en la inversión.'));
+      if (b.ratio != null && b.ratio < 0.95) R.push(S.mkRisk('Las ventas reales van por debajo del presupuesto', 4, b.ratio < 0.85 ? 5 : 3, 'Revisa el plan comercial y lleva la desviación al simulador para ver el efecto en la inversión.'));
       const ms = b.done.map((x) => x.m);
       b.V.lineas.filter((l) => l.grupo !== 'ventas').forEach((l) => { const p = sum(ms.map((m) => l.meses[m])), r = sum(ms.map((m) => S.num((B.reales[l.nombre] || [])[m]))); if (p > 0 && r > p * 1.12 && r - p > 5000) R.push(S.mkRisk(`${l.nombre}: ${pctTxt(S.pct(r - p, p))} sobre presupuesto`, 3, r - p > 30000 ? 4 : 2, 'Analiza la causa de la desviación y corrige o actualiza el presupuesto.')); });
       return R;
     },
-    findings() { const b = budget(); const gap = b.ventasAnual - b.cierreVentas; return gap > 0 ? [{ hallazgo: `El cierre proyectado queda ${F.eur(gap)} por debajo del presupuesto de ventas.`, accion: 'Plan comercial de recuperación en clientes A y oportunidades abiertas.', impactoEUR: gap * (S.sim.empresa.margen / 100), tipo: 'ebitda', plazo: 90 }] : []; }
+    findings() { const b = budget(); if (b.cierreVentas == null) return []; const gap = b.ventasAnual - b.cierreVentas; return gap > 0 ? [{ hallazgo: `El cierre proyectado queda ${F.eur(gap)} por debajo del presupuesto de ventas.`, accion: 'Plan comercial de recuperación en clientes A y oportunidades abiertas.', impactoEUR: gap * (S.sim.empresa.margen / 100), tipo: 'ebitda', plazo: 90 }] : []; }
   });
 })();

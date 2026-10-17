@@ -203,13 +203,14 @@
       const bn = isFinite(a.beneficio) ? a.beneficio : ebitda - g(a, 'amortizacion') - g(a, 'gastosFinancieros') - g(a, 'impuestos');
       const capex = prev ? g(a, 'inmovilizado') - g(prev, 'inmovilizado') + g(a, 'amortizacion') : null;
       return {
-        anio: a.anio, ventas, margenBruto, margenPct: ventas ? (margenBruto / ventas) * 100 : 0, ebitda, ebitdaPct: ventas ? (ebitda / ventas) * 100 : 0, bn,
+        anio: a.anio, ventas, margenBruto, margenPct: ventas && isFinite(a.costeVentas) ? (margenBruto / ventas) * 100 : null, ebitda, ebitdaPct: ventas ? (ebitda / ventas) * 100 : 0, bn,
         crec: prev && g(prev, 'ventas') ? (ventas / g(prev, 'ventas') - 1) * 100 : null,
-        pesoSalarial: ventas ? (g(a, 'personal') / ventas) * 100 : 0,
+        // Sin el concepto en ese año el ratio es «sin dato» (null), no cero
+        pesoSalarial: ventas && isFinite(a.personal) ? (g(a, 'personal') / ventas) * 100 : null,
         ventasPersona: a.plantilla ? ventas / a.plantilla : null,
-        dso: ventas ? (g(a, 'clientes') / ventas) * 365 : 0,
-        dio: g(a, 'costeVentas') ? (g(a, 'existencias') / g(a, 'costeVentas')) * 365 : 0,
-        dpo: g(a, 'costeVentas') ? (g(a, 'proveedores') / g(a, 'costeVentas')) * 365 : 0,
+        dso: ventas && isFinite(a.clientes) ? (g(a, 'clientes') / ventas) * 365 : null,
+        dio: g(a, 'costeVentas') && isFinite(a.existencias) ? (g(a, 'existencias') / g(a, 'costeVentas')) * 365 : null,
+        dpo: g(a, 'costeVentas') && isFinite(a.proveedores) ? (g(a, 'proveedores') / g(a, 'costeVentas')) * 365 : null,
         fondoManiobra: ac - pc, liquidez: pc ? ac / pc : null,
         dfn: deuda - g(a, 'tesoreria'), dfnEbitda: ebitda > 0 ? (deuda - g(a, 'tesoreria')) / ebitda : null,
         endeudamiento: g(a, 'fondosPropios') ? deuda / g(a, 'fondosPropios') : null,
@@ -224,7 +225,13 @@
     });
     const first = rows[0], last = rows[rows.length - 1], n = rows.length - 1;
     const cagr = n > 0 && first.ventas > 0 ? (Math.pow(last.ventas / first.ventas, 1 / n) - 1) * 100 : 0;
-    const trend = (k) => (n > 0 && isFinite(last[k]) && isFinite(first[k]) ? last[k] - first[k] : 0);
+    /* Tendencias solo con los años que tienen ese concepto: el primero y el último con dato. Los años sin él
+       (incompletos) no cuentan como cero; se nombran en la lectura */
+    const conK = (k) => rows.filter((r) => r[k] != null && isFinite(r[k]));
+    const ext = (k) => { const l = conK(k); return l.length >= 2 ? { a: l[0], b: l[l.length - 1], faltan: rows.filter((r) => !l.includes(r)).map((r) => r.anio) } : null; };
+    const trend = (k) => { const e = ext(k); return e ? e.b[k] - e.a[k] : 0; };
+    const incomp = (k) => { const e = ext(k); return e && e.faltan.length ? ` (${e.faltan.length === 1 ? 'año incompleto sin este dato' : 'años incompletos sin este dato'}: ${e.faltan.sort().join(', ')})` : ''; };
+    const de = (k, f) => { const e = ext(k); return `pasan de ${f(e.a[k])} (${e.a.anio}) a ${f(e.b[k])} (${e.b.anio})${incomp(k)}`; };
     const avg = (k) => { const v = rows.map((r) => r[k]).filter((x) => x !== null && isFinite(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
     const payoutAvg = avg('payout');
     const roeAvg = avg('roe');
@@ -233,14 +240,15 @@
     // Proyección a 3 años: ventas al ritmo histórico (acotado), márgenes y días con su tendencia suavizada
     // El crecimiento proyectado puede fijarlo el usuario; si no, el histórico acotado
     const growth = (opts.crec != null && isFinite(opts.crec) ? opts.crec : Math.max(-15, Math.min(25, cagr))) / 100;
-    const slope = (k) => (n > 0 ? trend(k) / n : 0) * 0.5;
+    const slope = (k) => { const e = ext(k); return e ? (trend(k) / Math.max(1, e.b.anio - e.a.anio)) * 0.5 : 0; };
+    const ult = (k, d) => { const l = conK(k); return l.length ? l[l.length - 1][k] : d; };
     const proj = [1, 2, 3].map((k) => {
       const ventas = last.ventas * Math.pow(1 + growth, k);
-      const margenPct = Math.max(1, Math.min(95, last.margenPct + slope('margenPct') * k));
-      const pesoSalarial = Math.max(1, last.pesoSalarial + slope('pesoSalarial') * k);
+      const margenPct = Math.max(1, Math.min(95, ult('margenPct', 0) + slope('margenPct') * k));
+      const pesoSalarial = Math.max(1, ult('pesoSalarial', 0) + slope('pesoSalarial') * k);
       const otrosPct = last.ventas ? (g(last.raw, 'otrosGastos') / last.ventas) * 100 : 0;
       const ebitda = ventas * (margenPct - pesoSalarial - otrosPct) / 100;
-      const dso = Math.max(0, last.dso + slope('dso') * k);
+      const dso = ult('dso', null) == null ? null : Math.max(0, ult('dso', 0) + slope('dso') * k);
       return { anio: last.anio + k, ventas, margenPct, pesoSalarial, ebitda, ebitdaPct: (ebitda / ventas) * 100, dso, proyectado: true };
     });
 
@@ -250,17 +258,20 @@
     if (payoutAvg !== null) add('Política de dividendos', payoutAvg > 60 ? 'warn' : 'ok',
       `Reparte de media el ${Math.round(payoutAvg)} % del beneficio.`,
       payoutAvg > 60 ? 'Antes de invertir, fija un dividendo máximo (por ejemplo, el 30 %) para reforzar fondos propios.' : 'La empresa reinvierte la mayor parte de lo que gana: buena base para crecer.');
-    if (n > 0) add('Política de crédito a clientes', trend('dso') > 5 ? 'warn' : 'ok',
-      `Los días de cobro pasan de ${Math.round(first.dso)} a ${Math.round(last.dso)}.`,
+    const dias = (v) => String(Math.round(v));
+    if (ext('dso')) add('Política de crédito a clientes', trend('dso') > 5 ? 'warn' : 'ok',
+      `Los días de cobro ${de('dso', dias)}.`,
       trend('dso') > 5 ? 'Los clientes pagan cada vez más tarde: revisa condiciones y límites de crédito antes de crecer.' : 'El plazo de cobro está controlado.');
-    if (n > 0) add('Política de stock', trend('dio') > 7 ? 'warn' : 'ok',
-      `Los días de stock pasan de ${Math.round(first.dio)} a ${Math.round(last.dio)}.`,
+    if (ext('dio')) add('Política de stock', trend('dio') > 7 ? 'warn' : 'ok',
+      `Los días de stock ${de('dio', dias)}.`,
       trend('dio') > 7 ? 'El almacén crece más que la venta: hay caja dormida en existencias.' : 'El stock acompaña a la venta.');
-    add('Política de financiación', last.cortoPlazo > 0.5 ? 'warn' : (last.dfnEbitda !== null && last.dfnEbitda > 3) ? 'stop' : 'ok',
+    // Cada estado con su propio texto: deuda alta frente al EBITDA (rojo), demasiado corto plazo (ámbar) o equilibrada (verde)
+    const finAlta = last.dfnEbitda !== null && last.dfnEbitda > 3, finCorto = last.cortoPlazo > 0.5;
+    add('Política de financiación', finAlta ? 'stop' : finCorto ? 'warn' : 'ok',
       `${Math.round(last.cortoPlazo * 100)} % de la deuda bancaria es a corto plazo; deuda neta ${last.dfnEbitda === null ? 'sin EBITDA positivo' : (last.dfnEbitda < 0 ? 'negativa (más caja que deuda)' : A.fmt.x(last.dfnEbitda) + ' el EBITDA')}.`,
-      last.cortoPlazo > 0.5 ? 'Se financian necesidades estables con pólizas: convierte parte en préstamo a largo antes de invertir.' : 'Estructura de deuda equilibrada.');
-    if (n > 0) add('Política salarial y productividad', trend('pesoSalarial') > 1 ? 'warn' : 'ok',
-      `El peso salarial pasa del ${A.fmt.pct(first.pesoSalarial)} al ${A.fmt.pct(last.pesoSalarial)}${last.ventasPersona ? `; ventas por persona: ${A.fmt.eur(last.ventasPersona)}` : ''}.`,
+      finAlta ? `La deuda neta supera tres veces el EBITDA: antes de invertir, reduzca deuda o mejore el EBITDA${finCorto ? ', y pase a largo plazo la parte que hoy se financia con pólizas' : ''}.` : finCorto ? 'Se financian necesidades estables con pólizas: convierta parte en préstamo a largo antes de invertir.' : 'Estructura de deuda equilibrada.');
+    if (ext('pesoSalarial')) add('Política salarial y productividad', trend('pesoSalarial') > 1 ? 'warn' : 'ok',
+      `El peso salarial ${de('pesoSalarial', (v) => A.fmt.pct(v)).replace('pasan', 'pasa')}${last.ventasPersona ? `; ventas por persona: ${A.fmt.eur(last.ventasPersona)}` : ''}.`,
       trend('pesoSalarial') > 1 ? 'El coste de personal crece más deprisa que la venta: el crecimiento se apoya en más horas, no en más productividad.' : 'La productividad acompaña al crecimiento.');
     const reinvAvg = avg('reinversion');
     if (reinvAvg !== null) add('Política de inversión', reinvAvg < 0.8 ? 'warn' : 'ok',
@@ -269,9 +280,9 @@
     if (crecSostenible !== null) add('Crecimiento sostenible', cagr > crecSostenible + 2 ? 'warn' : 'ok',
       `Crece al ${A.fmt.pct(cagr)} anual; con su rentabilidad y su reparto de dividendos podría crecer al ${A.fmt.pct(crecSostenible)} sin endeudarse más.`,
       cagr > crecSostenible + 2 ? 'Crece más deprisa de lo que puede financiar con sus beneficios: necesitará deuda o capital.' : 'El ritmo de crecimiento es financiable con lo que genera.');
-    add('Margen y precio', n > 0 && trend('margenPct') < -1 ? 'warn' : 'ok',
-      `Margen bruto del ${A.fmt.pct(last.margenPct)}${n > 0 ? ` (${trend('margenPct') >= 0 ? '+' : ''}${A.fmt.pp(trend('margenPct'))} en el periodo)` : ''}.`,
-      n > 0 && trend('margenPct') < -1 ? 'El margen se erosiona: revisa precios y compras antes de añadir volumen.' : 'El margen se mantiene.');
+    if (ult('margenPct', null) != null) add('Margen y precio', ext('margenPct') && trend('margenPct') < -1 ? 'warn' : 'ok',
+      `Margen bruto del ${A.fmt.pct(ult('margenPct', 0))}${ext('margenPct') ? ` (${trend('margenPct') >= 0 ? '+' : ''}${A.fmt.pp(trend('margenPct'))} en el periodo${incomp('margenPct')})` : ''}.`,
+      ext('margenPct') && trend('margenPct') < -1 ? 'El margen se erosiona: revisa precios y compras antes de añadir volumen.' : 'El margen se mantiene.');
 
     return { rows, proj, cagr, crecProj: growth * 100, crecSostenible, payoutAvg, last, first, politicas: P };
   };

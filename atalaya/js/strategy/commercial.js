@@ -154,6 +154,7 @@
 
   S.register({
     id: 'ventas', nombre: 'ABC y concentración', grupo: 'Comercial',
+    clave: 'comercial', datos: () => (S.state.comercial.clientes || []).some((c) => S.num(c.ventas) > 0),
     render(host) {
       const vista = S.state.comercial.vistaABC || 'clientes';
       host.innerHTML = `${S.section('Análisis ABC y ABC′', 'El ABC ordena por lo que facturan (o por lo que te compras, en proveedores); el ABC′ (ABC prima) por el margen de contribución que dejan. Cruzarlos enseña a quién proteger, con quién renegociar y a quién atender por un canal más barato. Toca cualquier indicador con «?» para ver qué significa y cómo leer tu dato.')}
@@ -242,6 +243,7 @@
   S.setLever = (k, v) => { if (!(k in C().palancas)) throw new Error('Palanca no válida'); const before = mcModel().A1.baii; C().palancas[k] = Number(v); S.save(); if (S.mod('margen')) S.rerender(); const after = mcModel().A1.baii; return { palanca: k, valor: v, resultadoAntes: F.eur(before), resultadoAhora: F.eur(after) }; };
   S.register({
     id: 'margen', nombre: 'Margen y demanda', grupo: 'Comercial',
+    clave: 'comercial', datos: () => (S.state.comercial.productos || []).some((p) => S.num(p.unidades) * S.num(p.precio) > 0),
     render(host) {
       const L = C().palancas;
       const lv = [['precio', 'Precio', -15, 15, 0.5], ['volumen', 'Esfuerzo comercial (volumen)', -20, 30, 1], ['costeVariable', 'Coste variable (compras)', -15, 15, 0.5], ['fijos', 'Costes fijos', -20, 20, 1], ['mix', 'Mix hacia productos de más margen', 0, 30, 1]];
@@ -294,6 +296,7 @@
   const ETAPAS = ['Contacto', 'Cualificada', 'Propuesta', 'Negociación', 'Ganada', 'Perdida'];
   S.register({
     id: 'comercial', nombre: 'Pipeline comercial', grupo: 'Comercial',
+    clave: 'comercial', datos: () => (S.state.comercial.oportunidades || []).some((o) => S.num(o.importe) > 0),
     render(host) {
       const O = C().oportunidades.filter((o) => o.etapa !== 'Perdida');
       const objetivo = S.num(C().objetivoAnual) || S.sim.empresa.ventas * (S.sim.empresa.crecimiento / 100 + 0.1);
@@ -326,6 +329,7 @@
   /* ---------- Marketing ---------- */
   S.register({
     id: 'marketing', nombre: 'Marketing', grupo: 'Comercial',
+    clave: 'comercial', datos: () => (S.state.comercial.canales || []).some((c) => S.num(c.inversion) > 0 || S.num(c.clientes) > 0),
     render(host) {
       const R = C().canales.map((c) => { const inv = S.num(c.inversion), cli = S.num(c.clientes); const cac = cli ? inv / cli : Infinity; const ltv = S.num(c.ticket) * S.num(c.margen) / 100 * S.num(c.recurrencia); return Object.assign({}, c, { cpl: S.num(c.leads) ? inv / S.num(c.leads) : 0, conv: S.pct(cli, S.num(c.leads)), cac, ltv, ratio: cac ? ltv / cac : 0, roi: inv ? (cli * S.num(c.ticket) * S.num(c.margen) / 100 - inv) / inv : 0 }); });
       const inv = R.reduce((a, c) => a + S.num(c.inversion), 0), cli = R.reduce((a, c) => a + S.num(c.clientes), 0);
@@ -347,6 +351,7 @@
   /* ---------- Expansión territorial ---------- */
   S.register({
     id: 'expansion', nombre: 'Expansión territorial', grupo: 'Estrategia',
+    clave: 'comercial', datos: () => (S.state.comercial.zonas || []).some((z) => S.num(z.mercado) > 0),
     render(host) {
       const Z = C().zonas.map((z) => { const ventas = S.num(z.mercado) * S.num(z.cuota) / 100; const ebitda = ventas * S.num(z.margen) / 100 - S.num(z.fijos); const pay = ebitda > 0 ? S.num(z.apertura) / ebitda + S.num(z.rampa) / 24 : Infinity; const score = Math.max(0, Math.min(100, (ebitda > 0 ? 40 : 0) + Math.max(0, 30 - (isFinite(pay) ? pay * 6 : 30)) + (5 - S.num(z.competencia)) * 6)); return Object.assign({}, z, { ventas, ebitda, pay, score }); }).sort((a, b) => b.score - a.score);
       host.innerHTML = `${S.section('Expansión territorial', 'Compara zonas candidatas por mercado, cuota alcanzable, competencia, inversión de apertura y recuperación. La mejor puedes enviarla al simulador para comprobar si la empresa la soporta sin romper la tesorería.')}

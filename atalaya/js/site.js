@@ -166,7 +166,13 @@
   }
 
   /* ---------- Sesión de 60 minutos con Business Avance ---------- */
-  $$('[data-sesion]').forEach((b) => b.onclick = () => A.platform.formContacto({ tipo: 'sesion', plan: 'sesion', origen: 'landing-sesion' }));
+  // Aviso de privacidad bajo el formulario de contacto (la ventana la crea platform.js; aquí solo se añade el aviso)
+  const conAviso = (opts) => {
+    A.platform.formContacto(opts);
+    const f = $$('.ef-back form.ef-card').pop(), m = f && f.querySelector('[data-msg]');
+    if (m && !f.querySelector('.lp-priv')) m.insertAdjacentHTML('beforebegin', '<p class="lp-priv">Business Avance usará estos datos solo para responder a su solicitud. Puede ejercer sus derechos en cualquier momento. Más información en la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.</p>');
+  };
+  $$('[data-sesion]').forEach((b) => b.onclick = () => conAviso({ tipo: 'sesion', plan: 'sesion', origen: 'landing-sesion' }));
 
   /* ---------- Planes ---------- */
   const P = A.platform.PLANES;
@@ -178,7 +184,7 @@
     $('#plans').innerHTML = Object.keys(P).map((k) => {
       const p = P[k], pr = A.platform.precio(k, periodo, 1);
       return `<article class="glass plan tilt ${p.destacado ? 'top' : ''} ${p.grupo ? 'grp' : ''}" data-tilt>
-        ${p.destacado ? '<span class="tag">El más elegido</span>' : p.grupo ? '<span class="tag">Holdings y grupos</span>' : ''}
+        ${p.destacado ? '<span class="tag">Recomendado</span>' : p.grupo ? '<span class="tag">Holdings y grupos</span>' : ''}
         <h3>${p.nombre}</h3><p class="small muted plan-para">${p.para || ''}</p>
         ${p.aMedida ? '<div class="price"><b style="font-size:1.9rem;font-family:var(--font-display);font-weight:500">A medida</b></div><p class="small plan-bill">El precio se prepara con nuestro equipo según sus sociedades y su estructura.</p>' : `<div class="price"><b>${A.platform.eur(A.platform.cuota(pr).importe)}</b><span>${A.platform.cuota(pr).unidad}</span></div>
         <p class="small plan-bill">${periodo === 'anual' ? A.platform.cuota(pr).detalle : '&nbsp;'}</p>`}
@@ -186,7 +192,7 @@
         ${p.aMedida && conSesion !== k ? '<button class="btn solid" data-contacto>Contactar con nuestro equipo</button>' : `<a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">${conSesion ? (conSesion === k ? 'Es su plan · entrar' : `Cambiar a ${p.nombre}`) : `Probar ${p.nombre}`}</a>`}</article>`;
     }).join('');
     $$('#perSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
-    $$('#plans [data-contacto]').forEach((b) => b.onclick = () => A.platform.formContacto({ plan: 'grupos', origen: 'pagina-planes' }));
+    $$('#plans [data-contacto]').forEach((b) => b.onclick = () => conAviso({ plan: 'grupos', origen: 'pagina-planes' }));
   };
   $$('#perSeg button').forEach((b) => b.onclick = () => { periodo = b.dataset.per; drawPlans(); });
   drawPlans();

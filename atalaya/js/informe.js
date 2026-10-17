@@ -12,8 +12,73 @@
   I.ref = (tipo) => 'AT-' + String(tipo || 'INF').slice(0, 3).toUpperCase() + '-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + String(Date.now()).slice(-4);
   I.pill = (st, t) => `<span class="rp-pill rp-${st === 'go' ? 'ok' : st}">${esc(t || ST[st] || '')}</span>`;
 
-  /* Membrete corporativo: Business Avance y la plataforma Atalaya 360° */
-  I.membrete = () => `<span class="rp-mb"><b class="rp-ba">Business<i>Avance</i></b><em class="rp-sep"></em><b class="rp-at">Atalaya <i>360°</i></b></span>`;
+  /* ---------- Marca blanca: la ficha de la firma del consultor ----------
+     Una por cuenta y para todas sus empresas: se guarda en el registro de empresas de la cuenta (dato «empresas», que ya
+     viaja al servidor), dentro de la ficha de la empresa principal (campo «firma»). La edita «Ficha de tu firma» en la
+     propuesta comercial. Sin ficha, los documentos llevan solo «Atalaya 360°»; con ficha, la firma es la marca y, si se
+     quiere, un discreto «Elaborado con Atalaya 360°» al pie. Antes la ficha vivía en el navegador (atalaya.firma[@id]):
+     se lee de ahí mientras no se guarde la nueva, sin el nombre que ponía por defecto la versión anterior. */
+  const PL = () => A.platform;
+  const AT = 'Atalaya 360°';
+  let fMemo = null, fT = null;
+  const principal = () => { const P = PL(), l = P && P.empresas && P.empresas.lista ? P.empresas.lista() : []; return l.find((e) => e && e.id === 'principal'); };
+  const leerFirma = () => {
+    if (fMemo) return Object.assign({}, fMemo);
+    const e = principal(); if (e && e.firma && typeof e.firma === 'object') return Object.assign({}, e.firma);
+    let v = null; const P = PL();
+    [P && P.k ? P.k('atalaya.firma') : '', 'atalaya.firma'].filter(Boolean).forEach((k) => { if (!v) try { v = JSON.parse(localStorage.getItem(k)); } catch (x) { v = null; } });
+    v = v && typeof v === 'object' ? v : {};
+    if (v.nombre === 'Business Avance' && (!v.lema || v.lema === 'Consultoría para pymes')) delete v.nombre; // el valor por defecto de antes, no una elección
+    return v;
+  };
+  // Guarda la ficha (se agrupan las pulsaciones): al instante para esta página y, tras una pausa, en la cuenta
+  const guardarFirma = (f) => {
+    fMemo = Object.assign({}, f); clearTimeout(fT);
+    return new Promise((ok) => { fT = setTimeout(async () => {
+      const P = PL();
+      try { if (P && P.empresas && P.empresas.editar) await P.empresas.editar('principal', { firma: fMemo }); else localStorage.setItem('atalaya.firma', JSON.stringify(fMemo)); ok(true); }
+      catch (x) { if (P && P.toast) P.toast('No se pudo guardar la ficha de la firma: ' + ((x && x.message) || 'error')); ok(false); }
+    }, 600); });
+  };
+  // Contraste WCAG de un color frente al blanco (el color de acento debe leerse sobre el papel: 4,5 o más)
+  const lum = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim()); if (!m) return null; return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))).reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0); };
+  I.contraste = (hex) => { const L = lum(hex); return L == null ? 0 : 1.05 / (L + 0.05); };
+  I.colorOk = (hex) => I.contraste(hex) >= 4.5;
+  A.firma = () => {
+    const f = leerFirma(), nombre = String(f.nombre || '').trim();
+    return { propia: !!nombre, nombre: nombre || AT, lema: f.lema || '', consultor: f.consultor || '', cargo: f.cargo || '', razonSocial: f.razon || '', cif: f.cif || '', direccion: f.direccion || '', ciudad: f.ciudad || '', email: f.email || '', tel: f.tel || '',
+      contacto: [f.email, f.tel].filter(Boolean).join(' · '), descripcion: f.descripcion || '', logo: /^data:image\/(png|jpe?g|webp);base64,/.test(f.logo || '') ? f.logo : '', color: I.colorOk(f.color) ? f.color : '', elaborado: f.elaborado !== false };
+  };
+  A.firma.leer = leerFirma;
+  A.firma.guardar = guardarFirma;
+  // Marca en texto (pies y PDF) y la coletilla discreta
+  I.marcaTxt = () => A.firma().nombre;
+  I.elaborado = () => { const F = A.firma(); return F.propia && F.elaborado ? 'Elaborado con ' + AT : ''; };
+  // Color de acento de la firma en los títulos de los informes (una hoja de estilo que se rehace si cambia)
+  I.estilo = () => {
+    const c = A.firma().color; let st = document.getElementById('rpFirmaCss');
+    if (!c) { if (st) st.remove(); return; }
+    if (!st) { st = document.createElement('style'); st.id = 'rpFirmaCss'; document.head.appendChild(st); }
+    const css = `.paper.rp .rp-kicker,.paper.rp .lb-secp span{color:${c}}.paper.rp h2 .rp-n{background:${c}}.paper.rp h2,.paper.rp .rp-foot{border-top-color:${c}}.pp-f{background:${c}!important}.pp-f b{color:#fff!important}.pp-band{border-left-color:${c}!important}`;
+    if (st.textContent !== css) st.textContent = css;
+  };
+  /* Membrete: la firma (con su logotipo si lo tiene) o, sin ficha, Atalaya 360° */
+  I.membrete = () => {
+    I.estilo();
+    const F = A.firma();
+    if (!F.propia) return `<span class="rp-mb"><b class="rp-at">Atalaya <i>360°</i></b></span>`;
+    const w = F.nombre.split(/\s+/), k = w.length > 1 ? Math.ceil(w.length / 2) : 1;
+    return `<span class="rp-mb">${F.logo ? `<img src="${F.logo}" alt="" style="height:28px;width:auto;max-width:130px;object-fit:contain;background:#fff;border-radius:3px;padding:2px">` : ''}<b class="rp-ba">${esc(w.slice(0, k).join(' '))}${w.length > 1 ? `<i>${esc(w.slice(k).join(' '))}</i>` : ''}</b></span>`;
+  };
+  /* Los capítulos guardados (libro corporativo) llevan el membrete de su momento: se ponen con la marca de hoy */
+  I.remarcar = (html) => {
+    const t = document.createElement('template'); t.innerHTML = String(html || '');
+    const mb = document.createElement('template'); mb.innerHTML = I.membrete();
+    t.content.querySelectorAll('.rp-mb').forEach((x) => x.replaceWith(mb.content.firstElementChild.cloneNode(true)));
+    const W = document.createTreeWalker(t.content, NodeFilter.SHOW_TEXT), M = I.marcaTxt();
+    for (let n = W.nextNode(); n; n = W.nextNode()) if (n.nodeValue.includes('Business Avance · Atalaya 360°')) n.nodeValue = n.nodeValue.replace(/Business Avance · Atalaya 360°/g, M);
+    const d = document.createElement('div'); d.appendChild(t.content); return d.innerHTML;
+  };
   /* Portada: franja de marca, tipo de documento, título, ficha y referencia */
   I.cover = (o) => `<header class="rp-cover">
       <div class="rp-brand">${I.membrete()}<span>${esc(o.tipo || 'Informe')}</span></div>
@@ -47,7 +112,9 @@
   I.risks = (R) => (R && R.length ? I.table(['Riesgo', 'Prob.', 'Impacto', 'Nivel', 'Mitigación'], R.map((r) => [r.nombre, r.prob + '/5', r.impacto + '/5', { h: I.pill(r.estado, String(r.nivel)) }, r.mitigacion || '']), { num: [1, 2] }) : '<p class="rp-muted">Sin riesgos relevantes con los datos actuales.</p>');
   I.findings = (Fi, fmt) => (Fi && Fi.length ? I.table(['Hallazgo', 'Acción recomendada', 'Impacto anual', 'Plazo'], Fi.map((f) => [f.hallazgo, f.accion, fmt ? fmt(f.impactoEUR || 0) : f.impactoEUR, (f.plazo || 90) + ' días']), { num: [2, 3] }) : '<p class="rp-muted">Sin hallazgos con impacto económico con los datos actuales.</p>');
   I.callout = (html, tipo) => `<div class="rp-callout${tipo ? ' rp-c-' + tipo : ''}">${html}</div>`;
-  I.foot = (txt) => `<footer class="rp-foot"><span>Business Avance · Atalaya 360° · Documento generado el ${esc(I.fecha())}</span><span>${esc(txt || 'Las cifras son estimaciones a partir de los datos introducidos. La fiscalidad y las decisiones societarias deben validarse con los asesores de la empresa.')}</span></footer>`;
+  I.foot = (txt) => `<footer class="rp-foot"><span>${esc(I.marcaTxt())} · Documento generado el ${esc(I.fecha())}</span><span>${esc(txt || 'Las cifras son estimaciones a partir de los datos introducidos. La fiscalidad y las decisiones societarias deben validarse con los asesores de la empresa.')}</span>${I.elab()}</footer>`;
+  // Coletilla del pie (en su propia línea, más pequeña)
+  I.elab = () => (I.elaborado() ? `<span class="rp-elab" style="font-size:0.64rem;letter-spacing:0.04em;opacity:0.75">${esc(I.elaborado())}</span>` : '');
 
   /* Convierte un bloque de la aplicación en contenido de informe: valores en lugar de campos, sin botones */
   I.fromDom = (node) => {
@@ -66,7 +133,7 @@
 
   /* ---------- Descarga en PDF con el mismo estilo ----------
      Se copia el documento a un lienzo fuera de pantalla con ancho de A4 y se pasa a PDF (html2pdf).
-     Cada página lleva el membrete (Business Avance · Atalaya 360°), el título y el número de página.
+     Cada página lleva el membrete (la firma del consultor o Atalaya 360°), el título y el número de página.
      Los informes paginados (cada .pp-page es ya una hoja A4 con su cabecera) se pasan hoja a hoja. */
   const H2P = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
   let cargando = null;
@@ -128,18 +195,23 @@
       } else w = window.html2pdf().set(opt).from(doc).toPdf();
       const pdf = await w.get('pdf');
       const n = pdf.internal.getNumberOfPages();
+      // Marca de la cabecera y del pie: la firma (con su logotipo) o Atalaya 360°
+      const F = A.firma(), marcaPdf = F.propia ? F.nombre.toUpperCase() : 'ATALAYA 360°', elab = I.elaborado();
+      const lg = !pag && F.logo ? await new Promise((ok) => { const im = new Image(); im.onload = () => ok(im.naturalWidth && im.naturalHeight ? { w: Math.min(28, (7 * im.naturalWidth) / im.naturalHeight), h: 7 } : null); im.onerror = () => ok(null); im.src = F.logo; }) : null;
       for (let i = 1; i <= n; i++) {
         pdf.setPage(i);
         if (!pag) { pdf.setFillColor(245, 243, 238); pdf.rect(0, 0, 210, 17, 'F'); pdf.rect(0, 282, 210, 15, 'F'); }
         if (!pag && i > 1) {
           pdf.setFillColor(5, 6, 10); pdf.rect(0, 0, 210, 11, 'F');
-          pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(201, 242, 77); pdf.text('BUSINESS AVANCE  ·  ATALAYA 360°', 10, 7);
+          let x0 = 10;
+          if (lg) { try { pdf.setFillColor(255, 255, 255); pdf.rect(9, 1.5, lg.w + 2, lg.h + 1, 'F'); pdf.addImage(F.logo, /^data:image\/png/.test(F.logo) ? 'PNG' : /webp/.test(F.logo) ? 'WEBP' : 'JPEG', 10, 2, lg.w, lg.h); x0 = 14 + lg.w; } catch (x) { x0 = 10; } }
+          pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(201, 242, 77); pdf.text(marcaPdf.slice(0, 50), x0, 7);
           pdf.setFont('helvetica', 'normal'); pdf.setTextColor(200, 196, 182); pdf.text(String(titulo).slice(0, 80), 200, 7, { align: 'right' });
         }
         if (!pag) {
           pdf.setDrawColor(110, 125, 20); pdf.setLineWidth(0.4); pdf.line(10, 284, 200, 284);
           pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(110, 116, 128);
-          pdf.text('Business Avance · Atalaya 360° · ' + I.fecha() + ' · Documento confidencial', 10, 289);
+          pdf.text(F.nombre + ' · ' + I.fecha() + ' · Documento confidencial' + (elab ? ' · ' + elab : ''), 10, 289);
           pdf.text(`${i} / ${n}`, 200, 289, { align: 'right' });
         }
       }
@@ -161,6 +233,7 @@
       <button class="btn" id="rpPdf">Descargar PDF</button>${inFrame ? '' : '<button class="btn ghost" id="rpPrint">Imprimir</button>'}<button class="btn ghost" id="rpCopy">Copiar texto</button><button class="btn solid" id="rpClose">Cerrar</button></div>
       <article class="paper rp" id="paper">${o.html}</article>
       `;
+    I.estilo();
     const close = () => { ov.hidden = true; document.body.style.overflow = ''; if (o.onClose) o.onClose(); };
     ov.querySelector('#rpClose').onclick = close;
     ov.onkeydown = (e) => { if (e.key === 'Escape') close(); };

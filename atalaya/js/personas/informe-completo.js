@@ -1,5 +1,5 @@
 /* Atalaya 360° · Personas y equipos · Informe completo de la persona
-   Documento paginado en A4, con membrete de Business Avance y Atalaya 360° en cada hoja, que reúne todo lo que se sabe
+   Documento paginado en A4, con el membrete de la firma (o de Atalaya 360°) en cada hoja, que reúne todo lo que se sabe
    de una persona: comportamiento (DISC), aportaciones al equipo, motivación (eneagrama), perfil de identidad,
    liderazgo, competencias conductuales, encaje con su puesto y plan de desarrollo.
    Hojas: portada, metodología, índice, características, gráficos, estilo personal, habilidades interpersonales,
@@ -128,7 +128,7 @@
 
     /* 2 · Metodología */
     pag('Perfil personal', 'Introducción a la metodología', `
-      <p>Este informe reúne, en un solo documento, lo que las herramientas de Atalaya 360° dicen de <b>${esc(p.nombre)}</b>: su <b>estilo de comportamiento</b> (DISC), su <b>aportación natural al equipo</b>, su <b>motivación</b>, su <b>perfil de identidad</b>, su <b>estilo de liderazgo</b> y sus <b>competencias conductuales</b>, cruzados con lo que pide su puesto. Su objetivo es contribuir al autoconocimiento y al desarrollo.</p>
+      <p>Este informe reúne, en un solo documento, lo que las herramientas de Atalaya 360° dicen de <b>${esc(p.nombre)}</b>: su <b>estilo de comportamiento</b> (DISC), su <b>aportación natural al equipo</b>, su <b>motivación</b>, ${R.identidadActiva && R.identidadActiva() ? 'su <b>perfil de identidad</b>, ' : ''}su <b>estilo de liderazgo</b> y sus <b>competencias conductuales</b>, cruzados con lo que pide su puesto. Su objetivo es contribuir al autoconocimiento y al desarrollo.</p>
       <p>El DISC es el lenguaje del comportamiento: no mide la inteligencia, los valores ni las aptitudes, sino cómo actuamos en distintos entornos, situaciones y frente a otras personas.</p>
       <div class="pp-mide"><b>El DISC mide</b><div>${F4.map((k) => `<div style="--c:${H.DISC[k].c}"><h4>${esc(H.DISC[k].n)}</h4><p>${esc(X.VARIABLE[k].c)}</p><i>${k}</i></div>`).join('')}</div></div>
       <p>Actuamos de acuerdo con la combinación de estos cuatro factores, que cada persona tiene en distinta intensidad. Conocer el propio perfil facilita adaptar el comportamiento a cada situación y mejora la comunicación con los demás.</p>
@@ -250,9 +250,9 @@
       <p class="pp-intro">Lo que conviene trabajar, con fichas breves de entrenamiento elegidas para ${esc(n1)} según su perfil, su puesto y su equipo.</p>
       ${tabs.length ? `<div class="pp-tabs">${tabs.map((t) => `<div class="pp-tab"><b>${esc(t.t.titulo)}</b><p>${esc(t.t.objetivo)}</p><ol>${t.t.pasos.slice(0, 3).map((s) => `<li>${esc(s)}</li>`).join('')}</ol><small>${esc(t.t.duracion)} · Señal de avance: ${esc(t.t.senal)}</small></div>`).join('')}</div>` : '<div class="pp-nota">Complete el DISC y asigne un puesto para recibir fichas de entrenamiento personalizadas.</div>'}
       ${banda('Cómo usar este informe')}<ol class="pp-list pp-ol"><li>Conversación de devolución de 30 minutos entre ${esc(jefe ? jefe.nombre : 'su responsable')} y ${esc(n1)}: leer juntos el informe y contrastarlo con ejemplos.</li><li>Elegir tres claves de «Dirección efectiva» y una ficha de entrenamiento.</li><li>Fijar una fecha de revisión a las seis semanas.</li></ol>
-      <div class="pp-firma"><div><span>Preparado por</span><b>Business Avance · Atalaya 360°</b></div><div><span>Para</span><b>${esc(e.nombre)}</b></div><div><span>Fecha</span><b>${esc(In.fecha())}</b></div></div>`);
+      <div class="pp-firma"><div><span>Preparado por</span><b>${esc(In.marcaTxt())}</b></div><div><span>Para</span><b>${esc(e.nombre)}</b></div><div><span>Fecha</span><b>${esc(In.fecha())}</b></div></div>`);
 
-    R.pp.montar({ pages, pie: `Business Avance · Atalaya 360° · Informe de ${esc(p.nombre)} · ${esc(e.nombre)}`, titulo: 'Informe de perfil completo · ' + p.nombre,
-      portada: R.pp.portada({ kicker: 'Personas y equipos', titulo: 'Informe de perfil completo', nombre: p.nombre, linea: `${pu ? pu.nombre : 'Sin puesto asignado'}${p.area ? ' · ' + p.area : ''} · ${e.nombre}`, incl: ['Comportamiento', 'Aportación al equipo', 'Motivación', 'Identidad', 'Liderazgo', 'Competencias'] }) });
+    R.pp.montar({ pages, pie: `${esc(In.marcaTxt())} · Informe de ${esc(p.nombre)} · ${esc(e.nombre)}${In.elaborado() ? ' · ' + esc(In.elaborado()) : ''}`, titulo: 'Informe de perfil completo · ' + p.nombre,
+      portada: R.pp.portada({ kicker: 'Personas y equipos', titulo: 'Informe de perfil completo', nombre: p.nombre, linea: `${pu ? pu.nombre : 'Sin puesto asignado'}${p.area ? ' · ' + p.area : ''} · ${e.nombre}`, incl: ['Comportamiento', 'Aportación al equipo', 'Motivación'].concat(R.identidadActiva && R.identidadActiva() ? ['Identidad'] : [], ['Liderazgo', 'Competencias']) }) });
   };
 })();

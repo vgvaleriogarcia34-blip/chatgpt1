@@ -31,7 +31,9 @@
     const hermanos = capsDe(c.sec), i = hermanos.indexOf(c), otro = hermanos[i + d]; if (!otro) return;
     const a = lib.caps.indexOf(c), b = lib.caps.indexOf(otro); lib.caps[a] = otro; lib.caps[b] = c;
   };
-  const numeracion = () => { const m = {}; lib.secciones.forEach((s, i) => { let j = 0; capsDe(s.id).forEach((c) => { if (c.incl) m[c.id] = `${i + 1}.${++j}`; }); }); return m; };
+  // Solo se numeran las secciones con capítulos en el libro: una sección vacía no ocupa número
+  const secNum = () => { const m = {}; let i = 0; lib.secciones.forEach((s) => { if (capsDe(s.id).some((c) => c.incl)) m[s.id] = ++i; }); return m; };
+  const numeracion = () => { const m = {}, sn = secNum(); lib.secciones.forEach((s) => { let j = 0; if (sn[s.id]) capsDe(s.id).forEach((c) => { if (c.incl) m[c.id] = `${sn[s.id]}.${++j}`; }); }); return m; };
 
   /* ---------- Componer el libro (o una sección) ---------- */
   // Las hojas de los informes paginados se encajan en la página del libro
@@ -50,11 +52,11 @@
     if (!soloSec && (lib.intro || '').trim()) h += `<section class="lb-intro"><h2>Introducción</h2>${lib.intro.split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}</section>`;
     h += `<section class="lb-indice"><h2>Índice</h2><ol>${secs.map((s) => `<li><b>${esc(s.t)}</b><ol>${capsDe(s.id).filter((c) => c.incl).map((c) => `<li><a href="#lbc-${c.id}"><span>${num[c.id]}</span>${esc(c.t)}</a><em>${esc(MUNDO_N[c.mundo] || '')} · ${fCorta(c.fecha)}</em></li>`).join('')}</ol></li>`).join('')}</ol></section>`;
     secs.forEach((s) => {
-      const i = lib.secciones.indexOf(s) + 1;
+      const i = secNum()[s.id];
       h += `<section class="lb-secp"><span>Sección ${i}</span><h2>${esc(s.t)}</h2>${(s.intro || '').trim() ? `<p>${esc(s.intro)}</p>` : ''}<ol>${capsDe(s.id).filter((c) => c.incl).map((c) => `<li>${num[c.id]} · ${esc(c.t)}</li>`).join('')}</ol></section>`;
-      capsDe(s.id).filter((c) => c.incl).forEach((c) => { h += `<section class="lb-cap ${esc(c.cls || '')}" id="lbc-${c.id}"><div class="lb-caph"><span>${num[c.id]}</span>${esc(c.t)}</div>${encajar(c.html, c.cls)}</section>`; });
+      capsDe(s.id).filter((c) => c.incl).forEach((c) => { h += `<section class="lb-cap ${esc(c.cls || '')}" id="lbc-${c.id}"><div class="lb-caph"><span>${num[c.id]}</span>${esc(c.t)}</div>${encajar(I.remarcar(c.html), c.cls)}</section>`; });
     });
-    h += I.foot('Libro corporativo de ' + empresa + ' generado con Atalaya 360°. Cada capítulo es el informe de su mundo en la fecha indicada en el índice.');
+    h += I.foot('Libro corporativo de ' + empresa + '. Cada capítulo es el informe de su mundo en la fecha indicada en el índice.');
     return { h, titulo };
   };
   const verLibro = (soloSec) => {
@@ -76,8 +78,8 @@
         <label class="small">Título<input class="input" id="lbTit" value="${esc(lib.titulo)}" placeholder="Libro corporativo de ${esc(empresa)}"></label>
         <label class="small">Introducción (sus palabras, va antes del índice)<textarea class="input" id="lbIntro" rows="3" placeholder="Para qué sirve este libro, a quién va dirigido y cómo usarlo.">${esc(lib.intro)}</textarea></label>
         <div class="row"><div class="eyebrow">Índice</div><span class="spacer"></span><button class="btn ghost small" id="lbSecN">Nueva sección</button></div>
-        <ol class="lb-secs">${lib.secciones.map((s, i) => { const cs = capsDe(s.id); return `<li class="lb-sec" data-s="${s.id}">
-          <div class="lb-sech"><span class="lb-n">${i + 1}</span><input class="input lb-sect" value="${esc(s.t)}" aria-label="Nombre de la sección"><span class="lb-acc"><button class="icon-btn" data-su title="Subir la sección" aria-label="Subir">↑</button><button class="icon-btn" data-sd title="Bajar la sección" aria-label="Bajar">↓</button>${cs.some((x) => x.incl) ? '<button class="icon-btn" data-spdf title="Ver o descargar solo esta sección" aria-label="Solo esta sección">⤓</button>' : ''}${cs.length ? '' : '<button class="icon-btn" data-sx title="Quitar la sección vacía" aria-label="Quitar">×</button>'}</span></div>
+        <ol class="lb-secs">${lib.secciones.map((s) => { const cs = capsDe(s.id), sn = secNum()[s.id]; return `<li class="lb-sec" data-s="${s.id}">
+          <div class="lb-sech"><span class="lb-n">${sn || '—'}</span><input class="input lb-sect" value="${esc(s.t)}" aria-label="Nombre de la sección"><span class="lb-acc"><button class="icon-btn" data-su title="Subir la sección" aria-label="Subir">↑</button><button class="icon-btn" data-sd title="Bajar la sección" aria-label="Bajar">↓</button>${cs.some((x) => x.incl) ? '<button class="icon-btn" data-spdf title="Ver o descargar solo esta sección" aria-label="Solo esta sección">⤓</button>' : ''}${cs.length ? '' : '<button class="icon-btn" data-sx title="Quitar la sección vacía" aria-label="Quitar">×</button>'}</span></div>
           ${cs.length ? `<ol class="lb-caps">${cs.map((x) => `<li class="lb-c ${x.id === sel ? 'on' : ''} ${x.incl ? '' : 'fuera'}" data-c="${x.id}"><input type="checkbox" data-in ${x.incl ? 'checked' : ''} aria-label="Incluir en el libro"><button class="lb-ct" data-ver><span>${num[x.id] || '—'}</span>${esc(x.t)}<small>${esc(MUNDO_N[x.mundo] || '')} · ${fCorta(x.fecha)}${estadoCap(x) !== 'ok' ? ` · <b class="lb-st ${estadoCap(x)}">${esc(estadoCap(x) === 'cambiado' ? 'desactualizado' : EST_T[estadoCap(x)])}</b>` : ''}</small></button><span class="lb-acc"><button class="icon-btn" data-cu aria-label="Subir">↑</button><button class="icon-btn" data-cd aria-label="Bajar">↓</button></span></li>`).join('')}</ol>` : '<p class="small muted lb-vacia">Sin capítulos. Mueva aquí capítulos de otra sección o añada informes desde los mundos.</p>'}
         </li>`; }).join('')}</ol>
         <p class="small muted" style="margin:0">Marque los capítulos que van al libro. ↑ ↓ ordenan; ⤓ abre solo esa sección para verla o descargarla.</p>
@@ -85,7 +87,7 @@
       <section class="lb-read" aria-live="polite">${c ? `<div class="glass pad row lb-rbar"><div><div class="eyebrow">${num[c.id] ? 'Capítulo ' + num[c.id] : 'No incluido en el libro'} · ${esc(MUNDO_N[c.mundo] || '')}</div><h2 class="lb-rt">${esc(c.t)}</h2><small class="muted">Actualizado el ${fCorta(c.fecha)}</small>${cambiado(c) ? `<p class="small lb-aviso" style="margin:4px 0 0">Los datos de ${esc(MUNDO_N[c.mundo] || 'su mundo')} han cambiado desde que se generó este capítulo. Vuelva a abrir el informe en su mundo y pulse «Añadir al libro», o use «Recoger todos los informes».</p>` : ''}</div><span class="spacer"></span>
           <label class="small">Sección<select class="input" id="lbMover">${lib.secciones.map((s) => `<option value="${s.id}" ${s.id === c.sec ? 'selected' : ''}>${esc(s.t)}</option>`).join('')}</select></label>
           <a class="btn ghost small" href="${URL[c.mundo] || 'portal.html'}">Ir a su mundo</a><button class="btn ghost small" id="lbQuitar">Quitar del libro</button></div>
-        <div class="lb-paperwrap"><article class="paper rp ${esc(c.cls || '')} lb-paper">${c.html}</article></div>`
+        <div class="lb-paperwrap"><article class="paper rp ${esc(c.cls || '')} lb-paper">${A.informe.remarcar(c.html)}</article></div>`
         : `<div class="glass pad stack lb-empty"><div class="eyebrow">El libro está vacío</div><p style="margin:0">Cada informe que abra en el simulador, el sistema estratégico, personas y equipos o la mesa de trabajo tiene el botón <b>Añadir al libro</b>. También puede pulsar <b>Recoger todos los informes</b>: la aplicación recorre los mundos de su plan, genera sus informes y vuelve aquí.</p><div class="row"><button class="btn solid" id="lbRecoger2">Recoger todos los informes</button></div></div>`}</section></div>`;
     // Libro
     $('#lbTit', host).oninput = (e) => { lib.titulo = e.target.value; guardar(); };
@@ -134,11 +136,14 @@
     const hc = { kicker: 'Libro corporativo', titulo: 'El libro de <em>la empresa</em>', lede: 'Todos los informes del ecosistema reunidos en un solo documento: con su portada, su índice y sus secciones, para consultarlo, compartirlo y guardarlo como el manual de la empresa.',
       empresa, datos: [['Capítulos', String(lib.caps.length)], ['En el libro', String(inc.length)], ['Secciones', String(lib.secciones.length)], ['Actualizado', ult ? fCorta(ult) : '—']],
       acciones: [{ t: 'Recoger todos los informes', cls: 'solid', fn: recoger }, { t: 'Ver el libro completo', fn: () => verLibro() }, { t: 'Descargar en PDF', cls: 'ghost', fn: () => { verLibro(); setTimeout(() => { const b = document.getElementById('rpPdf'); if (b) b.click(); }, 400); } }],
-      veredicto: { kicker: 'Estado del libro', st: !inc.length ? 'stop' : malos.length ? 'warn' : 'ok', nulo: 'fuera del libro',
-        titulo: !inc.length ? 'Aún sin capítulos' : camb ? `${camb} capítulo${camb === 1 ? '' : 's'} desactualizado${camb === 1 ? '' : 's'}` : malos.length ? `${malos.length} capítulo${malos.length === 1 ? '' : 's'} de hace más de un mes` : 'Libro al día',
-        texto: `Cada franja es un capítulo: verde si está al día; ámbar si los datos de su mundo han cambiado desde que se generó, si tiene más de un mes o si no tiene fecha; gris si está fuera del libro. Tóquela para leerlo.${orden.length > vis.length ? ` Se muestran ${vis.length} de ${orden.length}.` : ''}`,
+      // Libro vacío: «Sin empezar», en gris (no es un fallo)
+      veredicto: { kicker: 'Estado del libro', st: !inc.length ? null : malos.length ? 'warn' : 'ok', nulo: 'fuera del libro',
+        titulo: !inc.length ? 'Sin empezar' : camb ? `${camb} capítulo${camb === 1 ? '' : 's'} desactualizado${camb === 1 ? '' : 's'}` : malos.length ? `${malos.length} capítulo${malos.length === 1 ? '' : 's'} de hace más de un mes` : 'Libro al día',
+        texto: !inc.length ? 'El libro aún no tiene capítulos. Pulse «Recoger todos los informes»: solo se incluyen los mundos y módulos que tienen datos, sin páginas vacías.' : `Cada franja es un capítulo: verde si está al día; ámbar si los datos de su mundo han cambiado desde que se generó, si tiene más de un mes o si no tiene fecha; gris si está fuera del libro. Tóquela para leerlo.${orden.length > vis.length ? ` Se muestran ${vis.length} de ${orden.length}.` : ''}`,
         luces: vis.map((c) => ({ n: c.t, v: fCorta(c.fecha) + (c.incl ? (estadoCap(c) !== 'ok' ? ' · ' + EST_T[estadoCap(c)] : '') : ' · fuera del libro'), st: !c.incl ? null : estadoCap(c) === 'ok' ? 'ok' : 'warn', fn: () => { sel = c.id; pintar(); $('.lb-read').scrollIntoView({ behavior: 'smooth' }); } })) } };
     hero.innerHTML = A.heroMundo.html(hc); A.heroMundo.wire(hero, hc);
+    // Sin capítulos no hay nada que descargar
+    const pdf = hero.querySelector('[data-hm-a="2"]'); if (pdf && !inc.length) { pdf.disabled = true; pdf.title = 'El libro no tiene capítulos todavía'; }
   }
 
   A.libroPagina = {

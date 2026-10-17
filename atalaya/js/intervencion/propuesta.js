@@ -27,15 +27,55 @@
   const cap = (s) => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
   const lines = (s) => String(s || '').split('\n').map((x) => x.trim()).filter(Boolean);
 
-  /* ---------- Ficha de la firma (una por consultor, para todas sus propuestas) ---------- */
-  const FK = () => (P() && P().k ? P().k('atalaya.firma') : 'atalaya.firma');
+  /* ---------- Ficha de la firma (una por cuenta: para todas las propuestas y todos los informes de todas sus empresas) ----------
+     Se lee y se guarda con A.firma (js/informe.js): marca blanca de los documentos. Sin nombre, los documentos llevan «Atalaya 360°». */
   const firma = () => {
-    let f = {}; try { f = JSON.parse(localStorage.getItem(FK())) || {}; } catch (e) { f = {}; }
     const u = (P() && P().user) || {};
-    return Object.assign({ nombre: 'Business Avance', lema: 'Consultoría para pymes', descripcion: 'Consultoría para la empresa: gobierno, finanzas, equipos y claridad en las decisiones que sostienen el negocio.', consultor: u.nombre || '', cargo: 'Director del proyecto', razon: '', cif: '', direccion: '', ciudad: '', email: u.email || '', tel: '' }, f);
+    return Object.assign({ nombre: '', lema: 'Consultoría para pymes', descripcion: 'Consultoría para la empresa: gobierno, finanzas, equipos y claridad en las decisiones que sostienen el negocio.', consultor: u.nombre || '', cargo: 'Director del proyecto', razon: '', cif: '', direccion: '', ciudad: '', email: u.email || '', tel: '', logo: '', color: '', elaborado: true }, A.firma ? A.firma.leer() : {});
   };
-  const ponFirma = (f) => { try { localStorage.setItem(FK(), JSON.stringify(f)); } catch (e) { /* sin almacenamiento */ } };
-  const marca = (f, cls) => { const w = String(f.nombre || '').trim().split(/\s+/); const a = w.length > 1 ? w.slice(0, Math.ceil(w.length / 2)).join(' ') : w[0] || '', b = w.length > 1 ? w.slice(Math.ceil(w.length / 2)).join(' ') : ''; return `<div class="pc-marca ${cls || ''}"><b>${esc(a)}${b ? `<i>${cls === 'mini' ? ' ' : '<br>'}${esc(b)}</i>` : ''}</b><span>${esc(f.lema)}${/™$/.test(f.lema || '') ? '' : ''}</span></div>`; };
+  const ponFirma = (f) => (A.firma ? A.firma.guardar(f) : Promise.resolve(false));
+  // Para el dossier: sin nombre de firma, la marca es Atalaya 360°; el logotipo y el color, solo si son válidos
+  const firmaDoc = () => { const f = firma(), F = A.firma ? A.firma() : {}; return Object.assign(f, { nombre: String(f.nombre || '').trim() || 'Atalaya 360°', logo: F.logo || '', color: F.color || '' }); };
+  const marca = (f, cls) => { const w = String(f.nombre || '').trim().split(/\s+/); const a = w.length > 1 ? w.slice(0, Math.ceil(w.length / 2)).join(' ') : w[0] || '', b = w.length > 1 ? w.slice(Math.ceil(w.length / 2)).join(' ') : ''; return `<div class="pc-marca ${cls || ''}">${f.logo ? `<img src="${f.logo}" alt="" style="display:block;height:${cls === 'mini' ? 22 : cls === 'grande' ? 64 : 46}px;width:auto;max-width:${cls === 'mini' ? 120 : 260}px;object-fit:contain;background:#fff;border-radius:4px;padding:3px;margin-bottom:${cls === 'mini' ? 8 : 14}px">` : ''}<b>${esc(a)}${b ? `<i>${cls === 'mini' ? ' ' : '<br>'}${esc(b)}</i>` : ''}</b><span>${esc(f.lema)}${/™$/.test(f.lema || '') ? '' : ''}</span></div>`; };
+
+  /* Logotipo, color de acento y coletilla de la ficha de la firma */
+  const LOGO_MAX = 200 * 1024;
+  const firmaMarcaHTML = (f) => {
+    const In = A.informe, c = f.color || '', ok = c && In.colorOk(c), ratio = c ? In.contraste(c).toLocaleString('es-ES', { maximumFractionDigits: 1 }) : '';
+    return `<div class="iv-g3 pc-fmarca">
+      <div class="small stack" style="gap:6px"><b>Logotipo</b>${f.logo ? `<img src="${f.logo}" alt="Logotipo de la firma" style="max-height:56px;max-width:200px;object-fit:contain;background:#fff;border-radius:6px;padding:4px;border:1px solid var(--line, #ccc)">` : '<span class="muted">Sin logotipo: el membrete lleva el nombre.</span>'}
+        <div class="row" style="gap:6px"><label class="btn ghost small">${f.logo ? 'Cambiar' : 'Subir logotipo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-flogo hidden></label>${f.logo ? '<button class="btn ghost small" data-flogo-x>Quitar</button>' : ''}</div><small class="muted">PNG, JPG, WebP o SVG. Se reduce a 600 px y hasta 200 KB.</small></div>
+      <div class="small stack" style="gap:6px"><b>Color de los títulos</b><div class="row" style="gap:8px"><input type="color" data-fcolor value="${esc(ok ? c : '#6e7d14')}" style="width:46px;height:32px;padding:0;border:0;background:none">${ok ? `<span>${esc(c)} · contraste ${ratio}:1</span><button class="btn ghost small" data-fcolor-x>Por defecto</button>` : '<span class="muted">Por defecto (oliva)</span>'}</div><small class="muted">Debe leerse sobre blanco (contraste de 4,5:1 o más); si no, se usa el de por defecto.</small></div>
+      <label class="iv-inl small" style="align-self:start"><input type="checkbox" data-felab ${f.elaborado !== false ? 'checked' : ''}> Mostrar «Elaborado con Atalaya 360°» al pie de los documentos</label></div>`;
+  };
+  // La imagen se pasa por un lienzo: tamaño contenido, formato PNG (o JPG si pesa demasiado) y nada más que píxeles
+  const logoDe = (file) => new Promise((ok, ko) => {
+    if (!file || !/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) return ko(new Error('El logotipo debe ser PNG, JPG, WebP o SVG.'));
+    if (file.size > 5 * 1024 * 1024) return ko(new Error('La imagen pesa más de 5 MB.'));
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      URL.revokeObjectURL(url);
+      const w0 = im.naturalWidth || 600, h0 = im.naturalHeight || 200;
+      for (const k of [1, 0.75, 0.5]) {
+        const e = Math.min(1, (600 * k) / w0, (240 * k) / h0), cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(w0 * e)); cv.height = Math.max(1, Math.round(h0 * e));
+        const cx = cv.getContext('2d'); cx.drawImage(im, 0, 0, cv.width, cv.height);
+        let d = cv.toDataURL('image/png');
+        if (d.length > LOGO_MAX) { const c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = cv.height; const x2 = c2.getContext('2d'); x2.fillStyle = '#fff'; x2.fillRect(0, 0, c2.width, c2.height); x2.drawImage(cv, 0, 0); d = c2.toDataURL('image/jpeg', 0.86); }
+        if (d.length <= LOGO_MAX) return ok(d);
+      }
+      ko(new Error('El logotipo sigue pesando más de 200 KB: prueba con una imagen más sencilla.'));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); ko(new Error('No se pudo leer la imagen.')); };
+    im.src = url;
+  });
+  const wireFirmaMarca = (host) => {
+    const pon = (k, v) => { const ff = firma(); ff[k] = v; ponFirma(ff); render(); };
+    const lf = $('[data-flogo]', host); if (lf) lf.onchange = async () => { try { pon('logo', await logoDe(lf.files[0])); toast('Logotipo guardado: aparece en el membrete de los informes.'); } catch (x) { toast(x.message); } };
+    const lx = $('[data-flogo-x]', host); if (lx) lx.onclick = () => pon('logo', '');
+    const fc = $('[data-fcolor]', host); if (fc) fc.onchange = () => { const v = fc.value; if (A.informe.colorOk(v)) pon('color', v); else { toast(`Ese color tiene poco contraste sobre blanco (${A.informe.contraste(v).toLocaleString('es-ES', { maximumFractionDigits: 1 })}:1): se usa el de por defecto. Elige uno más oscuro.`); pon('color', ''); } };
+    const cx = $('[data-fcolor-x]', host); if (cx) cx.onclick = () => pon('color', '');
+    const fe = $('[data-felab]', host); if (fe) fe.onchange = () => pon('elaborado', fe.checked);
+  };
 
   /* ---------- Textos de partida ---------- */
   const CONSEC = { responsable: 'Todo sube al empresario y los fallos no tienen dueño.', limite: 'Se decide a ojo y el coste aparece tarde.', metodo: 'La calidad depende de quién lo haga ese día.', puesto: 'Personas desbordadas y mandos sin autoridad.', dato: 'Se decide de oído y se corrige tarde.', fecha: 'Proyectos que no se cierran nunca.', mando: 'Decisiones que se revocan en el pasillo.' };
@@ -64,7 +104,7 @@
   /* ---------- Preparar la propuesta desde la primera sesión ---------- */
   const preparar = () => {
     const ST = S(), pr = Object.assign(vacia(), ST.propuesta || {}), v20 = veinte(), cs = causasOrdenadas(), objs = (ST.objetivos || []).filter((o) => o.especifica || o.dice);
-    const f = firma(); pr.ciudad = pr.ciudad || f.ciudad;
+    const f = firmaDoc(); pr.ciudad = pr.ciudad || f.ciudad;
     const o1 = objs[0];
     if (o1) { pr.t1 = 'Que la empresa'; pr.t2 = 'trabaje para usted'; }
     pr.subtitulo = o1 ? `${cap(fraseObj(o1).replace(/\.$/, ''))}. Un plan con pasos, responsables y fechas para conseguirlo.` : `Ordenar ${cs.slice(0, 2).map((x) => x.c.t.toLowerCase()).join(' y ') || 'la dirección, los procesos y la información'} para que la empresa crezca sin depender de una sola persona.`;
@@ -277,10 +317,11 @@
   const grafica = (c) => { const pts = [[60, 330], [140, 300], [210, 310], [290, 260], [360, 270], [440, 210], [520, 220], [600, 160], [680, 120], [760, 70]]; return `<svg class="pc-art" viewBox="0 0 794 1123" aria-hidden="true"><g stroke="${c}" stroke-opacity="0.12">${Array.from({ length: 14 }, (_, i) => `<line x1="0" y1="${40 + i * 80}" x2="794" y2="${40 + i * 80}"/>`).join('')}</g><polyline points="${pts.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${c}" stroke-opacity="0.45" stroke-width="2"/>${pts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${c}" fill-opacity="0.55"/>`).join('')}</svg>`; };
   const tit = (h1, h2, o) => `<h2 class="pc-h ${o && o.big ? 'big' : ''}">${esc(h1)}${h2 ? `<br><span class="pc-o">${esc(h2)}</span>` : ''}</h2><i class="pc-rule"></i>`;
   const kick = (t) => `<div class="pc-k">${esc(t)}</div>`;
-  const hoja = (cls, inner, pie, art) => `<section class="pp-page pc-page ${cls}">${art || ''}<div class="pc-in">${inner}</div>${pie !== false ? `<footer class="pc-foot"><span>${esc(pie.t)}</span><b>${pie.n}</b></footer>` : ''}</section>`;
+  // El color de la firma (si lo tiene) es el acento de las hojas claras del dossier
+  const hoja = (cls, inner, pie, art) => `<section class="pp-page pc-page ${cls}"${/pc-light/.test(cls) && A.firma && A.firma().color ? ` style="--pc-acc:${A.firma().color};--pc-o:${A.firma().color}"` : ''}>${art || ''}<div class="pc-in">${inner}</div>${pie !== false ? `<footer class="pc-foot"><span>${esc(pie.t)}</span><b>${pie.n}</b></footer>` : ''}</section>`;
 
   const dossier = (pr) => {
-    const f = firma(), emp = empresa(), r = retorno(pr), prog = pr.tipo === 'programa', N = neto(pr), PR = precio(pr), cu = cuotas(pr);
+    const f = firmaDoc(), emp = empresa(), r = retorno(pr), prog = pr.tipo === 'programa', N = neto(pr), PR = precio(pr), cu = cuotas(pr);
     const pieT = `${f.nombre} · Dossier de propuesta comercial · ${pr.t1} ${pr.t2}`.toUpperCase();
     const secciones = []; // { id, t (índice), hojas: [fn(n, sec) => html] }
     const sec = (id, t, hojas) => secciones.push({ id, t, hojas });
@@ -500,7 +541,7 @@
           : `<div class="eyebrow">Pago por hitos</div>${lista('inv.hitos', pr.inv.hitos, [{ k: 't', ph: 'Momento' }, { k: 'pct', ph: '%', w: '80px' }], 'Añadir un hito')}${pr.inv.hitos.reduce((a, x) => a + num(x.pct), 0) !== 100 ? `<div class="alert warn small">Los hitos suman ${pr.inv.hitos.reduce((a, x) => a + num(x.pct), 0)} %: deben sumar 100 %.</div>` : ''}${campo('inv.notaHitos', 'Nota bajo la forma de pago', pr.inv.notaHitos, { area: true })}`)
           + `<div class="iv-g3">${campo('inv.incluye', 'Incluye (una línea por punto)', pr.inv.incluye, { area: true, rows: 4 })}${campo('inv.noIncluye', 'No incluye', pr.inv.noIncluye, { area: true, rows: 4 })}</div>`)}
       ${bloque('cierre', 'El siguiente paso y la firma', esc(pr.cierre.cta), `<div class="iv-g3">${campo('cierre.h1', 'Titular', pr.cierre.h1)}${campo('cierre.h2', 'Titular · en contorno', pr.cierre.h2)}${campo('cierre.cta', 'Llamada a la acción', pr.cierre.cta)}</div>${campo('cierre.texto', 'Texto', pr.cierre.texto, { area: true })}${campo('cierre.firmantes', 'Firman por la empresa (uno por línea)', pr.cierre.firmantes, { area: true })}`)}
-      ${bloque('firma', 'Ficha de tu firma', esc(f.nombre) + ' · para todas tus propuestas', `<div class="iv-g3">${['nombre:Nombre comercial', 'lema:Lema', 'consultor:Consultor', 'cargo:Cargo', 'razon:Razón social', 'cif:CIF', 'direccion:Dirección', 'ciudad:Ciudad', 'email:Correo', 'tel:Teléfono o WhatsApp'].map((x) => { const [k, l] = x.split(':'); return `<label class="small">${l}<input class="input" data-f="${k}" value="${esc(f[k])}"></label>`; }).join('')}</div><label class="small">Descripción de la contraportada<textarea class="input" rows="2" data-f="descripcion">${esc(f.descripcion)}</textarea></label>`)}`;
+      ${bloque('firma', 'Ficha de tu firma', (String(f.nombre || '').trim() ? esc(f.nombre) : 'Sin nombre: los documentos llevan «Atalaya 360°»') + ' · para todas tus propuestas e informes, en todas tus empresas', `<p class="small muted" style="margin:0">Es la marca de los documentos que entregas: membrete, portada y pie de los informes, el libro corporativo y este dossier. Vale para todas las empresas de tu cuenta.</p><div class="iv-g3">${['nombre:Nombre comercial', 'lema:Lema', 'consultor:Consultor', 'cargo:Cargo', 'razon:Razón social', 'cif:CIF', 'direccion:Dirección', 'ciudad:Ciudad', 'email:Correo', 'tel:Teléfono o WhatsApp'].map((x) => { const [k, l] = x.split(':'); return `<label class="small">${l}<input class="input" data-f="${k}" value="${esc(f[k])}"></label>`; }).join('')}</div><label class="small">Descripción de la contraportada<textarea class="input" rows="2" data-f="descripcion">${esc(f.descripcion)}</textarea></label>${firmaMarcaHTML(f)}`)}`;
     // Eventos
     $('#pcVer', host).onclick = () => V.informes.propuesta();
     wireFuentes(host);
@@ -516,6 +557,7 @@
     $$('[data-ladd]', host).forEach((b) => (b.onclick = () => { const p = b.dataset.ladd, n = Object.assign({}, NUEVO[p]); if (p === 'inv.objetivos') n.tramos = tramosTipo(); ruta1(pr, p).push(n); guardar(); render(); }));
     $$('[data-ldel]', host).forEach((b) => (b.onclick = () => { ruta1(pr, b.dataset.ldel).splice(+b.dataset.i, 1); guardar(); render(); }));
     $$('[data-f]', host).forEach((i) => (i.oninput = () => { const ff = firma(); ff[i.dataset.f] = i.value; ponFirma(ff); }));
+    wireFirmaMarca(host);
     const rec = $('#pcRec', host); if (rec) rec.onclick = () => { pr.inv.precio = String(r.recom); pr.inv.auto = false; guardar(); render(); toast('Precio aplicado. Repártelo entre los pasos si quieres desglosarlo.'); };
     const rep = $('#pcRep', host); if (rep) rep.onclick = () => { const tot = num(pr.inv.precio) || PR; if (!tot) return toast('Pon antes el precio.'); const pesos = pr.pasos.items.map((x) => { const m = String(x.cuando).match(/(\d+)\D+(\d+)/); return m ? +m[2] - +m[1] + 1 : 2; }); const sp = pesos.reduce((a, x) => a + x, 0); let acc = 0; pr.pasos.items.forEach((x, i) => { const v = i === pesos.length - 1 ? tot - acc : redondea((tot * pesos[i]) / sp); x.imp = String(v); acc += v; }); pr.inv.auto = true; guardar(); render(); toast('Precio repartido según la duración de cada paso.'); };
     $('#pcIA', host).onclick = async (e) => {

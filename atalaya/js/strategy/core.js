@@ -20,7 +20,23 @@
   S.pct = (a, b) => (b ? (a / b) * 100 : 0);
 
   /* ---------- Módulos ---------- */
-  S.register = (m) => { if (m.first) S.modules.unshift(m); else S.modules.push(m); };
+  /* Sin dato no es cero: un módulo con «datos()» que devuelve false no tiene indicadores con estado, ni riesgos ni hallazgos.
+     Sus indicadores salen como «Sin datos» (st null, sinDato) y quedan fuera de la nota, del DAFO, de las prioridades y del tablero. */
+  S.real = () => !!(A.platform && A.platform.modoReal && A.platform.modoReal());
+  S.simConDatos = () => { const e = S.sim && S.sim.empresa; return !!(e && S.num(e.ventas) > 0 && !(S.real() && A.simEsEjemplo && A.simEsEjemplo(S.sim))); };
+  S.invDefinida = () => { const v = S.sim && S.sim.inversion; return !!(v && (S.num(v.importe) > 0 || (v.lineas || []).some((l) => S.num(l.importe) > 0))); };
+  S.conDatos = (m) => { m = typeof m === 'string' ? S.mod(m) : m; if (!m || !m.datos) return true; try { return !!m.datos(); } catch (e) { return false; } };
+  S.SIN_DATO = 'Sin datos';
+  const envolver = (m) => {
+    ['kpis', 'risks', 'findings'].forEach((f) => { const o = m[f]; if (typeof o !== 'function') return;
+      m[f] = function () {
+        if (S.conDatos(m)) { const r = o.apply(this, arguments) || []; return f === 'kpis' ? r.map((k) => (k && k.sinDato ? Object.assign({}, k, { st: null }) : k)) : r; }
+        if (f !== 'kpis') return [];
+        let l = []; try { l = o.apply(this, arguments) || []; } catch (e) { l = []; }
+        return l.map((k) => ({ k: k.k, v: S.SIN_DATO, st: null, sinDato: true }));
+      }; });
+  };
+  S.register = (m) => { envolver(m); if (m.first) S.modules.unshift(m); else S.modules.push(m); };
   S.mod = (id) => S.modules.find((m) => m.id === id);
   S.defaults = {};
   S.save = (() => { let t; return () => { LS.set(LSK, S.state); clearTimeout(t); t = setTimeout(() => A.platform && A.platform.saveData('estrategia', S.state), 1200); S.refreshKpis(); }; })();
@@ -35,7 +51,13 @@
   };
 
   /* ---------- Componentes ---------- */
-  S.kpiTiles = (list) => `<div class="kpis" style="margin-top:0">${list.map((t) => `<div class="kpi" ${t.info ? `data-term="${esc(t.info)}" data-val="${esc(String(t.v).replace(/<[^>]+>/g, ''))}" data-st="${t.st || ''}" data-ctx="${esc(t.exp || '')}" tabindex="0" role="button" aria-label="${esc(t.k)}: qué significa"` : ''}><div class="k"><span>${t.k}</span>${t.st ? `<span class="state st-${t.st}">${stName[t.st]}</span>` : ''}</div><div class="v">${t.v}</div>${t.d ? `<div class="d">${t.d}</div>` : ''}</div>`).join('')}</div>`;
+  // Mientras se pinta un módulo sin datos, sus fichas dicen «Sin datos» y no llevan semáforo
+  S.kpiTiles = (list) => `<div class="kpis" style="margin-top:0">${list.map((t) => (S._vacio && !t.fijo ? Object.assign({}, t, { v: S.SIN_DATO, st: null, d: '' }) : t)).map((t) => `<div class="kpi" ${t.info ? `data-term="${esc(t.info)}" data-val="${esc(String(t.v).replace(/<[^>]+>/g, ''))}" data-st="${t.st || ''}" data-ctx="${esc(t.exp || '')}" tabindex="0" role="button" aria-label="${esc(t.k)}: qué significa"` : ''}><div class="k"><span>${t.k}</span>${t.st ? `<span class="state st-${t.st}">${stName[t.st]}</span>` : ''}</div><div class="v">${t.v}</div>${t.d ? `<div class="d">${t.d}</div>` : ''}</div>`).join('')}</div>`;
+  // Módulo que se calcula con las cuentas del simulador y aún no las tiene: estado vacío en lugar de cifras a cero
+  S.vacioSim = (host, titulo, lede) => {
+    host.innerHTML = `${S.section(titulo, lede)}<div class="glass pad stack st-vacio"><p style="margin:0"><b>Sin datos de la empresa.</b> Este módulo se calcula con sus cuentas (ventas, márgenes, gastos, caja y deuda). Mientras no estén cargadas no muestra cifras ni semáforos: nada de lo que falta se toma como cero.</p><div class="row"><a class="btn solid" href="app.html#empresa">Cargar las cuentas o responder las preguntas</a><button class="btn ghost" data-vs-origen>Origen de datos</button></div></div>`;
+    const b = host.querySelector('[data-vs-origen]'); if (b) b.onclick = () => S.show('origen');
+  };
   S.note = (html) => `<div class="note">${html}</div>`;
   S.section = (title, lede, inner) => `<div class="eyebrow">${title}</div>${lede ? `<p class="lede">${lede}</p>` : ''}${inner || ''}`;
 
@@ -216,7 +238,9 @@
     panel.innerHTML = '';
     A.charts.hideTip(); A.charts.closePop();
     const m = S.mod(id);
+    S._vacio = !S.conDatos(m);
     try { m.render(panel); } catch (e) { panel.innerHTML = `<div class="alert stop">No se pudo mostrar este módulo: ${esc(e.message)}</div>`; console.error(e); }
+    const vacio = S._vacio; S._vacio = false;
     // Cada módulo puede generar su informe
     // Cabecera del módulo: área, nombre con volumen, la pregunta que responde y sus informes
     // La portada (cuadro de mando) lleva su propio titular grande: sin cabecera pequeña encima
@@ -228,7 +252,7 @@
       const ab = $('#stAudit', panel); if (ab) ab.onclick = () => S.auditReport();
     }
     // Cuenta con datos reales: el módulo sin datos lo dice y pide la subida
-    if (S.pideDatos && S.pideDatos(id)) { const head = panel.querySelector('.st-head'); const av = `<div class="alert warn st-pide"><b>Sin datos reales en este módulo.</b> Esta empresa trabaja con datos reales: aquí no hay datos de ejemplo. Súbelos en <a href="#origen">Origen de datos</a> (Excel, CSV o PDF) o escríbelos en las tablas.</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
+    if (vacio) { const head = panel.querySelector('.st-head'), sim = m.datosSim; const av = `<div class="alert ${S.real() ? 'warn' : 'info'} st-pide st-sindatos"><b>Sin datos en este módulo.</b> ${S.real() ? 'Esta empresa trabaja con datos reales: aquí no hay datos de ejemplo. ' : ''}Los indicadores quedan «Sin datos» y no cuentan en la nota, en el DAFO ni en las prioridades hasta que haya datos propios. ${sim ? 'Cargue las cuentas en el <a href="app.html#empresa">simulador</a> o en <a href="#origen">Origen de datos</a>.' : 'Súbalos en <a href="#origen">Origen de datos</a> (Excel, CSV o PDF) o escríbalos en las tablas.'}</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
     else if (id === 'tablero' && A.simEsEjemplo && S.sim && S.sim.sinDatos && !(S.sim.empresa && S.sim.empresa.ventas > 0)) panel.insertAdjacentHTML('afterbegin', '<div class="alert warn st-pide"><b>Faltan las cuentas de la empresa.</b> Esta empresa trabaja con datos reales y el simulador está a cero: sube el balance y la cuenta de resultados en <a href="#origen">Origen de datos</a> o en el <a href="app.html#empresa">simulador</a>.</div>');
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
     // Al recalcular el mismo módulo se conserva la posición: solo se sube al cambiar de módulo
@@ -329,7 +353,7 @@
   /* Nota con el criterio único de Atalaya (A.nota): verde 1, ámbar 0,5, rojo 0, ponderado, sobre 100.
      ids: un módulo, una lista o null (todo el sistema estratégico). Sin motor de notas, los semáforos que se pasen. */
   S.notaRes = (ids) => (A.nota && A.nota.modulos ? A.nota.modulos(ids) : null);
-  S.notaN = (ids, tiles) => { const r = S.notaRes(ids); if (r) return r.n100; const l = (tiles || []).filter((t) => t.st); return l.length ? Math.round(l.reduce((a, t) => a + (t.st === 'ok' ? 100 : t.st === 'warn' ? 50 : 0), 0) / l.length) : null; };
+  S.notaN = (ids, tiles) => { if (A.nota && A.nota.modulos) { const r = S.notaRes(ids); return r ? r.n100 : null; } const l = (tiles || []).filter((t) => t.st); return l.length ? Math.round(l.reduce((a, t) => a + (t.st === 'ok' ? 100 : t.st === 'warn' ? 50 : 0), 0) / l.length) : null; };
   S.allKpis = () => S.modules.filter((m) => m.kpis).flatMap((m) => { try { return m.kpis().map((k) => Object.assign({ mod: m.id, area: m.nombre }, k)); } catch (e) { return []; } });
   S.allRisks = () => S.modules.filter((m) => m.risks).flatMap((m) => { try { return m.risks().map((r) => Object.assign({ fuente: m.nombre, mod: m.id }, r)); } catch (e) { return []; } }).sort((a, b) => b.nivel - a.nivel);
   S.allFindings = () => S.modules.filter((m) => m.findings).flatMap((m) => { try { return m.findings().map((f) => Object.assign({ area: m.nombre, mod: m.id }, f)); } catch (e) { return []; } });
@@ -344,7 +368,10 @@
       const impacto = Fi.reduce((a, f) => a + (f.impactoEUR || 0), 0);
       const stS = (x) => (x === null ? null : x >= 70 ? 'ok' : x >= 50 ? 'warn' : 'stop');
       const porArea = areas.map((a) => { const l = k.filter((x) => x.area === a); return { a, mod: l[0].mod, sc: score(l), st: stS(score(l)) }; });
-      const veredicto = S.analysis().verdict, rojos = k.filter((x) => x.st === 'stop').length;
+      const vr = S.analysis().verdict, rojos = k.filter((x) => x.st === 'stop').length, nSD = k.filter((x) => x.sinDato).length;
+      // Sin cuentas no hay veredicto; sin inversión definida, tampoco (se ve la situación de la empresa en el simulador)
+      const veredicto = !S.simConDatos() ? { titulo: 'Sin datos', key: null, sd: true } : !S.invDefinida() ? { titulo: 'Sin inversión definida', key: null, sd: true } : vr;
+      const motivoSinNota = S.datosPropios() ? 'sin comprobaciones con datos' : S.real() ? 'faltan los datos de la empresa' : 'datos de ejemplo';
       const ea = A.platform && A.platform.empresas && A.platform.empresas.activa();
       const hc = {
         kicker: 'Sistema estratégico · cuadro de mando',
@@ -353,30 +380,30 @@
         empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
         datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]],
         acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaEst && A.rutaEst.openMap() }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
-        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin datos suficientes' : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes) + '. ' : ''}${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
+        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes) + '. ' : ''}${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo${nSD ? `, ${nSD} sin datos (no cuentan)` : ''} y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
           luces: k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
         kpis: [
-          { k: 'Nota del sistema estratégico', v: global === null ? '—' : global + '/100', st: stS(global), d: `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc == null ? 0 : x.sc, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
+          { k: 'Nota del sistema estratégico', v: global === null ? 'Sin nota' : global + '/100', st: stS(global), d: global === null ? motivoSinNota : `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc == null ? 0 : x.sc, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
           { k: 'Riesgos altos', v: String(R.filter((r) => r.estado === 'stop').length), st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados`, barras: R.slice(0, 16).map((r) => ({ n: r.nombre, v: r.nivel, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[r.estado] })) },
           { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual`, barras: Fi.slice().sort((x, y) => (y.impactoEUR || 0) - (x.impactoEUR || 0)).slice(0, 12).map((f) => ({ n: f.hallazgo, v: f.impactoEUR || 0 })) },
-          { k: 'Veredicto de inversión', v: veredicto.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base'), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[veredicto.key] || null, fn: () => { location.href = 'app.html'; } }
+          { k: 'Veredicto de inversión', v: veredicto.titulo, d: veredicto.sd ? (S.simConDatos() ? 'defina la inversión en el simulador' : 'cargue las cuentas en el simulador') : 'del simulador · escenario ' + (S.sim.escenario || 'base'), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[veredicto.key] || null, fn: () => { location.href = 'app.html'; } }
         ]
       };
       host.innerHTML = `${A.heroMundo ? A.heroMundo.html(hc) : `<div class="eyebrow">Cuadro de mando</div><h2>La empresa <em>de un vistazo</em></h2>${S.kpiTiles([
           { k: 'Salud global', v: global === null ? '—' : global + '/100', st: global === null ? null : global >= 70 ? 'ok' : global >= 50 ? 'warn' : 'stop', d: `${k.filter((x) => x.st === 'stop').length} indicadores en rojo` },
           { k: 'Riesgos altos', v: R.filter((r) => r.estado === 'stop').length, st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados` },
           { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual` },
-          { k: 'Veredicto de inversión', v: S.analysis().verdict.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base') }
+          { k: 'Veredicto de inversión', v: veredicto.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base') }
         ])}`}
         <div class="glass pad stack mt" id="tbNota"><small class="muted">Calculando la nota de la empresa…</small></div>
-        <div class="areas mt">${areas.map((a) => { const l = k.filter((x) => x.area === a); const sc = score(l); return `<button class="glass area" data-mod="${l[0].mod}"><div class="row"><b>${a}</b><span class="spacer"></span>${sc === null ? '' : `<span class="state st-${sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop'}">${sc}</span>`}</div>${l.slice(0, 4).map((x) => `<div class="arow"><span>${x.k}</span><b class="num">${x.v}</b>${x.st ? `<i class="dotc ${x.st}"></i>` : '<i></i>'}</div>`).join('')}</button>`; }).join('')}</div>
+        <div class="areas mt">${areas.map((a) => { const l = k.filter((x) => x.area === a); const sc = score(l); return `<button class="glass area" data-mod="${l[0].mod}"><div class="row"><b>${a}</b><span class="spacer"></span>${sc === null ? (l.every((x) => x.sinDato) ? '<span class="state st-nd">Sin datos</span>' : '') : `<span class="state st-${sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop'}">${sc}</span>`}</div>${l.slice(0, 4).map((x) => `<div class="arow"><span>${x.k}</span><b class="num">${x.v}</b>${x.st ? `<i class="dotc ${x.st}"></i>` : '<i></i>'}</div>`).join('')}</button>`; }).join('')}</div>
         <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Mapa de riesgos de todas las áreas</h4><div class="chart" id="tbRisk"></div></div><div class="glass pad stack"><h4>Riesgos principales</h4>${S.riskBlock(R.slice(0, S.N_RIESGOS), { num: true, total: R.length })}</div></div>
         <div class="glass pad mt stack"><h4>Mayores oportunidades de mejora</h4>${Fi.length ? `<div class="table-wrap"><table><thead><tr><th>Área</th><th style="text-align:left">Hallazgo</th><th>Impacto anual</th><th style="text-align:left">Acción</th><th>Plazo</th></tr></thead><tbody>${Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0)).slice(0, 12).map((f) => `<tr><td>${esc(f.area)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.hallazgo)}</td><td>${F.eur(f.impactoEUR || 0)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.accion)}</td><td>${f.plazo} días</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Completa los módulos para ver oportunidades.</p>'}</div>`;
       if (A.nota && A.nota.calcular) A.nota.calcular().then((u) => { const el = host.querySelector('#tbNota'); if (!el || !u) return; const ks = Object.keys(u.mundos), f = (n) => (n == null ? '—' : String(n).replace('.', ','));
         el.innerHTML = `<div class="row"><h4>Cómo se calcula la nota</h4><span class="spacer"></span><span class="state st-${u.global == null ? '' : u.global >= 7 ? 'ok' : u.global >= 5 ? 'warn' : 'stop'}">Empresa ${f(u.global)}/10 · ${u.global == null ? '—' : Math.round(u.global * 10)}/100</span></div>
-          <p class="small" style="margin:0">${esc(A.nota.REGLA)}</p>
-          <div class="table-wrap"><table><thead><tr><th style="text-align:left">Mundo</th><th>Nota /10</th><th>Nota /100</th><th>Comprobaciones</th><th style="text-align:left">Calculada</th></tr></thead><tbody>${ks.map((k) => { const m = u.mundos[k], r = A.nota.puntuar(m.puntos); return `<tr><td style="text-align:left">${esc(m.n)}${k === 'estrategia' ? ' <small class="muted">(este mundo)</small>' : ''}</td><td>${f(m.nota)}</td><td>${m.nota == null ? '—' : Math.round(m.nota * 10)}</td><td>${r ? `${r.verdes} ✓ · ${r.ambar} ámbar · ${r.rojos} rojo` : '—'}</td><td style="text-align:left">${m.vivo ? 'ahora' : m.fecha ? 'el ' + new Date(m.fecha).toLocaleDateString('es-ES') + ' <small class="muted">(se actualiza al abrir ese mundo)</small>' : 'sin abrir'}</td></tr>`; }).join('')}</tbody></table></div>
-          <p class="small muted" style="margin:0">La nota de la empresa (${f(u.global)}/10) es la media de los mundos; la de este mundo (${f(u.mundos.estrategia && u.mundos.estrategia.nota)}/10) es la del cuadro de mando y la de los informes del sistema estratégico. Si un mundo se calculó en otra fecha, su nota no recoge los cambios posteriores hasta que se abre.</p>`; }).catch(() => {});
+          <p class="small" style="margin:0">${esc(A.nota.regla ? A.nota.regla(u.global == null ? null : Math.round(u.global * 10)) : A.nota.REGLA)}</p>
+          <div class="table-wrap"><table><thead><tr><th style="text-align:left">Mundo</th><th>Nota /10</th><th>Nota /100</th><th>Comprobaciones</th><th style="text-align:left">Calculada</th></tr></thead><tbody>${ks.map((k) => { const m = u.mundos[k], r = A.nota.puntuar(m.puntos); return `<tr><td style="text-align:left">${esc(m.n)}${k === 'estrategia' ? ' <small class="muted">(este mundo)</small>' : ''}</td><td>${m.nota == null ? 'Sin nota' : f(m.nota)}</td><td>${m.nota == null ? '—' : Math.round(m.nota * 10)}</td><td style="white-space:normal">${A.nota.desglose(r || A.nota.puntuar(m.puntos, true))}${m.motivo ? ` <small class="muted">· ${esc(m.motivo)}</small>` : ''}</td><td style="text-align:left">${A.nota.fechaTxt ? A.nota.fechaTxt(m) : m.fecha ? new Date(m.fecha).toLocaleDateString('es-ES') : 'sin abrir'}</td></tr>`; }).join('')}</tbody></table></div>
+          <p class="small muted" style="margin:0">La nota de la empresa (${u.global == null ? 'sin nota' : f(u.global) + '/10'}) es la media de los mundos con nota (los que no tienen datos propios no cuentan); la de este mundo (${u.mundos.estrategia && u.mundos.estrategia.nota != null ? f(u.mundos.estrategia.nota) + '/10' : 'sin nota'}) es la del cuadro de mando y la de los informes del sistema estratégico. Si un mundo se calculó en otra fecha, su nota no recoge los cambios posteriores hasta que se abre.</p>`; }).catch(() => {});
       $$('.area', host).forEach((b) => b.onclick = () => show(b.dataset.mod));
       if (A.heroMundo) A.heroMundo.wire(host, hc);
       A.charts.riskMatrix($('#tbRisk', host), S.riesgosMatriz(R, S.N_RIESGOS), () => {});
@@ -404,24 +431,51 @@
   /* ---------- Arranque ---------- */
   /* Cuenta con datos reales: nada de datos de ejemplo. Los módulos que siguen con los de ejemplo (o sin tocar)
      se vacían y piden sus datos; el simulador que alimenta las finanzas, también a cero. */
-  const NO_VACIAR = new Set(['origen', 'evolucion', 'impuestos', 'valoracion', 'lean']);
-  const vaciar = (v, prof) => { if (Array.isArray(v)) return []; if (v && typeof v === 'object' && prof < 2) { const o = {}; Object.keys(v).forEach((k) => (o[k] = vaciar(v[k], prof + 1))); return o; } return v; };
-  const sinDatos = (v, prof) => { if (Array.isArray(v)) return !v.length; if (v && typeof v === 'object' && prof < 2) return Object.keys(v).filter((k) => k !== '__vacio').every((k) => sinDatos(v[k], prof + 1)); return true; };
-  S.aDatosReales = () => {
-    let cambio = false;
-    if (A.simEsEjemplo && A.simEsEjemplo(S.sim)) { const ea = A.platform && A.platform.empresas && A.platform.empresas.activa(); S.sim = Object.assign(A.defaultState(), A.simVacio(S.sim.empresaNombre || (ea && ea.nombre) || '', S.sim.sector)); S.sim.empresa = Object.assign(A.defaultState().empresa, A.simVacio().empresa); S.sim.historico = undefined; delete S.sim.historico; S.saveSim(); }
-    Object.keys(S.defaults).forEach((k) => {
-      const d = S.defaults[k], v = S.state[k]; if (NO_VACIAR.has(k) || !d || typeof d !== 'object' || (v && v.__vacio)) return;
-      const intacto = v && (v.ejemplo === true || JSON.stringify(v) === JSON.stringify(d));
-      if (!intacto) return;
-      const n = vaciar(A.clone(d), 0); if (n && typeof n === 'object' && 'ejemplo' in n) n.ejemplo = false;
-      if (k === 'logistica') Object.keys(n).forEach((x) => { if (typeof n[x] === 'number') n[x] = 0; });
-      n.__vacio = true; S.state[k] = n; cambio = true;
-    });
-    if (cambio) S.save();
+  /* Lo que viene del ejemplo se reconoce comparando con los valores por defecto: filas iguales a las de ejemplo
+     (sin mirar fechas, que se generan al cargar), textos largos de ejemplo y las cifras de ejemplo de cada módulo.
+     Se quita solo eso: lo que el usuario haya escrito o subido se conserva. Se aplica en cada arranque con datos reales. */
+  const prim = (x) => x === null || ['string', 'number', 'boolean'].includes(typeof x);
+  const filaEjemplo = (r, d) => !!(r && d && typeof r === 'object' && typeof d === 'object' && Object.keys(d).every((k) => k === 'fecha' || k === 'cierre' || !prim(d[k]) || r[k] === d[k]));
+  const quitarEjemplo = (v, d) => {
+    if (Array.isArray(v) && Array.isArray(d)) return d.length && d.every((x) => x && typeof x === 'object') ? v.filter((r) => !d.some((x) => filaEjemplo(r, x))) : v;
+    if (v && d && typeof v === 'object' && typeof d === 'object' && !Array.isArray(v) && !Array.isArray(d)) { Object.keys(v).forEach((k) => { if (k in d) v[k] = quitarEjemplo(v[k], d[k]); }); return v; }
+    if (typeof v === 'string' && v === d && v.length > 15) return '';
+    return v;
   };
-  // ¿Sigue vacío un módulo que se vació por la cuenta real? (en cuanto entra un dato deja de avisar)
-  S.pideDatos = (id) => { const v = S.state && S.state[id]; if (!v || !v.__vacio) return false; if (!sinDatos(v, 0) && !(id === 'logistica' && Object.keys(v).some((x) => typeof v[x] === 'number' && v[x] > 0))) { delete v.__vacio; return false; } if (id === 'logistica' && Object.keys(v).some((x) => typeof v[x] === 'number' && v[x] > 0)) { delete v.__vacio; return false; } return true; };
+  // Cifras sueltas que son de ejemplo (no parámetros como los tipos de IVA o de la Seguridad Social)
+  const NUM_EJ = { logistica: ['pedidosMes', 'transporte', 'almacen', 'personal', 'aTiempo', 'completos', 'rotacion'], impuestos: ['alquiler', 'ibi', 'iae'] };
+  // Cada módulo puede añadir su propia limpieza (estados generados a partir del ejemplo)
+  S.alVaciar = S.alVaciar || {};
+  S.quitarEjemplo = (k, v) => {
+    const d = S.defaults[k]; if (!v || typeof v !== 'object') return v;
+    v = A.clone(v); const ej = v.ejemplo === true;
+    if (d && typeof d === 'object') { v = quitarEjemplo(v, d); (NUM_EJ[k] || []).forEach((x) => { if (v[x] === d[x]) v[x] = 0; }); }
+    if ('ejemplo' in v) v.ejemplo = false;
+    if (S.alVaciar[k]) v = S.alVaciar[k](v, ej);
+    return v;
+  };
+  S.aDatosReales = () => {
+    if (A.simEsEjemplo && A.simEsEjemplo(S.sim)) { const ea = A.platform && A.platform.empresas && A.platform.empresas.activa(); S.sim = Object.assign(A.defaultState(), A.simVacio(S.sim.empresaNombre || (ea && ea.nombre) || '', S.sim.sector)); S.sim.empresa = Object.assign(A.defaultState().empresa, A.simVacio().empresa); S.sim.historico = undefined; delete S.sim.historico; S.saveSim(); }
+    else if (S.sim && S.sim.historico && S.sim.historico.ejemplo) { delete S.sim.historico; S.saveSim(); }
+    const antes = JSON.stringify(S.state);
+    Object.keys(S.defaults).concat(Object.keys(S.alVaciar)).filter((k, i, a) => a.indexOf(k) === i).forEach((k) => {
+      if (k === 'origen' || k === 'evolucion' || k === 'c360' || k === 'inversores') return;
+      const v = S.quitarEjemplo(k, S.state[k]); if (v === undefined) return;
+      S.state[k] = v;
+      const ms = S.modules.filter((m) => m.datos && (m.clave || m.id) === k); if (v && typeof v === 'object') { if (ms.length && !ms.some((m) => S.conDatos(m))) v.__vacio = true; else delete v.__vacio; }
+    });
+    if (JSON.stringify(S.state) !== antes) S.save();
+  };
+  // ¿Módulo sin datos con la cuenta en datos reales? (se mantiene por compatibilidad: ahora lo decide «datos()» de cada módulo)
+  S.pideDatos = (id) => S.real() && !S.conDatos(id);
+  /* ¿Tiene el sistema estratégico datos propios (no de ejemplo)? Decide si el mundo tiene nota.
+     Cuenta el simulador con cuentas propias o cualquier módulo con datos que no sean los de ejemplo. */
+  S.datosPropios = () => {
+    if (S.sim && !(A.simEsEjemplo && A.simEsEjemplo(S.sim)) && S.num(S.sim.empresa && S.sim.empresa.ventas) > 0) return true;
+    const o = S.state && S.state.origen; if (o && ((o.archivos || []).some((a) => a.estado === 'ok') || Object.keys(o.manual || {}).length)) return true;
+    return Object.keys(S.state || {}).some((k) => { const ms = S.modules.filter((m) => m.datos && !m.datosSim && (m.clave || m.id) === k), ant = S.state[k]; if (!ms.length || !ant || ant.ejemplo === true) return false;
+      try { S.state[k] = S.quitarEjemplo(k, ant); return ms.some((m) => S.conDatos(m)); } catch (e) { return false; } finally { S.state[k] = ant; } });
+  };
   S.start = async function () {
     A.sky();
     S.sim = LS.get(SIMK);

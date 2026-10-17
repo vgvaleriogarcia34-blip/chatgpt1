@@ -32,6 +32,15 @@
   const PRUEBA_DIAS = 14;
 
   const P = (A.platform = { mode: 'local', user: null, PLANES, PRUEBA_DIAS, DTO_ANUAL });
+  /* Versión de la aplicación (va en las copias de datos) */
+  P.VERSION = '2.1.0';
+  /* Pago al terminar la prueba. Vacío: se ofrece «Le enviaremos el enlace de pago» con el formulario de solicitud.
+     PAGO_URLS admite un enlace por plan ('profesional') o por plan y periodo ('profesional-anual'); manda el más concreto. */
+  P.PAGO_URL = '';
+  P.PAGO_URLS = { esencial: '', profesional: '', consultora: '' };
+  P.pagoUrl = (plan, periodo) => P.PAGO_URLS[plan + '-' + (periodo || 'mensual')] || P.PAGO_URLS[plan] || P.PAGO_URL || '';
+  /* Contacto directo (pantalla de pago y avisos). El correo, vacío hasta que se configure */
+  P.CONTACTO = { telefono: '+34 678 447 296', email: '', web: 'https://businessavance.es', respuesta: 'en 24 horas laborables' };
   const r2 = (x) => Math.round(x * 100) / 100;
   /* Precio de un plan: mensual o anual (−30 %); en Grupos, según el tramo de sociedades */
   P.precio = function (plan, periodo, n, pactada) {
@@ -99,11 +108,11 @@
 
   P.register = async function (d) {
     await P.ready;
-    if (!d.email || !d.password || d.password.length < 8) throw new Error('Escribe un correo y una contraseña de al menos 8 caracteres.');
+    if (!d.email || !d.password || d.password.length < 8) throw new Error('Escriba un correo y una contraseña de al menos 8 caracteres.');
     if (P.mode === 'server') { const r = await api('/register', { method: 'POST', body: JSON.stringify(d) }); P.user = r.user; return r.user; }
     const users = L.users();
     const email = d.email.trim().toLowerCase();
-    if (users.some((u) => u.email === email)) throw new Error('Ya hay una cuenta con ese correo. Entra con tu contraseña.');
+    if (users.some((u) => u.email === email)) throw new Error('Ya hay una cuenta con ese correo. Entre con su contraseña.');
     const salt = uid();
     const u = { id: uid(), nombre: (d.nombre || '').trim(), email, empresa: (d.empresa || '').trim(), telefono: (d.telefono || '').trim(), plan: PLANES[d.plan] ? d.plan : 'profesional', periodo: d.periodo === 'anual' ? 'anual' : 'mensual',
       rol: 'cliente', estado: 'prueba', pagado: false, venceAcceso: null, alta: new Date().toISOString(), ultimoAcceso: new Date().toISOString(),
@@ -167,7 +176,7 @@
     if (P.mode === 'server') { const r = await api('/password/restablecer', { method: 'POST', body: JSON.stringify({ token, password }) }); P.user = r.user; return r.user; }
     const th = await hash(token); const users = L.users();
     const u = users.find((x) => x.reset && x.reset.hash === th && new Date(x.reset.exp).getTime() > Date.now());
-    if (!u) throw new Error('El enlace no es válido o ha caducado. Pide uno nuevo.');
+    if (!u) throw new Error('El enlace no es válido o ha caducado. Pida uno nuevo.');
     u.salt = uid(); u.hash = await hash(u.salt + password); delete u.reset; delete u.solicitudReset; L.save(users);
     LS.set('atalaya.session', { id: u.id }); P.user = publicUser(u); return P.user;
   };
@@ -463,6 +472,277 @@
       t.textContent = msg; clearTimeout(t._t); t._t = setTimeout(() => t.remove(), ms || 5000);
     };
     if (document.body) pon(); else document.addEventListener('DOMContentLoaded', pon, { once: true });
+  };
+
+  /* ---------- Copia de los datos de la cuenta: descargar e importar ----------
+     Una copia es un JSON con todo lo que la cuenta guarda: el registro de empresas («empresas»), la vista de grupo
+     («grupo») y, de cada empresa real, sus datos por mundo (SCOPED; las que no son la principal llevan «--id»).
+     La empresa modelo no va en la copia: es ficticia y vive solo en este navegador.
+     Importar nunca sustituye nada sin avisar: se enseña un resumen y, si la cuenta ya tiene datos, solo se ofrece
+     «Reemplazar todo» con una confirmación expresa. */
+  const COPIA = 'atalaya-copia';
+  const RE_CLAVE = /^(?:(empresas|grupo)|(simulador|estrategia|personas|consultor|agenda|nota|libro|intervencion)(?:--([a-z0-9_-]{1,40}))?)$/i;
+  // Datos que el servidor solo guarda en algunos planes (como CLAVES en server/server.mjs)
+  const FUNCION_DE = { estrategia: 'estrategia', personas: 'personas', intervencion: 'intervencion', consultor: 'consultor', grupo: 'varias' };
+  const NOMBRE_DATO = { empresas: 'registro de empresas', grupo: 'vista de grupo', simulador: 'simulador de inversión', estrategia: 'sistema estratégico', personas: 'personas y equipos', consultor: 'cuaderno del consultor', agenda: 'mesa de trabajo', nota: 'nota de la empresa', libro: 'libro corporativo', intervencion: 'auditoría integral' };
+  async function leerCrudo(k) {
+    if (P.mode === 'server') { const pd = leerPend(k); if (pd) return pd.v; const r = await api('/data/' + encodeURIComponent(k)); return r ? r.data : null; }
+    const s = L.session(); return s ? LS.get(`atalaya.data.${s.id}.${k}`) : null;
+  }
+  async function escribirCrudo(k, v) {
+    if (P.mode === 'server') { await api('/data/' + encodeURIComponent(k), { method: 'PUT', body: JSON.stringify(v) }); quitarPend(k); return; }
+    const s = L.session(); if (!s) throw new Error('Inicie sesión.');
+    if (v == null) { LS.del(`atalaya.data.${s.id}.${k}`); return; }
+    if (!LS.set(`atalaya.data.${s.id}.${k}`, v)) throw new Error('No queda sitio en este navegador.');
+  }
+  const idsDe = (emp) => { const l = emp && Array.isArray(emp.lista) ? emp.lista.filter((e) => e && e.id && !e.modelo) : []; return l.length ? l.map((e) => e.id) : ['principal']; };
+  const clavesDe = (ids) => ['empresas', 'grupo'].concat(...ids.map((id) => SCOPED.map((k) => (id === 'principal' ? k : k + '--' + id))));
+  /* Lee todo lo de la cuenta (sin pasar por la empresa activa ni por la empresa modelo) */
+  P.leerCuenta = async function () {
+    await P.ready;
+    const emp = await leerCrudo('empresas'), datos = {};
+    for (const k of clavesDe(idsDe(emp))) { const v = k === 'empresas' ? emp : await leerCrudo(k); if (v != null) datos[k] = v; }
+    return { empresas: emp, datos };
+  };
+  P.exportarDatos = async function () {
+    await P.ready;
+    const u = P.user || {}, { empresas: emp, datos } = await P.leerCuenta();
+    const lista = emp && Array.isArray(emp.lista) ? emp.lista.filter((e) => e && !e.modelo) : [{ id: 'principal', nombre: u.empresa || 'Mi empresa' }];
+    const copia = { formato: COPIA, version: 1, app: 'Atalaya 360°', appVersion: P.VERSION, fecha: new Date().toISOString(), modo: P.mode,
+      cuenta: { email: u.email || '', nombre: u.nombre || '', plan: u.plan || '', periodo: u.periodo || '' },
+      empresas: lista.map((e) => ({ id: e.id, nombre: e.nombre || '' })), claves: Object.keys(datos), datos };
+    const blob = new Blob([JSON.stringify(copia, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a'), url = URL.createObjectURL(blob);
+    a.href = url; a.download = `atalaya-copia-${(u.email || 'cuenta').split('@')[0].replace(/[^\w.-]+/g, '_')}-${today()}.json`; a.rel = 'noopener'; a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
+    return { claves: copia.claves.length, empresas: copia.empresas.length, bytes: blob.size };
+  };
+  // Mensaje claro si la copia no se puede leer (por ejemplo, el servidor no deja leer con la prueba terminada)
+  P.motivoCopia = (e) => (e && e.status === 402 ? 'Con el acceso sin activar el servidor no permite leer sus datos desde aquí. Escríbanos o llámenos y le enviaremos una copia completa ' + P.CONTACTO.respuesta + '.' : e && e.status === 401 ? 'Su sesión ha caducado: vuelva a entrar para descargar sus datos.' : 'No se han podido leer sus datos' + (e && e.message ? ` (${e.message.replace(/\.$/, '')})` : '') + '.');
+  P.descargarDatos = async function (msgEl) {
+    const di = (t, c) => { if (msgEl) { msgEl.textContent = t; msgEl.style.color = c || ''; } else P.toast(t, 7000); };
+    di('Preparando la copia…');
+    try { const r = await P.exportarDatos(); di(`Copia descargada: ${r.empresas} ${r.empresas === 1 ? 'empresa' : 'empresas'} y ${r.claves} ${r.claves === 1 ? 'dato' : 'datos'} (${Math.max(1, Math.round(r.bytes / 1024))} KB). Guárdela en un lugar seguro.`, 'var(--go)'); return r; }
+    catch (e) { di(P.motivoCopia(e), 'var(--stop)'); return null; }
+  };
+  /* Comprueba una copia leída de un archivo. Devuelve { ok, errores, avisos, resumen, escribir } */
+  P.validarCopia = function (c) {
+    const errores = [], avisos = [];
+    if (!c || typeof c !== 'object' || c.formato !== COPIA || !c.datos || typeof c.datos !== 'object' || Array.isArray(c.datos)) return { ok: false, errores: ['El archivo no es una copia de datos de Atalaya.'] };
+    const emp = c.datos.empresas;
+    if (!emp || !Array.isArray(emp.lista) || !emp.lista.some((e) => e && e.id === 'principal')) errores.push('La copia no tiene un registro de empresas válido (falta la empresa principal).');
+    const ids = idsDe(emp), escribir = {}, otras = [];
+    Object.keys(c.datos).forEach((k) => {
+      const m = RE_CLAVE.exec(k);
+      if (!m) { otras.push(k); return; }
+      if (m[3] && !ids.includes(m[3])) { avisos.push(`Se ignora un dato de una empresa que no está en el registro (${k}).`); return; }
+      const base = m[1] || m[2], f = FUNCION_DE[base];
+      if (P.mode === 'server' && f && c.datos[k] != null && !P.puede(f, P.user, true)) { avisos.push(`No se importa ${NOMBRE_DATO[base]}${m[3] ? ' de una empresa' : ''}: no está incluido en su plan actual.`); return; }
+      escribir[k] = c.datos[k];
+    });
+    if (otras.length) avisos.push(`Se ignoran ${otras.length} datos que esta versión no reconoce.`);
+    const reales = emp && Array.isArray(emp.lista) ? emp.lista.filter((e) => e && !e.modelo) : [], lim = P.limiteEmpresas();
+    if (reales.length > lim) errores.push(`La copia tiene ${reales.length} empresas y su plan admite ${lim}. Cambie antes de plan (menú de la cuenta · Mi plan) y vuelva a importarla.`);
+    if (emp && Array.isArray(emp.lista)) escribir.empresas = Object.assign({}, emp, { lista: reales });
+    const resumen = { fecha: c.fecha || '', email: (c.cuenta && c.cuenta.email) || '', plan: (c.cuenta && c.cuenta.plan) || '', version: c.appVersion || '', empresas: reales.map((e) => e.nombre || e.id), claves: Object.keys(escribir).length };
+    return { ok: !errores.length, errores, avisos, resumen, escribir };
+  };
+  /* Escribe una copia validada sustituyendo todo lo de la cuenta. Primero el registro de empresas (el servidor comprueba
+     que cada empresa exista), luego cada dato y, al final, se borra lo que la cuenta tenía y la copia no trae. */
+  P.reemplazarCuenta = async function (escribir) {
+    await P.ready;
+    const antes = await P.leerCuenta(), fallos = [];
+    const idsAntes = idsDe(antes.empresas), idsNuevos = idsDe(escribir.empresas);
+    if (escribir.empresas && !escribir.empresas.inicio) escribir.empresas.inicio = { eleccion: 'importada', fecha: new Date().toISOString() };
+    const orden = ['empresas'].concat(Object.keys(escribir).filter((k) => k !== 'empresas'));
+    for (const k of orden) { try { await escribirCrudo(k, escribir[k]); } catch (e) { fallos.push({ k, msg: e.message }); if (k === 'empresas') return { ok: false, fallos }; } }
+    for (const k of Object.keys(antes.datos)) if (!(k in escribir)) { try { await escribirCrudo(k, null); } catch (e) { fallos.push({ k, msg: e.message }); } }
+    // Copias locales de cada mundo (espejos del navegador) y pendientes: fuera, para que manden los datos importados
+    idsAntes.concat(idsNuevos).forEach((id) => SCOPED.forEach((k) => { LS.del(P.k(MBASE[k], id)); quitarPend(id === 'principal' ? k : k + '--' + id); }));
+    quitarPend('empresas'); quitarPend('grupo');
+    LS.set(ACT, 'principal'); REG = null;
+    return { ok: !fallos.length, fallos };
+  };
+  P.importarDatos = function () {
+    const back = document.createElement('div'); back.className = 'ef-back';
+    const close = () => { back.remove(); removeEventListener('keydown', onKey); };
+    const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+    addEventListener('keydown', onKey);
+    back.addEventListener('click', (ev) => { if (ev.target === back) close(); });
+    const fecha = (s) => { const d = new Date(s); return isNaN(d) ? 'sin fecha' : d.toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' }); };
+    const paso1 = () => {
+      back.innerHTML = `<div class="ef-card glass cp-card" role="dialog" aria-modal="true" aria-label="Importar una copia de datos">
+        <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
+        <div class="eyebrow">Importar una copia</div>
+        <h3 class="cp-t">Elija el archivo de copia</h3>
+        <p class="small muted" style="margin:0">Es el archivo .json que se obtiene con «Descargar todos mis datos». Antes de escribir nada verá un resumen de lo que contiene.</p>
+        <label class="cp-file"><span>Archivo de copia</span><input type="file" accept=".json,application/json" data-file></label>
+        <p class="small" data-msg role="alert" style="margin:0;color:var(--stop)"></p>
+        <div class="row"><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
+      </div>`;
+      back.querySelector('.ef-x').onclick = close; back.querySelector('[data-cancel]').onclick = close;
+      const inp = back.querySelector('[data-file]'), msg = back.querySelector('[data-msg]');
+      inp.onchange = () => {
+        const f = inp.files && inp.files[0]; if (!f) return;
+        if (f.size > 60 * 1048576) { msg.textContent = 'El archivo es demasiado grande para ser una copia de Atalaya.'; return; }
+        const rd = new FileReader();
+        rd.onload = async () => {
+          let c = null; try { c = JSON.parse(rd.result); } catch (e) { msg.textContent = 'El archivo no se puede leer: no es un JSON válido.'; return; }
+          const v = P.validarCopia(c); if (!v.ok) { msg.textContent = v.errores.join(' '); return; }
+          msg.textContent = 'Comprobando los datos actuales de su cuenta…'; msg.style.color = '';
+          let actual = null; try { actual = await P.leerCuenta(); } catch (e) { msg.style.color = 'var(--stop)'; msg.textContent = P.motivoCopia(e); return; }
+          paso2(v, actual, f.name);
+        };
+        rd.onerror = () => { msg.textContent = 'No se ha podido leer el archivo.'; };
+        rd.readAsText(f);
+      };
+      setTimeout(() => inp.focus(), 30);
+    };
+    const paso2 = (v, actual, nombre) => {
+      const r = v.resumen, conDatos = Object.keys(actual.datos).some((k) => k !== 'empresas') || idsDe(actual.empresas).length > 1;
+      const nAct = idsDe(actual.empresas).length;
+      back.innerHTML = `<form class="ef-card glass cp-card" role="dialog" aria-modal="true" aria-label="Resumen de la copia">
+        <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
+        <div class="eyebrow">Resumen de la copia</div>
+        <h3 class="cp-t">${escH(nombre)}</h3>
+        <dl class="cp-res">
+          <dt>Fecha de la copia</dt><dd>${escH(fecha(r.fecha))}</dd>
+          <dt>Cuenta de origen</dt><dd>${escH(r.email || 'sin indicar')}${r.plan && PLANES[r.plan] ? ' · plan ' + PLANES[r.plan].nombre : ''}${r.version ? ' · versión ' + escH(r.version) : ''}</dd>
+          <dt>Empresas</dt><dd>${r.empresas.length}: ${r.empresas.map(escH).join(', ')}</dd>
+          <dt>Datos que se importan</dt><dd>${r.claves}</dd>
+        </dl>
+        ${v.avisos.length ? `<ul class="small cp-avisos">${v.avisos.map((a) => `<li>${escH(a)}</li>`).join('')}</ul>` : ''}
+        ${conDatos ? `<div class="cp-peligro"><p class="small" style="margin:0"><b>Su cuenta ya tiene datos</b> (${nAct} ${nAct === 1 ? 'empresa' : 'empresas'} y ${Object.keys(actual.datos).length} datos guardados). Importar la copia <b>reemplaza todo</b>: los datos actuales se sustituyen por los de la copia y no se pueden recuperar. Le recomendamos descargar antes una copia de lo que tiene ahora.</p>
+          <button type="button" class="btn ghost small" data-bak>Descargar antes mis datos actuales</button>
+          <label class="small cp-ok"><input type="checkbox" data-ok> Entiendo que se reemplazan todos los datos actuales de la cuenta.</label></div>`
+          : '<p class="small muted" style="margin:0">Su cuenta no tiene datos guardados todavía: se cargará el contenido de la copia.</p>'}
+        <p class="small" data-msg role="alert" style="margin:0"></p>
+        <div class="row"><button class="btn ${conDatos ? 'del-btn' : 'solid'}" type="submit" ${conDatos ? 'disabled' : ''}>${conDatos ? 'Reemplazar todo' : 'Importar la copia'}</button><button type="button" class="btn ghost" data-otro>Elegir otro archivo</button><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
+      </form>`;
+      const f = back.querySelector('form'), msg = f.querySelector('[data-msg]'), sb = f.querySelector('[type=submit]');
+      back.querySelector('.ef-x').onclick = close; f.querySelector('[data-cancel]').onclick = close; f.querySelector('[data-otro]').onclick = paso1;
+      const ok = f.querySelector('[data-ok]'); if (ok) ok.onchange = () => { sb.disabled = !ok.checked; };
+      const bk = f.querySelector('[data-bak]'); if (bk) bk.onclick = () => P.descargarDatos(msg);
+      f.onsubmit = async (ev) => {
+        ev.preventDefault(); if (conDatos && !(ok && ok.checked)) return;
+        sb.disabled = true; msg.style.color = ''; msg.textContent = 'Importando…';
+        try {
+          const res = await P.reemplazarCuenta(v.escribir);
+          if (!res.ok && res.fallos.some((x) => x.k === 'empresas')) { msg.style.color = 'var(--stop)'; msg.textContent = 'No se ha importado nada: ' + res.fallos[0].msg; sb.disabled = false; return; }
+          back.innerHTML = `<div class="ef-card glass cp-card" role="dialog" aria-modal="true" aria-label="Copia importada">
+            <div class="eyebrow">${res.ok ? 'Copia importada' : 'Copia importada en parte'}</div>
+            <h3 class="cp-t">${res.ok ? 'Sus datos ya están cargados' : 'Algunos datos no se han podido importar'}</h3>
+            ${res.ok ? `<p class="small muted" style="margin:0">${r.empresas.length} ${r.empresas.length === 1 ? 'empresa' : 'empresas'} y ${r.claves} datos. La aplicación se abre de nuevo con la empresa principal.</p>` : `<ul class="small">${res.fallos.map((x) => `<li>${escH(NOMBRE_DATO[x.k.split('--')[0]] || x.k)}: ${escH(x.msg)}</li>`).join('')}</ul>`}
+            <div class="row"><a class="btn solid" href="portal.html">Ir al puesto de mando</a></div>
+          </div>`;
+        } catch (e) { msg.style.color = 'var(--stop)'; msg.textContent = e.message; sb.disabled = false; }
+      };
+    };
+    document.body.appendChild(back); paso1();
+  };
+
+  /* ---------- Fin de la prueba: aviso y activación ----------
+     Desde el día 10 de la prueba, una banda bajo la cabecera de cada mundo dice cuántos días quedan y deja activar el
+     plan o descargar los datos. Hasta los tres últimos días se puede ocultar hasta el día siguiente; en los tres
+     últimos vuelve en cada página. */
+  P.avisoPrueba = function () {
+    const u = P.user, acc = P.accessOf(u), viejo = document.getElementById('atPrueba');
+    if (!u || acc.motivo !== 'prueba' || acc.diasPrueba > PRUEBA_DIAS - 9) { if (viejo) viejo.remove(); return; }
+    const n = acc.diasPrueba, urge = n <= 3, KO = `atalaya.prueba.oculta.${u.id}`;
+    if (!urge && LS.get(KO) === today()) { if (viejo) viejo.remove(); return; }
+    if (urge && ssGet(KO)) { if (viejo) viejo.remove(); return; }
+    const b = viejo || document.createElement('div'); b.id = 'atPrueba'; b.className = 'at-prueba' + (urge ? ' urge' : ''); b.setAttribute('role', 'status');
+    b.innerHTML = `<span class="at-prueba-t"><b>Su prueba termina en ${n} ${n === 1 ? 'día' : 'días'}</b><span class="at-prueba-p"> · plan ${escH((PLANES[u.plan] || {}).nombre || u.plan)}</span></span><button type="button" class="btn solid small" data-act>Activar ahora</button><button type="button" class="btn ghost small" data-exp>Descargar mis datos</button><button type="button" class="icon-btn at-prueba-x" aria-label="${urge ? 'Ocultar el aviso en esta página' : 'Ocultar el aviso hasta mañana'}">×</button>`;
+    b.querySelector('[data-act]').onclick = () => P.activarAhora();
+    b.querySelector('[data-exp]').onclick = () => P.descargarDatos();
+    b.querySelector('.at-prueba-x').onclick = () => { if (urge) ssSet(KO, 1); else LS.set(KO, today()); b.remove(); };
+    const colocar = () => { const tb = document.querySelector('.topbar, .pt-top'), r = tb && tb.getBoundingClientRect(); b.style.top = (r && r.bottom > 0 ? Math.round(r.bottom + 8) : 12) + 'px'; };
+    if (!viejo) { document.body.appendChild(b); addEventListener('resize', colocar); }
+    colocar(); setTimeout(colocar, 400);
+  };
+  /* Contenido de la activación (pantalla de acceso con la prueba terminada y ventana «Activar ahora») */
+  P.pintarPago = function (host, u, opts) {
+    opts = opts || {};
+    const pl = PLANES[u.plan] || PLANES.profesional, pr = P.precio(u.plan, u.periodo, opts.empresas || 1, u.cuotaPactada), c = P.cuota(pr), url = P.pagoUrl(u.plan, u.periodo), C = P.CONTACTO;
+    const bloq = opts.motivo === 'bloqueado', acc = P.accessOf(u);
+    const intro = bloq ? 'Su acceso está suspendido. Póngase en contacto con nosotros para revisarlo.'
+      : acc.motivo === 'prueba' ? `Su prueba termina en ${acc.diasPrueba} ${acc.diasPrueba === 1 ? 'día' : 'días'}. Si activa ahora el plan, sigue trabajando sin interrupción y con todos sus datos.`
+      : 'Su periodo de prueba ha terminado. Sus datos se conservan: en cuanto se confirme el pago, su acceso se reactiva con todos ellos.';
+    host.innerHTML = `<div class="pg">
+      <div class="eyebrow">${bloq ? 'Acceso suspendido' : 'Activar el acceso'}</div>
+      ${opts.titulo === false ? '' : `<h1 class="pg-h">Plan <em>${escH(pl.nombre)}</em></h1>`}
+      <p class="pg-intro">${intro}</p>
+      ${bloq ? '' : `<div class="pg-precio"><b>${P.eur(c.importe)}</b><span>${c.unidad} + IVA</span>${pr.periodo === 'anual' ? `<small>${escH(c.detalle)}</small>` : '<small>Pago mensual. Con el pago anual, un 30 % de descuento.</small>'}</div>
+      ${url ? `<a class="btn solid" href="${escH(url)}" target="_blank" rel="noopener" data-pagar>Pagar ahora</a><p class="small muted" style="margin:0">El pago se hace en una página segura de nuestra pasarela. En cuanto se confirme, su acceso se activa.</p>`
+        : `<form class="pg-form stack" data-pgform novalidate>
+          <p class="small" style="margin:0"><b>Le enviaremos el enlace de pago</b> a ${escH(u.email || 'su correo')}. Si lo desea, indíquenos los datos de facturación.</p>
+          <label class="small">Teléfono de contacto (opcional)<input class="input" name="telefono" type="tel" autocomplete="tel" value="${escH(u.telefono || '')}"></label>
+          <label class="small">Datos de facturación (opcional)<textarea class="input" name="factura" rows="2" placeholder="Razón social, CIF y dirección"></textarea></label>
+          <button class="btn solid" type="submit">Solicitar el enlace de pago</button>
+        </form>`}`}
+      <p class="small" data-pgmsg role="status" style="margin:0"></p>
+      <div class="pg-contacto small"><b>Contacto directo</b><a href="tel:${C.telefono.replace(/\s+/g, '')}">${escH(C.telefono)}</a>${C.email ? `<a href="mailto:${escH(C.email)}">${escH(C.email)}</a>` : ''}${C.web ? `<a href="${escH(C.web)}" target="_blank" rel="noopener">${escH(C.web.replace(/^https?:\/\//, ''))}</a>` : ''}<span class="muted">Le respondemos ${escH(C.respuesta)}.</span></div>
+      <div class="row pg-acc">${bloq ? '' : '<button type="button" class="btn ghost small" data-pgplan>Cambiar de plan antes de activar</button>'}<button type="button" class="btn ghost small" data-pgexp>Descargar mis datos</button></div>
+      <p class="small" data-pgexpmsg role="status" style="margin:0"></p>
+    </div>`;
+    const msg = host.querySelector('[data-pgmsg]');
+    const f = host.querySelector('[data-pgform]');
+    if (f) f.onsubmit = async (ev) => {
+      ev.preventDefault(); const bt = f.querySelector('[type=submit]'); bt.disabled = true; msg.style.color = ''; msg.textContent = 'Enviando…';
+      try { await P.solicitarPago({ telefono: f.telefono.value.trim(), factura: f.factura.value.trim() }); msg.style.color = 'var(--go)'; msg.textContent = `Solicitud recibida. Le enviaremos el enlace de pago a ${u.email || 'su correo'} ${C.respuesta}.`; }
+      catch (e) { msg.style.color = 'var(--stop)'; msg.textContent = e.message; bt.disabled = false; }
+    };
+    const pg = host.querySelector('[data-pagar]'); if (pg) pg.onclick = () => { P.solicitarPago({ enlace: true }).catch(() => {}); };
+    host.querySelector('[data-pgexp]').onclick = () => P.descargarDatos(host.querySelector('[data-pgexpmsg]'));
+    const pp = host.querySelector('[data-pgplan]'); if (pp) pp.onclick = () => P.panelPlanes({ onCambio: opts.onCambio });
+  };
+  /* Solicitud de activación: marca la cuenta y, si hay datos de facturación, los manda al equipo */
+  P.solicitarPago = async function (d) {
+    await P.ready; d = d || {}; const u = P.user || {};
+    if (P.mode === 'server') await api('/me/solicitar-pago', { method: 'POST', body: '{}' });
+    else { const users = L.users(), x = users.find((y) => y.id === u.id); if (x) { x.solicitudPago = new Date().toISOString(); L.save(users); } }
+    if (d.factura || (d.telefono && d.telefono !== (u.telefono || ''))) await P.contactar({ plan: u.plan, origen: 'activacion', cuenta: u.id || null, nombre: u.nombre || '', email: u.email || '', telefono: d.telefono || u.telefono || '', empresa: u.empresa || '', mensaje: `Solicitud de enlace de pago del plan ${(PLANES[u.plan] || {}).nombre || u.plan} (pago ${u.periodo || 'mensual'}).${d.factura ? ' Datos de facturación: ' + d.factura : ''}` });
+    return { ok: true };
+  };
+  P.activarAhora = function () {
+    const u = P.user; if (!u) return;
+    const back = document.createElement('div'); back.className = 'ef-back';
+    back.innerHTML = '<div class="ef-card glass pg-card" role="dialog" aria-modal="true" aria-label="Activar el acceso"><button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button><div data-host></div></div>';
+    const close = () => { back.remove(); removeEventListener('keydown', onKey); };
+    const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+    addEventListener('keydown', onKey);
+    back.addEventListener('click', (ev) => { if (ev.target === back) close(); });
+    back.querySelector('.ef-x').onclick = close;
+    document.body.appendChild(back);
+    P.pintarPago(back.querySelector('[data-host]'), u, { empresas: P.empresas.reales().length || 1, onCambio: () => location.reload() });
+  };
+
+  /* ---------- Primer acceso de una cuenta nueva ----------
+     Se pregunta una sola vez cómo quiere empezar: con sus datos (la empresa principal pasa a datos reales y se abre la
+     carga de datos), viendo antes la empresa modelo, o más tarde. La respuesta se guarda en el registro de empresas
+     («inicio»), así que vale para cualquier navegador. Las cuentas que ya tienen datos no lo ven. */
+  P.primerAcceso = {
+    async pendiente() {
+      await P.empresas.cargar(); if (!P.user || REG.inicio) return false;
+      const pr = REG.lista.find((e) => e.id === 'principal'); if (!pr || pr.datosReales || P.empresas.reales().length > 1) return false;
+      try { for (const k of ['simulador', 'estrategia', 'intervencion']) if ((await leerCrudo(k)) != null) return false; } catch (e) { return false; }
+      return true;
+    },
+    async elegir(eleccion) {
+      await P.empresas.cargar(); REG.inicio = { eleccion, fecha: new Date().toISOString() };
+      if (eleccion === 'datos') { LS.set(ACT, 'principal'); try { await P.activarModoReal('inicio'); } catch (e) { /* se guarda abajo */ } }
+      try { await P.empresas.guardar(); } catch (e) { /* se volverá a preguntar */ }
+      if (eleccion === 'datos') location.href = 'app.html#empresa';
+      else if (eleccion === 'modelo') P.empresas.cambiar(MID);
+    }
+  };
+  /* Alta: el nombre y el sector de la empresa van a la ficha de la empresa principal */
+  P.fichaInicial = async function (d) {
+    LS.set(ACT, 'principal'); REG = null;
+    await P.empresas.cargar();
+    const c = {}; if (d.nombre) c.nombre = String(d.nombre).trim().slice(0, 160); if (d.sector) c.sector = d.sector;
+    if (Object.keys(c).length) await P.empresas.editar('principal', c);
   };
 
   /* ---------- Administración ----------
@@ -953,7 +1233,7 @@
         <div class="em-meta">Estructuras y montajes industriales · Asturias · 33 personas · desde 1996</div>
         <div class="em-meta small muted">Cinco años de cuentas, clientes, compras, equipo, organigrama, impuestos, nuevas líneas y plan de crecimiento, enlazados en todos los mundos.</div>
         <div class="em-meta small">${(() => { const c = P.modelo.cfg(), on = P.modelo.MUNDOS.filter((m) => c.con[m.k] !== false).length; return `${on} de ${P.modelo.MUNDOS.length} mundos conectados${c.plan ? ' · vista del plan ' + escH((PLANES[c.plan] || {}).nombre || c.plan) : ''}`; })()}</div>
-        <div class="em-btns"><button class="btn solid small" data-enter="${e.id}">${e.id === act.id ? 'Seguir con esta' : 'Probar con esta'}</button><button class="btn ghost small" data-ficha="${e.id}">Ficha y conexiones</button>${window.Atalaya && window.Atalaya.paseo ? '<button class="btn ghost small" data-paseo>Paseo virtual</button>' : ''}</div>
+        <div class="em-btns"><button class="btn solid small" data-enter="${e.id}">${e.id === act.id ? 'Seguir con la empresa de ejemplo' : 'Ver la empresa de ejemplo'}</button><button class="btn ghost small" data-ficha="${e.id}">Ficha y conexiones</button>${window.Atalaya && window.Atalaya.paseo ? '<button class="btn ghost small" data-paseo>Paseo virtual</button>' : ''}</div>
       </div>`;
     let cuerpo;
     if (grupo) {
@@ -988,7 +1268,7 @@
     el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${esc(u.email)}"><span>${esc(ini)}</span></button>
       <div class="acc-menu glass" hidden>
         <div class="acc-head"><b>${esc(u.nombre || u.email)}</b><small>${esc(u.email)}</small><small>Plan ${planN} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="portal.html">Inicio · elegir herramienta</a><a href="tablero.html">Tablero general de la empresa</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a>${P.puede && P.puede('intervencion', u) ? '<a href="intervencion.html">Auditoría integral</a>' : ''}<a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button><button data-planes>Mi plan: ${planN} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <a href="portal.html">Inicio · elegir herramienta</a><a href="tablero.html">Tablero general de la empresa</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a>${P.puede && P.puede('intervencion', u) ? '<a href="intervencion.html">Auditoría integral</a>' : ''}<a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
@@ -1027,6 +1307,10 @@
     document.addEventListener('click', (e) => { if (!el.contains(e.target)) m.hidden = true; });
     el.querySelector('[data-logout]').onclick = P.logout;
     el.querySelector('[data-planes]').onclick = () => { m.hidden = true; P.panelPlanes(); };
+    el.querySelector('[data-exp]').onclick = () => { m.hidden = true; P.descargarDatos(); };
+    el.querySelector('[data-imp]').onclick = () => { m.hidden = true; P.importarDatos(); };
+    const ab = el.querySelector('[data-activar]'); if (ab) ab.onclick = () => { m.hidden = true; P.activarAhora(); };
+    P.avisoPrueba();
     el.querySelector('[data-real]').onclick = async (ev) => {
       ev.stopPropagation(); const b = ev.currentTarget, on = P.modoReal();
       // La empresa modelo se conecta y desconecta desde su ficha

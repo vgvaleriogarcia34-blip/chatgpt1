@@ -19,15 +19,15 @@
     main.innerHTML = `
       <section class="glass pad tb-hero"><div><div class="eyebrow">Tablero general${emp.nombre ? ' · ' + esc(emp.nombre) : ''}</div><h1 class="tb-h1">La empresa, <em>de un vistazo</em></h1>
         <p class="muted" style="margin:0">Primero lo que la sostiene: liquidez, después rentabilidad y, con las dos en verde, crecimiento. Las prioridades salen de los semáforos de todos los mundos y de sus objetivos.</p></div>
-        <div class="tb-kpis"><div class="tb-k"><small>Nota de la empresa</small><b class="${stN(nt.global)}">${fmt(nt.global)}<span>/10</span></b></div>
+        <div class="tb-kpis"><div class="tb-k"><small>Nota de la empresa</small><b class="${stN(nt.global)}">${nt.global == null ? 'Sin nota' : fmt(nt.global) + '<span>/10</span>'}</b>${nt.global == null ? '<span>Ningún mundo tiene todavía datos propios con los que calcularla.</span>' : ''}</div>
           <div class="tb-k tb-eq ${r.equilibrio.st}"><small>Equilibrio viable</small><b><i class="pr-luz ${r.equilibrio.st}"></i>${esc(r.equilibrio.t)}</b><span>${esc(r.equilibrio.d)}</span></div></div></section>
 
       <section class="glass pad stack"><div class="eyebrow">Las capas de la empresa, en el orden en que se sostienen</div>
-        <ol class="tb-capas">${r.capas.map((c, i) => `<li class="tb-capa ${c.st}"><span class="pr-luz ${c.st}"></span><b>${i + 1} · ${esc(c.n)}</b><small>${esc(c.d)}</small><em>${c.total ? `${c.rojos} rojo${c.rojos === 1 ? '' : 's'} · ${c.ambar} ámbar · ${c.verdes} verde${c.verdes === 1 ? '' : 's'}` : 'Sin comprobaciones'}</em></li>`).join('')}</ol></section>
+        <ol class="tb-capas">${r.capas.map((c, i) => `<li class="tb-capa ${c.st}"><span class="pr-luz ${c.st}"></span><b>${i + 1} · ${esc(c.n)}</b><small>${esc(c.d)}</small><em>${c.total ? `${c.rojos} rojo${c.rojos === 1 ? '' : 's'} · ${c.ambar} ámbar · ${c.verdes} verde${c.verdes === 1 ? '' : 's'}` : 'Sin datos: sin comprobaciones'}</em></li>`).join('')}</ol></section>
 
       <section class="tb-grid">${mundos.map(([k, m]) => { const top = r.pend.filter((x) => x.mundo === k).slice(0, 3);
-        return `<article class="glass pad tb-planeta"><div class="row"><b class="tb-pn">${esc(m.n)}</b><span class="spacer"></span><span class="tb-nota ${stN(m.nota)}">${fmt(m.nota)}</span></div>
-          <small class="muted">${m.nota == null ? 'Ábralo para calcular su nota' : `${m.puntos.filter((x) => x.st === 'stop').length} en rojo · ${m.puntos.filter((x) => x.st === 'warn').length} en ámbar`}${!m.vivo && m.fecha ? ' · calculada el ' + fecha(m.fecha) : ''}</small>
+        return `<article class="glass pad tb-planeta"><div class="row"><b class="tb-pn">${esc(m.n)}</b><span class="spacer"></span><span class="tb-nota ${stN(m.nota)}">${m.nota == null ? 'Sin nota' : fmt(m.nota)}</span></div>
+          <small class="muted">${m.nota == null ? esc(m.motivo ? 'Sin nota: ' + m.motivo : 'Ábralo para calcular su nota') : esc(A.nota.desglose(A.nota.puntuar(m.puntos)))} · ${esc(A.nota.fechaTxt ? A.nota.fechaTxt(m) : fecha(m.fecha))}</small>
           <ol class="tb-top">${top.map((x) => `<li class="${x.st}"><a href="${URL[k]}${x.zona ? '#' + esc(x.zona) : ''}"><i class="pr-luz ${x.st}"></i><span>${esc(x.t)}<em>${esc(x.capaN)} · prioridad ${x.rango}</em></span></a></li>`).join('') || '<li class="tb-vacio">Nada pendiente en rojo ni en ámbar.</li>'}</ol>
           <div class="row"><a class="btn small" href="${URL[k]}${MAPA[k] ? '#mapa' : ''}">${MAPA[k] ? 'Abrir el mapa con sus prioridades' : 'Abrir'}</a></div></article>`; }).join('')}</section>
 

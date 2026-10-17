@@ -59,9 +59,11 @@
     ['Asiste al seguimiento con lo hecho', 'Dirige el seguimiento, levanta el acta y mantiene el ritmo']
   ];
 
+  // Ficha del consultor en este encargo; lo que no se haya escrito sale de la ficha de la firma de la cuenta (marca blanca)
+  const fichaDe = () => { const f = (ST && ST.ficha) || {}, F = A.firma ? A.firma() : { propia: false }; return Object.assign({}, f, { nombre: f.nombre || F.consultor || '', firma: f.firma || (F.propia ? F.nombre : ''), contacto: f.contacto || F.contacto || '' }); };
   /* ---------- Parte para la empresa (plan Consultora) ---------- */
   CI.externo = (ctx) => {
-    const In = I(), pasos = (ctx.pasos || []).slice(0, 12), c = (ST && ST.cuadernos[ctx.clave]) || {}, f = (ST && ST.ficha) || {};
+    const In = I(), pasos = (ctx.pasos || []).slice(0, 12), c = (ST && ST.cuadernos[ctx.clave]) || {}, f = fichaDe();
     if (!pasos.length) return '';
     const filas = pasos.map((p, i) => { const fa = FASES[faseDe(i, pasos.length)]; return [fa.n, p.q, p.c || '—', p.quien || 'Por asignar', p.cuando ? fES(p.cuando) : fa.d, p.s || '—']; });
     const propio = (ctx.seguimiento || []).map((x) => x.length >= 5 ? [x[0], x[1], x[3], x[2], x[4]] : [x[0], x[1], 'Indicadores de este informe', x[2] || 'Dirección', 'Seguir, ajustar o replantear']);
@@ -148,7 +150,7 @@
   };
   const campo = (k, v, ph, rows) => (rows ? `<textarea class="ci-in" data-k="${k}" rows="${rows}" placeholder="${esc(ph || '')}">${esc(v || '')}</textarea>` : `<input class="ci-in" data-k="${k}" value="${esc(v || '')}" placeholder="${esc(ph || '')}">`);
   CI.cuadernoHTML = (ctx) => {
-    const In = I(), c = cuadernoDe(ctx), f = ST.ficha, pasos = (ctx.pasos || []).slice(0, 12);
+    const In = I(), c = cuadernoDe(ctx), f = fichaDe(), pasos = (ctx.pasos || []).slice(0, 12);
     In.reset();
     const hechos = pasos.filter((p, i) => c.hechos[i]).length;
     const pats = pasos.map((p) => ({ p, t: patronDe(p) }));
@@ -171,11 +173,11 @@
         <p class="rp-muted">${hechos} de ${pats.length} pasos comprobados.</p>`) : '')
       + In.section('Ritmo de las sesiones', `<ol class="rp-steps"><li><b>Antes:</b> revise los datos en Atalaya y prepare una sola pregunta incómoda.</li><li><b>Primeros 10 minutos:</b> lo comprometido en la sesión anterior, uno por uno. Sin esto no se avanza.</li><li><b>Centro:</b> un solo tema de fondo; decisión escrita con responsable y fecha.</li><li><b>Últimos 5 minutos:</b> tres compromisos como máximo, leídos en voz alta.</li><li><b>Después:</b> acta en 24 horas y actualización del plan en Atalaya.</li></ol>`)
       + In.section('Cuaderno de trabajo', `<p class="rp-muted">Su espacio de notas: reflexiones, comentarios y lo que vaya observando. Se guarda con la empresa y no forma parte de nada que se entregue.</p>
-        <div class="ci-grid"><label>Consultor${campo('f.nombre', f.nombre, 'Nombre y apellidos')}</label><label>Firma${campo('f.firma', f.firma, 'Business Avance')}</label><label>Contacto${campo('f.contacto', f.contacto, 'Correo o teléfono')}</label><label>Interlocutor en la empresa${campo('interlocutor', c.interlocutor, 'Nombre y cargo')}</label><label>Inicio${campo('inicio', c.inicio || c.creado, 'aaaa-mm-dd')}</label><label>Sesiones pactadas${campo('pactadas', c.pactadas, 'Por ejemplo: 6 sesiones en 90 días')}</label></div>
+        <div class="ci-grid"><label>Consultor${campo('f.nombre', f.nombre, 'Nombre y apellidos')}</label><label>Firma${campo('f.firma', f.firma, 'Nombre de la firma')}</label><label>Contacto${campo('f.contacto', f.contacto, 'Correo o teléfono')}</label><label>Interlocutor en la empresa${campo('interlocutor', c.interlocutor, 'Nombre y cargo')}</label><label>Inicio${campo('inicio', c.inicio || c.creado, 'aaaa-mm-dd')}</label><label>Sesiones pactadas${campo('pactadas', c.pactadas, 'Por ejemplo: 6 sesiones en 90 días')}</label></div>
         <div class="ci-grid1"><label>Reflexiones y comentarios${campo('notas', c.notas, 'Lo que observa y no está en los datos', 6)}</label><label>Resistencias y personas clave${campo('riesgos', c.riesgos, 'Quién empuja, quién frena y por qué', 3)}</label><label>Cómo ayudar al empresario${campo('ayuda', c.ayuda, 'Qué necesita oír, qué decisiones le cuestan', 3)}</label></div>`)
       + In.section('Registro de sesiones', `<div class="rp-tw"><table class="rp-table ci-ses"><thead><tr><th>Fecha</th><th>Objetivo de la sesión</th><th>Preparación</th><th>Estado</th><th>Resultado y acuerdos</th><th></th></tr></thead><tbody>${c.sesiones.map((s, i) => `<tr data-s="${i}"><td><input class="ci-in" type="date" data-s-k="fecha" value="${esc(s.fecha)}"></td><td><textarea class="ci-in" rows="2" data-s-k="objetivo">${esc(s.objetivo)}</textarea></td><td><textarea class="ci-in" rows="2" data-s-k="prep">${esc(s.prep)}</textarea></td><td><select class="ci-in" data-s-k="estado">${['Pendiente', 'Hecha', 'Aplazada'].map((e) => `<option ${e === s.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td><td><textarea class="ci-in" rows="2" data-s-k="resultado">${esc(s.resultado)}</textarea></td><td><button class="ci-del" data-del="${i}" aria-label="Quitar sesión">×</button></td></tr>`).join('')}</tbody></table></div><button class="ci-add" data-add>Añadir sesión</button>
         <div class="ci-grid" style="margin-top:14px"><label>Próxima sesión<input class="ci-in" type="date" data-k="proxima" value="${esc(c.proxima || (c.sesiones.find((x) => x.estado === 'Pendiente') || {}).fecha || '')}"></label></div><label class="ci-l">Orden del día${campo('agenda', c.agenda || '1. Compromisos de la sesión anterior\n2. Indicadores\n3. Tema de fondo\n4. Tres compromisos', '', 4)}</label>`)
-      + `<footer class="rp-foot"><span>Business Avance · Atalaya 360° · Guía del consultor · ${esc(fES(hoy()))}</span><span>Documento interno. Se guarda con la empresa en Atalaya y no forma parte del informe entregado.</span></footer>`;
+      + `<footer class="rp-foot"><span>${esc(In.marcaTxt())} · Guía del consultor · ${esc(fES(hoy()))}</span><span>Documento interno. Se guarda con la empresa en Atalaya y no forma parte del informe entregado.</span>${In.elab()}</footer>`;
   };
   const wireCuaderno = (paper, ctx, rehacer) => {
     const c = cuadernoDe(ctx);
@@ -186,7 +188,7 @@
     const ad = paper.querySelector('[data-add]'); if (ad) ad.onclick = () => { c.sesiones.push({ fecha: masDias(14), objetivo: '', prep: '', estado: 'Pendiente', resultado: '' }); guardar(); rehacer(); };
   };
   CI.textoCuaderno = (ctx) => {
-    const c = cuadernoDe(ctx), f = ST.ficha;
+    const c = cuadernoDe(ctx), f = fichaDe();
     return [`CUADERNO DEL CONSULTOR (INTERNO) · ${ctx.titulo}`, `Empresa: ${ctx.empresa || ''}`, `Consultor: ${f.nombre || ''} ${f.firma ? '· ' + f.firma : ''}`, `Interlocutor: ${c.interlocutor || ''}`, '', 'PLAN DE TRABAJO', ...c.sesiones.map((s) => `- ${s.fecha} · ${s.objetivo} · ${s.estado}${s.resultado ? ' · ' + s.resultado : ''}`), '', 'NOTAS', c.notas || '', '', 'RESISTENCIAS Y RIESGOS', c.riesgos || '', '', 'CÓMO AYUDAR AL EMPRESARIO', c.ayuda || '', '', 'PRÓXIMA SESIÓN', `${c.proxima || ''}`, c.agenda || ''].join('\n');
   };
 

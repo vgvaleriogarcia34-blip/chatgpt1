@@ -280,6 +280,17 @@
     return { grid, N, x0, x1, y0, y1, mn, mx, ax, ay, metric, cx: st[X.path[0]][X.path[1]], cy: st[Y.path[0]][Y.path[1]] };
   }
 
+  /* ---------------- Sin datos y sin inversión ---------------- */
+  // Sin ventas no hay empresa que analizar: ni veredicto, ni nota, ni semáforos (lo que falta no se toma como cero).
+  // Sin inversión definida se ve la situación de la empresa, sin veredicto de inversión.
+  const sinDatosEmp = () => !(+state.empresa.ventas > 0);
+  const sinInversion = () => { const v = state.inversion || {}; return !(+v.importe > 0 || (v.lineas || []).some((l) => +l.importe > 0)); };
+  // Semáforos que solo existen con una inversión: tamaño, retorno, TIR, circulante de la venta nueva y cambio de margen
+  const LUZ_INV = ['dimension', 'retorno', 'rentabilidad', 'circulante', 'margen'];
+  const lucesEmpresa = (r) => r.lights.filter((l) => LUZ_INV.indexOf(l.key) < 0);
+  function irModelo() { try { if (P && P.modelo && P.modelo.ID && P.empresas && P.empresas.cambiar) { P.empresas.cambiar(P.modelo.ID); return; } } catch (e) { /* al portal */ } location.href = 'portal.html'; }
+  function irCuentas() { location.hash = '#empresa'; const el = document.getElementById('empresa'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
+
   /* ---------------- Barra superior ---------------- */
   function renderTop() {
     const seg = $('#scenarioSeg');
@@ -288,9 +299,9 @@
       seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setScenario(b.dataset.k); });
     }
     $$('button', seg).forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === state.escenario));
-    const v = ctx.active.verdict;
-    $('#verdictPill').className = 'verdict-pill v-' + v.key;
-    $('#verdictTxt').textContent = v.titulo;
+    const v = ctx.active.verdict, vacia = sinDatosEmp(), sinInv = !vacia && sinInversion();
+    $('#verdictPill').className = 'verdict-pill ' + (vacia || sinInv ? 'v-nd' : 'v-' + v.key);
+    $('#verdictTxt').textContent = vacia ? 'Faltan sus datos' : sinInv ? 'Defina la inversión' : v.titulo;
   }
   function setScenario(k) { state.escenario = k; schedule(); }
 
@@ -302,15 +313,38 @@
   function renderHero() {
     const r = ctx.active, v = r.verdict, sc = A.SCENARIOS.find((s) => s.key === state.escenario);
     renderIdCard();
-    $('#verdictCard').innerHTML = `<div class="row"><h4>Veredicto · escenario ${sc.nombre.toLowerCase()}</h4><span class="spacer"></span><span class="state ${stCls(vMap[v.key])}">${stName[vMap[v.key]]}</span></div>
-      <div class="big">${v.titulo}</div><p class="muted small" style="margin:0">${v.texto}</p>
-      <div class="bar" aria-label="Semáforos">${r.lights.map((l) => `<span data-light="${l.key}" style="background:${A.stateColor(l.estado)};opacity:${l.estado === 'ok' ? 0.55 : 0.95}" title="${l.nombre}: ${l.valor}"></span>`).join('')}</div>
-      <div class="row small muted" style="margin-top:8px;justify-content:space-between"><span>${r.lights.filter((l) => l.estado === 'ok').length} verdes · ${r.lights.filter((l) => l.estado === 'warn').length} ámbar · ${r.lights.filter((l) => l.estado === 'stop').length} rojos</span><a href="#riesgos" style="color:var(--gold)">Ver semáforos</a></div>`;
-    $$('#verdictCard [data-light]').forEach((s) => s.addEventListener('click', () => openLight(s.dataset.light)));
+    if (sinDatosEmp()) {
+      // Estado vacío explícito: qué hacer para tener veredicto, sin nota ni semáforos
+      $('#verdictCard').innerHTML = `<div class="row"><h4>Veredicto</h4><span class="spacer"></span><span class="state" style="color:var(--muted)">Sin datos</span></div>
+        <div class="big">Faltan sus datos</div><p class="muted small" style="margin:0">Cargue sus cuentas, responda las preguntas o vea la empresa modelo. Sin las cifras de la empresa no hay veredicto, nota ni semáforos: nada de lo que falta se cuenta como cero.</p>
+        <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button class="btn solid small" data-vac="cuentas">Cargar sus cuentas</button><button class="btn small" data-vac="quiz">Responder las preguntas</button><button class="btn ghost small" data-vac="modelo">Ver la empresa modelo</button></div>`;
+      const acc = { cuentas: irCuentas, quiz: () => openQuiz('empresa'), modelo: irModelo };
+      $$('#verdictCard [data-vac]').forEach((b) => b.addEventListener('click', () => acc[b.dataset.vac]()));
+      $('#kpis').innerHTML = ['Dimensión', 'Cuota mensual', 'Liquidez mínima', 'Recuperación', 'Cobertura deuda', 'Equipo'].map((k) => `<div class="kpi"><div class="k"><span>${k}</span></div><div class="v">Sin datos</div><div class="d">falta la cifra de ventas de la empresa</div></div>`).join('');
+      return;
+    }
+    if (sinInversion()) {
+      // Situación actual de la empresa, sin veredicto de inversión: solo los semáforos que no dependen de ella
+      const L = lucesEmpresa(r), e = state.empresa, eb = e.ventas * e.margen / 100 - e.personal - e.fijos;
+      $('#verdictCard').innerHTML = `<div class="row"><h4>Situación actual · escenario ${sc.nombre.toLowerCase()}</h4><span class="spacer"></span><span class="state" style="color:var(--muted)">Sin veredicto</span></div>
+        <div class="big">Defina la inversión para obtener el veredicto</div><p class="muted small" style="margin:0">Ventas ${F.eur(e.ventas)} · EBITDA ${F.eur(eb)} · caja ${F.eur(e.caja)} · deuda ${F.eur(e.deudaViva)}. Los semáforos de abajo son los de la empresa tal como está; los de la inversión (dimensión, retorno, rentabilidad, circulante y margen) aparecen al definirla.</p>
+        <div class="bar" aria-label="Semáforos de la empresa">${L.map((l) => `<span data-light="${l.key}" style="background:${A.stateColor(l.estado)};opacity:${l.estado === 'ok' ? 0.55 : 0.95}" title="${l.nombre}: ${l.valor}"></span>`).join('')}</div>
+        <div class="row small muted" style="margin-top:8px;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>${L.length} semáforos de la empresa: ${L.filter((l) => l.estado === 'ok').length} verdes · ${L.filter((l) => l.estado === 'warn').length} ámbar · ${L.filter((l) => l.estado === 'stop').length} rojos</span><button class="btn small" data-vac="inv">Definir la inversión</button></div>`;
+      $$('#verdictCard [data-light]').forEach((x) => x.addEventListener('click', () => openLight(x.dataset.light)));
+      const bi = $('#verdictCard [data-vac="inv"]'); if (bi) bi.onclick = () => openQuiz('inversion');
+    }
+    else {
+      $('#verdictCard').innerHTML = `<div class="row"><h4>Veredicto · escenario ${sc.nombre.toLowerCase()}</h4><span class="spacer"></span><span class="state ${stCls(vMap[v.key])}">${stName[vMap[v.key]]}</span></div>
+        <div class="big">${v.titulo}</div><p class="muted small" style="margin:0">${v.texto}</p>
+        <div class="bar" aria-label="Semáforos">${r.lights.map((l) => `<span data-light="${l.key}" style="background:${A.stateColor(l.estado)};opacity:${l.estado === 'ok' ? 0.55 : 0.95}" title="${l.nombre}: ${l.valor}"></span>`).join('')}</div>
+        <div class="row small muted" style="margin-top:8px;justify-content:space-between"><span>${r.lights.length} semáforos: ${r.lights.filter((l) => l.estado === 'ok').length} verdes · ${r.lights.filter((l) => l.estado === 'warn').length} ámbar · ${r.lights.filter((l) => l.estado === 'stop').length} rojos</span><a href="#riesgos" style="color:var(--gold)">Ver semáforos</a></div>`;
+      $$('#verdictCard [data-light]').forEach((s) => s.addEventListener('click', () => openLight(s.dataset.light)));
+    }
+    const sinInv = sinInversion();
     const lt = Object.fromEntries(r.lights.map((l) => [l.key, l.estado]));
     const tiles = [
-      { k: 'Dimensión', info: 'dimension', v: r.dim.clase, d: `${isFinite(r.dim.sobreEbitda) ? F.x(r.dim.sobreEbitda) + ' EBITDA' : 'EBITDA actual ≤ 0'} · ${isFinite(r.dim.sobreVentas) ? F.pct(r.dim.sobreVentas * 100) + ' ventas' : 'sin ventas'}`, st: lt.dimension },
-      { k: 'Cuota mensual', info: 'cuota', v: F.eur(r.cuotaNueva), d: `cuota total ${F.eur(r.cuotaTotal)} = ${isFinite(r.cuotaSobreEbitda) ? F.pct(r.cuotaSobreEbitda) + ' del EBITDA mensual' : 'EBITDA mensual ≤ 0'}`, st: lt.cobertura },
+      sinInv ? { k: 'Dimensión', info: 'dimension', v: 'Sin inversión', d: 'defina la inversión para medir su tamaño', st: 'neutral' } : { k: 'Dimensión', info: 'dimension', v: r.dim.clase, d: `${isFinite(r.dim.sobreEbitda) ? F.x(r.dim.sobreEbitda) + ' EBITDA' : 'EBITDA actual ≤ 0'} · ${isFinite(r.dim.sobreVentas) ? F.pct(r.dim.sobreVentas * 100) + ' ventas' : 'sin ventas'}`, st: lt.dimension },
+      sinInv ? { k: 'Cuota mensual', info: 'cuota', v: 'Sin inversión', d: `cuota de la deuda actual ${F.eur(r.cuotaTotal)}`, st: 'neutral' } : { k: 'Cuota mensual', info: 'cuota', v: F.eur(r.cuotaNueva), d: `cuota total ${F.eur(r.cuotaTotal)} = ${isFinite(r.cuotaSobreEbitda) ? F.pct(r.cuotaSobreEbitda) + ' del EBITDA mensual' : 'EBITDA mensual ≤ 0'}`, st: lt.cobertura },
       { k: r.contarPoliza ? 'Liquidez mínima' : 'Caja mínima', info: 'cajaMin', v: F.eur(r.cajaRef), d: `mes ${r.mesCajaRef} · colchón mínimo ${fmtMeses(r.colMin)}`, st: lt.liquidez, spark: C.spark(r.contarPoliza ? r.w.liquidez : r.w.cash, r.cajaRef < 0 ? css('--stop') : css('--gold'), true) },
       r.payback == null ? { k: 'Recuperación', info: 'payback', v: 'Sin inversión', d: 'no hay importe que recuperar', st: 'neutral' } : { k: 'Recuperación', info: 'payback', v: F.months(r.payback), d: `caja de la propiedad: ${F.months(r.paybackCaja)}`, st: lt.retorno },
       { k: 'Cobertura deuda', info: 'dscr', v: F.x(r.dscrMin), d: `deuda neta ${F.x(r.deudaEbitda)} EBITDA`, st: lt.cobertura },
@@ -320,6 +354,7 @@
   }
 
   function renderDimension() {
+    if (sinDatosEmp() || sinInversion()) { $('#dimension').innerHTML = `<p class="small muted" style="margin:0">${sinDatosEmp() ? 'Faltan sus datos: el tamaño de la inversión se mide frente a las ventas, el EBITDA, los fondos propios y la caja de la empresa.' : 'Defina la inversión para medir su tamaño frente a la empresa.'}</p>`; return; }
     const r = ctx.active, d = r.dim;
     const ring = (key, value, max, label, lbl, st) => `<div class="ring" data-info="${key}">${C.ring(value, max, A.stateColor(st), label)}<div class="lbl">${lbl}</div></div>`;
     const s1 = d.sobreVentas < 0.4 ? 'ok' : d.sobreVentas < 0.8 ? 'warn' : 'stop';
@@ -337,9 +372,17 @@
 
   /* ---------------- Escenarios ---------------- */
   function renderScenarios() {
+    // Sin datos: no hay escenarios que comparar; sin inversión: los escenarios no llevan veredicto
+    const vacia = sinDatosEmp(), sinInv = !vacia && sinInversion(), etq = (st) => (sinInv ? '<span class="state" style="color:var(--muted)">Sin veredicto</span>' : `<span class="state ${stCls(st)}">${stName[st]}</span>`);
+    if (vacia) {
+      $('#scenCards').innerHTML = '<div class="glass pad small muted">Sin datos de la empresa: los escenarios se comparan cuando estén cargadas sus cifras (ventas, márgenes, gastos, caja y deuda).</div>';
+      $('#scenarioTable').innerHTML = ''; $('#scenarioRead').innerHTML = '<p class="small muted">Faltan sus datos: cargue sus cuentas o responda las preguntas.</p>';
+      $('#cashChart').innerHTML = '<p class="small muted chart-vacio">Sin datos que dibujar todavía.</p>'; $('#cashLegend').innerHTML = ''; $('#cashExplain').textContent = '';
+      renderHyp(); renderCustomRes(); return;
+    }
     $('#scenCards').innerHTML = ctx.all.map((x) => {
       const c = A.SCENARIO_CONTEXT[x.key], st = vMap[x.r.verdict.key];
-      return `<button class="glass scen ${x.key === state.escenario ? 'current' : ''}" data-k="${x.key}"><div class="row"><i class="sw" style="background:${A.scenarioColor(x.key)}"></i><b>${x.nombre}</b><span class="spacer"></span><span class="state ${stCls(st)}">${stName[st]}</span></div><p class="small muted">${c.representa}</p><div class="small"><span class="muted">Probabilidad:</span> ${c.probabilidad.split('.')[0]}</div><div class="small more">Ver contexto →</div></button>`;
+      return `<button class="glass scen ${x.key === state.escenario ? 'current' : ''}" data-k="${x.key}"><div class="row"><i class="sw" style="background:${A.scenarioColor(x.key)}"></i><b>${x.nombre}</b><span class="spacer"></span>${etq(st)}</div><p class="small muted">${c.representa}</p><div class="small"><span class="muted">Probabilidad:</span> ${c.probabilidad.split('.')[0]}</div><div class="small more">Ver contexto →</div></button>`;
     }).join('');
     $$('#scenCards .scen').forEach((b) => b.addEventListener('click', () => openScenario(b.dataset.k)));
 
@@ -359,7 +402,7 @@
     let t = `<table><thead><tr><th>Escenario</th><th>Liquidez mín.</th><th>Colchón mín.</th><th>Recuperación</th><th>DSCR</th><th>Estado</th></tr></thead><tbody>`;
     ctx.all.forEach((x) => {
       const r = x.r, st = vMap[r.verdict.key];
-      t += `<tr class="clickable ${x.key === state.escenario ? 'active' : ''}" data-k="${x.key}"><td><span class="sw" style="background:${A.scenarioColor(x.key)}"></span>${x.nombre}</td><td style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</td><td>${fmtMeses(r.colMin)}</td><td>${F.months(r.payback)}</td><td>${F.x(r.dscrMin)}</td><td><span class="state ${stCls(st)}">${stName[st]}</span></td></tr>`;
+      t += `<tr class="clickable ${x.key === state.escenario ? 'active' : ''}" data-k="${x.key}"><td><span class="sw" style="background:${A.scenarioColor(x.key)}"></span>${x.nombre}</td><td style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</td><td>${fmtMeses(r.colMin)}</td><td>${F.months(r.payback)}</td><td>${F.x(r.dscrMin)}</td><td>${etq(st)}</td></tr>`;
     });
     $('#scenarioTable').innerHTML = t + '</tbody></table><p class="small muted">Haz clic en una fila para convertirla en el escenario activo.</p>';
     $$('#scenarioTable tr[data-k]').forEach((tr) => tr.addEventListener('click', () => setScenario(tr.dataset.k)));
@@ -472,10 +515,12 @@
 
   /* ---------------- Semáforos ---------------- */
   function renderLights() {
-    $('#lights').innerHTML = ctx.active.lights.map((l) => `<button class="light" data-k="${l.key}"><div class="lamp" aria-hidden="true"><i class="${l.estado === 'stop' ? 'on stop' : ''}"></i><i class="${l.estado === 'warn' ? 'on warn' : ''}"></i><i class="${l.estado === 'ok' ? 'on ok' : ''}"></i></div><div><div class="n">${l.nombre}</div><div class="lv">${l.valor}</div><div class="lt">${stName[l.estado]} · verde ${l.rangos.ok}</div></div></button>`).join('');
+    if (sinDatosEmp()) { $('#lights').innerHTML = '<div class="glass pad small muted">Sin datos: los semáforos aparecen cuando estén cargadas las cifras de la empresa. Nada de lo que falta se cuenta como cero.</div>'; $('#lightGuide').innerHTML = ''; return; }
+    const L = sinInversion() ? lucesEmpresa(ctx.active) : ctx.active.lights;
+    $('#lights').innerHTML = L.map((l) => `<button class="light" data-k="${l.key}"><div class="lamp" aria-hidden="true"><i class="${l.estado === 'stop' ? 'on stop' : ''}"></i><i class="${l.estado === 'warn' ? 'on warn' : ''}"></i><i class="${l.estado === 'ok' ? 'on ok' : ''}"></i></div><div><div class="n">${l.nombre}</div><div class="lv">${l.valor}</div><div class="lt">${stName[l.estado]} · verde ${l.rangos.ok}</div></div></button>`).join('');
     $$('#lights .light').forEach((b) => b.addEventListener('click', () => openLight(b.dataset.k)));
     $('#lightGuide').innerHTML = `<table class="guide"><thead><tr><th>Indicador</th><th>Hoy</th><th><span class="dotc ok"></span>Verde</th><th><span class="dotc warn"></span>Ámbar</th><th><span class="dotc stop"></span>Rojo</th><th style="text-align:left">Se corrige con</th></tr></thead><tbody>` +
-      ctx.active.lights.map((l) => `<tr class="clickable" data-k="${l.key}"><td>${l.nombre}</td><td><span class="state ${stCls(l.estado)}">${l.valor}</span></td><td>${l.rangos.ok}</td><td>${l.rangos.warn}</td><td>${l.rangos.stop}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:240px"><span class="muted">Directas:</span> ${l.def.directas.slice(0, 3).map((v) => v.nombre.toLowerCase()).join(', ')}. <span class="muted">Indirectas:</span> ${l.def.indirectas.slice(0, 2).map((v) => v.nombre.toLowerCase()).join(', ')}.</td></tr>`).join('') + '</tbody></table>';
+      L.map((l) => `<tr class="clickable" data-k="${l.key}"><td>${l.nombre}</td><td><span class="state ${stCls(l.estado)}">${l.valor}</span></td><td>${l.rangos.ok}</td><td>${l.rangos.warn}</td><td>${l.rangos.stop}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:240px"><span class="muted">Directas:</span> ${l.def.directas.slice(0, 3).map((v) => v.nombre.toLowerCase()).join(', ')}. <span class="muted">Indirectas:</span> ${l.def.indirectas.slice(0, 2).map((v) => v.nombre.toLowerCase()).join(', ')}.</td></tr>`).join('') + '</tbody></table>';
     $$('#lightGuide tr[data-k]').forEach((tr) => tr.addEventListener('click', () => openLight(tr.dataset.k)));
   }
   function openLight(key) {

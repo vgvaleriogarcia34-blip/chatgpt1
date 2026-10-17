@@ -86,6 +86,7 @@
   }
   S.register({
     id: 'mercado', nombre: 'Mercado y riesgos', grupo: 'Estrategia',
+    datos: () => { const m = S.state.mercado || {}; return !!m.analisis || (m.indicadores || []).some((i) => String(i.valor || '').trim() || i.impacto !== 'neutro') || (m.targets || []).some((t) => S.num(t.peso) > 0) || (m.tipologias || []).some((t) => S.num(t.peso) > 0) || (m.competidores || []).some((c) => String(c.nombre || '').trim()); },
     render(host) {
       const m = M(), an = m.analisis;
       const R = S.allRisks();

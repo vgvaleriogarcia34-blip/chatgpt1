@@ -16,11 +16,14 @@
      1. COBROS Y MOROSIDAD · auditoría de la cartera
      ===================================================================== */
   S.defaults.cobros = { ejemplo: true, corte: '', partidas: [], historico: [], tasas: [0, 1, 5, 15, 35, 75] };
+  // Con datos reales, la cartera sembrada a partir de los clientes de ejemplo se quita entera
+  S.alVaciar = S.alVaciar || {};
+  S.alVaciar.cobros = (C, ej) => (ej ? Object.assign(C, { partidas: [], historico: [], corte: '' }) : C);
   const TR = [['No vencido', -Infinity, 0], ['1-30 días', 1, 30], ['31-60 días', 31, 60], ['61-90 días', 61, 90], ['91-180 días', 91, 180], ['Más de 180 días', 181, Infinity]];
   const TRC = ['#2fb24a', '#9fbf3a', '#fab219', '#e8862a', '#e05a48', '#b8202a'];
   // Cartera de ejemplo coherente con los clientes de ejemplo (solo mientras no se carguen datos reales)
   function semilla() {
-    const C = S.state.cobros; if (!C.ejemplo || C.partidas.length) return;
+    const C = S.state.cobros; if (!C.ejemplo || C.partidas.length || S.real()) return;
     const cli = (S.state.comercial.clientes || []).slice().sort((a, b) => b.ventas - a.ventas).slice(0, 9);
     const t0 = Date.now(), retr = [5, 40, 0, 95, 15, 0, 210, 20, 60];
     let n = 1000;
@@ -57,6 +60,7 @@
   };
   S.register({
     id: 'cobros', nombre: 'Cobros y morosidad', grupo: 'Finanzas',
+    datos: () => { const C = S.state.cobros; if (!S.real()) semilla(); return (C.partidas || []).some((p) => S.num(p.importe)) || (C.historico || []).length > 0; },
     render(host) {
       const C = S.state.cobros, a = S.cobrosAnalisis();
       const mx = Math.max(1, ...a.tr.map((t) => t.imp));
@@ -89,7 +93,9 @@
       S.etable($('#cbPend', host), { titulo: 'Facturas pendientes de cobro', rows: C.partidas, onChange: ch, nuevo: () => ({ cliente: '', factura: '', emision: hoyISO(), vencimiento: hoyISO(), importe: 0 }), cols: [{ k: 'cliente', l: 'Cliente', type: 'text', syn: ['cliente', 'razon social', 'deudor'] }, { k: 'factura', l: 'Factura', type: 'text', syn: ['factura', 'numero', 'documento'] }, { k: 'emision', l: 'Emisión', type: 'date', syn: ['fecha factura', 'emision', 'fecha'] }, { k: 'vencimiento', l: 'Vencimiento', type: 'date', syn: ['vencimiento', 'fecha vencimiento', 'vto'] }, { k: 'importe', l: 'Importe pendiente', type: 'num', syn: ['pendiente', 'importe pendiente', 'saldo', 'importe'] }] });
       S.etable($('#cbHist', host), { titulo: 'Cobros del último año (para medir cómo pagan)', rows: C.historico, onChange: ch, nuevo: () => ({ cliente: '', emision: '', cobro: '', importe: 0 }), cols: [{ k: 'cliente', l: 'Cliente', type: 'text', syn: ['cliente'] }, { k: 'emision', l: 'Fecha factura', type: 'date', syn: ['fecha factura', 'emision'] }, { k: 'cobro', l: 'Fecha de cobro', type: 'date', syn: ['fecha cobro', 'cobro', 'fecha pago'] }, { k: 'importe', l: 'Importe', type: 'num', syn: ['importe', 'cobrado'] }] });
     },
-    kpis() { const a = S.cobrosAnalisis(); return [{ k: 'Vencido sobre pendiente', v: F.pct(a.pend ? a.venc / a.pend * 100 : 0), st: a.venc / Math.max(1, a.pend) > 0.3 ? 'stop' : a.venc / Math.max(1, a.pend) > 0.15 ? 'warn' : 'ok' }, { k: 'Saldos de más de 90 días', v: F.eur(a.mas90), st: a.mas90 / Math.max(1, a.pend) > 0.1 ? 'stop' : a.mas90 > 0 ? 'warn' : 'ok' }, { k: 'Días reales de cobro', v: F.num(Math.round(a.realMedio || a.dsoReal)), st: (a.realMedio || a.dsoReal) > a.dsoPact + 15 ? 'warn' : 'ok' }]; },
+    kpis() { const a = S.cobrosAnalisis(), sd = (k) => ({ k, v: S.SIN_DATO, st: null, sinDato: true }), dias = a.realMedio || a.dsoReal;
+      // Sin facturas pendientes no hay porcentaje de vencido; sin cobros ni ventas no hay días reales de cobro
+      return [a.pend ? { k: 'Vencido sobre pendiente', v: F.pct(a.venc / a.pend * 100), st: a.venc / a.pend > 0.3 ? 'stop' : a.venc / a.pend > 0.15 ? 'warn' : 'ok' } : sd('Vencido sobre pendiente'), a.pend ? { k: 'Saldos de más de 90 días', v: F.eur(a.mas90), st: a.mas90 / a.pend > 0.1 ? 'stop' : a.mas90 > 0 ? 'warn' : 'ok' } : sd('Saldos de más de 90 días'), dias > 0 ? { k: 'Días reales de cobro', v: F.num(Math.round(dias)), st: a.dsoPact > 0 ? (dias > a.dsoPact + 15 ? 'warn' : 'ok') : null } : sd('Días reales de cobro')]; },
     risks() { const a = S.cobrosAnalisis(), R = []; if (a.mas90 / Math.max(1, a.pend) > 0.1) R.push(S.mkRisk(`Saldos de clientes con más de 90 días: ${F.eur(a.mas90)}`, 4, a.mas90 > S.sim.empresa.caja * 0.3 ? 5 : 3, 'Revisar el crédito a esos clientes, valorar seguro de crédito y reconocer el deterioro.')); if (a.concVenc > 40 && a.top) R.push(S.mkRisk(`Lo vencido se concentra en ${a.top.cliente} (${F.pct(a.concVenc)})`, 3, 4, 'Limitar el riesgo con ese cliente: garantías, anticipos o límite de crédito.')); return R; },
     findings() { const a = S.cobrosAnalisis(), Fi = []; const tipo = (S.sim.empresa.polizaTipo || 5) / 100; if (a.cajaLib > 10000) Fi.push({ hallazgo: `Se cobra a ${Math.round(a.realMedio || a.dsoReal)} días frente a ${Math.round(a.dsoPact)} pactados: ${F.eur(a.cajaLib)} de caja atrapada`, accion: 'Revisar la política de crédito: plazos por segmento, límites y condiciones a los clientes que más se desvían.', impactoEUR: Math.round(a.cajaLib * tipo), plazo: 60 }); if (a.deterioro > 5000) Fi.push({ hallazgo: `Deterioro estimado de la cartera: ${F.eur(a.deterioro)}`, accion: 'Reconocer el deterioro en las cuentas y valorar su deducibilidad con el asesor.', impactoEUR: 0, plazo: 30 }); return Fi; }
   });
@@ -120,7 +126,9 @@
   };
   S.register({
     id: 'valoracion', nombre: 'Valoración de la empresa', grupo: 'Estrategia',
+    datosSim: true, datos: () => S.simConDatos(),
     render(host) {
+      if (!S.simConDatos()) return S.vacioSim(host, 'Cuánto vale la empresa y cuánto puede valer', 'Valoración orientativa por múltiplo de EBITDA y por descuento de la caja futura, y cuánto sube con las mejoras detectadas, menos riesgo y la inversión.');
       const v = V(), R = S.valoracionCalc();
       const puente = [['Valor hoy', R.central, 'base'], ['Mejoras de margen detectadas', R.pasoMejora, 'paso'], ['Menos riesgo para un comprador', R.pasoRiesgo, 'paso'], ['La inversión del simulador', R.pasoInv, 'paso'], ['Valor con el plan', R.final, 'base']];
       // Cascada real: cada paso parte de donde terminó el anterior; los totales parten de cero

@@ -73,8 +73,8 @@
       <p class="pp-intro">Fichas de entrenamiento para el equipo y próximos pasos.</p>
       <div class="pp-tabs">${tq.slice(0, 4).map((t) => `<div class="pp-tab"><b>${esc(t.t.titulo)}</b><p>${esc(t.t.objetivo)}</p><ol>${t.t.pasos.slice(0, 3).map((s) => `<li>${esc(s)}</li>`).join('')}</ol><small>${esc(t.motivos.join(' '))}</small></div>`).join('')}</div>
       ${pp.banda('Próximos pasos')}<ol class="pp-list pp-ol"><li>Sesión de devolución de 60 minutos con todo el equipo: cada persona comparte su estilo y cómo prefiere que le pidan las cosas.</li><li>Acordar cinco normas de funcionamiento (reuniones, mensajes, desacuerdos, plazos y ayuda).</li>${an.faltan.length ? `<li>Decidir quién cubre ${esc(H.ROLES[an.faltan[0]].n.toLowerCase())} o si se incorpora a alguien.</li>` : ''}<li>Revisar el equipo en tres meses con este mismo informe.</li></ol>
-      <div class="pp-firma"><div><span>Preparado por</span><b>Business Avance · Atalaya 360°</b></div><div><span>Para</span><b>${esc(e.nombre)}</b></div><div><span>Fecha</span><b>${esc(In.fecha())}</b></div></div>`);
-    pp.montar({ pages, titulo: 'Foto del equipo · ' + nombre, pie: `Business Avance · Atalaya 360° · Equipo ${esc(nombre)} · ${esc(e.nombre)}`,
+      <div class="pp-firma"><div><span>Preparado por</span><b>${esc(In.marcaTxt())}</b></div><div><span>Para</span><b>${esc(e.nombre)}</b></div><div><span>Fecha</span><b>${esc(In.fecha())}</b></div></div>`);
+    pp.montar({ pages, titulo: 'Foto del equipo · ' + nombre, pie: `${esc(In.marcaTxt())} · Equipo ${esc(nombre)} · ${esc(e.nombre)}${In.elaborado() ? ' · ' + esc(In.elaborado()) : ''}`,
       portada: pp.portada({ kicker: 'Personas y equipos', titulo: 'Foto completa del equipo', nombre, linea: `${M.length} personas · ${e.nombre}`, incl: ['Composición', 'Mapa conductual', 'Aportaciones', 'Motivación', 'Liderazgo', 'Competencias', 'Dinámica'] }) });
   };
 
@@ -110,8 +110,8 @@
       ${reub.length ? `${pp.banda('Reubicaciones a estudiar')}${tabla(['Persona', 'Puesto actual', 'Encaje', 'Encajaría mejor en', 'Encaje'], reub.map(({ f, alt }) => [f.p.nombre, f.q.nombre, f.e.total + ' %', alt.q.nombre, alt.e.total + ' %']))}` : ''}
       ${pp.banda('Cerrar brechas con entrenamiento')}${tabla(['Persona', 'Ficha de entrenamiento', 'Por qué'], con.filter((f) => f.e.brechas.length).slice(0, 8).map((f) => { const t = R.tablillasDe(f.p)[0]; return [f.p.nombre, t ? t.t.titulo : '—', t ? t.motivos[0] : f.e.brechas[0].txt]; }))}
       ${pp.banda('Relevos y estructura')}${pp.lista(est.avisos.filter((a) => a.st !== 'info').slice(0, 6).map((a) => a.t).concat(est.avisos.some((a) => a.st !== 'info') ? [] : ['Sin alertas de estructura.']))}
-      <div class="pp-firma"><div><span>Preparado por</span><b>Business Avance · Atalaya 360°</b></div><div><span>Para</span><b>${esc(e.nombre)}</b></div><div><span>Fecha</span><b>${esc(In.fecha())}</b></div></div>`);
-    pp.montar({ pages, titulo: 'Alineamiento de perfiles, puestos y equipos', pie: `Business Avance · Atalaya 360° · Alineamiento · ${esc(e.nombre)}`,
+      <div class="pp-firma"><div><span>Preparado por</span><b>${esc(In.marcaTxt())}</b></div><div><span>Para</span><b>${esc(e.nombre)}</b></div><div><span>Fecha</span><b>${esc(In.fecha())}</b></div></div>`);
+    pp.montar({ pages, titulo: 'Alineamiento de perfiles, puestos y equipos', pie: `${esc(In.marcaTxt())} · Alineamiento · ${esc(e.nombre)}${In.elaborado() ? ' · ' + esc(In.elaborado()) : ''}`,
       portada: pp.portada({ kicker: 'Personas y equipos', titulo: 'Alineamiento', nombre: 'Perfiles, puestos y equipos', linea: `${ps.length} personas · ${pu.length} puestos · ${R.state.equipos.length} equipos · ${e.nombre}`, incl: ['Personas y puestos', 'Candidatos internos', 'Relevos', 'Equipos', 'Recomendaciones'] }) });
   };
 
@@ -134,7 +134,7 @@
     if (id === 'informes') {
       const g = body.querySelector('.grid'); if (!g) return;
       const box = document.createElement('div'); box.className = 'glass pad stack';
-      box.innerHTML = `<div class="eyebrow">Informes completos en PDF</div><p class="small" style="margin:0">Documentos paginados con membrete de Business Avance y Atalaya 360°, listos para entregar: la foto completa de una persona (comportamiento, aportación, motivación, identidad, liderazgo y competencias), la del equipo y el alineamiento entre perfiles, puestos y equipos.</p>
+      box.innerHTML = `<div class="eyebrow">Informes completos en PDF</div><p class="small" style="margin:0">Documentos paginados con el membrete de tu firma (o de Atalaya 360°), listos para entregar: la foto completa de una persona (comportamiento, aportación, motivación, identidad, liderazgo y competencias), la del equipo y el alineamiento entre perfiles, puestos y equipos.</p>
         <div class="row">${R.selPersona('peInfC', (R.personaActiva() || {}).id)}<button class="btn solid" data-c="per">Informe completo de la persona</button><button class="btn" data-c="eq">Foto de toda la empresa</button><button class="btn" data-c="al">Alineamiento</button></div>`;
       g.before(box);
       box.querySelector('[data-c="per"]').onclick = () => R.informeCompleto(R.persona(box.querySelector('#peInfC').value));

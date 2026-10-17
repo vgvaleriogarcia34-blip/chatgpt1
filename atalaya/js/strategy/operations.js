@@ -30,6 +30,7 @@
   }); };
   S.register({
     id: 'compras', nombre: 'Compras', grupo: 'Operaciones',
+    datos: () => (S.state.compras.proveedores || []).some((p) => S.num(p.compras) > 0),
     render(host) {
       const c = compras(), CO = S.state.compras;
       const apal = c.R.filter((p) => p.q === 'Apalancado' || p.q === 'Estratégico').reduce((a, p) => a + S.num(p.compras), 0);
@@ -67,23 +68,25 @@
   function logi() {
     const L = S.state.logistica; const cm = S.num(L.transporte) + S.num(L.almacen) + S.num(L.personal);
     const ventasMes = S.sim.empresa.ventas / 12;
-    return { cm, cpp: cm / Math.max(1, S.num(L.pedidosMes)), pct: S.pct(cm, ventasMes), otif: S.num(L.aTiempo) * S.num(L.completos) / 100 };
+    // Sin entregas a tiempo o sin pedidos completos no hay OTIF (null, no 0 %); sin ventas no hay peso sobre ventas
+    return { cm, cpp: cm / Math.max(1, S.num(L.pedidosMes)), pct: ventasMes > 0 ? S.pct(cm, ventasMes) : null, otif: S.num(L.aTiempo) > 0 && S.num(L.completos) > 0 ? S.num(L.aTiempo) * S.num(L.completos) / 100 : null };
   }
   S.register({
     id: 'logistica', nombre: 'Logística', grupo: 'Operaciones',
+    datos: () => { const L = S.state.logistica; return ['pedidosMes', 'transporte', 'almacen', 'personal', 'aTiempo', 'completos'].some((k) => S.num(L[k]) > 0) || (L.rutas || []).length > 0; },
     render(host) {
       const L = S.state.logistica, l = logi();
       host.innerHTML = `${S.section('Logística', 'Coste de servir cada pedido, nivel de servicio (OTIF: a tiempo y completo) y rendimiento por ruta.')}
-        ${S.kpiTiles([{ k: 'Coste logístico mensual', v: F.eur(l.cm), d: `${F.pct(l.pct)} de las ventas`, st: l.pct > 10 ? 'warn' : 'ok' }, { k: 'Coste por pedido', v: F.eurFull(Math.round(l.cpp)) }, { k: 'OTIF', v: F.pct(l.otif), st: l.otif >= 92 ? 'ok' : l.otif >= 85 ? 'warn' : 'stop', info: 'OTIF' }, { k: 'Rotación del stock', v: L.rotacion + ' veces/año', d: `${Math.round(365 / Math.max(1, L.rotacion))} días de stock` }])}
+        ${S.kpiTiles([{ k: 'Coste logístico mensual', v: F.eur(l.cm), d: l.pct == null ? 'sin ventas para calcular su peso' : `${F.pct(l.pct)} de las ventas`, st: l.pct == null ? null : l.pct > 10 ? 'warn' : 'ok' }, { k: 'Coste por pedido', v: S.num(L.pedidosMes) > 0 ? F.eurFull(Math.round(l.cpp)) : S.SIN_DATO }, { k: 'OTIF', v: l.otif == null ? S.SIN_DATO : F.pct(l.otif), st: l.otif == null ? null : l.otif >= 92 ? 'ok' : l.otif >= 85 ? 'warn' : 'stop', info: 'OTIF' }, { k: 'Rotación del stock', v: S.num(L.rotacion) > 0 ? L.rotacion + ' veces/año' : S.SIN_DATO, d: S.num(L.rotacion) > 0 ? `${Math.round(365 / Math.max(1, L.rotacion))} días de stock` : '' }])}
         <div class="glass pad mt"><h4>Datos del mes</h4><div class="lever-grid">${[['pedidosMes', 'Pedidos al mes'], ['transporte', 'Coste de transporte (€/mes)'], ['almacen', 'Coste de almacén (€/mes)'], ['personal', 'Personal logístico (€/mes)'], ['aTiempo', 'Entregas a tiempo (%)'], ['completos', 'Pedidos completos (%)'], ['rotacion', 'Rotación del stock (veces/año)']].map(([k, n]) => `<div class="field"><div class="top"><label for="lg_${k}">${n}</label><span class="val"><input class="fnum" id="lg_${k}" value="${L[k]}"></span></div></div>`).join('')}</div></div>
         <div class="glass pad mt" id="rtTable"></div>`;
       $$('[id^="lg_"]', host).forEach((i) => i.onchange = () => { L[i.id.slice(3)] = S.num(i.value); S.save(); S.rerender(); });
       S.etable($('#rtTable', host), { titulo: 'Rutas', rows: L.rutas, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ ruta: '', pedidos: 0, km: 0, coste: 0, aTiempo: 95 }),
         cols: [{ k: 'ruta', l: 'Ruta', type: 'text' }, { k: 'pedidos', l: 'Pedidos/mes', type: 'num' }, { k: 'km', l: 'Km/mes', type: 'num' }, { k: 'coste', l: 'Coste/mes', type: 'num' }, { k: 'aTiempo', l: 'A tiempo %', type: 'num' }, { k: 'cpp', l: 'Coste por pedido', calc: (r) => F.eurFull(Math.round(S.num(r.coste) / Math.max(1, S.num(r.pedidos)))) }, { k: 'cpk', l: '€/km', calc: (r) => (S.num(r.coste) / Math.max(1, S.num(r.km))).toFixed(2).replace('.', ',') }] });
     },
-    kpis() { const l = logi(); return [{ k: 'OTIF', v: F.pct(l.otif), st: l.otif >= 92 ? 'ok' : l.otif >= 85 ? 'warn' : 'stop' }, { k: 'Coste logístico s/ventas', v: F.pct(l.pct), st: l.pct > 10 ? 'warn' : 'ok' }]; },
-    risks() { const l = logi(); return l.otif < 88 ? [S.mkRisk('Nivel de servicio logístico bajo (OTIF)', 4, 3, 'Revisar rutas con peor puntualidad y causas de pedidos incompletos.')] : []; },
-    findings() { const L = S.state.logistica; return L.rutas.filter((r) => S.num(r.aTiempo) < 88).map((r) => ({ hallazgo: `La ruta ${r.ruta} entrega a tiempo solo el ${r.aTiempo} %.`, accion: 'Replanificar la ruta, consolidar cargas o cambiar de transportista.', impactoEUR: S.num(r.coste) * 12 * 0.08, tipo: 'ebitda', plazo: 90 })); }
+    kpis() { const l = logi(); return [l.otif == null ? { k: 'OTIF', v: S.SIN_DATO, st: null, sinDato: true } : { k: 'OTIF', v: F.pct(l.otif), st: l.otif >= 92 ? 'ok' : l.otif >= 85 ? 'warn' : 'stop' }, l.pct == null ? { k: 'Coste logístico s/ventas', v: S.SIN_DATO, st: null, sinDato: true } : { k: 'Coste logístico s/ventas', v: F.pct(l.pct), st: l.pct > 10 ? 'warn' : 'ok' }]; },
+    risks() { const l = logi(); return l.otif != null && l.otif < 88 ? [S.mkRisk('Nivel de servicio logístico bajo (OTIF)', 4, 3, 'Revisar rutas con peor puntualidad y causas de pedidos incompletos.')] : []; },
+    findings() { const L = S.state.logistica; return L.rutas.filter((r) => S.num(r.aTiempo) > 0 && S.num(r.aTiempo) < 88).map((r) => ({ hallazgo: `La ruta ${r.ruta} entrega a tiempo solo el ${r.aTiempo} %.`, accion: 'Replanificar la ruta, consolidar cargas o cambiar de transportista.', impactoEUR: S.num(r.coste) * 12 * 0.08, tipo: 'ebitda', plazo: 90 })); }
   });
 
   /* =========================================================
@@ -116,6 +119,7 @@
   }
   S.register({
     id: 'tiempos', nombre: 'Gestor de tiempos', grupo: 'Operaciones',
+    datos: () => (S.state.tiempos.registros || []).some((r) => S.num(r.horas) > 0),
     render(host) {
       const T = S.state.tiempos, t = tiempos();
       const ganancia = Math.max(0, (t.bench - t.util) / 100) * t.tot * 46;
@@ -190,7 +194,12 @@
     return { sector, demandaDia, minutosDia, pasos: (PROC[sector] || PROC.industria).map(([n, c, va, esp, inv], i) => ({ nombre: n, ciclo: c, va, espera: esp, inventario: inv, puestos: Math.max(1, Math.ceil((c / 0.72) / takt) - (i === 2 ? 1 : 0)), maquina: !isMin && /(corte|mecaniz|montaje|envas|lavado|procesado|cocin)/i.test(n), disp: 88, rend: 85, cal: 97 })), desperdicios: WASTES.map(() => 2), cincoS: S5.map(() => 2), kaizen: [{ idea: 'Kit de material preparado por orden', desperdicio: 'Esperas', horasMes: 30, coste: 1500, estado: 'Propuesta' }, { idea: 'Tablero visual de producción diaria', desperdicio: 'Sobreproducción', horasMes: 12, coste: 400, estado: 'En marcha' }] };
   }
   S.defaults.lean = null;
+  // Con datos reales no se parte de la plantilla de ejemplo: el flujo empieza vacío hasta que se añaden los pasos
+  const leanVacio = (sector) => ({ sector, demandaDia: 0, minutosDia: 0, pasos: [], desperdicios: WASTES.map(() => 0), cincoS: S5.map(() => 0), kaizen: [], auto: false });
+  S.alVaciar = S.alVaciar || {};
+  S.alVaciar.lean = (v) => (v && v.auto ? null : v);
   function lean() {
+    if (!S.state.lean && S.real()) S.state.lean = leanVacio(S.sim.sector);
     if (!S.state.lean || S.state.lean.sector !== S.sim.sector && S.state.lean.auto) S.state.lean = Object.assign(leanDefault(S.sim.sector), { auto: true });
     const L = S.state.lean;
     const takt = S.num(L.minutosDia) / Math.max(1, S.num(L.demandaDia));
@@ -206,6 +215,7 @@
   }
   S.register({
     id: 'lean', nombre: 'Lean', grupo: 'Operaciones',
+    datos: () => lean().P.length > 0,
     render(host) {
       const l = lean(), L = l.L;
       const gap = l.cuello.cicloEf > l.takt;
@@ -219,7 +229,7 @@
           { k: 'Tiempo total del flujo', v: fmtMin(l.lead), d: 'desde que entra hasta que sale', info: 'Lead time' },
           { k: 'Tiempo que añade valor', v: F.pct(l.eficiencia), st: l.eficiencia >= 25 ? 'ok' : l.eficiencia >= 10 ? 'warn' : 'stop', d: fmtMin(l.va) }
         ])}
-        ${gap ? S.note(`El paso «${esc(l.cuello.nombre)}» necesita ${fmtMin(l.cuello.cicloEf)} por unidad y la demanda pide una cada ${fmtMin(l.takt)}: solo puedes servir ${F.num(Math.round(l.capacidad))} de ${F.num(L.demandaDia)} al día. Opciones: añadir un puesto, subir su OEE o reducir su tiempo de ciclo (SMED, estándar de trabajo).`) : S.note(`El proceso puede servir hasta ${F.num(Math.round(l.capacidad))} unidades al día frente a una demanda de ${F.num(L.demandaDia)}: hay ${F.pct(S.pct(l.capacidad - L.demandaDia, L.demandaDia))} de holgura en el cuello de botella (${esc(l.cuello.nombre)}).`)}
+        ${!l.P.length ? S.note('Añada los pasos de su proceso principal en la tabla (o elija la plantilla de su sector y ajústela) para calcular el ritmo, el cuello de botella y el tiempo que añade valor.') : gap ? S.note(`El paso «${esc(l.cuello.nombre)}» necesita ${fmtMin(l.cuello.cicloEf)} por unidad y la demanda pide una cada ${fmtMin(l.takt)}: solo puedes servir ${F.num(Math.round(l.capacidad))} de ${F.num(L.demandaDia)} al día. Opciones: añadir un puesto, subir su OEE o reducir su tiempo de ciclo (SMED, estándar de trabajo).`) : S.note(`El proceso puede servir hasta ${F.num(Math.round(l.capacidad))} unidades al día frente a una demanda de ${F.num(L.demandaDia)}: hay ${F.pct(S.pct(l.capacidad - L.demandaDia, L.demandaDia))} de holgura en el cuello de botella (${esc(l.cuello.nombre)}).`)}
         <div class="glass pad mt stack"><div class="row"><h4>Mapa del flujo de valor</h4><span class="spacer"></span><label class="small">Plantilla <select class="input" id="lnSec">${Object.keys(A.SECTORS).map((k) => `<option value="${k}" ${k === L.sector ? 'selected' : ''}>${A.SECTORS[k].nombre}</option>`).join('')}</select></label>
           <label class="small">Demanda/día <input class="input" id="lnDem" style="width:80px" value="${L.demandaDia}"></label><label class="small">Minutos disponibles/día <input class="input" id="lnMin" style="width:80px" value="${L.minutosDia}"></label></div>
           <div class="chart" id="vsm"></div></div>
@@ -257,7 +267,8 @@
         S.encajar(vsmHost);
       };
       pintaVsm(); S.alRedimensionar(vsmHost, pintaVsm);
-      $('#lnSec', host).onchange = (e) => { S.state.lean = Object.assign(leanDefault(e.target.value), { auto: false }); S.save(); S.rerender(); };
+      // Con datos reales la plantilla solo trae los pasos del sector: sin mejoras ni puntuaciones de ejemplo
+      $('#lnSec', host).onchange = (e) => { S.state.lean = Object.assign(leanDefault(e.target.value), { auto: false }, S.real() ? { kaizen: [], desperdicios: WASTES.map(() => 0), cincoS: S5.map(() => 0) } : {}); S.save(); S.rerender(); };
       $('#lnDem', host).onchange = (e) => { L.demandaDia = S.num(e.target.value); L.auto = false; S.save(); S.rerender(); };
       $('#lnMin', host).onchange = (e) => { L.minutosDia = S.num(e.target.value); L.auto = false; S.save(); S.rerender(); };
       L.desperdicios.forEach((_, i) => { const r = $('#wd' + i, host); r.oninput = () => { const n = r.closest('.field').querySelector('.num'); if (n) n.textContent = r.value; }; r.onchange = (e) => { L.desperdicios[i] = +e.target.value; L.auto = false; S.save(); S.rerender(); }; });
@@ -282,6 +293,9 @@
   /* =========================================================
      Personas
      ========================================================= */
+  S.alVaciar = S.alVaciar || {};
+  // Sin áreas propias, el organigrama generado a partir de las de ejemplo tampoco vale
+  S.alVaciar.personas = (v) => { if (!(v.areas || []).length && v.organigrama && !(v.organigrama.nodos || []).some((n) => n.persona && !/^\d+ persona/.test(n.persona))) delete v.organigrama; return v; };
   S.defaults.personas = { areas: [
     { area: 'Producción', personas: 16, coste: 31000, absentismo: 5.5, rotacion: 14, vacantes: 2, formacion: 10 },
     { area: 'Comercial', personas: 4, coste: 42000, absentismo: 2, rotacion: 20, vacantes: 1, formacion: 16 },
@@ -291,21 +305,22 @@
   ] };
   S.register({
     id: 'personas', nombre: 'Personas', grupo: 'Operaciones',
+    datos: () => (S.state.personas.areas || []).some((a) => S.num(a.personas) > 0),
     render(host) {
       const R = S.state.personas.areas; const tot = R.reduce((a, x) => a + S.num(x.personas), 0) || 1;
-      const h = A.humanReadiness(S.sim, S.analysis());
+      const h = A.humanReadiness(S.sim, S.analysis()), hOk = S.simConDatos() && isFinite(h.score);
       const w = (k) => R.reduce((a, x) => a + S.num(x[k]) * S.num(x.personas), 0) / tot;
       host.innerHTML = `${S.section('Personas', 'Plantilla por áreas, coste, absentismo, rotación y vacantes, junto con la preparación del sistema humano para el crecimiento que calcula el simulador.')}
-        ${S.kpiTiles([{ k: 'Plantilla', v: F.num(tot) }, { k: 'Coste medio', v: F.eur(w('coste')) }, { k: 'Absentismo medio', v: F.pct(w('absentismo')), st: w('absentismo') > 5 ? 'warn' : 'ok', info: 'Absentismo' }, { k: 'Rotación media', v: F.pct(w('rotacion')), st: w('rotacion') > 15 ? 'warn' : 'ok', info: 'Rotación' }, { k: 'Preparación para crecer', v: Math.round(h.score) + '/100', st: h.score >= 70 ? 'ok' : h.score >= 50 ? 'warn' : 'stop' }])}
-        <div class="grid cols-2 mt"><div class="glass pad stack"><h4>¿Está el equipo listo para crecer? (del simulador)</h4><p class="small muted" style="margin:0">Preparación: <b>${Math.round(h.score)}/100</b>. Para afinarla, responde las catorce preguntas del equipo en el <a href="app.html#humano">simulador</a>: cada respuesta coloca una pieza de esta foto.</p>${S.hbars(h.dims.map((d) => ({ n: d.nombre, v: d.score, c: d.score >= 70 ? 'var(--go)' : d.score >= 50 ? 'var(--warn)' : 'var(--stop)' })), (v) => Math.round(v) + '/100', null, { max: 100 })}<a class="btn ghost" href="app.html#humano">Ajustar en el simulador</a></div>
-          <div class="glass pad stack"><h4>Lo que necesita para estarlo</h4><div class="timeline">${h.acciones.slice().sort((a, b) => a.cuando - b.cuando).map((a) => `<div class="ev"><div class="when">MES ${a.cuando}${a.coste ? ' · ' + F.eur(a.coste) : ''}</div><div>${esc(a.que)}</div></div>`).join('')}</div></div></div>
+        ${S.kpiTiles([{ k: 'Plantilla', v: F.num(tot) }, { k: 'Coste medio', v: F.eur(w('coste')) }, { k: 'Absentismo medio', v: F.pct(w('absentismo')), st: w('absentismo') > 5 ? 'warn' : 'ok', info: 'Absentismo' }, { k: 'Rotación media', v: F.pct(w('rotacion')), st: w('rotacion') > 15 ? 'warn' : 'ok', info: 'Rotación' }, hOk ? { k: 'Preparación para crecer', v: Math.round(h.score) + '/100', st: h.score >= 70 ? 'ok' : h.score >= 50 ? 'warn' : 'stop' } : { k: 'Preparación para crecer', v: S.SIN_DATO, d: 'responda las preguntas del equipo en el simulador' }])}
+        ${!hOk ? '<div class="glass pad mt stack"><h4>¿Está el equipo listo para crecer? (del simulador)</h4><p class="small muted" style="margin:0">Sin datos: cargue las cifras de la empresa y responda las catorce preguntas del equipo en el <a href="app.html#humano">simulador</a> para calcular la preparación.</p></div>' : `<div class="grid cols-2 mt"><div class="glass pad stack"><h4>¿Está el equipo listo para crecer? (del simulador)</h4><p class="small muted" style="margin:0">Preparación: <b>${Math.round(h.score)}/100</b>. Para afinarla, responde las catorce preguntas del equipo en el <a href="app.html#humano">simulador</a>: cada respuesta coloca una pieza de esta foto.</p>${S.hbars(h.dims.map((d) => ({ n: d.nombre, v: d.score, c: d.score >= 70 ? 'var(--go)' : d.score >= 50 ? 'var(--warn)' : 'var(--stop)' })), (v) => Math.round(v) + '/100', null, { max: 100 })}<a class="btn ghost" href="app.html#humano">Ajustar en el simulador</a></div>
+          <div class="glass pad stack"><h4>Lo que necesita para estarlo</h4><div class="timeline">${h.acciones.slice().sort((a, b) => a.cuando - b.cuando).map((a) => `<div class="ev"><div class="when">MES ${a.cuando}${a.coste ? ' · ' + F.eur(a.coste) : ''}</div><div>${esc(a.que)}</div></div>`).join('')}</div></div></div>`}
         <div class="glass pad mt stack" id="ogHost"></div>
         <div class="glass pad mt" id="arTable"></div>`;
       if (S.orgChart) S.orgChart($('#ogHost', host));
       S.etable($('#arTable', host), { titulo: 'Áreas', rows: R, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ area: '', personas: 0, coste: 30000, absentismo: 4, rotacion: 10, vacantes: 0, formacion: 12 }),
         cols: [{ k: 'area', l: 'Área', type: 'text', syn: ['area', 'departamento'] }, { k: 'personas', l: 'Personas', type: 'num' }, { k: 'coste', l: 'Coste medio anual', type: 'num' }, { k: 'absentismo', l: 'Absentismo %', type: 'num' }, { k: 'rotacion', l: 'Rotación %', type: 'num' }, { k: 'vacantes', l: 'Vacantes', type: 'num' }, { k: 'formacion', l: 'Formación h/año', type: 'num' }] });
     },
-    kpis() { const R = S.state.personas.areas; const tot = R.reduce((a, x) => a + S.num(x.personas), 0) || 1; const rot = R.reduce((a, x) => a + S.num(x.rotacion) * S.num(x.personas), 0) / tot; return [{ k: 'Rotación media', v: F.pct(rot), st: rot > 15 ? 'warn' : 'ok' }, { k: 'Preparación para crecer', v: Math.round(A.humanReadiness(S.sim, S.analysis()).score) + '/100' }]; },
+    kpis() { const R = S.state.personas.areas; const tot = R.reduce((a, x) => a + S.num(x.personas), 0) || 1; const rot = R.reduce((a, x) => a + S.num(x.rotacion) * S.num(x.personas), 0) / tot; const hs = S.simConDatos() ? A.humanReadiness(S.sim, S.analysis()).score : NaN; return [{ k: 'Rotación media', v: F.pct(rot), st: rot > 15 ? 'warn' : 'ok' }, isFinite(hs) ? { k: 'Preparación para crecer', v: Math.round(hs) + '/100' } : { k: 'Preparación para crecer', v: S.SIN_DATO, st: null, sinDato: true }]; },
     risks() {
       const R = S.state.personas.areas.filter((x) => S.num(x.rotacion) > 15).map((x) => S.mkRisk(`Rotación alta en ${x.area} (${x.rotacion} %)`, 4, 3, 'Entrevistas de salida, plan de carrera y revisión salarial selectiva.'));
       if (S.orgAnalisis) { const o = S.orgAnalisis(); o.saturados.forEach((n) => R.push(S.mkRisk(`${n.puesto}: ${o.span(n)} personas a cargo`, 3, 3, 'Crear un mando intermedio o repartir el equipo: por encima de 10 personas un responsable deja de poder dirigir.'))); }

@@ -58,21 +58,22 @@
   /* Sugerencias para el DAFO a partir de los datos de todos los módulos y del mercado */
   function sugerencias() {
     const p = PL(), ya = (k, t) => p.dafoItems[k].some((x) => x.t.toLowerCase() === t.toLowerCase());
-    const K = S.allKpis().filter((k) => k.mod !== 'mercado' && k.mod !== 'plan');
+    // Solo indicadores con dato y semáforo: lo que no tiene datos no es fortaleza ni debilidad (ni la cobertura de datos de «Origen»)
+    const K = S.allKpis().filter((k) => k.mod !== 'mercado' && k.mod !== 'plan' && k.mod !== 'origen' && !k.sinDato && k.st);
     const out = { d: [], a: [], f: [], o: [] };
     K.filter((k) => k.st === 'stop').concat(K.filter((k) => k.st === 'warn')).forEach((k) => out.d.push({ t: `${k.k}: ${k.v} (${k.area})`, i: k.st === 'stop' ? 4 : 3, por: 'Indicador en ' + (k.st === 'stop' ? 'rojo' : 'ámbar') }));
     K.filter((k) => k.st === 'ok').forEach((k) => out.f.push({ t: `${k.k}: ${k.v} (${k.area})`, i: 3, por: 'Indicador en verde' }));
-    const r = S.analysis();
-    if (r.verdict && r.verdict.key === 'go') out.f.push({ t: 'La inversión prevista se puede pagar con el negocio sin romper la liquidez', i: 4, por: 'Simulador' });
-    if (r.verdict && r.verdict.key === 'stop') out.d.push({ t: 'La inversión prevista, tal como está planteada, tensiona la liquidez', i: 5, por: 'Simulador' });
-    const h = r.humano; if (h && h.score < 60) out.d.push({ t: `Organización poco preparada para crecer (${Math.round(h.score)}/100)`, i: 4, por: 'Sistema humano' });
+    const r = S.analysis(), conInv = S.simConDatos() && S.invDefinida();
+    if (conInv && r.verdict && r.verdict.key === 'go') out.f.push({ t: 'La inversión prevista se puede pagar con el negocio sin romper la liquidez', i: 4, por: 'Simulador' });
+    if (conInv && r.verdict && r.verdict.key === 'stop') out.d.push({ t: 'La inversión prevista, tal como está planteada, tensiona la liquidez', i: 5, por: 'Simulador' });
+    const h = r.humano; if (S.simConDatos() && h && isFinite(h.score) && h.score < 60) out.d.push({ t: `Organización poco preparada para crecer (${Math.round(h.score)}/100)`, i: 4, por: 'Sistema humano' });
     const m = S.state.mercado || {};
     (m.indicadores || []).forEach((x) => { if (x.impacto === 'negativo') out.a.push({ t: `${x.indicador}${x.valor ? ': ' + x.valor : ''}`, i: 3, por: x.fuente || 'Mercado' }); if (x.impacto === 'positivo') out.o.push({ t: `${x.indicador}${x.valor ? ': ' + x.valor : ''}`, i: 3, por: x.fuente || 'Mercado' }); });
     (m.competidores || []).filter((c) => c.nombre && S.num(c.amenaza) >= 4).forEach((c) => out.a.push({ t: `Presión competitiva de ${c.nombre}`, i: S.num(c.amenaza), por: 'Competencia' }));
     if (m.analisis && m.analisis.sector) { (m.analisis.sector.riesgos || []).slice(0, 3).forEach((t) => out.a.push({ t: String(t), i: 3, por: 'Agente de mercado' })); (m.analisis.sector.oportunidades || []).slice(0, 3).forEach((t) => out.o.push({ t: String(t), i: 3, por: 'Agente de mercado' })); }
     const zonas = (S.state.comercial && S.state.comercial.zonas) || [];
     zonas.filter((z) => S.num(z.competencia) <= 3).forEach((z) => out.o.push({ t: `Expansión a ${z.zona} (mercado de ${F.eur(S.num(z.mercado))}, competencia ${z.competencia}/5)`, i: 3, por: 'Expansión' }));
-    S.allFindings().sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0)).slice(0, 3).forEach((f) => out.o.push({ t: `${f.accion} (${F.eur(f.impactoEUR || 0)} al año)`, i: 3, por: 'Mejora interna · ' + f.area }));
+    S.allFindings().filter((f) => (f.impactoEUR || 0) > 0).sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0)).slice(0, 3).forEach((f) => out.o.push({ t: `${f.accion} (${F.eur(f.impactoEUR || 0)} al año)`, i: 3, por: 'Mejora interna · ' + f.area }));
     Object.keys(out).forEach((k) => { out[k] = out[k].filter((x, i, arr) => !ya(k, x.t) && arr.findIndex((y) => y.t === x.t) === i).slice(0, 6); });
     return out;
   }
@@ -95,6 +96,7 @@
 
   S.register({
     id: 'plan', nombre: 'Plan de empresa', grupo: 'Visión',
+    datos: () => { const p = PL(); return !!(String(p.mision || '').trim() || String(p.vision || '').trim() || String(p.propuesta || '').trim() || (p.valores || []).length || ['d', 'a', 'f', 'o'].some((k) => (p.dafoItems[k] || []).length) || (p.came || []).length || (p.objetivos || []).length || (p.acciones || []).length); },
     render(host) {
       const p = PL();
       const prog = (area) => { const l = p.acciones.filter((a) => a.area === area); return l.length ? Math.round(l.filter((a) => a.estado === 'Hecha').length / l.length * 100) : 0; };

@@ -50,13 +50,15 @@
     const cerrarPaso = () => { document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; SS.set('atalaya.emp.elegida', P.empresaId()); pintarBarra(); };
     const abrirPaso = () => {
       document.body.classList.add('paso-emp'); $('#empPaso').hidden = false; $('#empBar').hidden = true;
-      P.mapaEmpresas($('#empMapa'), { paso: true, cerrar: true, onCerrar: cerrarPaso, onEnter: (id) => { SS.set('atalaya.emp.elegida', id); if (id !== P.empresaId()) P.empresas.cambiar(id); else cerrarPaso(); } });
+      P.mapaEmpresas($('#empMapa'), { paso: multi, cerrar: true, onCerrar: cerrarPaso, onEnter: (id) => { SS.set('atalaya.emp.elegida', id); if (id !== P.empresaId()) P.empresas.cambiar(id); else cerrarPaso(); } });
     };
     function pintarBarra() {
       const e = P.empresas.activa(), b = $('#empBar'); if (!e) return;
       const g = !!(P.PLANES[P.user.plan] || {}).grupo;
       b.hidden = false;
-      b.innerHTML = `<span class="small muted">Trabajando en</span><b>${e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : 'Ver la ficha'}</button>`;
+      // Con una sola empresa la ficha es opcional: se ofrece completarla, sin cortar el paso a los mundos
+      const pc = P.fichaCompleta ? P.fichaCompleta(e) : 100;
+      b.innerHTML = `<span class="small muted">Trabajando en</span><b>${e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : !e.modelo && pc < 40 ? 'Completar la ficha (opcional)' : 'Ver la ficha'}</button>`;
       b.querySelector('[data-cambiar]').onclick = abrirPaso;
     }
     // Balizas del mundo de la auditoría integral: si la empresa tiene triaje, cada baliza toma el color de su área
@@ -74,7 +76,26 @@
     // Desde la página comercial con la sesión abierta: abrir el cambio de plan con el elegido
     const hp = (location.hash.match(/^#plan-(esencial|profesional|consultora|grupos)/) || [])[1];
     if (hp) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } setTimeout(() => P.panelPlanes({ destacar: hp, motivo: hp !== P.user.plan ? `Has elegido ${P.PLANES[hp].nombre}. Cámbialo aquí: se aplica al momento y conservas todos tus datos.` : '' }), 300); }
-    if (location.hash === '#empresas' || (multi && !SS.get('atalaya.emp.elegida')) || (!multi && P.fichaCompleta(act) < 40 && !SS.get('atalaya.emp.elegida'))) abrirPaso(); else pintarBarra();
+    // Con una sola empresa no se abre el mapa: la ficha se completa cuando se quiera, desde la barra de empresa
+    if (location.hash === '#empresas' || (multi && !SS.get('atalaya.emp.elegida'))) abrirPaso(); else pintarBarra();
+    // Primer acceso de una cuenta nueva: ¿con sus datos, viendo antes la empresa modelo o más tarde? (se pregunta una vez)
+    if (!hp && location.hash !== '#empresas' && P.primerAcceso) P.primerAcceso.pendiente().then((si) => { if (si) comoEmpezar(); }).catch(() => {});
+    function comoEmpezar() {
+      const back = document.createElement('div'); back.className = 'ef-back';
+      back.innerHTML = `<div class="ef-card glass pa-card" role="dialog" aria-modal="true" aria-labelledby="paT">
+        <div class="eyebrow">Primer acceso</div>
+        <h3 id="paT" class="pa-t">¿Cómo quiere empezar?</h3>
+        <p class="small muted" style="margin:0">Puede cambiarlo cuando quiera desde el menú de su cuenta.</p>
+        <div class="pa-ops">
+          <button type="button" class="pa-op" data-ini="datos"><b>Con mis datos</b><small>Su empresa empieza vacía, sin datos de ejemplo. Se abre la carga de datos: cuentas anuales o unas preguntas.</small></button>
+          <button type="button" class="pa-op" data-ini="modelo"><b>Ver primero la empresa modelo</b><small>Una empresa ficticia completa para ver qué hace cada mundo antes de cargar la suya.</small></button>
+          <button type="button" class="pa-op pa-luego" data-ini="luego"><b>Decidir más tarde</b><small>Entra en el puesto de mando sin cambiar nada.</small></button>
+        </div>
+      </div>`;
+      document.body.appendChild(back);
+      back.querySelectorAll('[data-ini]').forEach((b) => b.onclick = async () => { back.querySelectorAll('button').forEach((x) => { x.disabled = true; }); await P.primerAcceso.elegir(b.dataset.ini); if (b.dataset.ini === 'luego') back.remove(); });
+      setTimeout(() => { const f = back.querySelector('[data-ini]'); if (f) f.focus(); }, 30);
+    }
     const n = (P.user && (P.user.nombre || '').split(/\s+/)[0]) || '';
     if (n) $('#hello').textContent = 'Hola, ' + n;
     const u = LS.get('atalaya.ultimo');
@@ -87,7 +108,7 @@
   const canvas = $('#space');
   let renderer = null;
   try { if (T) renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' }); } catch (e) { renderer = null; }
-  if (!renderer) { document.body.classList.add('no3d'); $('#hint').textContent = 'Elige una herramienta para empezar.'; return; }
+  if (!renderer) { document.body.classList.add('no3d'); $('#hint').textContent = 'Elija una herramienta para empezar.'; return; }
 
   renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
   renderer.setSize(innerWidth, innerHeight);

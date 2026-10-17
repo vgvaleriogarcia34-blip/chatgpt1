@@ -1024,3 +1024,69 @@ body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(56px + var(--pt-dock-h
 /* Distintivo de datos ficticios (cartera y vista de grupo) */
 .gr-fict { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(250, 178, 25, 0.55); color: var(--warn); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; white-space: nowrap; }
 .gr-modelo { border-style: dashed; }
+
+/* ---------- Fin de la prueba: banda bajo la cabecera de cada mundo ---------- */
+.at-prueba { position: fixed; z-index: 39; left: 50%; top: 76px; transform: translateX(-50%); width: min(760px, calc(100% - 32px)); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 8px 8px 14px; border-radius: 14px; border: 1px solid rgba(250, 178, 25, 0.5); background: var(--panel-solid, #10131a); box-shadow: var(--shadow); font-size: 0.86rem; }
+.at-prueba.urge { border-color: rgba(224, 72, 72, 0.7); border-left-width: 4px; }
+.at-prueba-t { flex: 1 1 200px; min-width: 0; } .at-prueba-t b { color: var(--warn); } .at-prueba.urge .at-prueba-t b { color: var(--stop); }
+.at-prueba .btn { white-space: nowrap; } .at-prueba-x { margin-left: auto; }
+@media (max-width: 560px) { .at-prueba { width: calc(100% - 20px); padding: 6px 6px 6px 10px; font-size: 0.8rem; } .at-prueba-p { display: none; } .at-prueba .btn { padding: 5px 9px; } }
+@media print { .at-prueba { display: none !important; } }
+
+/* ---------- Activación del acceso (pantalla de acceso y ventana «Activar ahora») ---------- */
+.pg { display: grid; gap: 12px; }
+.pg-h { margin: 0; } .pg-intro { margin: 0; }
+.pg-precio { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: rgba(201, 242, 77, 0.05); }
+.pg-precio b { font-family: var(--font-display); font-size: 1.8rem; color: var(--gold-soft); } .pg-precio span { color: var(--muted); } .pg-precio small { flex-basis: 100%; color: var(--muted); font-size: var(--t-xs); }
+.pg-form label { display: grid; gap: 4px; color: var(--muted); }
+.pg-contacto { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--line); }
+.pg-contacto b { flex-basis: 100%; } .pg-contacto a { color: var(--gold-soft); }
+.pg-card { width: min(520px, 100%); }
+/* ---------- Copia de datos e importación ---------- */
+.cp-card { width: min(580px, 100%); }
+.cp-t { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; overflow-wrap: anywhere; }
+.cp-file { display: grid; gap: 6px; font-size: var(--t-s); color: var(--muted); }
+.cp-res { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: var(--t-s); }
+.cp-res dt { color: var(--muted); } .cp-res dd { margin: 0; overflow-wrap: anywhere; }
+.cp-avisos { margin: 0; padding-left: 18px; color: var(--warn); }
+.cp-peligro { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid rgba(224, 72, 72, 0.5); border-radius: 12px; background: rgba(224, 72, 72, 0.06); justify-items: start; }
+.cp-ok { display: flex; gap: 8px; align-items: flex-start; }
+@media (max-width: 480px) { .cp-res { grid-template-columns: 1fr; } .cp-res dd { margin-bottom: 4px; } }
+/* ---------- Primer acceso: cómo empezar ---------- */
+.pa-card { width: min(560px, 100%); }
+.pa-t { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 1.5rem; }
+.pa-ops { display: grid; gap: 8px; }
+.pa-op { display: grid; gap: 3px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.03); color: var(--fg); font: inherit; cursor: pointer; }
+.pa-op b { font-size: 1rem; } .pa-op small { color: var(--muted); font-size: var(--t-xs); line-height: 1.4; }
+.pa-op:hover, .pa-op:focus-visible { border-color: var(--gold); background: rgba(201, 242, 77, 0.06); }
+.pa-op.pa-luego { border-style: dashed; }
+/* ---------- Alta: errores por campo ---------- */
+.fld-err { color: var(--stop); font-size: var(--t-xs); }
+.input[aria-invalid="true"], input[type="checkbox"][aria-invalid="true"] { border-color: var(--stop); outline-color: var(--stop); }
+.up-ok { display: grid; gap: 4px; }
+.up-ok a, .up-priv a { color: var(--gold-soft); }
+
+/* ---------- Cabecera compacta en móvil (≤ 560 px) ----------
+   Se quedan la marca, la empresa (recortada con puntos suspensivos) y el botón de la cuenta; los accesos secundarios
+   (manual, mesa, otros mundos) siguen en el menú de la cuenta. Nada sale de la pantalla. */
+@media (max-width: 560px) {
+  .topbar { gap: 6px; padding: 6px 6px 6px 12px; width: calc(100% - 20px); }
+  .topbar > a.btn, .topbar > .spacer + a.btn { display: none; }
+  .topbar .brand { flex: none; }
+  .topbar .brand b { font-size: 1.1rem; }
+  .topbar .spacer { flex: 1 1 0; min-width: 0; }
+  .topbar .seg { flex: 0 1 auto; min-width: 30px; }
+  .topbar .ruta-btn { padding: 6px 9px; }
+  .topbar .verdict-pill { padding: 6px 8px; }
+  .topbar .nt-chip small { display: none; }
+  .topbar .nt-chip { flex: none; padding: 4px 8px; font-size: 0.8rem; }
+  .topbar .nt-chip .nt-sep, .topbar .nt-chip .nt-sep ~ .nt-n { display: none; }
+  .topbar .nt-chip .nt-n { font-size: 0.78rem; }
+  .topbar .account { flex: 0 1 auto; min-width: 72px; gap: 6px; }
+  .topbar .emp { flex: 0 1 auto; min-width: 30px; }
+  .topbar .emp-btn { max-width: 100px; width: 100%; min-width: 0; padding: 0 8px; }
+  .topbar .emp-btn span { min-width: 0; }
+  .topbar .acc-btn { flex: none; }
+  .topbar .acc-menu, .topbar .emp-menu { max-width: calc(100vw - 20px); }
+}
+@media (max-width: 380px) { .topbar .emp-btn { max-width: 78px; } }

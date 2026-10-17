@@ -27,59 +27,68 @@
   const VAL = { ok: 1, warn: 0.5, stop: 0 };
   /* Criterio único de Atalaya para cualquier nota, en cualquier mundo, informe o fase:
      cada comprobación vale verde 1, ámbar 0,5 y rojo 0, ponderada por su peso; la nota es esa proporción
-     sobre 100 (o sobre 10, la misma cifra con una coma: 58/100 = 5,8/10). Verde desde 70, ámbar desde 50. */
-  const puntuar = (puntos) => {
-    const l = (puntos || []).filter((x) => x && VAL[x.st] != null); if (!l.length) return null;
+     sobre 100 (o sobre 10, la misma cifra con una coma). Verde desde 70, ámbar desde 50.
+     Una comprobación «sin datos» (st 'nd') no puntúa: se cuenta aparte y no baja ni sube la nota.
+     todos = true: devuelve el recuento aunque no haya ninguna comprobación con estado (nota null). */
+  const puntuar = (puntos, todos) => {
+    const all = (puntos || []).filter((x) => x && (VAL[x.st] != null || x.st === 'nd')), l = all.filter((x) => VAL[x.st] != null), nd = all.length - l.length;
+    if (!l.length) return todos ? { n100: null, n10: null, st: null, verdes: 0, ambar: 0, rojos: 0, sinDatos: nd, total: nd } : null;
     const w = l.reduce((a, x) => a + (x.peso || 1), 0), v = l.reduce((a, x) => a + (x.peso || 1) * VAL[x.st], 0);
     const n100 = Math.round((v / w) * 100);
-    return { n100, n10: n100 / 10, st: n100 >= 70 ? 'ok' : n100 >= 50 ? 'warn' : 'stop', verdes: l.filter((x) => x.st === 'ok').length, ambar: l.filter((x) => x.st === 'warn').length, rojos: l.filter((x) => x.st === 'stop').length, total: l.length };
+    return { n100, n10: n100 / 10, st: n100 >= 70 ? 'ok' : n100 >= 50 ? 'warn' : 'stop', verdes: l.filter((x) => x.st === 'ok').length, ambar: l.filter((x) => x.st === 'warn').length, rojos: l.filter((x) => x.st === 'stop').length, sinDatos: nd, total: l.length + nd };
   };
   const notaDe = (puntos) => { const r = puntuar(puntos); return r ? r.n10 : null; };
   const stDeNota = (n) => (n == null ? '' : n >= 7 ? 'ok' : n >= 5 ? 'warn' : 'stop');
   const fmt = (n) => (n == null ? '—' : String(n.toFixed(1)).replace('.', ','));
 
   /* ---------- Comprobaciones de cada mundo ---------- */
-  // Simulador: veredicto, semáforos, datos de ejemplo y cuentas
+  // Simulador: veredicto, semáforos, datos de ejemplo y cuentas. Sin cuentas propias no hay nota (comprobación «sin datos»);
+  // sin inversión definida no hay veredicto ni semáforos de la inversión (dimensión, retorno, TIR, circulante y margen nuevo), solo la situación de la empresa
+  const LUZ_INV = new Set(['dimension', 'retorno', 'rentabilidad', 'circulante', 'margen']);
   const evalSimulador = (o) => {
-    const out = [];
-    if (o.ejemplo) out.push({ st: 'stop', peso: 3, t: 'El simulador usa datos de ejemplo', d: 'Cargue los datos reales de la empresa para que el veredicto sirva.', zona: 'empresa' });
-    else out.push({ st: 'ok', peso: 3, t: 'Datos de la empresa cargados', zona: 'empresa' });
-    if (o.veredicto) out.push({ st: o.veredicto.key === 'stop' ? 'stop' : o.veredicto.key === 'warn' ? 'warn' : 'ok', peso: 3, t: 'Veredicto de la inversión: ' + o.veredicto.titulo, zona: 'puente' });
-    (o.luces || []).forEach((l) => out.push({ st: l.st, peso: l.key === 'liquidez' ? 2 : 1, t: (l.st === 'stop' ? 'En rojo: ' : l.st === 'warn' ? 'En ámbar: ' : '') + l.nombre + (l.valor ? ' (' + l.valor + ')' : ''), d: l.st !== 'ok' ? 'Toque para ver qué lo mueve y cómo ponerlo en verde.' : '', zona: 'riesgos' }));
+    if (o.sinDatos) return [{ st: 'nd', peso: 3, t: 'El simulador no tiene datos de la empresa', d: 'Cargue las cuentas o responda las preguntas para calcular su nota.', zona: 'empresa' }];
+    if (o.ejemplo) return [{ st: 'nd', peso: 3, t: 'El simulador usa datos de ejemplo', d: 'Con datos de ejemplo no hay nota: cargue los datos de la empresa.', zona: 'empresa' }];
+    const out = [{ st: 'ok', peso: 3, t: 'Datos de la empresa cargados', zona: 'empresa' }];
+    if (o.veredicto && o.inversion) out.push({ st: o.veredicto.key === 'stop' ? 'stop' : o.veredicto.key === 'warn' ? 'warn' : 'ok', peso: 3, t: 'Veredicto de la inversión: ' + o.veredicto.titulo, zona: 'puente' });
+    if (!o.inversion) out.push({ st: 'nd', peso: 1, t: 'Inversión sin definir: sin veredicto', d: 'Defina la inversión para obtener el veredicto.', zona: 'inversion' });
+    (o.luces || []).filter((l) => o.inversion || !LUZ_INV.has(l.key)).forEach((l) => out.push({ st: l.st, peso: l.key === 'liquidez' ? 2 : 1, t: (l.st === 'stop' ? 'En rojo: ' : l.st === 'warn' ? 'En ámbar: ' : '') + l.nombre + (l.valor ? ' (' + l.valor + ')' : ''), d: l.st !== 'ok' ? 'Toque para ver qué lo mueve y cómo ponerlo en verde.' : '', zona: 'riesgos' }));
     if (o.deudaEbitda != null && isFinite(o.deudaEbitda)) out.push({ st: o.deudaEbitda > 4 ? 'stop' : o.deudaEbitda > 3 ? 'warn' : 'ok', peso: 2, t: o.deudaEbitda > 3 ? `Carga financiera alta: deuda de ${o.deudaEbitda.toFixed(1).replace('.', ',')} veces el EBITDA` : 'Carga financiera asumible', d: o.deudaEbitda > 3 ? 'Alinee la financiación con lo que genera el negocio: plazo, carencia o aportación.' : '', zona: 'inversion' });
     if (!o.historico) out.push({ st: 'warn', peso: 1, t: 'Sin cuentas de años anteriores', d: 'Con dos o tres ejercicios la proyección es más fiable.', zona: 'historia' });
     return out;
   };
+  // El mismo motor en cualquier página (simulador o sistema estratégico): así la nota no depende de dónde se calcule
   const simDesdeMotor = () => {
-    // En el simulador, con su propia API; en el sistema estratégico, con el mismo motor sobre los datos del simulador
-    if (pagina() === 'app.html' && A.appApi && A.appApi.summary) {
-      const s = A.appApi.summary(), st = A.appApi.getState ? A.appApi.getState() : {};
-      const nm = { Verde: 'ok', 'Ámbar': 'warn', Rojo: 'stop' };
-      const de = parseFloat(String((s.cifras || {}).deudaEbitda || '').replace(',', '.'));
-      return evalSimulador({ ejemplo: !!st.ejemplo, historico: !!(st.historico && st.historico.anios && st.historico.anios.length && !st.historico.ejemplo), veredicto: { key: /Rediseñar/.test(s.veredicto) ? 'stop' : /condiciones/.test(s.veredicto) ? 'warn' : 'go', titulo: s.veredicto }, luces: (s.semaforos || []).map((l) => ({ key: l.clave, nombre: l.indicador, valor: l.valor, st: nm[l.estado] || 'warn' })), deudaEbitda: isFinite(de) ? de : null });
-    }
-    if (A.strat && A.strat.sim && A.analyze) {
-      const S = A.strat, r = S.analysis();
-      return evalSimulador({ ejemplo: !!S.sim.ejemplo, historico: !!(S.sim.historico && S.sim.historico.anios && S.sim.historico.anios.length && !S.sim.historico.ejemplo), veredicto: r.verdict, luces: r.lights.map((l) => ({ key: l.key, nombre: l.nombre, valor: l.valor, st: l.estado === 'go' ? 'ok' : l.estado })), deudaEbitda: r.deudaEbitda });
-    }
-    return null;
+    const st = pagina() === 'app.html' && A.appApi && A.appApi.getState ? A.appApi.getState() : A.strat && A.strat.sim ? A.strat.sim : null;
+    if (!st || !st.empresa || !A.analyze) return null;
+    const real = P() && P().modoReal && P().modoReal(), d0 = A.defaultState ? A.defaultState() : null;
+    // De ejemplo: marcada como tal, o con las cifras y el proyecto de la empresa de ejemplo aunque se haya cambiado el nombre
+    const ej = (A.simEsEjemplo ? A.simEsEjemplo(st) : st.ejemplo !== false) || !!(d0 && +st.empresa.ventas === d0.empresa.ventas && +st.empresa.fijos === d0.empresa.fijos && st.proyecto === d0.proyecto);
+    const sinDatos = !(+st.empresa.ventas > 0), inv = st.inversion || {}, inversion = +inv.importe > 0 || (inv.lineas || []).some((l) => +l.importe > 0);
+    if (sinDatos || ej) return evalSimulador({ sinDatos: sinDatos || (real && ej), ejemplo: ej });
+    const r = A.analyze(st, A.scenarioMods(st, st.escenario || 'base'));
+    return evalSimulador({ historico: !!(st.historico && st.historico.anios && st.historico.anios.length && !st.historico.ejemplo), inversion, veredicto: r.verdict, luces: r.lights.map((l) => ({ key: l.key, nombre: l.nombre, valor: l.valor, st: l.estado === 'go' ? 'ok' : l.estado })), deudaEbitda: r.deudaEbitda });
   };
   // Sistema estratégico: indicadores, datos que faltan, ejemplo, ABC, plan de empresa, objetivos y riesgos
   const estDesdeMotor = () => {
     const S = A.strat; if (!S || !S.state || !S.allKpis) return null;
     const out = [], h = hoy(), mod = (id) => S.mod(id);
-    S.allKpis().forEach((k) => { if (!k.st) return; out.push({ st: k.st, peso: 1, t: (k.st === 'stop' ? 'En rojo: ' : k.st === 'warn' ? 'En ámbar: ' : '') + k.k + ' (' + k.area + ')', d: k.st !== 'ok' ? String(k.v || '') : '', zona: k.mod }); });
-    if (S.needStatus) S.modules.forEach((m) => { const f = S.needStatus(m.id).filter((x) => !x.ok); if (f.length) out.push({ st: 'warn', peso: 1, t: `«${m.nombre}» sin gestionar del todo: ${pl(f.length, 'dato pendiente', 'datos pendientes')}`, d: f.slice(0, 2).map((x) => x.t).join(' · '), zona: m.id }); });
-    S.modules.forEach((m) => { const d = S.state[m.id]; if (d && d.ejemplo === true) out.push({ st: 'warn', peso: 1, t: `«${m.nombre}» con datos de ejemplo`, d: 'Sustitúyalos por los de la empresa.', zona: m.id }); });
+    // ¿Tiene datos el módulo? Los de resumen (cuadro de mando, auditoría, evolución) los tienen si los tiene algún módulo
+    const real = P() && P().modoReal && P().modoReal(), alguno = S.modules.some((m) => m.datos && S.conDatos && S.conDatos(m));
+    const conD = (id) => { const m = typeof id === 'string' ? mod(id) : id; return !S.conDatos || !m ? true : m.datos ? S.conDatos(m) : alguno; };
+    S.allKpis().forEach((k) => { if (k.sinDato) { out.push({ st: 'nd', peso: 1, t: k.k + ' (' + k.area + '): sin datos', zona: k.mod }); return; } if (!k.st) return; out.push({ st: k.st, peso: 1, t: (k.st === 'stop' ? 'En rojo: ' : k.st === 'warn' ? 'En ámbar: ' : '') + k.k + ' (' + k.area + ')', d: k.st !== 'ok' ? String(k.v || '') : '', zona: k.mod }); });
+    // Datos pendientes: en un módulo con datos es un aviso; en uno sin datos es solo «sin datos» (no puntúa)
+    if (S.needStatus) S.modules.forEach((m) => { const f = S.needStatus(m.id).filter((x) => !x.ok); if (f.length) out.push({ st: conD(m) ? 'warn' : 'nd', peso: 1, t: `«${m.nombre}» sin gestionar del todo: ${pl(f.length, 'dato pendiente', 'datos pendientes')}`, d: f.slice(0, 2).map((x) => x.t).join(' · '), zona: m.id }); });
+    if (!real) S.modules.forEach((m) => { const d = S.state[m.id]; if (d && d.ejemplo === true) out.push({ st: 'warn', peso: 1, t: `«${m.nombre}» con datos de ejemplo`, d: 'Sustitúyalos por los de la empresa.', zona: m.id }); });
     const com = S.state.comercial;
     if (com) {
       const ej = com.ejemplo === true, np = (com.productos || []).length, nc = (com.clientes || []).length;
-      out.push({ st: ej ? 'stop' : np < 3 || nc < 5 ? 'warn' : 'ok', peso: 2, t: ej ? 'El ABC de clientes y productos usa datos de ejemplo' : np < 3 || nc < 5 ? 'ABC de clientes y productos incompleto' : 'ABC de clientes y productos hecho', d: ej ? 'Sin un ABC real no se sabe qué clientes y productos dan el margen.' : np < 3 || nc < 5 ? `${pl(nc, 'cliente', 'clientes')} y ${pl(np, 'producto', 'productos')} cargados.` : '', zona: 'ventas' });
+      if (!ej && !np && !nc) out.push({ st: 'nd', peso: 2, t: 'ABC de clientes y productos sin datos', d: 'Cargue las ventas por cliente y por producto.', zona: 'ventas' });
+      else out.push({ st: ej ? 'stop' : np < 3 || nc < 5 ? 'warn' : 'ok', peso: 2, t: ej ? 'El ABC de clientes y productos usa datos de ejemplo' : np < 3 || nc < 5 ? 'ABC de clientes y productos incompleto' : 'ABC de clientes y productos hecho', d: ej ? 'Sin un ABC real no se sabe qué clientes y productos dan el margen.' : np < 3 || nc < 5 ? `${pl(nc, 'cliente', 'clientes')} y ${pl(np, 'producto', 'productos')} cargados.` : '', zona: 'ventas' });
     }
     const plan = S.state.plan;
     if (plan) {
       const acc = (plan.acciones || []).filter((a) => a.accion), venc = acc.filter((a) => a.estado !== 'Hecha' && a.fin && a.fin < h), sinR = acc.filter((a) => a.estado !== 'Hecha' && (!a.responsable || !a.fin));
-      if (!acc.length) out.push({ st: 'warn', peso: 2, t: 'El plan de empresa no tiene acciones', d: 'Sin acciones con responsable y fecha, los objetivos no bajan a la operativa.', zona: 'plan' });
+      if (!acc.length) out.push({ st: conD('plan') ? 'warn' : 'nd', peso: 2, t: 'El plan de empresa no tiene acciones', d: 'Sin acciones con responsable y fecha, los objetivos no bajan a la operativa.', zona: 'plan' });
       else out.push({ st: venc.length > 2 ? 'stop' : venc.length ? 'warn' : 'ok', peso: 2, t: venc.length ? `${pl(venc.length, 'acción vencida', 'acciones vencidas')} en el plan de empresa` : 'Plan de empresa al día', zona: 'plan' });
       if (sinR.length) out.push({ st: 'warn', peso: 1, t: `${pl(sinR.length, 'acción', 'acciones')} del plan sin responsable o sin fecha`, zona: 'plan' });
     }
@@ -94,7 +103,7 @@
   // Personas y equipos: plantilla, perfiles, puestos, equipos y acuerdos de liderazgo
   const evalPersonas = (st) => {
     const out = [], h = hoy(), ps = (st && st.personas) || [];
-    if (!ps.length) return [{ st: 'stop', peso: 3, t: 'Plantilla sin dar de alta', d: 'Sin personas no hay perfiles, encaje ni equipos.', zona: 'personas' }];
+    if (!ps.length) return [{ st: 'nd', peso: 3, t: 'Plantilla sin dar de alta', d: 'Sin personas no hay perfiles, encaje ni equipos.', zona: 'personas' }];
     const conDisc = ps.filter((p) => p.disc).length, pct = conDisc / ps.length;
     out.push({ st: pct >= 0.8 ? 'ok' : pct >= 0.5 ? 'warn' : 'stop', peso: 2, t: pct >= 0.8 ? 'Perfiles DISC de la plantilla' : `Solo ${conDisc} de ${ps.length} personas con perfil DISC`, zona: pct >= 0.8 ? 'disc' : 'envios' });
     const puestos = (st.puestos || []).length, sinP = ps.filter((p) => !p.puestoId).length;
@@ -113,6 +122,8 @@
   // Mesa de trabajo: agenda que no se cumple, metas mal planteadas o vencidas, tiempo para lo clave
   const evalMesa = (st) => {
     const out = [], h = hoy(), tareas = (st && st.tareas) || [], metas = ((st && st.metas) || []).filter((m) => m.estado !== 'cumplida');
+    // Mesa vacía: sin tareas ni metas no hay nada que puntuar (no es «agenda al día»)
+    if (!tareas.length && !((st && st.metas) || []).length) return [{ st: 'nd', peso: 2, t: 'Mesa de trabajo sin tareas ni metas', d: 'Añada tareas o metas para calcular su nota.', zona: 'hoy' }];
     const pend = tareas.filter((t) => t.estado !== 'hecha'), atras = pend.filter((t) => t.fecha && t.fecha < h), apl = pend.filter((t) => (t.aplazada || 0) >= 2);
     out.push({ st: atras.length > 3 ? 'stop' : atras.length ? 'warn' : 'ok', peso: 2, t: atras.length ? `La agenda no se cumple: ${pl(atras.length, 'tarea atrasada', 'tareas atrasadas')}` : 'Agenda al día', zona: 'hoy' });
     if (apl.length) out.push({ st: 'warn', peso: 1, t: `${pl(apl.length, 'tarea aplazada', 'tareas aplazadas')} dos veces o más`, d: 'Divídalas, deléguelas o quítelas.', zona: 'bandeja' });
@@ -143,13 +154,18 @@
   const guardarCache = () => { lsSet(LSK(), cache); if (P() && P().saveData) P().saveData('nota', cache).catch(() => {}); };
   const datos = async (k, lsBase) => { let st = lsGet(P() && P().k ? P().k(lsBase) : lsBase); if (P() && P().loadData) { try { const r = await P().loadData(k); if (r) st = r; } catch (e) { /* local */ } } return st; };
   A.nota = A.nota || {};
-  A.nota.REGLA = 'Mismo criterio en toda Atalaya: cada comprobación (indicadores con semáforo, datos que faltan o de ejemplo, objetivos, plan, riesgos altos y madurez de la gestión) vale verde 1, ámbar 0,5 y rojo 0 según su peso; la nota es esa proporción sobre 100 (58/100 = 5,8/10). La nota de la empresa es la media de los mundos de su plan.';
+  A.nota.REGLA = 'Mismo criterio en toda Atalaya: cada comprobación (indicadores con semáforo, datos pendientes, objetivos, plan, riesgos altos y madurez de la gestión) vale verde 1, ámbar 0,5 y rojo 0 según su peso; la nota es esa proporción sobre 100, o sobre 10 con la misma cifra. Lo que no tiene datos no puntúa. La nota de la empresa es la media de los mundos de su plan que tienen nota.';
+  // La regla con la nota real del caso (en lugar de una cifra de ejemplo)
+  A.nota.regla = (n100) => (n100 == null ? A.nota.REGLA : A.nota.REGLA.replace('con la misma cifra.', `con la misma cifra (aquí ${n100}/100 = ${String(n100 / 10).replace('.', ',')}/10).`));
+  // Fecha en que se calculó la nota de un mundo
+  A.nota.fechaTxt = (m) => { if (!m || !m.fecha) return 'Sin calcular: ábralo'; const d = new Date(m.fecha); return (m.vivo ? 'Ahora · ' : 'Calculada el ') + d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); };
   A.nota.puntuar = puntuar;
   A.nota.estrategia = () => estDesdeMotor();
   A.nota.personas = (st) => evalPersonas(st);
   // Nota de un conjunto de módulos del sistema estratégico (un área, un módulo o todos)
-  A.nota.modulos = (ids) => { const p = estDesdeMotor(); if (!p) return null; const set = ids ? new Set([].concat(ids)) : null; return puntuar(set ? p.filter((x) => set.has(x.zona)) : p); };
-  A.nota.desglose = (r) => (r ? `${r.total} comprobaciones: ${r.verdes} en verde, ${r.ambar} en ámbar y ${r.rojos} en rojo` : 'sin comprobaciones');
+  A.nota.modulos = (ids) => { if (!ids && A.strat && A.strat.datosPropios && A.strat.state && !A.strat.datosPropios()) return null; const p = estDesdeMotor(); if (!p) return null; const set = ids ? new Set([].concat(ids)) : null; return puntuar(set ? p.filter((x) => set.has(x.zona)) : p); };
+  // Un único recuento en toda Atalaya: «N comprobaciones: x verdes / y ámbar / z rojas / w sin datos»
+  A.nota.desglose = (r) => (r && r.total ? `${pl(r.total, 'comprobación', 'comprobaciones')}: ${r.verdes} ${r.verdes === 1 ? 'verde' : 'verdes'} / ${r.ambar} ámbar / ${r.rojos} ${r.rojos === 1 ? 'roja' : 'rojas'} / ${r.sinDatos || 0} sin datos` : 'sin comprobaciones');
   A.nota.calcular = async () => {
     await cargarCache();
     const mundos = {};
@@ -162,12 +178,18 @@
         if (k === 'personas') { puntos = evalPersonas((A.personas && A.personas.state) || (await datos('personas', 'atalaya.personas.v1'))); vivo = true; }
         if (k === 'mesa') { puntos = evalMesa(await datos('agenda', 'atalaya.agenda.v1')); vivo = true; }
       } catch (e) { console.error(e); puntos = null; }
-      if (puntos && (k === 'simulador' || k === 'estrategia')) { cache[k] = { puntos, fecha: new Date().toISOString() }; }
+      // Mundo sin datos propios (vacío o con datos de ejemplo): sin nota y fuera de la media
+      let motivo = '';
+      if (k === 'estrategia' && vivo && A.strat.datosPropios && !A.strat.datosPropios()) motivo = P() && P().modoReal && P().modoReal() ? 'faltan los datos de la empresa' : 'datos de ejemplo';
+      if (puntos && (k === 'simulador' || k === 'estrategia')) { cache[k] = { puntos, fecha: new Date().toISOString(), motivo }; }
       // Con datos reales, una nota guardada antes de pasar a datos reales es del ejemplo: no se usa
       const ea = P() && P().modoReal && P().modoReal() ? P().empresas.activa() : null, desde = ea && (ea.datosRealesTs || ea.datosRealesDesde);
       if (desde && cache[k] && String(cache[k].fecha || '') < desde) delete cache[k];
-      if (!puntos && cache[k]) puntos = cache[k].puntos;
-      mundos[k] = { n: MUNDOS[k].n, nota: notaDe(puntos), puntos: puntos || [], vivo, fecha: (cache[k] && cache[k].fecha) || null };
+      if (!puntos && cache[k]) { puntos = cache[k].puntos; motivo = cache[k].motivo || ''; }
+      const nd = (puntos || []).find((x) => x.st === 'nd' && x.peso >= 2);
+      let nota = motivo ? null : notaDe(puntos);
+      if (nota == null && !motivo && puntos) motivo = nd ? nd.t.charAt(0).toLowerCase() + nd.t.slice(1) : puntos.length ? 'sin comprobaciones con datos' : '';
+      mundos[k] = { n: MUNDOS[k].n, nota, puntos: puntos || [], vivo, fecha: vivo ? new Date().toISOString() : (cache[k] && cache[k].fecha) || null, motivo: nota == null ? motivo : '' };
     }
     guardarCache();
     const ns = Object.values(mundos).map((m) => m.nota).filter((n) => n != null);
@@ -191,20 +213,21 @@
   const pintarChip = () => {
     if (!chip || !ultima) return;
     const m = ultima.actual && ultima.mundos[ultima.actual];
-    chip.innerHTML = `<span class="nt-n ${stDeNota(ultima.global)}">${fmt(ultima.global)}</span><small>Empresa</small>${m ? `<span class="nt-sep"></span><span class="nt-n ${stDeNota(m.nota)}">${fmt(m.nota)}</span><small>Este mundo</small>` : ''}`;
+    chip.innerHTML = `<span class="nt-n ${stDeNota(ultima.global)}">${ultima.global == null ? 'Sin nota' : fmt(ultima.global)}</span><small>Empresa</small>${m ? `<span class="nt-sep"></span><span class="nt-n ${stDeNota(m.nota)}">${m.nota == null ? 'Sin nota' : fmt(m.nota)}</span><small>Este mundo</small>` : ''}`;
     chip.title = 'Nota de la empresa de 0 a 10 (media de los mundos) y nota de este mundo, con el mismo criterio que el cuadro de mando y los informes: toque para ver los puntos a tratar';
   };
   const pintarPanel = () => {
     if (!panel || !ultima) return;
     const ks = Object.keys(ultima.mundos);
+    const ORD = { stop: 0, warn: 1, nd: 2 };
     const ptos = ks.filter((k) => !filtro || k === filtro).flatMap((k) => ultima.mundos[k].puntos.filter((x) => x.st !== 'ok').map((x) => Object.assign({ mundo: k }, x)))
-      .sort((a, b) => (a.st === b.st ? (b.peso || 1) - (a.peso || 1) : a.st === 'stop' ? -1 : 1));
-    const rojos = ptos.filter((x) => x.st === 'stop').length;
-    panel.innerHTML = `<div class="nt-head"><div><div class="nt-k">Nota de la empresa</div><div class="nt-big ${stDeNota(ultima.global)}">${fmt(ultima.global)}<small>/10</small></div></div><span class="ml-sp"></span><button class="icon-btn" data-x aria-label="Cerrar">×</button></div>
-      <p class="nt-exp">Media de los mundos de su plan. Cada mundo puntúa sus comprobaciones: verde suma, ámbar suma la mitad y rojo no suma.</p>
-      <div class="nt-mundos">${ks.map((k) => { const m = ultima.mundos[k]; return `<button class="nt-m ${filtro === k ? 'on' : ''} ${k === ultima.actual ? 'aqui' : ''}" data-f="${k}"><b class="${stDeNota(m.nota)}">${fmt(m.nota)}</b><span>${esc(m.n)}</span><small>${m.nota == null ? 'Ábralo para calcularla' : `${m.puntos.filter((x) => x.st === 'stop').length} en rojo · ${m.puntos.filter((x) => x.st === 'warn').length} en ámbar`}${!m.vivo && m.fecha ? ' · ' + new Date(m.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : ''}</small></button>`; }).join('')}</div>
-      <div class="nt-k">${filtro ? 'Puntos a tratar en ' + esc(ultima.mundos[filtro].n) : 'Puntos a tratar'} · ${pl(rojos, 'en rojo', 'en rojo')}, ${ptos.length - rojos} en ámbar</div>
-      <ol class="nt-list">${ptos.slice(0, 40).map((x, i) => `<li><button data-i="${i}" class="nt-p ${x.st}"><i></i><span><b>${esc(x.t)}</b>${x.d ? `<small>${esc(x.d)}</small>` : ''}<em>${esc(MUNDOS[x.mundo].n)}</em></span><span class="nt-go">→</span></button></li>`).join('') || '<li class="nt-vacio">Nada en rojo ni en ámbar. Buen trabajo.</li>'}</ol>
+      .sort((a, b) => (a.st === b.st ? (b.peso || 1) - (a.peso || 1) : (ORD[a.st] || 0) - (ORD[b.st] || 0)));
+    const rojos = ptos.filter((x) => x.st === 'stop').length, nds = ptos.filter((x) => x.st === 'nd').length;
+    panel.innerHTML = `<div class="nt-head"><div><div class="nt-k">Nota de la empresa</div><div class="nt-big ${stDeNota(ultima.global)}">${ultima.global == null ? 'Sin nota' : fmt(ultima.global)}${ultima.global == null ? '' : '<small>/10</small>'}</div></div><span class="ml-sp"></span><button class="icon-btn" data-x aria-label="Cerrar">×</button></div>
+      <p class="nt-exp">Media de los mundos de su plan que tienen nota. Cada mundo puntúa sus comprobaciones: verde suma, ámbar suma la mitad y rojo no suma; lo que no tiene datos no puntúa, y un mundo sin datos propios no tiene nota.</p>
+      <div class="nt-mundos">${ks.map((k) => { const m = ultima.mundos[k]; return `<button class="nt-m ${filtro === k ? 'on' : ''} ${k === ultima.actual ? 'aqui' : ''}" data-f="${k}"><b class="${stDeNota(m.nota)}">${m.nota == null ? 'Sin nota' : fmt(m.nota)}</b><span>${esc(m.n)}</span><small>${m.nota == null ? esc(m.motivo || 'Ábralo para calcularla') : esc(A.nota.desglose(puntuar(m.puntos)))} · ${esc(A.nota.fechaTxt(m))}</small></button>`; }).join('')}</div>
+      <div class="nt-k">${filtro ? 'Puntos a tratar en ' + esc(ultima.mundos[filtro].n) : 'Puntos a tratar'} · ${pl(rojos, 'en rojo', 'en rojo')}, ${ptos.length - rojos - nds} en ámbar, ${nds} sin datos</div>
+      <ol class="nt-list">${ptos.slice(0, 40).map((x, i) => `<li><button data-i="${i}" class="nt-p ${x.st}"><i${x.st === 'nd' ? ' style="background:var(--muted);opacity:.6"' : ''}></i><span><b>${esc(x.t)}</b>${x.d ? `<small>${esc(x.d)}</small>` : ''}<em>${esc(MUNDOS[x.mundo].n)}</em></span><span class="nt-go">→</span></button></li>`).join('') || '<li class="nt-vacio">Nada en rojo ni en ámbar.</li>'}</ol>
       ${ptos.length > 40 ? `<p class="nt-exp">Y ${ptos.length - 40} más.</p>` : ''}`;
     panel.querySelector('[data-x]').onclick = cerrar;
     panel.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { filtro = filtro === b.dataset.f ? null : b.dataset.f; pintarPanel(); }));

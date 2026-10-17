@@ -105,10 +105,16 @@
     engancharOpen();
     const lib = await L.cargar(); let n = 0;
     const meter = async (lista) => { for (const c of lista) { await L.anadir(Object.assign({ mundo }, c), lib); n++; } };
+    // Capítulos de módulos sin datos: no se generan y, si había uno de antes (por ejemplo, de los datos de ejemplo), se quita
+    const quitar = (claves) => { const q = new Set(claves); lib.caps = lib.caps.filter((c) => !(c.mundo === mundo && q.has(c.clave))); };
     if (mundo === 'estrategia') {
       const S = A.strat; await hasta(() => S && S.state && S.modules && S.modules.length, 80);
       [A.rutaEst].forEach((r) => r && r.closeMap && r.closeMap());
-      const mods = S.modules.filter((m) => m.id !== 'origen');
+      // Solo los módulos con datos; el cuadro de mando y la auditoría, si algún módulo los tiene; la evolución, con dos cortes
+      const conD = (m) => (S.conDatos ? S.conDatos(m) : true), alguno = S.modules.some((m) => m.datos && conD(m));
+      const util = (m) => (m.datos ? conD(m) : m.id === 'evolucion' ? ((S.state.evolucion || {}).cortes || []).length >= 2 : alguno);
+      const todos = S.modules.filter((m) => m.id !== 'origen'), mods = todos.filter(util);
+      quitar(todos.filter((m) => !util(m)).flatMap((m) => ['est:' + m.id, 'mod:' + m.id]));
       for (let i = 0; i < mods.length; i++) {
         const m = mods[i]; progreso(`Sistema estratégico · ${m.nombre} (${i + 1} de ${mods.length})`);
         try { S.show(m.id); await espera(120); await meter(await capturar(() => (S.report360 ? S.report360(m) : S.moduleReport(m)))); } catch (e) { console.error(e); }
@@ -132,10 +138,16 @@
       if (Object.keys(st.verifica || {}).length || st.hallazgos.length) { progreso('Auditoría integral · resultado'); await meter(await capturar(() => V.informes.auditoria())); }
       if (st.plan.acciones.length) { progreso('Auditoría integral · plan de intervención'); await meter(await capturar(() => V.informes.plan())); }
     } else if (mundo === 'mesa') {
-      await hasta(() => A.mesa && A.mesa.informe && A.mesa.listo, 80); progreso('Mesa de trabajo · plan de trabajo');
+      await hasta(() => A.mesa && A.mesa.informe && A.mesa.listo, 80);
+      let ag = null; try { ag = P() && P().loadData ? await P().loadData('agenda') : null; } catch (e) { ag = null; }
+      if (ag && !((ag.tareas || []).length || (ag.metas || []).length)) return 0; // mesa vacía: sin capítulo
+      progreso('Mesa de trabajo · plan de trabajo');
       await meter(await capturar(() => A.mesa.informe()));
     } else if (mundo === 'simulador') {
-      await hasta(() => document.getElementById('openReport') && A.appApi, 120); progreso('Simulador · informe de la inversión');
+      await hasta(() => document.getElementById('openReport') && A.appApi, 120);
+      const st = A.appApi.getState ? A.appApi.getState() : null;
+      if (st && st.empresa && !(+st.empresa.ventas > 0)) { quitar(['simulador:informe']); await L.guardar(lib); return 0; } // sin cifras de la empresa: sin capítulo
+      progreso('Simulador · informe de la inversión');
       document.getElementById('openReport').click();
       await hasta(() => { const p = document.querySelector('#report .paper, #report #paper'); return p && p.innerHTML.length > 2000; }, 80); await espera(400);
       const ov = document.getElementById('report'), p = ov && ov.querySelector('.paper, #paper');

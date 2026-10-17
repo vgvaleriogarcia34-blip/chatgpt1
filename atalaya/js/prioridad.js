@@ -16,13 +16,14 @@
 
   // Capas en el orden de la regla: lo de arriba sostiene lo de abajo
   const CAPAS = [
-    { id: 'datos', n: 'Datos fiables', w: 4, d: 'Sin datos reales, ningún semáforo es de fiar: es lo primero.', re: /(ejemplo|sin dar de alta|sin cuentas|datos pendientes|sin gestionar|incomplet|sin datos)/ },
+    { id: 'datos', n: 'Datos fiables', w: 4, d: 'Sin datos reales, ningún semáforo es de fiar: es lo primero.', re: /(ejemplo|sin dar de alta|sin cuentas|datos pendientes|dato pendiente|sin gestionar|incomplet|sin datos|aterriz|\borigen\b|archivos cargados)/ },
     { id: 'liquidez', n: 'Liquidez', w: 5, d: 'Poder pagar: caja, colchón, cobros, pagos y deuda acorde a lo que se genera.', re: /(liquidez|caja|tesorer|poliza|colchon|cobro|cobrar|pago|deuda|financ|endeud|solvencia|circulante|fondo de maniobra|veredicto|carga financiera)/ },
     { id: 'rentabilidad', n: 'Rentabilidad', w: 4, d: 'Ganar con lo que se hace: margen, precios, costes y clientes que dejan dinero.', re: /(margen|rentab|beneficio|precio|coste|gasto|abc|ebitda|equilibrio|productividad|resultado|contribucion)/ },
     { id: 'estructura', n: 'Estructura y gestión', w: 2, d: 'Que la empresa funcione sin depender de una persona: equipo, procesos, plan y agenda.', re: /(persona|puesto|equipo|lider|disc|proceso|plan de empresa|plan\b|agenda|meta|tarea|acuerdo|madurez|riesgo|organiz|responsable|objetivo)/ },
     { id: 'crecimiento', n: 'Crecimiento', w: 1, d: 'Crecer con la estructura y la caja que ya lo sostienen.', re: /(venta|crec|mercado|cliente|comercial|marketing|inversion|expansion|captacion)/ }
   ];
   const SEV = { stop: 2, warn: 1, ok: 0 };
+  // Comprobaciones que cuentan: las «sin datos» (st 'nd') no son prioridad ni cuentan en las capas
   const capaDe = (x, mundo) => {
     const t = norm(x.t + ' ' + (x.d || '') + ' ' + (x.zona || ''));
     if (mundo === 'simulador' && x.zona === 'riesgos' && /liquidez|caja|colchon|deuda|cobertura/.test(t)) return 'liquidez';
@@ -45,8 +46,9 @@
     if (!A.nota || !A.nota.calcular) return null;
     const nt = (A.nota.ultima && A.nota.ultima()) || (await A.nota.calcular());
     const objs = await objetivos();
-    const puntos = [];
-    Object.entries(nt.mundos).forEach(([k, m]) => (m.puntos || []).forEach((x) => {
+    const puntos = [], real = !!(P() && P().modoReal && P().modoReal());
+    // Con datos reales, nada que venga de datos de ejemplo puede ser una prioridad
+    Object.entries(nt.mundos).forEach(([k, m]) => (m.puntos || []).filter((x) => SEV[x.st] != null && !(real && /ejemplo/i.test(x.t + ' ' + (x.d || '')))).forEach((x) => {
       const capa = capaDe(x, k), obj = objs.find((o) => o.capa === capa) || null;
       const score = x.st === 'ok' ? 0 : W[capa].w * SEV[x.st] * (x.peso || 1) + (obj ? 3 : 0);
       puntos.push(Object.assign({}, x, { mundo: k, mundoN: m.n, capa, capaN: W[capa].n, obj, score }));
@@ -56,7 +58,10 @@
     const capas = CAPAS.map((c) => { const l = puntos.filter((x) => x.capa === c.id); const r = l.filter((x) => x.st === 'stop').length, a = l.filter((x) => x.st === 'warn').length;
       return Object.assign({}, c, { total: l.length, rojos: r, ambar: a, verdes: l.length - r - a, st: !l.length ? '' : r ? 'stop' : a ? 'warn' : 'ok' }); });
     const cp = (id) => capas.find((c) => c.id === id);
-    const eq = cp('datos').rojos ? { st: 'stop', t: 'Sin base: faltan datos reales', d: 'Cargue los datos reales: con datos de ejemplo no se puede saber si la empresa es viable.' }
+    // Sin comprobaciones de liquidez o de rentabilidad no se puede afirmar nada del equilibrio: queda sin evaluar (neutro)
+    const faltan = ['liquidez', 'rentabilidad'].filter((id) => !cp(id).total);
+    const eq = faltan.length ? { st: '', t: 'Sin evaluar: faltan datos de ' + faltan.join(' y '), d: 'Cargue las cuentas de la empresa (o responda las preguntas del simulador) para comprobar la ' + faltan.join(' y la ') + '.' }
+      : cp('datos').rojos ? (real ? { st: 'stop', t: 'Sin base suficiente: faltan datos de la empresa', d: 'Complete los datos que faltan (Origen de datos y cuentas): sin ellos no se puede afirmar si la empresa es viable.' } : { st: 'stop', t: 'Sin base: faltan datos reales', d: 'Cargue los datos reales: con datos de ejemplo no se puede saber si la empresa es viable.' })
       : cp('liquidez').rojos ? { st: 'stop', t: 'Equilibrio no alcanzado: primero la liquidez', d: 'Hay semáforos de caja o deuda en rojo. Hasta que la empresa pueda pagar con holgura, no se trabaja el crecimiento.' }
         : cp('rentabilidad').rojos ? { st: 'warn', t: 'Liquidez sostenida, falta rentabilidad', d: 'La caja aguanta, pero lo que se hace no deja el margen suficiente: precios, costes y clientes que dejan dinero.' }
           : cp('liquidez').ambar || cp('rentabilidad').ambar ? { st: 'warn', t: 'Equilibrio viable, con vigilancia', d: 'Sin rojos en liquidez ni rentabilidad, pero con puntos en ámbar que conviene cerrar antes de crecer.' }
