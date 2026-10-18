@@ -55,5 +55,4 @@
 .lb-aviso { color: var(--warn, #e8a33b); max-width: 70ch; }
 
 /* En el PDF por trozos los saltos de página los pone el propio troceado */
-.pdf-trozo .lb-secp, .pdf-trozo .lb-cap, .pdf-trozo .lb-pp { break-before: auto !important; page-break-before: auto !important; }
 @media (max-width: 600px) { .paper.rp .lb-intro, .paper.rp .lb-indice { padding: 20px 18px 6px; } .paper.rp .lb-indice em { margin-left: 0; } .paper.rp .lb-secp { padding: 70px 20px 40px; } .paper.rp .lb-caph { padding: 10px 18px; } }
