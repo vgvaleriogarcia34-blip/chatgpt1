@@ -152,7 +152,6 @@
 @media (max-width: 640px) { .paper .pe-tabs.pe-print { grid-template-columns: 1fr; } }
 .paper .pe-rueda { max-width: 260px; }
 .paper .pe-pn { fill: #14171e; stroke: #fff; }
-@media (max-width: 720px) { .topbar a.btn.pe-hide-s { display: none; } }
 /* Texto que se lee en Libre Franklin y a la izquierda; las cifras, en mono */
 .pe-table th, .pe-table td { text-align: left; font-family: var(--font-body); }
 .pe-table td.small { white-space: normal; min-width: 220px; }

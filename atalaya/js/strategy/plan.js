@@ -19,7 +19,7 @@
   };
   /* Los cuatro cruces del CAME */
   const CRUCES = [
-    { k: 'FO', tipo: 'Explotar', estrategia: 'Ofensiva', a: 'f', b: 'o', txt: (x, y) => `Usar «${x}» para aprovechar «${y}».`, desc: 'Fortalezas × Oportunidades: crecer apoyándote en lo que haces bien.' },
+    { k: 'FO', tipo: 'Explotar', estrategia: 'Ofensiva', a: 'f', b: 'o', txt: (x, y) => `Usar «${x}» para aprovechar «${y}».`, desc: 'Fortalezas × Oportunidades: crecer apoyándose en lo que hace bien.' },
     { k: 'FA', tipo: 'Mantener', estrategia: 'Defensiva', a: 'f', b: 'a', txt: (x, y) => `Reforzar «${x}» para protegerse de «${y}».`, desc: 'Fortalezas × Amenazas: blindar lo que le diferencia frente a lo que viene.' },
     { k: 'DO', tipo: 'Corregir', estrategia: 'Reorientación', a: 'd', b: 'o', txt: (x, y) => `Corregir «${x}» para no perder «${y}».`, desc: 'Debilidades × Oportunidades: arreglar lo que le impide aprovechar el mercado.' },
     { k: 'DA', tipo: 'Afrontar', estrategia: 'Supervivencia', a: 'd', b: 'a', txt: (x, y) => `Reducir la exposición: «${x}» frente a «${y}».`, desc: 'Debilidades × Amenazas: donde es débil y el entorno aprieta. Prioridad de protección.' }
@@ -123,7 +123,7 @@
             ${propuestas.filter((x) => x.c.k === c.k).map((x) => `<div class="cprop"><span>${esc(x.accion)}</span><button class="btn ghost" data-cadd="${esc(x.accion)}" data-ck="${c.k}" data-ci="${x.impacto}">Añadir</button></div>`).join('') || '<p class="small muted">Añada puntos al DAFO para ver propuestas.</p>'}
             <ul class="small">${p.came.filter((x) => x.cruce === c.k).map((x) => `<li>${esc(x.accion)}</li>`).join('')}</ul></div>`).join('')}</div>
           <div id="plCame" class="mt"></div>
-          ${p.came.length && p.valores.length ? `<h4 class="mt">Filtro de valores</h4><p class="small muted">Para cada acción, marca si refuerza (+), es neutra (·) o choca (−) con cada valor. La puntuación va de −100 a +100; una acción que choca con un valor de peso 4-5 queda marcada para revisar.</p>
+          ${p.came.length && p.valores.length ? `<h4 class="mt">Filtro de valores</h4><p class="small muted">Para cada acción, marque si refuerza (+), es neutra (·) o choca (−) con cada valor. La puntuación va de −100 a +100; una acción que choca con un valor de peso 4-5 queda marcada para revisar.</p>
           <div class="table-wrap"><table class="vfilter"><thead><tr><th style="text-align:left">Acción</th>${p.valores.map((v) => `<th title="${esc(v.conducta)}">${esc(v.valor)}<br><span class="hint">peso ${v.peso}</span></th>`).join('')}<th>Encaje</th><th></th></tr></thead><tbody>
             ${p.came.map((x, i) => { const e = encaje(x); return `<tr><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(x.accion)}</td>${p.valores.map((v, j) => `<td><select class="input" data-enc="${i}:${j}" aria-label="${esc(v.valor)}">${[['1', '+'], ['0', '·'], ['-1', '−']].map(([val, l]) => `<option value="${val}" ${String((x.encaje || {})[j] || 0) === val ? 'selected' : ''}>${l}</option>`).join('')}</select></td>`).join('')}
               <td><span class="state st-${e.choques.length ? 'stop' : e.sc >= 30 ? 'ok' : 'warn'}">${e.sc > 0 ? '+' : ''}${e.sc}</span>${e.choques.length ? `<div class="hint">choca con ${esc(e.choques.join(', '))}</div>` : ''}</td>

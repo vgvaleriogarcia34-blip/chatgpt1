@@ -16,7 +16,7 @@
       cards: [
         [0, 'Puente de mando', '¿Cómo está todo de un vistazo?', 'kpis'],
         [1, 'La empresa hoy', '¿Cómo es su empresa ahora mismo?', 'bars'],
-        [1, 'Historia y cuentas', '¿De dónde viene? Tus cuentas de otros años.', 'table'],
+        [1, 'Historia y cuentas', '¿De dónde viene? Sus cuentas de otros años.', 'table'],
         [2, 'La inversión', '¿Qué quiere hacer y cómo lo paga?', 'donut'],
         [3, 'Horizonte 3D', '¿Qué pasa si cambian dos cosas a la vez?', 'terrain'],
         [3, 'Escenarios', '¿Y si sale peor, o mejor?', 'lines'],

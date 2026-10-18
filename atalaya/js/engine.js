@@ -447,7 +447,7 @@
     { p: 'humano.procesos', l: 'Procesos documentados', min: 0, max: 100, step: 5, u: '%', d: 'Parte de los procesos críticos escritos y transmisibles. Por debajo del 50 %, cada incorporación depende de quién le enseñe.' },
     { p: 'humano.rotacion', l: 'Rotación anual', min: 0, max: 60, step: 1, u: '%', d: 'Personas que se van al año sobre la plantilla. Por encima del 15 %, el conocimiento se escapa más rápido de lo que se documenta.' },
     { p: 'humano.clima', l: 'Clima laboral (eNPS)', min: -100, max: 100, step: 5, u: 'pts', d: 'Recomendarían trabajar aquí: % promotores menos % detractores. Positivo es sano; negativo anticipa rotación.' },
-    { p: 'humano.tiempoContratacion', l: 'Meses para contratar', min: 0, max: 12, step: 1, u: 'meses', d: 'Tiempo medio desde que abres un proceso hasta que la persona se incorpora.' },
+    { p: 'humano.tiempoContratacion', l: 'Meses para contratar', min: 0, max: 12, step: 1, u: 'meses', d: 'Tiempo medio desde que se abre un proceso hasta que la persona se incorpora.' },
     { p: 'humano.costeSeleccion', l: 'Coste de selección por persona', min: 0, max: 20000, step: 250, u: '€', d: 'Anuncios, consultora, horas de entrevista y alta. Se paga una vez al incorporar y entra en la caja.' },
     { p: 'humano.curva', l: 'Meses hasta productividad plena', min: 0, max: 18, step: 1, u: 'meses', d: 'Tiempo que tarda una persona nueva en rendir al 100 %. Si es más largo que la rampa comercial, frena la rampa.' },
     { p: 'humano.formacion', l: 'Formación anual por persona', min: 0, max: 80, step: 2, u: 'horas', d: 'Horas de formación al año. Menos de 20 horas suele indicar que se aprende solo por imitación.' },

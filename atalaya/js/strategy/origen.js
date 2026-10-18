@@ -198,7 +198,7 @@
       const C = S.state.comercial, old = new Map((C.canales || []).map((c) => [c.canal, c])), mg = S.sim.empresa.margen || 35;
       const L = res.rows.filter((r) => r.canal).map((r) => { const o = old.get(String(r.canal).trim()) || {}; const leads = num(r.leads) || o.leads || 0; return { canal: String(r.canal).trim(), inversion: Math.round(num(r.inversion) || o.inversion || 0), leads, oportunidades: num(r.oportunidades) || o.oportunidades || Math.round(leads * 0.2), clientes: num(r.clientes) || o.clientes || 0, ticket: o.ticket || 10000, margen: o.margen || mg, recurrencia: o.recurrencia || 3 }; });
       if (L.length) C.canales = L;
-      return { mods: TIPOS.marketing.mods, txt: `${L.length} canales · revisa en Marketing el ticket medio y la recurrencia`, aviso: true };
+      return { mods: TIPOS.marketing.mods, txt: `${L.length} canales · revise en Marketing el ticket medio y la recurrencia`, aviso: true };
     }
   };
 

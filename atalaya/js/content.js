@@ -118,7 +118,7 @@
     jv: {
       como: 'Un socio industrial del sector comparte al 50 % la inversión, la venta y el riesgo, normalmente a través de una sociedad conjunta (o una UTE para proyectos temporales).',
       flujo: { nodos: ['Su empresa', 'Sociedad conjunta', 'Socio industrial'], flechas: [[0, 1, '50 % capital'], [2, 1, '50 % capital y canal'], [1, 0, '50 % beneficio']] },
-      ventajas: ['Mitad de inversión y de riesgo', 'El socio aporta canal, tecnología o clientes: la rampa se acorta (aquí un 30 %)', 'Acceso a mercados que solo no alcanzarías'],
+      ventajas: ['Mitad de inversión y de riesgo', 'El socio aporta canal, tecnología o clientes: la rampa se acorta (aquí un 30 %)', 'Acceso a mercados que en solitario no alcanzaría'],
       inconvenientes: ['Solo se queda con la mitad del beneficio', 'Riesgo de bloqueo con un 50/50', 'El socio aprende su negocio', 'Negociación larga'],
       fiscal: ['Sociedad conjunta: tributa por el Impuesto sobre Sociedades; los dividendos a cada socio, exentos al 95 % si cumplen requisitos', 'UTE: régimen especial en el que los resultados se imputan a las empresas miembro'],
       requisitos: ['Pacto de socios con mecanismos de desbloqueo y salida', 'Reparto claro de funciones, precios de transferencia y no competencia'],

@@ -181,7 +181,7 @@
     if (deuda < 0) lectura.push(`${A.fmt.eur(-deuda)} se usaron para devolver préstamos.`);
     if (div > 0) lectura.push(`${A.fmt.eur(div)} salieron como dividendos.`);
     if (falta.length) lectura.push(`Año incompleto: sin dato de ${falta.map((k) => ((FIN.CONCEPTS.find((c) => c.k === k) || {}).l || k).replace(/ \(.*\)$/, '').toLowerCase()).join(', ')} en ${p.anio} o en ${a.anio}; esa variación no se calcula (no se toma como cero).`);
-    if (!falta.length && Math.abs(cajaReal - calculado) > base * 0.15) lectura.push(`Hay ${A.fmt.eur(Math.abs(cajaReal - calculado))} en otras partidas que no se explican con los datos cargados: revisa Hacienda pública, otros deudores y acreedores.`);
+    if (!falta.length && Math.abs(cajaReal - calculado) > base * 0.15) lectura.push(`Hay ${A.fmt.eur(Math.abs(cajaReal - calculado))} en otras partidas que no se explican con los datos cargados: revise Hacienda pública, otros deudores y acreedores.`);
     return { anio: a.anio, previo: p.anio, beneficio: bn, recursos, cajaReal, items, destinos, lectura, atrapado, falta };
   };
 

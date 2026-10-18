@@ -118,7 +118,7 @@
     opts = opts || {};
     if (!c || c.sinDatos) return `<p class="small muted cf-vacio" style="margin:0">Sin cifras de la empresa: cargue sus cuentas en el simulador o responda sus preguntas. Nada de lo que falta se toma como cero.</p>`;
     const ks = opts.campos || CAMPOS.map((x) => x.k);
-    return `<div class="cf-grid" data-cifras>${ks.map((k) => { const d = CAMPOS.find((x) => x.k === k) || { n: k }; return `<div class="cf-it" data-cifra="${esc(k)}" title="${esc(d.exp || '')}"><small>${esc(d.n)}</small><b>${esc(fmt(k, c[k]))}</b><em>${c[k] == null ? 'Sin dato' : esc(c.origen[k]) + ' · ' + esc(fechaTxt(c.fecha[k]))}</em></div>`; }).join('')}</div>`
+    return `<div class="cf-grid" data-cifras>${ks.map((k) => { const d = CAMPOS.find((x) => x.k === k) || { n: k }; return `<div class="cf-it" data-cifra="${esc(k)}" title="${esc(d.exp || '')}"><small>${esc(d.n)}</small><b>${esc(fmt(k, c[k]))}</b><em>${c[k] == null ? 'Sin dato' : esc(c.origen[k]) + ' · ' + esc(fechaTxt(c.fecha[k]))}</em>${d.exp ? `<details class="cf-q"><summary aria-label="Qué significa ${esc(d.n)}">?</summary><span>${esc(d.exp)}</span></details>` : ''}</div>`; }).join('')}</div>`
       + (c.ejemplo ? '<p class="small" style="margin:0;color:var(--warn)">Cifras de ejemplo: cargue las de la empresa antes de decidir con ellas.</p>' : '')
       + (opts.avisos !== false && c.avisos.length ? `<ul class="small cf-avisos" style="margin:0;padding-left:18px;color:var(--warn)">${c.avisos.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` : '');
   };
@@ -126,7 +126,7 @@
   const css = () => {
     if (document.getElementById('cfCss')) return;
     const s = document.createElement('style'); s.id = 'cfCss';
-    s.textContent = '.cf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.cf-it{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line,rgba(255,255,255,.12));border-radius:12px;min-width:0}.cf-it small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted,#9aa)}.cf-it b{font-size:18px;font-variant-numeric:tabular-nums}.cf-it em{font-style:normal;font-size:11px;color:var(--muted,#9aa);overflow-wrap:anywhere}';
+    s.textContent = '.cf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.cf-it{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line,rgba(255,255,255,.12));border-radius:12px;min-width:0}.cf-it small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted,#9aa)}.cf-it b{font-size:18px;font-variant-numeric:tabular-nums}.cf-it em{font-style:normal;font-size:11px;color:var(--muted,#9aa);overflow-wrap:anywhere}.cf-q{font-size:12px;color:var(--muted,#9aa)}.cf-q summary{cursor:pointer;list-style:none;display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--line,rgba(255,255,255,.2));border-radius:50%;font-weight:600}.cf-q summary::-webkit-details-marker{display:none}.cf-q span{display:block;margin-top:4px;line-height:1.4}@media print{.cf-q{display:none}}';
     (document.head || document.documentElement).appendChild(s);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', css); else css();

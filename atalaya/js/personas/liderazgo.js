@@ -175,7 +175,7 @@
     informe: () => { const p = liderDe(); if (p) R.informeLider(p); }, informeTxt: 'Informe del líder',
     render(host) {
       const p = liderDe();
-      if (!p) { host.innerHTML = R.vacia('Primero da de alta a las personas de la plantilla y marca de quién depende cada una.', 'Ir a la plantilla'); return; }
+      if (!p) { host.innerHTML = R.vacia('Primero dé de alta a las personas de la plantilla y marque de quién depende cada una.', 'Ir a la plantilla'); return; }
       const est = p.lid && p.lid.estilo, modo = bor['lidModo:' + p.id];
       host.innerHTML = cabLider(host, p, est && !modo ? '<span class="spacer"></span><button class="btn ghost small" id="lidRep">Repetir test</button>' : '');
       wireLider(host);
@@ -303,7 +303,7 @@
     informe: () => { const p = liderDe(); if (p) R.informeLidEquipo(p); }, informeTxt: 'Acuerdos del equipo',
     render(host) {
       const p = liderDe();
-      if (!p) { host.innerHTML = R.vacia('Primero da de alta a las personas de la plantilla y marca de quién depende cada una.', 'Ir a la plantilla'); return; }
+      if (!p) { host.innerHTML = R.vacia('Primero dé de alta a las personas de la plantilla y marque de quién depende cada una.', 'Ir a la plantilla'); return; }
       const filas = R.mapaMando(p), c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp);
       host.innerHTML = cabLider(host, p, `<span class="small muted">${c ? 'Estilo principal: ' + esc(E[c.pri].n) : 'Sin test de estilo'}</span>`);
       wireLider(host);

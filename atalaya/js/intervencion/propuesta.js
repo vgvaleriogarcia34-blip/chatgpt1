@@ -63,7 +63,7 @@
         if (d.length > LOGO_MAX) { const c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = cv.height; const x2 = c2.getContext('2d'); x2.fillStyle = '#fff'; x2.fillRect(0, 0, c2.width, c2.height); x2.drawImage(cv, 0, 0); d = c2.toDataURL('image/jpeg', 0.86); }
         if (d.length <= LOGO_MAX) return ok(d);
       }
-      ko(new Error('El logotipo sigue pesando más de 200 KB: prueba con una imagen más sencilla.'));
+      ko(new Error('El logotipo sigue pesando más de 200 KB: pruebe con una imagen más sencilla.'));
     };
     im.onerror = () => { URL.revokeObjectURL(url); ko(new Error('No se pudo leer la imagen.')); };
     im.src = url;

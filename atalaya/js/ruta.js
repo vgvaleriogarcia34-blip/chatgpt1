@@ -14,7 +14,7 @@
 
   const FASES = [
     { k: 'vista', n: 'Visión general', ids: ['puente'] },
-    { k: 'empresa', n: 'Tu empresa', ids: ['empresa', 'historia'] },
+    { k: 'empresa', n: 'Su empresa', ids: ['empresa', 'historia'] },
     { k: 'mov', n: 'El movimiento', ids: ['inversion'] },
     { k: 'ensayo', n: 'Ensayar el futuro', ids: ['horizonte', 'escenarios', 'riesgos'] },
     { k: 'cambio', n: 'Lo que cambia', ids: ['tamano', 'humano', 'estructuras'] },

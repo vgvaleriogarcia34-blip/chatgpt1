@@ -75,7 +75,7 @@
     let texto;
     if (n.endsWith('.pdf')) texto = await pdfText(file);
     else if (n.endsWith('.docx')) texto = await docxText(file);
-    else if (n.endsWith('.doc')) throw new Error('El formato .doc antiguo no se puede leer. Guárdalo como .docx o PDF.');
+    else if (n.endsWith('.doc')) throw new Error('El formato .doc antiguo no se puede leer. Guárdelo como .docx o PDF.');
     else if (/\.(csv|tsv|txt|md|markdown|json)$/.test(n)) texto = await file.text();
     else throw new Error('Formato no reconocido. Use PDF, Word, Excel, CSV, Markdown o texto.');
     return { texto, hojas: [{ hoja: file.name, rows: D.textToRows(texto) }] };

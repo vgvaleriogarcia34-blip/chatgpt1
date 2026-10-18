@@ -87,7 +87,7 @@
     if (!P.puede('estrategia')) $$('.pt-labels [data-w="est"]').forEach((x) => { x.classList.add('pt-lock'); const q = x.querySelector('.pt-q'); if (q) q.textContent = `Incluido desde el plan Profesional · ${P.verbo()} para ver los planes`; });
     // Desde la página comercial con la sesión abierta: abrir el cambio de plan con el elegido
     const hp = (location.hash.match(/^#plan-(esencial|profesional|consultora|grupos)/) || [])[1];
-    if (hp) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } setTimeout(() => P.panelPlanes({ destacar: hp, motivo: hp !== P.user.plan ? `Has elegido ${P.PLANES[hp].nombre}. Cámbialo aquí: se aplica al momento y conservas todos tus datos.` : '' }), 300); }
+    if (hp) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } setTimeout(() => P.panelPlanes({ destacar: hp, motivo: hp !== P.user.plan ? `Ha elegido ${P.PLANES[hp].nombre}. Cámbielo aquí: se aplica al momento y conserva todos sus datos.` : '' }), 300); }
     // Con una sola empresa no se abre el mapa: la ficha se completa cuando se quiera, desde la barra de empresa
     if (location.hash === '#empresas' || (multi && !SS.get('atalaya.emp.elegida'))) abrirPaso(); else pintarBarra();
     // Primera visita de una cuenta nueva: una tarjeta con la acción clave (cargar cuentas, preguntas o el ejemplo); se pregunta una vez

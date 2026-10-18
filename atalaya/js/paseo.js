@@ -71,7 +71,7 @@
       ben: () => 'El relevo generacional necesita algo escrito: cómo se decide, qué se mide y hacia dónde va la empresa. El libro lo junta sin rehacer nada.' },
     { p: 'portal.html', m: 'Puesto de mando', t: 'Lo que gana Valdenorte',
       que: 'Todo enlazado: las cuentas alimentan el simulador y el sistema estratégico; las conversaciones, la auditoría; la auditoría, la mesa; y la mesa, el libro.',
-      ben: (k) => `Unos ${eur(k.cajaDso)} de caja por cobrar antes, un riesgo de cliente medido, una línea que vendía por debajo de su coste, un relevo en marcha y una inversión de ${meur(k.inversion)} decidida con números. Puedes seguir probando con la empresa modelo o salir y volver a tu empresa.`, fin: true }
+      ben: (k) => `Unos ${eur(k.cajaDso)} de caja por cobrar antes, un riesgo de cliente medido, una línea que vendía por debajo de su coste, un relevo en marcha y una inversión de ${meur(k.inversion)} decidida con números. Puede seguir probando con la empresa modelo o salir y volver a su empresa.`, fin: true }
   ];
   const aqui = (s) => { const f = location.pathname.split('/').pop() || 'portal.html'; return f === s.p; };
   const url = (s) => s.p + (s.h ? '#' + s.h : '');

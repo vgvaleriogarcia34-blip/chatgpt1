@@ -163,7 +163,7 @@
     ball.position.set(mx, my + 1.2, mz); root.add(ball);
     const ring = new THREE_.Mesh(new THREE_.RingGeometry(0.3, 0.36, 40), new THREE_.MeshBasicMaterial({ color: 0xd4ae64, transparent: true, opacity: 0.7, side: THREE_.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(mx, my + 0.02, mz); root.add(ring); pulse = ring;
-    label('Tu plan', new THREE_.Vector3(mx, my + 1.65, mz), 'axis');
+    label('Su plan', new THREE_.Vector3(mx, my + 1.65, mz), 'axis');
     // Ejes
     const ax = A.AXES[sf.ax], ay = A.AXES[sf.ay];
     const fmtA = (a, v) => a.unidad === '€' ? A.fmt.eur(v) : `${A.fmt.num(v)} ${a.unidad}`;
@@ -181,7 +181,7 @@
       const st = { go: 'Avanzar', warn: 'Con condiciones', stop: 'Rediseñar' }[c.estado];
       return {
         cell: c, ax: sf.ax, ay: sf.ay,
-        html: `<h5>${st}</h5><div class="fv">${M.fmt(c.v)}</div><dl><dt>${ax.nombre}</dt><dd>${fmtA(ax, c.x)}</dd><dt>${ay.nombre}</dt><dd>${fmtA(ay, c.y)}</dd><dt>Caja mínima</dt><dd>${A.fmt.eur(c.cajaMin)}</dd><dt>Recuperación</dt><dd>${A.fmt.months(c.payback)}</dd><dt>Cobertura</dt><dd>${A.fmt.x(c.dscr)}</dd></dl><p>Haz clic para fijar esta combinación.</p>`
+        html: `<h5>${st}</h5><div class="fv">${M.fmt(c.v)}</div><dl><dt>${ax.nombre}</dt><dd>${fmtA(ax, c.x)}</dd><dt>${ay.nombre}</dt><dd>${fmtA(ay, c.y)}</dd><dt>Caja mínima</dt><dd>${A.fmt.eur(c.cajaMin)}</dd><dt>Recuperación</dt><dd>${A.fmt.months(c.payback)}</dd><dt>Cobertura</dt><dd>${A.fmt.x(c.dscr)}</dd></dl><p>Pulse para fijar esta combinación.</p>`
       };
     };
     hoverMeshes.push(mesh);
@@ -224,7 +224,7 @@
       mesh.userData.read = (p) => {
         const i = Math.max(0, Math.min(n - 1, Math.round(((p.x + LEN / 2) / LEN) * (n - 1))));
         const v = s.data[i];
-        return { traj: true, html: `<h5>${s.name} · mes ${i + 1}</h5><div class="fv" style="color:${v < 0 ? css('--stop') : 'inherit'}">${A.fmt.eur(v)}</div><p>${v < 0 ? 'Caja negativa: necesitarías financiación adicional este mes.' : v < target ? 'Por debajo de tu caja mínima objetivo.' : 'Por encima de tu caja mínima objetivo.'}</p>` };
+        return { traj: true, html: `<h5>${s.name} · mes ${i + 1}</h5><div class="fv" style="color:${v < 0 ? css('--stop') : 'inherit'}">${A.fmt.eur(v)}</div><p>${v < 0 ? 'Caja negativa: necesitaría financiación adicional este mes.' : v < target ? 'Por debajo de su caja mínima objetivo.' : 'Por encima de su caja mínima objetivo.'}</p>` };
       };
       hoverMeshes.push(mesh);
     });

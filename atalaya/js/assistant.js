@@ -271,7 +271,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
       return `Abro ${mod.nombre}. ${k.map((x) => `${x.indicador}: ${x.valor}${x.estado ? ' (' + x.estado.toLowerCase() + ')' : ''}`).join('; ')}`;
     }
     if (/(riesgo|preocup|peligro)/.test(t)) return S.riesgos.length ? 'Los riesgos principales son: ' + S.riesgos.slice(0, 4).map((r) => `${r.riesgo.toLowerCase()} (${r.area.toLowerCase()})`).join('; ') + '. Primera medida: ' + S.riesgos[0].mitigacion : 'No veo riesgos altos con los datos actuales.';
-    if (/(mejora|oportunidad|donde gano|ahorro|que hago)/.test(t)) return S.hallazgos.length ? 'Las mayores oportunidades: ' + S.hallazgos.slice(0, 4).map((h) => `${h.hallazgo} (${h.impactoAnual} al año)`).join(' ') : 'Completa los módulos para encontrar oportunidades.';
+    if (/(mejora|oportunidad|donde gano|ahorro|que hago)/.test(t)) return S.hallazgos.length ? 'Las mayores oportunidades: ' + S.hallazgos.slice(0, 4).map((h) => `${h.hallazgo} (${h.impactoAnual} al año)`).join(' ') : 'Complete los módulos para encontrar oportunidades.';
     if (/(resumen|como va|como esta|situacion)/.test(t)) { const red = S.indicadores.filter((x) => x.estado === 'Rojo'); return `Está en ${S.moduloActual}. ${red.length ? 'Indicadores en rojo: ' + red.slice(0, 5).map((x) => `${x.indicador.toLowerCase()} (${x.area.toLowerCase()}): ${x.valor}`).join('; ') + '.' : 'No hay indicadores en rojo.'}`; }
     return null;
   }

@@ -415,8 +415,8 @@
     $('#panel').hidden = true; $('#admBar').hidden = true; $('#gate').hidden = false;
     const card = $('#gateCard');
     if (!st.configurado) {
-      card.innerHTML = `<div class="eyebrow">Administración</div><h1>Crea la contraseña <em>de administración</em></h1>
-        <p class="small muted">Solo quien tenga esta contraseña podrá entrar al gestor de usuarios. No está ligada a ninguna cuenta de cliente: guárdala en un gestor de contraseñas.</p>
+      card.innerHTML = `<div class="eyebrow">Administración</div><h1>Cree la contraseña <em>de administración</em></h1>
+        <p class="small muted">Solo quien tenga esta contraseña podrá entrar al gestor de usuarios. No está ligada a ninguna cuenta de cliente: guárdela en un gestor de contraseñas.</p>
         ${P.mode === 'server' ? '<p class="alert info">Escriba el código de configuración que aparece en la consola del servidor al arrancarlo (o arranque el servidor con ADMIN_PASSWORD).</p>' : '<p class="alert warn">Modo demostración: la contraseña se guarda solo en este navegador.</p>'}
         <form id="gForm">${P.mode === 'server' ? '<label>Código de configuración<input class="input" name="codigo" autocomplete="off" required></label><label>Su nombre (firma lo que haga en el registro de actividad)<input class="input" name="nombre" maxlength="60" autocomplete="name"></label>' : ''}
           <label>Contraseña de administración (mínimo 10 caracteres)<input class="input" type="password" name="pw" minlength="10" autocomplete="new-password" required></label>

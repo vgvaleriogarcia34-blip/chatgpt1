@@ -963,7 +963,7 @@
       </div>
       <div class="glass pad mt stack" id="moneyFlow"></div>
       <div class="glass pad mt"><h4>Ratios por año</h4><div class="table-wrap"><table>${head}<tbody>
-        ${line('Ventas', 'ventas', F.eur, 'ventas')}${line('Crecimiento', 'crec', F.pct)}${line('Margen bruto', 'margenPct', F.pct, 'margenPct')}${line('Beneficio antes de intereses e impuestos (EBITDA)', 'ebitda', F.eur, 'ebitda')}${line('EBITDA sobre ventas', 'ebitdaPct', F.pct, 'ebitdaPct')}
+        ${line('Ventas', 'ventas', F.eur, 'ventas')}${line('Crecimiento', 'crec', F.pct)}${line('Margen bruto', 'margenPct', F.pct, 'margenPct')}${line('Beneficio antes de intereses e impuestos (EBITDA)', 'ebitda', F.eur, 'ebitda')}${line('Beneficio del negocio sobre ventas (EBITDA %)', 'ebitdaPct', F.pct, 'ebitdaPct')}
         ${line('Beneficio neto', 'bn', F.eur)}${line('Peso salarial', 'pesoSalarial', F.pct, 'pesoSalarial')}${line('Ventas por persona', 'ventasPersona', F.eur)}
         ${line('Días de cobro', 'dso', days, 'dso')}${line('Días de stock', 'dio', days)}${line('Días de pago', 'dpo', days)}${line('Fondo de maniobra', 'fondoManiobra', F.eur)}
         ${line('Liquidez (activo corriente ÷ pasivo corriente)', 'liquidez', F.x)}${line('Deuda neta ÷ EBITDA (años para pagarla)', 'dfnEbitda', (v) => (v < 0 ? 'caja neta' : F.x(v)))}${line('Deuda / fondos propios', 'endeudamiento', F.x)}

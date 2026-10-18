@@ -111,7 +111,6 @@
 .ms-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 300; max-width: min(560px, calc(100vw - 32px)); background: var(--panel-solid); box-shadow: var(--shadow); }
 .mesa-btn { white-space: nowrap; }
 @media (max-width: 720px) {
-  .topbar a.btn.ms-hide-s { display: none; }
   .ms-t { grid-template-columns: auto minmax(0, 1fr) auto; }
   .ms-t .ms-dur { grid-column: 2; grid-row: 2; }
   .ms-t .ms-acc { grid-row: 1 / span 2; grid-column: 3; }
