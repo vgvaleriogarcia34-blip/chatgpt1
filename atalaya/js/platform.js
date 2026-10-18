@@ -368,6 +368,20 @@
     const s = L.session(); return s ? LS.get(`atalaya.data.${s.id}.${k}`) : null;
   };
 
+  /* Escribir un dato de otra empresa de la cuenta (vista de grupo) sin cambiar la empresa activa: «key» para la principal,
+     «key--id» para las demás. Mismo trato que saveData: en el servidor, si falla, queda pendiente y se reenvía. */
+  P.saveDataOf = async function (key, id, obj) {
+    await P.ready;
+    id = id || P.empresaId();
+    if (id === MID && SCOPED.includes(key)) { P.modelo.guardar(key, obj); return; }
+    const k = dk(key, id);
+    if (P.mode === 'server') {
+      try { await api('/data/' + encodeURIComponent(k), { method: 'PUT', body: JSON.stringify(obj) }); quitarPend(k); }
+      catch (e) { ponerPend(k, obj, e); }
+      return;
+    }
+    const s = L.session(); if (s) LS.set(`atalaya.data.${s.id}.${k}`, obj);
+  };
   P.saveData = async function (key, obj) {
     await P.ready;
     if (P.empresaId() === MID && SCOPED.includes(key)) { P.modelo.guardar(key, obj); return; }
@@ -1555,7 +1569,10 @@
     };
   };
 
-  /* ---------- Fondo animado compartido ---------- */
+  /* ---------- Fondo animado compartido ----------
+     Con una ventana encima (o la pestaña oculta) los fondos animados no se redibujan: bajo los paneles con desenfoque
+     cada fotograma obliga a recalcularlo y el contenido de la ventana tarda en pintarse. */
+  A.pausaFondo = () => document.hidden || !!document.querySelector('.modal-back, .ef-back, .ruta-map:not([hidden]), .rp-back, .ml-panel');
   A.sky = function () {
     const cv = document.getElementById('sky'); if (!cv) return;
     const g = cv.getContext('2d');
@@ -1581,6 +1598,6 @@
     };
     size(); addEventListener('resize', size);
     if (reduce) { draw(0); addEventListener('scroll', () => draw(0), { passive: true }); }
-    else { const loop = (t) => { draw(t); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+    else { const loop = (t) => { if (!A.pausaFondo()) draw(t); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
   };
 })();

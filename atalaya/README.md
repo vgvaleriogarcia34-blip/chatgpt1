@@ -40,6 +40,15 @@ Tercer mundo, exclusivo del plan Consultora (el resto lo ve y se le ofrece; el s
 
 En el plan Consultora cada informe tiene dos partes: **para la empresa** (hoja de ruta de implantación en tres fases con la señal de cada paso, pautas y reglas de seguimiento, reparto empresa-consultor) y **cuaderno del consultor**, interno (ficha del encargo, datos clave, plan de trabajo por sesiones, comprobaciones, notas, resistencias y próxima sesión), editable en el propio informe y guardado por empresa (`atalaya.consultor.v1`, en el servidor `consultor--id`). En el resto de planes, los informes del sistema estratégico llevan el apartado «Con su consultor».
 
+## Cifras, triaje y cartera del consultor
+
+- **Fuente única de cifras** (`js/cifras.js`): `A.cifras.leer(id)` y `A.cifras.actual()` devuelven ventas, EBITDA, deuda, deuda neta, caja, meses de caja, plantilla y días de cobro, cada una con su origen y su fecha (simulador, después cuentas cargadas, después ficha). Lo que falta es `null`, nunca 0. La usan simulador, sistema estratégico, tablero, auditoría (Foto 360, cruce) y grupo.
+- **Tablero**: «Cifras clave» con origen y fecha, y el **triaje del consultor** (`triajeAreas` de la auditoría) como capa más de las prioridades, con aviso cuando el triaje y los datos no coinciden.
+- **Cartera operativa** (grupo, plan Consultora): por cliente, etapa y paso del recorrido, próxima sesión, pendientes, triaje y nota con fecha. La auditoría guarda ese resumen en el campo `resumen` de la clave `intervencion`.
+- **Calendario según lo contratado**: las sesiones salen de los meses y la frecuencia de la propuesta de acompañamiento (Servicio 3).
+- **Plantillas de propuesta y catálogo de honorarios** de la firma: campo `plantillasFirma` de la entrada principal del registro `empresas`, junto a la ficha de la firma (`A.firma`). **Nueva empresa desde plantilla** copia ficha tipo, umbrales, puestos y propuesta base, nunca cifras, personas ni diagnóstico.
+- **Importación de la plantilla de personas en CSV** (archivo o texto pegado): nombre, apellidos, puesto, área, responsable y correo; sin duplicados.
+
 ## Mesa de trabajo (`mesa.html`)
 
 Un solo sitio para organizar el trabajo que sale del ecosistema y el que apunta el empresario. Datos por empresa en la clave `agenda` (navegador: `atalaya.agenda.v1`), en todos los planes.

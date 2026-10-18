@@ -118,7 +118,7 @@
   let frame = 0, last = performance.now();
   function loop(now) {
     requestAnimationFrame(loop);
-    if (!st.ready || document.hidden) return;
+    if (!st.ready || document.hidden || (A.pausaFondo && A.pausaFondo())) return;
     const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
     // Sin movimiento, el universo se mueve a menos fotogramas: deja la máquina para el trabajo
     frame++; if (now > busyUntil && frame % 3) return;

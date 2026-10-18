@@ -240,7 +240,7 @@
 
   function loop() {
     requestAnimationFrame(loop);
-    if (!visible || !renderer) return;
+    if (!visible || !renderer || (A.pausaFondo && A.pausaFondo())) return;
     idleT++;
     if (!dragging && !reduce && idleT > 180) cam.theta += 0.0012;
     const t = cam.target;
