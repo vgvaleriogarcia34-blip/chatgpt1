@@ -1,17 +1,18 @@
 {
   "name": "atalaya-server",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
-  "description": "Servidor de Atalaya: cuentas, control de acceso, uso, datos, asistente y agente de mercado",
+  "description": "Servidor de Atalaya: cuentas, control de acceso, cobro con Stripe, uso, datos (SQLite), asistente y agente de mercado",
   "type": "module",
   "main": "server.mjs",
   "scripts": {
     "start": "node server.mjs",
     "start:produccion": "NODE_ENV=production node server.mjs",
-    "check": "node --check server.mjs"
+    "check": "node --check server.mjs",
+    "exportar-json": "node server.mjs --exportar-json"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.5"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0"

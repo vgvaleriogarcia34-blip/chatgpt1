@@ -13,12 +13,12 @@
 <body class="site">
 <canvas id="sky" aria-hidden="true"></canvas>
 <div class="veil" aria-hidden="true"></div>
-<header class="topbar"><a class="brand" href="index.html"><b>Atalaya</b><span>Gestor de usuarios</span></a><span class="spacer"></span><div class="row" id="admBar" hidden><a class="btn ghost" href="manual.html#admin">Manual</a><button class="btn ghost" id="admPw">Contraseña de administración</button><button class="btn ghost" id="admOut">Salir</button></div></header>
+<header class="topbar"><a class="brand" href="index.html"><b>Atalaya</b><span>Gestor de usuarios</span></a><span class="spacer"></span><div class="row" id="admBar" hidden><a class="btn ghost" href="manual.html#admin">Manual</a><button class="btn ghost" id="admSeg" hidden>Seguridad</button><button class="btn ghost" id="admPw">Contraseña de administración</button><button class="btn ghost" id="admOut">Salir</button></div></header>
 <main class="auth" id="gate" hidden><div class="glass auth-card" id="gateCard"></div></main>
 <main class="admin-main" id="panel" hidden>
   <div class="eyebrow">Administración</div>
   <h2>Usuarios, <em>pagos y uso</em></h2>
-  <p class="lede">Controla quién tiene acceso, quién ha pagado, cuándo vence cada plan y cuántas horas usa cada cliente Atalaya.</p>
+  <p class="lede">Controla quién tiene acceso, quién ha pagado, cuándo vence cada plan y cuántas horas usa cada cliente Atalaya. Cada cambio queda en el registro de actividad.</p>
   <div id="modeNote" class="mt"></div>
   <div class="kpis" id="akpis"></div>
   <div class="grid cols-2 mt">
@@ -26,8 +26,13 @@
     <div class="glass pad stack"><h4>Pendiente de atender</h4><div id="pending" class="small"></div></div>
   </div>
   <div class="glass pad mt stack">
-    <div class="row"><h4>Usuarios</h4><span class="spacer"></span><input class="input" id="q" placeholder="Buscar por nombre, correo o empresa" style="min-width:240px"><select id="fEstado"><option value="">Todos</option><option value="prueba">En prueba</option><option value="activo">Pagando</option><option value="vencido">Vencidos o impagados</option><option value="bloqueado">Bloqueados</option></select><button class="btn ghost" id="csv">Copiar CSV</button></div>
+    <div class="row" style="flex-wrap:wrap"><h4>Usuarios</h4><span class="spacer"></span><input class="input" id="q" placeholder="Buscar por nombre, correo o empresa" aria-label="Buscar usuarios" style="min-width:min(240px,100%)"><select id="fEstado" aria-label="Filtrar por estado"><option value="">Todos</option><option value="prueba">En prueba</option><option value="activo">Pagando</option><option value="vencido">Vencidos o impagados</option><option value="bloqueado">Bloqueados</option></select><button class="btn" id="nuevo" hidden>Nuevo usuario</button><button class="btn ghost" id="csv">Descargar CSV</button></div>
     <div class="table-wrap" id="utable"></div>
+  </div>
+  <div class="glass pad mt stack" id="actBox" hidden>
+    <div class="row" style="flex-wrap:wrap"><h4>Registro de actividad</h4><span class="spacer"></span><input class="input" id="aq" placeholder="Correo, autor o acción" aria-label="Buscar en el registro" style="min-width:min(200px,100%)"><select id="aAcc" aria-label="Tipo de acción"></select><label class="small">Desde <input class="input" type="date" id="aDesde"></label><label class="small">Hasta <input class="input" type="date" id="aHasta"></label><button class="btn ghost" id="aCsv">Descargar CSV</button></div>
+    <p class="small muted" id="aNota" style="margin:0">Quién hizo qué y cuándo: cambios de plan, bloqueos, pagos, pruebas, cuentas creadas o eliminadas, solicitudes cerradas, cobros de Stripe y accesos a la administración, con el valor anterior y el nuevo. <span id="aCnt"></span></p>
+    <div class="table-wrap" id="atable"></div>
   </div>
 </main>
 <div class="modal-back" id="modal" hidden><div class="modal" role="dialog" aria-modal="true" id="modalBody"></div></div>

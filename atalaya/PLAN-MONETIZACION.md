@@ -5,7 +5,7 @@ Estado: **propuesta para decidir**. No hay nada construido de este plan.
 ## 1. Punto de partida
 
 - Cuatro planes: Esencial 49 €, Profesional 129 €, Consultora 349 € y Grupos por tramos (690, 970 y 1.790 €). Pago anual con un 30 % de descuento.
-- Prueba de 14 días; después, el administrador activa el acceso a mano.
+- Prueba de 14 días; después, el administrador activa el acceso a mano o, con el servidor 2.2 y Stripe configurado, el cobro con tarjeta lo activa solo (ver `PUESTA-EN-MARCHA.md`, apartado 5).
 - Hoy cada plan lo incluye todo lo suyo. Los módulos de la hoja de ruta (`AUDITORIA-MODULOS.md`) añaden mucho valor, pero meterlos todos en Profesional regala justo lo que más vale.
 
 ## 2. Principios
@@ -72,14 +72,14 @@ El calendario de obligaciones va en el núcleo: cuesta poco mantenerlo, se valor
 | Administración | Columna de packs editable, cuota total del cliente (plan + packs + perfiles) e ingreso mensual con los packs. |
 | Página comercial | Bajo los planes, una franja «Packs de diagnóstico» y la tarjeta Profesional Completo. |
 | Alta y fin de prueba | Pantalla de elección con la recomendación según el uso (Atalaya ya registra qué módulos se visitan). |
-| Cobro | En Stripe, cada pack es un complemento de la suscripción con su precio mensual y anual. Hasta tener el servidor, enlaces de pago y activación manual, como los planes. |
+| Cobro | En Stripe, cada pack es un complemento de la suscripción con su precio mensual y anual. El servidor 2.2 ya cobra los planes con Stripe Billing (Checkout, portal y aviso firmado); para los packs habría que añadir sus precios como líneas de la suscripción y leerlas en el aviso (`activarPorStripe` en `server.mjs`). Sin Stripe, enlaces de pago y activación manual, como los planes. |
 
 ## 6. Fases
 
 1. **Decidir** precios, el contenido de cada pack y qué incluyen Consultora y Grupos (sección 8).
 2. **Mecanismo:** packs en la plataforma, el servidor y la administración, vista previa de los módulos sin contratar, prueba con todo y recomendación al terminar. Se puede montar antes de que exista el primer módulo de pago.
 3. **Contenido:** cada módulo nuevo de la hoja de ruta nace dentro de su pack. Primero Banca (dossier y comparar inversiones), porque es el que antes se convierte en dinero para el cliente.
-4. **Cobro automático** cuando Atalaya esté en el servidor (ver `PUESTA-EN-MARCHA.md`).
+4. **Cobro automático**: hecho en el servidor para los planes (Stripe Billing, versión 2.2; ver `PUESTA-EN-MARCHA.md`, apartado 5). Falta el botón de pago con Checkout en la pantalla de activación (`js/platform.js`) y los packs.
 
 ## 7. Qué se puede esperar (ejemplo con 100 clientes Profesional)
 
@@ -106,4 +106,5 @@ Si además una de cada cinco cuentas añade un perfil de equipo, son 240 € má
 - **Aviso de fin de prueba:** desde el día 10 de 14, una banda bajo la cabecera de cada mundo: «Su prueba termina en N días · Activar ahora · Descargar mis datos». Hasta los tres últimos días se puede ocultar hasta el día siguiente; en los tres últimos vuelve en cada página (`P.avisoPrueba` en `js/platform.js`).
 - **Activar ahora / `acceso.html#pago`:** plan, cuota «+ IVA», enlace de pago si está configurado (`P.PAGO_URL` o `P.PAGO_URLS` por plan o plan-periodo; vacíos por defecto) y, si no, «Le enviaremos el enlace de pago» con teléfono y datos de facturación opcionales (marca `solicitudPago` y, si hay datos, deja un contacto a la administración). Contacto directo: `P.CONTACTO` (teléfono +34 678 447 296; el correo está vacío hasta que se configure). Respuesta «en 24 horas laborables».
 - **Copia de datos:** «Descargar todos mis datos» e «Importar una copia» en el menú de la cuenta. JSON con versión, fecha, correo y plan; la importación enseña un resumen y, si la cuenta ya tiene datos, solo ofrece «Reemplazar todo» con confirmación expresa. La empresa modelo no va en la copia.
-- **Pendiente en el servidor:** con la prueba terminada, `GET /api/data/:clave` responde 402 y la descarga desde `acceso.html#pago` no funciona en modo servidor (sí en modo local). Para permitir la lectura (y, si se quiere, un acceso de solo lectura de 30 días) basta con marcar esa ruta `{ noAccess: true }` y rechazar solo las cuentas bloqueadas.
+- **Lectura con la prueba terminada (hecho):** `GET /api/data/:clave` se permite aunque la prueba o el pago hayan vencido (solo se rechaza la cuenta bloqueada), así que «Descargar mis datos» funciona también en modo servidor; la escritura sigue respondiendo 402.
+- **Ampliar la prueba (servidor 2.2):** la administración puede dar más días de prueba (`pruebaHasta`) sin tocar la fecha de alta.

@@ -18,6 +18,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..');
 const DATA_DIR = path.resolve(env.ATALAYA_DATA || path.join(here, 'data'));
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+const DB_SQL = path.join(DATA_DIR, 'atalaya.db');
 const PORT = +env.PORT || 8080;
 const COOKIE = 'atalaya_sid';
 const SESSION_DAYS = 30;
@@ -37,6 +38,9 @@ const DATA_MAX_CLAVE = num('DATA_MAX_CLAVE_MB', 2) * 1024 * 1024;
 const DATA_MAX_CUENTA = num('DATA_MAX_CUENTA_MB', 25) * 1024 * 1024;
 const MAX_BODY = Math.max(4 * 1024 * 1024, DATA_MAX_CLAVE + 64 * 1024);
 const fallo = (code, msg, extra) => Object.assign(new Error(msg), { code, extra });
+const now = () => new Date().toISOString();
+const today = () => now().slice(0, 10);
+const nid = (p, n) => p + crypto.randomBytes(n || 6).toString('hex');
 
 /* ---------- Errores que no deben tumbar el servidor ---------- */
 process.on('unhandledRejection', (e) => console.error('Promesa rechazada sin controlar:', e));
@@ -51,19 +55,50 @@ process.on('uncaughtException', (e) => console.error('Excepción sin controlar (
     process.exit(1);
   }
 }
+// Todo lo que crea el servidor (base, copias, ficheros -wal y -shm de SQLite, secreto) solo lo lee su usuario
+process.umask(0o077);
 fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
 try { fs.chmodSync(DATA_DIR, 0o700); } catch { /* carpeta de otro usuario: se deja como está */ }
 
-/* ---------- Base de datos en un fichero JSON (escritura atómica y copias rotatorias) ---------- */
+/* ---------- Almacén: SQLite (node:sqlite) o, de respaldo, un fichero JSON ----------
+   SQLite (por defecto): una tabla por colección con una fila por registro. Cada guardado escribe, en una transacción,
+   solo las filas que han cambiado desde el anterior. Los datos de las cuentas (simulador, estrategia…), el análisis de
+   mercado y el registro de actividad no se cargan en memoria: se leen y escriben directamente en la base.
+   La primera vez se migra db.json, que se conserva como db.json.migrado-<fecha>.
+   ALMACEN=json mantiene el fichero JSON de las versiones anteriores (o se usa solo si este Node no trae node:sqlite). */
+let Sqlite = null;
+if ((env.ALMACEN || 'sqlite').toLowerCase() !== 'json') {
+  // En Node 22, node:sqlite avisa al cargarse de que es experimental. Solo se usa su parte básica (DatabaseSync, prepare,
+  // exec), así que ese aviso concreto se omite; cualquier otro aviso sale como siempre.
+  const avisar = process.emitWarning;
+  process.emitWarning = function (w, ...r) { const tipo = (r[0] && r[0].type) || r[0] || (w && w.name); if (tipo === 'ExperimentalWarning' && /SQLite/i.test(String((w && w.message) || w))) return; return avisar.call(process, w, ...r); };
+  try { Sqlite = await import('node:sqlite'); }
+  catch (e) {
+    if (fs.existsSync(DB_SQL)) { console.error(`\n  ERROR: la base es SQLite (${DB_SQL}) y este Node (${process.version}) no trae node:sqlite (${e.message}).\n  Usa Node 22.13 o superior. El servidor no arranca.\n`); process.exit(1); }
+    console.warn(`\n  Aviso: este Node (${process.version}) no trae node:sqlite: se sigue usando db.json. Para SQLite, Node 22.13 o superior.\n`);
+  } finally { process.emitWarning = avisar; }
+}
+const ALMACEN = Sqlite ? 'sqlite' : 'json';
 const COPIAS = 7;
-const copia = (i) => `${DB_FILE}.${i}`;
+const sello = () => now().replace(/[:.]/g, '-');
+const vacia = () => ({ users: [], sessions: {}, data: {}, mercado: {}, admin: null, adminSessions: {}, resets: {} });
+// Completa lo que falte en una base cargada (de cualquier versión) y da identificador a contactos y pagos antiguos
+function normalizar(d) {
+  d.users = Array.isArray(d.users) ? d.users : []; d.contactos = Array.isArray(d.contactos) ? d.contactos : [];
+  ['sessions', 'adminSessions', 'resets', 'invitaciones', 'lid360', 'stripeEventos', 'data', 'mercado'].forEach((k) => { if (!d[k] || typeof d[k] !== 'object') d[k] = {}; });
+  d.contactos.forEach((c) => { if (!c.id) c.id = nid('c'); });
+  d.users.forEach((u) => (u.pagos || []).forEach((p) => { if (!p.id) p.id = nid('p', 5); }));
+  return d;
+}
+
+/* --- db.json: lectura con recuperación desde las copias --- */
+const copiaJson = (i) => `${DB_FILE}.${i}`;
 const leerDb = (f) => { const d = JSON.parse(fs.readFileSync(f, 'utf8')); if (!d || typeof d !== 'object' || !Array.isArray(d.users)) throw new Error('estructura no válida'); return d; };
-let db = { users: [], sessions: {}, data: {}, mercado: {}, admin: null, adminSessions: {}, resets: {} };
-let recuperada = false;
-if (fs.existsSync(DB_FILE)) {
-  let datos = null;
+function cargarJson() {
+  if (!fs.existsSync(DB_FILE)) return { datos: null, recuperada: false };
+  let datos = null, recuperada = false;
   try { datos = leerDb(DB_FILE); } catch (e) {
-    const hay = Array.from({ length: COPIAS }, (_, i) => copia(i + 1)).filter((f) => fs.existsSync(f));
+    const hay = Array.from({ length: COPIAS }, (_, i) => copiaJson(i + 1)).filter((f) => fs.existsSync(f));
     console.error(`\n  ERROR: la base de datos ${DB_FILE} existe pero no se puede leer (${e.message}).`);
     if (env.ATALAYA_RECUPERAR !== '1' && env.ATALAYA_RECUPERAR !== 'vacia') {
       console.error(`  El servidor no arranca para no sobrescribirla. Copias disponibles: ${hay.length ? hay.join(', ') : 'ninguna'}.
@@ -71,7 +106,7 @@ if (fs.existsSync(DB_FILE)) {
   o sustituye db.json a mano por una copia. ATALAYA_RECUPERAR=vacia arranca con una base vacía (solo si no hay nada que salvar).\n`);
       process.exit(1);
     }
-    const danado = `${DB_FILE}.danado-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    const danado = `${DB_FILE}.danado-${sello()}`;
     fs.renameSync(DB_FILE, danado); console.warn(`  Fichero dañado apartado en ${danado}`);
     if (env.ATALAYA_RECUPERAR === '1') {
       for (const f of hay) { try { datos = leerDb(f); console.warn(`  Recuperada la copia ${f}`); break; } catch { console.warn(`  La copia ${f} tampoco se puede leer`); } }
@@ -79,20 +114,154 @@ if (fs.existsSync(DB_FILE)) {
     } else console.warn('  Arranque con base de datos vacía (ATALAYA_RECUPERAR=vacia).');
     recuperada = true;
   }
-  if (datos) Object.assign(db, datos);
   try { fs.chmodSync(DB_FILE, 0o600); } catch { /* sin fichero o sin permiso */ }
+  return { datos, recuperada };
 }
-db.sessions = db.sessions || {}; db.data = db.data || {}; db.mercado = db.mercado || {}; db.adminSessions = db.adminSessions || {}; db.resets = db.resets || {};
+
+/* --- SQLite: esquema con migraciones numeradas (PRAGMA user_version) --- */
+const COLS = { // tabla → registros [clave, valor] de la base en memoria
+  meta: (d) => ['admin', 'adminEnv', 'adminTotp', 'admin2faReset', 'sesionesHash'].filter((k) => d[k] != null).map((k) => [k, d[k]]),
+  usuarios: (d) => d.users.map((u) => [u.id, u]),
+  sesiones: (d) => Object.entries(d.sessions),
+  sesiones_admin: (d) => Object.entries(d.adminSessions),
+  resets: (d) => Object.entries(d.resets),
+  invitaciones: (d) => Object.entries(d.invitaciones),
+  lid360: (d) => Object.entries(d.lid360),
+  contactos: (d) => d.contactos.map((c) => [c.id, c]),
+  stripe_eventos: (d) => Object.entries(d.stripeEventos)
+};
+const OBJ = { sesiones: 'sessions', sesiones_admin: 'adminSessions', resets: 'resets', invitaciones: 'invitaciones', lid360: 'lid360', stripe_eventos: 'stripeEventos' };
+const MIGRACIONES = [
+  // 1 · colecciones (una fila por registro, en JSON), datos por cuenta y clave, y análisis de mercado
+  Object.keys(COLS).map((t) => `CREATE TABLE ${t} (k TEXT PRIMARY KEY, v TEXT NOT NULL);`).join('\n') + `
+  CREATE TABLE datos (cuenta TEXT NOT NULL, clave TEXT NOT NULL, v TEXT NOT NULL, bytes INTEGER NOT NULL, actualizado TEXT NOT NULL, PRIMARY KEY (cuenta, clave));
+  CREATE TABLE mercado (cuenta TEXT PRIMARY KEY, v TEXT NOT NULL, actualizado TEXT NOT NULL);`,
+  // 2 · registro de actividad del gestor de usuarios
+  `CREATE TABLE actividad (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT NOT NULL, quien TEXT NOT NULL, accion TEXT NOT NULL, cuenta TEXT, email TEXT, antes TEXT, despues TEXT, nota TEXT, ip TEXT);
+  CREATE INDEX actividad_fecha ON actividad (fecha);
+  CREATE INDEX actividad_cuenta ON actividad (cuenta);`
+];
+function migrarEsquema(s) {
+  const v = s.prepare('PRAGMA user_version').get().user_version;
+  if (v > MIGRACIONES.length) { console.error(`\n  ERROR: la base tiene el esquema ${v} y este servidor solo conoce hasta el ${MIGRACIONES.length}. Actualiza el servidor.\n`); process.exit(1); }
+  for (let i = v; i < MIGRACIONES.length; i++) {
+    s.exec('BEGIN IMMEDIATE');
+    try { s.exec(MIGRACIONES[i]); s.exec(`PRAGMA user_version = ${i + 1}`); s.exec('COMMIT'); } catch (e) { s.exec('ROLLBACK'); throw e; }
+  }
+}
+const copiaSql = (i) => `${DB_SQL}.${i}`;
+const conSqlite = (f, fn) => { let s = null; try { s = new Sqlite.DatabaseSync(f); return fn(s); } finally { try { if (s) s.close(); } catch { /* ya cerrada */ } } };
+const sqlSana = (f) => { try { return conSqlite(f, (s) => Object.values(s.prepare('PRAGMA quick_check').get())[0] === 'ok'); } catch { return false; } };
+// Migración desde db.json: se escribe en un fichero aparte y solo al terminar sin errores pasa a ser la base
+function migrarDesdeJson() {
+  const { datos } = cargarJson();
+  if (!datos) return;
+  const d = normalizar(datos), tmp = DB_SQL + '.migrando';
+  [tmp, tmp + '-journal'].forEach((f) => fs.rmSync(f, { force: true }));
+  let n = 0;
+  conSqlite(tmp, (s) => {
+    migrarEsquema(s);
+    s.exec('BEGIN IMMEDIATE');
+    try {
+      for (const [t, f] of Object.entries(COLS)) { const st = s.prepare(`INSERT OR REPLACE INTO ${t} (k, v) VALUES (?, ?)`); for (const [k, v] of f(d)) if (v !== undefined) st.run(k, JSON.stringify(v)); }
+      const sd = s.prepare('INSERT OR REPLACE INTO datos (cuenta, clave, v, bytes, actualizado) VALUES (?, ?, ?, ?, ?)');
+      for (const [c, claves] of Object.entries(d.data)) for (const [k, v] of Object.entries(claves || {})) { if (v == null) continue; const j = JSON.stringify(v); sd.run(c, k, j, Buffer.byteLength(j), now()); n++; }
+      const sm = s.prepare('INSERT OR REPLACE INTO mercado (cuenta, v, actualizado) VALUES (?, ?, ?)');
+      for (const [c, a] of Object.entries(d.mercado)) if (a) sm.run(c, JSON.stringify(a), now());
+      // Registro de actividad de una base que funcionó con ALMACEN=json
+      const sa = s.prepare('INSERT INTO actividad (fecha, quien, accion, cuenta, email, antes, despues, nota, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+      (Array.isArray(d.actividad) ? d.actividad.slice().reverse() : []).forEach((a) => sa.run(a.fecha, a.quien, a.accion, a.cuenta || null, a.email || null, a.antes ? JSON.stringify(a.antes) : null, a.despues ? JSON.stringify(a.despues) : null, a.nota || null, a.ip || null));
+      s.exec('COMMIT');
+    } catch (e) { s.exec('ROLLBACK'); throw e; }
+    const nu = s.prepare('SELECT COUNT(*) AS n FROM usuarios').get().n, ids = new Set(d.users.map((u) => u.id)).size;
+    if (nu !== ids || Object.values(s.prepare('PRAGMA integrity_check').get())[0] !== 'ok') throw new Error(`la comprobación de la migración no cuadra (${nu} de ${ids} cuentas)`);
+  });
+  fs.renameSync(tmp, DB_SQL);
+  const guardado = `${DB_FILE}.migrado-${sello()}`;
+  fs.renameSync(DB_FILE, guardado);
+  console.log(`\n  Base de datos migrada a SQLite (${DB_SQL}): ${d.users.length} cuentas, ${n} datos, ${Object.keys(d.invitaciones).length} invitaciones.\n  db.json se conserva sin cambios como ${guardado}.\n`);
+}
+let sql = null;
+function abrirSqlite() {
+  if (fs.existsSync(DB_SQL) && !sqlSana(DB_SQL)) {
+    const hay = Array.from({ length: COPIAS }, (_, i) => copiaSql(i + 1)).filter((f) => fs.existsSync(f));
+    console.error(`\n  ERROR: la base de datos ${DB_SQL} existe pero no se puede leer o no pasa la comprobación de integridad.`);
+    if (env.ATALAYA_RECUPERAR !== '1' && env.ATALAYA_RECUPERAR !== 'vacia') {
+      console.error(`  El servidor no arranca para no empeorarla. Copias disponibles: ${hay.length ? hay.join(', ') : 'ninguna'}.
+  Para recuperar: arranca una vez con ATALAYA_RECUPERAR=1 (aparta la base dañada y carga la copia válida más reciente)
+  o sustituye atalaya.db a mano por una copia. ATALAYA_RECUPERAR=vacia arranca con una base vacía (solo si no hay nada que salvar).\n`);
+      process.exit(1);
+    }
+    const danado = `${DB_SQL}.danado-${sello()}`;
+    ['', '-wal', '-shm'].forEach((x) => { if (fs.existsSync(DB_SQL + x)) fs.renameSync(DB_SQL + x, danado + x); });
+    console.warn(`  Base dañada apartada en ${danado}`);
+    if (env.ATALAYA_RECUPERAR === '1') {
+      const buena = hay.find((f) => sqlSana(f) || (console.warn(`  La copia ${f} tampoco se puede leer`), false));
+      if (!buena) { console.error('  Ninguna copia es válida. Revisa los ficheros a mano o arranca con ATALAYA_RECUPERAR=vacia.\n'); process.exit(1); }
+      fs.copyFileSync(buena, DB_SQL); console.warn(`  Recuperada la copia ${buena}`);
+    } else console.warn('  Arranque con base de datos vacía (ATALAYA_RECUPERAR=vacia).');
+  }
+  if (!fs.existsSync(DB_SQL)) migrarDesdeJson();
+  sql = new Sqlite.DatabaseSync(DB_SQL);
+  sql.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA busy_timeout = 5000;');
+  migrarEsquema(sql);
+  try { fs.chmodSync(DB_SQL, 0o600); } catch { /* sin permiso */ }
+}
+// Lo último escrito en cada fila: un guardado compara y solo escribe lo que ha cambiado
+const escritos = {};
+function leerSqlite() {
+  const d = vacia();
+  for (const t of Object.keys(COLS)) {
+    const m = (escritos[t] = new Map());
+    for (const { k, v } of sql.prepare(`SELECT k, v FROM ${t} ORDER BY rowid`).all()) {
+      m.set(k, v); const o = JSON.parse(v);
+      if (t === 'meta') d[k] = o; else if (t === 'usuarios') d.users.push(o); else if (t === 'contactos') (d.contactos = d.contactos || []).push(o); else (d[OBJ[t]] = d[OBJ[t]] || {})[k] = o;
+    }
+  }
+  normalizar(d); d.contactos.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+  delete d.data; delete d.mercado; // viven en sus tablas
+  return d;
+}
+let txProf = 0;
+// Transacción (admite anidarse: solo la exterior abre y confirma)
+function tx(fn) {
+  if (!sql || txProf) { txProf++; try { return fn(); } finally { txProf--; } }
+  txProf++; sql.exec('BEGIN IMMEDIATE');
+  try { const r = fn(); sql.exec('COMMIT'); return r; } catch (e) { try { sql.exec('ROLLBACK'); } catch { /* sin transacción */ } throw e; } finally { txProf--; }
+}
+const ST = {};
+const stmt = (q) => ST[q] || (ST[q] = sql.prepare(q));
+function volcarSqlite() {
+  const cambios = [];
+  for (const [t, f] of Object.entries(COLS)) {
+    const prev = escritos[t] || (escritos[t] = new Map()), vistos = new Set();
+    for (const [k, v] of f(db)) { if (v === undefined) continue; vistos.add(k); const s = JSON.stringify(v); if (prev.get(k) !== s) cambios.push([t, k, s]); }
+    for (const k of prev.keys()) if (!vistos.has(k)) cambios.push([t, k, null]);
+  }
+  if (!cambios.length) return;
+  tx(() => cambios.forEach(([t, k, s]) => (s == null ? stmt(`DELETE FROM ${t} WHERE k = ?`).run(k) : stmt(`INSERT INTO ${t} (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v`).run(k, s))));
+  // Solo con la transacción confirmada se da por escrito (si falla, el siguiente guardado lo reintenta)
+  cambios.forEach(([t, k, s]) => (s == null ? escritos[t].delete(k) : escritos[t].set(k, s)));
+}
+
+let db = vacia(), recuperada = false;
+if (ALMACEN === 'sqlite') { abrirSqlite(); db = leerSqlite(); }
+else { const r = cargarJson(); if (r.datos) Object.assign(db, r.datos); recuperada = r.recuperada; normalizar(db); db.actividad = Array.isArray(db.actividad) ? db.actividad : []; }
 // La administración ya no es una cuenta de usuario: las cuentas que lo eran pasan a cliente con acceso de cortesía
 db.users.forEach((u) => { if (u.rol === 'admin') { u.rol = 'cliente'; u.pagado = true; u.venceAcceso = null; u.estado = 'activo'; u.nota = ((u.nota || '') + ' Antigua cuenta de administración: acceso sin vencimiento.').trim(); } });
-// Copia del día: antes de la primera escritura de cada día se rota db.json → db.json.1 … db.json.7
+
+// Copia del día: antes de la primera escritura de cada día se rota (.1 la de ayer … .7). En SQLite, con VACUUM INTO,
+// que hace una copia coherente y compacta sin parar el servidor.
+const BASE = ALMACEN === 'sqlite' ? DB_SQL : DB_FILE;
+const copia = (i) => `${BASE}.${i}`;
 let copiaDia = (() => { try { return fs.statSync(copia(1)).mtime.toISOString().slice(0, 10); } catch { return null; } })();
 function rotarCopias() {
-  if (copiaDia === new Date().toISOString().slice(0, 10) || !fs.existsSync(DB_FILE)) return;
+  if (copiaDia === today() || !fs.existsSync(BASE) || txProf) return; // VACUUM INTO no puede ir dentro de una transacción
   try {
     for (let i = COPIAS - 1; i >= 1; i--) if (fs.existsSync(copia(i))) fs.renameSync(copia(i), copia(i + 1));
-    fs.copyFileSync(DB_FILE, copia(1)); fs.chmodSync(copia(1), 0o600);
-    copiaDia = new Date().toISOString().slice(0, 10);
+    if (sql) sql.exec(`VACUUM INTO '${copia(1).replace(/'/g, "''")}'`); else fs.copyFileSync(DB_FILE, copia(1));
+    fs.chmodSync(copia(1), 0o600);
+    copiaDia = today();
   } catch (e) { console.error('Copia de seguridad de la base de datos:', e.message); }
 }
 let saveTimer = null;
@@ -100,32 +269,102 @@ function saveNow() {
   clearTimeout(saveTimer); saveTimer = null;
   try {
     rotarCopias();
+    if (sql) return volcarSqlite();
     const tmp = DB_FILE + '.tmp';
     fs.rmSync(tmp, { force: true });
     fs.writeFileSync(tmp, JSON.stringify(db), { mode: 0o600 });
     fs.renameSync(tmp, DB_FILE);
-  } catch (e) { console.error('No se pudo guardar la base de datos:', e); }
+  } catch (e) { console.error('No se pudo guardar la base de datos (se reintenta en 5 s):', e); setTimeout(save, 5000).unref(); }
 }
 // Agrupa las escrituras: como mucho una cada 300 ms (sin aplazarla indefinidamente si llegan muchas seguidas)
 function save() { if (!saveTimer) saveTimer = setTimeout(saveNow, 300); }
-// Al parar el servidor (systemd, Docker, Ctrl+C) se guarda lo pendiente antes de salir
+
+/* --- Datos de cada cuenta (por clave) y análisis de mercado --- */
+const tamanos = new Map(); // solo en modo JSON: tamaño guardado de cada clave por cuenta
+const D = sql ? {
+  get: (c, k) => { const r = stmt('SELECT v FROM datos WHERE cuenta = ? AND clave = ?').get(c, k); return r ? JSON.parse(r.v) : null; },
+  set: (c, k, v, j) => { rotarCopias(); stmt('INSERT INTO datos (cuenta, clave, v, bytes, actualizado) VALUES (?, ?, ?, ?, ?) ON CONFLICT(cuenta, clave) DO UPDATE SET v = excluded.v, bytes = excluded.bytes, actualizado = excluded.actualizado').run(c, k, j, Buffer.byteLength(j), now()); },
+  del: (c, k) => { rotarCopias(); stmt('DELETE FROM datos WHERE cuenta = ? AND clave = ?').run(c, k); },
+  tamanos: (c) => Object.fromEntries(stmt('SELECT clave, bytes FROM datos WHERE cuenta = ?').all(c).map((r) => [r.clave, r.bytes])),
+  borrarCuenta: (c) => { stmt('DELETE FROM datos WHERE cuenta = ?').run(c); stmt('DELETE FROM mercado WHERE cuenta = ?').run(c); },
+  mercado: (c) => { const r = stmt('SELECT v FROM mercado WHERE cuenta = ?').get(c); return r ? JSON.parse(r.v) : null; },
+  setMercado: (c, a) => { rotarCopias(); stmt('INSERT INTO mercado (cuenta, v, actualizado) VALUES (?, ?, ?) ON CONFLICT(cuenta) DO UPDATE SET v = excluded.v, actualizado = excluded.actualizado').run(c, JSON.stringify(a), now()); }
+} : {
+  get: (c, k) => (db.data[c] || {})[k] ?? null,
+  set: (c, k, v, j) => { (db.data[c] = db.data[c] || {})[k] = v; D.tamanos(c)[k] = Buffer.byteLength(j); save(); },
+  del: (c, k) => { if (db.data[c]) delete db.data[c][k]; delete D.tamanos(c)[k]; save(); },
+  tamanos: (c) => {
+    if (!tamanos.has(c)) { const t = {}; Object.entries(db.data[c] || {}).forEach(([k, v]) => { t[k] = Buffer.byteLength(JSON.stringify(v) || ''); }); tamanos.set(c, t); }
+    return tamanos.get(c);
+  },
+  borrarCuenta: (c) => { delete db.data[c]; delete db.mercado[c]; tamanos.delete(c); save(); },
+  mercado: (c) => db.mercado[c] || null,
+  setMercado: (c, a) => { db.mercado[c] = a; save(); }
+};
+
+/* --- Registro de actividad: quién, qué, cuándo, sobre qué cuenta, antes y después --- */
+const ACTIVIDAD_DIAS = num('ACTIVIDAD_DIAS', 730);
+const ACT = sql ? {
+  anotar: (a) => stmt('INSERT INTO actividad (fecha, quien, accion, cuenta, email, antes, despues, nota, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(a.fecha, a.quien, a.accion, a.cuenta || null, a.email || null, a.antes ? JSON.stringify(a.antes) : null, a.despues ? JSON.stringify(a.despues) : null, a.nota || null, a.ip || null),
+  listar: (f) => {
+    const w = [], p = [];
+    if (f.cuenta) { w.push('cuenta = ?'); p.push(f.cuenta); }
+    if (f.accion) { w.push('accion LIKE ?'); p.push(f.accion.replace(/[%_]/g, '') + '%'); }
+    if (f.desde) { w.push('fecha >= ?'); p.push(f.desde); }
+    if (f.hasta) { w.push('fecha <= ?'); p.push(f.hasta + '￿'); }
+    if (f.q) { w.push("(IFNULL(email, '') || ' ' || quien || ' ' || accion || ' ' || IFNULL(nota, '')) LIKE ?"); p.push('%' + f.q.replace(/[%_]/g, '') + '%'); }
+    return sql.prepare(`SELECT * FROM actividad ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`).all(...p, f.limite)
+      .map((r) => Object.assign({}, r, { antes: r.antes ? JSON.parse(r.antes) : null, despues: r.despues ? JSON.parse(r.despues) : null }));
+  },
+  purgar: (lim) => Number(stmt('DELETE FROM actividad WHERE fecha < ?').run(lim).changes),
+  borrarCuenta: () => 0 // se conserva: es el rastro de lo que se hizo (ver RGPD.md)
+} : {
+  anotar: (a) => { db.actividadN = (db.actividadN || 0) + 1; db.actividad.unshift(Object.assign({ id: db.actividadN }, a)); if (db.actividad.length > 20000) db.actividad.length = 20000; save(); },
+  listar: (f) => db.actividad.filter((a) => (!f.cuenta || a.cuenta === f.cuenta) && (!f.accion || a.accion.startsWith(f.accion)) && (!f.desde || a.fecha >= f.desde) && (!f.hasta || a.fecha <= f.hasta + '￿')
+    && (!f.q || `${a.email || ''} ${a.quien} ${a.accion} ${a.nota || ''}`.toLowerCase().includes(f.q.toLowerCase()))).slice(0, f.limite),
+  purgar: (lim) => { const n = db.actividad.length; db.actividad = db.actividad.filter((a) => a.fecha >= lim); if (db.actividad.length !== n) save(); return n - db.actividad.length; },
+  borrarCuenta: () => 0
+};
+
+// Al parar el servidor (systemd, Docker, Ctrl+C) se guarda lo pendiente y se cierra la base antes de salir
 let cerrando = false;
-['SIGTERM', 'SIGINT'].forEach((sig) => process.on(sig, () => { if (cerrando) return; cerrando = true; if (saveTimer) saveNow(); console.log(`${sig}: datos guardados, servidor detenido.`); process.exit(0); }));
+['SIGTERM', 'SIGINT'].forEach((sig) => process.on(sig, () => {
+  if (cerrando) return; cerrando = true;
+  if (saveTimer) saveNow();
+  if (sql) { try { sql.close(); } catch (e) { console.error('Al cerrar la base:', e.message); } }
+  console.log(`${sig}: datos guardados, servidor detenido.`); process.exit(0);
+}));
+
+// Exportar la base a JSON (para volver a ALMACEN=json o revisar los datos): node server.mjs --exportar-json fichero.json
+if (process.argv.includes('--exportar-json')) {
+  const dest = path.resolve(process.argv[process.argv.indexOf('--exportar-json') + 1] || path.join(DATA_DIR, `db.exportado-${sello()}.json`));
+  const out = Object.assign({}, db);
+  if (sql) {
+    out.data = {}; out.mercado = {};
+    sql.prepare('SELECT cuenta, clave, v FROM datos').all().forEach((r) => { (out.data[r.cuenta] = out.data[r.cuenta] || {})[r.clave] = JSON.parse(r.v); });
+    sql.prepare('SELECT cuenta, v FROM mercado').all().forEach((r) => { out.mercado[r.cuenta] = JSON.parse(r.v); });
+    out.actividad = ACT.listar({ limite: 1e9 });
+  }
+  fs.writeFileSync(dest, JSON.stringify(out), { mode: 0o600 });
+  console.log(`Base exportada a ${dest} (${out.users.length} cuentas).`);
+  if (sql) sql.close();
+  process.exit(0);
+}
 
 /* ---------- Utilidades ---------- */
-const now = () => new Date().toISOString();
-const today = () => now().slice(0, 10);
 const uid = () => 'u' + crypto.randomBytes(8).toString('hex');
 const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
 const sha = (t) => crypto.createHash('sha256').update(t).digest('hex');
 const safeEq = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
-const pub = (u) => { if (!u) return null; const { hash, salt, ...rest } = u; return rest; };
+// Lo que sale de una cuenta hacia el navegador: nunca la contraseña ni el secreto del segundo factor
+const pub = (u) => { if (!u) return null; const { hash, salt, totp, ...rest } = u; return Object.assign(rest, { dosPasos: !!(totp && totp.activo) }); };
 const emailOk = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 function access(u) {
   if (!u) return { ok: false, motivo: 'sin-sesion' };
   if (u.estado === 'bloqueado') return { ok: false, motivo: 'bloqueado' };
   if (u.pagado && (!u.venceAcceso || Date.parse(u.venceAcceso) > Date.now())) return { ok: true, motivo: 'pagado' };
-  if (!u.pagado && Date.parse(u.alta) + PRUEBA_DIAS * 864e5 > Date.now()) return { ok: true, motivo: 'prueba' };
+  // La prueba dura PRUEBA_DIAS desde el alta, o hasta «pruebaHasta» si la administración la ha ampliado
+  if (!u.pagado && Math.max(Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0) > Date.now()) return { ok: true, motivo: 'prueba' };
   return { ok: false, motivo: 'pago' };
 }
 function cookies(req) {
@@ -168,7 +407,7 @@ function ipDe(req) {
 /* ---------- Límites de intentos: un contador por ruta y por clave (IP, correo o cuenta) ---------- */
 const LIMITES = { // [máximo, minutos]
   login_ip: [30, 15], login_email: [10, 15], verificar: [10, 15], registro: [num('REGISTROS_HORA', 5), 60],
-  contacto: [6, 60], olvido_ip: [10, 60], olvido_email: [3, 60], restablecer: [20, 15], admin: [10, 15], test: [300, 15]
+  contacto: [6, 60], olvido_ip: [10, 60], olvido_email: [3, 60], restablecer: [20, 15], admin: [10, 15], test: [300, 15], dospasos: [10, 15]
 };
 const intentos = new Map();
 function bloqueado(tipo, clave) {
@@ -193,17 +432,25 @@ if (env.ADMIN_PASSWORD) {
     if (!usada) { const salt = crypto.randomBytes(16).toString('hex'); db.adminEnv = { salt, hash: hashPw(pw, salt) }; save(); }
   }
 }
+// Quien ha perdido el teléfono y los códigos de recuperación de la administración: arrancar con ADMIN_2FA_RESET=<palabra>.
+// Como ADMIN_PASSWORD, cada valor se aplica una sola vez (se guarda su huella): si la variable se queda puesta, no vuelve a quitarlo.
+if (env.ADMIN_2FA_RESET && db.adminTotp && db.admin2faReset !== sha('2fa:' + env.ADMIN_2FA_RESET)) {
+  delete db.adminTotp; db.adminSessions = {}; db.admin2faReset = sha('2fa:' + env.ADMIN_2FA_RESET); save();
+  console.warn('ADMIN_2FA_RESET: segundo factor de la administración desactivado. Vuelva a activarlo desde el gestor de usuarios.');
+}
 // Sin contraseña de administración: código de configuración de un solo uso que solo ve quien arranca el servidor
 let setupCode = null;
 if (!db.admin) { setupCode = crypto.randomBytes(5).toString('hex').toUpperCase(); console.log(`\n  Configura la administración en ${APP_URL}/admin.html con este código: ${setupCode}\n  (o arranca con ADMIN_PASSWORD=...)\n`); }
-function isAdmin(req) {
+function adminSesion(req) {
   const sid = cookies(req)[ADMIN_COOKIE];
   const s = sid && db.adminSessions[sha(sid)];
-  return !!(db.admin && s && Date.parse(s.exp) > Date.now());
+  return db.admin && s && Date.parse(s.exp) > Date.now() ? s : null;
 }
-function startAdminSession(res) {
+const isAdmin = (req) => !!adminSesion(req);
+// «nombre»: quien entra a la administración lo puede indicar al entrar; firma sus acciones en el registro de actividad
+function startAdminSession(res, nombre) {
   const sid = crypto.randomBytes(32).toString('hex');
-  db.adminSessions[sha(sid)] = { exp: new Date(Date.now() + ADMIN_HOURS * 3600e3).toISOString() };
+  db.adminSessions[sha(sid)] = { exp: new Date(Date.now() + ADMIN_HOURS * 3600e3).toISOString(), nombre: String(nombre || '').trim().slice(0, 60) || null };
   Object.keys(db.adminSessions).forEach((k) => { if (Date.parse(db.adminSessions[k].exp) < Date.now()) delete db.adminSessions[k]; });
   res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=${sid}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ADMIN_HOURS * 3600}${SECURE ? '; Secure' : ''}`);
   save();
@@ -251,6 +498,249 @@ async function sendMail(to, subject, text) {
     await mailer.sendMail({ from: env.SMTP_FROM || env.SMTP_USER, to, subject, text });
     return true;
   } catch (e) { console.error('Correo:', e.message); return false; }
+}
+
+// Avisos al equipo (AVISOS_EMAIL, una o varias direcciones separadas por comas): altas, contactos, solicitudes de
+// activación y pagos. No retrasan la respuesta al cliente y, sin correo configurado, no hacen nada.
+function avisarEquipo(asunto, lineas) {
+  if (!env.AVISOS_EMAIL || !env.SMTP_HOST) return;
+  const texto = lineas.filter(Boolean).join('\n') + `\n\nGestor de usuarios: ${APP_URL}/admin.html`;
+  sendMail(env.AVISOS_EMAIL, `Atalaya · ${asunto}`, texto).catch(() => { /* ya registrado en sendMail */ });
+}
+
+/* ---------- Registro de actividad ----------
+   Cada acción del gestor de usuarios (y los hechos de cuenta relevantes: altas, cambios de plan, pagos de Stripe)
+   queda con fecha, autor, acción, cuenta afectada, valores antes y después, nota e IP de quien la hizo. */
+function quienDe(req) {
+  const s = req && adminSesion(req);
+  if (s) return s.nombre ? `${s.nombre} (administración)` : 'administración';
+  return req && currentUser(req) ? 'cliente' : 'sistema';
+}
+function anotarActividad(req, accion, u, extra) {
+  extra = extra || {};
+  try {
+    ACT.anotar({ fecha: now(), quien: extra.quien || quienDe(req), accion, cuenta: u ? u.id : extra.cuenta || null, email: u ? u.email : extra.email || null, antes: extra.antes || null, despues: extra.despues || null, nota: extra.nota ? String(extra.nota).slice(0, 500) : null, ip: req ? ipDe(req) : null });
+  } catch (e) { console.error('Registro de actividad:', e.message); }
+}
+// Solo los campos que cambian, con su valor antes y después
+function diferencias(antes, despues, campos) {
+  const a = {}, d = {};
+  campos.forEach((k) => { const x = antes[k] === undefined ? null : antes[k], y = despues[k] === undefined ? null : despues[k]; if (JSON.stringify(x) !== JSON.stringify(y)) { a[k] = x; d[k] = y; } });
+  return Object.keys(a).length ? { antes: a, despues: d } : null;
+}
+const CAMPOS_CUENTA = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'estado', 'pagado', 'venceAcceso', 'pruebaHasta', 'planPendiente', 'cuotaPactada', 'nota'];
+const foto = (u) => JSON.parse(JSON.stringify(Object.fromEntries(CAMPOS_CUENTA.map((k) => [k, u[k]]))));
+
+/* ---------- Segundo factor (TOTP, RFC 6238) ----------
+   Códigos de 6 cifras cada 30 s con HMAC-SHA1, como Google Authenticator, Microsoft Authenticator o 1Password.
+   El secreto se guarda cifrado (AES-256-GCM con una clave derivada del secreto del servidor) y cada código vale una vez.
+   Los códigos de recuperación (10, de un solo uso) se guardan por su HMAC. Obligatorio no es: se activa desde la
+   administración (y, si el cliente quiere, en su cuenta). */
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32(buf) {
+  let bits = 0, val = 0, out = '';
+  for (const b of buf) { val = (val << 8) | b; bits += 8; while (bits >= 5) { out += B32[(val >>> (bits - 5)) & 31]; bits -= 5; } val &= (1 << bits) - 1; }
+  return bits ? out + B32[(val << (5 - bits)) & 31] : out;
+}
+function deBase32(s) {
+  const out = []; let bits = 0, val = 0;
+  for (const ch of String(s).toUpperCase().replace(/[^A-Z2-7]/g, '')) { val = (val << 5) | B32.indexOf(ch); bits += 5; if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; } val &= (1 << bits) - 1; }
+  return Buffer.from(out);
+}
+function hotp(clave, contador, digitos = 6) {
+  const c = Buffer.alloc(8); c.writeBigUInt64BE(BigInt(contador));
+  const h = crypto.createHmac('sha1', clave).update(c).digest(), o = h[h.length - 1] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 10 ** digitos).padStart(digitos, '0');
+}
+const igualTexto = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+// Devuelve el paso de 30 s del código si es válido (admite el anterior y el siguiente por desfase de reloj) y posterior al último usado
+function pasoTotp(clave, codigo, ultimo) {
+  const t = Math.floor(Date.now() / 30000);
+  for (const d of [0, -1, 1]) if (t + d > (ultimo || 0) && igualTexto(hotp(clave, t + d), codigo)) return t + d;
+  return 0;
+}
+const claveCifrado = () => crypto.createHash('sha256').update('atalaya-totp:' + SECRETO).digest();
+function cifrar(texto) {
+  const iv = crypto.randomBytes(12), c = crypto.createCipheriv('aes-256-gcm', claveCifrado(), iv);
+  const ct = Buffer.concat([c.update(texto, 'utf8'), c.final()]);
+  return 'v1.' + Buffer.concat([iv, c.getAuthTag(), ct]).toString('base64url');
+}
+function descifrar(s) {
+  const b = Buffer.from(String(s).slice(3), 'base64url'), d = crypto.createDecipheriv('aes-256-gcm', claveCifrado(), b.subarray(0, 12));
+  d.setAuthTag(b.subarray(12, 28)); return Buffer.concat([d.update(b.subarray(28)), d.final()]).toString('utf8');
+}
+const hashRecuperacion = (c) => crypto.createHmac('sha256', SECRETO).update('rec:' + String(c).toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+function codigosRecuperacion() {
+  const codigos = Array.from({ length: 10 }, () => { const s = base32(crypto.randomBytes(7)).slice(0, 10); return s.slice(0, 5) + '-' + s.slice(5); });
+  return { codigos, hashes: codigos.map(hashRecuperacion) };
+}
+const uriTotp = (secreto, cuenta) => `otpauth://totp/${encodeURIComponent('Atalaya 360°:' + cuenta)}?secret=${secreto}&issuer=${encodeURIComponent('Atalaya 360°')}&algorithm=SHA1&digits=6&period=30`;
+// Altas a medio hacer: el secreto nuevo espera en memoria (15 min) hasta que se confirma con un código
+const altasTotp = new Map();
+function iniciarTotp(quien, cuenta) {
+  const secreto = base32(crypto.randomBytes(20));
+  altasTotp.set(quien, { secreto, exp: Date.now() + 15 * 60e3 });
+  return { secreto, secretoAgrupado: secreto.match(/.{1,4}/g).join(' '), uri: uriTotp(secreto, cuenta) };
+}
+// Confirma el alta con el primer código: devuelve el registro que se guarda y los códigos de recuperación (se ven una vez)
+function confirmarTotp(quien, codigo) {
+  const p = altasTotp.get(quien);
+  if (!p || p.exp < Date.now()) throw fallo(400, 'El alta del segundo factor ha caducado. Empiece de nuevo.');
+  const paso = pasoTotp(deBase32(p.secreto), String(codigo || '').trim(), 0);
+  if (!paso) throw fallo(400, 'El código no es correcto. Compruebe la hora del teléfono y escriba el código que se ve ahora.');
+  altasTotp.delete(quien);
+  const r = codigosRecuperacion();
+  return { registro: { activo: true, cifrado: cifrar(p.secreto), ultimo: paso, codigos: r.hashes, alta: now() }, codigos: r.codigos };
+}
+// Comprueba un código de 6 cifras o uno de recuperación (que se gasta). Devuelve 'totp', 'recuperacion' o null.
+function comprobarSegundo(t, codigo) {
+  const c = String(codigo || '').trim();
+  if (!t || !t.activo || !c) return null;
+  if (/^\d{6}$/.test(c)) {
+    let clave; try { clave = deBase32(descifrar(t.cifrado)); } catch { console.error('Segundo factor: no se puede descifrar el secreto (¿ha cambiado ATALAYA_SECRETO?)'); return null; }
+    const paso = pasoTotp(clave, c, t.ultimo); if (!paso) return null;
+    t.ultimo = paso; save(); return 'totp';
+  }
+  const i = (t.codigos || []).indexOf(hashRecuperacion(c));
+  if (i < 0) return null;
+  t.codigos.splice(i, 1); save(); return 'recuperacion';
+}
+
+/* ---------- Stripe Billing (sin SDK: API REST con STRIPE_SECRET_KEY) ----------
+   Precios por plan y periodo: STRIPE_PRECIO_<PLAN>_<PERIODO> (p. ej. STRIPE_PRECIO_PROFESIONAL_ANUAL=price_…)
+   o STRIPE_PRECIOS='{"profesional-mensual":"price_…", …}'. Sin STRIPE_SECRET_KEY, todo sigue como antes:
+   enlace de pago manual (P.PAGO_URLS en el navegador) o «Solicitar el enlace de pago». */
+const STRIPE_PRECIOS = (() => {
+  const m = {};
+  try { Object.entries(JSON.parse(env.STRIPE_PRECIOS || '{}')).forEach(([k, v]) => { m[k.toLowerCase().replace(/_/g, '-')] = String(v); }); } catch { console.error('STRIPE_PRECIOS no es un JSON válido: se ignora.'); }
+  PLANES.forEach((p) => PERIODOS.forEach((per) => { const v = env[`STRIPE_PRECIO_${p.toUpperCase()}_${per.toUpperCase()}`]; if (v) m[`${p}-${per}`] = v; }));
+  return m;
+})();
+const STRIPE = !!env.STRIPE_SECRET_KEY;
+const STRIPE_GRACIA_DIAS = num('STRIPE_GRACIA_DIAS', 3); // días de margen tras el fin del periodo pagado (reintentos de cobro)
+const planDePrecio = (id) => Object.keys(STRIPE_PRECIOS).find((k) => STRIPE_PRECIOS[k] === id) || null;
+async function stripeApi(ruta, params) {
+  let r, j = {};
+  try {
+    r = await fetch(`${(env.STRIPE_API_URL || 'https://api.stripe.com').replace(/\/$/, '')}/v1/${ruta}`, {
+      method: 'POST', signal: AbortSignal.timeout(20000),
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(params).toString()
+    });
+    j = await r.json().catch(() => ({}));
+  } catch (e) { console.error(`Stripe (${ruta}):`, e.message); }
+  if (!r || !r.ok) {
+    if (r) console.error(`Stripe (${ruta}): ${r.status}`, (j.error && j.error.message) || '');
+    throw fallo(502, 'La pasarela de pago no ha respondido. Inténtelo de nuevo en unos minutos o solicite el enlace de pago.', { manual: true });
+  }
+  return j;
+}
+// Firma del aviso de Stripe: cabecera «t=…,v1=…», HMAC-SHA256 de «t.cuerpo» con STRIPE_WEBHOOK_SECRET y 5 minutos de margen
+function firmaStripeOk(cuerpo, cabecera, secreto, ahora = Date.now()) {
+  let t = null; const v1 = [];
+  String(cabecera || '').split(',').forEach((p) => { const i = p.indexOf('='); if (i < 1) return; const k = p.slice(0, i).trim(), v = p.slice(i + 1).trim(); if (k === 't') t = v; else if (k === 'v1') v1.push(v); });
+  if (!/^\d{1,12}$/.test(t || '') || !v1.length || Math.abs(ahora / 1000 - +t) > 300) return false;
+  const esperado = Buffer.from(crypto.createHmac('sha256', secreto).update(t + '.').update(cuerpo).digest('hex'), 'hex');
+  return v1.some((s) => /^[0-9a-f]{64}$/i.test(s) && crypto.timingSafeEqual(Buffer.from(s, 'hex'), esperado));
+}
+// Cuenta a la que se refiere un objeto de Stripe: la que se le pasó al crear el pago o la de su cliente de Stripe
+function cuentaStripe(o) {
+  const meta = o.metadata || {}, sub = ((o.parent && o.parent.subscription_details) || o.subscription_details || {}).metadata || {};
+  const id = o.client_reference_id || meta.cuenta || sub.cuenta, cliente = o.customer && (o.customer.id || o.customer);
+  return (id && db.users.find((x) => x.id === id)) || (cliente && db.users.find((x) => x.stripeCliente === cliente)) || null;
+}
+const precioLinea = (l) => l && ((l.price && l.price.id) || (l.pricing && l.pricing.price_details && l.pricing.price_details.price) || (l.plan && l.plan.id)) || null;
+// Activa o renueva el acceso pagado: plan y periodo del precio, vencimiento al final del periodo más los días de gracia.
+// Si el plan pagado es el que el cliente había pedido (planPendiente), la solicitud queda resuelta.
+function activarPorStripe(u, planPer, finSegundos) {
+  const antes = foto(u), eraPagado = u.pagado;
+  if (planPer) {
+    const [plan, periodo] = planPer.split('-');
+    if (PLANES.includes(plan) && plan !== u.plan) { (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: plan, fecha: now(), por: 'stripe' }); u.plan = plan; }
+    if (PERIODOS.includes(periodo)) u.periodo = periodo;
+  }
+  if (u.planPendiente && ORDEN_PLAN[u.planPendiente.plan] <= ORDEN_PLAN[u.plan]) {
+    delete u.planPendiente;
+    (db.contactos || []).forEach((c) => { if (c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido) c.atendido = now(); });
+  }
+  u.pagado = true; if (u.estado !== 'bloqueado') u.estado = 'activo';
+  if (finSegundos) {
+    const v = new Date((+finSegundos + STRIPE_GRACIA_DIAS * 86400) * 1000).toISOString();
+    // Sin vencimiento (acceso de cortesía) se respeta; si ya vencía más tarde, no se acorta
+    if (!eraPagado || (u.venceAcceso && Date.parse(v) > Date.parse(u.venceAcceso))) u.venceAcceso = v;
+  }
+  delete u.solicitudPago; delete u.pagoFallido;
+  return diferencias(antes, foto(u), CAMPOS_CUENTA);
+}
+async function eventoStripe(ev) {
+  const o = (ev.data && ev.data.object) || {}, u = cuentaStripe(o), tipo = ev.type;
+  const quien = { quien: 'stripe', nota: `${tipo} · ${ev.id}` };
+  if (!u) { if (/^(checkout|invoice|customer\.subscription)\./.test(tipo)) console.warn(`Stripe: ${tipo} (${ev.id}) sin cuenta de Atalaya asociada.`); return; }
+  if (tipo === 'checkout.session.completed') {
+    if (o.mode !== 'subscription' && o.payment_status !== 'paid') return;
+    if (o.customer) u.stripeCliente = o.customer.id || o.customer;
+    if (o.subscription) u.stripeSuscripcion = o.subscription.id || o.subscription;
+    u.stripeEstado = 'active';
+    const meta = o.metadata || {}, planPer = meta.plan && meta.periodo ? `${meta.plan}-${meta.periodo}` : null;
+    // Vencimiento provisional (un periodo); la factura pagada (invoice.paid) lo fija con la fecha exacta
+    const fin = Math.floor(Date.now() / 1000) + (meta.periodo === 'anual' ? 366 : 31) * 86400;
+    const dif = activarPorStripe(u, planPer, fin);
+    anotarActividad(null, 'stripe.checkout', u, Object.assign({}, quien, dif || {}));
+    avisarEquipo(`Pago con tarjeta: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> ha pagado el plan ${NOMBRE_PLAN[u.plan] || u.plan} (${u.periodo}) en Stripe.`, o.amount_total != null ? `Importe: ${(o.amount_total / 100).toFixed(2)} ${String(o.currency || '').toUpperCase()}` : '']);
+  } else if (tipo === 'invoice.paid' || tipo === 'invoice.payment_succeeded') {
+    const lineas = (o.lines && o.lines.data) || [], l = lineas.slice().sort((a, b) => ((b.period || {}).end || 0) - ((a.period || {}).end || 0))[0];
+    const planPer = planDePrecio(precioLinea(l));
+    if (o.customer && !u.stripeCliente) u.stripeCliente = o.customer.id || o.customer;
+    const sub = o.subscription || (o.parent && o.parent.subscription_details && o.parent.subscription_details.subscription);
+    if (sub) u.stripeSuscripcion = sub.id || sub;
+    const dif = activarPorStripe(u, planPer, l && l.period && l.period.end);
+    u.pagos = u.pagos || [];
+    // invoice.paid e invoice.payment_succeeded llegan las dos: el pago se apunta una sola vez por factura
+    if (!u.pagos.some((p) => p.stripeFactura === o.id)) {
+      const pago = { id: nid('p', 5), fecha: now(), importe: (o.amount_paid || 0) / 100, meses: planPer && planPer.endsWith('-anual') ? 12 : 1, referencia: `Stripe ${o.number || o.id}`, por: 'stripe', stripeFactura: o.id, factura: o.hosted_invoice_url || null };
+      u.pagos.push(pago);
+      anotarActividad(null, 'pago.stripe', u, Object.assign({}, quien, { despues: Object.assign({ pago }, (dif || {}).despues || {}), antes: (dif || {}).antes || null }));
+      avisarEquipo(`Cobro recibido: ${u.nombre || u.email}`, [`Stripe ha cobrado ${pago.importe.toFixed(2)} ${String(o.currency || 'eur').toUpperCase()} a ${u.nombre || ''} <${u.email}> (factura ${o.number || o.id}).`, `Plan ${NOMBRE_PLAN[u.plan] || u.plan} · acceso hasta ${u.venceAcceso ? u.venceAcceso.slice(0, 10) : 'sin vencimiento'}.`]);
+    }
+  } else if (tipo === 'invoice.payment_failed') {
+    u.pagoFallido = now();
+    anotarActividad(null, 'pago.fallido', u, Object.assign({}, quien, { nota: `${quien.nota} · intento ${o.attempt_count || 1}` }));
+    avisarEquipo(`Cobro fallido: ${u.nombre || u.email}`, [`Stripe no ha podido cobrar a ${u.nombre || ''} <${u.email}> (intento ${o.attempt_count || 1}).`, `El acceso sigue hasta ${u.venceAcceso ? u.venceAcceso.slice(0, 10) : '—'}; Stripe reintentará el cobro.`]);
+  } else if (tipo === 'customer.subscription.created' || tipo === 'customer.subscription.updated') {
+    const item = o.items && o.items.data && o.items.data[0];
+    u.stripeSuscripcion = o.id; u.stripeEstado = o.status; u.stripeCancelaAlFinal = !!o.cancel_at_period_end;
+    if (o.customer && !u.stripeCliente) u.stripeCliente = o.customer.id || o.customer;
+    let dif = null;
+    if (o.status === 'active' || o.status === 'trialing') dif = activarPorStripe(u, planDePrecio(precioLinea(item)), o.current_period_end || (item && item.current_period_end));
+    anotarActividad(null, 'stripe.suscripcion', u, Object.assign({}, quien, dif || {}, { nota: `${quien.nota} · ${o.status}${o.cancel_at_period_end ? ' · se cancela al final del periodo' : ''}` }));
+  } else if (tipo === 'customer.subscription.deleted') {
+    u.stripeEstado = 'canceled'; u.stripeCancelaAlFinal = false;
+    // El acceso pagado sigue hasta su vencimiento y después no se renueva
+    anotarActividad(null, 'stripe.baja', u, quien);
+    avisarEquipo(`Suscripción cancelada: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> ya no tiene suscripción en Stripe. El acceso vence el ${u.venceAcceso ? u.venceAcceso.slice(0, 10) : '—'}.`]);
+  } else return;
+  save();
+}
+async function webhookStripe(req, res) {
+  if (req.method !== 'POST') return send(res, 405, { error: 'Método no permitido' });
+  if (!env.STRIPE_WEBHOOK_SECRET) return send(res, 404, { error: 'Ruta no encontrada' });
+  // Cuerpo en bruto: la firma se calcula sobre los bytes tal como llegan
+  const cuerpo = await new Promise((resolve, reject) => {
+    const trozos = []; let n = 0;
+    req.on('data', (c) => { n += c.length; if (n > 1024 * 1024) { reject(fallo(413, 'Petición demasiado grande')); req.destroy(); } else trozos.push(c); });
+    req.on('end', () => resolve(Buffer.concat(trozos))); req.on('error', reject);
+  }).catch((e) => e);
+  if (cuerpo instanceof Error) return res.headersSent || res.destroyed ? undefined : send(res, cuerpo.code || 400, { error: cuerpo.message });
+  if (!firmaStripeOk(cuerpo, req.headers['stripe-signature'], env.STRIPE_WEBHOOK_SECRET)) { console.warn(`Stripe: aviso con firma no válida desde ${ipDe(req)}`); return send(res, 400, { error: 'Firma no válida' }); }
+  let ev; try { ev = JSON.parse(cuerpo.toString('utf8')); } catch { return send(res, 400, { error: 'JSON no válido' }); }
+  if (!ev || typeof ev.id !== 'string' || typeof ev.type !== 'string') return send(res, 400, { error: 'Aviso no válido' });
+  // Stripe puede repetir un aviso: cada evento se aplica una sola vez
+  if (db.stripeEventos[ev.id]) return send(res, 200, { recibido: true, repetido: true });
+  try { await eventoStripe(ev); } catch (e) { console.error(`Stripe: error al aplicar ${ev.type} (${ev.id}):`, e); return send(res, 500, { error: 'No se pudo aplicar; Stripe lo reintentará' }); }
+  db.stripeEventos[ev.id] = now();
+  const ids = Object.keys(db.stripeEventos); if (ids.length > 5000) ids.sort((a, b) => db.stripeEventos[a].localeCompare(db.stripeEventos[b])).slice(0, ids.length - 5000).forEach((k) => delete db.stripeEventos[k]);
+  save();
+  return send(res, 200, { recibido: true });
 }
 
 /* ---------- Cabeceras de seguridad ----------
@@ -392,7 +882,8 @@ Devuelve SOLO un JSON: {"competencia":[{"nombre","posicion":"líder|retador|nich
 const routes = [];
 const route = (method, re, fn, opts = {}) => routes.push({ method, re, fn, opts });
 
-route('GET', /^\/api\/health$/, async () => ({ atalaya: true, ia: !!(await claude()), version: 2 }), { public: true });
+// «stripe»: planes y periodos que se pueden pagar en línea (Checkout); false si el cobro sigue siendo manual
+route('GET', /^\/api\/health$/, async () => ({ atalaya: true, ia: !!(await claude()), version: 2, stripe: STRIPE ? Object.keys(STRIPE_PRECIOS) : false }), { public: true });
 
 // Hash de referencia para que un correo inexistente tarde lo mismo que una contraseña errónea
 const DUMMY = (() => { const salt = crypto.randomBytes(16).toString('hex'); return { salt, hash: hashPw(crypto.randomBytes(16).toString('hex'), salt) }; })();
@@ -413,6 +904,8 @@ route('POST', /^\/api\/register$/, async (req, res, body) => {
     estado: 'prueba', pagado: false, venceAcceso: null, alta: now(), ultimoAcceso: now(), sesiones: 1, uso: {}, pagos: [], salt, hash: hashPw(String(body.password), salt)
   };
   db.users.push(u); save(); startSession(res, u);
+  anotarActividad(req, 'cuenta.alta', u, { quien: 'cliente', despues: { plan: u.plan, periodo: u.periodo } });
+  avisarEquipo(`Nueva cuenta: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}>${u.empresa ? ' · ' + u.empresa : ''}${u.telefono ? ' · ' + u.telefono : ''}`, `Plan elegido: ${NOMBRE_PLAN[u.plan]} (${u.periodo}). Prueba de ${PRUEBA_DIAS} días.`]);
   return { user: pub(u) };
 }, { public: true });
 
@@ -423,6 +916,11 @@ route('POST', /^\/api\/login$/, async (req, res, body) => {
   const ref = u || DUMMY;
   const ok = safeEq(hashPw(String(body.password || ''), ref.salt), ref.hash) && !!u;
   if (!ok) { anotar('login_ip', ip); anotar('login_email', email); throw fallo(401, 'Correo o contraseña incorrectos'); }
+  // Segundo factor (si el cliente lo activó): sin código se pide; con código erróneo cuenta como intento fallido
+  if (u.totp && u.totp.activo) {
+    if (!String(body.codigo || '').trim()) throw fallo(401, 'Escriba el código de su aplicación de autenticación.', { segundoFactor: true });
+    if (!comprobarSegundo(u.totp, body.codigo)) { anotar('login_ip', ip); anotar('login_email', email); throw fallo(401, 'El código no es correcto o ya se ha usado.', { segundoFactor: true }); }
+  }
   u.ultimoAcceso = now(); u.sesiones = (u.sesiones || 0) + 1; save(); startSession(res, u);
   return { user: pub(u) };
 }, { public: true });
@@ -452,12 +950,15 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
       u.planPendiente = { plan: nuevo, periodo, fecha: now() };
       // Aparece en los avisos de la administración como una solicitud más
       db.contactos = (db.contactos || []).filter((c) => !(c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido));
-      db.contactos.unshift({ fecha: now(), plan: nuevo, nombre: u.nombre || '', email: u.email, telefono: u.telefono || '', empresa: u.empresa || '', mensaje: `Cambio de plan solicitado: de ${NOMBRE_PLAN[u.plan] || u.plan} a ${NOMBRE_PLAN[nuevo]} (pago ${periodo}), con el acceso ya pagado. Para confirmarlo, cambia su plan en la tabla de usuarios.`, origen: 'cambio-plan', cuenta: u.id });
+      db.contactos.unshift({ id: nid('c'), fecha: now(), plan: nuevo, nombre: u.nombre || '', email: u.email, telefono: u.telefono || '', empresa: u.empresa || '', mensaje: `Cambio de plan solicitado: de ${NOMBRE_PLAN[u.plan] || u.plan} a ${NOMBRE_PLAN[nuevo]} (pago ${periodo}), con el acceso ya pagado. Para confirmarlo, cambia su plan en la tabla de usuarios.`, origen: 'cambio-plan', cuenta: u.id });
       db.contactos = db.contactos.slice(0, 500);
       save();
+      anotarActividad(req, 'plan.solicitud', u, { quien: 'cliente', despues: { planPendiente: u.planPendiente } });
+      avisarEquipo(`Cambio de plan pedido: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> pide pasar de ${NOMBRE_PLAN[u.plan] || u.plan} a ${NOMBRE_PLAN[nuevo]} (pago ${periodo}) con el acceso ya pagado.`, 'Se confirma cambiando su plan en el gestor de usuarios.']);
       throw fallo(409, `Hemos recibido su petición de pasar al plan ${NOMBRE_PLAN[nuevo]}. Como su acceso ya está activado, el cambio se aplica cuando nuestro equipo confirme la nueva cuota; le avisaremos. Mientras, sigue con su plan actual.`, { pendiente: true, planPendiente: u.planPendiente });
     }
     (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: nuevo, fecha: now() });
+    anotarActividad(req, 'plan.cambio', u, { quien: 'cliente', antes: { plan: u.plan }, despues: { plan: nuevo } });
     u.plan = nuevo;
     if (u.planPendiente) { delete u.planPendiente; (db.contactos || []).forEach((c) => { if (c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido) c.atendido = now(); }); }
   }
@@ -472,8 +973,13 @@ route('POST', /^\/api\/contacto$/, async (req, res, body) => {
   const t = (k, n) => String(body[k] || '').slice(0, n || 160);
   if (!emailOk(t('email'))) throw fallo(400, 'Escriba un correo válido');
   db.contactos = db.contactos || [];
-  db.contactos.unshift({ fecha: now(), plan: t('plan', 20), nombre: t('nombre'), email: t('email'), telefono: t('telefono', 40), empresa: t('empresa'), sociedades: t('sociedades', 6), mensaje: t('mensaje', 2000), origen: t('origen', 40) });
+  const c = { id: nid('c'), fecha: now(), plan: t('plan', 20), nombre: t('nombre'), email: t('email'), telefono: t('telefono', 40), empresa: t('empresa'), sociedades: t('sociedades', 6), mensaje: t('mensaje', 2000), origen: t('origen', 40) };
+  // Si llega con sesión de cliente (p. ej. datos de facturación al pedir la activación), se enlaza con su cuenta
+  const yo = currentUser(req); if (yo && String(yo.email) === c.email.toLowerCase()) c.cuenta = yo.id;
+  db.contactos.unshift(c);
   db.contactos = db.contactos.slice(0, 500); save();
+  const que = c.plan === 'sesion' ? 'Sesión de 60 minutos' : c.origen === 'activacion' ? 'Solicitud de activación' : `Contacto${c.plan ? ' · plan ' + (NOMBRE_PLAN[c.plan] || c.plan) : ''}`;
+  avisarEquipo(`${que}: ${c.nombre || c.email}`, [`${c.nombre} <${c.email}>${c.telefono ? ' · ' + c.telefono : ''}${c.empresa ? ' · ' + c.empresa : ''}${c.sociedades ? ' · ' + c.sociedades + ' sociedades' : ''}`, c.mensaje ? `\n${c.mensaje}` : '']);
   return { ok: true };
 }, { public: true });
 route('GET', /^\/api\/admin\/contactos$/, async () => ({ contactos: db.contactos || [] }), { admin: true });
@@ -484,7 +990,16 @@ route('POST', /^\/api\/me\/verificar$/, async (req, res, body, u) => {
   if (!ok) anotar('verificar', u.id);
   return { ok };
 }, { noAccess: true });
-route('POST', /^\/api\/me\/solicitar-pago$/, async (req, res, body, u) => { u.solicitudPago = now(); save(); return { ok: true }; }, { noAccess: true });
+route('POST', /^\/api\/me\/solicitar-pago$/, async (req, res, body, u) => {
+  // Se avisa una vez al día como mucho (el botón «Pagar ahora» también la marca)
+  const nueva = !u.solicitudPago || u.solicitudPago.slice(0, 10) !== today();
+  u.solicitudPago = now(); save();
+  if (nueva) {
+    anotarActividad(req, 'pago.solicitud', u, { quien: 'cliente', despues: { plan: u.plan, periodo: u.periodo || 'mensual' } });
+    avisarEquipo(`Solicitud de activación: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> quiere activar el plan ${NOMBRE_PLAN[u.plan] || u.plan} (pago ${u.periodo || 'mensual'}).`, u.telefono ? `Teléfono: ${u.telefono}` : '', 'Envíele el enlace de pago y regístrelo en el gestor de usuarios al cobrar.']);
+  }
+  return { ok: true };
+}, { noAccess: true });
 route('POST', /^\/api\/me\/password$/, async (req, res, body, u) => {
   if (bloqueado('verificar', u.id)) throw demasiados();
   if (!safeEq(hashPw(String(body.actual || ''), u.salt), u.hash)) { anotar('verificar', u.id); throw fallo(400, 'La contraseña actual no es correcta'); }
@@ -522,19 +1037,25 @@ route('POST', /^\/api\/password\/restablecer$/, async (req, res, body) => {
   u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(String(body.password), u.salt); delete u.solicitudReset;
   delete db.resets[k];
   Object.keys(db.sessions).forEach((s) => { if (db.sessions[s].userId === u.id) delete db.sessions[s]; });
+  // Con el segundo factor activado, el enlace cambia la contraseña pero no abre sesión: hay que entrar con el código
+  if (u.totp && u.totp.activo) { save(); return { user: null, segundoFactor: true }; }
   u.ultimoAcceso = now(); save(); startSession(res, u);
   return { user: pub(u) };
 }, { public: true });
 
 // Acceso de administración (con su propio límite de intentos)
-route('GET', /^\/api\/admin\/estado$/, async (req) => ({ configurado: !!db.admin, sesion: isAdmin(req), correo: !!env.SMTP_HOST }), { public: true });
+route('GET', /^\/api\/admin\/estado$/, async (req) => {
+  const s = adminSesion(req), t = db.adminTotp;
+  return { configurado: !!db.admin, sesion: !!s, correo: !!env.SMTP_HOST, dosPasos: !!(t && t.activo), ...(s ? { nombre: s.nombre || null, recuperacion: t && t.activo ? (t.codigos || []).length : null, stripe: STRIPE ? { precios: Object.keys(STRIPE_PRECIOS), webhook: !!env.STRIPE_WEBHOOK_SECRET } : false, almacen: ALMACEN, avisos: !!(env.AVISOS_EMAIL && env.SMTP_HOST) } : {}) };
+}, { public: true });
 route('POST', /^\/api\/admin\/configurar$/, async (req, res, body) => {
   if (db.admin) throw fallo(409, 'La administración ya está configurada');
   const ip = ipDe(req);
   if (bloqueado('admin', ip)) throw demasiados();
   if (!setupCode || String(body.codigo || '').trim().toUpperCase() !== setupCode) { anotar('admin', ip); throw fallo(401, 'Código de configuración incorrecto (se muestra en la consola del servidor)'); }
   if (String(body.password || '').length < 10) throw fallo(400, 'La contraseña de administración debe tener al menos 10 caracteres');
-  setAdminPassword(String(body.password)); setupCode = null; startAdminSession(res);
+  setAdminPassword(String(body.password)); setupCode = null; startAdminSession(res, body.nombre);
+  anotarActividad(req, 'admin.configurar', null, { quien: String(body.nombre || '').trim().slice(0, 60) || 'administración' });
   return { ok: true };
 }, { public: true });
 route('POST', /^\/api\/admin\/login$/, async (req, res, body) => {
@@ -542,17 +1063,29 @@ route('POST', /^\/api\/admin\/login$/, async (req, res, body) => {
   if (bloqueado('admin', ip)) throw demasiados();
   const ref = db.admin || DUMMY;
   if (!safeEq(hashPw(String(body.password || ''), ref.salt), ref.hash) || !db.admin) { anotar('admin', ip); throw fallo(401, 'Contraseña de administración incorrecta'); }
-  startAdminSession(res); return { ok: true };
+  const nombre = String(body.nombre || '').trim().slice(0, 60), quien = nombre ? `${nombre} (administración)` : 'administración';
+  // Segundo factor: con la contraseña correcta y sin código, se pide el código; un código erróneo cuenta como intento fallido
+  let via = null;
+  if (db.adminTotp && db.adminTotp.activo) {
+    if (!String(body.codigo || '').trim()) throw fallo(401, 'Escriba el código de su aplicación de autenticación (o un código de recuperación).', { segundoFactor: true });
+    via = comprobarSegundo(db.adminTotp, body.codigo);
+    if (!via) { anotar('admin', ip); anotarActividad(req, 'admin.entrar.fallido', null, { quien, nota: 'Contraseña correcta y código de segundo factor erróneo' }); throw fallo(401, 'El código no es correcto o ya se ha usado.', { segundoFactor: true }); }
+  }
+  startAdminSession(res, nombre);
+  anotarActividad(req, 'admin.entrar', null, { quien, nota: via === 'recuperacion' ? `Con un código de recuperación (quedan ${db.adminTotp.codigos.length})` : via ? 'Con segundo factor' : null });
+  return { ok: true, recuperacion: via === 'recuperacion' ? db.adminTotp.codigos.length : undefined };
 }, { public: true });
 route('POST', /^\/api\/admin\/logout$/, async (req, res) => {
-  const sid = cookies(req)[ADMIN_COOKIE]; if (sid) { delete db.adminSessions[sha(sid)]; save(); }
+  const sid = cookies(req)[ADMIN_COOKIE]; if (sid && db.adminSessions[sha(sid)]) { anotarActividad(req, 'admin.salir', null); delete db.adminSessions[sha(sid)]; save(); }
   res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${SECURE ? '; Secure' : ''}`);
   return { ok: true };
 }, { public: true });
 route('POST', /^\/api\/admin\/password$/, async (req, res, body) => {
   if (!safeEq(hashPw(String(body.actual || ''), db.admin.salt), db.admin.hash)) throw fallo(400, 'La contraseña actual no es correcta');
   if (String(body.nueva || '').length < 10) throw fallo(400, 'La nueva contraseña debe tener al menos 10 caracteres');
-  setAdminPassword(String(body.nueva)); startAdminSession(res); return { ok: true };
+  const nombre = adminSesion(req).nombre;
+  anotarActividad(req, 'admin.contrasena', null);
+  setAdminPassword(String(body.nueva)); startAdminSession(res, nombre); return { ok: true };
 }, { admin: true });
 // La administración pone directamente una contraseña nueva a un usuario (se cierran sus sesiones abiertas)
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/password$/, async (req, res, body, me, m) => {
@@ -561,6 +1094,7 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/password$/, async (req, res, body
   u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(String(body.password), u.salt); delete u.solicitudReset; u.passwordCambiada = now();
   Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === u.id) delete db.sessions[k]; });
   Object.keys(db.resets).forEach((k) => { if (db.resets[k].userId === u.id) delete db.resets[k]; });
+  anotarActividad(req, 'cuenta.contrasena', u, { nota: 'Contraseña nueva puesta por la administración; sesiones cerradas' });
   save(); return { ok: true };
 }, { admin: true });
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/reset$/, async (req, res, body, me, m) => {
@@ -568,6 +1102,7 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/reset$/, async (req, res, body, m
   const token = newResetToken(u, 'administración');
   const enviado = body.enviar ? await sendMail(u.email, 'Atalaya · Restablecer su contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abra este enlace (caduca en ${RESET_MIN} minutos):\n${APP_URL}/acceso.html#reset=${token}`) : false;
   delete u.solicitudReset; save();
+  anotarActividad(req, 'cuenta.enlace-contrasena', u, { nota: enviado ? 'Enlace enviado por correo' : 'Enlace generado' });
   return { token, minutos: RESET_MIN, enviado };
 }, { admin: true });
 
@@ -579,15 +1114,13 @@ route('POST', /^\/api\/admin\/conceder$/, async (req, res, body) => {
   const plan = PLANES.includes(body.plan) ? body.plan : 'grupos', periodo = PERIODOS.includes(body.periodo) ? body.periodo : 'mensual';
   const cuota = Math.max(0, +body.cuota || 0), meses = Math.max(1, Math.min(36, +body.meses || (periodo === 'anual' ? 12 : 1)));
   let u = db.users.find((x) => x.email === email), creado = false;
-  if (!u) {
-    const salt = crypto.randomBytes(16).toString('hex');
-    u = { id: uid(), nombre: String(body.nombre || '').slice(0, 120), email, empresa: String(body.empresa || '').slice(0, 160), telefono: String(body.telefono || '').slice(0, 40), rol: 'cliente', alta: now(), ultimoAcceso: null, sesiones: 0, uso: {}, pagos: [], salt, hash: hashPw(crypto.randomBytes(24).toString('hex'), salt) };
-    db.users.push(u); creado = true;
-  }
+  const antes = u ? foto(u) : {};
+  if (!u) { u = cuentaNueva(body, email); db.users.push(u); creado = true; }
   const venc = new Date(); venc.setMonth(venc.getMonth() + meses);
   Object.assign(u, { plan, periodo, estado: 'activo', pagado: true, venceAcceso: venc.toISOString(), cuotaPactada: cuota || null, concedido: now() });
   delete u.planPendiente;
-  (db.contactos || []).forEach((c) => { if (String(c.email).toLowerCase() === email) c.atendido = now(); });
+  (db.contactos || []).forEach((c) => { if (String(c.email).toLowerCase() === email && !c.atendido) c.atendido = now(); });
+  anotarActividad(req, creado ? 'cuenta.crear' : 'plan.conceder', u, Object.assign({ nota: `Plan a medida concedido: ${cuota} €/mes, ${meses} meses` }, diferencias(antes, foto(u), CAMPOS_CUENTA) || {}));
   const token = creado ? newResetToken(u, 'invitación', 7 * 24 * 60) : null;
   const link = token ? `${APP_URL}/acceso.html#reset=${token}` : null;
   const enviado = body.enviar ? await sendMail(u.email, 'Atalaya 360° · Su acceso está listo', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nYa tiene acceso a Atalaya 360° con el plan ${plan === 'grupos' ? 'Grupos' : plan}.\n${link ? 'Para elegir su contraseña abra este enlace (válido 7 días):\n' + link : 'Entre con su correo y su contraseña de siempre en ' + APP_URL + '/acceso.html'}\n\nEquipo de Business Avance`) : false;
@@ -618,42 +1151,34 @@ function claveDe(key) {
   if (!m || !Object.prototype.hasOwnProperty.call(CLAVES, m[1]) || (m[2] && !POR_EMPRESA.includes(m[1]))) throw fallo(400, 'Dato no reconocido');
   return { base: m[1], empresa: m[2] || null };
 }
-// Tamaño guardado de cada clave por cuenta (se calcula una vez y se mantiene al guardar)
-const tamanos = new Map();
-function tamanosDe(id) {
-  if (!tamanos.has(id)) { const t = {}; Object.entries(db.data[id] || {}).forEach(([k, v]) => { t[k] = Buffer.byteLength(JSON.stringify(v) || ''); }); tamanos.set(id, t); }
-  return tamanos.get(id);
-}
 const mb = (b) => (b < 1048576 ? Math.ceil(b / 1024) + ' KB' : (b / 1048576).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' MB');
 // Lectura permitida aunque la prueba o el pago hayan vencido, para que el cliente pueda descargar sus datos; la escritura sigue bloqueada.
-route('GET', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => { if (access(u).motivo === 'bloqueado') throw fallo(402, 'Su acceso está suspendido'); claveDe(m[1]); return { data: (db.data[u.id] || {})[m[1]] ?? null }; }, { noAccess: true });
+route('GET', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => { if (access(u).motivo === 'bloqueado') throw fallo(402, 'Su acceso está suspendido'); claveDe(m[1]); return { data: D.get(u.id, m[1]) }; }, { noAccess: true });
 // Empresas por plan: el servidor también lo comprueba (no basta con el navegador)
 const LIMITE_EMPRESAS = { esencial: 1, profesional: 1, consultora: 15, grupos: Infinity };
 route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => {
   const key = m[1], { base, empresa } = claveDe(key);
-  db.data[u.id] = db.data[u.id] || {};
-  const mine = db.data[u.id], borrar = body === null;
+  const borrar = body === null;
   const regla = CLAVES[base];
   if (regla && !borrar && !regla.planes.includes(u.plan)) throw fallo(403, regla.msg);
   if (key === 'empresas') {
     const lista = body && Array.isArray(body.lista) ? body.lista : null;
     if (!lista || !lista.length || lista.length > 500 || !lista.some((e) => e && e.id === 'principal')) throw fallo(400, 'Registro de empresas no válido');
     const lim = LIMITE_EMPRESAS[u.plan] != null ? LIMITE_EMPRESAS[u.plan] : 1;
-    const antes = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.length : 1;
+    const reg = D.get(u.id, 'empresas'), antes = reg && Array.isArray(reg.lista) ? reg.lista.length : 1;
     // Se puede quedar igual o bajar aunque se esté por encima (p. ej. tras cambiar a un plan menor), pero no subir del límite
     if (lista.length > lim && lista.length > antes) throw fallo(403, lim === 1 ? 'Su plan incluye una empresa. Para varias, pase a Consultora o a Grupos.' : `Su plan incluye hasta ${lim} empresas.`);
   }
   if (empresa && !borrar) {
-    const ids = mine.empresas && Array.isArray(mine.empresas.lista) ? mine.empresas.lista.map((e) => e && e.id) : [];
+    const reg = D.get(u.id, 'empresas'), ids = reg && Array.isArray(reg.lista) ? reg.lista.map((e) => e && e.id) : [];
     if (!ids.includes(empresa)) throw fallo(403, 'Esa empresa no está dada de alta en su cuenta');
   }
-  const t = tamanosDe(u.id);
-  if (borrar) { delete mine[key]; delete t[key]; save(); return { ok: true }; }
-  const bytes = Buffer.byteLength(JSON.stringify(body));
+  if (borrar) { D.del(u.id, key); return { ok: true }; }
+  const t = D.tamanos(u.id), json = JSON.stringify(body), bytes = Buffer.byteLength(json);
   if (bytes > DATA_MAX_CLAVE) throw fallo(413, `Este dato ocupa ${mb(bytes)} y el máximo es ${mb(DATA_MAX_CLAVE)}. Borre documentos o cargas antiguas y vuelva a guardar.`);
   const total = Object.values(t).reduce((a, b) => a + b, 0) - (t[key] || 0) + bytes;
   if (total > DATA_MAX_CUENTA) throw fallo(413, `Su cuenta llegaría a ${mb(total)} y el máximo es ${mb(DATA_MAX_CUENTA)}. Borre empresas o datos que no use, o escríbanos para ampliarlo.`);
-  mine[key] = body; t[key] = bytes; save(); return { ok: true };
+  D.set(u.id, key, body, json); return { ok: true };
 });
 
 /* ---------- Test de personas por enlace ----------
@@ -764,41 +1289,238 @@ route('PUT', /^\/api\/t\/([\w-]{20,64})$/, async (req, res, body, u, m) => {
 }, { public: true });
 
 // Cada usuario con el número de empresas o sociedades que tiene dadas de alta (para el precio de Grupos)
-const nEmpresas = (u) => { const r = (db.data[u.id] || {}).empresas; return r && Array.isArray(r.lista) ? r.lista.length : 1; };
+const nEmpresas = (u) => { const r = D.get(u.id, 'empresas'); return r && Array.isArray(r.lista) ? r.lista.length : 1; };
+const usuarioDe = (id) => { const u = db.users.find((x) => x.id === id); if (!u) throw fallo(404, 'Usuario no encontrado'); return u; };
+// Cuenta creada por la administración (a mano o al conceder un plan a medida): contraseña aleatoria que nadie conoce;
+// el cliente elige la suya con la invitación
+function cuentaNueva(b, email) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  return { id: uid(), nombre: String(b.nombre || '').slice(0, 120), email, empresa: String(b.empresa || '').slice(0, 160), telefono: String(b.telefono || '').slice(0, 40), plan: 'profesional', periodo: 'mensual', rol: 'cliente', estado: 'prueba', pagado: false, venceAcceso: null, alta: now(), ultimoAcceso: null, sesiones: 0, uso: {}, pagos: [], salt, hash: hashPw(crypto.randomBytes(24).toString('hex'), salt), creadoPor: 'administración' };
+}
+const cerrarCambioPlan = (u) => (db.contactos || []).forEach((c) => { if (c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido) c.atendido = now(); });
+function nuevoPago(u, d, por) {
+  const p = { id: nid('p', 5), fecha: d.fecha && !isNaN(Date.parse(d.fecha)) ? new Date(d.fecha).toISOString() : now(), importe: Math.round((+String(d.importe).replace(',', '.') || 0) * 100) / 100, meses: Math.max(0, Math.min(36, +d.meses || 0)), referencia: String(d.referencia || '').slice(0, 200), por };
+  (u.pagos = u.pagos || []).push(p); delete u.solicitudPago;
+  return p;
+}
 route('GET', /^\/api\/admin\/users$/, async () => ({ users: db.users.map((u) => Object.assign(pub(u), { empresas: nEmpresas(u) })) }), { admin: true });
 route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) => {
-  const u = db.users.find((x) => x.id === m[1]); if (!u) throw fallo(404, 'Usuario no encontrado');
+  const u = usuarioDe(m[1]), antes = foto(u);
   if (['prueba', 'activo', 'bloqueado'].includes(body.estado)) u.estado = body.estado;
   if (typeof body.pagado === 'boolean') u.pagado = body.pagado;
   if (PLANES.includes(body.plan)) {
     // La administración confirma (o decide) el plan: se cierra la solicitud de cambio pendiente
     if (body.plan !== u.plan) (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: body.plan, fecha: now(), por: 'administración' });
-    u.plan = body.plan; delete u.planPendiente;
-    (db.contactos || []).forEach((c) => { if (c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido) c.atendido = now(); });
+    u.plan = body.plan; delete u.planPendiente; cerrarCambioPlan(u);
   }
-  if (body.planPendiente === null) { delete u.planPendiente; (db.contactos || []).forEach((c) => { if (c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido) c.atendido = now(); }); }
+  if (body.planPendiente === null) { delete u.planPendiente; cerrarCambioPlan(u); }
   if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
   if (body.venceAcceso === null || (typeof body.venceAcceso === 'string' && !isNaN(Date.parse(body.venceAcceso)))) u.venceAcceso = body.venceAcceso;
   if (typeof body.nota === 'string') u.nota = body.nota.slice(0, 2000);
-  if (body.registrarPago && typeof body.registrarPago === 'object') {
-    u.pagos = u.pagos || [];
-    u.pagos.push({ fecha: now(), importe: +body.registrarPago.importe || 0, meses: +body.registrarPago.meses || 0, referencia: String(body.registrarPago.referencia || '').slice(0, 200), por: 'administración' });
-    delete u.solicitudPago;
+  let pago = null;
+  if (body.registrarPago && typeof body.registrarPago === 'object') pago = nuevoPago(u, body.registrarPago, 'administración');
+  const dif = diferencias(antes, foto(u), CAMPOS_CUENTA);
+  if (dif || pago) {
+    const accion = pago ? 'pago.registrar' : dif.despues.estado === 'bloqueado' ? 'cuenta.bloquear' : dif.antes.estado === 'bloqueado' ? 'cuenta.desbloquear' : 'plan' in dif.despues ? 'plan.cambio' : 'cuenta.modificar';
+    anotarActividad(req, accion, u, { antes: dif && dif.antes, despues: Object.assign({}, dif && dif.despues, pago ? { pago } : {}), nota: typeof body.motivo === 'string' ? body.motivo : null });
   }
   save(); return { user: pub(u) };
 }, { admin: true });
 // Borrar una cuenta borra todo lo suyo: datos, análisis de mercado, sesiones, enlaces de contraseña, invitaciones
-// (con sus respuestas), solicitudes de contacto con su correo y uso de IA (va en la propia cuenta)
+// (con sus respuestas), solicitudes de contacto con su correo y uso de IA (va en la propia cuenta).
+// En el registro de actividad queda que se borró (correo, plan y fechas), no sus datos.
 route('DELETE', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) => {
-  const id = m[1], u = db.users.find((x) => x.id === id); if (!u) throw fallo(404, 'Usuario no encontrado');
-  db.users = db.users.filter((x) => x.id !== id); delete db.data[id]; delete db.mercado[id]; tamanos.delete(id);
-  Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === id) delete db.sessions[k]; });
-  Object.keys(db.resets).forEach((k) => { if (db.resets[k].userId === id) delete db.resets[k]; });
-  Object.keys(db.invitaciones).forEach((k) => { if (db.invitaciones[k].owner === id) delete db.invitaciones[k]; });
-  Object.keys(db.lid360).forEach((k) => { if (k.startsWith(id + '|')) delete db.lid360[k]; });
-  db.contactos = (db.contactos || []).filter((c) => String(c.email || '').toLowerCase() !== u.email && c.cuenta !== id);
+  const id = m[1], u = usuarioDe(id);
+  tx(() => {
+    D.borrarCuenta(id);
+    db.users = db.users.filter((x) => x.id !== id);
+    Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === id) delete db.sessions[k]; });
+    Object.keys(db.resets).forEach((k) => { if (db.resets[k].userId === id) delete db.resets[k]; });
+    Object.keys(db.invitaciones).forEach((k) => { if (db.invitaciones[k].owner === id) delete db.invitaciones[k]; });
+    Object.keys(db.lid360).forEach((k) => { if (k.startsWith(id + '|')) delete db.lid360[k]; });
+    db.contactos = (db.contactos || []).filter((c) => String(c.email || '').toLowerCase() !== u.email && c.cuenta !== id);
+    anotarActividad(req, 'cuenta.borrar', u, { antes: { plan: u.plan, estado: u.estado, pagado: !!u.pagado, alta: u.alta, pagos: (u.pagos || []).length }, nota: typeof body.motivo === 'string' ? body.motivo : null });
+    if (sql) volcarSqlite(); else save();
+  });
+  return { ok: true };
+}, { admin: true });
+
+// Crear un usuario a mano: en prueba o con acceso activo, y una invitación (7 días) para que elija su contraseña
+route('POST', /^\/api\/admin\/users$/, async (req, res, body) => {
+  const email = String(body.email || '').trim().toLowerCase();
+  if (!emailOk(email) || email.length > 160) throw fallo(400, 'Correo no válido');
+  if (db.users.some((u) => u.email === email)) throw fallo(409, 'Ya hay una cuenta con ese correo');
+  const u = cuentaNueva(body, email);
+  if (PLANES.includes(body.plan)) u.plan = body.plan;
+  if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
+  if (body.activo) { const meses = Math.max(1, Math.min(36, +body.meses || 1)), v = new Date(); v.setMonth(v.getMonth() + meses); Object.assign(u, { estado: 'activo', pagado: true, venceAcceso: v.toISOString() }); }
+  else if (+body.diasPrueba > 0) u.pruebaHasta = new Date(Date.now() + Math.min(90, +body.diasPrueba) * 864e5).toISOString();
+  if (typeof body.nota === 'string') u.nota = body.nota.slice(0, 2000);
+  db.users.push(u);
+  const token = newResetToken(u, 'invitación', 7 * 24 * 60), link = `${APP_URL}/acceso.html#reset=${token}`;
+  const enviado = body.enviar ? await sendMail(u.email, 'Atalaya 360° · Su cuenta está lista', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nLe hemos creado una cuenta en Atalaya 360° con el plan ${NOMBRE_PLAN[u.plan]}${u.pagado ? '' : ` y ${Math.round(((Date.parse(u.pruebaHasta) || Date.now() + PRUEBA_DIAS * 864e5) - Date.now()) / 864e5)} días de prueba`}.\nPara elegir su contraseña abra este enlace (válido 7 días):\n${link}\n\nEquipo de Business Avance`) : false;
+  anotarActividad(req, 'cuenta.crear', u, { despues: foto(u) });
+  save();
+  return { user: pub(u), token, minutos: 7 * 24 * 60, enviado };
+}, { admin: true });
+// Ampliar la prueba gratuita: «dias» más desde hoy o desde el final actual, si aún no ha terminado
+route('POST', /^\/api\/admin\/users\/([\w-]+)\/prueba$/, async (req, res, body, me, m) => {
+  const u = usuarioDe(m[1]), dias = Math.round(+body.dias || 0);
+  if (dias < 1 || dias > 90) throw fallo(400, 'Indique entre 1 y 90 días');
+  if (u.pagado) throw fallo(409, 'Esta cuenta tiene el acceso pagado: amplíe su vencimiento registrando un pago o cambiando la fecha.');
+  const antes = foto(u), fin = Math.max(Date.now(), Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
+  u.pruebaHasta = new Date(fin + dias * 864e5).toISOString();
+  if (u.estado !== 'bloqueado') u.estado = 'prueba';
+  anotarActividad(req, 'prueba.ampliar', u, Object.assign({ nota: `${dias} días más` }, diferencias(antes, foto(u), CAMPOS_CUENTA) || {}));
+  save(); return { user: pub(u) };
+}, { admin: true });
+// Registrar un pago y ampliar el acceso «meses» desde el vencimiento actual (o desde hoy si ya venció)
+route('POST', /^\/api\/admin\/users\/([\w-]+)\/pagos$/, async (req, res, body, me, m) => {
+  const u = usuarioDe(m[1]), antes = foto(u);
+  if (!(+String(body.importe).replace(',', '.') >= 0)) throw fallo(400, 'Importe no válido');
+  const pago = nuevoPago(u, body, 'administración');
+  if (body.ampliar !== false && pago.meses > 0) {
+    const base = u.pagado && u.venceAcceso && Date.parse(u.venceAcceso) > Date.now() ? new Date(u.venceAcceso) : new Date();
+    base.setMonth(base.getMonth() + pago.meses);
+    Object.assign(u, { pagado: true, venceAcceso: base.toISOString() }); if (u.estado !== 'bloqueado') u.estado = 'activo';
+  }
+  const dif = diferencias(antes, foto(u), CAMPOS_CUENTA) || {};
+  anotarActividad(req, 'pago.registrar', u, { antes: dif.antes, despues: Object.assign({ pago }, dif.despues) });
+  save(); return { user: pub(u), pago };
+}, { admin: true });
+// Corregir un pago (importe, meses, referencia, fecha) o anularlo; no cambia el vencimiento (eso se ajusta aparte)
+route('PATCH', /^\/api\/admin\/users\/([\w-]+)\/pagos\/([\w-]+)$/, async (req, res, body, me, m) => {
+  const u = usuarioDe(m[1]), p = (u.pagos || []).find((x) => x.id === m[2]);
+  if (!p) throw fallo(404, 'Pago no encontrado');
+  const antes = JSON.parse(JSON.stringify(p));
+  if (body.importe != null) { const v = +String(body.importe).replace(',', '.'); if (!(v >= 0)) throw fallo(400, 'Importe no válido'); p.importe = Math.round(v * 100) / 100; }
+  if (body.meses != null) p.meses = Math.max(0, Math.min(36, +body.meses || 0));
+  if (typeof body.referencia === 'string') p.referencia = body.referencia.slice(0, 200);
+  if (typeof body.fecha === 'string' && !isNaN(Date.parse(body.fecha))) p.fecha = new Date(body.fecha).toISOString();
+  if (typeof body.anulado === 'boolean') { if (body.anulado) p.anulado = now(); else delete p.anulado; }
+  const motivo = String(body.motivo || '').trim().slice(0, 300);
+  if (!motivo) throw fallo(400, 'Indique el motivo de la corrección (queda en el registro de actividad)');
+  p.corregido = now();
+  anotarActividad(req, p.anulado && !antes.anulado ? 'pago.anular' : 'pago.corregir', u, { antes: { pago: antes }, despues: { pago: p }, nota: motivo });
+  save(); return { user: pub(u), pago: p };
+}, { admin: true });
+// Cerrar solicitudes de una cuenta: activación (pago), contraseña olvidada o cambio de plan
+route('POST', /^\/api\/admin\/users\/([\w-]+)\/cerrar$/, async (req, res, body, me, m) => {
+  const u = usuarioDe(m[1]), tipo = body.tipo, campo = { pago: 'solicitudPago', reset: 'solicitudReset', plan: 'planPendiente' }[tipo];
+  if (!campo) throw fallo(400, 'Solicitud no reconocida');
+  const antes = u[campo] ?? null; delete u[campo]; if (tipo === 'plan') cerrarCambioPlan(u);
+  anotarActividad(req, 'solicitud.cerrar', u, { antes: { [campo]: antes }, despues: { [campo]: null }, nota: String(body.nota || '').slice(0, 300) || null });
+  save(); return { user: pub(u) };
+}, { admin: true });
+// Cerrar (o reabrir) una solicitud de contacto o de sesión
+route('POST', /^\/api\/admin\/contactos\/([\w-]+)\/(cerrar|reabrir)$/, async (req, res, body, me, m) => {
+  const c = (db.contactos || []).find((x) => x.id === m[1]); if (!c) throw fallo(404, 'Solicitud no encontrada');
+  const antes = { atendido: c.atendido || null };
+  if (m[2] === 'cerrar') { c.atendido = now(); if (body.nota) c.notaCierre = String(body.nota).slice(0, 300); } else { delete c.atendido; delete c.notaCierre; }
+  anotarActividad(req, m[2] === 'cerrar' ? 'solicitud.cerrar' : 'solicitud.reabrir', null, { cuenta: c.cuenta || null, email: c.email, antes, despues: { atendido: c.atendido || null }, nota: `${c.plan === 'sesion' ? 'Sesión' : c.origen || 'Contacto'}${c.notaCierre ? ' · ' + c.notaCierre : ''}` });
+  save(); return { contacto: c };
+}, { admin: true });
+// Quitar el segundo factor de un cliente que ha perdido el teléfono y sus códigos de recuperación
+route('POST', /^\/api\/admin\/users\/([\w-]+)\/2fa-quitar$/, async (req, res, body, me, m) => {
+  const u = usuarioDe(m[1]); if (!u.totp) throw fallo(409, 'Esta cuenta no tiene segundo factor');
+  delete u.totp;
+  anotarActividad(req, 'dospasos.quitar', u, { nota: String(body.motivo || '').slice(0, 300) || null });
+  save(); return { user: pub(u) };
+}, { admin: true });
+// Registro de actividad: filtros por cuenta, acción (prefijo), texto y fechas; hasta 5.000 entradas por consulta
+route('GET', /^\/api\/admin\/actividad$/, async (req) => {
+  const q = new URL(req.url, 'http://x').searchParams, f = (k, n) => String(q.get(k) || '').trim().slice(0, n || 80);
+  const fecha = (k) => (/^\d{4}-\d{2}-\d{2}/.test(f(k)) ? f(k, 10) : '');
+  return { actividad: ACT.listar({ cuenta: f('cuenta'), accion: f('accion', 40), q: f('q'), desde: fecha('desde'), hasta: fecha('hasta'), limite: Math.max(1, Math.min(5000, +q.get('limite') || 500)) }), dias: ACTIVIDAD_DIAS };
+}, { admin: true });
+
+/* ---------- Segundo factor de la administración ---------- */
+route('POST', /^\/api\/admin\/2fa\/iniciar$/, async (req) => {
+  if (db.adminTotp && db.adminTotp.activo) throw fallo(409, 'El segundo factor ya está activado. Para cambiar de teléfono, desactívelo y vuelva a activarlo.');
+  return iniciarTotp('admin', 'administración');
+}, { admin: true });
+route('POST', /^\/api\/admin\/2fa\/activar$/, async (req, res, body) => {
+  if (bloqueado('dospasos', 'admin')) throw demasiados();
+  let r; try { r = confirmarTotp('admin', body.codigo); } catch (e) { anotar('dospasos', 'admin'); throw e; }
+  db.adminTotp = r.registro;
+  // Las demás sesiones de administración se cierran: a partir de ahora hace falta el código para entrar
+  const sid = cookies(req)[ADMIN_COOKIE], mia = sid ? sha(sid) : null;
+  Object.keys(db.adminSessions).forEach((k) => { if (k !== mia) delete db.adminSessions[k]; });
+  anotarActividad(req, 'dospasos.activar', null, { nota: 'Segundo factor de la administración' });
+  save(); return { ok: true, codigos: r.codigos };
+}, { admin: true });
+const exigirPasswordAdmin = (req, body) => {
+  if (bloqueado('dospasos', 'admin')) throw demasiados();
+  const okPw = safeEq(hashPw(String(body.password || ''), db.admin.salt), db.admin.hash);
+  if (!okPw || !comprobarSegundo(db.adminTotp, body.codigo)) { anotar('dospasos', 'admin'); throw fallo(400, okPw ? 'El código no es correcto o ya se ha usado.' : 'La contraseña de administración no es correcta.'); }
+};
+route('POST', /^\/api\/admin\/2fa\/desactivar$/, async (req, res, body) => {
+  if (!db.adminTotp || !db.adminTotp.activo) throw fallo(409, 'El segundo factor no está activado');
+  exigirPasswordAdmin(req, body);
+  delete db.adminTotp;
+  anotarActividad(req, 'dospasos.desactivar', null, { nota: 'Segundo factor de la administración' });
   save(); return { ok: true };
 }, { admin: true });
+route('POST', /^\/api\/admin\/2fa\/recuperacion$/, async (req, res, body) => {
+  if (!db.adminTotp || !db.adminTotp.activo) throw fallo(409, 'El segundo factor no está activado');
+  exigirPasswordAdmin(req, body);
+  const r = codigosRecuperacion(); db.adminTotp.codigos = r.hashes;
+  anotarActividad(req, 'dospasos.recuperacion', null, { nota: 'Códigos de recuperación nuevos (los anteriores dejan de valer)' });
+  save(); return { ok: true, codigos: r.codigos };
+}, { admin: true });
+
+/* ---------- Segundo factor del cliente (opcional) ---------- */
+route('POST', /^\/api\/me\/2fa\/iniciar$/, async (req, res, body, u) => {
+  if (u.totp && u.totp.activo) throw fallo(409, 'El segundo factor ya está activado');
+  return iniciarTotp('u:' + u.id, u.email);
+}, { noAccess: true });
+route('POST', /^\/api\/me\/2fa\/activar$/, async (req, res, body, u) => {
+  if (bloqueado('dospasos', u.id)) throw demasiados();
+  let r; try { r = confirmarTotp('u:' + u.id, body.codigo); } catch (e) { anotar('dospasos', u.id); throw e; }
+  u.totp = r.registro;
+  anotarActividad(req, 'dospasos.activar', u, { quien: 'cliente' });
+  save(); return { ok: true, codigos: r.codigos, user: pub(u) };
+}, { noAccess: true });
+route('POST', /^\/api\/me\/2fa\/desactivar$/, async (req, res, body, u) => {
+  if (!u.totp || !u.totp.activo) throw fallo(409, 'El segundo factor no está activado');
+  if (bloqueado('dospasos', u.id)) throw demasiados();
+  const okPw = safeEq(hashPw(String(body.password || ''), u.salt), u.hash);
+  if (!okPw || !comprobarSegundo(u.totp, body.codigo)) { anotar('dospasos', u.id); throw fallo(400, okPw ? 'El código no es correcto o ya se ha usado.' : 'La contraseña no es correcta.'); }
+  delete u.totp;
+  anotarActividad(req, 'dospasos.desactivar', u, { quien: 'cliente' });
+  save(); return { ok: true, user: pub(u) };
+}, { noAccess: true });
+
+/* ---------- Pago en línea con Stripe (Checkout y portal del cliente) ---------- */
+route('POST', /^\/api\/me\/pago\/checkout$/, async (req, res, body, u) => {
+  if (!STRIPE) throw fallo(404, 'El pago en línea no está configurado: solicite el enlace de pago.', { manual: true });
+  if (u.estado === 'bloqueado') throw fallo(403, 'Su acceso está suspendido. Póngase en contacto con nosotros.');
+  // Plan que se paga: el elegido (si el cliente puede elegirlo), el pendiente de confirmar o el actual
+  const plan = PLANES_LIBRES.includes(body.plan) || (body.plan === 'grupos' && u.plan === 'grupos') ? body.plan : (u.planPendiente && u.planPendiente.plan) || u.plan;
+  const periodo = PERIODOS.includes(body.periodo) ? body.periodo : (u.planPendiente && u.planPendiente.periodo) || u.periodo || 'mensual';
+  const precio = STRIPE_PRECIOS[`${plan}-${periodo}`];
+  if (!precio) throw fallo(404, `El plan ${NOMBRE_PLAN[plan] || plan} con pago ${periodo} no se puede pagar en línea: solicite el enlace de pago.`, { manual: true });
+  if (u.stripeSuscripcion && ['active', 'trialing', 'past_due'].includes(u.stripeEstado)) throw fallo(409, 'Ya tiene una suscripción. Cambie de plan o de tarjeta desde «Gestionar el pago».', { portal: true });
+  const p = {
+    mode: 'subscription', 'line_items[0][price]': precio, 'line_items[0][quantity]': '1', client_reference_id: u.id, locale: 'es',
+    'metadata[cuenta]': u.id, 'metadata[plan]': plan, 'metadata[periodo]': periodo,
+    'subscription_data[metadata][cuenta]': u.id, 'subscription_data[metadata][plan]': plan, 'subscription_data[metadata][periodo]': periodo,
+    success_url: env.STRIPE_URL_OK || `${APP_URL}/app.html?pago=ok`, cancel_url: env.STRIPE_URL_CANCELAR || `${APP_URL}/acceso.html#pago`,
+    billing_address_collection: 'required', 'tax_id_collection[enabled]': 'true'
+  };
+  if (u.stripeCliente) Object.assign(p, { customer: u.stripeCliente, 'customer_update[name]': 'auto', 'customer_update[address]': 'auto' });
+  else p.customer_email = u.email;
+  if (env.STRIPE_IMPUESTOS === '1') p['automatic_tax[enabled]'] = 'true';
+  const s = await stripeApi('checkout/sessions', p);
+  anotarActividad(req, 'pago.checkout', u, { quien: 'cliente', despues: { plan, periodo }, nota: s.id });
+  return { url: s.url };
+}, { noAccess: true });
+route('POST', /^\/api\/me\/pago\/portal$/, async (req, res, body, u) => {
+  if (!STRIPE) throw fallo(404, 'El pago en línea no está configurado.', { manual: true });
+  if (!u.stripeCliente) throw fallo(404, 'Su cuenta no tiene pagos en línea todavía.', { manual: true });
+  const s = await stripeApi('billing_portal/sessions', { customer: u.stripeCliente, return_url: env.STRIPE_URL_PORTAL || `${APP_URL}/app.html`, locale: 'es' });
+  return { url: s.url };
+}, { noAccess: true });
 
 // Asistente: el bucle de herramientas se ejecuta en el navegador; el servidor solo habla con Claude
 route('POST', /^\/api\/chat$/, async (req, res, body, u) => {
@@ -842,13 +1564,13 @@ route('POST', /^\/api\/extract$/, async (req, res, body, u) => {
 
 // Agente de mercado: análisis 360 con fuentes oficiales, guardado por usuario. Cuenta como 5 consultas (hace búsquedas web)
 const PESO_MERCADO = 5;
-route('GET', /^\/api\/mercado$/, async (req, res, body, u) => ({ analisis: db.mercado[u.id] || null }));
+route('GET', /^\/api\/mercado$/, async (req, res, body, u) => ({ analisis: D.mercado(u.id) }));
 route('POST', /^\/api\/mercado\/actualizar$/, async (req, res, body, u) => {
   const perfil = { sector: body.sector, actividad: body.actividad, region: body.region, productos: body.productos, clientes: body.clientes, ventas: body.ventas };
   if (JSON.stringify(perfil).length > 20000) throw fallo(400, 'El perfil de la empresa es demasiado largo');
   const a = await conIA(u, 'mercado', PESO_MERCADO, 6000, () => agenteMercado(perfil));
   a.perfil = perfil;
-  db.mercado[u.id] = a; save();
+  D.setMercado(u.id, a);
   return { analisis: a };
 });
 
@@ -907,6 +1629,8 @@ async function manejar(req, res) {
   cabeceras(res);
   let url; try { url = new URL(req.url, 'http://x'); } catch { return send(res, 400, { error: 'Dirección no válida' }); }
   if (!url.pathname.startsWith('/api/')) return serveStatic(req, res, url);
+  // El aviso de Stripe se lee en bruto (la firma se comprueba sobre los bytes recibidos) y no lleva sesión
+  if (url.pathname === '/api/stripe/webhook') return webhookStripe(req, res);
   const r = routes.find((x) => x.method === req.method && x.re.test(url.pathname));
   if (!r) return send(res, 404, { error: 'Ruta no encontrada' });
   try {
@@ -944,7 +1668,7 @@ const server = http.createServer((req, res) => {
 });
 server.on('error', (e) => { console.error('No se pudo arrancar el servidor:', e.message); process.exit(1); });
 server.listen(PORT, () => {
-  console.log(`Atalaya en http://localhost:${PORT}  (IA: ${env.ANTHROPIC_API_KEY ? 'configurada' : 'sin clave'})`);
+  console.log(`Atalaya en http://localhost:${PORT}  (IA: ${env.ANTHROPIC_API_KEY ? 'configurada' : 'sin clave'} · base: ${ALMACEN === 'sqlite' ? DB_SQL : DB_FILE} · Stripe: ${STRIPE ? Object.keys(STRIPE_PRECIOS).length + ' precios' + (env.STRIPE_WEBHOOK_SECRET ? ', avisos firmados' : ', SIN STRIPE_WEBHOOK_SECRET (los pagos no activarán el acceso)') : 'no'})`);
   if (recuperada) saveNow();
 });
 
@@ -963,8 +1687,13 @@ const purgarInvitaciones = () => {
   });
   if (n) save();
 };
-purgarInvitaciones();
-setInterval(purgarInvitaciones, 6 * 3600e3).unref();
+// El registro de actividad se conserva ACTIVIDAD_DIAS (730 por defecto) y después se borra
+const purgar = () => {
+  purgarInvitaciones();
+  try { const n = ACT.purgar(new Date(Date.now() - ACTIVIDAD_DIAS * 864e5).toISOString()); if (n) console.log(`Registro de actividad: ${n} entradas de más de ${ACTIVIDAD_DIAS} días borradas.`); } catch (e) { console.error('Purga del registro de actividad:', e.message); }
+};
+purgar();
+setInterval(purgar, 6 * 3600e3).unref();
 setInterval(() => {
   let n = 0;
   [db.sessions, db.adminSessions, db.resets].forEach((o) => Object.keys(o).forEach((k) => { if (Date.parse(o[k].exp) < Date.now()) { delete o[k]; n++; } }));
@@ -977,9 +1706,9 @@ const autoDias = +env.MERCADO_AUTO_DIAS || 0;
 if (autoDias > 0) {
   setInterval(async () => {
     for (const u of db.users) {
-      const a = db.mercado[u.id];
+      const a = D.mercado(u.id);
       if (!a || !a.perfil || access(u).motivo !== 'pagado' || !IA_PLAN.mercado.planes.includes(u.plan) || Date.now() - Date.parse(a.fecha) < autoDias * 864e5) continue;
-      try { const n = await agenteMercado(a.perfil); n.perfil = a.perfil; db.mercado[u.id] = n; save(); } catch (e) { console.error('Agente de mercado:', e.message); }
+      try { const n = await agenteMercado(a.perfil); n.perfil = a.perfil; D.setMercado(u.id, n); } catch (e) { console.error('Agente de mercado:', e.message); }
     }
   }, 6 * 3600e3);
 }

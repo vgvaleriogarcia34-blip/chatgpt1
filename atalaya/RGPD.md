@@ -27,8 +27,8 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 - Finalidad: alta y gestión de la cuenta, prueba de 14 días, control de acceso pagado, cambios de plan, soporte, cuota diaria de IA.
 - Base: ejecución del contrato (6.1.b).
 - Interesados: clientes (personas de contacto de empresas y consultoras).
-- Datos (`server/server.mjs`, `POST /api/register` y gestor de usuarios): nombre, correo, empresa, teléfono, hash scrypt de la contraseña con sal, plan, periodo, estado, fecha de alta, último acceso, número de sesiones, `uso` (latidos por día), `usoIA` (últimos 60 días) e `iaTotal`, pagos registrados (fecha, importe, meses, referencia), notas de la administración, solicitudes de pago o de cambio de plan.
-- Destinatarios: alojamiento, correo (enlaces de contraseña y de acceso concedido), [PROVEEDOR DE PAGOS].
+- Datos (`server/server.mjs`, `POST /api/register` y gestor de usuarios): nombre, correo, empresa, teléfono, hash scrypt de la contraseña con sal, plan, periodo, estado, fecha de alta, fin de la prueba ampliada (`pruebaHasta`), último acceso, número de sesiones, `uso` (latidos por día), `usoIA` (últimos 60 días) e `iaTotal`, pagos registrados (fecha, importe, meses, referencia, quién lo registró, correcciones y anulaciones), notas de la administración, solicitudes de pago o de cambio de plan. Con Stripe: identificadores de cliente y de suscripción de Stripe, estado de la suscripción, número y enlace de cada factura, fecha de un cobro fallido (no se guardan datos de tarjeta: los trata Stripe). Si el cliente activa el segundo factor: su secreto TOTP cifrado y el HMAC de sus códigos de recuperación.
+- Destinatarios: alojamiento, correo (enlaces de contraseña y de acceso concedido; avisos al equipo de Business Avance con nombre, correo, teléfono, empresa y mensaje en altas, contactos y pagos si se configura `AVISOS_EMAIL`), Stripe (correo de la cuenta, su identificador interno, plan y periodo al pagar con tarjeta).
 - Transferencias: ninguna por este tratamiento salvo la ubicación del alojamiento o del correo. **[CONFIRMAR]**
 - Plazo: mientras exista la cuenta. No hay borrado automático de cuentas de prueba caducadas ni de cuentas inactivas. **[PENDIENTE: fijar plazo]**
 - Medidas: ver 2.3.
@@ -38,6 +38,15 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 - Base: medidas precontractuales a petición del interesado (6.1.b). **[VALIDAR]**
 - Datos: nombre, correo, teléfono, empresa, nº de personas o de sociedades, mensaje, origen, fecha.
 - Plazo implementado: se guardan las 500 más recientes (`db.contactos.slice(0, 500)`); se borran con la cuenta asociada. **[PENDIENTE: plazo máximo, p. ej. 12 meses sin relación]**
+
+**B bis. Registro de actividad del gestor de usuarios** (`ACT` en `server/server.mjs`, tabla `actividad`; `GET /api/admin/actividad`)
+- Finalidad: rendir cuentas de quién cambió qué en las cuentas de clientes (planes, bloqueos, pagos, pruebas, cuentas creadas o eliminadas, solicitudes cerradas, cobros de Stripe), detectar errores o abusos del personal y atender reclamaciones sobre cobros y accesos.
+- Base: interés legítimo (6.1.f) y, para los pagos, obligaciones contables (6.1.c). **[VALIDAR]**
+- Interesados: clientes y personal de Business Avance que usa la administración.
+- Datos: fecha y hora, autor (nombre que escribe quien entra a la administración, o «cliente», «stripe», «sistema»), acción, identificador y correo de la cuenta afectada, valores antes y después de los campos cambiados (plan, periodo, estado, pagado, vencimiento, fin de prueba, plan pedido, cuota pactada, nota interna y, en las altas o creaciones de cuenta, nombre, empresa y teléfono), importe y referencia de los pagos, motivo escrito por la administración, dirección IP de quien hizo la acción. No guarda contraseñas, datos de empresa del cliente ni respuestas de test.
+- Al borrar una cuenta, el registro **se conserva** con la constancia del borrado (correo, plan, estado, fecha de alta y número de pagos) y las entradas anteriores de esa cuenta, hasta cumplir el plazo. **[VALIDAR: si basta el interés legítimo o conviene seudonimizar el correo al borrar la cuenta]**
+- Plazo: `ACTIVIDAD_DIAS`, 730 días (24 meses) por defecto; la purga se revisa cada 6 horas. Se puede descargar en CSV desde el gestor (quien lo descarga debe custodiarlo).
+- Acceso: solo la administración (contraseña propia y segundo factor).
 
 **C. Seguridad del acceso**
 - Finalidad: limitar intentos (login, registro, contraseña olvidada, contacto, test por enlace).
@@ -60,12 +69,16 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 
 ### 2.3 Medidas de seguridad implementadas (art. 32)
 - Contraseñas con scrypt y sal; comparación en tiempo constante.
+- Segundo factor TOTP (RFC 6238) para la administración (y opcional para clientes): secreto cifrado con AES-256-GCM, códigos de un solo uso, 10 códigos de recuperación guardados por su HMAC.
+- Registro de actividad del gestor de usuarios (2.1.B bis) y avisos por correo al equipo.
+- Base de datos SQLite con transacciones y escritura por registro; copias diarias con `VACUUM INTO`; todos los ficheros con permisos 600.
+- Avisos de Stripe aceptados solo con firma HMAC-SHA256 válida y de menos de 5 minutos.
 - Cookie de sesión `atalaya_sid` HttpOnly, SameSite=Lax, 30 días, `Secure` con `COOKIE_SECURE=1`; sesiones guardadas por su SHA-256.
 - Enlaces de los test derivados de un secreto del servidor (HMAC); en `db.json` solo su hash.
 - Carpeta de datos fuera de la web, permisos 0700 y fichero 0600; escritura atómica; 7 copias diarias rotatorias.
 - Política de contenidos (CSP), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, HSTS con `COOKIE_SECURE=1`.
 - Límites de intentos y de tamaño de datos por cuenta; cuota diaria de IA.
-- Pendiente: cifrado en reposo del disco (depende del alojamiento), registro de accesos del personal, procedimiento de brechas (arts. 33-34). **[PENDIENTE]**
+- Pendiente: cifrado en reposo del disco (depende del alojamiento), procedimiento de brechas (arts. 33-34). **[PENDIENTE]** (El registro de accesos y acciones del personal de administración está en 2.1.B bis.)
 
 ---
 
@@ -76,7 +89,7 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 | [PROVEEDOR DE ALOJAMIENTO] | Servidor y disco | Todos | [PAÍS] | [DPA] |
 | Anthropic, PBC | API de Claude (asistente, extracción, escucha, agente de mercado con búsqueda web, propuestas) | Texto enviado a esas funciones | EE. UU. | [DPF / CCT] |
 | [PROVEEDOR DE CORREO] (SMTP configurado con `SMTP_HOST`) | Correos de contraseña, acceso e invitaciones a test | Correo, nombre, enlace, nombre de la empresa | [PAÍS] | [DPA] |
-| [PROVEEDOR DE PAGOS] (previsto Stripe, `PUESTA-EN-MARCHA.md`) | Cobro | Facturación y pago | [PAÍS] | [DPA] |
+| Stripe (Stripe Payments Europe, Ltd., si se configura `STRIPE_SECRET_KEY`; `PUESTA-EN-MARCHA.md` apartado 5) | Cobro de suscripciones, facturas y portal de cliente | Correo, identificador interno de la cuenta, plan y periodo; Stripe recoge directamente tarjeta, nombre, dirección de facturación y NIF | UE/EE. UU. | [DPA de Stripe; para los datos de pago Stripe actúa también como responsable] **[VALIDAR]** |
 | Google (Google Fonts) | Tipografías | IP y agente de usuario de cada visitante | EE. UU./UE | Recomendado: alojar las fuentes en el servidor y eliminar esta transmisión |
 | Cloudflare (cdnjs) | Bibliotecas JS (Three.js, PDF.js, lectura de Excel, html2pdf) | IP y agente de usuario | EE. UU./UE | Recomendado: servirlas desde el propio servidor |
 
@@ -96,10 +109,13 @@ Terceros que solo intervienen si el usuario pulsa un enlace: WhatsApp (`wa.me`),
 | Uso diario de IA | Últimos 60 días | `usoIA` |
 | Contactos | Los 500 más recientes | `db.contactos.slice(0, 500)` |
 | Contadores de intentos | En memoria, 15-60 minutos | `LIMITES` |
-| Copias de seguridad | 7 copias diarias rotatorias | `COPIAS = 7` |
+| Copias de seguridad | 7 copias diarias rotatorias (`atalaya.db.1…7`); la copia `db.json.migrado-<fecha>` de la migración a SQLite se conserva hasta que se borre a mano **[PENDIENTE: borrarla tras comprobar la migración]** | `COPIAS = 7` |
 | Invitaciones a test | Se borran 30 días después de importarse, caducar o anularse; la IP se borra al importar. Revisión cada 6 horas | `INVITACIONES_DIAS`, `purgarInvitaciones` |
 | Respuestas de lid360 | Solo se entregan al consultor sin nombres y a partir de 3 respuestas; la bolsa se vacía al importarse | `MIN_LID360`, `POST /api/lid360/:pid/importado` |
-| Borrado de cuenta (administración) | Borra datos, mercado, sesiones, enlaces, invitaciones con respuestas, contactos y uso | `DELETE /api/admin/users/:id` |
+| Borrado de cuenta (administración) | Borra datos, mercado, sesiones, enlaces, invitaciones con respuestas, contactos y uso, en una transacción | `DELETE /api/admin/users/:id` |
+| Registro de actividad | 730 días (24 meses); revisión cada 6 horas. Se conserva tras borrar la cuenta | `ACTIVIDAD_DIAS`, `purgar` |
+| Eventos de Stripe recibidos | Solo su identificador y fecha, los 5.000 más recientes (para no aplicar dos veces el mismo aviso) | `db.stripeEventos` |
+| Alta de segundo factor sin confirmar | 15 minutos, solo en memoria | `altasTotp` |
 
 ### Pendientes (no implementados)
 1. **Cuentas de prueba no activadas e inactivas**: sin plazo.
