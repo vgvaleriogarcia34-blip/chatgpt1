@@ -14,7 +14,7 @@
 
   /* ---------- Marca blanca: la ficha de la firma del consultor ----------
      Una por cuenta y para todas sus empresas: se guarda en el registro de empresas de la cuenta (dato «empresas», que ya
-     viaja al servidor), dentro de la ficha de la empresa principal (campo «firma»). La edita «Ficha de tu firma» en la
+     viaja al servidor), dentro de la ficha de la empresa principal (campo «firma»). La edita «Ficha de su firma» en la
      propuesta comercial. Sin ficha, los documentos llevan solo «Atalaya 360°»; con ficha, la firma es la marca y, si se
      quiere, un discreto «Elaborado con Atalaya 360°» al pie. Antes la ficha vivía en el navegador (atalaya.firma[@id]):
      se lee de ahí mientras no se guarde la nueva, sin el nombre que ponía por defecto la versión anterior. */

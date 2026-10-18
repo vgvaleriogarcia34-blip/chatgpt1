@@ -91,7 +91,7 @@
     ses0(host);
     const ST = S(), sel = ST.sesiones.find((x) => x.id === V.int.get('sesSel')) || ST.sesiones.find((x) => x.fecha >= V.int.hoy()) || ST.sesiones[0];
     const card = document.createElement('section'); card.className = 'glass pad stack iv-sesup';
-    card.innerHTML = `<div class="row"><div><div class="eyebrow">Transcripciones de las sesiones de trabajo</div><small class="muted">Súbelas aquí: se guardan como sesión de trabajo${sel ? ` y se vinculan a la sesión del ${fCorta(sel.fecha)}` : ''}; de ellas salen el acta, los acuerdos y el avance de los objetivos, y entran en el histórico.</small></div><span class="spacer"></span><label class="btn solid small">Subir transcripciones<input type="file" id="ivSesFile" multiple accept=".txt,.md,.srt,.vtt,.docx,.pdf,.json" hidden></label></div>
+    card.innerHTML = `<div class="row"><div><div class="eyebrow">Transcripciones de las sesiones de trabajo</div><small class="muted">Súbalas aquí: se guardan como sesión de trabajo${sel ? ` y se vinculan a la sesión del ${fCorta(sel.fecha)}` : ''}; de ellas salen el acta, los acuerdos y el avance de los objetivos, y entran en el histórico.</small></div><span class="spacer"></span><label class="btn solid small">Subir transcripciones<input type="file" id="ivSesFile" multiple accept=".txt,.md,.srt,.vtt,.docx,.pdf,.json" hidden></label></div>
       ${ST.transcripciones.length ? htmlHistorico(calcular(), true) : ''}`;
     host.prepend(card);
     $('#ivSesFile', card).onchange = async (e) => {

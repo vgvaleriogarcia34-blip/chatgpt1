@@ -79,14 +79,14 @@
       Object.entries(j.palancas).forEach(([id, p]) => { if (!ids.has(id) || !p) return; const def = PRO().PALANCAS.find((x) => x.id === id), lim = Object.fromEntries(def.campos.map(([k]) => [k, true]));
         const nuevo = { on: p.on !== false }; Object.keys(p).forEach((k) => { if (lim[k] && num(p[k]) >= 0) nuevo[k] = String(p[k]); }); d.palancas[id] = Object.assign({}, d.palancas[id], nuevo); });
       if (j.conversion) { const q = num(j.conversion.pct); if (q >= 1 && q <= 60) c.pct = q; if (j.conversion.base === 'cinco' || j.conversion.base === 'anual') c.base = j.conversion.base; }
-      c.argumento = [j.argumento, j.supuestos ? 'Supuestos: ' + j.supuestos : ''].filter(Boolean).join('\n'); c.ia = 'Propuesto con Claude: revísalo con el empresario antes de presentarlo.';
+      c.argumento = [j.argumento, j.supuestos ? 'Supuestos: ' + j.supuestos : ''].filter(Boolean).join('\n'); c.ia = 'Propuesto con Claude: revíselo con el empresario antes de presentarlo.';
     } else {
       const u = PRO().proponerPalancas(d); c.pct = DEF.main.pct; c.base = 'anual';
       c.argumento = u.length ? `Palancas activadas por: ${u.join('; ')}.` : ''; c.ia = v ? 'Claude no ha devuelto una propuesta válida: se ha calculado con las reglas.' : 'Sin conexión con Claude: calculado con las reglas.';
     }
     const x = calc('main');
-    if (x) { aplicar(x); toast(`Precio ${eur(x.precio)}: ${pct1(c.pct)} de ${eur(x.base)} de beneficio. Revísalo con el empresario.`); }
-    else { guardar(); toast('No hay datos suficientes para estimar el beneficio: completa la dimensión de la empresa.'); }
+    if (x) { aplicar(x); toast(`Precio ${eur(x.precio)}: ${pct1(c.pct)} de ${eur(x.base)} de beneficio. Revíselo con el empresario.`); }
+    else { guardar(); toast('No hay datos suficientes para estimar el beneficio: complete la dimensión de la empresa.'); }
     render();
   };
   const wireMain = (host) => {
@@ -109,7 +109,7 @@
     const meses = k === 'propS3' ? Math.max(1, +(S().recorrido[k].meses) || 6) : 0;
     return `<div class="cv-srv"><div class="row"><b class="small">Honorarios por conversión sobre beneficio</b><span class="spacer"></span><label class="small iv-inl">Conversión <input class="input" type="number" min="1" max="60" step="0.5" data-cvs="pct" value="${esc(c.pct)}" style="width:70px"> % del beneficio de un año</label></div>
       ${x ? `<p class="small" style="margin:0">El proyecto genera <b>${eur(x.b.anual)}</b> al año en régimen (conservador ${eur(x.b.anualCons)}). Con el ${pct1(c.pct)}: <b>${eur(meses ? redondea(x.precio / meses, 50) : x.precio)}${meses ? ' al mes durante ' + meses + ' meses' : ''}</b>${meses ? ' (' + eur(redondea(x.precio / meses, 50) * meses) + ' en total)' : ''}; la empresa se queda ${eur(x.queda)} del primer año en régimen.</p><div class="row"><button class="btn ghost small" data-cvsap="${k}">Usar como honorarios</button></div>`
-        : '<p class="small muted" style="margin:0">Calcula primero el beneficio en la propuesta comercial (paso «Propuesta», «Precio por conversión sobre beneficio»).</p>'}</div>`;
+        : '<p class="small muted" style="margin:0">Calcule primero el beneficio en la propuesta comercial (paso «Propuesta», «Precio por conversión sobre beneficio»).</p>'}</div>`;
   };
   const wireServicio = (host, k) => {
     const box = host.querySelector(`[data-conv="${k}"]`); if (!box) return;

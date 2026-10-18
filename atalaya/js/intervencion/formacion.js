@@ -67,7 +67,7 @@
       errores: ['Contratar estructura pensando en las ventas esperadas, no en las reales.', 'Recortar a ciegas lo que genera venta.'], indicador: 'Costes fijos sobre ventas; punto de equilibrio.' },
     { id: 'financiero', n: 'Endeudamiento y sistema financiero', claves: ['deuda', 'prestamo', 'banco', 'leasing', 'interes', 'financ'],
       idea: 'La deuda no es buena ni mala: depende de a qué plazo financia qué. Lo largo con lo largo y lo corto con lo corto.',
-      regla: 'Las inversiones se financian a su plazo; la póliza es para el circulante, no para comprar activos. Orientativo: deuda por debajo de 3 veces el EBITDA.',
+      regla: 'Las inversiones se financian a su plazo; la póliza es para el circulante, no para comprar activos. Orientativo: deuda por debajo de 3 veces el beneficio del negocio (EBITDA).',
       pasos: ['Inventario de toda la deuda: importe, cuota, plazo, tipo y garantías.', 'Ratio de deuda sobre EBITDA y calendario de vencimientos.', 'Reordenar: lo que financia activos, a largo.', 'Relación con el banco con información periódica.'],
       ejemplo: { cat: 'Deuda por debajo de 3 veces el EBITDA en dos años.', obj: 'Calendario de vencimientos actualizado y compartido con el banco cada semestre.', piedra: 'Primer lunes de cada mes: revisar cuotas y saldos dispuestos.' },
       errores: ['Pagar inversiones con la póliza.', 'Firmar avales personales sin calcular el riesgo.', 'Ir al banco solo cuando falta dinero.'], indicador: 'Deuda / EBITDA; deuda a corto sobre total.' },
@@ -114,7 +114,7 @@
   };
   const informeManual = (ids, o) => {
     const In = A.informe; In.reset(); o = o || {};
-    const L = (ids || []).map(man).filter(Boolean); if (!L.length) return toast('Elige al menos un tema de formación.');
+    const L = (ids || []).map(man).filter(Boolean); if (!L.length) return toast('Elija al menos un tema de formación.');
     const html = In.cover({ tipo: 'Manual de formación', kicker: o.kicker || 'Formación', titulo: L.length === 1 ? L[0].n : 'Manual de la sesión', subtitulo: o.sub || 'Lo trabajado en la sesión, para tenerlo a mano y aplicarlo.', empresa: empresa() })
       + (L.some((m) => m.id === 'regla') ? '' : In.callout('<b>Recuerde la regla base:</b> la liquidez genera rentabilidad y la rentabilidad genera crecimiento. No se busca crecimiento con la liquidez.', 'info'))
       + L.map(manualHTML).join('') + In.foot('Manual de formación para la empresa.');
@@ -146,11 +146,11 @@
     autoeval: (st) => Object.keys(st.recorrido.autoeval || {}).length >= 2
   });
   Object.assign(V.pasoTxt, {
-    arranque: 'Las primeras sesiones del acompañamiento: la regla base, normalizar el desafío, el diseño SMART por capas y su primer objetivo. Sigue el guion y marca cada parte.',
-    objetivos: 'Sus objetivos SMART, que dependen solo de él, con la piedra diaria de cada uno. Envíalos a la mesa de trabajo.',
-    plan: 'El plan de intervención por prioridades: genera las acciones por fase y línea. Cada una tiene sus pasos, indicadores y responsable.',
-    sesiones: 'Sesiones quincenales: genera el calendario, sube la transcripción de cada sesión y saca su acta y su manual de formación.',
-    autoeval: 'Tu autoevaluación por etapa: indicadores automáticos y preguntas de conciencia. Es interna: no se entrega a la empresa.'
+    arranque: 'Las primeras sesiones del acompañamiento: la regla base, normalizar el desafío, el diseño SMART por capas y su primer objetivo. Siga el guion y marque cada parte.',
+    objetivos: 'Sus objetivos SMART, que dependen solo de él, con la piedra diaria de cada uno. Envíelos a la mesa de trabajo.',
+    plan: 'El plan de intervención por prioridades: genere las acciones por fase y línea. Cada una tiene sus pasos, indicadores y responsable.',
+    sesiones: 'Sesiones quincenales: genere el calendario, suba la transcripción de cada sesión y saque su acta y su manual de formación.',
+    autoeval: 'Su autoevaluación por etapa: indicadores automáticos y preguntas de conciencia. Es interna: no se entrega a la empresa.'
   });
   const cifraRegla = () => {
     const an = V.servicios && V.servicios._ultimo; if (!an) return '';
@@ -209,7 +209,7 @@
     const ses = S().sesiones.slice().sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
     if (!ses.length) return;
     const sec = document.createElement('section'); sec.className = 'glass pad stack sv-actas';
-    sec.innerHTML = `<div class="eyebrow">Actas y manuales de cada sesión</div><small class="muted">Elige el tema de formación de cada sesión (se proponen los que delata su transcripción) y entrega el acta y el manual.</small>
+    sec.innerHTML = `<div class="eyebrow">Actas y manuales de cada sesión</div><small class="muted">Elija el tema de formación de cada sesión (se proponen los que delata su transcripción) y entregue el acta y el manual.</small>
       <ul class="sv-ses">${ses.map((s) => { const sug = temasDe(trDeSesion(s).map(textoTr).join(' ')); s.temas = s.temas || []; return `<li data-s="${s.id}"><div><b>${esc(fCorta(s.fecha))} · ${esc(D.TIPOS_SESION[s.tipo] || s.tipo || 'Sesión')}</b><small class="muted">${s.actaEntregada ? 'Acta entregada ' + fCorta(s.actaEntregada) : 'Acta sin entregar'}${sug.length ? ' · la transcripción habla de: ' + esc(sug.map((k) => man(k).n.split(':')[0]).join(', ')) : ''}</small>
         <div class="sv-chips">${s.temas.map((k) => `<span class="sv-chip">${esc(man(k) ? man(k).n.split(':')[0] : k)}<button data-tq="${k}" aria-label="Quitar">×</button></span>`).join('')}<select class="input small" data-ta><option value="">+ Tema de formación</option>${sug.filter((k) => !s.temas.includes(k)).map((k) => `<option value="${k}">★ ${esc(man(k).n)}</option>`).join('')}${MANUALES.filter((m) => !s.temas.includes(m.id) && !sug.includes(m.id)).map((m) => `<option value="${m.id}">${esc(m.n)}</option>`).join('')}</select></div></div>
         <div class="row"><button class="btn small" data-acta>Acta</button><button class="btn ghost small" data-man ${s.temas.length ? '' : 'disabled'}>Manual</button></div></li>`; }).join('')}</ul>`;
@@ -240,7 +240,7 @@
   const notaEtapa = (i) => { const a = R().autoeval[i] || {}, au = AUTO[i].auto().filter((x) => x[1] != null), qv = Object.values(a.q || {}).map(Number).filter(Boolean); const pa = au.length ? au.filter((x) => x[1]).length / au.length : null, pq = qv.length ? qv.reduce((s, x) => s + x, 0) / qv.length / 5 : null; const ps = [pa, pq].filter((x) => x != null); return ps.length ? Math.round((ps.reduce((s, x) => s + x, 0) / ps.length) * 10 * 10) / 10 : null; };
   VISTAS.autoeval = (host) => {
     const ae = R().autoeval;
-    host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Autoevaluación del consultor · uso interno</div><p class="small" style="margin:0">Indicadores que Atalaya mide solo y preguntas de conciencia que puntúas del 1 al 5. Al final de cada etapa, escribe qué harás mejor en la próxima sesión.</p><div class="row"><button class="btn small" id="svAeInf">Informe de autoevaluación (interno)</button></div></div>
+    host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Autoevaluación del consultor · uso interno</div><p class="small" style="margin:0">Indicadores que Atalaya mide solo y preguntas de conciencia que usted puntúa del 1 al 5. Al final de cada etapa, escriba qué hará mejor en la próxima sesión.</p><div class="row"><button class="btn small" id="svAeInf">Informe de autoevaluación (interno)</button></div></div>
       ${AUTO.map((E, i) => { const a = ae[i] || {}, au = E.auto(), nt = notaEtapa(i); return `<section class="glass pad stack"><div class="row"><b>${esc(E.e)}</b><span class="spacer"></span><span class="sv-nota ${nt == null ? '' : nt >= 7 ? 'ok' : nt >= 5 ? 'warn' : 'stop'}">${nt == null ? '—' : String(nt).replace('.', ',')}/10</span></div>
         <ul class="sv-dat">${au.map(([t, ok, det]) => `<li><i class="ms-luz ${ok == null ? '' : ok ? 'ok' : 'stop'}"></i><span>${esc(t)}</span><b>${esc(det || (ok == null ? 'Sin datos' : ok ? 'Sí' : 'No'))}</b></li>`).join('')}</ul>
         <ul class="sv-q">${E.q.map((q, j) => `<li><span>${esc(q)}</span><span class="sv-esc">${[1, 2, 3, 4, 5].map((n) => `<button class="${+((a.q || {})[j]) === n ? 'on' : ''}" data-q="${i}:${j}:${n}">${n}</button>`).join('')}</span></li>`).join('')}</ul>
@@ -280,45 +280,45 @@
   /* ================= FICHAS DE RECORRIDO DE LOS PASOS NUEVOS ================= */
   const ent = (k) => !!(S().informes && S().informes[k]);
   V.fichaExtra = {
-    foto: { donde: 'Cierras la sesión previa: lo que ya sabes después de escucharle y qué servicio le toca primero.',
+    foto: { donde: 'Cierra la sesión previa: lo que ya sabe después de escucharle y qué servicio le toca primero.',
       ves: () => { const r = I.ruta(); return [`${pl(r.filter((x) => x.n === 'stop').length, 'área', 'áreas')} en urgencias y ${pl(S().sintomas.length, 'síntoma', 'síntomas')}.`, ent('primera') ? 'Informe de la sesión previa entregado.' : 'Falta entregar el informe de la sesión previa.']; },
-      sig: [{ f: 'con', t: 'Entrega el informe de la sesión previa en 48 horas.' }, { f: 'coa', t: 'Pregúntale qué le ha llamado la atención.', q: 'De todo lo que hemos hablado, ¿qué es lo que más le preocupa ahora?' }],
-      pedir: ['Que confirme sus tres prioridades'], medir: ['Días entre la sesión y la entrega del informe'], exp: 'Si la liquidez está en rojo, el Servicio 1 no admite espera: dilo así en la foto inicial.' },
-    aceptacion: { donde: 'Registras cómo quedó la propuesta integral y qué servicios contrata.',
+      sig: [{ f: 'con', t: 'Entregue el informe de la sesión previa en 48 horas.' }, { f: 'coa', t: 'Pregúntele qué le ha llamado la atención.', q: 'De todo lo que hemos hablado, ¿qué es lo que más le preocupa ahora?' }],
+      pedir: ['Que confirme sus tres prioridades'], medir: ['Días entre la sesión y la entrega del informe'], exp: 'Si la liquidez está en rojo, el Servicio 1 no admite espera: dígalo así en la foto inicial.' },
+    aceptacion: { donde: 'Registra cómo quedó la propuesta integral y qué servicios contrata.',
       ves: () => { const r = R(); return [`Propuesta: ${r.propuesta.estado}${r.propuesta.fecha ? ' (' + fCorta(r.propuesta.fecha) + ')' : ''}.`, `Contratados: ${['s1', 's2', 's3'].filter((k) => r.servicios[k].contratado).map((k) => k.toUpperCase()).join(', ') || 'ninguno todavía'}.`]; },
-      sig: [{ f: 'con', t: 'Si acepta, fija ya la fecha de entrega de la documentación.' }, { f: 'coa', t: 'Si duda, pregunta por el coste de no hacer nada.', q: '¿Qué pasa si dentro de un año seguimos igual?' }],
-      pedir: ['Aceptación por escrito (correo o firma)'], medir: ['Propuestas aceptadas sobre presentadas'], exp: 'Un rechazo también enseña: anota el motivo; tu autoevaluación lo recoge.' },
-    s1docs: { donde: 'Pides la documentación del Servicio 1 y marcas lo que llega.',
+      sig: [{ f: 'con', t: 'Si acepta, fije ya la fecha de entrega de la documentación.' }, { f: 'coa', t: 'Si duda, pregunte por el coste de no hacer nada.', q: '¿Qué pasa si dentro de un año seguimos igual?' }],
+      pedir: ['Aceptación por escrito (correo o firma)'], medir: ['Propuestas aceptadas sobre presentadas'], exp: 'Un rechazo también enseña: anote el motivo; su autoevaluación lo recoge.' },
+    s1docs: { donde: 'Pide la documentación del Servicio 1 y marca lo que llega.',
       ves: () => { const d = R().docs, n = V.servicios.DOCS_S1.filter((x) => ['recibido', 'revisado', 'na'].includes(d[x.id] && d[x.id].e)).length; return [`${n} de ${V.servicios.DOCS_S1.length} documentos recibidos o resueltos.`]; },
-      sig: [{ f: 'con', t: 'Envía la solicitud para la empresa con fecha límite.' }, { f: 'men', t: 'Explícale para qué sirve cada documento: colabora mejor quien entiende.' }],
+      sig: [{ f: 'con', t: 'Envíe la solicitud para la empresa con fecha límite.' }, { f: 'men', t: 'Explíquele para qué sirve cada documento: colabora mejor quien entiende.' }],
       pedir: ['Cuentas anuales de 3 a 5 años', 'Extractos y pólizas', 'Pendientes de cobro y de pago'], medir: ['Días hasta tener la documentación completa'], exp: 'Con dos años de cuentas ya se puede empezar el análisis; el resto lo afina.' },
-    s1dinero: { donde: 'Analizas dónde acabó el beneficio de cada año: clientes, stock, inversiones, préstamos, dividendos o caja.',
-      ves: () => [V.hechoExtra.s1dinero(S()) ? 'Conclusiones escritas.' : 'Faltan tus conclusiones: van al informe.'],
-      sig: [{ f: 'con', t: 'Busca la decisión que hay detrás de cada euro atrapado.' }, { f: 'men', t: 'Prepara cómo explicarle la regla liquidez → rentabilidad → crecimiento con sus cifras.' }],
-      pedir: ['Aclaraciones del contable sobre partidas grandes sin explicar'], medir: ['Beneficio acumulado frente a variación de caja'], exp: 'Si «otras partidas» es grande, revisa Hacienda, otros deudores y provisiones antes de concluir.' },
-    s1cierre: { donde: 'Entregas el informe del dinero y presentas la propuesta de la Auditoría 360.',
+    s1dinero: { donde: 'Analiza dónde acabó el beneficio de cada año: clientes, stock, inversiones, préstamos, dividendos o caja.',
+      ves: () => [V.hechoExtra.s1dinero(S()) ? 'Conclusiones escritas.' : 'Faltan sus conclusiones: van al informe.'],
+      sig: [{ f: 'con', t: 'Busque la decisión que hay detrás de cada euro atrapado.' }, { f: 'men', t: 'Prepare cómo explicarle la regla liquidez → rentabilidad → crecimiento con sus cifras.' }],
+      pedir: ['Aclaraciones del contable sobre partidas grandes sin explicar'], medir: ['Beneficio acumulado frente a variación de caja'], exp: 'Si «otras partidas» es grande, revise Hacienda, otros deudores y provisiones antes de concluir.' },
+    s1cierre: { donde: 'Entrega el informe del dinero y presenta la propuesta de la Auditoría 360.',
       ves: () => [ent('dinero') ? 'Informe del dinero entregado.' : 'Falta entregar el informe.', `Propuesta de la 360: ${(R().propS2 || {}).estado || 'sin preparar'}.`],
-      sig: [{ f: 'con', t: 'Presenta la propuesta en la misma reunión de entrega del informe.' }, { f: 'coa', t: 'Une el hallazgo con la siguiente pregunta.', q: 'Ya sabe dónde está su dinero. ¿Quiere saber por qué se queda ahí?' }],
-      pedir: [], medir: ['Propuestas de la 360 aceptadas tras el Servicio 1'], exp: 'La mejor venta del siguiente servicio es un informe que le ha sorprendido.' },
+      sig: [{ f: 'con', t: 'Presente la propuesta en la misma reunión de entrega del informe.' }, { f: 'coa', t: 'Una el hallazgo con la siguiente pregunta.', q: 'Ya sabe dónde está su dinero. ¿Quiere saber por qué se queda ahí?' }],
+      pedir: [], medir: ['Propuestas de la 360 aceptadas tras el Servicio 1'], exp: 'La venta del siguiente servicio se apoya en un informe que le haya sorprendido.' },
     foto360: { donde: 'La foto completa en seis bloques, de los datos a la operativa.',
-      ves: () => { const F = R().foto360 || {}; return [`${V.servicios.BLOQUES.filter((b) => F[b.id] && (F[b.id].st || (F[b.id].nota || '').trim())).length} de 6 bloques con tu semáforo o tu nota.`]; },
-      sig: [{ f: 'con', t: 'Verifica sobre el terreno lo que dicen los datos.' }, { f: 'con', t: 'Ordena las prioridades por la regla base.' }],
+      ves: () => { const F = R().foto360 || {}; return [`${V.servicios.BLOQUES.filter((b) => F[b.id] && (F[b.id].st || (F[b.id].nota || '').trim())).length} de 6 bloques con su semáforo o su nota.`]; },
+      sig: [{ f: 'con', t: 'Verifique sobre el terreno lo que dicen los datos.' }, { f: 'con', t: 'Ordene las prioridades por la regla base.' }],
       pedir: ['La documentación que falte en cada bloque'], medir: ['Bloques verificados sobre el total'], exp: 'Un bloque sin datos también es un hallazgo: la empresa no tiene esa información.' },
-    s2cierre: { donde: 'Entregas el informe 360 y presentas el acompañamiento de 6 a 12 meses.',
+    s2cierre: { donde: 'Entrega el informe 360 y presenta el acompañamiento de 6 a 12 meses.',
       ves: () => [ent('auditoria') ? 'Informe 360 entregado.' : 'Falta entregar el informe 360.', `Propuesta de acompañamiento: ${(R().propS3 || {}).estado || 'sin preparar'}.`],
-      sig: [{ f: 'coa', t: 'Pregunta qué objetivo quiere alcanzar primero.', q: 'De estas prioridades, ¿cuál le cambiaría más la vida si la resolviéramos?' }],
+      sig: [{ f: 'coa', t: 'Pregunte qué objetivo quiere alcanzar primero.', q: 'De estas prioridades, ¿cuál le cambiaría más la vida si la resolviéramos?' }],
       pedir: [], medir: ['Propuestas de acompañamiento aceptadas'], exp: 'Duración según el número de prioridades: 6 meses para 2-3; 12 para 5 o más.' },
     arranque: { donde: 'Las primeras sesiones del acompañamiento: reglas y método antes que objetivos.',
       ves: () => { const ar = R().arranque; return [`${ARRANQUE.filter((x) => ar[x.id] && ar[x.id].hecho).length} de 4 partes hechas.`]; },
-      sig: [{ f: 'men', t: 'Enseña la regla base con sus cifras.' }, { f: 'coa', t: 'Normaliza el desafío antes de que aparezca.' }, { f: 'con', t: 'Entrega el manual de cada parte.' }],
+      sig: [{ f: 'men', t: 'Enseñe la regla base con sus cifras.' }, { f: 'coa', t: 'Normalice el desafío antes de que aparezca.' }, { f: 'con', t: 'Entregue el manual de cada parte.' }],
       pedir: ['Que traiga una decisión reciente para analizarla con la regla base'], medir: ['Que pueda explicar la regla con sus palabras'], exp: 'Si se salta la normalización, la primera recaída se vive como fracaso y se abandona el método.' },
     objetivos: { donde: 'Sus objetivos SMART, que dependen solo de él, con su piedra diaria.',
       ves: () => { const o = S().objetivos; return [`${pl(o.length, 'objetivo', 'objetivos')}, ${o.filter((x) => x.piedra).length} con piedra diaria.`]; },
-      sig: [{ f: 'coa', t: 'Que lo escriba él.', q: '¿Qué hará usted, cuántas veces y a qué hora, empezando esta semana?' }, { f: 'con', t: 'Envíalo a la mesa de trabajo como meta.' }],
-      pedir: [], medir: ['Piedras puestas frente a previstas cada semana'], exp: 'Si el objetivo depende del cliente o del mercado, baja una capa hasta encontrar la piedra.' },
-    autoeval: { donde: 'Tu autoevaluación: interna, no se entrega a la empresa.',
+      sig: [{ f: 'coa', t: 'Que lo escriba él.', q: '¿Qué hará usted, cuántas veces y a qué hora, empezando esta semana?' }, { f: 'con', t: 'Envíelo a la mesa de trabajo como meta.' }],
+      pedir: [], medir: ['Piedras puestas frente a previstas cada semana'], exp: 'Si el objetivo depende del cliente o del mercado, baje una capa hasta encontrar la piedra.' },
+    autoeval: { donde: 'Su autoevaluación: interna, no se entrega a la empresa.',
       ves: () => AUTO.map((E, i) => { const n = notaEtapa(i); return `${E.e}: ${n == null ? 'sin datos' : String(n).replace('.', ',') + '/10'}`; }),
-      sig: [{ f: 'con', t: 'Al terminar cada etapa, puntúa y escribe qué harás mejor.' }], pedir: [], medir: ['Nota por etapa a lo largo de los clientes'], exp: 'Las preguntas de conciencia valen más que los indicadores: son las que cambian tu forma de trabajar.' }
+      sig: [{ f: 'con', t: 'Al terminar cada etapa, puntúe y escriba qué hará mejor.' }], pedir: [], medir: ['Nota por etapa a lo largo de los clientes'], exp: 'Las preguntas de conciencia valen más que los indicadores: son las que cambian su forma de trabajar.' }
   };
 
   V.formacion = { MANUALES, ARRANQUE, AUTO, temasDe, informeManual, informeActa, informeAutoeval, notaEtapa };

@@ -31,7 +31,7 @@
       if (St && St.state && St.origenCargar) {
         clearInterval(t);
         try { const r = await St.origenCargar(files); r.TIPOS = fr.contentWindow.Atalaya.C360_TIPOS || {}; fin(ok, r); } catch (e) { fin(ko, e); }
-      } else if (n > 150) fin(ko, new Error('El sistema estratégico no ha respondido. Comprueba que tu plan lo incluye y vuelve a probar.'));
+      } else if (n > 150) fin(ko, new Error('El sistema estratégico no ha respondido. Compruebe que su plan lo incluye y vuelva a probar.'));
     }, 200);
   });
 
@@ -102,21 +102,21 @@
     const nF = (k) => (ST.transcripciones || []).filter((t) => (t.momento || 'primera') === k).length;
     host.innerHTML = `<section class="glass pad stack">
       <div class="eyebrow">Documentación de la empresa</div>
-      <h3 style="margin:0">Súbelo todo aquí: Atalaya lo lleva a su sitio</h3>
-      <ol class="small dc-pasos"><li><b>Pide</b> a la empresa lo de la lista de la derecha.</li><li><b>Súbelo</b> aquí, todo junto: no hace falta separarlo.</li><li><b>Revisa</b> la tabla de abajo: dice qué es cada archivo y adónde ha ido.</li></ol>
+      <h3 style="margin:0">Súbalo todo aquí: Atalaya lo lleva a su sitio</h3>
+      <ol class="small dc-pasos"><li><b>Pida</b> a la empresa lo de la lista de la derecha.</li><li><b>Súbalo</b> aquí, todo junto: no hace falta separarlo.</li><li><b>Revise</b> la tabla de abajo: dice qué es cada archivo y adónde ha ido.</li></ol>
       <div class="dc-grid">
         <div class="stack">
-          <label class="or-drop glass" id="dcDrop" for="dcFile"><b>Arrastra aquí los archivos</b><span class="small muted">o pulsa para elegirlos · conversaciones, cuentas, Excel, CSV, PDF, Word, texto · varios a la vez</span>
+          <label class="or-drop glass" id="dcDrop" for="dcFile"><b>Toque para elegir los archivos</b><span class="small muted">o arrástrelos aquí · conversaciones, cuentas, Excel, CSV, PDF, Word, texto · varios a la vez</span>
             <input type="file" id="dcFile" multiple hidden accept=".txt,.md,.srt,.vtt,.json,.docx,.pdf,.xlsx,.xls,.ods,.csv,.tsv"></label>
           <label class="small">Si hay conversaciones, ¿de qué fase son?<select class="input" id="dcFase">${Object.keys(C.MOMENTO).map((k) => `<option value="${k}" ${k === (ST.faseSubida || 'primera') ? 'selected' : ''}>${esc(C.MOMENTO[k])}</option>`).join('')}<option value="auto">Que lo decida Atalaya por el contenido</option></select></label>
           <p class="small" id="dcMsg"></p>
         </div>
-        <div class="stack dc-falta" id="dcFalta"><div class="eyebrow">Qué tienes y qué falta</div><small class="muted">Leyendo…</small></div>
+        <div class="stack dc-falta" id="dcFalta"><div class="eyebrow">Qué tiene y qué falta</div><small class="muted">Leyendo…</small></div>
       </div>
     </section>
     <section class="glass pad stack">
       <div class="row"><h4 style="margin:0">Adónde ha ido cada archivo</h4><span class="spacer"></span>${L.length ? `<span class="small muted">Última subida: ${ult ? fCorta(ult.slice(0, 10)) : '—'}</span>` : ''}</div>
-      ${L.length ? `<div class="table-wrap"><table class="ms-tab"><thead><tr><th style="text-align:left">Archivo</th><th style="text-align:left">Qué es</th><th style="text-align:left">Adónde ha ido</th><th style="text-align:left">Detalle</th><th>Fecha</th></tr></thead><tbody>${L.map((x) => `<tr class="${x.err ? 'dc-err' : ''}"><td style="text-align:left">${esc(x.nombre)}</td><td style="text-align:left">${esc(x.que)}</td><td style="text-align:left">${x.ir ? `<a href="#${x.ir}" data-dcir="${x.ir}">${esc(x.destino)}</a>` : x.href ? `<a href="${esc(x.href)}">${esc(x.destino)}</a>` : esc(x.destino)}</td><td style="text-align:left" class="small">${esc(x.det)}</td><td>${fCorta(String(x.fecha).slice(0, 10))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Todavía no has subido nada. Empieza por las conversaciones de la primera sesión y las cuentas del último año.</p>'}
+      ${L.length ? `<div class="table-wrap"><table class="ms-tab"><thead><tr><th style="text-align:left">Archivo</th><th style="text-align:left">Qué es</th><th style="text-align:left">Adónde ha ido</th><th style="text-align:left">Detalle</th><th>Fecha</th></tr></thead><tbody>${L.map((x) => `<tr class="${x.err ? 'dc-err' : ''}"><td style="text-align:left">${esc(x.nombre)}</td><td style="text-align:left">${esc(x.que)}</td><td style="text-align:left">${x.ir ? `<a href="#${x.ir}" data-dcir="${x.ir}">${esc(x.destino)}</a>` : x.href ? `<a href="${esc(x.href)}">${esc(x.destino)}</a>` : esc(x.destino)}</td><td style="text-align:left" class="small">${esc(x.det)}</td><td>${fCorta(String(x.fecha).slice(0, 10))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Todavía no ha subido nada. Empiece por las conversaciones de la primera sesión y las cuentas del último año.</p>'}
     </section>`;
     const inp = $('#dcFile', host), drop = $('#dcDrop', host);
     inp.onchange = (e) => { const fs = [...(e.target.files || [])]; e.target.value = ''; if (fs.length) subir(fs, host); };
@@ -128,16 +128,16 @@
     // Qué tienes y qué falta (en lenguaje sencillo)
     const fa = $('#dcFalta', host);
     const PIDE = [
-      { k: 'conv', n: 'Conversaciones de la primera sesión', ok: nF('primera') > 0, det: nF('primera') ? pl(nF('primera'), 'subida', 'subidas') : 'Graba la sesión y sube la transcripción', ir: 'escucha' },
+      { k: 'conv', n: 'Conversaciones de la primera sesión', ok: nF('primera') > 0, det: nF('primera') ? pl(nF('primera'), 'subida', 'subidas') : 'Grabe la sesión y suba la transcripción', ir: 'escucha' },
       { k: 'ses', n: 'Conversaciones de las sesiones de trabajo', ok: nF('intervencion') > 0, det: nF('intervencion') ? pl(nF('intervencion'), 'subida', 'subidas') : 'Cuando empiece la intervención', opc: true }
     ];
     (C.estadoDatos ? C.estadoDatos() : Promise.resolve(null)).then((d) => {
       const M = d ? [
-        { n: 'Cuentas anuales (balance y cuenta de resultados)', ok: d.simulador.ok, det: d.simulador.ok ? d.simulador.det : 'Pídelas a la gestoría: los dos o tres últimos años' },
+        { n: 'Cuentas anuales (balance y cuenta de resultados)', ok: d.simulador.ok, det: d.simulador.ok ? d.simulador.det : 'Pídalas a la gestoría: los dos o tres últimos años' },
         { n: 'Listados: clientes y ventas, compras, cobros, banco', ok: d.estrategia.ok, det: d.estrategia.ok ? d.estrategia.det : 'En Excel o CSV, tal como salgan de su programa' },
         { n: 'Plantilla: personas, puesto y área', ok: d.personas.ok, det: d.personas.ok ? d.personas.det : 'Un Excel con nombre, puesto y área (sin datos sensibles)' }
       ] : [];
-      fa.innerHTML = `<div class="eyebrow">Qué tienes y qué falta</div><ul class="iv-dl">${PIDE.concat(M).map((x) => `<li class="${x.ok ? 'ok' : x.opc ? '' : 'stop'}"><span>${x.ok ? '✓' : '○'} ${esc(x.n)}</span><small>${esc(x.det)}</small></li>`).join('')}</ul><p class="small muted" style="margin:0">Con lo marcado en ○ la nota y los informes trabajan a ciegas en esa parte: pídelo antes de la auditoría.</p>`;
+      fa.innerHTML = `<div class="eyebrow">Qué tiene y qué falta</div><ul class="iv-dl">${PIDE.concat(M).map((x) => `<li class="${x.ok ? 'ok' : x.opc ? '' : 'stop'}"><span>${x.ok ? '✓' : '○'} ${esc(x.n)}</span><small>${esc(x.det)}</small></li>`).join('')}</ul><p class="small muted" style="margin:0">Con lo marcado en ○ la nota y los informes trabajan a ciegas en esa parte: pídalo antes de la auditoría.</p>`;
     }).catch(() => { fa.innerHTML = ''; });
   };
 })();

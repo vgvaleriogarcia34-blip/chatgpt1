@@ -28,7 +28,7 @@
     const frac = (k, t) => ({ t: `${k} de ${n} ${t}`, st: !n ? '' : k === n ? 'ok' : k ? 'warn' : 'stop' });
     try {
       switch (id) {
-        case 'panorama': return n ? { t: `${n} persona${n > 1 ? 's' : ''} · ${st.puestos.length} puestos` } : { t: 'Empieza por la plantilla', st: 'warn' };
+        case 'panorama': return n ? { t: `${n} persona${n > 1 ? 's' : ''} · ${st.puestos.length} puestos` } : { t: 'Empiece por la plantilla', st: 'warn' };
         case 'personas': return n ? { t: `${c((p) => p.consentimiento)} de ${n} con consentimiento`, st: c((p) => p.consentimiento) === n ? 'ok' : 'warn' } : null;
         case 'disc': return n ? frac(c((p) => p.disc), 'con DISC') : null;
         case 'roles': return n ? frac(c((p) => p.roles && p.roles.scores), 'con aportaciones') : null;
@@ -129,7 +129,7 @@
   let layout = LS.get('atalaya.rutaper.layout') || (innerWidth < 760 ? 'linea' : 'abanico');
   let foco = 0, hot = null, faseHot = null, drag = null, dragged = false;
   const LAYOUTS = [['pila', 'Pila'], ['abanico', 'Abanico'], ['circulo', 'Círculo'], ['linea', 'Línea']];
-  const hint = () => (layout === 'circulo' || layout === 'linea' ? 'Arrastra, usa la rueda o las flechas para recorrer las capas · ' : '') + 'Intro abre la capa · Esc cierra el mapa';
+  const hint = () => (layout === 'circulo' || layout === 'linea' ? 'Arrastre, use la rueda o las flechas para recorrer las capas · ' : '') + 'Intro abre la capa · Esc cierra el mapa';
   let salida = 0; // pequeña espera al salir de una capa: evita que suba y baje sin parar
   function openMap() {
     const ov = $('#rutaMap'); const O = ORDEN(), F = FASES();
@@ -139,8 +139,8 @@
     ov.hidden = false; document.body.style.overflow = 'hidden';
     foco = Math.max(0, O.indexOf(cur));
     ov.innerHTML = `<div class="rm-head">
-        <div><div class="rm-kicker">Personas y equipos · tu recorrido</div><h2>Todo el equipo humano, <em>capa a capa</em></h2>
-        <p>${F.length} grupos y ${O.length} herramientas. Cada ventana enseña lo que hay dentro y su estado con tus datos. Pasa por encima para elevarla y púlsala para entrar.</p></div>
+        <div><div class="rm-kicker">Personas y equipos · su recorrido</div><h2>Todo el equipo humano, <em>capa a capa</em></h2>
+        <p>${F.length} grupos y ${O.length} herramientas. Cada ventana enseña lo que hay dentro y su estado con sus datos. Toque una ventana para entrar en esa herramienta.</p></div>
         <div class="rm-tools"><div class="seg" id="rmLay">${LAYOUTS.map(([k, n]) => `<button data-l="${k}" aria-pressed="${k === layout}">${n}</button>`).join('')}</div>
         <button class="btn ghost" id="rmAll">${modo === 'capitulo' ? 'Ver pestañas' : 'Recorrido por grupos'}</button><button class="icon-btn" id="rmX" aria-label="Cerrar el mapa">×</button></div></div>
       <ol class="rm-fases n${F.length}">${F.map((f, k) => `<li data-f="${k}"><b>${k + 1}</b><span>${esc(f.n)}</span><small>${f.ids.filter((x) => visit.has(x)).length}/${f.ids.length}</small></li>`).join('')}</ol>

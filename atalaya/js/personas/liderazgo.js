@@ -307,7 +307,7 @@
       const filas = R.mapaMando(p), c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp);
       host.innerHTML = cabLider(host, p, `<span class="small muted">${c ? 'Estilo principal: ' + esc(E[c.pri].n) : 'Sin test de estilo'}</span>`);
       wireLider(host);
-      if (!filas.length) { host.insertAdjacentHTML('beforeend', '<div class="alert info">Nadie depende de esta persona en la plantilla. Indica en «Plantilla» de quién depende cada persona (el organigrama) para dibujar su mapa de mando.</div>'); return; }
+      if (!filas.length) { host.insertAdjacentHTML('beforeend', '<div class="alert info">Nadie depende de esta persona en la plantilla. Indique en «Plantilla» de quién depende cada persona (el organigrama) para dibujar su mapa de mando.</div>'); return; }
       const des = filas.filter((f) => f.des && f.des.st !== 'ok');
       host.insertAdjacentHTML('beforeend', `${R.kpis([{ k: 'Colaboradores', v: new Set(filas.map((f) => f.c.id)).size }, { k: 'Tareas valoradas', v: filas.filter((f) => f.nv).length + '/' + filas.filter((f) => f.t).length }, { k: 'Desajustes', v: des.length, st: des.length ? (des.some((f) => f.des.st === 'stop') ? 'stop' : 'warn') : filas.some((f) => f.nv) ? 'ok' : null }, { k: 'Acuerdos', v: filas.filter((f) => f.t && f.t.acuerdo).length }])}
         <div class="glass pad"><div class="table-wrap"><table class="pe-table lid-map"><thead><tr><th style="text-align:left">Colaborador</th><th style="text-align:left">Tarea</th><th>Nivel</th><th>Toca</th><th>Usa</th><th style="text-align:left">Ajuste</th><th>Acuerdo</th></tr></thead><tbody>
@@ -338,8 +338,8 @@
       const pasos = filas.map((f) => ({ f, t: tab('p-' + (f.nv.nivel === 4 ? '4' : f.nv.nivel + '' + (f.nv.nivel + 1))) }));
       host.innerHTML = cabLider(host, p, '');
       wireLider(host);
-      host.insertAdjacentHTML('beforeend', `<div class="glass pad stack"><div class="eyebrow">Para ${esc(p.nombre)} como líder</div>${prop.length ? `<div class="pe-tabs">${prop.slice(0, 6).map((x) => R.tablillaHTML(x.t, x.motivos)).join('')}</div>` : `<p class="muted" style="margin:0">Sin propuestas todavía: ${p.lid && p.lid.estilo ? 'valora las tareas de su equipo en «Preparación por tarea».' : 'haz primero su test de estilo.'}</p>`}</div>
-        <div class="glass pad stack"><div class="eyebrow">Para cada colaborador: el siguiente paso</div>${pasos.length ? `<div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Colaborador · tarea</th><th>Ahora</th><th style="text-align:left">Siguiente paso</th><th style="text-align:left">Primer paso concreto</th></tr></thead><tbody>${pasos.map((x) => `<tr><td>${esc(x.f.c.nombre)} · ${esc(x.f.t.nombre)}</td><td style="text-align:center">${chipN(x.f.nv.nivel)}</td><td>${esc(x.t.titulo)}</td><td class="small">${esc((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted" style="margin:0">Valora las tareas de su equipo para ver el siguiente paso de cada persona.</p>'}</div>${aviso()}`);
+      host.insertAdjacentHTML('beforeend', `<div class="glass pad stack"><div class="eyebrow">Para ${esc(p.nombre)} como líder</div>${prop.length ? `<div class="pe-tabs">${prop.slice(0, 6).map((x) => R.tablillaHTML(x.t, x.motivos)).join('')}</div>` : `<p class="muted" style="margin:0">Sin propuestas todavía: ${p.lid && p.lid.estilo ? 'valore las tareas de su equipo en «Preparación por tarea».' : 'haga primero su test de estilo.'}</p>`}</div>
+        <div class="glass pad stack"><div class="eyebrow">Para cada colaborador: el siguiente paso</div>${pasos.length ? `<div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Colaborador · tarea</th><th>Ahora</th><th style="text-align:left">Siguiente paso</th><th style="text-align:left">Primer paso concreto</th></tr></thead><tbody>${pasos.map((x) => `<tr><td>${esc(x.f.c.nombre)} · ${esc(x.f.t.nombre)}</td><td style="text-align:center">${chipN(x.f.nv.nivel)}</td><td>${esc(x.t.titulo)}</td><td class="small">${esc((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted" style="margin:0">Valore las tareas de su equipo para ver el siguiente paso de cada persona.</p>'}</div>${aviso()}`);
       // El plan de desarrollo, a la mesa de trabajo del responsable
       if (A.mesa && A.mesa.boton && (prop.length || pasos.length)) {
         const fila = document.createElement('div'); fila.className = 'row';
@@ -411,7 +411,7 @@
   R.informeLidOrg = () => {
     const In = I(); In.reset(); const ls = R.lideres();
     let h = cover({ kicker: 'Liderazgo en la organización', titulo: 'Liderazgo a medida', subtitulo: `${ls.length} líderes` });
-    if (!ls.length) { In.open({ titulo: 'Informe de liderazgo', html: h + '<p class="rp-muted">Todavía no hay líderes: indica en la plantilla de quién depende cada persona.</p>' + In.foot(pie) }); return; }
+    if (!ls.length) { In.open({ titulo: 'Informe de liderazgo', html: h + '<p class="rp-muted">Todavía no hay líderes: indique en la plantilla de quién depende cada persona.</p>' + In.foot(pie) }); return; }
     const datos = ls.map((p) => { const c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp), pe = R.lidPercibido(p), f = R.mapaMando(p); return { p, c, pe, f, des: f.filter((x) => x.des && x.des.st !== 'ok') }; });
     const conC = datos.filter((d) => d.c), todas = datos.flatMap((d) => d.f.filter((x) => x.nv));
     const efM = conC.length ? r0(conC.reduce((a, d) => a + d.c.eficacia, 0) / conC.length) : null, flM = conC.length ? r0(conC.reduce((a, d) => a + d.c.flex, 0) / conC.length) : null;

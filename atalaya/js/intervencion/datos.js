@@ -97,54 +97,54 @@
 
   /* ---------- Resignificar: lo que dice, lo que puede querer decir y la pregunta que lo confirma ---------- */
   D.RESIGNIFICA = [
-    { k: ['no tengo tiempo', 'no me da la vida', 'no llego a todo'], dice: '«No tengo tiempo»', quiere: 'Todo pasa por él y no hay en quién delegar: el problema no es el tiempo, es el diseño.', pregunta: '¿Qué tres cosas haces cada semana que solo puedes hacer tú? ¿Y cuáles podría hacer otro si estuvieran escritas?', patron: 'responsable', area: 'gob' },
-    { k: ['la gente no quiere trabajar', 'no hay gente', 'no encuentro personal', 'no encuentro gente'], dice: '«La gente no quiere trabajar»', quiere: 'No sabe retener ni formar: puestos sin definir, sin método escrito y sin carrera.', pregunta: '¿Cuánto tarda en ser productivo alguien nuevo? ¿Qué le das el primer día?', patron: 'puesto', area: 'per' },
-    { k: ['vendemos mucho', 'vendemos bien', 'facturamos mucho', 'trabajo no falta'], dice: '«Vendemos mucho» o «trabajo no falta»', quiere: 'Facturación no es margen: puede estar creciendo en lo que no deja dinero.', pregunta: '¿Qué cliente o producto te deja más margen por hora de trabajo? ¿Y cuál menos?', patron: 'dato', area: 'com' },
-    { k: ['el dinero no llega', 'no sé dónde va el dinero', 'no se donde va el dinero', 'no veo el dinero', 'ganamos pero'], dice: '«No sé dónde va el dinero»', quiere: 'No hay previsión de tesorería ni margen por línea: el beneficio se queda en stock, en cobros o en deuda.', pregunta: '¿Cuánto tienes que cobrar este mes para pagarlo todo? ¿Lo sabes hoy sin mirar al banco?', patron: 'dato', area: 'fin' },
-    { k: ['si no estoy', 'sin mí', 'sin mi', 'tengo que estar encima'], dice: '«Si no estoy, esto no funciona»', quiere: 'La empresa depende de su cabeza; puede que también le dé identidad y le cueste soltar.', pregunta: 'Si mañana te vas dos semanas, ¿qué se para el primer día? ¿Y quién te llamaría?', patron: 'mando', area: 'gob' },
-    { k: ['mi padre', 'el fundador', 'mi hermano', 'mi socio'], dice: 'Menciona al padre, al socio o a un hermano al hablar de decisiones', quiere: 'Mando difuso: quien decide no es quien firma, o alguien revoca en el pasillo lo decidido.', pregunta: 'Cuando tomas una decisión importante, ¿quién puede deshacerla? ¿Quién firma ante el banco?', patron: 'mando', area: 'leg' },
-    { k: ['lo llevo en la cabeza', 'lo tengo en la cabeza', 'de memoria'], dice: '«Lo llevo en la cabeza»', quiere: 'El método no existe fuera de él: es un riesgo y también un techo para crecer.', pregunta: 'Si tuvieras que explicárselo a alguien nuevo en una hoja, ¿qué pondrías?', patron: 'metodo', area: 'ope' },
-    { k: ['ya veremos', 'cuando se pueda', 'más adelante', 'mas adelante'], dice: '«Cuando se pueda» o «ya veremos»', quiere: 'Proyecto sin dueño ni fecha; a veces es miedo a decidir.', pregunta: '¿Qué tendría que pasar para que tuviera fecha? ¿Qué te frena de ponérsela hoy?', patron: 'fecha', area: 'tie' },
-    { k: ['el banco', 'los bancos', 'la póliza', 'la poliza', 'el préstamo', 'el prestamo'], dice: 'Habla del banco o de la póliza', quiere: 'La financiación puede estar desalineada con el ciclo del negocio: cargas que el negocio no genera.', pregunta: '¿Cuánto pagas al mes entre cuotas e intereses? ¿Y cuánto genera el negocio antes de pagarlas?', patron: 'limite', area: 'fin' },
-    { k: ['estoy cansado', 'estoy agotado', 'estrés', 'estres', 'no duermo', 'harto'], dice: 'Expresa cansancio o estrés', quiere: 'La tensión es real: la intervención tiene que liberarle tiempo pronto o no habrá energía para el cambio.', pregunta: 'De todo lo que haces, ¿qué te quita más energía? ¿Qué dejarías mañana si pudieras?', patron: 'responsable', area: 'gob' },
-    { k: ['el asesor', 'la gestoría', 'la gestoria', 'el gestor'], dice: 'Delega los números en la asesoría', quiere: 'Los números llegan tarde y para Hacienda, no para decidir.', pregunta: '¿Cuándo te llegan las cuentas del mes? ¿Qué decisión has tomado con ellas la última vez?', patron: 'dato', area: 'inf' },
-    { k: ['los precios', 'subir precios', 'no puedo subir'], dice: '«No puedo subir precios»', quiere: 'No sabe qué margen deja cada cliente ni el valor que aporta; compite por precio sin saberlo.', pregunta: '¿Cuándo subiste precios por última vez? ¿Qué cliente perderías si lo hicieras?', patron: 'limite', area: 'com' }
+    { k: ['no tengo tiempo', 'no me da la vida', 'no llego a todo'], dice: '«No tengo tiempo»', quiere: 'Todo pasa por él y no hay en quién delegar: el problema no es el tiempo, es el diseño.', pregunta: '¿Qué tres cosas hace cada semana que solo puede hacer usted? ¿Y cuáles podría hacer otro si estuvieran escritas?', patron: 'responsable', area: 'gob' },
+    { k: ['la gente no quiere trabajar', 'no hay gente', 'no encuentro personal', 'no encuentro gente'], dice: '«La gente no quiere trabajar»', quiere: 'No sabe retener ni formar: puestos sin definir, sin método escrito y sin carrera.', pregunta: '¿Cuánto tarda en ser productivo alguien nuevo? ¿Qué le dan el primer día?', patron: 'puesto', area: 'per' },
+    { k: ['vendemos mucho', 'vendemos bien', 'facturamos mucho', 'trabajo no falta'], dice: '«Vendemos mucho» o «trabajo no falta»', quiere: 'Facturación no es margen: puede estar creciendo en lo que no deja dinero.', pregunta: '¿Qué cliente o producto le deja más margen por hora de trabajo? ¿Y cuál menos?', patron: 'dato', area: 'com' },
+    { k: ['el dinero no llega', 'no sé dónde va el dinero', 'no se donde va el dinero', 'no veo el dinero', 'ganamos pero'], dice: '«No sé dónde va el dinero»', quiere: 'No hay previsión de tesorería ni margen por línea: el beneficio se queda en stock, en cobros o en deuda.', pregunta: '¿Cuánto tiene que cobrar este mes para pagarlo todo? ¿Lo sabe hoy sin mirar al banco?', patron: 'dato', area: 'fin' },
+    { k: ['si no estoy', 'sin mí', 'sin mi', 'tengo que estar encima'], dice: '«Si no estoy, esto no funciona»', quiere: 'La empresa depende de su cabeza; puede que también le dé identidad y le cueste soltar.', pregunta: 'Si mañana se va dos semanas, ¿qué se para el primer día? ¿Y quién le llamaría?', patron: 'mando', area: 'gob' },
+    { k: ['mi padre', 'el fundador', 'mi hermano', 'mi socio'], dice: 'Menciona al padre, al socio o a un hermano al hablar de decisiones', quiere: 'Mando difuso: quien decide no es quien firma, o alguien revoca en el pasillo lo decidido.', pregunta: 'Cuando toma una decisión importante, ¿quién puede deshacerla? ¿Quién firma ante el banco?', patron: 'mando', area: 'leg' },
+    { k: ['lo llevo en la cabeza', 'lo tengo en la cabeza', 'de memoria'], dice: '«Lo llevo en la cabeza»', quiere: 'El método no existe fuera de él: es un riesgo y también un techo para crecer.', pregunta: 'Si tuviera que explicárselo a alguien nuevo en una hoja, ¿qué pondría?', patron: 'metodo', area: 'ope' },
+    { k: ['ya veremos', 'cuando se pueda', 'más adelante', 'mas adelante'], dice: '«Cuando se pueda» o «ya veremos»', quiere: 'Proyecto sin dueño ni fecha; a veces es miedo a decidir.', pregunta: '¿Qué tendría que pasar para que tuviera fecha? ¿Qué le frena para ponérsela hoy?', patron: 'fecha', area: 'tie' },
+    { k: ['el banco', 'los bancos', 'la póliza', 'la poliza', 'el préstamo', 'el prestamo'], dice: 'Habla del banco o de la póliza', quiere: 'La financiación puede estar desalineada con el ciclo del negocio: cargas que el negocio no genera.', pregunta: '¿Cuánto paga al mes entre cuotas e intereses? ¿Y cuánto genera el negocio antes de pagarlas?', patron: 'limite', area: 'fin' },
+    { k: ['estoy cansado', 'estoy agotado', 'estrés', 'estres', 'no duermo', 'harto'], dice: 'Expresa cansancio o estrés', quiere: 'La tensión es real: la intervención tiene que liberarle tiempo pronto o no habrá energía para el cambio.', pregunta: 'De todo lo que hace, ¿qué le quita más energía? ¿Qué dejaría mañana si pudiera?', patron: 'responsable', area: 'gob' },
+    { k: ['el asesor', 'la gestoría', 'la gestoria', 'el gestor'], dice: 'Delega los números en la asesoría', quiere: 'Los números llegan tarde y para Hacienda, no para decidir.', pregunta: '¿Cuándo le llegan las cuentas del mes? ¿Qué decisión ha tomado con ellas la última vez?', patron: 'dato', area: 'inf' },
+    { k: ['los precios', 'subir precios', 'no puedo subir'], dice: '«No puedo subir precios»', quiere: 'No sabe qué margen deja cada cliente ni el valor que aporta; compite por precio sin saberlo.', pregunta: '¿Cuándo subió precios por última vez? ¿Qué cliente perdería si lo hiciera?', patron: 'limite', area: 'com' }
   ];
 
   /* ---------- Guion de la primera sesión (60 minutos) ---------- */
   D.GUION = [
     { id: 'apertura', n: 'Apertura y encuadre', min: 5, obj: 'Crear confianza y explicar que hoy se escucha, no se juzga.', p: [
-      { q: 'Antes de empezar: ¿qué tendría que pasar en esta hora para que haya merecido la pena?', oye: 'Su prioridad real y lo que espera de ti.' },
-      { q: 'Cuéntame en dos frases qué hace tu empresa y para quién.', oye: 'Cómo se define: por producto, por cliente o por esfuerzo.' }] },
+      { q: 'Antes de empezar: ¿qué tendría que pasar en esta hora para que haya merecido la pena?', oye: 'Su prioridad real y lo que espera de usted.' },
+      { q: 'Cuénteme en dos frases qué hace su empresa y para quién.', oye: 'Cómo se define: por producto, por cliente o por esfuerzo.' }] },
     { id: 'objetivos', n: 'Sus objetivos', min: 8, obj: 'Que el empresario diga con sus palabras qué quiere conseguir y ayudarle a convertirlo en un objetivo SMART que dependa de él.', p: [
-      { q: '¿Qué quieres conseguir con la empresa en los próximos doce meses? Dímelo con tus palabras.', oye: 'El objetivo tal como lo siente: apúntalo literal en «Objetivos del empresario», debajo de estas preguntas.' },
-      { q: '¿Cómo sabrías que lo has conseguido? ¿Qué número cambiaría y desde cuál partes hoy?', oye: 'Indicador, valor actual y valor meta: lo que lo hace medible.' },
-      { q: '¿Qué depende solo de ti para lograrlo? ¿Qué harías tú cada semana?', oye: 'Si depende de terceros (clientes, banco, equipo), conviértelo en lo que hará él para provocarlo.' },
-      { q: '¿Qué ganas si lo consigues y qué te cuesta: tiempo, dinero, renuncias? ¿Merece la pena?', oye: 'Beneficio cuantificado y contras: con eso se enciende el semáforo del beneficio.' }] },
+      { q: '¿Qué quiere conseguir con la empresa en los próximos doce meses? Dígamelo con sus palabras.', oye: 'El objetivo tal como lo siente: apúntelo literal en «Objetivos del empresario», debajo de estas preguntas.' },
+      { q: '¿Cómo sabría que lo ha conseguido? ¿Qué número cambiaría y desde cuál parte hoy?', oye: 'Indicador, valor actual y valor meta: lo que lo hace medible.' },
+      { q: '¿Qué depende solo de usted para lograrlo? ¿Qué haría usted cada semana?', oye: 'Si depende de terceros (clientes, banco, equipo), conviértalo en lo que hará él para provocarlo.' },
+      { q: '¿Qué gana si lo consigue y qué le cuesta: tiempo, dinero, renuncias? ¿Merece la pena?', oye: 'Beneficio cuantificado y contras: con eso se enciende el semáforo del beneficio.' }] },
     { id: 'historia', n: 'Historia y momento', min: 7, obj: 'Entender de dónde viene y por qué ahora.', p: [
-      { q: '¿Cómo empezó la empresa y qué momento estáis viviendo ahora?', oye: 'Hitos, herencias, socios y figuras que siguen pesando.', area: 'gob' },
+      { q: '¿Cómo empezó la empresa y qué momento están viviendo ahora?', oye: 'Hitos, herencias, socios y figuras que siguen pesando.', area: 'gob' },
       { q: '¿Por qué ahora? ¿Qué ha pasado para que nos sentemos hoy?', oye: 'El detonante: suele ser el síntoma más caliente.', area: 'tie' },
       { q: '¿Qué ha cambiado en los últimos dos años: clientes, equipo, tamaño, márgenes?', oye: 'Crecimiento sin estructura, pérdida de margen o de personas.' }] },
     { id: 'dolor', n: 'El dolor principal', min: 10, obj: 'Escuchar el problema con sus palabras, sin corregir.', p: [
-      { q: 'Si tuvieras que nombrar lo que más te quita el sueño, ¿qué sería?', oye: 'La frase literal: apúntala tal cual. Será la cita que abra el informe.' },
-      { q: '¿Qué has intentado ya para resolverlo y qué pasó?', oye: 'Patrones de intento fallido: suelen apuntar a la causa.' },
+      { q: 'Si tuviera que nombrar lo que más le quita el sueño, ¿qué sería?', oye: 'La frase literal: apúntela tal cual. Será la cita que abra el informe.' },
+      { q: '¿Qué ha intentado ya para resolverlo y qué pasó?', oye: 'Patrones de intento fallido: suelen apuntar a la causa.' },
       { q: '¿Qué pasaría si dentro de un año todo siguiera exactamente igual?', oye: 'El coste de no actuar, en su lenguaje.' }] },
     { id: 'recorrido', n: 'Recorrido por las áreas', min: 20, obj: 'Tomar las constantes de cada área con preguntas abiertas.', p: [
-      { q: '¿Quién decide qué en la empresa? Cuando tú no estás, ¿quién manda?', oye: 'Mando difuso, poder legal y real, figura del fundador.', area: 'gob', patron: 'mando' },
-      { q: 'Si mañana faltas dos semanas, ¿qué se para el primer día?', oye: 'Dependencia y tareas sin responsable.', area: 'gob', patron: 'responsable' },
-      { q: '¿Cómo sabes si este mes has ganado dinero? ¿Cuándo lo sabes?', oye: 'Información tardía, dependencia de la asesoría.', area: 'fin', patron: 'dato' },
-      { q: '¿Cómo vas de caja? ¿Has tenido que tirar de póliza o retrasar pagos este año?', oye: 'Pulso de caja y cargas financieras.', area: 'fin', patron: 'limite' },
-      { q: '¿Cuáles son tus cinco clientes principales y cuánto pesan? ¿Cuál te deja más margen?', oye: 'Concentración y conocimiento del margen.', area: 'com', patron: 'dato' },
-      { q: '¿Cuándo subiste precios por última vez y cómo lo decidiste?', oye: 'Política de precios sin número.', area: 'com', patron: 'limite' },
+      { q: '¿Quién decide qué en la empresa? Cuando usted no está, ¿quién manda?', oye: 'Mando difuso, poder legal y real, figura del fundador.', area: 'gob', patron: 'mando' },
+      { q: 'Si mañana falta dos semanas, ¿qué se para el primer día?', oye: 'Dependencia y tareas sin responsable.', area: 'gob', patron: 'responsable' },
+      { q: '¿Cómo sabe si este mes ha ganado dinero? ¿Cuándo lo sabe?', oye: 'Información tardía, dependencia de la asesoría.', area: 'fin', patron: 'dato' },
+      { q: '¿Cómo va de caja? ¿Ha tenido que tirar de póliza o retrasar pagos este año?', oye: 'Pulso de caja y cargas financieras.', area: 'fin', patron: 'limite' },
+      { q: '¿Cuáles son sus cinco clientes principales y cuánto pesan? ¿Cuál le deja más margen?', oye: 'Concentración y conocimiento del margen.', area: 'com', patron: 'dato' },
+      { q: '¿Cuándo subió precios por última vez y cómo lo decidió?', oye: 'Política de precios sin número.', area: 'com', patron: 'limite' },
       { q: '¿Cómo se hace el trabajo del día a día? ¿Está escrito en algún sitio?', oye: 'Método oral, imitación, «siempre se ha hecho así».', area: 'ope', patron: 'metodo' },
       { q: '¿Dónde se atasca el trabajo? ¿Qué se repite o se rehace?', oye: 'Cuellos de botella, reprocesos, falta de umbrales.', area: 'ope', patron: 'limite' },
-      { q: 'Háblame de tu equipo: ¿quién es imprescindible y qué pasaría si se fuera?', oye: 'Personas clave, puestos difusos, mandos sin funciones.', area: 'per', patron: 'puesto' },
-      { q: '¿Cómo se entera la gente de lo que tiene que hacer? ¿Cómo os comunicáis?', oye: 'WhatsApp, pasillo, reuniones sin acta.', area: 'inf', patron: 'dato' },
-      { q: '¿Qué proyectos tienes pendientes y desde cuándo?', oye: 'Proyectos sin fecha ni responsable.', area: 'tie', patron: 'fecha' },
-      { q: '¿Hay algún tema legal, societario, con el banco o con la Administración que te preocupe?', oye: 'Avales, socios, inspecciones, litigios: temperatura.', area: 'leg', patron: 'mando' }] },
+      { q: 'Hábleme de su equipo: ¿quién es imprescindible y qué pasaría si se fuera?', oye: 'Personas clave, puestos difusos, mandos sin funciones.', area: 'per', patron: 'puesto' },
+      { q: '¿Cómo se entera la gente de lo que tiene que hacer? ¿Cómo se comunican?', oye: 'WhatsApp, pasillo, reuniones sin acta.', area: 'inf', patron: 'dato' },
+      { q: '¿Qué proyectos tiene pendientes y desde cuándo?', oye: 'Proyectos sin fecha ni responsable.', area: 'tie', patron: 'fecha' },
+      { q: '¿Hay algún tema legal, societario, con el banco o con la Administración que le preocupe?', oye: 'Avales, socios, inspecciones, litigios: temperatura.', area: 'leg', patron: 'mando' }] },
     { id: 'cierre', n: 'Cierre y compromiso', min: 10, obj: 'Devolver lo escuchado y acordar el siguiente paso.', p: [
-      { q: 'Te devuelvo lo que he escuchado en tres frases: ¿es así o me falta algo?', oye: 'Si corrige, apunta qué corrige: ahí está lo importante.' },
-      { q: 'Si solo pudiéramos resolver una cosa en 90 días, ¿cuál elegirías?', oye: 'Su prioridad sentida (compárala con la causa que tú ves).' },
+      { q: 'Le devuelvo lo que he escuchado en tres frases: ¿es así o me falta algo?', oye: 'Si corrige, apunte qué corrige: ahí está lo importante.' },
+      { q: 'Si solo pudiéramos resolver una cosa en 90 días, ¿cuál elegiría?', oye: 'Su prioridad sentida (compárela con la causa que usted ve).' },
       { q: 'Para la auditoría integral necesitaré documentación y hablar con algunas personas. ¿Con quién y cuándo?', oye: 'Disposición a abrir la empresa: indicador de compromiso.' }] }
   ];
 
@@ -228,7 +228,7 @@
   D.KPIS = {
     gobierno: ['Decisiones tomadas en la reunión de dirección con acta', 'Decisiones revocadas fuera de la reunión', 'Objetivos del año escritos y compartidos (%)'],
     organizacion: ['Horas a la semana del empresario en operativa', 'Tareas críticas con responsable y suplente (%)', 'Llamadas o consultas al empresario por día'],
-    finanzas: ['Semanas de caja cubiertas por la previsión', 'Margen bruto (%)', 'Días medios de cobro', 'Cuota de deuda sobre EBITDA (%)'],
+    finanzas: ['Semanas de caja cubiertas por la previsión', 'Margen bruto (%)', 'Días medios de cobro', 'Cuota de deuda sobre el beneficio del negocio (EBITDA) (%)'],
     comercial: ['Peso del primer cliente sobre la venta (%)', 'Ofertas presentadas al mes', 'Tasa de cierre de ofertas (%)', 'Margen medio por cliente (%)'],
     procesos: ['Procesos críticos escritos', 'Reprocesos o incidencias al mes', 'Plazo medio de entrega (días)', 'Roturas de stock al mes'],
     equipos: ['Puestos con ficha y responsable', 'Personas clave con suplente formado', 'Rotación anual (%)'],
