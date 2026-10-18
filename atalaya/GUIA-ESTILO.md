@@ -25,7 +25,8 @@ Cómo se escribe todo lo que lee el cliente: pantallas, avisos, botones, ayudas,
 - Cada indicador que se muestra con una cifra o un semáforo lleva su «?». La explicación cabe en dos o tres frases: qué mide, cómo se lee (qué es bueno y qué es malo) y, si ayuda, la fórmula en palabras.
 - Se reutiliza el mecanismo de ayuda de cada página; no se crea uno nuevo:
   - Simulador (`app.html`, `js/app.js`): ficha `INFO[clave]` y atributo `data-info`; el «?» visible es `<button class="info-i" data-info="…">?</button>`.
-  - Sistema estratégico (`js/strategy/*`): la ayuda de cada módulo y los títulos con `title` y la clase de ayuda ya existente en cada pantalla.
+  - Sistema estratégico (`js/strategy/*`): cada tarjeta de `S.kpiTiles` lleva `info: '<término>'`, que abre la ficha del diccionario (`A.GLOSSARY` en `js/content.js`) al tocarla; el «?» lo dibuja la hoja de estilos. Si el indicador no tiene término, se añade al diccionario (categoría «Indicadores de los módulos») con el mismo nombre que la tarjeta.
+  - Las fichas del diccionario empiezan por el nombre llano y llevan la sigla entre paréntesis: «Pedidos completos y a tiempo (OTIF)».
 
 ### Jerga que no se deja sin explicar
 

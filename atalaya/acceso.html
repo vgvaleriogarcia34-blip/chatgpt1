@@ -25,6 +25,7 @@
       <h1>Le damos <em>la bienvenida</em></h1>
       <label>Correo electrónico<input class="input" id="inEmail" type="email" autocomplete="email" required></label>
       <label>Contraseña<input class="input" id="inPass" type="password" autocomplete="current-password" required></label>
+      <label id="inCodeL" hidden>Código de su aplicación de autenticación (o uno de recuperación)<input class="input" id="inCode" inputmode="numeric" autocomplete="one-time-code" maxlength="11"></label>
       <button class="btn solid" type="submit">Entrar</button>
       <p class="small muted" id="inMsg" role="alert"></p>
       <button class="btn ghost" type="button" id="toForgot">¿Ha olvidado su contraseña?</button>
@@ -156,6 +157,8 @@
     $('#rsMsg').textContent = 'Guardando…';
     try {
       const u = await P.resetPassword(resetToken, $('#rsPass').value);
+      // Con la verificación en dos pasos no se entra solo con el enlace: hay que entrar con la contraseña nueva y el código
+      if (!u) { show('in'); $('#inMsg').textContent = 'Contraseña cambiada. Entre con ella y con el código de su aplicación.'; $('#inCodeL').hidden = false; return; }
       const acc = P.accessOf(u);
       if (acc.ok) location.href = 'portal.html'; else { $('#rsMsg').textContent = ''; payScreen(u, acc.motivo); }
     } catch (err) { $('#rsMsg').textContent = err.message; }
@@ -163,10 +166,14 @@
   $('#fIn').onsubmit = async (e) => {
     e.preventDefault(); $('#inMsg').textContent = 'Comprobando…';
     try {
-      const u = await P.login($('#inEmail').value, $('#inPass').value);
+      const u = await P.login($('#inEmail').value, $('#inPass').value, $('#inCodeL').hidden ? '' : $('#inCode').value.trim());
       const acc = P.accessOf(u);
       if (acc.ok) location.href = 'portal.html'; else { $('#inMsg').textContent = ''; payScreen(u, acc.motivo); }
-    } catch (err) { $('#inMsg').textContent = err.message; }
+    } catch (err) {
+      $('#inMsg').textContent = err.message;
+      // La cuenta tiene verificación en dos pasos: se pide el código y se vuelve a enviar con él
+      if (err.segundoFactor) { const pide = $('#inCodeL').hidden; $('#inCodeL').hidden = false; if (pide) $('#inMsg').textContent = 'Escriba el código de su aplicación de autenticación.'; $('#inCode').focus(); }
+    }
   };
   /* Alta: cada campo se comprueba en el orden en que se ve; el error sale debajo del campo y el foco va al primero */
   const REGLAS = [

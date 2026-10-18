@@ -166,7 +166,7 @@
   /* ---------------- Fichas informativas y modal ---------------- */
   const INFO = {
     veredicto: { t: 'Veredicto de movimiento', d: 'Síntesis de los diez semáforos del escenario activo. Rojo en liquidez o tres rojos obligan a rediseñar; un rojo o cuatro ámbar exigen condiciones previas.', v: (c) => c.active.verdict.titulo },
-    dimension: { t: 'Dimensión de la inversión', d: 'Cuánto pesa la inversión frente a la empresa actual. Por debajo del 15 % de las ventas es táctica; entre el 40 % y el 80 %, estratégica; por encima, transforma la empresa.', f: 'inversión ÷ ventas · inversión ÷ beneficio antes de intereses e impuestos (EBITDA)', v: (c) => `${c.active.dim.clase} · ${xEb(c.active.dim.sobreEbitda)}${isFinite(c.active.dim.sobreEbitda) ? ' EBITDA' : ''}` },
+    dimension: { t: 'Dimensión de la inversión', d: 'Cuánto pesa la inversión frente a la empresa actual. Por debajo del 15 % de las ventas es táctica; entre el 40 % y el 80 %, estratégica; por encima, transforma la empresa.', f: 'inversión ÷ ventas · inversión ÷ beneficio antes de intereses e impuestos (EBITDA)', v: (c) => `${c.active.dim.clase} · ${xEb(c.active.dim.sobreEbitda)}${isFinite(c.active.dim.sobreEbitda) ? ' el beneficio (EBITDA)' : ''}` },
     sobreVentas: { t: 'Inversión sobre ventas', d: 'Mide el salto de escala. Una inversión que supera el 40 % de lo que factura cambia la naturaleza del negocio.', f: 'inversión total ÷ ventas anuales', v: (c) => (isFinite(c.active.dim.sobreVentas) ? F.pct(c.active.dim.sobreVentas * 100) : 'sin ventas') },
     sobreEbitda: { t: 'Años de beneficio (EBITDA)', d: 'Cuántos años de beneficio antes de intereses e impuestos (EBITDA) actual cuesta la inversión. Por encima de 4 años, la empresa no puede pagarla desde su rentabilidad sin financiación larga.', f: 'inversión total ÷ beneficio antes de intereses e impuestos actual', v: (c) => xEb(c.active.dim.sobreEbitda) },
     sobreFondos: { t: 'Sobre fondos propios', d: 'Qué parte del patrimonio se pone en juego. Por encima del 100 % la empresa apuesta más de lo que vale contablemente.', f: 'inversión total ÷ fondos propios', v: (c) => F.pct(c.active.dim.sobreFondos * 100) },
@@ -330,7 +330,7 @@
   /* ---------------- Puente de mando ---------------- */
   const fmtMeses = (m) => (!isFinite(m) ? '—' : (m < 0 ? '−' : '') + (Math.round(Math.abs(m) * 10) / 10).toString().replace('.', ',') + ' meses');
   // Cifras que dependen del EBITDA: con EBITDA ≤ 0 el cociente no tiene sentido y se dice así
-  const xEb = (v) => (isFinite(v) ? F.x(v) : 'EBITDA ≤ 0');
+  const xEb = (v) => (isFinite(v) ? F.x(v) : 'beneficio (EBITDA) ≤ 0');
   const pctEb = (v) => (isFinite(v) ? F.pct(v) : 'EBITDA ≤ 0');
   function renderHero() {
     const r = ctx.active, v = r.verdict, sc = A.SCENARIOS.find((s) => s.key === state.escenario);

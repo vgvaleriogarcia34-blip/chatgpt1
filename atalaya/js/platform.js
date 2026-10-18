@@ -92,8 +92,9 @@
     if (u.estado === 'bloqueado') return { ok: false, motivo: 'bloqueado' };
     const now = Date.now();
     if (u.pagado && (!u.venceAcceso || new Date(u.venceAcceso).getTime() > now)) return { ok: true, motivo: 'pagado' };
-    const finPrueba = new Date(u.alta).getTime() + PRUEBA_DIAS * 864e5;
-    if (!u.pagado && finPrueba > now) return { ok: true, motivo: 'prueba', diasPrueba: Math.ceil((finPrueba - now) / 864e5) };
+    // La prueba dura PRUEBA_DIAS desde el alta, o hasta «pruebaHasta» si la administración la ha ampliado (como en el servidor)
+    const finPrueba = Math.max(new Date(u.alta).getTime() + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
+    if (!u.pagado && finPrueba > now) return { ok: true, motivo: 'prueba', diasPrueba: Math.ceil((finPrueba - now) / 864e5), finPrueba };
     return { ok: false, motivo: 'pago' };
   };
 
@@ -121,9 +122,14 @@
     P.user = publicUser(u);
     return P.user;
   };
-  P.login = async function (email, password) {
+  /* codigo: el de la aplicación de autenticación (o uno de recuperación) si la cuenta tiene el segundo factor.
+     Si falta o no vale, el error lleva segundoFactor: true para que la pantalla de acceso lo pida. */
+  P.login = async function (email, password, codigo) {
     await P.ready;
-    if (P.mode === 'server') { const r = await api('/login', { method: 'POST', body: JSON.stringify({ email, password }) }); P.user = r.user; return r.user; }
+    if (P.mode === 'server') {
+      try { const r = await api('/login', { method: 'POST', body: JSON.stringify(Object.assign({ email, password }, codigo ? { codigo } : {})) }); P.user = r.user; return r.user; }
+      catch (e) { if (e.body && e.body.segundoFactor) e.segundoFactor = true; throw e; }
+    }
     const users = L.users();
     const u = users.find((x) => x.email === String(email || '').trim().toLowerCase());
     if (!u || u.hash !== await hash(u.salt + password)) throw new Error('Correo o contraseña incorrectos.');
@@ -191,6 +197,7 @@
     if (P.mode === 'server' && pendientes().length) { hayPend = true; programar(); setTimeout(reenviar, 0); }
     await P.empresas.cargar();
     prepararMapa();
+    P.esperarPago();
     return true;
   };
 
@@ -665,10 +672,66 @@
     colocar(); setTimeout(colocar, 400);
   };
   /* Contenido de la activación (pantalla de acceso con la prueba terminada y ventana «Activar ahora») */
+  /* Pago en línea: Checkout para pagar el plan y portal del cliente para tarjeta, facturas y cambios. Devuelven la dirección. */
+  /* ---------- Verificación en dos pasos de la cuenta (opcional; solo con servidor) ----------
+     Alta: el servidor da un secreto, se añade a la aplicación de autenticación y se confirma con el primer código;
+     entonces se ven una sola vez los códigos de recuperación. Baja: contraseña y un código. */
+  P.dosPasos = function (alCambiar) {
+    const u = P.user; if (!u || P.mode !== 'server') return;
+    const back = document.createElement('div'); back.className = 'ef-back';
+    const cerrar = () => { back.remove(); document.removeEventListener('keydown', esc2); };
+    const esc2 = (e) => { if (e.key === 'Escape') cerrar(); };
+    const card = (html) => { back.innerHTML = `<div class="ef-card glass df-card" role="dialog" aria-modal="true" aria-labelledby="dfT"><button class="icon-btn" data-x aria-label="Cerrar" style="position:absolute;right:12px;top:12px">×</button>${html}</div>`; back.querySelector('[data-x]').onclick = cerrar; };
+    const err = (f, x) => { const m = f.querySelector('[data-msg]'); m.style.color = 'var(--stop)'; m.textContent = x.message; f.querySelector('[type=submit]').disabled = false; };
+    if (u.dosPasos) {
+      card(`<div class="eyebrow">Verificación en dos pasos</div><h3 id="dfT" class="pa-t">Desactivar</h3>
+        <p class="small muted" style="margin:0">Para desactivarla escriba su contraseña y un código de su aplicación (o uno de recuperación).</p>
+        <form class="stack" data-f><input class="input" type="password" name="password" placeholder="Contraseña" autocomplete="current-password" required><input class="input" name="codigo" placeholder="Código" inputmode="numeric" autocomplete="one-time-code" required><button class="btn solid" type="submit">Desactivar</button><small data-msg role="status"></small></form>`);
+      const f = back.querySelector('[data-f]');
+      f.onsubmit = async (e) => { e.preventDefault(); f.querySelector('[type=submit]').disabled = true; try { const r = await api('/me/2fa/desactivar', { method: 'POST', body: JSON.stringify({ password: f.password.value, codigo: f.codigo.value.trim() }) }); P.user = r.user; cerrar(); P.toast('Verificación en dos pasos desactivada.'); if (alCambiar) alCambiar(); } catch (x) { err(f, x); } };
+    } else {
+      card('<p class="small muted" style="margin:0">Preparando…</p>');
+      api('/me/2fa/iniciar', { method: 'POST', body: '{}' }).then((r) => {
+        card(`<div class="eyebrow">Verificación en dos pasos</div><h3 id="dfT" class="pa-t">Proteger su cuenta con un código</h3>
+          <ol class="small" style="margin:0;padding-left:18px;display:grid;gap:6px"><li>Abra su aplicación de autenticación (por ejemplo, la de su teléfono) y añada una cuenta con esta clave:<br><code class="df-clave">${escH(r.secretoAgrupado)}</code><br><a class="small" href="${escH(r.uri)}">Abrir en la aplicación de este dispositivo</a></li><li>Escriba el código de 6 cifras que le muestra.</li></ol>
+          <form class="stack" data-f><input class="input" name="codigo" placeholder="Código de 6 cifras" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required><button class="btn solid" type="submit">Activar</button><small data-msg role="status"></small></form>`);
+        const f = back.querySelector('[data-f]');
+        f.onsubmit = async (e) => {
+          e.preventDefault(); f.querySelector('[type=submit]').disabled = true;
+          try {
+            const a = await api('/me/2fa/activar', { method: 'POST', body: JSON.stringify({ codigo: f.codigo.value.trim() }) }); P.user = a.user;
+            card(`<div class="eyebrow">Verificación en dos pasos</div><h3 id="dfT" class="pa-t">Activada</h3>
+              <p class="small" style="margin:0">Desde ahora, al entrar se le pedirá un código. <b>Guarde estos códigos de recuperación</b> en un lugar seguro: cada uno sirve una vez si no tiene el teléfono a mano. No se volverán a mostrar.</p>
+              <pre class="df-codigos">${a.codigos.map(escH).join('\n')}</pre>
+              <div class="row"><button class="btn" data-copiar>Copiar los códigos</button><button class="btn solid" data-ok>Hecho</button></div>`);
+            back.querySelector('[data-copiar]').onclick = (ev) => { try { navigator.clipboard.writeText(a.codigos.join('\n')); ev.target.textContent = 'Copiados'; } catch (x) { /* sin portapapeles */ } };
+            back.querySelector('[data-ok]').onclick = () => { cerrar(); if (alCambiar) alCambiar(); };
+          } catch (x) { err(f, x); }
+        };
+      }).catch((x) => card(`<p class="small" style="margin:0;color:var(--stop)">${escH(x.message)}</p>`));
+    }
+    document.body.appendChild(back); document.addEventListener('keydown', esc2);
+  };
+  P.irAlPago = async (u) => { u = u || P.user; const r = await api('/me/pago/checkout', { method: 'POST', body: JSON.stringify({ plan: u.plan, periodo: u.periodo || 'mensual' }) }); return r.url; };
+  P.portalPago = async () => (await api('/me/pago/portal', { method: 'POST', body: '{}' })).url;
+  /* Vuelta de Stripe (?pago=ok): el aviso del banco puede tardar unos segundos; se consulta la cuenta hasta verla pagada (máx. ~30 s) */
+  P.esperarPago = async function () {
+    if (!/[?&]pago=ok\b/.test(location.search) || P.mode !== 'server') return;
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* sin historial */ }
+    if (P.user && P.user.pagado) { P.toast('Pago recibido. Su acceso está activado.', 6000); return; }
+    P.toast('Pago recibido, activando su acceso…', 30000);
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const u = await P.me(); if (u && u.pagado) { P.toast('Acceso activado. Gracias.', 5000); location.reload(); return; }
+    }
+    P.toast('El pago se está confirmando. Si en unos minutos no ve el acceso activado, escríbanos.', 10000);
+  };
   P.pintarPago = function (host, u, opts) {
     opts = opts || {};
     const pl = PLANES[u.plan] || PLANES.profesional, pr = P.precio(u.plan, u.periodo, opts.empresas || 1, u.cuotaPactada), c = P.cuota(pr), url = P.pagoUrl(u.plan, u.periodo), C = P.CONTACTO;
     const bloq = opts.motivo === 'bloqueado', acc = P.accessOf(u);
+    // Pago en línea (Stripe) si el servidor lo tiene configurado para este plan y periodo; si no, enlace o solicitud manual
+    const stripe = P.mode === 'server' && P.serverInfo && Array.isArray(P.serverInfo.stripe) && P.serverInfo.stripe.includes(u.plan + '-' + (u.periodo || 'mensual'));
     const intro = bloq ? 'Su acceso está suspendido. Póngase en contacto con nosotros para revisarlo.'
       : acc.motivo === 'prueba' ? `Su prueba termina en ${acc.diasPrueba} ${acc.diasPrueba === 1 ? 'día' : 'días'}. Si activa ahora el plan, sigue trabajando sin interrupción y con todos sus datos.`
       : 'Su periodo de prueba ha terminado. Sus datos se conservan: en cuanto se confirme el pago, su acceso se reactiva con todos ellos.';
@@ -677,7 +740,7 @@
       ${opts.titulo === false ? '' : `<h1 class="pg-h">Plan <em>${escH(pl.nombre)}</em></h1>`}
       <p class="pg-intro">${intro}</p>
       ${bloq ? '' : `<div class="pg-precio"><b>${P.eur(c.importe)}</b><span>${c.unidad} + IVA</span>${pr.periodo === 'anual' ? `<small>${escH(c.detalle)}</small>` : '<small>Pago mensual. Con el pago anual, un 30 % de descuento.</small>'}</div>
-      ${url ? `<a class="btn solid" href="${escH(url)}" target="_blank" rel="noopener" data-pagar>Pagar ahora</a><p class="small muted" style="margin:0">El pago se hace en una página segura de nuestra pasarela. En cuanto se confirme, su acceso se activa.</p>`
+      ${stripe || url ? `<a class="btn solid" href="${stripe ? '#' : escH(url)}"${stripe ? '' : ' target="_blank" rel="noopener"'} data-pagar>Pagar ahora</a><p class="small muted" style="margin:0">El pago se hace en una página segura de nuestra pasarela. En cuanto se confirme, su acceso se activa.</p>`
         : `<form class="pg-form stack" data-pgform novalidate>
           <p class="small" style="margin:0"><b>Le enviaremos el enlace de pago</b> a ${escH(u.email || 'su correo')}. Si lo desea, indíquenos los datos de facturación.</p>
           <label class="small">Teléfono de contacto (opcional)<input class="input" name="telefono" type="tel" autocomplete="tel" value="${escH(u.telefono || '')}"></label>
@@ -696,7 +759,17 @@
       try { await P.solicitarPago({ telefono: f.telefono.value.trim(), factura: f.factura.value.trim() }); msg.style.color = 'var(--go)'; msg.textContent = `Solicitud recibida. Le enviaremos el enlace de pago a ${u.email || 'su correo'} ${C.respuesta}.`; }
       catch (e) { msg.style.color = 'var(--stop)'; msg.textContent = e.message; bt.disabled = false; }
     };
-    const pg = host.querySelector('[data-pagar]'); if (pg) pg.onclick = () => { P.solicitarPago({ enlace: true }).catch(() => {}); };
+    const pg = host.querySelector('[data-pagar]');
+    if (pg && stripe) pg.onclick = async (ev) => {
+      ev.preventDefault(); if (pg.dataset.ocupado) return; pg.dataset.ocupado = '1'; msg.style.color = ''; msg.textContent = 'Abriendo la página de pago…';
+      try { location.href = await P.irAlPago(u); }
+      catch (e) {
+        // Ya hay una suscripción: el cambio de tarjeta o de plan se hace en el portal de pagos
+        if (e.body && e.body.portal) { try { location.href = await P.portalPago(); return; } catch (x) { e = x; } }
+        msg.style.color = 'var(--stop)'; msg.textContent = e.message; delete pg.dataset.ocupado;
+      }
+    };
+    else if (pg) pg.onclick = () => { P.solicitarPago({ enlace: true }).catch(() => {}); };
     host.querySelector('[data-pgexp]').onclick = () => P.descargarDatos(host.querySelector('[data-pgexpmsg]'));
     const pp = host.querySelector('[data-pgplan]'); if (pp) pp.onclick = () => P.panelPlanes({ onCambio: opts.onCambio });
   };
@@ -1402,7 +1475,7 @@
       <div class="acc-menu glass" hidden>
         <nav class="acc-mundos" aria-label="Mundos de Atalaya"><div class="bm-h">Ir a</div>${listaMundos('bm-it')}</nav>
         <div class="acc-head"><b>${esc(u.nombre || u.email)}</b><small>${esc(u.email)}</small><small>Plan ${planN} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button>${P.mode === 'server' && u.stripeCliente ? '<button data-portalpago>Gestionar el pago: tarjeta y facturas</button>' : ''}<button data-pw>Cambiar contraseña</button>${P.mode === 'server' ? `<button data-2fa>${u.dosPasos ? 'Verificación en dos pasos: activada · desactivar' : 'Activar la verificación en dos pasos'}</button>` : ''}<button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
@@ -1474,6 +1547,8 @@
     el.querySelector('[data-conex]').onclick = () => { m.hidden = true; const go = () => A.conexiones.abrir('claude'); if (A.conexiones) return go(); const sc = document.createElement('script'); sc.src = 'js/conexiones.js'; sc.onload = go; document.head.appendChild(sc); };
     const pf = el.querySelector('[data-pwform]');
     el.querySelector('[data-pw]').onclick = (e) => { e.stopPropagation(); pf.hidden = !pf.hidden; };
+    const pp = el.querySelector('[data-portalpago]'); if (pp) pp.onclick = async () => { pp.disabled = true; try { location.href = await P.portalPago(); } catch (x) { pp.disabled = false; P.toast(x.message, 6000); } };
+    const d2 = el.querySelector('[data-2fa]'); if (d2) d2.onclick = () => { m.hidden = true; P.dosPasos(() => P.mountAccount(el)); };
     pf.onsubmit = async (e) => {
       e.preventDefault(); const msg = pf.querySelector('[data-pwmsg]');
       try { await P.changePassword(pf.actual.value, pf.nueva.value); msg.textContent = 'Contraseña cambiada.'; msg.style.color = 'var(--go)'; pf.reset(); } catch (x) { msg.textContent = x.message; msg.style.color = 'var(--stop)'; }
