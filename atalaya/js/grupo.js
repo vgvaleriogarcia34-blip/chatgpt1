@@ -4,7 +4,11 @@
    · Sociedades una a una y, en Grupos, el consolidado con eliminación de las operaciones intragrupo.
    · Comparativa entre sociedades, riesgos cruzados (clientes y proveedores comunes, sociedades en rojo).
    · Objetivos de la holding en cascada a cada sociedad.
-   · Informe del grupo (o de la cartera). */
+   · Informe del grupo (o de la cartera).
+   · Ventas, EBITDA, deuda, caja y plantilla de cada empresa salen de la fuente única (js/cifras.js), las mismas que en sus mundos.
+   · Cartera operativa (Consultora): etapa del recorrido de la auditoría, próxima sesión, pendientes, triaje y nota de cada cliente.
+   · Nueva empresa desde plantilla: copia de otra empresa lo que no es suyo (ficha tipo, umbrales, puestos, propuesta y
+     honorarios, ritmo de sesiones), nunca sus cifras, personas, conversaciones ni diagnóstico. */
 (function () {
   const A = window.Atalaya, P = A.platform, F = A.fmt;
   const $ = (s, r) => (r || document).querySelector(s);
@@ -26,7 +30,10 @@
   };
   const fv = (v, u) => (v == null || !isFinite(v) ? '—' : u === '€' ? F.eur(v) : u === '%' ? F.pct(v) : u === '×' ? (Math.round(v * 10) / 10 || 0).toFixed(1).replace('.', ',') + '×' : F.num(Math.round(v) || 0) + (u ? ' ' + u : '')); // «|| 0»: sin «-0»
 
-  let user, plan, grupo, lista, modelo, G, E = [];
+  let user, plan, grupo, lista, modelo, modeloC = null, G, E = [];
+  const hoyISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  const fCorta = (f) => (f ? new Date(f + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—');
+  const plu = (n, a, b) => `${n} ${n === 1 ? a : b}`;
 
   /* ---------- Datos de cada empresa ---------- */
   async function cargarEmpresa(e) {
@@ -34,14 +41,20 @@
     if (!sim || !sim.empresa) sim = LS.get(P.k('atalaya.v1', e.id));
     if (!est) est = LS.get(P.k('atalaya.estrategia.v1', e.id));
     const out = { e, sim, est, ok: !!(sim && sim.empresa && A.SECTORS[sim.sector]) };
+    // Lo que necesita la cartera operativa: recorrido de la auditoría, mesa de trabajo, nota y personas dadas de alta
+    const ld = async (k) => { try { return await P.loadDataOf(k, e.id); } catch (x) { return null; } };
+    const [iv, agenda, nota, pe] = await Promise.all([!grupo && P.puede('intervencion') ? ld('intervencion') : null, ld('agenda'), ld('nota'), P.puede('personas') ? ld('personas') : null]);
+    Object.assign(out, { iv, agenda, nota: nota && nota._global, personasN: pe && Array.isArray(pe.personas) && pe.personas.length ? pe.personas.length : null });
+    out.c = A.cifras ? A.cifras.desdeSim(sim, e, { personas: out.personasN }) : null;
     if (!out.ok) return out;
     const s = Object.assign(A.defaultState(), sim);
     let r = null; try { r = A.analyze(s, A.scenarioMods(s, s.escenario || 'base')); } catch (x) { r = null; }
-    const em = s.empresa, an = r && r.tamano ? r.tamano.antes : null;
-    const ventas = an ? an.ventas : em.ventas, ebitda = an ? an.ebitda : em.ventas * em.margen / 100 - em.personal - em.fijos;
+    const em = s.empresa, c = out.c && !out.c.sinDatos ? out.c : null, v = (k, alt) => (c && c[k] != null ? c[k] : alt);
+    // Cifras de la fuente única: las del último año de la empresa (no la previsión del primer año del simulador)
+    const ventas = v('ventas', em.ventas), ebitda = v('ebitda', em.ventas * em.margen / 100 - em.personal - em.fijos), plantilla = v('plantilla', em.plantilla);
     out.m = {
-      ventas, ebitda, ebitdaPct: ventas > 0 ? ebitda / ventas * 100 : null, caja: em.caja, deuda: em.deudaViva, deudaNeta: em.deudaViva - em.caja,
-      deudaEbitda: ebitda > 0 ? (em.deudaViva - em.caja) / ebitda : null, dso: em.dso, plantilla: an ? an.plantilla : em.plantilla, ventasEmpleado: an ? an.ventasEmpleado : ventas / Math.max(1, em.plantilla),
+      ventas, ebitda, ebitdaPct: v('ebitdaPct', ventas > 0 ? ebitda / ventas * 100 : null), caja: v('caja', em.caja), deuda: v('deuda', em.deudaViva), deudaNeta: v('deudaNeta', em.deudaViva - em.caja),
+      deudaEbitda: v('deudaEbitda', ebitda > 0 ? (em.deudaViva - em.caja) / ebitda : null), dso: v('dso', em.dso), plantilla, ventasEmpleado: ventas / Math.max(1, plantilla || 1),
       liquidezMin: r ? r.cajaRef : null, serieLiq: r && r.w ? (r.contarPoliza ? r.w.liquidez : r.w.cash) : null, verdict: r ? r.verdict : null, rojos: r ? r.lights.filter((l) => l.estado === 'stop').map((l) => l.nombre) : [], ambar: r ? r.lights.filter((l) => l.estado === 'warn').length : 0,
       sector: (A.SECTORS[s.sector] || {}).nombre || '', inversion: s.inversion ? s.inversion.importe : 0, nombre: s.empresaNombre
     };
@@ -155,11 +168,13 @@
         <div class="gr-legend small muted">El tamaño es la venta de cada ${grupo ? 'sociedad' : 'empresa'}; el anillo, su veredicto en el simulador (verde, ámbar o rojo; gris sin datos); el relleno la identifica, como en la tabla. Contorno discontinuo: ventas negativas. Pulse una para entrar en ella.</div></section>
       ${grupo ? S_kpis(c) : ''}
       <section class="glass pad stack mt"><div class="row"><h4>${grupo ? 'Sociedades' : 'Empresas'}</h4><span class="spacer"></span><span class="small muted">Cifras del último año cargado y previsión del escenario activo de cada una</span></div>
-        <div class="table-wrap"><table class="gr-tab"><thead><tr><th style="text-align:left">${grupo ? 'Sociedad' : 'Empresa'}</th>${grupo ? '<th>Rol</th><th>%</th>' : ''}<th>Ventas</th><th>EBITDA</th><th>EBITDA %</th><th>Caja</th><th>Deuda neta</th><th>Valor estimado</th><th>Días de cobro</th><th>Personas</th><th>Liquidez mín.</th><th>Veredicto</th><th></th></tr></thead><tbody>
+        <div class="table-wrap"><table class="gr-tab"><thead><tr><th style="text-align:left">${grupo ? 'Sociedad' : 'Empresa'}</th>${grupo ? '<th>Rol</th><th>%</th>' : ''}<th>Ventas</th><th>EBITDA</th><th>EBITDA %</th><th>Caja</th><th>Deuda neta</th><th>Valor estimado</th><th>Días de cobro</th><th>Personas</th><th>Liquidez mín.</th><th>Veredicto de la inversión</th><th></th></tr></thead><tbody>
         ${E.map((x, i) => x.ok ? `<tr><td style="text-align:left"><i class="gr-dot" style="background:${PAL[lista.indexOf(x.e) % PAL.length]}"></i><b>${esc(x.e.nombre)}</b>${fict(x)}<br><span class="muted small">${esc(x.m.sector)}${x.reales ? '' : ' · cifras sin cuentas cargadas'}</span></td>${grupo ? `<td>${x.e.rol === 'holding' ? 'Holding' : 'Filial'}</td><td>${x.e.participacion != null ? x.e.participacion : 100} %</td>` : ''}<td>${F.eur(x.m.ventas)}</td><td>${F.eur(x.m.ebitda)}</td><td>${fv(x.m.ebitdaPct, '%')}</td><td>${F.eur(x.m.caja)}</td><td>${F.eur(x.m.deudaNeta)}</td><td>${fv(x.m.valor, '€')}</td><td>${fv(x.m.dso, '')}</td><td>${fv(x.m.plantilla, '')}</td><td style="color:${x.m.liquidezMin < 0 ? 'var(--stop)' : 'inherit'}">${fv(x.m.liquidezMin, '€')}</td><td>${x.m.verdict ? `<span class="state st-${ST[x.m.verdict.key]}">${esc(x.m.verdict.titulo)}</span>` : '—'}</td><td><button class="btn ghost" data-go="${x.e.id}">Entrar</button></td></tr>`
           : `<tr><td style="text-align:left"><b>${esc(x.e.nombre)}</b>${fict(x)}<br><span class="muted small">Sin datos todavía</span></td>${grupo ? '<td></td><td></td>' : ''}<td colspan="9" class="muted small" style="text-align:left">Entra en ella y carga sus cifras, o sube su documentación en la zona de origen.</td><td><button class="btn ghost" data-go="${x.e.id}">Entrar</button></td></tr>`).join('')}
         ${grupo && L.length ? `<tr class="gr-tot"><td style="text-align:left"><b>Consolidado</b><br><span class="muted small">integración global, con eliminaciones</span></td><td></td><td></td><td>${F.eur(c.ventas)}</td><td>${F.eur(c.ebitda)}</td><td>${fv(c.ebitdaPct, '%')}</td><td>${F.eur(c.caja)}</td><td>${F.eur(c.deudaNeta)}</td><td title="Valor atribuible a la holding según participaciones">${F.eur(c.valorAtr)}<br><span class="muted small">atribuible</span></td><td></td><td>${fv(c.plantilla, '')}</td><td title="${c.liqSumaMin ? 'Suma de los mínimos de cada sociedad, que pueden caer en meses distintos' : 'Mínimo de la suma mes a mes de las previsiones de todas las sociedades'}">${F.eur(c.liquidezMin)}<br><span class="muted small">${c.liqSumaMin ? 'suma de mínimos' : 'mes más bajo del grupo'}</span></td><td></td><td></td></tr>` : ''}
         </tbody></table></div>${E.some((x) => !x.e.datosReales) ? `<p class="small muted" style="margin:0">«Datos ficticios»: ${grupo ? 'la sociedad' : 'la empresa'} trabaja todavía con datos de ejemplo en los mundos que no tienen datos propios. ${grupo ? 'Sus cifras entran en el consolidado tal como estén cargadas: revíselas antes de usarlo.' : 'Revise sus cifras antes de compararlas con las demás.'}</p>` : ''}</section>
+      ${!grupo ? operativaHTML() : ''}
+      ${clonarHTML()}
       ${modeloHTML()}
       ${grupo ? `<section class="glass pad stack mt"><h4>Operaciones dentro del grupo</h4><p class="small muted">Lo que unas sociedades venden o prestan a otras no es venta ni deuda del grupo: se elimina al consolidar. Escribe los importes anuales (los encontrarás en la contabilidad de cada sociedad, cuentas de empresas del grupo).</p>
         <div class="gr-elim">${[['ventas', 'Ventas entre sociedades del grupo', 'se restan de las ventas'], ['margen', 'Margen de esas ventas aún no vendido fuera', 'se resta del EBITDA'], ['prestamos', 'Préstamos entre sociedades del grupo', 'se restan de la deuda']].map(([k, l, d]) => `<label class="field"><span>${l}</span><input class="input" data-elim="${k}" value="${(G.elim || {})[k] ? F.num(G.elim[k]) : ''}" placeholder="0"><small class="muted">${d}</small></label>`).join('')}</div></section>` : ''}
@@ -167,7 +182,8 @@
       <section class="glass pad stack mt"><h4>Comparativa</h4><div class="gr-cmp">${['ebitdaPct', 'ventasEmpleado', 'dso', 'liquidezMin'].map((k) => barras(k)).join('')}</div></section>
       <section class="glass pad stack mt"><h4>Riesgos que solo se ven en conjunto</h4>${cr.length ? `<div class="risklist">${cr.map((r) => `<div class="risk"><span class="state st-${r.st}">${r.st === 'stop' ? 'Alto' : 'Medio'}</span><div><b>${esc(r.t)}</b><p>${esc(r.d)}</p></div><span></span></div>`).join('')}</div>` : '<p class="small muted">Sin riesgos cruzados con los datos actuales.</p>'}</section>
       ${grupo ? objetivosHTML() : ''}`;
-    $$('[data-go]', main).forEach((b) => b.onclick = () => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(b.dataset.go)); location.href = 'estrategia.html'; });
+    $$('[data-go]', main).forEach((b) => b.onclick = () => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(b.dataset.go)); location.href = b.dataset.pag || 'estrategia.html'; });
+    wireClonar(main);
     pintaSky();
     $$('[data-elim]', main).forEach((inp) => inp.onchange = () => { G.elim = G.elim || {}; G.elim[inp.dataset.elim] = A.fin ? A.fin.parseNum(inp.value) || 0 : +inp.value || 0; guardar(); render(true); });
     $('#gRep', main).onclick = informe;
@@ -182,8 +198,112 @@
   /* La empresa modelo, aparte y fuera de toda cifra de conjunto */
   function modeloHTML() {
     if (!modelo) return '';
-    return `<section class="glass pad stack mt gr-modelo"><div class="row"><h4>${esc(modelo.nombre)}</h4><span class="gr-fict">Empresa modelo · datos ficticios</span><span class="spacer"></span><button class="btn ghost" data-go="${esc(modelo.id)}">Probar con la empresa modelo</button></div>
-      <p class="small muted" style="margin:0">Es una empresa inventada para conocer Atalaya. No entra en ${grupo ? 'el consolidado, la tesorería del grupo' : 'la cartera'}, las comparativas, los riesgos ni ${grupo ? 'el tramo del plan' : 'el límite de empresas del plan'}.</p></section>`;
+    return `<section class="glass pad stack mt gr-modelo" id="gModelo"><div class="row"><h4>${esc(modelo.nombre)}</h4><span class="gr-fict">Empresa modelo · datos ficticios</span><span class="spacer"></span><button class="btn ghost" data-go="${esc(modelo.id)}">Probar con la empresa modelo</button></div>
+      <p class="small muted" style="margin:0">Es una empresa inventada para conocer Atalaya. No entra en ${grupo ? 'el consolidado, la tesorería del grupo' : 'la cartera'}, las comparativas, los riesgos ni ${grupo ? 'el tramo del plan' : 'el límite de empresas del plan'}. Sus cifras son las mismas que enseñan sus mundos:</p>
+      ${modeloC && A.cifras ? A.cifras.html(modeloC, { avisos: false }) : ''}</section>`;
+  }
+
+  /* ---------- Cartera operativa: dónde está cada cliente y qué toca ----------
+     Etapa y paso del recorrido de la auditoría (el resumen que guarda js/intervencion/core.js; si aún no lo hay, la etapa
+     del último paso abierto), próxima sesión, pendientes (acciones vencidas, sesiones sin acta, propuestas sin respuesta,
+     documentos pedidos y tareas atrasadas de la mesa), triaje del consultor y nota de la empresa con su fecha. */
+  const ETAPA_TAB = { guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, foto: 1, propuesta: 2, aceptacion: 2, s1docs: 3, s1dinero: 3, s1cierre: 3, documentacion: 4, auditoria: 4, ecosistema: 4, foto360: 4, s2cierre: 4, arranque: 5, objetivos: 5, plan: 5, sesiones: 5, informes: 6, autoeval: 6 };
+  const ETAPAS = ['Sesión previa', 'Propuesta integral', 'Servicio 1 · El dinero', 'Servicio 2 · Auditoría 360', 'Servicio 3 · Acompañamiento', 'Documentos'];
+  const TIPO_SES = { contacto: 'Primera sesión (triaje)', auditoria: 'Auditoría integral', arranque: 'Arranque', trabajo: 'Sesión de trabajo', seguimiento: 'Seguimiento', revision: 'Revisión de fase' };
+  const TRI = { stop: 'Urgencias', warn: 'Preferente', ok: 'Programable' };
+  function operativa(x) {
+    const iv = x.iv, h = hoyISO(), r = iv && iv.resumen, u = iv && iv.recorrido && iv.recorrido.ultimo;
+    const empezado = !!(iv && ((iv.transcripciones || []).length || (iv.sintomas || []).length || u || (iv.sesiones || []).length));
+    const etN = r ? r.etapaN : u && ETAPA_TAB[u.tab] ? ETAPA_TAB[u.tab] : empezado ? 1 : 0;
+    const etapa = etN ? ETAPAS[etN - 1] : 'Sin empezar';
+    const det = r ? `Paso ${r.paso} de ${r.total}${r.pasoN ? ': ' + r.pasoN : ''} · ${r.hechos} hechos` : empezado ? 'Abra la auditoría para ver el paso' : 'Auditoría sin abrir';
+    const ses = (iv && iv.sesiones) || [], prox = ses.filter((s) => s.fecha && s.fecha >= h).sort((a, b) => (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')))[0] || null;
+    const pend = [];
+    if (iv) {
+      ((iv.plan && iv.plan.acciones) || []).filter((a) => a.estado !== 'hecha' && a.fecha && a.fecha < h).forEach((a) => pend.push({ t: 'Acción vencida: ' + a.t, f: a.fecha }));
+      ses.filter((s) => s.fecha && s.fecha < h && !String(s.acta || '').trim() && s.tipo !== 'contacto').forEach((s) => pend.push({ t: 'Sesión sin acta (' + fCorta(s.fecha) + ')', f: s.fecha }));
+      const R = iv.recorrido || {};
+      [['propuesta', 'Propuesta integral'], ['propS2', 'Propuesta de la auditoría 360'], ['propS3', 'Propuesta de acompañamiento']].forEach(([k, n]) => { if ((R[k] || {}).estado === 'presentada') pend.push({ t: n + ' sin respuesta', f: (R[k] || {}).fecha || '' }); });
+      const docs = Object.values(R.docs || {}).filter((d) => d && d.e === 'pedido').length; if (docs) pend.push({ t: plu(docs, 'documento pedido sin recibir', 'documentos pedidos sin recibir'), f: '' });
+    }
+    const atr = ((x.agenda && x.agenda.tareas) || []).filter((t) => t.estado !== 'hecha' && t.fecha && t.fecha < h).length;
+    if (atr) pend.push({ t: 'Mesa de trabajo: ' + plu(atr, 'tarea atrasada', 'tareas atrasadas'), f: '' });
+    const tri = iv && Array.isArray(iv.triajeAreas) ? (iv.triajeAreas.includes('stop') ? 'stop' : iv.triajeAreas.includes('warn') ? 'warn' : iv.triajeAreas.includes('ok') ? 'ok' : '') : '';
+    return { etN, etapa, det, prox, pend, tri, nota: x.nota || null, sesiones: ses.length };
+  }
+  function operativaHTML() {
+    if (!P.puede('intervencion') || !E.length) return '';
+    const L = E.map((x) => Object.assign({ x }, operativa(x))).sort((a, b) => (a.prox ? a.prox.fecha : '9') .localeCompare(b.prox ? b.prox.fecha : '9') || b.pend.length - a.pend.length);
+    const h = hoyISO(), sem = new Date(h + 'T12:00:00'); sem.setDate(sem.getDate() + 7); const s7 = sem.toISOString().slice(0, 10);
+    const estaSemana = L.filter((o) => o.prox && o.prox.fecha <= s7).length, tot = L.reduce((a, o) => a + o.pend.length, 0);
+    const nt = (o) => (o.nota && o.nota.nota != null ? `<b class="${o.nota.nota >= 7 ? 'ok' : o.nota.nota >= 5 ? 'warn' : 'stop'}">${String(o.nota.nota.toFixed(1)).replace('.', ',')}</b><br><span class="muted small">${o.nota.fecha ? fCorta(o.nota.fecha.slice(0, 10)) : ''}</span>` : '<span class="muted small">Sin nota</span>');
+    return `<section class="glass pad stack mt" id="gOper"><div class="row"><h4>Cartera operativa</h4><span class="spacer"></span><span class="small muted">${plu(estaSemana, 'sesión', 'sesiones')} en los próximos siete días · ${plu(tot, 'pendiente', 'pendientes')} en total</span></div>
+      <div class="table-wrap"><table class="gr-tab gr-oper"><thead><tr><th style="text-align:left">Empresa</th><th style="text-align:left">Etapa del recorrido</th><th style="text-align:left">Próxima sesión</th><th style="text-align:left">Pendientes</th><th>Triaje</th><th>Nota</th><th></th></tr></thead><tbody>
+      ${L.map((o) => `<tr data-oper="${esc(o.x.e.id)}"><td style="text-align:left"><b>${esc(o.x.e.nombre)}</b></td>
+        <td style="text-align:left" data-etapa><b>${esc(o.etapa)}</b><br><span class="muted small">${esc(o.det)}</span></td>
+        <td style="text-align:left" data-prox>${o.prox ? `<b>${fCorta(o.prox.fecha)}${o.prox.hora ? ' · ' + esc(o.prox.hora) : ''}</b><br><span class="muted small">${esc(TIPO_SES[o.prox.tipo] || 'Sesión')}</span>` : `<span class="muted small">${o.sesiones ? 'Sin sesiones futuras' : 'Sin calendario'}</span>`}</td>
+        <td style="text-align:left" data-pend>${o.pend.length ? `<b>${o.pend.length}</b><ul class="small" style="margin:2px 0 0;padding-left:16px">${o.pend.slice(0, 3).map((p) => `<li>${esc(p.t)}</li>`).join('')}${o.pend.length > 3 ? `<li class="muted">y ${o.pend.length - 3} más</li>` : ''}</ul>` : '<span class="muted small">Nada pendiente</span>'}</td>
+        <td>${o.tri ? `<span class="state st-${o.tri}">${TRI[o.tri]}</span>` : '<span class="muted small">—</span>'}</td><td>${nt(o)}</td>
+        <td style="white-space:nowrap"><button class="btn ghost small" data-go="${esc(o.x.e.id)}" data-pag="intervencion.html">Auditoría</button><button class="btn ghost small" data-go="${esc(o.x.e.id)}" data-pag="intervencion.html#sesiones">Sesiones</button></td></tr>`).join('')}
+      </tbody></table></div><p class="small muted" style="margin:0">Ordenada por la próxima sesión. La etapa es la del recorrido de la auditoría integral; la nota, la última calculada al guardar en sus mundos.</p></section>`;
+  }
+
+  /* ---------- Nueva empresa desde plantilla ----------
+     Se elige una empresa de la cuenta como plantilla y se copia lo que no es suyo: forma, sector, actividad y provincia;
+     los umbrales del simulador (sin cifras); los puestos con su perfil (sin personas); la propuesta integral como base
+     (sin sus problemas ni objetivos), los honorarios, la duración y la frecuencia de las propuestas; y el día y la hora de
+     las sesiones. La empresa nueva trabaja con datos reales: sus mundos empiezan vacíos y piden sus datos. */
+  // Guarda un dato de otra empresa de la cuenta (la API pública solo guarda la activa; ver el informe de la fase 2)
+  async function guardarEn(id, key, obj) {
+    if (P.saveDataOf) return P.saveDataOf(key, id, obj);
+    await P.ready;
+    if (P.mode === 'server') return P.api('/data/' + encodeURIComponent(key + '--' + id), { method: 'PUT', body: JSON.stringify(obj) });
+    // Modo local: se cambia la empresa activa solo mientras se escribe (sin esperas de red, no se cruza con otros guardados)
+    const ACT = 'atalaya.empresa.activa', antes = localStorage.getItem(ACT);
+    localStorage.setItem(ACT, JSON.stringify(id));
+    try { await P.saveData(key, obj); } finally { if (antes == null) localStorage.removeItem(ACT); else localStorage.setItem(ACT, antes); }
+  }
+  const COPIA = [['ficha', 'Ficha tipo: forma jurídica, sector, actividad y provincia'], ['simulador', 'Umbrales del simulador (caja mínima, plazos, deuda), sin cifras'], ['puestos', 'Puestos con su perfil ideal, sin personas'], ['propuesta', 'Propuesta integral como base, honorarios y duración de las propuestas'], ['sesiones', 'Día y hora de las sesiones']];
+  function clonarHTML() {
+    if (!lista.length) return '';
+    const lim = P.limiteEmpresas(), lleno = lista.length >= lim;
+    return `<section class="glass pad stack mt" id="gClon"><div class="row"><h4>${grupo ? 'Nueva sociedad' : 'Nueva empresa'} desde plantilla</h4><span class="spacer"></span><span class="small muted">${lista.length} de ${lim === Infinity ? 'sin límite' : lim} en su plan</span></div>
+      <p class="small muted" style="margin:0">Parte de una empresa que ya tiene preparada y copia solo lo que no es suyo. Nunca se copian sus cifras, personas, conversaciones ni diagnóstico.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px"><label class="small">Plantilla<select class="input" id="gClSrc">${lista.map((e) => `<option value="${esc(e.id)}">${esc(e.nombre)}</option>`).join('')}</select></label><label class="small">Nombre de la ${grupo ? 'sociedad' : 'empresa'} nueva<input class="input" id="gClNom" placeholder="Por ejemplo: Transportes Ruiz, S.L."></label></div>
+      <div class="gr-clopt">${COPIA.map(([k, t]) => `<label class="small" style="display:flex;gap:6px;align-items:flex-start"><input type="checkbox" data-cl="${k}" checked> ${esc(t)}</label>`).join('')}</div>
+      <div class="row"><button class="btn solid" id="gClGo" ${lleno ? 'disabled' : ''}>Crear desde la plantilla</button><span class="small" id="gClMsg">${lleno ? 'Ha llegado al límite de empresas de su plan.' : ''}</span></div></section>`;
+  }
+  async function clonar(srcId, nombre, que) {
+    const src = lista.find((e) => e.id === srcId); if (!src) throw new Error('Elija la empresa plantilla.');
+    const ahora = new Date().toISOString();
+    const ficha = { nombre, rol: grupo ? 'filial' : 'cliente', plantilla: '', socios: [], datosReales: true, datosRealesDesde: ahora.slice(0, 10), datosRealesTs: ahora, datosRealesOrigen: 'plantilla', desdePlantilla: { id: src.id, nombre: src.nombre, fecha: ahora.slice(0, 10) } };
+    if (que.ficha) ['forma', 'sector', 'actividad', 'provincia'].forEach((k) => { if (src[k] != null && src[k] !== '') ficha[k] = src[k]; });
+    if (grupo) { ficha.matriz = src.rol === 'holding' ? src.id : src.matriz || ''; ficha.participacion = 100; }
+    const e = await P.empresas.crear(ficha);
+    const x = E.find((y) => y.e.id === src.id) || {}, ld = async (k) => { try { return await P.loadDataOf(k, src.id); } catch (z) { return null; } };
+    if (que.simulador && A.simVacio) { const s0 = x.sim || (await ld('simulador')); const nv = A.simVacio(nombre, (s0 && s0.sector) || src.sector || 'industria'); if (s0 && s0.meta) nv.meta = JSON.parse(JSON.stringify(s0.meta)); await guardarEn(e.id, 'simulador', nv); }
+    if (que.puestos) { const pe = await ld('personas'); if (pe && Array.isArray(pe.puestos) && pe.puestos.length) await guardarEn(e.id, 'personas', { v: 1, personas: [], puestos: JSON.parse(JSON.stringify(pe.puestos)).map((q) => Object.assign(q, { sucesor: '' })), equipos: [] }); }
+    if (que.propuesta || que.sesiones) {
+      const iv = x.iv || (await ld('intervencion')) || {}, nv = { v: 1, recorrido: { propS2: {}, propS3: {} }, plan: { inicio: '', acciones: [] } };
+      if (que.propuesta) {
+        if (iv.propuesta) { const pr = JSON.parse(JSON.stringify(iv.propuesta)); ['generada', 'sit', 'subtitulo', 'fecha', 'cifra', 'dim', 'alcance', 'fusion'].forEach((k) => delete pr[k]); if (pr.inv) delete pr.inv.objetivos; if (pr.obtienen) pr.obtienen.items = []; if (pr.coste) ['vMin', 'vMax', 'valorEmpresa', 'supuestos'].forEach((k) => delete pr.coste[k]); if (pr.riesgo) delete pr.riesgo.linea; pr.plantilla = { id: src.id, nombre: 'Copia de ' + src.nombre, fecha: ahora.slice(0, 10) }; nv.propuesta = pr; }
+        const R = iv.recorrido || {}; ['propS2', 'propS3'].forEach((k) => { const p0 = R[k] || {}; ['precio', 'forma', 'meses', 'frecuencia', 'catalogo'].forEach((y) => { if (p0[y] != null && p0[y] !== '') nv.recorrido[k][y] = p0[y]; }); });
+      }
+      if (que.sesiones && iv.plan) ['dia', 'hora'].forEach((y) => { if (iv.plan[y]) nv.plan[y] = iv.plan[y]; });
+      if (P.puede('intervencion')) await guardarEn(e.id, 'intervencion', nv);
+    }
+    return e;
+  }
+  function wireClonar(main) {
+    const b = $('#gClGo', main); if (!b) return;
+    b.onclick = async () => {
+      const msg = $('#gClMsg', main), nombre = ($('#gClNom', main).value || '').trim();
+      if (!nombre) { msg.textContent = 'Escriba el nombre de la empresa nueva.'; $('#gClNom', main).focus(); return; }
+      const que = {}; $$('[data-cl]', main).forEach((c) => { que[c.dataset.cl] = c.checked; });
+      b.disabled = true; msg.textContent = 'Creando…';
+      try { const e = await clonar($('#gClSrc', main).value, nombre, que); lista = P.empresas.reales(); E = await Promise.all(lista.map(cargarEmpresa)); render(true); P.toast(`«${e.nombre}» creada desde la plantilla. Sus mundos empiezan vacíos y piden sus datos.`, 6000); }
+      catch (x) { msg.textContent = x.message; b.disabled = false; }
+    };
   }
   function S_kpis(c) {
     const items = [['Ventas consolidadas', F.eur(c.ventas), c.bruto.ventas !== c.ventas ? `${F.eur(c.bruto.ventas)} antes de eliminar` : 'sin operaciones intragrupo marcadas'], ['EBITDA consolidado', F.eur(c.ebitda), fv(c.ebitdaPct, '%') + ' sobre ventas'], ['Deuda neta / EBITDA', fv(c.deudaEbitda, '×'), `${F.eur(c.deudaNeta)} de deuda neta`], ['Atribuible a la holding', F.eur(c.ventasAtr), `ventas según participaciones · EBITDA ${F.eur(c.ebitdaAtr)}`], ['Valor atribuible', F.eur(c.valorAtr), `valor orientativo de las sociedades según participaciones (suma: ${F.eur(c.valor)})`]];
@@ -324,6 +444,7 @@
     G = (await P.loadData('grupo')) || { elim: {}, objetivos: [] };
     G.tes = G.tes || { prestamos: [], resp: {} };
     E = await Promise.all(lista.map(cargarEmpresa));
+    if (modelo && A.cifras) { try { modeloC = await A.cifras.leer(modelo.id); } catch (x) { modeloC = null; } }
     render();
   })();
 })();

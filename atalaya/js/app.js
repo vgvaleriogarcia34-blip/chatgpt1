@@ -81,7 +81,7 @@
     ],
     'f-human': A.HUMAN_VARS,
     'f-custom': [
-      { p: 'custom.ventasF', l: '¿Qué parte de la venta nueva llega?', min: 0.2, max: 1.6, step: 0.05, u: '× lo previsto', d: '1 = lo que has previsto; 0,7 = el 70 %; 1,2 = un 20 % más.' },
+      { p: 'custom.ventasF', l: '¿Qué parte de la venta nueva llega?', min: 0.2, max: 1.6, step: 0.05, u: '× lo previsto', d: '1 = lo que ha previsto; 0,7 = el 70 %; 1,2 = un 20 % más.' },
       { p: 'custom.retraso', l: '¿Cuántos meses tarde arranca?', min: -3, max: 18, step: 1, u: 'meses', d: 'Retraso de la puesta en marcha y de la rampa comercial.' },
       { p: 'custom.margenDelta', l: '¿Cuánto cambia el margen de lo nuevo?', min: -12, max: 6, step: 0.5, u: 'puntos', d: 'Negativo si suben las materias primas o hay que bajar precio.' },
       { p: 'custom.sobrecoste', l: '¿Cuánto más cuesta la inversión?', min: -10, max: 60, step: 1, u: '%', d: 'Desvío del presupuesto de la obra o del equipo.' },
@@ -112,7 +112,7 @@
         bounds[id] = { min: Math.min(resolve(f.min), getPath(f.p) || 0), max: Math.max(resolve(f.max), getPath(f.p) || 0) };
         const commit = (v, src) => {
           if (!isFinite(v)) return;
-          setPath(f.p, v); state.ejemplo = false;
+          setPath(f.p, v); state.ejemplo = false; if (f.p.startsWith('empresa.')) marcarDado(f.p, 'casilla');
           syncFields(src);
           schedule();
         };
@@ -166,18 +166,26 @@
   /* ---------------- Fichas informativas y modal ---------------- */
   const INFO = {
     veredicto: { t: 'Veredicto de movimiento', d: 'Síntesis de los diez semáforos del escenario activo. Rojo en liquidez o tres rojos obligan a rediseñar; un rojo o cuatro ámbar exigen condiciones previas.', v: (c) => c.active.verdict.titulo },
-    dimension: { t: 'Dimensión de la inversión', d: 'Cuánto pesa la inversión frente a la empresa actual. Por debajo del 15 % de las ventas es táctica; entre el 40 % y el 80 %, estratégica; por encima, transforma la empresa.', f: 'inversión ÷ ventas · inversión ÷ EBITDA', v: (c) => `${c.active.dim.clase} · ${xEb(c.active.dim.sobreEbitda)}${isFinite(c.active.dim.sobreEbitda) ? ' EBITDA' : ''}` },
-    sobreVentas: { t: 'Inversión sobre ventas', d: 'Mide el salto de escala. Una inversión que supera el 40 % de lo que facturas cambia la naturaleza del negocio.', f: 'inversión total ÷ ventas anuales', v: (c) => (isFinite(c.active.dim.sobreVentas) ? F.pct(c.active.dim.sobreVentas * 100) : 'sin ventas') },
-    sobreEbitda: { t: 'Años de EBITDA', d: 'Cuántos años de beneficio operativo actual cuesta la inversión. Por encima de 4 años, la empresa no puede pagarla desde su rentabilidad sin financiación larga.', f: 'inversión total ÷ EBITDA actual', v: (c) => xEb(c.active.dim.sobreEbitda) },
+    dimension: { t: 'Dimensión de la inversión', d: 'Cuánto pesa la inversión frente a la empresa actual. Por debajo del 15 % de las ventas es táctica; entre el 40 % y el 80 %, estratégica; por encima, transforma la empresa.', f: 'inversión ÷ ventas · inversión ÷ beneficio antes de intereses e impuestos (EBITDA)', v: (c) => `${c.active.dim.clase} · ${xEb(c.active.dim.sobreEbitda)}${isFinite(c.active.dim.sobreEbitda) ? ' EBITDA' : ''}` },
+    sobreVentas: { t: 'Inversión sobre ventas', d: 'Mide el salto de escala. Una inversión que supera el 40 % de lo que factura cambia la naturaleza del negocio.', f: 'inversión total ÷ ventas anuales', v: (c) => (isFinite(c.active.dim.sobreVentas) ? F.pct(c.active.dim.sobreVentas * 100) : 'sin ventas') },
+    sobreEbitda: { t: 'Años de beneficio (EBITDA)', d: 'Cuántos años de beneficio antes de intereses e impuestos (EBITDA) actual cuesta la inversión. Por encima de 4 años, la empresa no puede pagarla desde su rentabilidad sin financiación larga.', f: 'inversión total ÷ beneficio antes de intereses e impuestos actual', v: (c) => xEb(c.active.dim.sobreEbitda) },
     sobreFondos: { t: 'Sobre fondos propios', d: 'Qué parte del patrimonio se pone en juego. Por encima del 100 % la empresa apuesta más de lo que vale contablemente.', f: 'inversión total ÷ fondos propios', v: (c) => F.pct(c.active.dim.sobreFondos * 100) },
     sobreCaja: { t: 'Veces la caja', d: 'Cuántas veces la caja actual representa la inversión.', f: 'inversión total ÷ caja', v: (c) => F.x(c.active.dim.sobreCaja) },
     financiado: { t: 'Préstamo nuevo', d: 'Parte de la inversión que se financia con deuda en la estructura elegida.', f: 'inversión × % financiado', v: (c) => F.eur(c.active.loan) },
     cuota: { t: 'Cuota mensual nueva', d: 'Pago mensual del préstamo nuevo (capital más intereses) una vez acabada la carencia. Durante la carencia solo se pagan intereses.', f: 'sistema francés · plazo − carencia', v: (c) => `${F.eur(c.active.cuotaNueva)} · carencia ${F.eur(c.active.cuotaCarencia)}` },
-    cajaMin: { t: 'Liquidez mínima', d: 'El punto más bajo de dinero disponible en los próximos 60 meses: caja en banco más la parte libre de la póliza (si eliges contarla). Es la prueba de fuego: si es negativa, la inversión rompe la tesorería aunque sea rentable.', f: 'caja + póliza libre, mes a mes', v: (c) => `${F.eur(c.active.cajaRef)} en el mes ${c.active.mesCajaRef}` },
+    cajaMin: { t: 'Liquidez mínima', d: 'El punto más bajo de dinero disponible en los próximos 60 meses: caja en banco más la parte libre de la póliza (si elige contarla). Es la prueba de fuego: si es negativa, la inversión rompe la tesorería aunque sea rentable.', f: 'caja + póliza libre, mes a mes', v: (c) => `${F.eur(c.active.cajaRef)} en el mes ${c.active.mesCajaRef}` },
     payback: { t: 'Recuperación', d: 'Meses hasta que el flujo operativo incremental (después de impuestos y circulante) devuelve la inversión. La recuperación de caja mide cuándo la propiedad vuelve a tener la caja que habría tenido sin invertir.', f: 'Σ flujo incremental ≥ inversión', v: (c) => (c.active.payback == null ? 'Sin inversión' : `${F.months(c.active.payback)} · caja ${F.months(c.active.paybackCaja)}`) },
-    dscr: { t: 'Cobertura de la deuda (DSCR)', d: 'Cuántas veces el flujo operativo cubre el servicio total de la deuda en el peor año. La banca suele exigir 1,2× o más.', f: '(EBITDA − impuestos) ÷ (capital + intereses)', v: (c) => F.x(c.active.dscrMin) },
+    dscr: { t: 'Veces que el negocio cubre las cuotas (DSCR)', d: 'Cuántas veces lo que genera el negocio cubre lo que hay que pagar de préstamos (capital e intereses) en el peor año. Por debajo de 1 no llega; la banca suele pedir 1,2 veces o más.', f: '(beneficio antes de intereses e impuestos − impuestos) ÷ (capital + intereses)', v: (c) => F.x(c.active.dscrMin) },
     salarial: { t: 'Peso salarial', d: 'Coste de personal sobre ventas en el año de crucero.', f: 'personal ÷ ventas', v: (c) => `${F.pct(c.active.tamano.antes.pesoSalarial)} → ${F.pct(c.active.tamano.despues.pesoSalarial)}` },
-    humano: { t: 'Sistema operativo humano', d: 'Preparación de la organización para el nuevo tamaño, en nueve dimensiones.', v: (c) => `${Math.round(c.active.humano.score)}/100` }
+    humano: { t: 'Preparación del equipo', d: 'Preparación de la organización para el nuevo tamaño, en nueve dimensiones (mandos, dependencia del fundador, procesos escritos, rotación, clima…), de 0 a 100. Desde 70 está preparada para crecer; por debajo de 50 todavía no.', v: (c) => `${Math.round(c.active.humano.score)}/100` },
+    hCrec: { t: 'Crecimiento anual', d: 'Crecimiento medio de las ventas entre el primer y el último año cargados, como si hubiera sido igual cada año.', f: '(ventas último año ÷ ventas primer año) ^ (1 ÷ años) − 1' },
+    hSost: { t: 'Crecimiento financiable', d: 'Lo que la empresa puede crecer al año con el beneficio que se queda dentro, sin pedir más deuda ni más capital a los socios. Si se crece más deprisa, la diferencia hay que financiarla.', f: 'rentabilidad de los fondos propios × parte del beneficio que no se reparte' },
+    hEbitda: { t: 'Beneficio antes de intereses e impuestos (EBITDA)', d: 'Lo que genera el negocio con su actividad antes de pagar intereses, impuestos y amortizaciones. Es la cifra con la que se pagan las cuotas de los préstamos y se mide la capacidad de endeudarse.', f: 'ventas − compras − personal − otros gastos' },
+    hDfn: { t: 'Años de beneficio para pagar la deuda', d: 'Deuda con bancos menos la caja, dividida entre el beneficio antes de intereses e impuestos (EBITDA). Hasta 2 o 3 años es cómodo; por encima de 3, la banca endurece condiciones.', f: '(deuda financiera − caja) ÷ EBITDA' },
+    hPayout: { t: 'Beneficio repartido', d: 'Parte del beneficio neto que se reparte a los socios cada año, en media. Lo que no se reparte queda en la empresa para crecer o para devolver deuda.', f: 'dividendos ÷ beneficio neto' },
+    colchon: { t: 'Meses de colchón', d: 'Cuántos meses podría pagar la empresa nóminas, gastos fijos y cuotas con su liquidez si dejara de ingresar. Rojo: menos de 1 mes; ámbar: de 1 a 3; verde: más de 3.', f: 'liquidez ÷ gasto mensual (personal + fijos + cuotas)' },
+    riskMatrix: { t: 'Mapa de riesgos', d: 'Cada círculo es un riesgo del registro. Hacia la derecha, más daño a la caja si ocurre; hacia arriba, más probable. Los de la esquina superior derecha son los primeros que hay que cubrir. Toque un círculo para ver cómo mitigarlo.' },
+    tornado: { t: 'Sensibilidad de la liquidez mínima', d: 'Cada barra mueve un solo dato a un caso adverso y a uno favorable y mide cuánto cambia la liquidez mínima. Las barras más largas son los datos que más conviene vigilar y asegurar.' }
   };
   // Las variables del simulador también tienen ficha: descripción del campo o, si no, la del diccionario
   Object.values(FIELDS).flat().forEach((f) => { if (!INFO[f.p]) INFO[f.p] = { t: f.l, d: f.d || '' }; });
@@ -209,6 +217,15 @@
     if (Date.now() - openedAt < 80) return;
     if (!card.hidden && !card.contains(e.target) && !e.target.closest('canvas')) card.hidden = true;
   });
+  // En pantallas táctiles, tocar un gráfico equivale a pasar el cursor: el toque abre la ficha del dato y
+  // la deja abierta hasta el siguiente toque fuera (el «pointerleave» del dedo al levantarse no la cierra)
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') return;
+    const t = e.target.closest && e.target.closest('.chart svg *');
+    if (!t) { C.hideTip(); return; }
+    t.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: e.clientX, clientY: e.clientY, pointerType: e.pointerType }));
+  }, true);
+  document.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'mouse' && e.target.closest && e.target.closest('.chart')) e.stopPropagation(); }, true);
   const modal = $('#modal'), modalBody = $('#modalBody');
   function openModal(html) {
     modalBody.innerHTML = `<button class="icon-btn close" aria-label="Cerrar">×</button>${html}`;
@@ -217,7 +234,9 @@
     modalBody.scrollTop = 0;
     return modalBody;
   }
-  function closeModal() { if (!modal.hidden) { modal.hidden = true; document.body.style.overflow = ''; } }
+  // alCerrar: tarea pendiente al cerrar el modal (por ejemplo, recalcular al salir de las preguntas)
+  let alCerrar = null;
+  function closeModal() { if (!modal.hidden) { modal.hidden = true; document.body.style.overflow = ''; } if (alCerrar) { const f = alCerrar; alCerrar = null; f(); } }
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { card.hidden = true; $('#toolbox').hidden = true; closeModal(); closeReport(); } });
 
@@ -323,14 +342,14 @@
         <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button class="btn solid small" data-vac="cuentas">Cargar sus cuentas</button><button class="btn small" data-vac="quiz">Responder las preguntas</button><button class="btn ghost small" data-vac="modelo">Ver la empresa modelo</button></div>`;
       const acc = { cuentas: irCuentas, quiz: () => openQuiz('empresa'), modelo: irModelo };
       $$('#verdictCard [data-vac]').forEach((b) => b.addEventListener('click', () => acc[b.dataset.vac]()));
-      $('#kpis').innerHTML = ['Dimensión', 'Cuota mensual', 'Liquidez mínima', 'Recuperación', 'Cobertura deuda', 'Equipo'].map((k) => `<div class="kpi"><div class="k"><span>${k}</span></div><div class="v">Sin datos</div><div class="d">falta la cifra de ventas de la empresa</div></div>`).join('');
+      $('#kpis').innerHTML = ['Dimensión', 'Cuota mensual', 'Liquidez mínima', 'Recuperación', 'Cobertura de las cuotas', 'Equipo'].map((k) => `<div class="kpi"><div class="k"><span>${k}</span></div><div class="v">Sin datos</div><div class="d">falta la cifra de ventas de la empresa</div></div>`).join('');
       return;
     }
     if (sinInversion()) {
       // Situación actual de la empresa, sin veredicto de inversión: solo los semáforos que no dependen de ella
       const L = lucesEmpresa(r), e = state.empresa, eb = e.ventas * e.margen / 100 - e.personal - e.fijos;
       $('#verdictCard').innerHTML = `<div class="row"><h4>Situación actual · escenario ${sc.nombre.toLowerCase()}</h4><span class="spacer"></span><span class="state" style="color:var(--muted)">Sin veredicto</span></div>
-        <div class="big">Defina la inversión para obtener el veredicto</div><p class="muted small" style="margin:0">Ventas ${F.eur(e.ventas)} · EBITDA ${F.eur(eb)} · caja ${F.eur(e.caja)} · deuda ${F.eur(e.deudaViva)}. Los semáforos de abajo son los de la empresa tal como está; los de la inversión (dimensión, retorno, rentabilidad, circulante y margen) aparecen al definirla.</p>
+        <div class="big">Defina la inversión para obtener el veredicto</div><p class="muted small" style="margin:0">Ventas ${F.eur(e.ventas)} · beneficio antes de intereses e impuestos (EBITDA) ${F.eur(eb)} · caja ${F.eur(e.caja)} · deuda ${F.eur(e.deudaViva)}. Los semáforos de abajo son los de la empresa tal como está; los de la inversión (dimensión, retorno, rentabilidad, circulante y margen) aparecen al definirla.</p>
         <div class="bar" aria-label="Semáforos de la empresa">${L.map((l) => `<span data-light="${l.key}" style="background:${A.stateColor(l.estado)};opacity:${l.estado === 'ok' ? 0.55 : 0.95}" title="${l.nombre}: ${l.valor}"></span>`).join('')}</div>
         <div class="row small muted" style="margin-top:8px;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>${L.length} semáforos de la empresa: ${L.filter((l) => l.estado === 'ok').length} verdes · ${L.filter((l) => l.estado === 'warn').length} ámbar · ${L.filter((l) => l.estado === 'stop').length} rojos</span><button class="btn small" data-vac="inv">Definir la inversión</button></div>`;
       $$('#verdictCard [data-light]').forEach((x) => x.addEventListener('click', () => openLight(x.dataset.light)));
@@ -346,31 +365,31 @@
     const sinInv = sinInversion();
     const lt = Object.fromEntries(r.lights.map((l) => [l.key, l.estado]));
     const tiles = [
-      sinInv ? { k: 'Dimensión', info: 'dimension', v: 'Sin inversión', d: 'defina la inversión para medir su tamaño', st: 'neutral' } : { k: 'Dimensión', info: 'dimension', v: r.dim.clase, d: `${isFinite(r.dim.sobreEbitda) ? F.x(r.dim.sobreEbitda) + ' EBITDA' : 'EBITDA actual ≤ 0'} · ${isFinite(r.dim.sobreVentas) ? F.pct(r.dim.sobreVentas * 100) + ' ventas' : 'sin ventas'}`, st: lt.dimension },
-      sinInv ? { k: 'Cuota mensual', info: 'cuota', v: 'Sin inversión', d: `cuota de la deuda actual ${F.eur(r.cuotaTotal)}`, st: 'neutral' } : { k: 'Cuota mensual', info: 'cuota', v: F.eur(r.cuotaNueva), d: `cuota total ${F.eur(r.cuotaTotal)} = ${isFinite(r.cuotaSobreEbitda) ? F.pct(r.cuotaSobreEbitda) + ' del EBITDA mensual' : 'EBITDA mensual ≤ 0'}`, st: lt.cobertura },
+      sinInv ? { k: 'Dimensión', info: 'dimension', v: 'Sin inversión', d: 'defina la inversión para medir su tamaño', st: 'neutral' } : { k: 'Dimensión', info: 'dimension', v: r.dim.clase, d: `${isFinite(r.dim.sobreEbitda) ? F.x(r.dim.sobreEbitda) + ' el beneficio anual (EBITDA)' : 'beneficio actual (EBITDA) ≤ 0'} · ${isFinite(r.dim.sobreVentas) ? F.pct(r.dim.sobreVentas * 100) + ' ventas' : 'sin ventas'}`, st: lt.dimension },
+      sinInv ? { k: 'Cuota mensual', info: 'cuota', v: 'Sin inversión', d: `cuota de la deuda actual ${F.eur(r.cuotaTotal)}`, st: 'neutral' } : { k: 'Cuota mensual', info: 'cuota', v: F.eur(r.cuotaNueva), d: `cuota total ${F.eur(r.cuotaTotal)} = ${isFinite(r.cuotaSobreEbitda) ? F.pct(r.cuotaSobreEbitda) + ' del beneficio mensual (EBITDA)' : 'beneficio mensual (EBITDA) ≤ 0'}`, st: lt.cobertura },
       { k: r.contarPoliza ? 'Liquidez mínima' : 'Caja mínima', info: 'cajaMin', v: F.eur(r.cajaRef), d: `mes ${r.mesCajaRef} · colchón mínimo ${fmtMeses(r.colMin)}`, st: lt.liquidez, spark: C.spark(r.contarPoliza ? r.w.liquidez : r.w.cash, r.cajaRef < 0 ? css('--stop') : css('--gold'), true) },
       r.payback == null ? { k: 'Recuperación', info: 'payback', v: 'Sin inversión', d: 'no hay importe que recuperar', st: 'neutral' } : { k: 'Recuperación', info: 'payback', v: F.months(r.payback), d: `caja de la propiedad: ${F.months(r.paybackCaja)}`, st: lt.retorno },
-      { k: 'Cobertura deuda', info: 'dscr', v: F.x(r.dscrMin), d: `deuda neta ${F.x(r.deudaEbitda)} EBITDA`, st: lt.cobertura },
+      { k: 'Cobertura de las cuotas', info: 'dscr', v: F.x(r.dscrMin), d: `deuda neta: ${F.x(r.deudaEbitda)} el beneficio anual (EBITDA)`, st: lt.cobertura },
       humanoSinDatos() ? { k: 'Equipo', info: 'humano', v: 'Sin datos', d: 'responda las preguntas del equipo', st: 'neutral' } : { k: 'Equipo', info: 'humano', v: Math.round(r.humano.score) + '/100', d: `${r.humano.nuevas} incorporaciones · ${r.humano.gapMandos} mandos por cubrir`, st: lt.humano }
     ];
-    $('#kpis').innerHTML = tiles.map((t) => `<button class="kpi" data-info="${t.info}"><div class="k"><span>${t.k}</span>${stName[t.st] ? `<span class="state ${stCls(t.st)}" aria-label="Estado: ${stName[t.st]}">${stName[t.st]}</span>` : ''}</div><div class="v">${t.v}</div><div class="d">${t.d}</div>${t.spark || ''}</button>`).join('');
+    $('#kpis').innerHTML = tiles.map((t) => `<button class="kpi" data-info="${t.info}"><div class="k"><span>${t.k} <span class="info-i" aria-hidden="true">?</span></span>${stName[t.st] ? `<span class="state ${stCls(t.st)}" aria-label="Estado: ${stName[t.st]}">${stName[t.st]}</span>` : ''}</div><div class="v">${t.v}</div><div class="d">${t.d}</div>${t.spark || ''}</button>`).join('');
   }
 
   function renderDimension() {
-    if (sinDatosEmp() || sinInversion()) { $('#dimension').innerHTML = `<p class="small muted" style="margin:0">${sinDatosEmp() ? 'Faltan sus datos: el tamaño de la inversión se mide frente a las ventas, el EBITDA, los fondos propios y la caja de la empresa.' : 'Defina la inversión para medir su tamaño frente a la empresa.'}</p>`; return; }
+    if (sinDatosEmp() || sinInversion()) { $('#dimension').innerHTML = `<p class="small muted" style="margin:0">${sinDatosEmp() ? 'Faltan sus datos: el tamaño de la inversión se mide frente a las ventas, el beneficio antes de intereses e impuestos (EBITDA), los fondos propios y la caja de la empresa.' : 'Defina la inversión para medir su tamaño frente a la empresa.'}</p>`; return; }
     const r = ctx.active, d = r.dim;
-    const ring = (key, value, max, label, lbl, st) => `<div class="ring" data-info="${key}">${C.ring(value, max, A.stateColor(st), label)}<div class="lbl">${lbl}</div></div>`;
+    const ring = (key, value, max, label, lbl, st) => `<div class="ring" data-info="${key}">${C.ring(value, max, A.stateColor(st), label)}<div class="lbl">${lbl} <span class="info-i" aria-hidden="true">?</span></div></div>`;
     const s1 = d.sobreVentas < 0.4 ? 'ok' : d.sobreVentas < 0.8 ? 'warn' : 'stop';
     const s2 = d.sobreEbitda < 4 ? 'ok' : d.sobreEbitda < 7 ? 'warn' : 'stop';
     const s3 = d.sobreFondos < 0.6 ? 'ok' : d.sobreFondos < 1 ? 'warn' : 'stop';
     const s4 = d.sobreCaja < 1.5 ? 'ok' : d.sobreCaja < 3 ? 'warn' : 'stop';
     $('#dimension').innerHTML =
       ring('sobreVentas', d.sobreVentas, 1, isFinite(d.sobreVentas) ? F.pct(d.sobreVentas * 100) : '—', 'Sobre ventas', s1) +
-      ring('sobreEbitda', d.sobreEbitda, 8, isFinite(d.sobreEbitda) ? F.x(d.sobreEbitda) : '—', isFinite(d.sobreEbitda) ? 'Años de EBITDA' : 'Años de EBITDA · EBITDA ≤ 0', s2) +
+      ring('sobreEbitda', d.sobreEbitda, 8, isFinite(d.sobreEbitda) ? F.x(d.sobreEbitda) : '—', isFinite(d.sobreEbitda) ? 'Años de beneficio (EBITDA)' : 'Años de beneficio (EBITDA) · beneficio ≤ 0', s2) +
       ring('sobreFondos', d.sobreFondos, 1.5, F.pct(d.sobreFondos * 100), 'Sobre fondos propios', s3) +
       ring('sobreCaja', d.sobreCaja, 4, F.x(d.sobreCaja), 'Veces la caja', s4) +
       ring('financiado', r.loan, Math.max(1, d.inversion), F.eur(r.loan), 'Préstamo nuevo', 'neutral') +
-      ring('cuota', r.cuotaSobreEbitda, 100, isFinite(r.cuotaSobreEbitda) ? F.pct(r.cuotaSobreEbitda) : '—', isFinite(r.cuotaSobreEbitda) ? 'Cuota sobre EBITDA' : 'Cuota sobre EBITDA · EBITDA ≤ 0', r.cuotaSobreEbitda < 50 ? 'ok' : r.cuotaSobreEbitda < 80 ? 'warn' : 'stop');
+      ring('cuota', r.cuotaSobreEbitda, 100, isFinite(r.cuotaSobreEbitda) ? F.pct(r.cuotaSobreEbitda) : '—', isFinite(r.cuotaSobreEbitda) ? 'Cuota sobre el beneficio (EBITDA)' : 'Cuota sobre el beneficio (EBITDA) · beneficio ≤ 0', r.cuotaSobreEbitda < 50 ? 'ok' : r.cuotaSobreEbitda < 80 ? 'warn' : 'stop');
   }
 
   /* ---------------- Escenarios ---------------- */
@@ -394,20 +413,20 @@
     $$('button', seg).forEach((b) => b.onclick = () => { view.cash = b.dataset.m; renderScenarios(); });
     const pol = state.empresa.polizaLimite || 0;
     $('#cashExplain').textContent = view.cash === 'liquidez'
-      ? `Liquidez = caja en el banco + parte libre de la póliza (${F.eur(pol)} de límite). Es el dinero que podrías usar cada mes. La línea roja es cero: por debajo, ni con la póliza llegas.`
-      : 'Caja neta = caja en el banco − póliza dispuesta. Es tu posición real sin contar con el banco. Si es negativa, estás viviendo de la póliza.';
+      ? `Liquidez = caja en el banco + parte libre de la póliza (${F.eur(pol)} de límite). Es el dinero que podría usar cada mes. La línea roja es cero: por debajo, ni con la póliza se llega.`
+      : 'Caja neta = caja en el banco − póliza dispuesta. Es su posición real sin contar con el banco. Si es negativa, la empresa vive de la póliza.';
     const series = ctx.all.map((x) => ({ name: x.nombre, data: view.cash === 'liquidez' ? x.r.w.liquidez : x.r.w.cash, color: A.scenarioColor(x.key), active: x.key === state.escenario, hidden: !!hidden[x.key] }));
     C.cash($('#cashChart'), $('#cashLegend'), series, {
       target: state.meta.cajaMin, start: ctx.active.start, mode: view.cash,
       onToggle: (i) => { const k = ctx.all[i].key; hidden[k] = !hidden[k]; renderScenarios(); }
     });
     renderCushion();
-    let t = `<table><thead><tr><th>Escenario</th><th>Liquidez mín.</th><th>Colchón mín.</th><th>Recuperación</th><th>DSCR</th><th>Estado</th></tr></thead><tbody>`;
+    let t = `<table><thead><tr><th>Escenario</th><th>Liquidez mín. <button class="info-i" data-info="cajaMin" aria-label="Qué es">?</button></th><th>Colchón mín. <button class="info-i" data-info="colchon" aria-label="Qué es">?</button></th><th>Recuperación <button class="info-i" data-info="payback" aria-label="Qué es">?</button></th><th>Cobertura de cuotas <button class="info-i" data-info="dscr" aria-label="Qué es">?</button></th><th>Estado</th></tr></thead><tbody>`;
     ctx.all.forEach((x) => {
       const r = x.r, st = vMap[r.verdict.key];
       t += `<tr class="clickable ${x.key === state.escenario ? 'active' : ''}" data-k="${x.key}"><td><span class="sw" style="background:${A.scenarioColor(x.key)}"></span>${x.nombre}</td><td style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</td><td>${fmtMeses(r.colMin)}</td><td>${F.months(r.payback)}</td><td>${F.x(r.dscrMin)}</td><td>${etq(st)}</td></tr>`;
     });
-    $('#scenarioTable').innerHTML = t + '</tbody></table><p class="small muted">Haz clic en una fila para convertirla en el escenario activo.</p>';
+    $('#scenarioTable').innerHTML = t + '</tbody></table><p class="small muted">Toque una fila para convertirla en el escenario activo.</p>';
     $$('#scenarioTable tr[data-k]').forEach((tr) => tr.addEventListener('click', () => setScenario(tr.dataset.k)));
     const four = ctx.all.filter((x) => x.key !== 'hipotesis');
     const aguantan = four.filter((x) => x.r.cajaRef >= 0);
@@ -427,7 +446,7 @@
     host.innerHTML = `<div class="row small"><span class="muted">Partir de:</span>${A.SCENARIOS.filter((a) => a.mods).map((a) => `<button class="btn ghost small" data-from="${a.key}">${a.nombre}</button>`).join('')}</div>
       <div class="qz-foto"><div><span>Liquidez mínima</span><b style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</b><small>mes ${r.mesCajaRef}</small></div><div><span>Recuperación</span><b>${F.months(r.payback)}</b></div><div><span>Cobertura</span><b>${F.x(r.dscrMin)}</b></div><div><span>Veredicto</span><b style="font-size:.95rem;color:${A.stateColor(vMap[r.verdict.key])}">${r.verdict.titulo}</b></div></div>
       ${state.escenario !== 'hipotesis' ? '<button class="btn" id="customAct">Ver este escenario en todo el simulador</button>' : '<p class="small muted" style="margin:0">Es el escenario activo: todo el simulador lo está mostrando.</p>'}`;
-    $$('[data-from]', host).forEach((b) => b.onclick = () => { state.custom = Object.assign({}, A.SCENARIOS.find((a) => a.key === b.dataset.from).mods); syncFields(); schedule(); toast('Tu escenario parte del ' + b.textContent.toLowerCase()); });
+    $$('[data-from]', host).forEach((b) => b.onclick = () => { state.custom = Object.assign({}, A.SCENARIOS.find((a) => a.key === b.dataset.from).mods); syncFields(); schedule(); toast('Su escenario parte del ' + b.textContent.toLowerCase()); });
     const ca = $('#customAct'); if (ca) ca.onclick = () => setScenario('hipotesis');
   }
   function renderCushion() {
@@ -456,7 +475,7 @@
     });
     svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" style="stroke:var(--line-strong)"/></svg>`;
     const polUso = r.polLim ? (r.polizaMax / r.polLim) * 100 : 0;
-    host.innerHTML = `<div class="chart">${svg}</div><p class="small muted" style="margin:4px 0 0">Líneas de puntos: 1 y 3 meses de colchón. Las barras que pasan del gráfico (${fy(bot)} a ${fy(top)}) llevan una raya; el dato exacto está al pasar el cursor.</p>
+    host.innerHTML = `<div class="chart">${svg}</div><p class="small muted" style="margin:4px 0 0">Líneas de puntos: 1 y 3 meses de colchón. Las barras que pasan del gráfico (${fy(bot)} a ${fy(top)}) llevan una raya; toque una barra para ver el dato exacto.</p>
       <div class="cushion-stats">
         <div><span>Colchón mínimo</span><b style="color:${col(r.colMin)}">${fmtMeses(r.colMin)}</b><small>mes ${r.mesColMin}</small></div>
         <div><span>Colchón máximo</span><b>${fmtMeses(r.colMax)}</b><small>mes ${r.mesColMax}</small></div>
@@ -483,7 +502,7 @@
         <div><span>Recuperación</span><b>${F.months(r.payback)}</b></div><div><span>Cobertura</span><b>${F.x(r.dscrMin)}</b></div>
       </div>
       <h4 class="mt">Qué representa</h4><p>${c.representa}</p>
-      <h4>Supuestos aplicados</h4><p class="small">Venta nueva × ${String(m.ventasF).replace('.', ',')} · rampa ${sg(m.retraso)} meses · margen ${sg(m.margenDelta)} pp · sobrecoste ${m.sobrecoste} % · cobros ${sg(m.dsoDelta)} días · tipos ${sg(m.tipoDelta)} pp</p>
+      <h4>Supuestos aplicados</h4><p class="small">Venta nueva × ${String(m.ventasF).replace('.', ',')} · rampa ${sg(m.retraso)} meses · margen ${sg(m.margenDelta)} puntos · sobrecoste ${m.sobrecoste} % · cobros ${sg(m.dsoDelta)} días · tipos ${sg(m.tipoDelta)} pp</p>
       <h4>Cuándo ocurre</h4><p>${c.cuando}</p>
       <h4>Señales tempranas que vigilar</h4><ul>${c.senales.map((s) => `<li>${s}</li>`).join('')}</ul>
       <h4>Cómo usarlo</h4><p>${c.respuesta}</p>
@@ -499,7 +518,7 @@
           <label>mes <input class="input" type="number" min="1" max="60" data-k="mes" value="${h.mes}"></label>
           <label>dura <input class="input" type="number" min="1" max="60" data-k="duracion" value="${h.duracion}"></label>
           <label>${A.SHOCKS[h.tipo].unidad} <input class="input" type="number" step="0.5" data-k="magnitud" value="${h.magnitud}"></label></div></div>
-        <button class="icon-btn" data-del aria-label="Eliminar hipótesis">×</button></div>`).join('') : '<p class="small muted">Sin hipótesis. Añade una para estresar el plan.</p>';
+        <button class="icon-btn" data-del aria-label="Eliminar hipótesis">×</button></div>`).join('') : '<p class="small muted">Sin hipótesis. Añada una para poner a prueba el plan.</p>';
     $$('.hyp', host).forEach((row) => {
       const h = state.hipotesis.find((x) => x.id === row.dataset.id);
       row.querySelector('.switch').onclick = () => { h.activo = !h.activo; schedule(); };
@@ -520,7 +539,7 @@
   function renderLights() {
     if (sinDatosEmp()) { $('#lights').innerHTML = '<div class="glass pad small muted">Sin datos: los semáforos aparecen cuando estén cargadas las cifras de la empresa. Nada de lo que falta se cuenta como cero.</div>'; $('#lightGuide').innerHTML = ''; return; }
     const L = sinInversion() ? lucesEmpresa(ctx.active) : ctx.active.lights;
-    $('#lights').innerHTML = L.map((l) => `<button class="light" data-k="${l.key}"><div class="lamp" aria-hidden="true"><i class="${l.estado === 'stop' ? 'on stop' : ''}"></i><i class="${l.estado === 'warn' ? 'on warn' : ''}"></i><i class="${l.estado === 'ok' ? 'on ok' : ''}"></i></div><div><div class="n">${l.nombre}</div><div class="lv">${l.valor}</div><div class="lt">${stName[l.estado]} · verde ${l.rangos.ok}</div></div></button>`).join('');
+    $('#lights').innerHTML = L.map((l) => `<button class="light" data-k="${l.key}"><div class="lamp" aria-hidden="true"><i class="${l.estado === 'stop' ? 'on stop' : ''}"></i><i class="${l.estado === 'warn' ? 'on warn' : ''}"></i><i class="${l.estado === 'ok' ? 'on ok' : ''}"></i></div><div><div class="n">${l.nombre} <span class="info-i" aria-hidden="true">?</span></div><div class="lv">${l.valor}</div><div class="lt">${stName[l.estado]} · verde ${l.rangos.ok}</div></div></button>`).join('');
     $$('#lights .light').forEach((b) => b.addEventListener('click', () => openLight(b.dataset.k)));
     $('#lightGuide').innerHTML = `<table class="guide"><thead><tr><th>Indicador</th><th>Hoy</th><th><span class="dotc ok"></span>Verde</th><th><span class="dotc warn"></span>Ámbar</th><th><span class="dotc stop"></span>Rojo</th><th style="text-align:left">Se corrige con</th></tr></thead><tbody>` +
       L.map((l) => `<tr class="clickable" data-k="${l.key}"><td>${l.nombre}</td><td><span class="state ${stCls(l.estado)}">${l.valor}</span></td><td>${l.rangos.ok}</td><td>${l.rangos.warn}</td><td>${l.rangos.stop}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:240px"><span class="muted">Directas:</span> ${l.def.directas.slice(0, 3).map((v) => v.nombre.toLowerCase()).join(', ')}. <span class="muted">Indirectas:</span> ${l.def.indirectas.slice(0, 2).map((v) => v.nombre.toLowerCase()).join(', ')}.</td></tr>`).join('') + '</tbody></table>';
@@ -538,13 +557,13 @@
       if (Math.abs(best.v - l.v) < 1e-6) return null;
       return { v, best };
     }).filter(Boolean);
-    const band = (s, label, txt) => `<div class="band ${s} ${l.estado === s ? 'here' : ''}"><b>${label}</b><span>${txt}</span>${l.estado === s ? '<em>estás aquí</em>' : ''}</div>`;
+    const band = (s, label, txt) => `<div class="band ${s} ${l.estado === s ? 'here' : ''}"><b>${label}</b><span>${txt}</span>${l.estado === s ? '<em>está aquí</em>' : ''}</div>`;
     openModal(`<div class="eyebrow">Semáforo de movimiento</div><h2 style="font-size:1.8rem">${l.nombre}</h2>
       <div class="row mt"><span class="state ${stCls(l.estado)}">${stName[l.estado]}</span><span class="num" style="font-size:1.4rem">${l.valor}</span></div>
       <p>${d.que}</p><p class="small muted">${l.lectura}</p>
       <h4 class="mt">Horquillas</h4><div class="bands">${band('ok', 'Verde', l.rangos.ok)}${band('warn', 'Ámbar', l.rangos.warn)}${band('stop', 'Rojo', l.rangos.stop)}</div>
-      <h4 class="mt">Variables directas</h4><p class="small muted">Lo cambian al momento. Toca una para ir al dato.</p><div class="chips">${d.directas.map((v) => varChip(v.path)).join('')}</div>
-      <h4 class="mt">Variables indirectas</h4><p class="small muted">Lo cambian a través de otra magnitud (circulante, EBITDA, rampa…).</p><div class="chips">${d.indirectas.map((v) => `<button class="vchip ind" data-go="${v.path}">${esc(v.nombre)}${isFinite(getPath(v.path)) ? ` <b>${fmtVar(v.path)}</b>` : ''}</button>`).join('')}</div>
+      <h4 class="mt">Variables directas</h4><p class="small muted">Lo cambian al momento. Toque una para ir al dato.</p><div class="chips">${d.directas.map((v) => varChip(v.path)).join('')}</div>
+      <h4 class="mt">Variables indirectas</h4><p class="small muted">Lo cambian a través de otra magnitud (dinero atado en clientes y stock, beneficio, rampa…).</p><div class="chips">${d.indirectas.map((v) => `<button class="vchip ind" data-go="${v.path}">${esc(v.nombre)}${isFinite(getPath(v.path)) ? ` <b>${fmtVar(v.path)}</b>` : ''}</button>`).join('')}</div>
       ${efectos.length ? `<h4 class="mt">Si mueves cada variable directa un 10 %</h4><table class="mini"><tbody>${efectos.map((e) => `<tr><td>${e.best.dir === 'subir' ? 'Subir' : 'Bajar'} ${esc(e.v.nombre.toLowerCase())}</td><td>${l.valor} → <b>${d.fmt(e.best.v)}</b></td><td><span class="state ${stCls(e.best.st)}">${stName[e.best.st]}</span></td></tr>`).join('')}</tbody></table>` : ''}
       <h4 class="mt">Cómo corregirlo</h4><p>${d.consejo}</p>
       ${l.estado !== 'ok' ? `<h4 class="mt">Qué mover para subir de escalón</h4><p class="small muted">Valor exacto de cada dato, tocando solo ese, para pasar ${l.estado === 'stop' ? 'de rojo a ámbar y de rojo a verde' : 'de ámbar a verde'} en el escenario ${A.SCENARIOS.find((x) => x.key === state.escenario).nombre.toLowerCase()}. Normalmente lo más sensato es combinar dos o tres: eso lo calcula el <a href="#plan" id="ltPlan">plan de corrección</a>.</p><div id="ltSaltos" class="small muted">Calculando…</div>` : ''}
@@ -591,7 +610,7 @@
     const celda = (x, v) => { if (v == null) return '<span class="muted">sola no basta</span>'; const dv = v - x.x0; const dtxt = x.f.u.indexOf('€') === 0 ? ` (${dv > 0 ? '+' : '−'}${F.eur(Math.abs(dv))})` : ''; return `${dv > 0 ? 'subir a' : 'bajar a'} <b>${fv(x.f, v)}</b>${dtxt}`; };
     const rows = R.filter((x) => metas.some((k) => x.out[k] != null)).concat(R.filter((x) => metas.every((k) => x.out[k] == null)));
     const r = ctx.active;
-    const cab = l.key === 'liquidez' ? `<p style="color:var(--fg)">Hoy el punto más bajo es <b>${F.eur(r.cajaRef)}</b> en el mes ${r.mesCajaRef}. ${r.cajaRef < 0 ? `Para salir del rojo necesitas <b>${F.eur(-r.cajaRef)}</b> más de liquidez en ese mes` : ''}${l.estado !== 'ok' ? `${r.cajaRef < 0 ? ' y, para el verde, ' : 'Para el verde necesitas '}<b>${F.eur(l.def.ok(state, r) - r.cajaRef)}</b> más (verde desde ${F.eur(l.def.ok(state, r))}).` : ''}</p>` : '';
+    const cab = l.key === 'liquidez' ? `<p style="color:var(--fg)">Hoy el punto más bajo es <b>${F.eur(r.cajaRef)}</b> en el mes ${r.mesCajaRef}. ${r.cajaRef < 0 ? `Para salir del rojo necesita <b>${F.eur(-r.cajaRef)}</b> más de liquidez en ese mes` : ''}${l.estado !== 'ok' ? `${r.cajaRef < 0 ? ' y, para el verde, ' : 'Para el verde necesita '}<b>${F.eur(l.def.ok(state, r) - r.cajaRef)}</b> más (verde desde ${F.eur(l.def.ok(state, r))}).` : ''}</p>` : '';
     host.classList.remove('muted');
     host.innerHTML = cab + `<div class="table-wrap"><table class="mini"><thead><tr><th style="text-align:left">Dato</th><th>Hoy</th>${metas.map((k) => `<th>Para ${k === 'warn' ? 'ámbar' : 'verde'}</th>`).join('')}</tr></thead><tbody>${rows.map((x) => `<tr><td style="text-align:left">${esc(x.v.nombre)}${x.dir ? '' : ' <span class="muted">(indirecta)</span>'}</td><td>${fv(x.f, x.x0)}</td>${metas.map((k) => `<td>${celda(x, x.out[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
@@ -604,8 +623,8 @@
       const worse = Math.min(r.lo, r.hi), better = Math.max(r.lo, r.hi);
       return `<li><b>${r.nombre}</b>: en el caso adverso la liquidez mínima ${worse < 0 ? `cae a <b style="color:var(--stop)">${F.eur(worse)}</b>, es decir, faltarían ${F.eur(-worse)}` : `baja a ${F.eur(worse)}`}; en el favorable sube a ${F.eur(better)}.</li>`;
     }).join('');
-    $('#sensRead').innerHTML = `<p><b>Cómo leerlo.</b> La línea dorada es tu liquidez mínima actual (${F.eur(s.base)}). Cada barra mueve una sola variable y mide cuánto cambia: hacia la izquierda (naranja) empeora, hacia la derecha (azul) mejora. Las barras más largas, arriba, son las variables que más debes vigilar.</p>
-      <p><b>Valores negativos.</b> Una cifra por debajo de 0 € significa que, en ese caso, la empresa no tendría dinero suficiente en su peor mes: ese importe es lo que tendrías que conseguir antes (póliza más grande, aportación o un préstamo mayor) para no quedarte sin liquidez.</p><ul>${lines}</ul>`;
+    $('#sensRead').innerHTML = `<p><b>Cómo leerlo.</b> La línea dorada es su liquidez mínima actual (${F.eur(s.base)}). Cada barra mueve una sola variable y mide cuánto cambia: hacia la izquierda (naranja) empeora, hacia la derecha (azul) mejora. Las barras más largas, arriba, son las variables que más conviene vigilar.</p>
+      <p><b>Valores negativos.</b> Una cifra por debajo de 0 € significa que, en ese caso, la empresa no tendría dinero suficiente en su peor mes: ese importe es lo que tendría que conseguir antes (póliza más grande, aportación o un préstamo mayor) para no quedarse sin liquidez.</p><ul>${lines}</ul>`;
     $('#riskTable').innerHTML = `<table><thead><tr><th>#</th><th style="text-align:left">Riesgo</th><th>Prob.</th><th>Impacto</th><th>Nivel</th><th style="text-align:left">Mitigación</th></tr></thead><tbody>` +
       ctx.risks.map((r, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${r.nombre}</td><td>${r.prob}</td><td>${r.impacto}</td><td><span class="state ${stCls(r.estado)}">${r.nivel}</span></td><td style="text-align:left;white-space:normal;font-family:var(--font-body);color:var(--muted);min-width:240px">${r.mitigacion}</td></tr>`).join('') + '</tbody></table>';
   }
@@ -618,7 +637,7 @@
   }
   const SIZE = [
     { n: 'Ventas', k: 'ventas', f: (v) => F.eur(v), up: 1 },
-    { n: 'EBITDA', k: 'ebitda', f: (v) => F.eur(v), up: 1, sub: (t) => `${F.pct(t.antes.ebitdaPct)} → ${F.pct(t.despues.ebitdaPct)} sobre ventas` },
+    { n: 'Beneficio antes de intereses e impuestos (EBITDA)', k: 'ebitda', f: (v) => F.eur(v), up: 1, sub: (t) => `${F.pct(t.antes.ebitdaPct)} → ${F.pct(t.despues.ebitdaPct)} sobre ventas` },
     { n: 'Margen bruto', k: 'margen', f: (v) => F.pct(v), up: 1, pp: 1 },
     { n: 'Plantilla', k: 'plantilla', f: (v) => F.num(v) + ' pers.', up: 0 },
     { n: 'Peso salarial', k: 'pesoSalarial', f: (v) => F.pct(v), up: -1, pp: 1 },
@@ -629,7 +648,7 @@
   function sizeVals(it, t) { return it.k === 'wc' ? [0, ctx.active.wcPeak] : [t.antes[it.k], t.despues[it.k]]; }
   function renderSize() {
     const t = ctx.active.tamano;
-    $('#sizeLede').innerHTML = `A la izquierda, los <b>próximos doce meses sin el proyecto</b>; a la derecha, el <b>año de crucero</b> (meses ${t.mesCrucero} a ${t.mesCrucero + 11}), cuando lo nuevo ha terminado su rampa y vende lo previsto. Toca una tarjeta para ver de dónde sale cada cifra y qué hacer con ella.`;
+    $('#sizeLede').innerHTML = `A la izquierda, los <b>próximos doce meses sin el proyecto</b>; a la derecha, el <b>año de crucero</b> (meses ${t.mesCrucero} a ${t.mesCrucero + 11}), cuando lo nuevo ha terminado su rampa y vende lo previsto. Toque una tarjeta para ver de dónde sale cada cifra y qué hacer con ella.`;
     $('#sizeGrid').innerHTML = SIZE.map((it, i) => {
       const [a, b] = sizeVals(it, t);
       // Barras con signo: si alguna cifra es negativa, el cero se desplaza y la negativa crece hacia la izquierda en rojo
@@ -638,7 +657,7 @@
       const d = b - a, good = it.up === 0 ? null : (d * it.up >= 0);
       // En magnitudes en % la diferencia se da en puntos; en el resto, en % sobre el valor de partida
       const delta = it.sub ? it.sub(t) : it.pp ? `${d >= 0 ? '+' : ''}${F.pp(d)}` : a ? `${d >= 0 ? '+' : ''}${F.pct((d / Math.abs(a)) * 100)}` : '';
-      return `<button class="glass size" data-sz="${i}"><h4>${it.n}</h4><div class="from-to"><span class="a">${it.f(a)}</span><span class="muted">→</span><span class="b">${it.f(b)}</span></div>
+      return `<button class="glass size" data-sz="${i}"><h4>${it.n} <span class="info-i" aria-hidden="true">?</span></h4><div class="from-to"><span class="a">${it.f(a)}</span><span class="muted">→</span><span class="b">${it.f(b)}</span></div>
         <div class="bars" aria-hidden="true">${bar(a)}${bar(b, 'after')}</div>
         <div class="delta ${good === null ? '' : good ? 'up' : 'down'}">${delta}</div><div class="mas">De dónde sale →</div></button>`;
     }).join('');
@@ -650,20 +669,20 @@
     const d = sizeData(), { t, e, inv, r } = d, sec = A.SECTORS[state.sector], m = ctx.mods, mesA = d.c0 + 1, mesB = d.c0 + 12;
     const vNueva = e.ventas * inv.incVentas / 100;
     const X = {
-      ventas: { que: 'Lo que factura la empresa en un año.', de: `<b>Hoy (${F.eur(t.antes.ventas)})</b>: tus ventas actuales, ${F.eur(e.ventas)}, con el crecimiento orgánico del ${String(e.crecimiento).replace('.', ',')} % durante los próximos doce meses.<br><b>Con el proyecto (${F.eur(t.despues.ventas)})</b>: en los meses ${mesA} a ${mesB} el negocio de hoy, que sigue creciendo hasta entonces, vende ${F.eur(d.baseCru)}, y lo nuevo suma ${F.eur(d.nuevaCru)}. Esa venta nueva sale de tu dato «Venta nueva en crucero»: el ${String(inv.incVentas).replace('.', ',')} % de tus ventas, ${F.eur(vNueva)} al año${m.ventasF !== 1 ? `, por ${String(m.ventasF).replace('.', ',')} en el escenario ${A.SCENARIOS.find((x) => x.key === state.escenario).nombre.toLowerCase()}` : ''}${r.p.share < 1 ? ', y solo la mitad es tuya en una joint venture' : ''}.`, hacer: 'Es la cifra más incierta de todo el plan. Compruébala con pedidos o clientes comprometidos y mira qué pasa en el escenario pesimista. Puedes bajarla aquí mismo con la barra de venta nueva.', vars: ['inversion.incVentas', 'empresa.crecimiento', 'inversion.rampa'] },
-      ebitda: { que: 'Lo que gana el negocio con su actividad antes de pagar intereses, impuestos y amortizaciones. Es el dinero con el que se pagan las cuotas.', de: `<table class="mini"><tbody><tr><td></td><td>Hoy</td><td>Crucero</td></tr><tr><td>Margen bruto (ventas − compras)</td><td>${F.eur(d.grossA)}</td><td>${F.eur(d.grossB)}</td></tr><tr><td>− Personal</td><td>${F.eur(d.staffA)}</td><td>${F.eur(d.staffB)}</td></tr><tr><td>− Otros gastos fijos</td><td>${F.eur(d.fixedA)}</td><td>${F.eur(d.fixedB)}</td></tr><tr><td><b>= EBITDA</b></td><td><b>${F.eur(t.antes.ebitda)}</b></td><td><b>${F.eur(t.despues.ebitda)}</b></td></tr><tr><td class="muted">Cuotas de préstamos en ese año</td><td></td><td class="muted">${F.eur(d.debtB)}</td></tr></tbody></table>`, hacer: t.despues.ebitda < d.debtB ? 'En crucero el EBITDA no cubre las cuotas: hay que alargar plazos, bajar la parte financiada o mejorar el margen de lo nuevo.' : `El EBITDA de crucero cubre ${F.x(t.despues.ebitda / Math.max(1, d.debtB))} las cuotas de ese año.`, vars: ['inversion.margenNuevo', 'inversion.fijosNuevos', 'inversion.contrataciones'] },
+      ventas: { que: 'Lo que factura la empresa en un año.', de: `<b>Hoy (${F.eur(t.antes.ventas)})</b>: sus ventas actuales, ${F.eur(e.ventas)}, con el crecimiento orgánico del ${String(e.crecimiento).replace('.', ',')} % durante los próximos doce meses.<br><b>Con el proyecto (${F.eur(t.despues.ventas)})</b>: en los meses ${mesA} a ${mesB} el negocio de hoy, que sigue creciendo hasta entonces, vende ${F.eur(d.baseCru)}, y lo nuevo suma ${F.eur(d.nuevaCru)}. Esa venta nueva sale de su dato «Venta nueva en crucero»: el ${String(inv.incVentas).replace('.', ',')} % de sus ventas, ${F.eur(vNueva)} al año${m.ventasF !== 1 ? `, por ${String(m.ventasF).replace('.', ',')} en el escenario ${A.SCENARIOS.find((x) => x.key === state.escenario).nombre.toLowerCase()}` : ''}${r.p.share < 1 ? ', y solo la mitad es suya en una empresa conjunta' : ''}.`, hacer: 'Es la cifra más incierta de todo el plan. Compruébela con pedidos o clientes comprometidos y vea qué pasa en el escenario pesimista. Puede bajarla aquí mismo con la barra de venta nueva.', vars: ['inversion.incVentas', 'empresa.crecimiento', 'inversion.rampa'] },
+      ebitda: { que: 'Lo que gana el negocio con su actividad antes de pagar intereses, impuestos y amortizaciones. Es el dinero con el que se pagan las cuotas.', de: `<table class="mini"><tbody><tr><td></td><td>Hoy</td><td>Crucero</td></tr><tr><td>Margen bruto (ventas − compras)</td><td>${F.eur(d.grossA)}</td><td>${F.eur(d.grossB)}</td></tr><tr><td>− Personal</td><td>${F.eur(d.staffA)}</td><td>${F.eur(d.staffB)}</td></tr><tr><td>− Otros gastos fijos</td><td>${F.eur(d.fixedA)}</td><td>${F.eur(d.fixedB)}</td></tr><tr><td><b>= Beneficio antes de intereses e impuestos (EBITDA)</b></td><td><b>${F.eur(t.antes.ebitda)}</b></td><td><b>${F.eur(t.despues.ebitda)}</b></td></tr><tr><td class="muted">Cuotas de préstamos en ese año</td><td></td><td class="muted">${F.eur(d.debtB)}</td></tr></tbody></table>`, hacer: t.despues.ebitda < d.debtB ? 'En crucero el beneficio del negocio (EBITDA) no cubre las cuotas: hay que alargar plazos, bajar la parte financiada o mejorar el margen de lo nuevo.' : `El EBITDA de crucero cubre ${F.x(t.despues.ebitda / Math.max(1, d.debtB))} las cuotas de ese año.`, vars: ['inversion.margenNuevo', 'inversion.fijosNuevos', 'inversion.contrataciones'] },
       margen: { que: 'De cada 100 € vendidos, lo que queda tras pagar compras y materia prima.', de: `Hoy, ${F.pct(e.margen)}. Lo nuevo tiene un margen de ${F.pct(inv.margenNuevo + (m.margenDelta || 0))}; mezclado con lo de hoy según lo que pesa cada parte en las ventas, queda en ${F.pct(t.despues.margen)}.`, hacer: t.despues.margen < t.antes.margen - 1 ? 'Lo nuevo diluye el margen: cada euro de venta nueva deja menos. Solo compensa si cubre de sobra los fijos y el personal nuevos.' : 'Lo nuevo no empeora el margen de la empresa.', vars: ['inversion.margenNuevo', 'empresa.margen'] },
-      plantilla: { que: 'Personas en nómina.', de: `Hoy ${e.plantilla} personas. Con el proyecto se suman ${Math.round(inv.contrataciones * r.p.share)} contrataciones (tu dato «Contrataciones»), hasta ${F.num(t.despues.plantilla)}. Con ${sec.span} personas por responsable, necesitarás ${r.humano.mandosNecesarios} mandos; hoy tienes ${state.humano.mandos}.`, hacer: r.humano.gapMandos ? `Faltan ${r.humano.gapMandos} mandos: nómbralos o contrátalos antes del arranque (ver «¿Está el equipo listo?»).` : 'La estructura de mando cubre la nueva plantilla.', vars: ['inversion.contrataciones', 'inversion.anticipo', 'humano.mandos'] },
-      pesoSalarial: { que: 'Coste de personal sobre ventas. Mide cuánto de lo que vendes se va en sueldos.', de: `Hoy ${F.pct(t.antes.pesoSalarial)} (${F.eur(d.staffA)} de personal sobre ${F.eur(t.antes.ventas)} de ventas). En crucero ${F.pct(t.despues.pesoSalarial)}. En ${sec.nombre.toLowerCase()} lo sano es no pasar del ${sec.pesoSalarialMax} %.`, hacer: t.despues.pesoSalarial > sec.pesoSalarialMax ? 'Por encima de la referencia del sector: contrata al ritmo de la venta real, no del plan.' : 'Dentro de la referencia del sector.', vars: ['inversion.contrataciones', 'inversion.salario', 'empresa.personal'] },
+      plantilla: { que: 'Personas en nómina.', de: `Hoy ${e.plantilla} personas. Con el proyecto se suman ${Math.round(inv.contrataciones * r.p.share)} contrataciones (su dato «Contrataciones»), hasta ${F.num(t.despues.plantilla)}. Con ${sec.span} personas por responsable, necesitará ${r.humano.mandosNecesarios} mandos; hoy tiene ${state.humano.mandos}.`, hacer: r.humano.gapMandos ? `Faltan ${r.humano.gapMandos} mandos: nómbralos o contrátalos antes del arranque (ver «¿Está el equipo listo?»).` : 'La estructura de mando cubre la nueva plantilla.', vars: ['inversion.contrataciones', 'inversion.anticipo', 'humano.mandos'] },
+      pesoSalarial: { que: 'Coste de personal sobre ventas. Mide cuánto de lo que vende se va en sueldos.', de: `Hoy ${F.pct(t.antes.pesoSalarial)} (${F.eur(d.staffA)} de personal sobre ${F.eur(t.antes.ventas)} de ventas). En crucero ${F.pct(t.despues.pesoSalarial)}. En ${sec.nombre.toLowerCase()} lo sano es no pasar del ${sec.pesoSalarialMax} %.`, hacer: t.despues.pesoSalarial > sec.pesoSalarialMax ? 'Por encima de la referencia del sector: contrate al ritmo de la venta real, no del plan.' : 'Dentro de la referencia del sector.', vars: ['inversion.contrataciones', 'inversion.salario', 'empresa.personal'] },
       ventasEmpleado: { que: 'Productividad: ventas divididas entre personas.', de: `Hoy ${F.eur(t.antes.ventasEmpleado)} por persona; en crucero ${F.eur(t.despues.ventasEmpleado)}.`, hacer: t.despues.ventasEmpleado < t.antes.ventasEmpleado ? 'Cada persona nueva vende menos que las de hoy: o sobran contrataciones o la venta nueva está corta.' : 'Lo nuevo es más productivo por persona que lo de hoy.', vars: ['inversion.contrataciones', 'inversion.incVentas'] },
-      equilibrio: { que: 'Lo que hay que vender al año para cubrir personal y gastos fijos sin perder dinero (sin contar las cuotas).', de: `Hoy ${F.eur(t.antes.equilibrio)}; con el proyecto ${F.eur(t.despues.equilibrio)}, porque suben los fijos y el personal. Lo verás en gráfico, con y sin cuotas, en «El terreno antes de pisarlo».`, hacer: `Vendes un ${F.pct((t.despues.ventas / Math.max(1, t.despues.equilibrio) - 1) * 100)} por encima del equilibrio en crucero. Por debajo del 10 % la empresa vive al límite.`, vars: ['inversion.fijosNuevos', 'inversion.contrataciones', 'inversion.margenNuevo'] },
-      wc: { que: 'Dinero que se queda atrapado en clientes (facturas por cobrar) y en almacén al vender más. Sale de la caja aunque la cuenta de resultados diga que ganas.', de: `En el peor momento, el crecimiento inmoviliza ${F.eur(r.wcPeak)}: cobras a ${e.dso} días, el stock dura ${e.dio} y pagas a ${e.dpo}. Cada día menos de cobro libera unos ${F.eur(t.despues.ventas / 365)}.`, hacer: `Cobrar 15 días antes liberaría unos ${F.eur(t.despues.ventas / 365 * 15)}. Otras palancas: anticipos de clientes, factoring o confirming, y pagar a proveedores algo más tarde.`, vars: ['empresa.dso', 'empresa.dio', 'empresa.dpo'] }
+      equilibrio: { que: 'Lo que hay que vender al año para cubrir personal y gastos fijos sin perder dinero (sin contar las cuotas).', de: `Hoy ${F.eur(t.antes.equilibrio)}; con el proyecto ${F.eur(t.despues.equilibrio)}, porque suben los fijos y el personal. Lo verá en gráfico, con y sin cuotas, en «El terreno antes de pisarlo».`, hacer: `Vende un ${F.pct((t.despues.ventas / Math.max(1, t.despues.equilibrio) - 1) * 100)} por encima del equilibrio en crucero. Por debajo del 10 % la empresa vive al límite.`, vars: ['inversion.fijosNuevos', 'inversion.contrataciones', 'inversion.margenNuevo'] },
+      wc: { que: 'Dinero que se queda atrapado en clientes (facturas por cobrar) y en almacén al vender más. Sale de la caja aunque la cuenta de resultados diga que gana.', de: `En el peor momento, el crecimiento inmoviliza ${F.eur(r.wcPeak)}: cobra a ${e.dso} días, el stock dura ${e.dio} y paga a ${e.dpo}. Cada día menos de cobro libera unos ${F.eur(t.despues.ventas / 365)}.`, hacer: `Cobrar 15 días antes liberaría unos ${F.eur(t.despues.ventas / 365 * 15)}. Otras palancas: anticipos de clientes, factoring o confirming, y pagar a proveedores algo más tarde.`, vars: ['empresa.dso', 'empresa.dio', 'empresa.dpo'] }
     };
     return X[k];
   }
   function openSize(i) {
     const it = SIZE[i], t = ctx.active.tamano, [a, b] = sizeVals(it, t), x = sizeExplain(it.k);
-    openModal(`<div class="eyebrow">La empresa que serás</div><h2 style="font-size:1.8rem">${it.n}</h2>
+    openModal(`<div class="eyebrow">La empresa que será</div><h2 style="font-size:1.8rem">${it.n}</h2>
       <div class="row mt"><span class="num" style="font-size:1.3rem">${it.f(a)}</span><span class="muted">→</span><span class="num" style="font-size:1.3rem;color:var(--gold-soft)">${it.f(b)}</span></div>
       <p>${x.que}</p><h4>De dónde sale</h4><div>${x.de}</div><h4 class="mt">Qué hacer</h4><p>${x.hacer}</p>
       <h4>Se mueve con</h4><div class="chips">${x.vars.map((p) => varChip(p)).join('')}</div>`);
@@ -673,12 +692,12 @@
     const d = sizeData(), t = d.t, sec = A.SECTORS[state.sector];
     const notas = [];
     notas.push(`Pasas de vender ${F.eur(t.antes.ventas)} a ${F.eur(t.despues.ventas)} (${F.pct((t.despues.ventas / Math.max(1, t.antes.ventas) - 1) * 100)} más): ${F.eur(d.nuevaCru)} son de lo nuevo.`);
-    notas.push(t.despues.ebitda > t.antes.ebitda ? `El EBITDA sube de ${F.eur(t.antes.ebitda)} a ${F.eur(t.despues.ebitda)}: lo nuevo aporta ${F.eur(t.despues.ebitda - t.antes.ebitda)} al año antes de cuotas.` : `El EBITDA baja de ${F.eur(t.antes.ebitda)} a ${F.eur(t.despues.ebitda)}: lo nuevo cuesta más de lo que deja incluso en crucero.`);
+    notas.push(t.despues.ebitda > t.antes.ebitda ? `El beneficio antes de intereses e impuestos (EBITDA) sube de ${F.eur(t.antes.ebitda)} a ${F.eur(t.despues.ebitda)}: lo nuevo aporta ${F.eur(t.despues.ebitda - t.antes.ebitda)} al año antes de cuotas.` : `El beneficio antes de intereses e impuestos (EBITDA) baja de ${F.eur(t.antes.ebitda)} a ${F.eur(t.despues.ebitda)}: lo nuevo cuesta más de lo que deja incluso en crucero.`);
     if (t.despues.pesoSalarial > sec.pesoSalarialMax) notas.push(`El peso salarial (${F.pct(t.despues.pesoSalarial)}) supera la referencia del sector (${sec.pesoSalarialMax} %).`);
-    if (t.despues.ventasEmpleado < t.antes.ventasEmpleado) notas.push('La productividad por persona baja: revisa si todas las contrataciones son necesarias desde el principio.');
+    if (t.despues.ventasEmpleado < t.antes.ventasEmpleado) notas.push('La productividad por persona baja: revise si todas las contrataciones son necesarias desde el principio.');
     notas.push(`El crecimiento atrapará hasta ${F.eur(ctx.active.wcPeak)} en clientes y stock: tenlo financiado antes de arrancar.`);
     host.innerHTML = `<h4>Lectura</h4><ul class="small">${notas.map((n) => `<li>${n}</li>`).join('')}</ul>
-      <p class="small muted" style="margin:0">Mueve lo nuevo y mira cómo cambia la empresa que serás:</p>
+      <p class="small muted" style="margin:0">Mueva lo nuevo y vea cómo cambia la empresa que será:</p>
       <div class="pe-mueve" style="border:0;padding-top:0">${[['inversion.incVentas', 'Venta nueva', 0, 150, 1, (v) => F.eur(state.empresa.ventas * v / 100) + '/año'], ['inversion.margenNuevo', 'Margen de lo nuevo', 5, 90, 0.5, (v) => F.pct(v)], ['inversion.contrataciones', 'Contrataciones', 0, Math.max(20, state.inversion.contrataciones * 2), 1, (v) => v + ' pers.'], ['inversion.salario', 'Coste por persona', 12000, 120000, 500, (v) => F.eur(v) + '/año'], ['inversion.fijosNuevos', 'Fijos nuevos', 0, Math.max(300000, state.inversion.fijosNuevos * 2), 1000, (v) => F.eur(v) + '/año'], ['inversion.rampa', 'Meses de rampa', 1, 36, 1, (v) => v + ' meses']].map(([p, l, a, z, st, f]) => `<label><span>${l} <b data-szv="${p}">${f(getPath(p))}</b></span><input type="range" data-sz-p="${p}" min="${a}" max="${z}" step="${st}" value="${getPath(p)}"></label>`).join('')}</div>`;
     const fm = { 'inversion.incVentas': (v) => F.eur(state.empresa.ventas * v / 100) + '/año', 'inversion.margenNuevo': (v) => F.pct(v), 'inversion.contrataciones': (v) => v + ' pers.', 'inversion.salario': (v) => F.eur(v) + '/año', 'inversion.fijosNuevos': (v) => F.eur(v) + '/año', 'inversion.rampa': (v) => v + ' meses' };
     $$('[data-sz-p]', host).forEach((r) => {
@@ -708,7 +727,7 @@
   function renderStructs() {
     const S = ctx.structs;
     ['encaje', 'control', 'pleno', 'metas', 'marcha'].forEach((k) => { INFO['st-' + k] = { t: { encaje: 'Encaje', control: 'Control', pleno: 'Tamaño pleno', metas: 'Metas cumplidas', marcha: 'Puesta en marcha' }[k], d: A.STRUCT_GLOSA[k] }; });
-    $('#structLede').innerHTML = `Seis formas de hacer la misma inversión con la meta de alcanzar el tamaño pleno antes del <b>mes ${state.meta.plazoObjetivo}</b>. Cada una cambia la liquidez, el retorno para la propiedad, el control y el tiempo. <b>Toca una</b> para ver cómo funciona, sus ventajas, su fiscalidad y los pasos para ponerla en marcha.`;
+    $('#structLede').innerHTML = `Seis formas de hacer la misma inversión con la meta de alcanzar el tamaño pleno antes del <b>mes ${state.meta.plazoObjetivo}</b>. Cada una cambia la liquidez, el retorno para la propiedad, el control y el tiempo. <b>Toque una</b> para ver cómo funciona, sus ventajas, su fiscalidad y los pasos para ponerla en marcha.`;
     $('#structs').innerHTML = S.map((s, i) => {
       const r = s.r;
       const attr = (n, v, inv) => `<div class="attr"><span>${n}</span><span class="track"><b style="width:${v}%;background:${inv ? 'var(--s2)' : 'var(--s1)'}"></b></span><span>${v}</span></div>`;
@@ -736,10 +755,10 @@
   // Bajada a tierra de cada relación de grupo, con las cifras de la simulación
   const GT_CASO = {
     'Holding': (st, x) => `los socios aportarían sus acciones de ${esc(st.empresaNombre || 'la empresa')}${x.key === 'patrimonial' ? ' y de la patrimonial' : x.key === 'filial' ? ' y la filial colgaría de ella' : ''} a una sociedad cabecera. Los dividendos suben a la holding casi sin impuestos y desde ahí se reinvierten en otra sociedad del grupo.`,
-    'Préstamos intragrupo': (st, x) => `si la operativa tiene caja de sobra y la otra sociedad la necesita, puede prestársela con un contrato por escrito, a un interés de mercado (en torno al ${String(st.inversion.tipo).replace('.', ',')} % que te cobra el banco) y con calendario de devolución.`,
-    'Gestión centralizada de tesorería': (st, x) => `las cuentas de las sociedades se barren cada día a una cuenta central: lo que sobra en una cubre lo que falta en otra sin tirar de póliza. Hoy tu punto más bajo de liquidez es ${F.eur(x.r.cajaRef)} en el mes ${x.r.mesCajaRef}.`,
+    'Préstamos intragrupo': (st, x) => `si la operativa tiene caja de sobra y la otra sociedad la necesita, puede prestársela con un contrato por escrito, a un interés de mercado (en torno al ${String(st.inversion.tipo).replace('.', ',')} % que le cobra el banco) y con calendario de devolución.`,
+    'Gestión centralizada de tesorería': (st, x) => `las cuentas de las sociedades se barren cada día a una cuenta central: lo que sobra en una cubre lo que falta en otra sin tirar de póliza. Hoy su punto más bajo de liquidez es ${F.eur(x.r.cajaRef)} en el mes ${x.r.mesCajaRef}.`,
     'Consolidación fiscal': (st, x) => `si lo nuevo pierde dinero el primer año y la operativa gana, las pérdidas de una restan del beneficio de la otra ese mismo año: se paga menos impuesto de sociedades (hoy un ${st.empresa.impuesto} %) mientras lo nuevo arranca.`,
-    'Garantías cruzadas': (st, x) => `el banco pedirá seguramente que ${esc(st.empresaNombre || 'la empresa actual')} avale el préstamo de ${F.eur(x.r.loan || st.inversion.importe * st.inversion.pctFin / 100)}. Si lo hace, buena parte del aislamiento del riesgo se pierde: negocia el aval limitado a un importe o a un plazo.`,
+    'Garantías cruzadas': (st, x) => `el banco pedirá seguramente que ${esc(st.empresaNombre || 'la empresa actual')} avale el préstamo de ${F.eur(x.r.loan || st.inversion.importe * st.inversion.pctFin / 100)}. Si lo hace, buena parte del aislamiento del riesgo se pierde: negocie el aval limitado a un importe o a un plazo.`,
     'Operaciones vinculadas': (st, x) => (x.key === 'patrimonial' ? `el alquiler de unos ${F.eur(x.r.p.alquiler)} al mes entre la patrimonial y la operativa tiene que estar a precio de mercado y documentado en un contrato; si no, Hacienda puede ajustarlo.` : 'cualquier servicio, alquiler o préstamo entre sociedades del grupo se factura a precio de mercado y se documenta.'),
     'Dividendos dentro del grupo': () => 'la filial reparte beneficio a la matriz o a la holding prácticamente sin tributar, y ese dinero puede financiar la siguiente inversión sin pasar por el bolsillo de los socios.',
     'Sucesión en la empresa familiar': () => 'separar el patrimonio (naves, terrenos) en una patrimonial y el negocio en la operativa facilita repartir entre herederos: quien trabaja en la empresa se queda con la operativa y el resto recibe rentas del alquiler.'
@@ -750,15 +769,15 @@
     const el = openModal(`<div class="eyebrow">Vehículo societario</div><h2 style="font-size:1.9rem">${s.nombre}</h2>
       <p class="lede" style="margin-top:8px">${I.como}</p>
       <div class="chart mt">${flowSVG(I.flujo)}</div>
-      <h4 class="mt">En tu caso</h4><p>${A.structCaso(state, s)}</p>
+      <h4 class="mt">En su caso</h4><p>${A.structCaso(state, s)}</p>
       <div class="mgrid mt">
         <div><span>Liquidez mínima</span><b>${F.eur(r.cajaRef)}</b><small>el punto más bajo de dinero disponible, mes ${r.mesCajaRef}</small></div><div><span>Recuperación</span><b>${F.months(r.payback)}</b><small>lo que tarda lo nuevo en devolver lo invertido</small></div>
         <div><span>Tamaño pleno <button class="info-i" data-info="st-pleno" aria-label="Qué es">?</button></span><b>mes ${s.mesPleno}${s.enPlazo ? '' : ' (fuera de plazo)'}</b><small>cuando lo nuevo vende el 100 % previsto</small></div><div><span>Metas cumplidas <button class="info-i" data-info="st-metas" aria-label="Qué es">?</button></span><b>${s.metasOk} de 5</b><small>${r.metas.map((m) => `${m.ok ? '✓' : '✗'} ${m.nombre.toLowerCase()}`).join(' · ')}</small></div>
-        <div><span>Control <button class="info-i" data-info="st-control" aria-label="Qué es">?</button></span><b>${s.control} %</b><small>${s.control === 100 ? 'decidís solo los socios actuales' : s.control >= 65 ? 'entra un socio minoritario' : 'lo compartes a medias'}</small></div><div><span>Puesta en marcha <button class="info-i" data-info="st-marcha" aria-label="Qué es">?</button></span><b>${I.plazo}</b></div>
+        <div><span>Control <button class="info-i" data-info="st-control" aria-label="Qué es">?</button></span><b>${s.control} %</b><small>${s.control === 100 ? 'deciden solo los socios actuales' : s.control >= 65 ? 'entra un socio minoritario' : 'se comparte a medias'}</small></div><div><span>Puesta en marcha <button class="info-i" data-info="st-marcha" aria-label="Qué es">?</button></span><b>${I.plazo}</b></div>
       </div>
       <h4 class="mt">Por qué tiene un encaje de ${Math.round(s.score)} sobre 100 <button class="info-i" data-info="st-encaje" aria-label="Qué es">?</button></h4>
       <div class="stack small">${s.desglose.map((x) => `<div class="mfrow"><span>${x.n}</span><span class="track"><b style="width:${x.v / x.max * 100}%"></b></span><span class="num">${Math.round(x.v)} / ${x.max}</span></div><p class="muted" style="margin:-4px 0 4px">${x.d}</p>`).join('')}</div>
-      <p class="small muted">${s.score >= 70 ? 'Encaja bien con tus objetivos.' : s.score >= 50 ? 'Encaja con matices: mira los criterios con la barra más corta.' : 'No encaja con tus objetivos tal como están.'} El óptimo sería 100: liquidez por encima de la meta, en plazo, control total, riesgo aislado, sencillo y las cinco metas cumplidas; ningún vehículo lo tiene todo.</p>
+      <p class="small muted">${s.score >= 70 ? 'Encaja bien con sus objetivos.' : s.score >= 50 ? 'Encaja con matices: revise los criterios con la barra más corta.' : 'No encaja con sus objetivos tal como están.'} El óptimo sería 100: liquidez por encima de la meta, en plazo, control total, riesgo aislado, sencillo y las cinco metas cumplidas; ningún vehículo lo tiene todo.</p>
       <div class="grid cols-2 mt">
         <div><h4>Ventajas</h4>${list(I.ventajas)}</div>
         <div><h4>Inconvenientes</h4>${list(I.inconvenientes)}</div>
@@ -768,7 +787,7 @@
       <div class="grid cols-2"><div><h4>Coste</h4><p>${I.coste}</p></div><div><h4>Cuándo conviene</h4><p>${I.conviene}</p></div></div>
       <h4>Riesgos</h4>${list(I.riesgos)}
       <h4>Pasos para ponerla en marcha</h4><ol>${I.pasos.map((x) => `<li>${x}</li>`).join('')}</ol>
-      <h4>Si formas un grupo de sociedades</h4><p class="small muted" style="margin-top:0">Cuestiones que aparecen cuando hay más de una sociedad (por ejemplo, la operativa y la patrimonial). Toca una para ver qué significa en la práctica.</p><div class="chips">${A.GROUP_TOPICS.map((g, i) => `<button class="vchip ind" data-gt="${i}">${g.t}</button>`).join('')}</div><p class="small" id="gtText"></p>
+      <h4>Si formas un grupo de sociedades</h4><p class="small muted" style="margin-top:0">Cuestiones que aparecen cuando hay más de una sociedad (por ejemplo, la operativa y la patrimonial). Toque una para ver qué significa en la práctica.</p><div class="chips">${A.GROUP_TOPICS.map((g, i) => `<button class="vchip ind" data-gt="${i}">${g.t}</button>`).join('')}</div><p class="small" id="gtText"></p>
       <p class="note">Orientativo para preparar la conversación con asesores fiscal y legal. No sustituye su dictamen.</p>
       <div class="row mt"><button class="btn solid" id="stAdopt">${key === state.estructura ? 'Es la estructura actual' : 'Adoptar esta estructura'}</button><button class="btn" id="stAsk">Preguntar al asistente</button></div>`);
     $$('[data-gt]', el).forEach((b) => b.onclick = () => { const g = A.GROUP_TOPICS[+b.dataset.gt]; $('#gtText', el).innerHTML = `<b>${g.t}.</b> ${g.d}${GT_CASO[g.t] ? ` <br><span class="muted">En la práctica: ${GT_CASO[g.t](state, s)}</span>` : ''}`; });
@@ -790,11 +809,11 @@
     const sec = A.SECTORS[state.sector], r = ctx.active, inv = state.inversion;
     return {
       'meta.cajaMin': { v: Math.round(r.colchon / 10000) * 10000, txt: `Al menos dos meses de gastos fijos y personal: ${F.eur(r.colchon)}. Es el colchón para pagar nóminas si un cliente grande se retrasa.` },
-      'meta.paybackMax': { v: Math.min(7, Math.max(2, Math.round(inv.vidaUtil / 2 * 2) / 2)), txt: `Menos de la mitad de la vida útil de lo que compras (${String(inv.vidaUtil).replace('.', ',')} años). Las pymes suelen pedir entre 3 y 5 años.` },
-      'meta.dscrMin': { v: 1.25, txt: 'La banca pide que el negocio genere al menos 1,25 veces lo que pagas de cuotas; 1,5 es holgado y por debajo de 1 no llega.' },
-      'meta.deudaEbitdaMax': { v: sec.deudaEbitdaMax, txt: `En ${sec.nombre.toLowerCase()}, hasta ${String(sec.deudaEbitdaMax).replace('.', ',')} veces el EBITDA. Por encima de 3, la banca endurece condiciones.` },
+      'meta.paybackMax': { v: Math.min(7, Math.max(2, Math.round(inv.vidaUtil / 2 * 2) / 2)), txt: `Menos de la mitad de la vida útil de lo que compra (${String(inv.vidaUtil).replace('.', ',')} años). Las pymes suelen pedir entre 3 y 5 años.` },
+      'meta.dscrMin': { v: 1.25, txt: 'La banca pide que el negocio genere al menos 1,25 veces lo que paga de cuotas; 1,5 es holgado y por debajo de 1 no llega.' },
+      'meta.deudaEbitdaMax': { v: sec.deudaEbitdaMax, txt: `En ${sec.nombre.toLowerCase()}, hasta ${String(sec.deudaEbitdaMax).replace('.', ',')} veces el beneficio antes de intereses e impuestos (EBITDA). Por encima de 3, la banca endurece condiciones.` },
       'meta.pesoSalarialMax': { v: sec.pesoSalarialMax, txt: `En ${sec.nombre.toLowerCase()}, el personal no debería pasar del ${sec.pesoSalarialMax} % de las ventas.` },
-      'meta.plazoObjetivo': { v: Math.max(12, Math.min(36, state.inversion.mesInicio + sec.rampa + 6)), txt: `En tu sector la rampa típica es de ${sec.rampa} meses: tamaño pleno hacia el mes ${state.inversion.mesInicio + sec.rampa} si todo va bien; la referencia deja seis meses de margen.` }
+      'meta.plazoObjetivo': { v: Math.max(12, Math.min(36, state.inversion.mesInicio + sec.rampa + 6)), txt: `En su sector la rampa típica es de ${sec.rampa} meses: tamaño pleno hacia el mes ${state.inversion.mesInicio + sec.rampa} si todo va bien; la referencia deja seis meses de margen.` }
     }[t.p];
   }
   function renderPlan() {
@@ -805,7 +824,7 @@
       const ok = m ? m.ok : ctx.active.tamano.mesCrucero <= state.meta.plazoObjetivo;
       const rf = refMeta(t);
       return `<div class="target-tile"><div class="t"><span>${t.n}</span></div><div class="now"><span>${now}</span><span class="state ${stCls(ok ? 'ok' : 'stop')}">${ok ? 'Cumple' : 'Falla'}</span></div><div class="obj">meta: <b id="tv${i}">${t.f(getPath(t.p))}</b> · referencia: ${t.f(rf.v)}</div><input type="range" id="tg${i}" min="${t.min}" max="${t.max}" step="${t.step}" value="${getPath(t.p)}" aria-label="${t.n}"><div class="ref">${rf.txt}</div></div>`;
-    }).join('') + `<div class="target-tile" style="display:grid;align-content:center;gap:8px"><p class="small" style="margin:0">¿No sabes qué meta poner? Usa las referencias de tu sector y tamaño y ajústalas después.</p><button class="btn" id="usarRefs">Usar las referencias</button></div>`;
+    }).join('') + `<div class="target-tile" style="display:grid;align-content:center;gap:8px"><p class="small" style="margin:0">¿No sabe qué meta poner? Use las referencias de su sector y tamaño y ajústelas después.</p><button class="btn" id="usarRefs">Usar las referencias</button></div>`;
     $('#usarRefs').onclick = () => { TARGETS.forEach((t) => setPath(t.p, refMeta(t).v)); toast('Metas puestas con las referencias del sector'); schedule(); };
     TARGETS.forEach((t, i) => {
       const r = $('#tg' + i);
@@ -850,7 +869,7 @@
   function applyPlan() {
     if (!ctx.plan || ctx.plan.ok || !ctx.plan.acciones.length) return false;
     ctx.plan.acciones.forEach((a) => { const [x, y] = a.lv.path; state[x][y] = a.hasta; });
-    syncFields(); toast('Plan aplicado: revisa los semáforos'); schedule();
+    syncFields(); toast('Plan aplicado: revise los semáforos'); schedule();
     return true;
   }
 
@@ -892,7 +911,7 @@
     if (view.mode !== 'surface') $('#surfaceCtl').hidden = true;
     const lg = $('#legend3d');
     if (view.mode === 'surface') {
-      lg.innerHTML = `<span><i style="background:var(--go)"></i>Cumple la meta</span><span><i style="background:var(--warn)"></i>Zona de vigilancia</span><span><i style="background:var(--stop)"></i>Rompe el límite</span><span><i style="background:var(--gold);height:2px"></i>Plano de la meta · esfera: tu plan</span>`;
+      lg.innerHTML = `<span><i style="background:var(--go)"></i>Cumple la meta</span><span><i style="background:var(--warn)"></i>Zona de vigilancia</span><span><i style="background:var(--stop)"></i>Rompe el límite</span><span><i style="background:var(--gold);height:2px"></i>Plano de la meta · esfera: su plan</span>`;
       if (has3D && ctx.surface) A.scene.surface(ctx.surface, state);
     } else {
       lg.innerHTML = ctx.all.map((x) => `<span><i style="background:${A.scenarioColor(x.key)}"></i>${x.nombre}</span>`).join('') + `<span><i style="background:var(--stop);height:2px"></i>Suelo de liquidez</span>`;
@@ -913,10 +932,10 @@
     const fv = (a, v) => (a.unidad === '€' ? F.eur(v) : `${String(Math.round(v * 10) / 10).replace('.', ',')} ${a.unidad}`);
     const inGreen = good(cur.c.v);
     const dx = best && Math.abs(best.x - sf.cx) > (sf.x1 - sf.x0) * 0.02, dy = best && Math.abs(best.y - sf.cy) > (sf.y1 - sf.y0) * 0.02;
-    let html = `<p>Con ${ax.nombre.toLowerCase()} en <b>${fv(ax, sf.cx)}</b> y ${ay.nombre.toLowerCase()} en <b>${fv(ay, sf.cy)}</b>, tu ${M.nombre.toLowerCase()} es <b>${M.fmt(cur.c.v)}</b> (meta: ${M.fmt(thr)}). ${inGreen ? 'Estás en terreno verde.' : 'Estás fuera del verde.'}</p>`;
+    let html = `<p>Con ${ax.nombre.toLowerCase()} en <b>${fv(ax, sf.cx)}</b> y ${ay.nombre.toLowerCase()} en <b>${fv(ay, sf.cy)}</b>, su ${M.nombre.toLowerCase()} es <b>${M.fmt(cur.c.v)}</b> (meta: ${M.fmt(thr)}). ${inGreen ? 'Está en terreno verde.' : 'Está fuera del verde.'}</p>`;
     html += `<p>El <b>${greenPct} %</b> del terreno cumple la meta. ${greenPct < 25 ? 'Es un terreno estrecho: pocas combinaciones funcionan y la decisión tiene poco margen de error.' : greenPct > 60 ? 'Es un terreno amplio: la decisión aguanta errores en estas dos variables.' : 'Hay margen, pero no mucho.'}</p>`;
     if (!inGreen && best && (dx || dy)) html += `<p><b>Camino más corto al verde:</b> ${dx ? `${ax.nombre.toLowerCase()} a ${fv(ax, best.x)}` : ''}${dx && dy ? ' y ' : ''}${dy ? `${ay.nombre.toLowerCase()} a ${fv(ay, best.y)}` : ''}, con ${M.nombre.toLowerCase()} de ${M.fmt(best.v)}.</p><button class="btn" id="goGreen">Aplicar ese punto</button>`;
-    else if (!inGreen) html += '<p>Ninguna combinación de estas dos variables alcanza la meta: prueba con otros ejes o revisa el plan de corrección.</p>';
+    else if (!inGreen) html += '<p>Ninguna combinación de estas dos variables alcanza la meta: pruebe con otros ejes o revise el plan de corrección.</p>';
     $('#terrainRead').innerHTML = html;
     const gg = $('#goGreen'); if (gg) gg.onclick = () => applyCell(sf.ax, sf.ay, best);
   }
@@ -925,18 +944,18 @@
   function renderFin() {
     const out = $('#finOut');
     const an = A.fin.analyze(state.historico);
-    if (!an) { out.innerHTML = '<div class="glass pad small muted">Todavía no hay cuentas cargadas. Adjunta un Excel o CSV, pega la tabla o carga el ejemplo para ver cómo funciona.</div>'; return; }
+    if (!an) { out.innerHTML = '<div class="glass pad small muted">Todavía no hay cuentas cargadas. Adjunte un Excel o CSV, pegue la tabla o cargue el ejemplo para ver cómo funciona.</div>'; return; }
     const R = an.rows;
     const head = `<tr><th>Magnitud</th>${R.map((r) => `<th>${r.anio}</th>`).join('')}${an.proj.map((p) => `<th class="proj">${p.anio} <small>proy.</small></th>`).join('')}</tr>`;
     const line = (n, k, f, pk) => `<tr><td>${n}</td>${R.map((r) => `<td>${r[k] === null || !isFinite(r[k]) ? '—' : f(r[k])}</td>`).join('')}${an.proj.map((p) => `<td class="proj">${pk && isFinite(p[pk]) ? f(p[pk]) : ''}</td>`).join('')}</tr>`;
     const days = (v) => Math.round(v) + ' d';
-    out.innerHTML = `${state.historico.ejemplo ? '<p class="small muted">Datos de ejemplo. Sustitúyelos por las cuentas de tu empresa.</p>' : ''}
+    out.innerHTML = `${state.historico.ejemplo ? '<p class="small muted">Datos de ejemplo. Sustitúyalos por las cuentas de su empresa.</p>' : ''}
       <div class="kpis" style="margin-top:0">
-        <div class="kpi"><div class="k"><span>Crecimiento anual</span></div><div class="v">${F.pct(an.cagr)}</div><div class="d">${R[0].anio}-${an.last.anio}</div></div>
-        <div class="kpi"><div class="k"><span>Crecimiento financiable</span></div><div class="v">${an.crecSostenible === null ? '—' : F.pct(an.crecSostenible)}</div><div class="d">con beneficios y sin más deuda</div></div>
-        <div class="kpi"><div class="k"><span>EBITDA último año</span></div><div class="v">${F.eur(an.last.ebitda)}</div><div class="d">${F.pct(an.last.ebitdaPct)} sobre ventas</div></div>
-        <div class="kpi"><div class="k"><span>Deuda neta / EBITDA</span></div><div class="v">${an.last.dfnEbitda === null ? '—' : F.x(Math.max(0, an.last.dfnEbitda))}</div><div class="d">${an.last.dfn < 0 ? 'más caja que deuda' : 'deuda neta ' + F.eur(an.last.dfn)}</div></div>
-        <div class="kpi"><div class="k"><span>Payout medio</span></div><div class="v">${an.payoutAvg === null ? '—' : F.pct(an.payoutAvg)}</div><div class="d">beneficio repartido</div></div>
+        <button class="kpi" data-info="hCrec"><div class="k"><span>Crecimiento anual <span class="info-i" aria-hidden="true">?</span></span></div><div class="v">${F.pct(an.cagr)}</div><div class="d">${R[0].anio}-${an.last.anio}</div></button>
+        <button class="kpi" data-info="hSost"><div class="k"><span>Crecimiento financiable <span class="info-i" aria-hidden="true">?</span></span></div><div class="v">${an.crecSostenible === null ? '—' : F.pct(an.crecSostenible)}</div><div class="d">con beneficios y sin más deuda</div></button>
+        <button class="kpi" data-info="hEbitda"><div class="k"><span>Beneficio antes de intereses e impuestos (EBITDA), último año <span class="info-i" aria-hidden="true">?</span></span></div><div class="v">${F.eur(an.last.ebitda)}</div><div class="d">${F.pct(an.last.ebitdaPct)} sobre ventas</div></button>
+        <button class="kpi" data-info="hDfn"><div class="k"><span>Años de beneficio para pagar la deuda <span class="info-i" aria-hidden="true">?</span></span></div><div class="v">${an.last.dfnEbitda === null ? '—' : F.x(Math.max(0, an.last.dfnEbitda))}</div><div class="d">${an.last.dfn < 0 ? 'más caja que deuda' : 'deuda neta ' + F.eur(an.last.dfn)}</div></button>
+        <button class="kpi" data-info="hPayout"><div class="k"><span>Beneficio repartido (media) <span class="info-i" aria-hidden="true">?</span></span></div><div class="v">${an.payoutAvg === null ? '—' : F.pct(an.payoutAvg)}</div><div class="d">parte del beneficio que se llevan los socios</div></button>
       </div>
       <div class="grid cols-2 mt">
         <div class="glass pad stack" id="finEvo"></div>
@@ -944,11 +963,11 @@
       </div>
       <div class="glass pad mt stack" id="moneyFlow"></div>
       <div class="glass pad mt"><h4>Ratios por año</h4><div class="table-wrap"><table>${head}<tbody>
-        ${line('Ventas', 'ventas', F.eur, 'ventas')}${line('Crecimiento', 'crec', F.pct)}${line('Margen bruto', 'margenPct', F.pct, 'margenPct')}${line('EBITDA', 'ebitda', F.eur, 'ebitda')}${line('EBITDA sobre ventas', 'ebitdaPct', F.pct, 'ebitdaPct')}
+        ${line('Ventas', 'ventas', F.eur, 'ventas')}${line('Crecimiento', 'crec', F.pct)}${line('Margen bruto', 'margenPct', F.pct, 'margenPct')}${line('Beneficio antes de intereses e impuestos (EBITDA)', 'ebitda', F.eur, 'ebitda')}${line('EBITDA sobre ventas', 'ebitdaPct', F.pct, 'ebitdaPct')}
         ${line('Beneficio neto', 'bn', F.eur)}${line('Peso salarial', 'pesoSalarial', F.pct, 'pesoSalarial')}${line('Ventas por persona', 'ventasPersona', F.eur)}
         ${line('Días de cobro', 'dso', days, 'dso')}${line('Días de stock', 'dio', days)}${line('Días de pago', 'dpo', days)}${line('Fondo de maniobra', 'fondoManiobra', F.eur)}
-        ${line('Liquidez (AC/PC)', 'liquidez', F.x)}${line('Deuda neta / EBITDA', 'dfnEbitda', (v) => (v < 0 ? 'caja neta' : F.x(v)))}${line('Deuda / fondos propios', 'endeudamiento', F.x)}
-        ${line('ROE', 'roe', F.pct)}${line('ROA', 'roa', F.pct)}${line('Payout', 'payout', F.pct)}${line('Reinversión / amortización', 'reinversion', F.x)}${line('Autofinanciación', 'autofinanciacion', F.eur)}
+        ${line('Liquidez (activo corriente ÷ pasivo corriente)', 'liquidez', F.x)}${line('Deuda neta ÷ EBITDA (años para pagarla)', 'dfnEbitda', (v) => (v < 0 ? 'caja neta' : F.x(v)))}${line('Deuda / fondos propios', 'endeudamiento', F.x)}
+        ${line('Rentabilidad de los fondos propios (ROE)', 'roe', F.pct)}${line('Rentabilidad del activo (ROA)', 'roa', F.pct)}${line('Beneficio repartido (payout)', 'payout', F.pct)}${line('Reinversión / amortización', 'reinversion', F.x)}${line('Autofinanciación', 'autofinanciacion', F.eur)}
       </tbody></table></div></div>`;
     renderFinEvo();
     renderMoneyFlow();
@@ -957,7 +976,7 @@
      crecimiento proyectado que elija el usuario. Pasar el cursor da el detalle; pulsar un año abre su flujo del dinero */
   const finView = { metric: 'ventas', horiz: null, crec: null };
   const FIN_METRICS = {
-    ventas: { n: 'Ventas y EBITDA', u: '€', series: [{ k: 'ventas', n: 'Ventas', c: '--s1', t: 'bar', p: true }, { k: 'ebitda', n: 'EBITDA', c: '--gold', t: 'bar', p: true }] },
+    ventas: { n: 'Ventas y beneficio (EBITDA)', u: '€', series: [{ k: 'ventas', n: 'Ventas', c: '--s1', t: 'bar', p: true }, { k: 'ebitda', n: 'Beneficio antes de intereses e impuestos (EBITDA)', c: '--gold', t: 'bar', p: true }] },
     margenes: { n: 'Márgenes', u: '%', series: [{ k: 'margenPct', n: 'Margen bruto', c: '--s1', t: 'line', p: true }, { k: 'ebitdaPct', n: 'EBITDA sobre ventas', c: '--gold', t: 'line', p: true }, { k: 'pesoSalarial', n: 'Peso salarial', c: '--s2', t: 'line', p: true }] },
     beneficio: { n: 'Beneficio y autofinanciación', u: '€', series: [{ k: 'bn', n: 'Beneficio neto', c: '--s3', t: 'bar' }, { k: 'autofinanciacion', n: 'Autofinanciación', c: '--s1', t: 'bar' }] },
     deuda: { n: 'Deuda y fondo de maniobra', u: '€', series: [{ k: 'dfn', n: 'Deuda neta', c: '--s2', t: 'bar' }, { k: 'fondoManiobra', n: 'Fondo de maniobra', c: '--s1', t: 'bar' }] },
@@ -1017,14 +1036,14 @@
       return `<b>${sr.n}</b>: ${fmt(a)} en ${R[0].anio} → ${fmt(b)} en ${R[nR - 1].anio} (${d})`;
     }).filter(Boolean);
     host.innerHTML = `<div class="row"><h4>Evolución${horiz ? ` y proyección a ${horiz} año${horiz > 1 ? 's' : ''}` : ''}</h4><span class="spacer"></span><select class="input" id="feMetric" style="max-width:240px">${Object.keys(FIN_METRICS).map((k) => `<option value="${k}" ${k === finView.metric ? 'selected' : ''}>${FIN_METRICS[k].n}</option>`).join('')}</select></div>
-      <p class="small muted" style="margin:0">${nR} año${nR > 1 ? 's' : ''} con cuentas (${R.map((r) => r.anio).join(', ')})${nR < 2 ? '. Con un segundo año verás la evolución.' : ''}. Pasa el cursor por un año para el detalle; púlsalo para ver a dónde fue su dinero.</p>
+      <p class="small muted" style="margin:0">${nR} año${nR > 1 ? 's' : ''} con cuentas (${R.map((r) => r.anio).join(', ')})${nR < 2 ? '. Con un segundo año verá la evolución.' : ''}. Toque un año para ver su detalle y a dónde fue su dinero.</p>
       <div class="chart" id="finChart">${svg}</div>
       <div class="chart-legend small">${M.series.map((sr) => `<span><i style="background:var(${sr.c})"></i>${sr.n}</span>`).join('')}${horiz ? '<span class="muted">* proyección (más clara y discontinua)</span>' : ''}</div>
       ${lect.length ? `<p class="small" style="margin:0">${lect.join(' · ')}.</p>` : ''}
       ${conProj ? `<div class="fe-ctl small"><label>Años de proyección <select class="input" id="feHoriz">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${k === horiz ? 'selected' : ''}>${k ? k : 'sin proyección'}</option>`).join('')}</select></label>
         <label>Crecimiento proyectado <b id="feCrecV">${F.pct(an.crecProj)}</b>/año<input type="range" id="feCrec" min="-15" max="30" step="0.5" value="${Math.round(an.crecProj * 2) / 2}"></label>
         ${finView.crec != null ? '<button class="btn ghost small" id="feCrecReset">Volver al histórico</button>' : ''}</div>
-        <p class="small muted" style="margin:0">Proyección: ventas al ${F.pct(an.crecProj)} anual (${finView.crec != null ? 'fijado por ti; ' : ''}el histórico es ${nR > 1 ? F.pct(an.cagr) : 'desconocido con un solo año'}) y márgenes con la mitad de su tendencia.</p>` : '<p class="small muted" style="margin:0">Esta magnitud no se proyecta: se muestran solo los años reales.</p>'}`;
+        <p class="small muted" style="margin:0">Proyección: ventas al ${F.pct(an.crecProj)} anual (${finView.crec != null ? 'fijado por usted; ' : ''}el histórico es ${nR > 1 ? F.pct(an.cagr) : 'desconocido con un solo año'}) y márgenes con la mitad de su tendencia.</p>` : '<p class="small muted" style="margin:0">Esta magnitud no se proyecta: se muestran solo los años reales.</p>'}`;
     $('#feMetric', host).onchange = (e) => { finView.metric = e.target.value; renderFinEvo(); };
     const fh = $('#feHoriz', host); if (fh) fh.onchange = (e) => { finView.horiz = +e.target.value; renderFinEvo(); };
     const fc = $('#feCrec', host);
@@ -1041,7 +1060,7 @@
   function renderMoneyFlow() {
     const host = $('#moneyFlow'); if (!host) return;
     const Y = state.historico.anios;
-    if (Y.length < 2) { host.innerHTML = '<h4>¿Dónde está el beneficio?</h4><p class="small muted">Carga al menos dos años para auditar el flujo del dinero.</p>'; return; }
+    if (Y.length < 2) { host.innerHTML = '<h4>¿Dónde está el beneficio?</h4><p class="small muted">Cargue al menos dos años para auditar el flujo del dinero.</p>'; return; }
     if (mfIdx === null || mfIdx >= Y.length || mfIdx < 1) mfIdx = Y.length - 1;
     const mf = A.fin.moneyFlow(state.historico, mfIdx);
     host.innerHTML = `<div class="row"><h4>Auditoría del flujo del dinero · ¿dónde está el beneficio?</h4><span class="spacer"></span><div class="seg" style="margin:0">${Y.slice(1).map((y, i) => `<button data-mf="${i + 1}" aria-pressed="${i + 1 === mfIdx}">${y.anio}</button>`).join('')}</div></div>
@@ -1090,7 +1109,7 @@
     });
     $('#finAI').onclick = async () => { for (const f of lastFiles) { status('Releyendo ' + f.name + ' con IA…'); try { accept(await A.fin.fromFile(f, { ia: true }), f.name + ' (IA)'); } catch (err) { status(err.message, true); } } };
     $('#finVoice').onclick = async () => {
-      status('Escuchando… di, por ejemplo: «ventas de 2024, 4,2 millones».');
+      status('Escuchando… diga, por ejemplo: «ventas de 2024, 4,2 millones».');
       try {
         const t = await A.docs.dictate(); const d = A.fin.fromDictation(t);
         const anios = state.historico && !state.historico.ejemplo ? state.historico.anios : [];
@@ -1110,7 +1129,7 @@
     $('#finApply').onclick = () => {
       const an = A.fin.analyze(state.historico);
       if (!an) { status('Primero carga las cuentas.', true); return; }
-      A.fin.applyToState(state, an); syncFields(); schedule(); toast(`Punto de partida actualizado con ${an.last.anio}`);
+      aplicarCuentas(an, (res) => { state.ejemplo = false; syncFields(); schedule(); toast(`Punto de partida actualizado con ${an.last.anio}${res.mantenidos.length ? ` (se mantienen ${res.mantenidos.length} dato${res.mantenidos.length > 1 ? 's' : ''} suyos)` : ''}`); });
     };
     renderFin();
   }
@@ -1124,21 +1143,21 @@
     if (document.activeElement !== $('#heroEstr')) $('#heroEstr').innerHTML = opt(A.STRUCTURES, state.estructura);
     const ej = $('#idEjemplo'), e = esEjemplo(), falta = !!state.sinDatos && !(state.empresa.ventas > 0);
     ej.hidden = !e && !falta;
-    if (falta) { ej.innerHTML = '<b>Faltan los datos reales de la empresa.</b> Esta cuenta trabaja con datos reales: el simulador está a cero hasta que subas las cuentas (balance y cuenta de resultados) o respondas las preguntas. <span class="row" style="margin-top:8px"><button class="btn solid small" id="ejCuentas">Subir las cuentas</button><button class="btn small" id="ejQuiz">Responder las preguntas</button></span>'; const c = $('#ejCuentas'); if (c) c.onclick = () => { location.hash = '#empresa'; const el = document.getElementById('empresa'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }; const q = $('#ejQuiz'); if (q) q.onclick = () => openQuiz('empresa'); }
-    else if (e) ej.innerHTML = '<b>Estás viendo una empresa de ejemplo</b> (una industria de 4,2 M€ que estudia una línea de producción). Pulsa «Empezar de cero», responde las preguntas o carga tus cuentas para trabajar con la tuya.';
+    if (falta) { ej.innerHTML = '<b>Faltan los datos reales de la empresa.</b> Esta cuenta trabaja con datos reales: el simulador está a cero hasta que suba las cuentas (balance y cuenta de resultados) o responda las preguntas. <span class="row" style="margin-top:8px"><button class="btn solid small" id="ejCuentas">Subir las cuentas</button><button class="btn small" id="ejQuiz">Responder las preguntas</button></span>'; const c = $('#ejCuentas'); if (c) c.onclick = () => { location.hash = '#empresa'; const el = document.getElementById('empresa'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }; const q = $('#ejQuiz'); if (q) q.onclick = () => openQuiz('empresa'); }
+    else if (e) ej.innerHTML = '<b>Está viendo una empresa de ejemplo</b> (una industria de 4,2 millones de euros de ventas que estudia una línea de producción). Pulse «Empezar de cero», responda las preguntas o cargue sus cuentas para trabajar con la suya.';
     if (!falta && state.sinDatos && state.empresa.ventas > 0) state.sinDatos = false;
     $('#idCard').classList.toggle('vacia', !state.empresaNombre);
   }
   function nuevaSimulacion() {
     const el = openModal(`<div class="eyebrow">Punto cero</div><h2 style="font-size:1.8rem">Empezar una simulación nueva</h2>
-      <p>Se borra lo que hay ahora en el simulador (nombre, cifras, inversión, escenarios propios e hipótesis). Si quieres conservarlo, guárdalo antes en la caja de herramientas.</p>
-      <p>Después te haré unas preguntas para cargar tu empresa. Lo que no respondas se queda con el valor típico de tu sector y te lo marco como estimado.</p>
+      <p>Se borra lo que hay ahora en el simulador (nombre, cifras, inversión, escenarios propios e hipótesis). Si quiere conservarlo, guárdelo antes en la caja de herramientas.</p>
+      <p>Después se le harán unas preguntas para cargar su empresa. Lo que no responda se queda con el valor típico de su sector y se marca como estimado.</p>
       <label class="field-sel"><span class="small muted">Sector principal</span><select class="input" id="ncSector">${Object.keys(A.SECTORS).map((k) => `<option value="${k}" ${k === state.sector ? 'selected' : ''}>${A.SECTORS[k].nombre}</option>`).join('')}</select></label>
       <div class="row mt"><button class="btn solid" id="ncGo">Empezar de cero</button><button class="btn" id="ncSave">Guardar la actual y empezar</button><button class="btn ghost" id="ncNo">Cancelar</button></div>`);
     const go = () => {
       const k = $('#ncSector', el).value;
       state = A.defaultState(); A.applySector(state, k);
-      Object.assign(state, { empresaNombre: '', proyecto: '', ejemplo: false, hipotesis: [], opciones: [] });
+      Object.assign(state, { empresaNombre: '', proyecto: '', ejemplo: false, hipotesis: [], opciones: [], dados: {} });
       state.historico = undefined; delete state.historico;
       afterLoad(); closeModal(); openQuiz('empresa');
     };
@@ -1160,46 +1179,97 @@
       } catch (err) { out.innerHTML = `<span style="color:var(--stop)">${esc(f.name)}: ${esc(err.message)}</span>`; return; }
     }
     const an = A.fin.analyze(state.historico);
-    if (!an) { out.innerHTML = '<span style="color:var(--stop)">No he encontrado cifras de cuentas en esos archivos. Revisa que tengan los conceptos en una columna y los años en otra.</span>'; return; }
-    A.fin.applyToState(state, an); state.ejemplo = false;
-    if (state.empresaNombre === NOMBRE_EJEMPLO) state.empresaNombre = '';
-    if (state.proyecto === 'Nueva línea de producción') state.proyecto = '';
-    const campos = Object.values(FIELDS).flat().filter((f) => f.p.startsWith('empresa.'));
-    const cambiados = campos.filter((f) => getPath(f.p) !== antes[f.p.split('.')[1]]);
-    const noVienen = ['empresa.polizaLimite', 'empresa.cuotaDeuda', 'empresa.plantilla'].filter((p) => !cambiados.some((f) => f.p === p));
-    renderFin(); syncFields(); schedule();
-    out.innerHTML = `<p style="color:var(--go);margin:0">Cuentas de ${an.rows.map((x) => x.anio).join(', ')} cargadas. El punto de partida es ${an.last.anio}.</p>
-      <p class="muted" style="margin:4px 0">He rellenado: ${cambiados.map((f) => f.l.toLowerCase()).join(', ') || 'nada nuevo'}.</p>
-      ${noVienen.length ? `<div class="row"><span>Falta lo que no viene en las cuentas: ${noVienen.map((p) => A.fieldLabel(p).toLowerCase()).join(', ')}.</span><button class="btn" id="empFalta">Preguntármelo</button></div>` : ''}`;
-    const b = $('#empFalta'); if (b) b.onclick = () => openQuiz('empresa', { solo: ['nombre', 'plantilla', 'cuota', 'poliza', 'polizaDisp'] });
+    if (!an) { out.innerHTML = '<span style="color:var(--stop)">No se han encontrado cifras de cuentas en esos archivos. Revise que tengan los conceptos en una columna y los años en otra.</span>'; return; }
+    renderFin();
+    out.innerHTML = '<span class="muted">Comparando las cuentas con los datos que ya tiene el simulador…</span>';
+    aplicarCuentas(an, (res) => {
+      state.ejemplo = false;
+      if (state.empresaNombre === NOMBRE_EJEMPLO) state.empresaNombre = '';
+      if (state.proyecto === 'Nueva línea de producción') state.proyecto = '';
+      const campos = Object.values(FIELDS).flat().filter((f) => f.p.startsWith('empresa.'));
+      const cambiados = campos.filter((f) => getPath(f.p) !== antes[f.p.split('.')[1]]);
+      // Solo se pregunta lo que sigue vacío: ni lo ya contestado ni lo que acaban de traer las cuentas
+      const d = state.dados || {}, e = state.empresa;
+      const faltan = [['nombre', !state.empresaNombre, 'nombre de la empresa'], ['plantilla', !d['empresa.plantilla'], 'plantilla actual'], ['cuota', e.deudaViva > 0 && !d['empresa.cuotaDeuda'], 'cuota mensual de los préstamos'], ['poliza', !d['empresa.polizaLimite'], 'póliza de crédito'], ['polizaDisp', e.polizaLimite > 0 && !d['empresa.polizaDispuesta'], 'parte dispuesta de la póliza']].filter((x) => x[1]);
+      syncFields(); schedule();
+      out.innerHTML = `<p style="color:var(--go);margin:0">Cuentas de ${an.rows.map((x) => x.anio).join(', ')} cargadas. El punto de partida es ${an.last.anio}.</p>
+        <p class="muted" style="margin:4px 0">Datos actualizados: ${cambiados.map((f) => f.l.toLowerCase()).join(', ') || 'ninguno'}.${res.mantenidos.length ? ` Se mantienen sus datos en: ${res.mantenidos.map((f) => f.l.toLowerCase()).join(', ')}.` : ''}</p>
+        ${faltan.length ? `<div class="row"><span>Falta lo que no viene en las cuentas: ${faltan.map((x) => x[2]).join(', ')}.</span><button class="btn" id="empFalta">Responder solo eso</button></div>` : ''}`;
+      const b = $('#empFalta'); if (b) b.onclick = () => openQuiz('empresa', { solo: faltan.map((x) => x[0]) });
+    });
+  }
+  /* Aplicar las cuentas al punto de partida sin pisar lo ya contestado. Lo vacío (o la empresa de ejemplo) se
+     rellena sin preguntar; si una cifra de las cuentas cambia un dato con valor, se enseñan las diferencias antes
+     de aplicarlas: aceptar todas o elegir una a una. hecho({ aplicados, mantenidos }) con los campos de cada grupo. */
+  function aplicarCuentas(an, hecho) {
+    const tmp = A.clone(state); A.fin.applyToState(tmp, an);
+    const d = state.dados, ej = esEjemplo() || (!!state.sinDatos && !(state.empresa.ventas > 0));
+    const vacio = (v) => v == null || v === '' || !isFinite(v) || v === 0;
+    const cambios = Object.values(FIELDS).flat().filter((f) => f.p.startsWith('empresa.')).map((f) => { const k = f.p.split('.')[1]; return { f, k, antes: state.empresa[k], ahora: tmp.empresa[k], dado: d ? d[f.p] : null }; })
+      .filter((c) => c.ahora !== c.antes && isFinite(c.ahora));
+    // Sin registro de qué contestó la persona (simulaciones anteriores), todo dato con valor se consulta
+    const consultar = cambios.filter((c) => !ej && !vacio(c.antes) && (c.dado || !d));
+    const directos = cambios.filter((c) => consultar.indexOf(c) < 0);
+    const poner = (lista) => lista.forEach((c) => { state.empresa[c.k] = c.ahora; marcarDado(c.f.p, 'cuentas'); });
+    const acabar = (elegidos) => {
+      poner(directos.concat(elegidos));
+      hecho({ aplicados: directos.concat(elegidos).map((c) => c.f), mantenidos: consultar.filter((c) => elegidos.indexOf(c) < 0).map((c) => c.f) });
+    };
+    if (!consultar.length) { acabar([]); return; }
+    const val = (c, v) => `${fmtField(c.f, v)} ${c.f.u}`;
+    const origen = { pregunta: 'su respuesta', casilla: 'escrito por usted', cuentas: 'de otras cuentas' };
+    const el = openModal(`<div class="eyebrow">Cuentas de ${an.last.anio}</div><h2 style="font-size:1.6rem">Antes de aplicar las cuentas</h2>
+      <p>Estas cifras de las cuentas no coinciden con los datos que ya tiene el simulador. Marque las que quiere cambiar; las demás se quedan como están.</p>
+      <div class="table-wrap"><table class="small"><thead><tr><th></th><th style="text-align:left">Dato</th><th>Ahora</th><th>En las cuentas</th></tr></thead><tbody>
+        ${consultar.map((c, i) => `<tr><td><input type="checkbox" data-cc="${i}" aria-label="Cambiar ${esc(c.f.l.toLowerCase())}" ${c.dado === 'pregunta' || c.dado === 'casilla' ? '' : 'checked'}></td><td style="text-align:left">${esc(c.f.l)}${c.k === 'crecimiento' ? '<br><small class="muted">en las cuentas, el crecimiento medio de los años cargados</small>' : ''}</td><td>${val(c, c.antes)}${c.dado && origen[c.dado] ? `<br><small class="muted">${origen[c.dado]}</small>` : ''}</td><td><b>${val(c, c.ahora)}</b></td></tr>`).join('')}
+      </tbody></table></div>
+      ${directos.length ? `<p class="small muted">Además se actualizan, porque no eran datos dados por usted (estaban vacíos o con el valor típico del sector): ${directos.map((c) => c.f.l.toLowerCase()).join(', ')}.</p>` : ''}
+      <div class="row mt"><button class="btn solid" id="ccTodo">Aplicar todas</button><button class="btn" id="ccSel">Aplicar solo las marcadas</button><button class="btn ghost" id="ccNo">Mantener mis datos</button></div>`);
+    let hecha = false;
+    const fin = (elegidos) => { if (hecha) return; hecha = true; alCerrar = null; closeModal(); acabar(elegidos); };
+    alCerrar = () => fin([]);
+    $('#ccTodo', el).onclick = () => fin(consultar.slice());
+    $('#ccSel', el).onclick = () => fin(consultar.filter((c, i) => { const x = $(`[data-cc="${i}"]`, el); return x && x.checked; }));
+    $('#ccNo', el).onclick = () => fin([]);
   }
 
-  /* Preguntas guiadas: cada respuesta marca los datos y la foto se actualiza al momento */
+  /* Preguntas guiadas: cada respuesta marca los datos y la foto del modal se actualiza al momento con un solo
+     cálculo del escenario activo. La proyección completa (los cuatro escenarios, gráficos, semáforos, riesgos y
+     plan) se recalcula una vez, al terminar o al cerrar las preguntas: así responder no congela la página. */
+  // Qué dato del simulador rellena cada pregunta de la empresa (para no pisar respuestas al importar cuentas)
+  const PREG_DATO = { ventas: 'empresa.ventas', compras: 'empresa.margen', plantilla: 'empresa.plantilla', personal: 'empresa.personal', fijos: 'empresa.fijos', caja: 'empresa.caja', deuda: 'empresa.deudaViva', cuota: 'empresa.cuotaDeuda', poliza: 'empresa.polizaLimite', polizaDisp: 'empresa.polizaDispuesta', dso: 'empresa.dso', dio: 'empresa.dio', dpo: 'empresa.dpo', fp: 'empresa.fondosPropios', crec: 'empresa.crecimiento' };
+  // Datos que ha dado la persona (por pregunta o en su casilla): state.dados = { 'empresa.dpo': 'pregunta' | 'casilla' }
+  const marcarDado = (p, como) => { if (!p) return; state.dados = Object.assign({}, state.dados, { [p]: como }); };
+  const quitarDado = (p) => { if (p && state.dados && state.dados[p]) { state.dados = Object.assign({}, state.dados); delete state.dados[p]; } };
   function openQuiz(key, opts) {
     opts = opts || {};
     const Q = A.PREGUNTAS_SIM[key];
-    let i = 0; const est = new Set(), resp = new Set();
+    let i = 0, rapido = null; const est = new Set(), resp = new Set();
+    const activo = () => rapido || (rapido = A.analyze(state, A.scenarioMods(state, state.escenario)));
+    let pendiente = false;
+    const recalcular = () => { if (!pendiente) return; pendiente = false; syncFields(); schedule(); };
+    alCerrar = recalcular;
     const lista = () => Q.lista(state).filter((q) => (!opts.solo || opts.solo.indexOf(q.id) >= 0) && (!q.cuando || q.cuando(state)));
     const fmtV = (q, v) => (v == null || v === '' ? '' : q.tipo === 'num' ? nfField.format(Math.round(v * 100) / 100) : v);
     const foto = () => {
-      const r = ctx.active, e = state.empresa;
+      const e = state.empresa, r = key === 'empresa' ? null : activo();
       if (key === 'empresa') {
         const eb = e.ventas * e.margen / 100 - e.personal - e.fijos;
-        return `<div class="qz-foto"><div><span>Ventas</span><b>${F.eur(e.ventas)}</b></div><div><span>EBITDA hoy</span><b style="color:${eb < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(eb)}</b><small>${F.pct(e.ventas ? eb / e.ventas * 100 : 0)} de las ventas</small></div><div><span>Caja</span><b>${F.eur(e.caja)}</b><small>${fmtMeses(e.caja / Math.max(1, (e.personal + e.fijos) / 12))} de gastos</small></div><div><span>Deuda neta</span><b>${F.eur(e.deudaViva - e.caja)}</b><small>${eb > 0 ? F.x(Math.max(0, (e.deudaViva - e.caja) / eb)) + ' el EBITDA' : ''}</small></div></div>`;
+        return `<div class="qz-foto"><div><span>Ventas</span><b>${F.eur(e.ventas)}</b></div><div><span>Beneficio (EBITDA) hoy</span><b style="color:${eb < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(eb)}</b><small>${F.pct(e.ventas ? eb / e.ventas * 100 : 0)} de las ventas</small></div><div><span>Caja</span><b>${F.eur(e.caja)}</b><small>${fmtMeses(e.caja / Math.max(1, (e.personal + e.fijos) / 12))} de gastos</small></div><div><span>Deuda neta</span><b>${F.eur(e.deudaViva - e.caja)}</b><small>${eb > 0 ? F.x(Math.max(0, (e.deudaViva - e.caja) / eb)) + ' el beneficio' : ''}</small></div></div>`;
       }
       if (key === 'humano') {
         const h = r.humano, st = h.score >= 70 ? 'ok' : h.score >= 50 ? 'warn' : 'stop';
         const peor = h.dims.slice().sort((a, b) => a.score - b.score)[0];
-        return `<div class="qz-foto"><div><span>Tu equipo hoy</span><b style="color:${A.stateColor(st)}">${Math.round(h.score)}/100</b><small>${st === 'ok' ? 'preparado para crecer' : st === 'warn' ? 'preparado a medias' : 'todavía no está listo'}</small></div><div><span>Punto más débil</span><b style="font-size:1rem">${esc(peor.nombre)}</b><small>${Math.round(peor.score)}/100</small></div><div><span>Mandos necesarios</span><b>${h.mandosNecesarios}</b><small>tienes ${state.humano.mandos}</small></div></div>`;
+        return `<div class="qz-foto"><div><span>Su equipo hoy</span><b style="color:${A.stateColor(st)}">${Math.round(h.score)}/100</b><small>${st === 'ok' ? 'preparado para crecer' : st === 'warn' ? 'preparado a medias' : 'todavía no está listo'}</small></div><div><span>Punto más débil</span><b style="font-size:1rem">${esc(peor.nombre)}</b><small>${Math.round(peor.score)}/100</small></div><div><span>Mandos necesarios</span><b>${h.mandosNecesarios}</b><small>tiene ${state.humano.mandos}</small></div></div>`;
       }
       const tot = A.lineasActivas(state).length;
       return `<div class="qz-foto"><div><span>Inversión</span><b>${F.eur(state.inversion.importe)}</b><small>${tot ? tot + ' línea' + (tot > 1 ? 's' : '') : 'un solo bloque'}</small></div><div><span>Liquidez mínima</span><b style="color:${r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(r.cajaRef)}</b><small>mes ${r.mesCajaRef}</small></div><div><span>Recuperación</span><b>${F.months(r.payback)}</b></div><div><span>Veredicto</span><b style="font-size:1rem;color:${A.stateColor(vMap[r.verdict.key])}">${r.verdict.titulo}</b></div></div>`;
     };
     const progreso = (n, N) => {
       if (key !== 'humano') return '';
-      const h = ctx.active.humano;
-      const msg = n === 0 ? 'Empecemos: cada respuesta coloca una pieza de la foto de tu equipo.' : n < N / 2 ? `Vas por buen camino: ${n} de ${N}. La foto empieza a tomar forma.` : n < N ? `Te vas acercando a tu foto general: ${n} de ${N}.` : 'Foto completa.';
-      return `<p class="qz-msg">${msg} Hoy tu equipo puntúa <b>${Math.round(h.score)}/100</b>.</p>`;
+      const h = activo().humano;
+      const msg = n === 0 ? 'Empecemos: cada respuesta coloca una pieza de la foto de su equipo.' : n < N / 2 ? `Va por buen camino: ${n} de ${N}. La foto empieza a tomar forma.` : n < N ? `Se va acercando a la foto general: ${n} de ${N}.` : 'Foto completa.';
+      return `<p class="qz-msg">${msg} Hoy su equipo puntúa <b>${Math.round(h.score)}/100</b>.</p>`;
     };
     const fin = () => {
       const L = Q.lista(state).filter((q) => (!opts.solo || opts.solo.indexOf(q.id) >= 0));
@@ -1213,9 +1283,12 @@
       $('#qzSem', el).onclick = () => { closeModal(); document.getElementById('riesgos').scrollIntoView({ behavior: 'smooth' }); };
       $('#qzClose', el).onclick = closeModal;
     };
-    const aplicar = () => { state.ejemplo = false; normalizeInv(); syncFields(); computeQuick(); store.set(STORE, state); };
+    const aplicar = () => { state.ejemplo = false; normalizeInv(); rapido = null; pendiente = true; store.set(STORE, state); };
+    const responde = (q) => { resp.add(q.id); est.delete(q.id); if (key === 'empresa') marcarDado(PREG_DATO[q.id], 'pregunta'); };
+    const terminar = () => { recalcular(); fin(); alCerrar = null; };
     const draw = () => {
-      const L = lista(); if (i >= L.length) { schedule(); fin(); return; }
+      alCerrar = recalcular;
+      const L = lista(); if (i >= L.length) { terminar(); return; }
       const q = L[i], v = q.get(state), ops = typeof q.opciones === 'function' ? q.opciones() : (q.opciones || []);
       const multiSel = q.tipo === 'multi' ? new Set(v || []) : null;
       let entrada = '';
@@ -1239,18 +1312,18 @@
           if (q.tipo === 'texto') q.set(state, raw);
           else { const n = parseInput(raw); if (!isFinite(n)) { inp.classList.add('err'); inp.focus(); return; } q.set(state, n); }
         }
-        resp.add(q.id); est.delete(q.id); aplicar(); i++; draw();
+        responde(q); aplicar(); i++; draw();
       };
       $$('.qz-ops .chip', el).forEach((b) => b.onclick = () => {
         const val = JSON.parse(b.dataset.v);
         if (q.tipo === 'multi') { if (multiSel.has(val)) multiSel.delete(val); else multiSel.add(val); b.setAttribute('aria-pressed', multiSel.has(val)); return; }
         if (inp) { inp.value = fmtV(q, val); next(); return; }
-        q.set(state, val); resp.add(q.id); est.delete(q.id); aplicar(); i++; draw();
+        q.set(state, val); responde(q); aplicar(); i++; draw();
       });
       $('#qzNext', el).onclick = () => { if (!inp && q.tipo !== 'multi') { i++; draw(); } else next(); };
       $('#qzBack', el).onclick = () => { if (i) { i--; draw(); } };
-      $('#qzNs', el).onclick = () => { if (q.estimar) { q.set(state, q.estimar(state)); est.add(q.id); resp.delete(q.id); aplicar(); } i++; draw(); };
-      $('#qzEnd', el).onclick = () => { schedule(); fin(); };
+      $('#qzNs', el).onclick = () => { if (q.estimar) { q.set(state, q.estimar(state)); est.add(q.id); resp.delete(q.id); if (key === 'empresa') quitarDado(PREG_DATO[q.id]); aplicar(); } i++; draw(); };
+      $('#qzEnd', el).onclick = terminar;
     };
     draw();
   }
@@ -1277,7 +1350,7 @@
     const tip = (k) => Object.keys(A.LINEA_TIPOS).map((t) => `<option value="${t}" ${t === k ? 'selected' : ''}>${A.LINEA_TIPOS[t].n}</option>`).join('');
     const cuotaDe = (l) => { const t = T.find((x) => x.nombre === l.nombre); return t ? t.cuota : null; };
     host.innerHTML = `<div class="row"><h4>Mapa de la inversión</h4><span class="spacer"></span><button class="btn" id="lnAdd">Añadir línea</button><button class="btn solid" id="qInv">Responder preguntas</button></div>
-      <p class="small muted" style="margin:0">${L.length ? 'Cada activo con su importe, el mes en que se paga, los años que dura y su financiación. Lo que no tenga financiación propia usa la general (casillas de abajo).' : 'Ahora la inversión es un único bloque. Si lleva varias cosas (una máquina, un vehículo, una nave), añade una línea por cada una: cada activo tiene su precio, su fecha, su vida útil y su forma de pagarlo.'}</p>
+      <p class="small muted" style="margin:0">${L.length ? 'Cada activo con su importe, el mes en que se paga, los años que dura y su financiación. Lo que no tenga financiación propia usa la general (casillas de abajo).' : 'Ahora la inversión es un único bloque. Si lleva varias cosas (una máquina, un vehículo, una nave), añada una línea por cada una: cada activo tiene su precio, su fecha, su vida útil y su forma de pagarlo.'}</p>
       ${L.length ? `<div class="table-wrap"><table class="ln-tab"><thead><tr><th></th><th style="text-align:left">Línea</th><th style="text-align:left">Tipo</th><th>Importe</th><th>Mes</th><th>Vida útil</th><th style="text-align:left">Financiación</th><th>Cuota/mes</th><th></th></tr></thead><tbody>
         ${L.map((l, i) => `<tr data-i="${i}" class="${l.activa === false ? 'off' : ''}"><td><button class="switch" role="switch" aria-checked="${l.activa !== false}" aria-label="Incluir esta línea" data-k="activa"></button></td>
           <td style="text-align:left"><input class="input" data-k="nombre" value="${esc(l.nombre)}" style="min-width:140px"></td>
@@ -1318,7 +1391,7 @@
   function editFin(l) {
     const inv = state.inversion, f = l.fin || { pctFin: inv.pctFin, plazo: inv.plazo, tipo: inv.tipo, carencia: inv.carencia };
     const el = openModal(`<div class="eyebrow">Financiación de una línea</div><h2 style="font-size:1.6rem">${esc(l.nombre)}</h2>
-      <p class="small muted">Por ejemplo, una nave suele ir con un préstamo hipotecario a 15 o 20 años y un vehículo con leasing a 5. Si la dejas en «la general», usa las casillas de «Importe y financiación».</p>
+      <p class="small muted">Por ejemplo, una nave suele ir con un préstamo hipotecario a 15 o 20 años y un vehículo con leasing a 5. Si la deja en «la general», usa las casillas de «Importe y financiación».</p>
       <div class="lever-grid">${[['pctFin', 'Parte financiada (%)'], ['plazo', 'Plazo (años)'], ['tipo', 'Tipo de interés (%)'], ['carencia', 'Carencia (meses)']].map(([k, n]) => `<label class="field-sel"><span class="small muted">${n}</span><input class="input" data-f="${k}" value="${String(f[k]).replace('.', ',')}"></label>`).join('')}</div>
       <div class="row mt"><button class="btn solid" id="lfOk">Usar esta financiación</button><button class="btn" id="lfGen">Volver a la general</button><button class="btn ghost" id="lfNo">Cancelar</button></div>`);
     $('#lfOk', el).onclick = () => { const o = {}; $$('[data-f]', el).forEach((x) => { const n = parseInput(x.value); o[x.dataset.f] = isFinite(n) ? n : f[x.dataset.f]; }); l.fin = o; closeModal(); schedule(); };
@@ -1338,11 +1411,11 @@
     const best = R.length > 1 ? R.slice().sort((a, b) => rank(a) - rank(b) || a.r.payback - b.r.payback)[0] : null;
     const lin = (inv) => ((inv.lineas || []).filter((l) => l.activa !== false).map((l) => l.nombre).join(' + ')) || 'un solo bloque';
     host.innerHTML = `<div class="row"><h4>Opciones de inversión</h4><span class="spacer"></span><input class="input" id="opNombre" placeholder="Nombre de esta opción" style="max-width:240px"><button class="btn" id="opSave">Guardar la actual como opción</button></div>
-      <p class="small muted" style="margin:0">Guarda varias formas de hacer el proyecto (solo la máquina; máquina y nave; nave en alquiler; por fases…) y compáralas con la misma empresa y el mismo escenario (${esc(A.SCENARIOS.find((x) => x.key === state.escenario).nombre.toLowerCase())}). La columna del pesimista dice cuál aguanta mejor si las cosas se tuercen.</p>
-      ${O.length ? `<div class="table-wrap"><table><thead><tr><th style="text-align:left">Opción</th><th>Inversión</th><th>Préstamos</th><th>Cuota/mes</th><th>Liquidez mínima</th><th>En el pesimista</th><th>Recuperación</th><th>TIR</th><th>Veredicto</th><th></th></tr></thead><tbody>
+      <p class="small muted" style="margin:0">Guarde varias formas de hacer el proyecto (solo la máquina; máquina y nave; nave en alquiler; por fases…) y compáralas con la misma empresa y el mismo escenario (${esc(A.SCENARIOS.find((x) => x.key === state.escenario).nombre.toLowerCase())}). La columna del pesimista dice cuál aguanta mejor si las cosas se tuercen.</p>
+      ${O.length ? `<div class="table-wrap"><table><thead><tr><th style="text-align:left">Opción</th><th>Inversión</th><th>Préstamos</th><th>Cuota/mes</th><th>Liquidez mínima</th><th>En el pesimista</th><th>Recuperación</th><th>Rentabilidad anual (TIR)</th><th>Veredicto</th><th></th></tr></thead><tbody>
         ${R.map((x) => `<tr class="${x === best ? 'active' : ''}"><td style="text-align:left"><b>${esc(x.nombre)}</b>${x === best ? ' <span class="state st-ok">mejor equilibrio</span>' : ''}<br><span class="small muted">${esc(lin(x.inv))}</span></td><td>${F.eur(x.r.dim.inversion)}</td><td>${F.eur(x.r.loan)}</td><td>${F.eur(x.r.cuotaNueva)}</td><td style="color:${x.r.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(x.r.cajaRef)}</td><td style="color:${x.rp.cajaRef < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(x.rp.cajaRef)}</td><td>${F.months(x.r.payback)}</td><td>${x.r.tir == null ? '—' : F.pct(x.r.tir * 100)}</td><td><span class="state ${stCls(vMap[x.r.verdict.key])}">${x.r.verdict.titulo}</span></td><td>${x.actual ? '<span class="small muted">actual</span>' : `<button class="btn ghost" data-use="${x.i}">Usar</button><button class="icon-btn" data-delop="${x.i}" aria-label="Borrar opción">×</button>`}</td></tr>`).join('')}
       </tbody></table></div>
-      <p class="small">${best ? `<b>Lectura:</b> «${esc(best.nombre)}» es la que mejor equilibra veredicto, aguante en el pesimista y recuperación.${best.r.verdict.key === 'stop' ? ' Aun así está en rojo: ninguna opción se sostiene tal como está; mira el plan de corrección o fasea.' : best.rp.cajaRef < 0 ? ' Ojo: en el pesimista se queda sin liquidez; dimensiona la financiación para ese caso.' : ''}` : ''}</p>` : '<p class="small muted">Todavía no hay opciones guardadas.</p>'}`;
+      <p class="small">${best ? `<b>Lectura:</b> «${esc(best.nombre)}» es la que mejor equilibra veredicto, aguante en el pesimista y recuperación.${best.r.verdict.key === 'stop' ? ' Aun así está en rojo: ninguna opción se sostiene tal como está; revise el plan de corrección o hágalo por fases.' : best.rp.cajaRef < 0 ? ' Ojo: en el pesimista se queda sin liquidez; dimensiona la financiación para ese caso.' : ''}` : ''}</p>` : '<p class="small muted">Todavía no hay opciones guardadas.</p>'}`;
     $('#opSave', host).onclick = () => { state.opciones = O.concat([{ nombre: $('#opNombre', host).value.trim() || `Opción ${O.length + 1}`, inversion: A.clone(state.inversion) }]); schedule(); toast('Opción guardada'); };
     $$('[data-use]', host).forEach((b) => b.onclick = () => { state.inversion = A.clone(O[+b.dataset.use].inversion); afterLoad(); toast('Opción cargada en el simulador'); });
     $$('[data-delop]', host).forEach((b) => b.onclick = () => { O.splice(+b.dataset.delop, 1); state.opciones = O; schedule(); });
@@ -1408,7 +1481,7 @@
         };
         svg += dot(c.eq, '--gold', 'equilibrio ' + F.eur(c.eq), -10, true) + dot(c.eqC, '--warn', 'con cuotas ' + F.eur(c.eqC), 18) + (h.mg > 0 ? dot(h.eq, '--faint', 'hoy ' + F.eur(h.eq), 18) : '');
         const vline = (v, lbl, col, dy) => { const e = x(v) > W - m.r - C.textWidth(lbl) - 8; return `<line x1="${x(v)}" x2="${x(v)}" y1="${m.t}" y2="${Hh - m.b}" style="stroke:var(${col})" stroke-dasharray="2 4"/><text x="${x(v) + (e ? -4 : 4)}" y="${m.t + 12 + (dy || 0)}" text-anchor="${e ? 'end' : 'start'}" style="fill:var(${col})">${lbl}</text>`; };
-        svg += vline(h.ventas, 'vendes hoy', '--faint') + vline(c.ventas, 'venderás en crucero', '--gold', Math.abs(x(c.ventas) - x(h.ventas)) < 120 ? 14 : 0);
+        svg += vline(h.ventas, 'vende hoy', '--faint') + vline(c.ventas, 'venderá en crucero', '--gold', Math.abs(x(c.ventas) - x(h.ventas)) < 120 ? 14 : 0);
         svg += '</svg>';
         svg += `<div class="chart-legend small"><span><i style="background:var(--s3)"></i>gasto fijo (personal y estructura)</span><span><i style="background:var(--s2)"></i>costes totales: fijos + compras</span><span><i style="background:var(--warn)"></i>costes + cuotas de los préstamos</span><span><i style="background:var(--s1)"></i>ventas</span><span><i style="background:var(--faint)"></i>costes de hoy, sin el proyecto</span></div>`;
       }
@@ -1440,15 +1513,15 @@
       <div class="pe-grid">
         <div class="chart">${svg}</div>
         <div class="stack small">
-          <p style="margin:0"><b>Cómo se lee.</b> La línea plana es el gasto fijo: se paga vendas o no. Los costes totales nacen de ella y suben con cada venta (las compras). Donde la línea de ventas corta a la de costes está el <b>punto de equilibrio</b>; a la derecha, cada euro vendido deja beneficio.</p>
-          <div class="pe-kpis"><div><span>Hoy necesitas vender</span><b>${F.eur(h.eq)}<small>/mes</small></b><em>vendes ${F.eur(h.ventas)}: ${segTxt(h.seg)}</em></div>
-            <div><span>Con el proyecto</span><b>${F.eur(c.eq)}<small>/mes</small></b><em>en crucero venderás ${F.eur(c.ventas)}: ${segTxt(c.seg)}</em></div>
+          <p style="margin:0"><b>Cómo se lee.</b> La línea plana es el gasto fijo: se paga se venda o no. Los costes totales nacen de ella y suben con cada venta (las compras). Donde la línea de ventas corta a la de costes está el <b>punto de equilibrio</b>; a la derecha, cada euro vendido deja beneficio.</p>
+          <div class="pe-kpis"><div><span>Hoy necesita vender</span><b>${F.eur(h.eq)}<small>/mes</small></b><em>vende ${F.eur(h.ventas)}: ${segTxt(h.seg)}</em></div>
+            <div><span>Con el proyecto</span><b>${F.eur(c.eq)}<small>/mes</small></b><em>en crucero venderá ${F.eur(c.ventas)}: ${segTxt(c.seg)}</em></div>
             <div><span>Y pagando las cuotas</span><b style="color:${c.segC < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(c.eqC)}<small>/mes</small></b><em>${segTxt(c.segC)}</em></div></div>
           <p style="margin:0">${d.mesCuotas ? `Las ventas cubren costes y cuotas de forma estable desde el <b>mes ${d.mesCuotas}</b>${d.mesCuotas > d.mesCrucero ? ', después de terminar la rampa' : ''}.` : 'Con estos datos, las ventas no llegan a cubrir costes y cuotas de forma estable en cinco años.'} ${c.fijos > h.fijos ? `Los fijos suben de ${F.eur(h.fijos)} a ${F.eur(c.fijos)} al mes: cada euro de fijo nuevo exige vender ${F.eur(1 / Math.max(0.01, c.mg))} más.` : ''}</p>
           <p class="muted" style="margin:0">El <b>margen de seguridad</b> es cuánto pueden caer las ventas antes de perder dinero. Por debajo del 10 % la empresa vive al límite; por encima del 25 % aguanta un mal año.</p>
         </div>
       </div>
-      <div class="pe-mueve"><span class="small muted">Mueve lo nuevo y mira cómo se desplaza el equilibrio:</span>
+      <div class="pe-mueve"><span class="small muted">Mueva lo nuevo y vea cómo se desplaza el equilibrio:</span>
         ${[['inversion.incVentas', 'Venta nueva', 0, 150, 1, (v) => F.eur(state.empresa.ventas * v / 100) + '/año'], ['inversion.margenNuevo', 'Margen de lo nuevo', 5, 90, 0.5, (v) => F.pct(v)], ['inversion.fijosNuevos', 'Fijos nuevos', 0, peTope('fijos', inc.fijosNuevos, 300000, 50000), 1000, (v) => F.eur(v) + '/año'], ['inversion.contrataciones', 'Contrataciones', 0, peTope('contr', inc.contrataciones, 20, 10), 1, (v) => v + ' pers.']].map(([p, l, a, z, st, f]) => `<label><span>${l} <b data-pev="${p}">${f(getPath(p))}</b></span><input type="range" data-pe-p="${p}" min="${a}" max="${z}" step="${st}" value="${getPath(p)}"></label>`).join('')}
       </div>`;
     $$('[data-pe]', host).forEach((b) => b.onclick = () => { peModo = b.dataset.pe; renderEquilibrio(); });
@@ -1459,11 +1532,11 @@
 
   /* Paisaje 3D guiado por preguntas: cada pregunta fija los dos ejes y la altura adecuados */
   const HZ = [
-    { q: '¿Cuánto financiar y a qué plazo?', ax: 'pctFin', ay: 'plazo', m: 'cajaMin', lee: 'Cada punto es una combinación de parte financiada y años de préstamo; la altura es la liquidez mínima. Busca el verde más cercano a la esfera: es la financiación mínima que mantiene la caja por encima de tu meta.' },
-    { q: '¿Y si vendo menos o tardo más en arrancar?', ax: 'incVentas', ay: 'rampa', m: 'cajaMin', lee: 'Hacia la izquierda vendes menos; hacia el fondo tardas más en llegar. Si tu esfera está cerca del borde rojo, un pequeño retraso o un poco menos de venta rompe la tesorería.' },
-    { q: '¿Y si los clientes pagan más tarde?', ax: 'dso', ay: 'incVentas', m: 'cajaMin', lee: 'Cobrar más tarde inmoviliza caja justo cuando más vendes. Mira cuántos días de cobro aguantas antes de entrar en rojo.' },
-    { q: '¿Cuánto puedo invertir?', ax: 'importe', ay: 'pctFin', m: 'cajaMin', lee: 'De izquierda a derecha, inversiones más grandes; al fondo, más financiada. La frontera entre verde y rojo es lo máximo que puedes invertir con cada nivel de financiación.' },
-    { q: '¿Cuándo recupero lo invertido?', ax: 'incVentas', ay: 'margenNuevo', m: 'payback', lee: 'La altura son los meses que tardas en recuperar la inversión (más bajo es mejor). La financiación no acorta este plazo: solo vender más o con más margen.' },
+    { q: '¿Cuánto financiar y a qué plazo?', ax: 'pctFin', ay: 'plazo', m: 'cajaMin', lee: 'Cada punto es una combinación de parte financiada y años de préstamo; la altura es la liquidez mínima. Busque el verde más cercano a la esfera: es la financiación mínima que mantiene la caja por encima de su meta.' },
+    { q: '¿Y si vendo menos o tardo más en arrancar?', ax: 'incVentas', ay: 'rampa', m: 'cajaMin', lee: 'Hacia la izquierda vende menos; hacia el fondo tarda más en llegar. Si su esfera está cerca del borde rojo, un pequeño retraso o un poco menos de venta rompe la tesorería.' },
+    { q: '¿Y si los clientes pagan más tarde?', ax: 'dso', ay: 'incVentas', m: 'cajaMin', lee: 'Cobrar más tarde inmoviliza caja justo cuando más vende. Vea cuántos días de cobro aguanta antes de entrar en rojo.' },
+    { q: '¿Cuánto puedo invertir?', ax: 'importe', ay: 'pctFin', m: 'cajaMin', lee: 'De izquierda a derecha, inversiones más grandes; al fondo, más financiada. La frontera entre verde y rojo es lo máximo que puede invertir con cada nivel de financiación.' },
+    { q: '¿Cuándo recupero lo invertido?', ax: 'incVentas', ay: 'margenNuevo', m: 'payback', lee: 'La altura son los meses que tarda en recuperar la inversión (más bajo es mejor). La financiación no acorta este plazo: solo vender más o con más margen.' },
     { q: '¿Podré pagar las cuotas?', ax: 'plazo', ay: 'importe', m: 'dscrMin', lee: 'La altura es cuántas veces el negocio cubre las cuotas en el peor año. Por debajo de 1 no llega; la banca suele pedir 1,25 o más.' }
   ];
   function renderHorizPreg() {
@@ -1507,7 +1580,7 @@
     $('#sectorSel').innerHTML = opts; $('#heroSector').innerHTML = opts;
     const S = A.SECTORS[state.sector];
     $('#sectorNote').textContent = S.nota;
-    $('#sectorTipico').innerHTML = `<p class="muted" style="margin:0 0 6px">Lo típico del sector, sobre tus ventas:</p><div class="chips">${[['Margen bruto', S.margen + ' %'], ['Personal', S.personal + ' % de ventas'], ['Otros fijos', S.fijos + ' % de ventas'], ['Cobro', S.dso + ' días'], ['Stock', S.dio + ' días'], ['Pago', S.dpo + ' días'], ['Rampa', S.rampa + ' meses'], ['Peso salarial máx.', S.pesoSalarialMax + ' %']].map(([k, v]) => `<span class="vchip static">${k} <b>${v}</b></span>`).join('')}</div>
+    $('#sectorTipico').innerHTML = `<p class="muted" style="margin:0 0 6px">Lo típico del sector, sobre sus ventas:</p><div class="chips">${[['Margen bruto', S.margen + ' %'], ['Personal', S.personal + ' % de ventas'], ['Otros fijos', S.fijos + ' % de ventas'], ['Cobro', S.dso + ' días'], ['Stock', S.dio + ' días'], ['Pago', S.dpo + ' días'], ['Rampa', S.rampa + ' meses'], ['Peso salarial máx.', S.pesoSalarialMax + ' %']].map(([k, v]) => `<span class="vchip static">${k} <b>${v}</b></span>`).join('')}</div>
       <div class="row mt"><button class="btn ghost" id="sectorCargar">Usar estas cifras típicas</button><span class="small muted">Sustituye margen, personal, fijos y plazos por los del sector.</span></div>`;
     $('#sectorCargar').onclick = () => { A.applySector(state, state.sector); syncFields(); toast('Cifras típicas cargadas: ' + S.nombre); schedule(); };
   }
@@ -1516,7 +1589,7 @@
     if (propios) { state.sector = k; Object.assign(state.meta, { pesoSalarialMax: A.SECTORS[k].pesoSalarialMax, deudaEbitdaMax: A.SECTORS[k].deudaEbitdaMax }); }
     else A.applySector(state, k);
     renderSectors(); syncFields(); schedule();
-    toast(propios ? `Sector: ${A.SECTORS[k].nombre}. Tus cifras no cambian; si quieres las típicas, pulsa «Usar estas cifras típicas»` : 'Perfil cargado: ' + A.SECTORS[k].nombre);
+    toast(propios ? `Sector: ${A.SECTORS[k].nombre}. Sus cifras no cambian; si quiere las típicas, pulse «Usar estas cifras típicas»` : 'Perfil cargado: ' + A.SECTORS[k].nombre);
   }
 
   /* ---------------- Dock y caja de herramientas ---------------- */
@@ -1561,7 +1634,7 @@
   function renderTools() {
     const snaps = store.get(SNAP) || [];
     $('#toolbox').innerHTML = `<button class="icon-btn close" aria-label="Cerrar">×</button>
-      <h3>Caja de herramientas</h3><p class="sub">Atajos para moverte entre escenarios y guardar tus hipótesis.</p>
+      <h3>Caja de herramientas</h3><p class="sub">Atajos para moverse entre escenarios y guardar sus hipótesis.</p>
       <div class="group"><label for="tbSc">Escenario activo</label><select id="tbSc">${A.SCENARIOS.map((s) => `<option value="${s.key}" ${s.key === state.escenario ? 'selected' : ''}>${s.nombre}</option>`).join('')}</select></div>
       <div class="group"><label for="tbSector">Sector</label><select id="tbSector">${Object.keys(A.SECTORS).map((k) => `<option value="${k}" ${k === state.sector ? 'selected' : ''}>${A.SECTORS[k].nombre}</option>`).join('')}</select></div>
       <div class="group"><label for="tbSt">Estructura societaria</label><select id="tbSt">${Object.keys(A.STRUCTURES).map((k) => `<option value="${k}" ${k === state.estructura ? 'selected' : ''}>${A.STRUCTURES[k].nombre}</option>`).join('')}</select></div>
@@ -1569,7 +1642,7 @@
       <div class="group"><label for="tbName">Guardar escenario de trabajo</label><div class="row"><input class="input" id="tbName" placeholder="Nombre" style="flex:1"><button class="btn" id="tbSave">Guardar</button></div>
         ${snaps.length ? snaps.map((s, i) => `<div class="row small"><span style="flex:1">${esc(s.name)} <span class="muted">· ${s.date}</span></span><button class="btn ghost" data-load="${i}">Cargar</button><button class="icon-btn" data-delsnap="${i}" aria-label="Borrar">×</button></div>`).join('') : '<span class="small muted">Se guardan en este navegador.</span>'}</div>
       <div class="group"><label>Datos</label><div class="row"><button class="btn ghost" id="tbCopy">Copiar datos</button><button class="btn ghost" id="tbPaste">Pegar datos</button><button class="btn ghost" id="tbReset">Ejemplo</button></div>
-        <textarea id="tbJson" class="input" rows="3" placeholder="Pega aquí unos datos copiados de Atalaya" hidden></textarea></div>
+        <textarea id="tbJson" class="input" rows="3" placeholder="Pegue aquí unos datos copiados de Atalaya" hidden></textarea></div>
       <div class="group"><button class="btn" id="tbAsk">Abrir el asistente</button><button class="btn solid" id="tbReport">Generar informe</button></div>`;
     const tb = $('#toolbox');
     tb.querySelector('.close').onclick = toggleTools;
@@ -1588,7 +1661,7 @@
     $('#tbPaste').onclick = () => { const ta = $('#tbJson'); ta.hidden = false; ta.focus(); };
     $('#tbJson').onchange = (e) => {
       try { const s = JSON.parse(e.target.value); if (!s.empresa || !s.inversion) throw 0; state = loadState(s); afterLoad(); toast('Datos cargados'); }
-      catch (err) { toast('Esos datos no son de Atalaya: copia de nuevo desde «Copiar datos»'); }
+      catch (err) { toast('Esos datos no son de Atalaya: cópielos de nuevo desde «Copiar datos»'); }
     };
     $('#tbReset').onclick = () => { state = A.defaultState(); afterLoad(); toast('Datos de ejemplo restaurados'); };
     $('#tbAsk').onclick = () => { toggleTools(); A.assistant && A.assistant.open(); };
@@ -1597,7 +1670,7 @@
   function afterLoad() { Object.keys(bounds).forEach((k) => delete bounds[k]); buildFields(); renderSectors(); syncFields(); renderFin(); schedule(); if (!$('#toolbox').hidden) renderTools(); }
 
   function copy(text, okMsg) {
-    const fallback = () => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast(okMsg); } catch (e) { toast('Selecciona y copia el texto manualmente'); } ta.remove(); };
+    const fallback = () => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast(okMsg); } catch (e) { toast('Seleccione y copie el texto manualmente'); } ta.remove(); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => toast(okMsg), fallback);
     else fallback();
   }
@@ -1695,7 +1768,7 @@
     $('#empFile').addEventListener('change', async (e) => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (fs.length) await cargarCuentas(fs); });
     $('#contarPoliza').addEventListener('click', () => { state.meta.contarPoliza = state.meta.contarPoliza === false; syncFields(); schedule(); });
     $('#addHyp').addEventListener('click', (e) => {
-      openCard(null, e.target, { t: 'Nueva hipótesis', d: 'Elige el suceso que quieres simular. Podrás ajustar mes, duración e intensidad.', html: `<div class="actions">${Object.keys(A.SHOCKS).map((k) => `<button class="btn ghost" data-shock="${k}">${A.SHOCKS[k].nombre}</button>`).join('')}</div>` });
+      openCard(null, e.target, { t: 'Nueva hipótesis', d: 'Elija el suceso que quiere simular. Podrá ajustar mes, duración e intensidad.', html: `<div class="actions">${Object.keys(A.SHOCKS).map((k) => `<button class="btn ghost" data-shock="${k}">${A.SHOCKS[k].nombre}</button>`).join('')}</div>` });
       $$('[data-shock]', card).forEach((b) => b.onclick = () => { addHyp(b.dataset.shock); card.hidden = true; });
     });
     $('#openReport').addEventListener('click', openReport);

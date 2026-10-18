@@ -6,7 +6,9 @@
    · A.ia.asegurar(func)   → la vía; si no hay ninguna, abre el aviso «Falta la conexión con la API de Claude» y su guía
    · A.conexiones.abrir('claude' | 'calendario' | 'grabadora')
    · A.calendario.proveedor() · enlace(evento) · asegurar()
-   La clave propia se guarda solo en este navegador. Lo recomendable es configurarla en el servidor de Atalaya. */
+   La clave propia se guarda solo en este navegador. Lo recomendable es configurarla en el servidor de Atalaya.
+   Los pasos técnicos (crear una clave de API, configurar el servidor) solo se enseñan a la administración
+   y al plan Consultora; el resto de cuentas ve el estado y a quién pedir la conexión. */
 (function () {
   const A = (window.Atalaya = window.Atalaya || {});
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -89,16 +91,23 @@
   let back = null;
   const cerrar = () => { if (back) { back.remove(); back = null; } document.removeEventListener('keydown', onKey); };
   const onKey = (e) => { if (e.key === 'Escape') cerrar(); };
+  // ¿Ve los pasos técnicos? Sesión de administración abierta o plan Consultora
+  const tecnico = async () => {
+    const P = A.platform; if (!P) return false;
+    try { await P.ready; } catch (e) { return false; }
+    if (P.user && P.user.plan === 'consultora') return true;
+    try { const s = P.adminAuth && (await P.adminAuth.estado()); return !!(s && s.sesion); } catch (e) { return false; }
+  };
   const estadoClaude = async () => { const v = await via(); return v === 'server' ? { st: 'ok', t: 'Conectado a través del servidor de Atalaya' } : v === 'sample' ? { st: 'ok', t: 'Conectado a través del visor de Claude' } : v === 'clave' ? { st: 'warn', t: 'Conectado con una clave propia guardada en este navegador' } : { st: 'stop', t: 'Sin conexión' }; };
   async function abrir(cual, func) {
     cerrar();
     cual = cual || 'claude';
-    const ec = await estadoClaude(), cal = lee(LS.cal);
+    const ec = await estadoClaude(), cal = lee(LS.cal); ec.tec = await tecnico();
     back = document.createElement('div'); back.className = 'modal-back cx-back';
     back.innerHTML = `<div class="modal cx" role="dialog" aria-modal="true" aria-labelledby="cxT"><button class="icon-btn close" aria-label="Cerrar">×</button>
-      ${func && ec.st === 'stop' ? `<div class="alert warn cx-falta"><b>Falta la conexión con la API de Claude.</b> «${esc(func)}» necesita a Claude para leer y redactar. Conéctalo una vez con la guía de abajo y quedará enlazado. Mientras tanto, todo lo demás funciona sin IA.</div>` : ''}
-      <div class="eyebrow">Conexiones</div><h3 id="cxT" style="margin:4px 0 6px">Enlazar Atalaya con tus herramientas</h3>
-      <p class="small muted" style="margin:0 0 10px">Atalaya funciona sin conexiones. Con ellas, Claude lee transcripciones y redacta propuestas, las sesiones van directas a tu calendario y la grabadora entrega la transcripción.</p>
+      ${func && ec.st === 'stop' ? `<div class="alert warn cx-falta"><b>Falta la conexión con Claude, la IA de Atalaya.</b> «${esc(func)}» necesita a Claude para leer y redactar. ${ec.tec ? 'Conéctelo una vez con la guía de abajo y quedará enlazado.' : 'Puede pedir que se la activen; abajo se explica cómo.'} Mientras tanto, todo lo demás funciona sin IA.</div>` : ''}
+      <div class="eyebrow">Conexiones</div><h3 id="cxT" style="margin:4px 0 6px">Enlazar Atalaya con sus herramientas</h3>
+      <p class="small muted" style="margin:0 0 10px">Atalaya funciona sin conexiones. Con ellas, Claude lee transcripciones y redacta propuestas, las sesiones van directas a su calendario y la grabadora entrega la transcripción.</p>
       <div class="cx-tabs" role="tablist">${[['claude', 'Claude (IA)', ec.st], ['grabadora', 'Grabadora de sesiones', ''], ['calendario', 'Calendario', cal ? 'ok' : 'stop']].map(([k, n, st]) => `<button role="tab" data-cx="${k}" aria-selected="${k === cual}">${st ? `<i class="cx-luz ${st}"></i>` : ''}${n}</button>`).join('')}</div>
       <div class="cx-body"></div></div>`;
     document.body.appendChild(back);
@@ -112,40 +121,43 @@
   function pintar(cual, ec) {
     const body = back.querySelector('.cx-body');
     if (cual === 'claude') {
+      const visor = `<details class="cx-op"${ec.tec ? '' : ' open'}><summary><b>${ec.tec ? '2. ' : ''}Desde el visor de Claude</b></summary><p class="small" style="margin:6px 0 0">Si abre Atalaya dentro de claude.ai, la conexión es la del propio visor: cuando la página pida permiso para usar Claude, acéptelo. No hay que configurar nada más.</p></details>`;
       body.innerHTML = `<p class="cx-est ${ec.st}"><i class="cx-luz ${ec.st}"></i>${esc(ec.t)}</p>
-        <p class="small" style="margin:0">Claude es la IA que usa Atalaya para la lectura en profundidad de las transcripciones, mejorar la redacción de metas y objetivos, extraer datos de documentos y el asistente. Hay tres formas de conectarlo; basta con una.</p>
-        <details class="cx-op" ${ec.st === 'stop' ? 'open' : ''}><summary><b>1. En el servidor de Atalaya</b> <span class="cx-rec">Recomendada para el despacho</span></summary><ol class="small">
-          <li>Entra en <b>console.anthropic.com</b> con la cuenta de la empresa (o créala) y añade un método de pago en <i>Billing</i>.</li>
-          <li>Ve a <i>API Keys</i> → <i>Create Key</i>. Ponle un nombre («Atalaya despacho») y copia la clave: empieza por <code>sk-ant-</code> y solo se muestra una vez.</li>
-          <li>En el servidor donde corre Atalaya, guárdala como variable de entorno <code>ANTHROPIC_API_KEY</code> y reinicia el servicio. Quien lo administre lo hace en un minuto.</li>
-          <li>Recarga esta página: el indicador de arriba pasará a verde. La clave nunca llega a los navegadores de los usuarios.</li></ol></details>
-        <details class="cx-op"><summary><b>2. Desde el visor de Claude</b></summary><p class="small" style="margin:6px 0 0">Si abres Atalaya dentro de claude.ai, la conexión es la del propio visor: cuando la página pida permiso para usar Claude, acéptalo. No hay que configurar nada más.</p></details>
-        <details class="cx-op" ${ec.st === 'stop' ? 'open' : ''}><summary><b>3. Con tu propia clave, solo en este dispositivo</b></summary>
-          <p class="small" style="margin:6px 0">Sirve para probar o para un consultor que trabaja solo. La clave se guarda en este navegador y no se envía a Atalaya; no la uses en un ordenador compartido. Los pasos para obtenerla son el 1 y el 2 de la opción 1.</p>
+        <p class="small" style="margin:0">Claude es la IA que usa Atalaya para la lectura en profundidad de las transcripciones, mejorar la redacción de metas y objetivos, extraer datos de documentos y el asistente. ${ec.tec ? 'Hay tres formas de conectarlo; basta con una.' : ''}</p>
+        ${ec.tec ? `<details class="cx-op" ${ec.st === 'stop' ? 'open' : ''}><summary><b>1. En el servidor de Atalaya</b> <span class="cx-rec">Recomendada para el despacho</span></summary><ol class="small">
+          <li>Entre en <b>console.anthropic.com</b> con la cuenta de la empresa (o créela) y añada un método de pago en <i>Billing</i>.</li>
+          <li>Vaya a <i>API Keys</i> → <i>Create Key</i>. Póngale un nombre («Atalaya despacho») y copie la clave: empieza por <code>sk-ant-</code> y solo se muestra una vez.</li>
+          <li>En el servidor donde funciona Atalaya, guárdela como variable de entorno <code>ANTHROPIC_API_KEY</code> y reinicie el servicio. Quien lo administre lo hace en un minuto.</li>
+          <li>Recargue esta página: el indicador de arriba pasará a verde. La clave nunca llega a los navegadores de los usuarios.</li></ol></details>
+        ${visor}
+        <details class="cx-op" ${ec.st === 'stop' ? 'open' : ''}><summary><b>3. Con su propia clave, solo en este dispositivo</b></summary>
+          <p class="small" style="margin:6px 0">Sirve para probar o para un consultor que trabaja solo. La clave se guarda en este navegador y no se envía a Atalaya; no la use en un ordenador compartido. Los pasos para obtenerla son el 1 y el 2 de la opción 1.</p>
           <div class="row"><input class="input" id="cxKey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${lee(LS.clave) ? '••••••••••••' : ''}" style="flex:1;min-width:0"><button class="btn solid small" id="cxProbar">Probar y guardar</button>${lee(LS.clave) ? '<button class="btn ghost small" id="cxQuitar">Quitar la clave</button>' : ''}</div><small class="muted" id="cxMsg"></small></details>
-        <p class="small muted" style="margin:8px 0 0">Coste: Anthropic cobra por uso. Una lectura en profundidad de una sesión de una hora cuesta del orden de céntimos. Las transcripciones son datos del cliente: informa al empresario de que se procesan con IA.</p>`;
+        <p class="small muted" style="margin:8px 0 0">Coste: Anthropic cobra por uso. Una lectura en profundidad de una sesión de una hora cuesta del orden de céntimos. Las transcripciones son datos del cliente: informe al empresario de que se procesan con IA.</p>`
+        : `${ec.st === 'stop' ? `<div class="alert info mt" style="margin-bottom:8px"><b>No tiene que configurar nada técnico.</b> La conexión con la IA la activa Business Avance para su cuenta. Escríbanos o llámenos${A.platform && A.platform.CONTACTO && A.platform.CONTACTO.telefono ? ' al ' + esc(A.platform.CONTACTO.telefono) : ''} y quedará enlazada; mientras tanto, todo lo demás funciona sin IA.</div>` : ''}
+        ${visor}${ec.st === 'warn' ? '<p class="small" style="margin:8px 0 0"><button class="btn ghost small" id="cxQuitar">Quitar la clave guardada en este navegador</button></p>' : ''}`}`;
       const k = body.querySelector('#cxKey'), msg = body.querySelector('#cxMsg');
-      body.querySelector('#cxProbar').onclick = async () => {
-        const v = k.value.trim(); if (!v || v.startsWith('•')) { msg.textContent = 'Pega la clave completa.'; return; }
+      const pb = body.querySelector('#cxProbar'); if (pb) pb.onclick = async () => {
+        const v = k.value.trim(); if (!v || v.startsWith('•')) { msg.textContent = 'Pegue la clave completa.'; return; }
         if (!/^sk-ant-/.test(v)) { msg.textContent = 'La clave de la API de Claude empieza por «sk-ant-».'; return; }
         const ant = lee(LS.clave); pon(LS.clave, v); msg.textContent = 'Probando la conexión…';
-        try { await directa('Responde solo: ok', { max: 64 }); msg.textContent = 'Conectado. Ya puedes usar las funciones de IA.'; msg.style.color = 'var(--go)'; setTimeout(() => abrir('claude'), 900); }
-        catch (e) { pon(LS.clave, ant); msg.textContent = (e.message || 'No se pudo conectar') + (e instanceof TypeError ? ' El navegador ha bloqueado la llamada directa: usa la opción 1 o 2.' : ''); msg.style.color = 'var(--stop)'; }
+        try { await directa('Responde solo: ok', { max: 64 }); msg.textContent = 'Conectado. Ya puede usar las funciones de IA.'; msg.style.color = 'var(--go)'; setTimeout(() => abrir('claude'), 900); }
+        catch (e) { pon(LS.clave, ant); msg.textContent = (e.message || 'No se pudo conectar') + (e instanceof TypeError ? ' El navegador ha bloqueado la llamada directa: use la opción 1 o 2.' : ''); msg.style.color = 'var(--stop)'; }
       };
       const q = body.querySelector('#cxQuitar'); if (q) q.onclick = () => { pon(LS.clave, ''); abrir('claude'); };
     } else if (cual === 'grabadora') {
-      body.innerHTML = `<p class="small" style="margin:0">Las sesiones se graban con la grabadora o la aplicación de actas que uses (Plaud, Otter, la grabadora del móvil, Teams o Meet con transcripción). Atalaya no se conecta a ellas directamente: les pide el texto.</p>
-        <ol class="small"><li>Al terminar la sesión, en la aplicación de la grabadora, abre la grabación y elige <i>Exportar</i> → <i>Transcripción</i> en texto (TXT), subtítulos (SRT o VTT), Word o PDF.</li>
-          <li>Comprueba que la transcripción separa a quien habla («Hablante 1», «Ana»…). Si no lo hace, Atalaya leerá todo como una sola voz.</li>
-          <li>En <b>Escucha y transcripción</b>, pulsa <i>Subir archivo</i> y elige el archivo, o pega el texto.</li>
-          <li>Marca quién es el empresario: el análisis se hace sobre lo que dice él.</li></ol>
-        <p class="small muted" style="margin:0">Avisa siempre al empresario de que la sesión se graba y para qué; pídele su conformidad antes de empezar.</p>`;
+      body.innerHTML = `<p class="small" style="margin:0">Las sesiones se graban con la grabadora o la aplicación de actas que use (Plaud, Otter, la grabadora del móvil, Teams o Meet con transcripción). Atalaya no se conecta a ellas directamente: les pide el texto.</p>
+        <ol class="small"><li>Al terminar la sesión, en la aplicación de la grabadora, abra la grabación y elija <i>Exportar</i> → <i>Transcripción</i> en texto (TXT), subtítulos (SRT o VTT), Word o PDF.</li>
+          <li>Compruebe que la transcripción separa a quien habla («Hablante 1», «Ana»…). Si no lo hace, Atalaya leerá todo como una sola voz.</li>
+          <li>En <b>Escucha y transcripción</b>, pulse <i>Subir archivo</i> y elija el archivo, o pegue el texto.</li>
+          <li>Marque quién es el empresario: el análisis se hace sobre lo que dice él.</li></ol>
+        <p class="small muted" style="margin:0">Avise siempre al empresario de que la sesión se graba y para qué; pídale su conformidad antes de empezar.</p>`;
     } else {
       const p = lee(LS.cal);
       body.innerHTML = `<p class="cx-est ${p ? 'ok' : 'stop'}"><i class="cx-luz ${p ? 'ok' : 'stop'}"></i>${p ? 'Calendario elegido: ' + esc(CAL[p]) : 'Sin calendario elegido'}</p>
-        <p class="small" style="margin:0">Elige el calendario que usas. Cada sesión tendrá su botón «Añadir a mi calendario», que abre el evento ya relleno (fecha, hora, duración y objetivo) para guardarlo con un clic. No hace falta dar permisos sobre tu agenda.</p>
-        <div class="cx-cal">${Object.keys(CAL).map((k) => `<label class="cx-calo ${p === k ? 'on' : ''}"><input type="radio" name="cxcal" value="${k}" ${p === k ? 'checked' : ''}><span><b>${esc(CAL[k])}</b><small>${k === 'google' ? 'Abre Google Calendar con el evento listo para guardar. Entra con la cuenta donde quieras la cita.' : k === 'outlook' ? 'Abre Outlook en la web (cuenta de trabajo o personal) con el evento relleno.' : 'Descarga un archivo .ics por sesión o del calendario completo; ábrelo y se añade. Si tu navegador bloquea la descarga, puedes copiarlo.'}</small></span></label>`).join('')}</div>
-        <p class="small muted" style="margin:0">Consejo: crea en tu calendario uno llamado «Intervenciones» y guarda ahí las sesiones; así las verás aparte. Si cambias una fecha en Atalaya, vuelve a añadir esa sesión y borra la anterior.</p>`;
+        <p class="small" style="margin:0">Elija el calendario que usa. Cada sesión tendrá su botón «Añadir a mi calendario», que abre el evento ya relleno (fecha, hora, duración y objetivo) para guardarlo con un clic. No hace falta dar permisos sobre su agenda.</p>
+        <div class="cx-cal">${Object.keys(CAL).map((k) => `<label class="cx-calo ${p === k ? 'on' : ''}"><input type="radio" name="cxcal" value="${k}" ${p === k ? 'checked' : ''}><span><b>${esc(CAL[k])}</b><small>${k === 'google' ? 'Abre Google Calendar con el evento listo para guardar. Entre con la cuenta donde quiera la cita.' : k === 'outlook' ? 'Abre Outlook en la web (cuenta de trabajo o personal) con el evento relleno.' : 'Descarga un archivo .ics por sesión o del calendario completo; ábralo y se añade. Si su navegador bloquea la descarga, puede copiarlo.'}</small></span></label>`).join('')}</div>
+        <p class="small muted" style="margin:0">Consejo: cree en su calendario uno llamado «Intervenciones» y guarde ahí las sesiones; así las verá aparte. Si cambia una fecha en Atalaya, vuelva a añadir esa sesión y borre la anterior.</p>`;
       body.querySelectorAll('[name=cxcal]').forEach((r) => (r.onchange = () => { pon(LS.cal, r.value); body.querySelectorAll('.cx-calo').forEach((l) => l.classList.toggle('on', l.contains(r) && r.checked)); const e = body.querySelector('.cx-est'); e.className = 'cx-est ok'; e.innerHTML = '<i class="cx-luz ok"></i>Calendario elegido: ' + esc(CAL[r.value]); const t = back.querySelector('[data-cx=calendario] .cx-luz'); if (t) t.className = 'cx-luz ok'; document.dispatchEvent(new CustomEvent('atalaya:calendario')); }));
     }
   }

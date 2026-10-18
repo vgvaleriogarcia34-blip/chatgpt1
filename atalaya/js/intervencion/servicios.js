@@ -245,31 +245,36 @@
     const In = A.informe, T = PROP[k], pr = prop(k); In.reset();
     const visto = k === 'propS2' ? await hallazgosS1() : I.ruta().filter((x) => x.n === 'stop' || x.n === 'warn').slice(0, 5).map((x) => `${x.a.n}: ${(I.TRIAJE[x.n] || {}).n || ''}${x.cs[0] ? ' · ' + x.cs[0].t : ''}`);
     const meses = k === 'propS3' ? (+pr.meses || +R().servicios.s3.meses || 6) : 0;
+    // Mismo cálculo que el calendario de sesiones (plan.js): meses contratados y frecuencia de la propuesta
+    const paso = +pr.frecuencia || 14, nSes = Math.floor(Math.round(meses * 52 / 12) * 7 / paso), CADA = { 7: 'cada semana', 14: 'cada quince días', 21: 'cada tres semanas', 28: 'cada mes' };
     let html = In.cover({ tipo: 'Propuesta', kicker: T.kicker, titulo: T.titulo, subtitulo: T.sub, empresa: empresa() })
       + In.summary('Por qué ahora', `<p>${k === 'propS2' ? 'Ya sabemos dónde está el dinero. Ahora toca entender por qué se queda ahí y qué hay que cambiar para que no vuelva a pasar.' : 'La auditoría ha ordenado las prioridades. El acompañamiento las convierte en objetivos que usted alcanza, quincena a quincena.'}</p>`)
       + (visto.length ? In.section('Lo que hemos visto', `<ul>${visto.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`) : '')
       + In.section('Qué haremos', `<ul>${T.alcance.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`)
       + In.section('Qué recibirá', `<ul>${T.entregables.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`)
-      + In.section('Cómo trabajaremos', k === 'propS3' ? `<p>${meses} meses con una sesión cada quince días (unas ${Math.round(meses * 2.15)} sesiones). Las primeras se dedican a las reglas básicas y al método SMART; después, cada sesión aborda una prioridad con su formación y una acción directa suya.</p>` : `<p>Plazo orientativo: ${T.plazo}. Revisamos la documentación de cada área, hablamos con las personas clave y verificamos sobre el terreno.</p>`)
+      + In.section('Cómo trabajaremos', k === 'propS3' ? `<p>${meses} meses con una sesión ${CADA[paso] || 'cada quince días'} (unas ${nSes} sesiones). Las primeras se dedican a las reglas básicas y al método SMART; después, cada sesión aborda una prioridad con su formación y una acción directa suya.</p>` : `<p>Plazo orientativo: ${T.plazo}. Revisamos la documentación de cada área, hablamos con las personas clave y verificamos sobre el terreno.</p>`)
       + (pr.precio ? In.section('Inversión', `<p><b>${esc(pr.precio)}</b>${pr.forma ? ' · ' + esc(pr.forma) : ''}</p>`) : '')
       + (pr.notas ? In.section('Notas', `<p>${esc(pr.notas)}</p>`) : '')
       + In.foot('Propuesta para la empresa.');
     In.open({ titulo: T.titulo, html, paginado: true }); marca(k); if (!pr.estado || pr.estado === 'borrador') { pr.estado = 'presentada'; pr.fecha = pr.fecha || hoy(); guardar(); }
   };
   const propForm = (k) => { const pr = prop(k), T = PROP[k]; return `<div class="glass pad stack"><div class="row"><div><div class="eyebrow">${esc(T.titulo)}</div><small class="muted">${esc(T.sub)}</small></div></div>
-      <div class="sv-g3"><label class="small">Honorarios<input class="input" data-pf="precio" value="${esc(pr.precio || '')}" placeholder="${k === 'propS3' ? 'p. ej. 1.200 € al mes' : 'p. ej. 4.500 €'}"></label><label class="small">Forma de pago<input class="input" data-pf="forma" value="${esc(pr.forma || '')}" placeholder="50 % al inicio, 50 % a la entrega"></label>${k === 'propS3' ? `<label class="small">Duración<select class="input" data-pf="meses">${[6, 9, 12].map((m) => `<option value="${m}" ${(+pr.meses || 6) === m ? 'selected' : ''}>${m} meses</option>`).join('')}</select></label>` : `<label class="small">Estado<select class="input" data-pf="estado">${ESTADO_PROP.map(([v, n]) => `<option value="${v}" ${(pr.estado || 'borrador') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`}</div>
+      <div class="sv-g3"><label class="small">Honorarios<input class="input" data-pf="precio" value="${esc(pr.precio || '')}" placeholder="${k === 'propS3' ? 'p. ej. 1.200 € al mes' : 'p. ej. 4.500 €'}"></label><label class="small">Forma de pago<input class="input" data-pf="forma" value="${esc(pr.forma || '')}" placeholder="50 % al inicio, 50 % a la entrega"></label>${k === 'propS3' ? `<label class="small">Duración<select class="input" data-pf="meses">${[6, 9, 12].map((m) => `<option value="${m}" ${(+pr.meses || 6) === m ? 'selected' : ''}>${m} meses</option>`).join('')}</select></label><label class="small">Frecuencia<select class="input" data-pf="frecuencia">${[[7, 'Semanal'], [14, 'Quincenal'], [28, 'Mensual']].map(([v, t]) => `<option value="${v}" ${(+pr.frecuencia || 14) === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>` : `<label class="small">Estado<select class="input" data-pf="estado">${ESTADO_PROP.map(([v, n]) => `<option value="${v}" ${(pr.estado || 'borrador') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`}</div>
       ${k === 'propS3' ? `<label class="small">Estado<select class="input" data-pf="estado">${ESTADO_PROP.map(([v, n]) => `<option value="${v}" ${(pr.estado || 'borrador') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+      ${(() => { const H = V.plantillas ? V.plantillas.leer().honorarios.filter((h) => +String(h.importe).replace(/\./g, '').replace(',', '.') > 0) : []; return H.length ? `<label class="small">Honorarios del catálogo de su firma<select class="input" data-cat="${k}"><option value="">Elegir…</option>${H.map((h, i) => `<option value="${i}" ${pr.catalogo === h.id ? 'selected' : ''}>${esc(h.concepto)} · ${esc(V.plantillas.honorarioTxt(h))}</option>`).join('')}</select></label>` : ''; })()}
       <div data-conv="${k}"></div>
       <label class="small">Notas para la propuesta<textarea class="input" rows="2" data-pf="notas">${esc(pr.notas || '')}</textarea></label>
       <div class="row"><button class="btn solid" data-prop="${k}">Abrir la propuesta</button></div></div>`; };
   const wireProp = (host, k) => {
     const pr = prop(k);
     $$('[data-pf]', host).forEach((x) => (x.onchange = x.oninput = () => {
-      pr[x.dataset.pf] = x.value;
+      pr[x.dataset.pf] = ['meses', 'frecuencia'].includes(x.dataset.pf) ? +x.value : x.value;
       if (x.dataset.pf === 'estado' && x.value === 'aceptada') { const sv = k === 'propS2' ? 's2' : 's3'; svc(sv).contratado = true; if (!svc(sv).estado) svc(sv).estado = 'curso'; if (k === 'propS3') svc('s3').meses = +pr.meses || 6; toast(`Aceptada: el ${k === 'propS2' ? 'Servicio 2' : 'Servicio 3'} queda en curso.`); }
       guardar(); if (x.tagName === 'SELECT') render();
     }));
     $$('[data-prop]', host).forEach((b) => (b.onclick = () => informePropuesta(b.dataset.prop)));
+    // Precio con un clic desde el catálogo de honorarios de la firma
+    $$('[data-cat]', host).forEach((x) => (x.onchange = () => { if (x.value === '') return; const H = V.plantillas.leer().honorarios.filter((h) => +String(h.importe).replace(/\./g, '').replace(',', '.') > 0), h = H[+x.value]; if (!h) return; pr.precio = V.plantillas.honorarioTxt(h); pr.catalogo = h.id; guardar(); render(); toast('Honorarios del catálogo aplicados.'); }));
     if (V.conversion) V.conversion.wireServicio(host, k);
   };
   VISTAS.s1cierre = (host) => {
@@ -299,7 +304,18 @@
     BLOQUES.forEach((b) => { out[b.id] = []; b.areas.forEach((a) => ((cuenta && cuenta.out ? cuenta.out[a] : cuenta && cuenta[a]) || { datos: [] }).datos.forEach((x) => out[b.id].push(x))); });
     if (estado) Object.entries(estado).forEach(([k, v]) => out.datos.unshift({ k: k[0].toUpperCase() + k.slice(1), v: v.det, st: v.ok ? 'ok' : 'stop' }));
     out.datos.push({ k: 'Documentos subidos', v: String((S().documentacion || []).length) });
-    if (u) {
+    // Ventas, EBITDA, deuda, caja y plantilla: de la fuente única (js/cifras.js), como en el simulador, el tablero y la cartera
+    const c = A.cifras ? await A.cifras.actual() : null;
+    out._cifras = c;
+    if (c && !c.sinDatos) {
+      const sem = A.cifras.semaforos(c), luzDe = (k) => (sem.find((x) => x.k === k) || {}).st;
+      const v = c.ventas, fijos = (c.personal || 0) + (c.fijos || 0), pe = c.margen > 0 ? fijos / (c.margen / 100) : null;
+      out.economica.push({ k: 'Margen bruto', v: c.margen == null ? '—' : pct(c.margen), st: c.margen == null ? '' : c.margen < 30 ? 'warn' : 'ok' }, { k: 'Peso del personal', v: c.personal == null ? '—' : pct(c.personal / v * 100), st: c.personal == null ? '' : c.personal / v * 100 > 35 ? 'warn' : 'ok' }, { k: 'Otros gastos', v: c.fijos == null ? '—' : pct(c.fijos / v * 100) }, { k: 'EBITDA', v: c.ebitda == null ? '—' : `${eur(c.ebitda)} · ${pct(c.ebitdaPct)} de las ventas`, st: luzDe('ebitda') || '' });
+      if (pe) out.economica.push({ k: 'Punto de equilibrio', v: eur(pe), st: v < pe * 1.1 ? 'stop' : v < pe * 1.25 ? 'warn' : 'ok' });
+      out.financiero.push({ k: 'Deuda bancaria', v: c.deuda == null ? '— (sin dato)' : eur(c.deuda) }, { k: 'Deuda neta (deuda − caja)', v: c.deudaNeta == null ? '—' : eur(c.deudaNeta), st: luzDe('deudaEbitda') || '' });
+      if (u) { const deuda = g(u, 'deudaLP') + g(u, 'deudaCP'), activo = g(u, 'inmovilizado') + g(u, 'existencias') + g(u, 'clientes') + g(u, 'tesoreria'); out.financiero.push({ k: 'Deuda a corto sobre el total', v: deuda ? pct(g(u, 'deudaCP') / deuda * 100) : '—', st: deuda && g(u, 'deudaCP') / deuda > 0.6 ? 'warn' : deuda ? 'ok' : '' }, { k: 'Autonomía (fondos propios / activo)', v: activo ? pct(g(u, 'fondosPropios') / activo * 100) : '—', st: activo && g(u, 'fondosPropios') / activo < 0.3 ? 'warn' : activo ? 'ok' : '' }); }
+      if (u && Y.length >= 2) { const an = analisisDinero(Y); if (an) out.caja.unshift({ k: 'Beneficio frente a caja (periodo)', v: `${eur(an.benAc)} ganados · caja ${eur(an.cajaAc)}`, st: an.st }, { k: 'Atrapado en circulante', v: eur(an.atrAc), st: an.atrAc > an.benAc * 0.4 ? 'warn' : 'ok' }); }
+    } else if (u) {
       const v0 = g(u, 'ventas'), v = v0 || 1, mb = (v - g(u, 'costeVentas')) / v * 100, per = g(u, 'personal') / v * 100, otros = g(u, 'otrosGastos') / v * 100, ebitda = (v - g(u, 'costeVentas') - g(u, 'personal') - g(u, 'otrosGastos'));
       const fijos = g(u, 'personal') + g(u, 'otrosGastos'), pe = mb > 0 ? fijos / (mb / 100) : null;
       // Sin ventas no hay porcentajes sobre ventas: se dice que falta el dato, sin semáforo
@@ -322,7 +338,7 @@
     datos360().then((dat) => {
       if (!host.isConnected) return; // la vista ya cambió mientras se reunían los datos
       const F = R().foto360, pr = prioridades360();
-      host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 2 · Foto 360</div><small class="muted">De los datos a la operativa. Cada bloque toma sus cifras de los mundos; pon tu semáforo y tu nota. Lo que falte, pídelo: el bloque lo dice.</small></div>
+      host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 2 · Foto 360</div><small class="muted">De los datos a la operativa. Cada bloque toma sus cifras de los mundos; pon tu semáforo y tu nota. Lo que falte, pídelo: el bloque lo dice.</small>${A.cifras ? `<div class="sv-cifras" id="svCifras">${A.cifras.html(dat._cifras)}</div>` : ''}</div>
         <div class="sv-360">${BLOQUES.map((b, i) => { const l = dat[b.id] || [], auto = peor(l.map((x) => x.st).filter(Boolean)), f = F[b.id] || {}; return `<section class="glass pad stack sv-bl"><div class="row"><span class="sv-n">${i + 1}</span><div><b>${esc(b.n)}</b><small class="muted">${esc(b.q)}</small></div><span class="spacer"></span>${luz(f.st || auto)}</div>
           ${l.length ? `<ul class="sv-dat">${l.map((x) => `<li>${luz(x.st)}<span>${esc(x.k)}</span><b>${esc(x.v)}</b></li>`).join('')}</ul>` : '<small class="muted">Sin datos de los mundos: pide la documentación de este bloque.</small>'}
           <div class="row"><select class="input small" data-fs="${b.id}"><option value="">Semáforo: automático${auto ? ' (' + ({ ok: 'verde', warn: 'ámbar', stop: 'rojo' })[auto] + ')' : ''}</option>${[['ok', 'Verde'], ['warn', 'Ámbar'], ['stop', 'Rojo']].map(([v, n]) => `<option value="${v}" ${f.st === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>

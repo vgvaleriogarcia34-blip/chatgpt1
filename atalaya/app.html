@@ -21,7 +21,6 @@
   <div class="seg" id="scenarioSeg" role="group" aria-label="Escenario activo"></div>
   <button class="verdict-pill v-warn" id="verdictPill" data-info="veredicto"><span class="dot"></span><span class="txt" id="verdictTxt">Calculando…</span></button>
   <button class="btn ghost ruta-btn" id="rutaBtn" title="Ver el recorrido completo en capas">Mapa</button>
-  <a class="btn ghost mesa-link" href="mesa.html" title="Organizar, priorizar y agendar el trabajo">Mesa</a>
   <div class="account" id="account"></div>
 </header>
 
@@ -37,16 +36,16 @@
       <div>
         <div class="eyebrow">Puente de mando</div>
         <h1 class="mt">¿Puede la empresa <em>pagar su crecimiento</em> con lo que ya gana?</h1>
-        <p class="lede">Atalaya proyecta mes a mes la empresa con y sin la inversión, en cinco escenarios a la vez, y te dice si la estructura financiera y el equipo están listos para el movimiento, o qué les falta para estarlo.</p>
+        <p class="lede">Atalaya proyecta mes a mes la empresa con y sin la inversión, en cinco escenarios a la vez, y le dice si la estructura financiera y el equipo están listos para el movimiento, o qué les falta para estarlo.</p>
         <div class="glass id-card" id="idCard">
-          <label class="id-name"><span>Empresa</span><input id="empresaNombre" placeholder="Escribe el nombre de tu empresa" autocomplete="organization"></label>
+          <label class="id-name"><span>Empresa</span><input id="empresaNombre" placeholder="Escriba el nombre de su empresa" autocomplete="organization"></label>
           <div class="id-grid">
-            <label><span>Proyecto</span><input id="proyecto" placeholder="Qué quieres hacer"></label>
+            <label><span>Proyecto</span><input id="proyecto" placeholder="Qué quiere hacer"></label>
             <label><span>Sector</span><select id="heroSector"></select></label>
             <label><span>Cómo se hace la inversión</span><select id="heroEstr"></select></label>
           </div>
           <p class="id-ejemplo small" id="idEjemplo" hidden></p>
-          <div class="row id-actions"><button class="btn solid" id="qEmpresa">Responder preguntas</button><button class="btn" id="goCargar">Cargar mis cuentas</button><button class="btn ghost" id="nuevaSim">Empezar de cero</button></div>
+          <div class="row id-actions"><button class="btn solid" id="qEmpresa">Responder preguntas</button><button class="btn" id="goCargar">Cargar sus cuentas</button><button class="btn ghost" id="nuevaSim">Empezar de cero</button></div>
         </div>
       </div>
       <div class="glass verdict-card" id="verdictCard"></div>
@@ -55,11 +54,11 @@
     <div class="glass pad mt how">
       <h4>Cómo usar Atalaya en cinco pasos</h4>
       <ol class="howto">
-        <li><b>Carga tu empresa</b>: elige sector y escribe tus cifras, o importa tus cuentas de los últimos años en «Historia».</li>
-        <li><b>Describe la inversión</b>: importe, financiación, venta nueva, margen y personas que necesitas.</li>
-        <li><b>Mira los semáforos</b>: cada uno te dice su horquilla verde, ámbar y roja, y qué datos tocar para mejorarlo.</li>
-        <li><b>Ensaya escenarios</b>: del estrés al optimista, con sucesos hipotéticos como perder un cliente.</li>
-        <li><b>Fija tu meta</b> y aplica el plan de corrección. Pregunta lo que no entiendas al asistente, por escrito o de viva voz.</li>
+        <li><b>Cargue su empresa</b>: elija sector y escriba sus cifras, o importe sus cuentas de los últimos años en «Historia».</li>
+        <li><b>Describa la inversión</b>: importe, financiación, venta nueva, margen y personas que necesita.</li>
+        <li><b>Revise los semáforos</b>: cada uno indica su horquilla verde, ámbar y roja, y qué datos tocar para mejorarlo.</li>
+        <li><b>Ensaye escenarios</b>: del estrés al optimista, con sucesos hipotéticos como perder un cliente.</li>
+        <li><b>Fije su meta</b> y aplique el plan de corrección. Pregunte al asistente lo que no entienda, por escrito o de viva voz.</li>
       </ol>
     </div>
   </section>
@@ -68,12 +67,12 @@
   <section class="chapter" id="empresa">
     <div class="eyebrow"><span class="roman">I</span> Punto de partida</div>
     <h2>La empresa <em>hoy</em></h2>
-    <p class="lede">Tres formas de cargar tu empresa: subir tus cuentas, responder unas preguntas o escribir las cifras en las casillas. Puedes combinarlas: lo que no venga en un sitio lo completas en otro.</p>
+    <p class="lede">Tres formas de cargar su empresa: subir sus cuentas, responder unas preguntas o escribir las cifras en las casillas. Puede combinarlas: lo que no venga en un sitio lo completa en otro.</p>
     <div class="grid cols-2 mt">
       <div class="glass pad stack" id="cargaBox">
-        <h4>Cargar desde tus documentos</h4>
-        <p class="small">Sube las <b>cuentas anuales de los dos o tres últimos años</b>: la <b>cuenta de pérdidas y ganancias</b> y el <b>balance</b>. Sirve el PDF que depositas en el Registro Mercantil, el Excel que te prepara la gestoría o un balance de sumas y saldos.</p>
-        <p class="small muted">Con ellas relleno ventas, margen, personal, gastos fijos, caja, deuda, fondos propios, días de cobro, stock y pago y el crecimiento. Lo que no viene en las cuentas (póliza de crédito, cuota mensual de los préstamos, plantilla) te lo pregunto después.</p>
+        <h4>Cargar desde sus documentos</h4>
+        <p class="small">Suba las <b>cuentas anuales de los dos o tres últimos años</b>: la <b>cuenta de pérdidas y ganancias</b> y el <b>balance</b>. Sirve el PDF que deposita en el Registro Mercantil, el Excel que le prepara la gestoría o un balance de sumas y saldos.</p>
+        <p class="small muted">Con ellas se rellenan ventas, margen, personal, gastos fijos, caja, deuda, fondos propios, días de cobro, stock y pago y el crecimiento. Si alguna cifra no coincide con un dato que ya ha dado, se le enseña la diferencia antes de cambiarla. Lo que no viene en las cuentas (póliza de crédito, cuota mensual de los préstamos, plantilla) se le pregunta después, solo si sigue vacío.</p>
         <div class="row"><label class="btn solid" for="empFile">Adjuntar cuentas</label><input type="file" id="empFile" accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx" multiple hidden><button class="btn" id="qEmpresa2">Responder preguntas</button><a class="btn ghost" href="#historia">Ver el análisis de varios años</a></div>
         <div class="small" id="empCarga"></div>
       </div>
@@ -84,7 +83,7 @@
         <div class="small" id="sectorTipico"></div>
       </div>
     </div>
-    <p class="small muted mt">Puedes escribir cada dato o mover la barra; si escribes un valor mayor que el tope, la barra se amplía.</p>
+    <p class="small muted mt">Puede escribir cada dato o mover la barra; si escribe un valor mayor que el tope, la barra se amplía. Toque el nombre de un dato para ver qué es.</p>
     <div class="grid cols-3 mt">
       <div class="glass pad"><h4>Cuenta de resultados</h4><div class="fields" id="f-pyg"></div></div>
       <div class="glass pad"><h4>Balance y ciclo de caja</h4><div class="fields" id="f-balance"></div></div>
@@ -106,7 +105,7 @@
       </ul>
       <p class="small muted">Valen el PDF de las cuentas depositadas en el Registro Mercantil, el Excel o el informe de la gestoría, un CSV, Word o Markdown, o la tabla pegada desde Excel. Con más de un año se calcula la evolución y el flujo del dinero.</p>
     </div>
-    <p class="small muted">¿Tienes más documentación (ventas, compras, plantilla, extractos, informes)? Súbela toda junta en la <a href="estrategia.html#origen">zona de origen de datos</a>: se reparte sola a todos los módulos y las cuentas llegan también aquí.</p>
+    <p class="small muted">¿Tiene más documentación (ventas, compras, plantilla, extractos, informes)? Súbala toda junta en la <a href="estrategia.html#origen">zona de origen de datos</a>: se reparte sola a todos los módulos y las cuentas llegan también aquí.</p>
     <div class="glass pad mt stack">
       <div class="row">
         <button class="btn solid" id="finManual">Escribir a mano</button>
@@ -120,7 +119,7 @@
         <span class="spacer"></span>
         <button class="btn" id="finApply">Usar el último año en el simulador</button>
       </div>
-      <textarea id="finText" class="input" rows="6" hidden placeholder="Pega aquí la tabla copiada de Excel: primera columna con los conceptos y una columna por año."></textarea>
+      <textarea id="finText" class="input" rows="6" hidden placeholder="Pegue aquí la tabla copiada de Excel: primera columna con los conceptos y una columna por año."></textarea>
       <div id="finStatus" class="small muted"></div>
     </div>
     <div class="glass pad mt" id="finGrid" hidden></div>
@@ -131,7 +130,7 @@
   <section class="chapter" id="inversion">
     <div class="eyebrow"><span class="roman">III</span> El movimiento</div>
     <h2>La inversión y su <em>dimensión</em></h2>
-    <p class="lede">Qué compras, cuánto pesa frente a lo que la empresa ya es y cómo lo pagas. Toca cualquier anillo para ver cómo se lee.</p>
+    <p class="lede">Qué compra, cuánto pesa frente a lo que la empresa ya es y cómo lo paga. Toque cualquier anillo para ver cómo se lee.</p>
     <div class="glass pad mt"><div class="dimension" id="dimension"></div></div>
     <div class="glass pad mt stack" id="inmoBox" hidden></div>
     <div class="glass pad mt stack" id="lineasBox"></div>
@@ -147,16 +146,16 @@
   <section class="chapter" id="horizonte">
     <div class="eyebrow"><span class="roman">IV</span> Horizonte</div>
     <h2>El terreno <em>antes de pisarlo</em></h2>
-    <p class="lede">Dos miradas antes de decidir: cuándo empieza a ganar dinero la empresa con lo nuevo (el punto de equilibrio) y qué pasa si cambian a la vez dos cosas que no controlas del todo.</p>
+    <p class="lede">Dos miradas antes de decidir: cuándo empieza a ganar dinero la empresa con lo nuevo (el punto de equilibrio) y qué pasa si cambian a la vez dos cosas que no controla del todo.</p>
     <div class="glass pad mt stack" id="peBox"></div>
     <h3 class="mt hz-h3">El paisaje de las decisiones</h3>
     <div class="grid cols-2 mt">
       <div class="stack">
-        <p style="margin:0">Elige la pregunta que te preocupa. El mapa prueba cientos de combinaciones de dos datos y pinta cada una con su resultado: <b>verde</b> cumple tu meta, <b>ámbar</b> aguanta justo y <b>rojo</b> rompe. La <b>esfera dorada</b> es tu plan de hoy.</p>
+        <p style="margin:0">Elija la pregunta que le preocupa. El mapa prueba cientos de combinaciones de dos datos y pinta cada una con su resultado: <b>verde</b> cumple su meta, <b>ámbar</b> aguanta justo y <b>rojo</b> rompe. La <b>esfera dorada</b> es su plan de hoy.</p>
         <div class="hz-preg" id="horizPreg"></div>
-        <button class="btn ghost" id="hzExperto" style="justify-self:start">Elegir yo los ejes (modo experto)</button>
+        <button class="btn ghost" id="hzExperto" style="justify-self:start">Elegir los ejes (modo avanzado)</button>
       </div>
-      <div class="glass pad stack"><h4>Lectura de tu posición</h4><div id="terrainRead" class="small"></div></div>
+      <div class="glass pad stack"><h4>Lectura de su posición</h4><div id="terrainRead" class="small"></div></div>
     </div>
     <div class="stage mt" id="stage">
       <canvas id="three" aria-label="Vista 3D de escenarios"></canvas>
@@ -169,7 +168,7 @@
         </div>
       </div>
       <div class="legend3d glass" id="legend3d"></div>
-      <div class="help3d">Arrastra para girar · rueda para acercar</div>
+      <div class="help3d">Arrastre con el dedo o el ratón para girar · pellizque o use la rueda para acercar</div>
     </div>
   </section>
 
@@ -177,17 +176,17 @@
   <section class="chapter" id="escenarios">
     <div class="eyebrow"><span class="roman">V</span> Escenarios</div>
     <h2>Cinco futuros, <em>una tesorería</em></h2>
-    <p class="lede">Un escenario no es una predicción: es un ensayo. Se comparan cinco para saber si la decisión aguanta cuando el plan se tuerce. Toca cada tarjeta para ver qué representa, cuándo ocurre y qué señales vigilar.</p>
+    <p class="lede">Un escenario no es una predicción: es un ensayo. Se comparan cinco para saber si la decisión aguanta cuando el plan se tuerce. Toque cada tarjeta para ver qué representa, cuándo ocurre y qué señales vigilar.</p>
     <div class="scen-cards mt" id="scenCards"></div>
     <div class="glass pad mt">
-      <div class="row"><h4>Liquidez mensual por escenario</h4><span class="spacer"></span>
+      <div class="row"><h4>Liquidez mensual por escenario <button class="info-i" data-info="cajaMin" aria-label="Qué es">?</button></h4><span class="spacer"></span>
         <div class="seg" id="cashMode" style="margin:0"></div></div>
       <p class="small muted" id="cashExplain"></p>
       <div class="chart-legend" id="cashLegend"></div>
       <div class="chart" id="cashChart"></div>
     </div>
     <div class="glass pad mt stack">
-      <h4>Meses de colchón · escenario activo</h4>
+      <h4>Meses de colchón · escenario activo <button class="info-i" data-info="colchon" aria-label="Qué es">?</button></h4>
       <p class="small muted" style="margin:0">Cuántos meses podría pagar la empresa nóminas, fijos y cuotas con su liquidez si dejara de ingresar. Rojo: menos de 1 mes. Ámbar: de 1 a 3. Verde: más de 3.</p>
       <div id="cushion"></div>
     </div>
@@ -199,10 +198,10 @@
       </div>
       <div class="glass pad stack">
         <div class="row"><h4>Campos hipotéticos</h4><span class="spacer"></span><button class="btn" id="addHyp">Añadir hipótesis</button></div>
-        <p class="small muted" style="margin:0">Sucesos que pueden ocurrir durante el despliegue. Actívalos para ver cómo mueven todos los escenarios.</p>
+        <p class="small muted" style="margin:0">Sucesos que pueden ocurrir durante el despliegue. Actívelos para ver cómo mueven todos los escenarios.</p>
         <div id="hypList"></div>
-        <h4 class="mt">Tu escenario: ¿y si…?</h4>
-        <p class="small muted" style="margin:0">Contesta a cada pregunta moviendo la barra. Es tu ensayo propio, el quinto escenario («Hipótesis»).</p>
+        <h4 class="mt">Su escenario: ¿y si…?</h4>
+        <p class="small muted" style="margin:0">Conteste a cada pregunta moviendo la barra. Es su ensayo propio, el quinto escenario («Hipótesis»).</p>
         <div id="customRes" class="stack"></div>
         <div class="fields" id="f-custom"></div>
       </div>
@@ -213,12 +212,12 @@
   <section class="chapter" id="riesgos">
     <div class="eyebrow"><span class="roman">VI</span> Semáforos y riesgos</div>
     <h2>Lo que hay que <em>vigilar</em></h2>
-    <p class="lede">Diez semáforos de movimiento para el escenario activo. Cada uno tiene su horquilla para verde, ámbar y rojo, y una lista de los datos que lo mueven: los directos lo cambian al momento y los indirectos lo cambian a través de otra magnitud. Toca un semáforo para ver cómo corregirlo.</p>
+    <p class="lede">Diez semáforos de movimiento para el escenario activo. Cada uno tiene su horquilla para verde, ámbar y rojo, y una lista de los datos que lo mueven: los directos lo cambian al momento y los indirectos lo cambian a través de otra magnitud. Toque un semáforo para ver cómo corregirlo.</p>
     <div class="lights mt" id="lights"></div>
     <div class="glass pad mt"><h4>Guía de semáforos</h4><div class="table-wrap" id="lightGuide"></div></div>
     <div class="grid cols-2 mt">
-      <div class="glass pad stack"><h4>Mapa de riesgos · probabilidad × impacto</h4><div class="chart" id="riskMatrix"></div></div>
-      <div class="glass pad stack"><h4>Sensibilidad de la liquidez mínima</h4><div class="chart" id="tornado"></div><div id="sensRead" class="small"></div></div>
+      <div class="glass pad stack"><h4>Mapa de riesgos · probabilidad × impacto <button class="info-i" data-info="riskMatrix" aria-label="Qué es">?</button></h4><div class="chart" id="riskMatrix"></div></div>
+      <div class="glass pad stack"><h4>Sensibilidad de la liquidez mínima <button class="info-i" data-info="tornado" aria-label="Qué es">?</button></h4><div class="chart" id="tornado"></div><div id="sensRead" class="small"></div></div>
     </div>
     <div class="glass pad mt"><h4>Registro de riesgos</h4><div class="table-wrap" id="riskTable"></div></div>
   </section>
@@ -226,11 +225,11 @@
   <!-- VII. Nuevo tamaño -->
   <section class="chapter" id="tamano">
     <div class="eyebrow"><span class="roman">VII</span> Nuevo tamaño operativo</div>
-    <h2>La empresa <em>que serás</em></h2>
+    <h2>La empresa <em>que será</em></h2>
     <p class="lede" id="sizeLede">Hoy frente al año de crucero, cuando la actividad nueva ha completado su rampa.</p>
     <div class="size-grid mt" id="sizeGrid"></div>
     <div class="glass pad mt stack" id="sizeRead"></div>
-    <div class="glass pad mt"><h4>¿Paga el negocio sus cuotas cada mes?</h4><p class="small muted" style="margin:4px 0 0">Cada barra es el EBITDA de un mes: lo que genera el negocio antes de intereses, impuestos y amortizaciones. La línea dorada es lo que pagas de préstamos ese mes (capital e intereses, de los viejos y de los nuevos). Si una barra queda por debajo de la línea, ese mes la cuota se paga con caja o con la póliza. Pasa el cursor para ver cada mes.</p><div class="chart mt" id="debtChart"></div></div>
+    <div class="glass pad mt"><h4>¿Paga el negocio sus cuotas cada mes? <button class="info-i" data-info="dscr" aria-label="Qué es">?</button></h4><p class="small muted" style="margin:4px 0 0">Cada barra es el beneficio antes de intereses e impuestos (EBITDA) de un mes: lo que genera el negocio antes de intereses, impuestos y amortizaciones. La línea dorada es lo que paga de préstamos ese mes (capital e intereses, de los viejos y de los nuevos). Si una barra queda por debajo de la línea, ese mes la cuota se paga con caja o con la póliza. Toque una barra para ver cada mes.</p><div class="chart mt" id="debtChart"></div></div>
   </section>
 
   <!-- VIII. Sistema humano -->
@@ -240,6 +239,7 @@
     <p class="lede">El dinero compra máquinas; el tamaño lo sostienen las personas. Nueve dimensiones que deciden si la organización absorbe el crecimiento, con 14 variables explicadas. Algunas afectan también a los números: el absentismo encarece cada contratación, el coste de selección sale de la caja y una curva de aprendizaje larga alarga la rampa.</p>
     <div class="grid cols-2 mt">
       <div class="glass pad stack">
+        <div class="row" style="margin:0"><h4 style="margin:0">Preparación del equipo</h4> <button class="info-i" data-info="humano" aria-label="Qué es">?</button></div>
         <div class="radar-wrap">
           <div class="chart" id="radar"></div>
           <div><div class="score-big" id="humanScore"></div><div class="small muted" id="humanTxt"></div></div>
@@ -250,7 +250,7 @@
         <div class="glass pad"><h4>Lo que necesita para estarlo</h4><div class="timeline mt" id="humanPlan"></div></div>
       </div>
     </div>
-    <div class="glass pad mt stack"><div class="row"><h4>Variables del equipo</h4><span class="spacer"></span><button class="btn solid" id="qHumano">Responder preguntas sobre el equipo</button></div><p class="small muted" style="margin:0">Mejor que estimar cada casilla: catorce preguntas de la vida diaria («si te fueras un mes, ¿qué pasaría?») que colocan cada dato y te dicen cómo va quedando la foto.</p><div class="fields human-fields" id="f-human"></div></div>
+    <div class="glass pad mt stack"><div class="row"><h4>Variables del equipo</h4><span class="spacer"></span><button class="btn solid" id="qHumano">Responder preguntas sobre el equipo</button></div><p class="small muted" style="margin:0">Mejor que estimar cada casilla: catorce preguntas de la vida diaria («si usted faltara un mes, ¿qué pasaría?») que colocan cada dato y le indican cómo va quedando la foto.</p><div class="fields human-fields" id="f-human"></div></div>
   </section>
 
   <!-- IX. Estructuras -->
@@ -266,12 +266,12 @@
   <section class="chapter" id="plan">
     <div class="eyebrow"><span class="roman">X</span> Meta y plan de corrección</div>
     <h2>Cómo llegar a la <em>posición meta</em></h2>
-    <p class="lede">Define la posición que exiges al movimiento. Atalaya busca, de la palanca más sencilla a la más costosa, el mínimo cambio que la alcanza en el escenario activo.</p>
+    <p class="lede">Defina la posición que exige al movimiento. Atalaya busca, de la palanca más sencilla a la más costosa, el mínimo cambio que la alcanza en el escenario activo.</p>
     <div class="row mt"><button class="switch" role="switch" id="contarPoliza" aria-label="Contar la póliza como liquidez"></button><span class="small">Contar la póliza disponible como liquidez en la meta y en el semáforo de liquidez</span></div>
     <div class="targets mt" id="targets"></div>
     <div class="grid cols-2 mt">
       <div class="stack"><h4>Plan combinado</h4><div id="planSummary"></div><div class="steps" id="planSteps"></div></div>
-      <div class="glass pad stack"><h4>¿Basta una sola palanca?</h4><div class="table-wrap" id="leverTable"></div></div>
+      <div class="glass pad stack"><h4>¿Basta una sola palanca? <button class="info-i" data-info="plan-help" aria-label="Qué es">?</button></h4><div class="table-wrap" id="leverTable"></div></div>
     </div>
   </section>
 
@@ -279,8 +279,8 @@
   <section class="chapter" id="diccionario">
     <div class="eyebrow"><span class="roman">XI</span> Diccionario corporativo</div>
     <h2>Los conceptos, <em>en llano</em></h2>
-    <p class="lede">Cada término con su definición, su fórmula, un ejemplo y las variables del simulador que lo mueven: directas (lo cambian al momento) e indirectas (lo cambian a través de otra magnitud). Toca una variable para ir a ella.</p>
-    <div class="row mt"><input class="input" id="glossSearch" placeholder="Busca un término: EBITDA, póliza, carencia…" style="flex:1;min-width:220px"><div class="seg" id="glossCats" style="margin:0"></div></div>
+    <p class="lede">Cada término con su definición, su fórmula, un ejemplo y las variables del simulador que lo mueven: directas (lo cambian al momento) e indirectas (lo cambian a través de otra magnitud). Toque una variable para ir a ella.</p>
+    <div class="row mt"><input class="input" id="glossSearch" placeholder="Busque un término: beneficio, póliza, carencia…" style="flex:1;min-width:220px"><div class="seg" id="glossCats" style="margin:0"></div></div>
     <div class="gloss mt" id="glossList"></div>
   </section>
 
@@ -288,7 +288,7 @@
   <section class="chapter" id="informe">
     <div class="eyebrow"><span class="roman">XII</span> Informe</div>
     <h2>El dossier <em>para decidir</em></h2>
-    <p class="lede">Genera un informe con veredicto, escenarios, semáforos, riesgos, sistema humano, estructura recomendada y el plan de corrección con su calendario.</p>
+    <p class="lede">Genere un informe con veredicto, escenarios, semáforos, riesgos, sistema humano, estructura recomendada y el plan de corrección con su calendario.</p>
     <div class="row mt"><button class="btn solid" id="openReport">Generar informe</button><button class="btn ghost" id="copySummary">Copiar resumen ejecutivo</button><a class="btn" href="estrategia.html">Ir al sistema estratégico</a></div>
   </section>
 </main>
@@ -300,6 +300,7 @@
 <script src="js/modelo/datos.js"></script>
 <script src="js/paseo.js"></script>
 <script src="js/manual-lateral.js"></script>
+<script src="js/cifras.js"></script>
 <script src="js/nota.js"></script>
 <script src="js/prioridad.js"></script>
 <script src="js/cosmos.js"></script>

@@ -136,7 +136,10 @@
       const optPuesto = (sel) => `<option value="">— sin puesto —</option>${pu.map((x) => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.nombre)}</option>`).join('')}`;
       const optResp = (p) => `<option value="">— nadie —</option>${ps.filter((x) => x.id !== p.id).map((x) => `<option value="${x.id}" ${x.id === p.responsable ? 'selected' : ''}>${esc(x.nombre)}</option>`).join('')}`;
       const hecho = (b, t) => `<span class="pe-tool ${b ? 'on' : ''}" title="${t}${b ? ': hecho' : ': pendiente'}">${t[0]}</span>`;
-      host.innerHTML = `<div class="glass pad stack"><div class="row pe-add"><input class="input" id="peNom" placeholder="Nombre y apellidos" autocomplete="off"><select class="input" id="pePu">${optPuesto('')}</select><button class="btn solid" id="peAdd">Añadir persona</button><span class="spacer"></span><button class="btn ghost" id="peImp">Traer del organigrama estratégico</button></div>
+      host.innerHTML = `<div class="glass pad stack"><div class="row pe-add"><input class="input" id="peNom" placeholder="Nombre y apellidos" autocomplete="off"><select class="input" id="pePu">${optPuesto('')}</select><button class="btn solid" id="peAdd">Añadir persona</button><span class="spacer"></span><button class="btn ghost" id="peCsvB" aria-expanded="false">Importar la plantilla (CSV)</button><button class="btn ghost" id="peImp">Traer del organigrama estratégico</button></div>
+        <div class="stack" id="peCsv" hidden><p class="small" style="margin:0">Suba el listado de la plantilla en CSV (exportado de la nómina o de una hoja de cálculo) o péguelo aquí. Columnas: <b>nombre</b> (o nombre y apellidos), <b>puesto</b>, <b>área</b>, <b>responsable</b> (de quién depende, por su nombre) y <b>correo</b>; la primera fila con esos títulos. Las personas que ya están no se duplican y los puestos nuevos se crean sin perfil. No incluya fechas de nacimiento ni otros datos que no hagan falta.</p>
+          <div class="row"><input type="file" id="peCsvF" accept=".csv,.txt,text/csv,text/plain" class="input"><button class="btn solid" id="peCsvGo">Importar</button><button class="btn ghost" id="peCsvX">Cancelar</button></div>
+          <textarea class="input" id="peCsvT" rows="5" placeholder="nombre;puesto;área;responsable&#10;Ana Ruiz;Jefa de taller;Producción;&#10;Luis Gómez;Soldador;Producción;Ana Ruiz"></textarea></div>
         <p class="small muted" id="peMsg" style="margin:0">Basta con el nombre. Puesto, área y de quién depende se pueden completar después.</p></div>
         ${ps.length ? `<div class="glass pad"><div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Persona</th><th style="text-align:left">Puesto</th><th style="text-align:left">Área</th><th style="text-align:left">Depende de</th><th>Consentimiento</th><th>Herramientas</th><th></th></tr></thead><tbody>
           ${ps.map((p) => `<tr data-id="${p.id}"><td><input class="input" data-k="nombre" value="${esc(p.nombre)}"></td><td><select class="input" data-k="puestoId">${optPuesto(p.puestoId)}</select></td><td><input class="input" data-k="area" value="${esc(p.area || '')}" placeholder="${esc((R.puestoDe(p) || {}).area || '')}"></td><td><select class="input" data-k="responsable">${optResp(p)}</select></td><td style="text-align:center"><input type="checkbox" data-k="consentimiento" ${p.consentimiento ? 'checked' : ''} aria-label="Consentimiento de ${esc(p.nombre)}"></td><td class="pe-tools">${hecho(p.disc, 'DISC')}${hecho(p.roles && p.roles.scores, 'Aportaciones')}${hecho(p.enea && p.enea.tipo, 'Eneagrama')}</td><td class="pe-act"><button class="btn ghost small" data-ficha>Ficha</button><button class="btn ghost small" data-del>Borrar</button></td></tr>`).join('')}
@@ -149,6 +152,18 @@
       };
       $('#peAdd', host).onclick = add;
       $('#peNom', host).onkeydown = (e) => { if (e.key === 'Enter') add(); };
+      // Importación de la plantilla en CSV (R.importarCsv en core.js)
+      const csvP = $('#peCsv', host), csvB = $('#peCsvB', host);
+      csvB.onclick = () => { csvP.hidden = !csvP.hidden; csvB.setAttribute('aria-expanded', String(!csvP.hidden)); };
+      $('#peCsvX', host).onclick = () => { csvP.hidden = true; csvB.setAttribute('aria-expanded', 'false'); };
+      $('#peCsvF', host).onchange = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { $('#peCsvT', host).value = String(rd.result || ''); }; rd.readAsText(f, 'utf-8'); };
+      $('#peCsvGo', host).onclick = () => {
+        const txt = $('#peCsvT', host).value, msg = $('#peMsg', host);
+        if (!txt.trim()) { msg.textContent = 'Elija un archivo CSV o pegue el listado.'; return; }
+        const r = R.importarCsv(txt);
+        R.rerender();
+        const m2 = $('#peMsg'); if (m2) m2.textContent = r.np || r.act ? `Importadas ${r.np} persona${r.np === 1 ? '' : 's'} nueva${r.np === 1 ? '' : 's'}${r.act ? `, ${r.act} completada${r.act === 1 ? '' : 's'}` : ''}, ${r.nq} puesto${r.nq === 1 ? '' : 's'} nuevo${r.nq === 1 ? '' : 's'} y ${r.nr} dependencia${r.nr === 1 ? '' : 's'} de ${r.total} fila${r.total === 1 ? '' : 's'}${r.sinNombre ? ` (${r.sinNombre} sin nombre, no importada${r.sinNombre === 1 ? '' : 's'})` : ''}. Pida el consentimiento de cada persona antes de sus cuestionarios.` : `No se ha importado nadie: ${r.total ? 'las personas ya estaban o las filas no tienen nombre' : 'el listado está vacío'}.`;
+      };
       $('#peImp', host).onclick = async () => {
         const nodos = await R.organigramaEstrategia(), msg = $('#peMsg', host);
         const conPersona = nodos.filter((n) => n.persona && !/^\d+\s*personas?$/i.test(n.persona.trim()));

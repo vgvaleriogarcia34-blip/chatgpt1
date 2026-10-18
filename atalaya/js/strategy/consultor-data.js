@@ -21,7 +21,7 @@
       consultor: ['Taller con la dirección para elegir los indicadores que de verdad mueven el negocio y descartar el resto.', 'Ficha de cada indicador: fórmula, fuente, umbrales, responsable y acción ante el rojo.', 'Diseño del ritual: reunión mensual de 90 minutos con orden del día (semáforos, desviaciones, decisiones, responsables).', 'Calendario de cierre mensual con administración para tener los datos a tiempo.'],
       datos: [{ t: 'Balances y cuentas de resultados de los dos últimos años', tipo: 'cuentas' }, { t: 'Ventas del último año por cliente', tipo: 'ventas' }, { t: 'Compras del último año por proveedor', tipo: 'compras' }, { t: 'Plantilla con área y coste', tipo: 'plantilla' }],
       preguntas: [
-        q('t1', 'Datos', '¿Con qué rapidez y fiabilidad tienes las cifras clave (ventas, margen, caja) del mes anterior? (1 = al cerrar el año · 5 = la primera semana de cada mes)', 'Cerrar el mes en diez días: calendario de cierre con administración y conciliación bancaria semanal.', 'Administración', 60, 'Días hasta el cierre mensual'),
+        q('t1', 'Datos', '¿Con qué rapidez y fiabilidad tiene las cifras clave (ventas, margen, caja) del mes anterior? (1 = al cerrar el año · 5 = la primera semana de cada mes)', 'Cerrar el mes en diez días: calendario de cierre con administración y conciliación bancaria semanal.', 'Administración', 60, 'Días hasta el cierre mensual'),
         q('t2', 'Proceso', '¿Hay una reunión de dirección periódica donde se revisan indicadores y se toman decisiones?', 'Instaurar la reunión de dirección mensual con orden del día fijo: semáforos, desviaciones, decisiones y responsables.', 'Dirección general', 30, 'Reuniones celebradas con acta'),
         s('t3', 'Personas', '¿Cada indicador clave tiene una persona responsable de explicarlo y mejorarlo?', 'no', 'Asignar un dueño a cada indicador y publicarlo en el tablero.', 'Dirección general', 30, 'Indicadores con responsable'),
         q('t4', 'Estrategia', '¿Los indicadores están conectados con los objetivos del año?', 'Vincular cada objetivo del plan de empresa con uno o dos indicadores y su meta trimestral.', 'Dirección general', 60, 'Objetivos con indicador'),
@@ -74,12 +74,12 @@
       consultor: ['Cuadro de origen y aplicación de fondos de los últimos años.', 'Análisis del ciclo de caja: días de cobro + días de existencias − días de pago.', 'Política de crédito a clientes (plazos, límites, quién aprueba excepciones).', 'Acuerdo con la propiedad sobre reparto y reinversión.'],
       datos: [{ t: 'Balances y cuentas de resultados de al menos dos años', tipo: 'cuentas', alt: 'historico' }],
       preguntas: [
-        q('d1', 'Datos', '¿Conoces tus días de cobro, de existencias y de pago y cómo evolucionan?', 'Calcular cada trimestre el ciclo de caja y fijar una meta de días para cada componente.', 'Administración', 30, 'Ciclo de caja (días)'),
+        q('d1', 'Datos', '¿Conoce sus días de cobro, de existencias y de pago y cómo evolucionan?', 'Calcular cada trimestre el ciclo de caja y fijar una meta de días para cada componente.', 'Administración', 30, 'Ciclo de caja (días)'),
         s('d2', 'Proceso', '¿Hay una política escrita de condiciones de pago para clientes (plazos y límites de crédito)?', 'no', 'Política de crédito: plazos por tipo de cliente, límite de riesgo y quién aprueba excepciones.', 'Dirección financiera', 45, 'Clientes dentro de límite'),
         q('d3', 'Proceso', '¿Se reclaman los cobros vencidos de forma sistemática?', 'Rutina semanal de cobros: listado de vencidos, llamada a los 7 días y bloqueo de pedidos a los 30.', 'Administración', 15, 'Saldo vencido'),
         q('d4', 'Estrategia', '¿Los dividendos y las retiradas de los socios se deciden mirando la caja y las inversiones?', 'Política de reparto: porcentaje máximo del beneficio y caja mínima previa al reparto.', 'Propiedad', 90, 'Reparto sobre beneficio'),
-        s('d5', 'Herramientas', '¿Controlas las existencias con un inventario fiable al menos cada trimestre?', 'no', 'Inventario trimestral y lista de existencias lentas para liquidar.', 'Operaciones', 60, 'Existencias sin movimiento'),
-        q('d6', 'Estrategia', '¿Sabes cuánta caja consumirá el circulante si la empresa crece?', 'Medir en el simulador la caja que consume crecer y negociar la financiación antes de necesitarla.', 'Dirección financiera', 30, 'Necesidad de circulante prevista')
+        s('d5', 'Herramientas', '¿Controla las existencias con un inventario fiable al menos cada trimestre?', 'no', 'Inventario trimestral y lista de existencias lentas para liquidar.', 'Operaciones', 60, 'Existencias sin movimiento'),
+        q('d6', 'Estrategia', '¿Sabe cuánta caja consumirá el circulante si la empresa crece?', 'Medir en el simulador la caja que consume crecer y negociar la financiación antes de necesitarla.', 'Dirección financiera', 30, 'Necesidad de circulante prevista')
       ],
       objetivos: [{ k: 'Beneficio que llega a caja', u: '%', dir: 'subir', sug: 60, kpi: 'Beneficio que llega a caja' }, { k: 'Atrapado en circulante', u: '€', dir: 'bajar', kpi: 'Atrapado en circulante' }],
       cadencia: [['Semanal', 'Cobros vencidos y acciones', 'Administración'], ['Mensual', 'Días de cobro, existencias y pago', 'Dirección financiera'], ['Anual', 'Reparto, reinversión y conversión en caja', 'Propiedad y dirección']]
@@ -92,10 +92,10 @@
       consultor: ['Revisión con el asesor fiscal de los incentivos aplicables (I+D+i, reservas, libertad de amortización, deducciones autonómicas).', 'Ajuste de los pagos fraccionados a la realidad del año.', 'Política de provisión y calendario de vencimientos con avisos.', 'Revisión de la estructura societaria si el grupo crece.'],
       datos: [{ t: 'Cuentas del último año (base imponible y cuota)', tipo: 'cuentas' }, { t: 'Resumen de impuestos del asesor (modelos 200, 303, 111) o documento equivalente', tipo: 'documentos' }],
       preguntas: [
-        q('i1', 'Proceso', '¿Provisionas cada mes la parte proporcional de los impuestos?', 'Provisión mensual en una cuenta separada para IVA, retenciones y sociedades.', 'Administración', 30, 'Provisión al día'),
-        s('i2', 'Estrategia', '¿Has revisado este año con tu asesor los incentivos fiscales que te aplican?', 'no', 'Reunión de planificación fiscal antes del cierre: incentivos, amortizaciones y reservas.', 'Dirección y asesor fiscal', 60, 'Ahorro fiscal identificado'),
-        q('i3', 'Datos', '¿Sabes con tres meses de antelación cuánto pagarás en cada trimestre?', 'Integrar el calendario fiscal en la tesorería semanal.', 'Administración', 30, 'Pagos previstos con 90 días'),
-        s('i4', 'Proceso', '¿Has pagado recargos o intereses por pagar fuera de plazo en el último año?', 'si', 'Calendario de vencimientos con aviso diez días antes y un responsable.', 'Administración', 15, 'Recargos pagados'),
+        q('i1', 'Proceso', '¿Provisiona cada mes la parte proporcional de los impuestos?', 'Provisión mensual en una cuenta separada para IVA, retenciones y sociedades.', 'Administración', 30, 'Provisión al día'),
+        s('i2', 'Estrategia', '¿Ha revisado este año con su asesor los incentivos fiscales que le aplican?', 'no', 'Reunión de planificación fiscal antes del cierre: incentivos, amortizaciones y reservas.', 'Dirección y asesor fiscal', 60, 'Ahorro fiscal identificado'),
+        q('i3', 'Datos', '¿Sabe con tres meses de antelación cuánto pagará en cada trimestre?', 'Integrar el calendario fiscal en la tesorería semanal.', 'Administración', 30, 'Pagos previstos con 90 días'),
+        s('i4', 'Proceso', '¿Ha pagado recargos o intereses por pagar fuera de plazo en el último año?', 'si', 'Calendario de vencimientos con aviso diez días antes y un responsable.', 'Administración', 15, 'Recargos pagados'),
         q('i5', 'Estrategia', '¿Las decisiones de inversión incluyen su efecto fiscal?', 'Pasar cada inversión relevante por los escenarios fiscales antes de decidir.', 'Dirección general', 90, 'Inversiones con escenario fiscal')
       ],
       objetivos: [{ k: 'Presión sobre ventas', u: '%', dir: 'bajar', kpi: 'Presión sobre ventas' }, { k: 'Impuestos 12 meses', u: '€', dir: 'bajar', kpi: 'Impuestos 12 meses' }],
@@ -109,11 +109,11 @@
       consultor: ['Modelo de trece semanas con cobros por cliente y pagos comprometidos.', 'Reunión de tesorería de veinte minutos los lunes.', 'Política de colchón y de prioridades de pago.', 'Negociación de póliza, confirming o factoring dimensionados a la peor semana.'],
       datos: [{ t: 'Movimientos bancarios recientes (extracto)', tipo: 'banco' }, { t: 'Ventas por cliente (para prever cobros)', tipo: 'ventas' }, { t: 'Compras por proveedor (para prever pagos)', tipo: 'compras' }],
       preguntas: [
-        q('s1', 'Proceso', '¿Actualizas la previsión de tesorería cada semana?', 'Rutina de los lunes: actualizar las trece semanas con cobros y pagos confirmados.', 'Administración', 15, 'Semanas actualizadas'),
-        s('s2', 'Estrategia', '¿Tienes un colchón mínimo de caja acordado?', 'no', 'Fijar el colchón (por ejemplo, un mes de pagos fijos) y el plan si se rompe.', 'Dirección general', 30, 'Semanas por debajo del colchón'),
+        q('s1', 'Proceso', '¿Actualiza la previsión de tesorería cada semana?', 'Rutina de los lunes: actualizar las trece semanas con cobros y pagos confirmados.', 'Administración', 15, 'Semanas actualizadas'),
+        s('s2', 'Estrategia', '¿Tiene un colchón mínimo de caja acordado?', 'no', 'Fijar el colchón (por ejemplo, un mes de pagos fijos) y el plan si se rompe.', 'Dirección general', 30, 'Semanas por debajo del colchón'),
         q('s3', 'Datos', '¿La previsión de cobros se basa en los vencimientos reales de cada cliente?', 'Cargar cada semana los vencimientos de clientes desde la gestión.', 'Administración', 30, 'Error de previsión de cobros'),
-        s('s4', 'Herramientas', '¿Tienes financiación de circulante (póliza, confirming, factoring) negociada y sin usar?', 'no', 'Negociar póliza o factoring antes de necesitarlo, dimensionado a la peor semana.', 'Dirección financiera', 60, 'Línea disponible'),
-        q('s5', 'Proceso', '¿Pagas a tiempo a los proveedores? (1 = a menudo se retrasa · 5 = siempre a tiempo)', 'Plan de choque: calendario de pagos priorizado y conversación con los proveedores clave.', 'Dirección general', 15, 'Pagos retrasados')
+        s('s4', 'Herramientas', '¿Tiene financiación de circulante (póliza, confirming, factoring) negociada y sin usar?', 'no', 'Negociar póliza o factoring antes de necesitarlo, dimensionado a la peor semana.', 'Dirección financiera', 60, 'Línea disponible'),
+        q('s5', 'Proceso', '¿Paga a tiempo a los proveedores? (1 = a menudo se retrasa · 5 = siempre a tiempo)', 'Plan de choque: calendario de pagos priorizado y conversación con los proveedores clave.', 'Dirección general', 15, 'Pagos retrasados')
       ],
       objetivos: [{ k: 'Saldo mínimo 13 semanas', u: '€', dir: 'subir', kpi: 'Saldo mínimo 13 semanas' }],
       cadencia: [['Semanal (lunes)', 'Previsión a trece semanas', 'Administración'], ['Mensual', 'Previsto frente a real', 'Dirección financiera'], ['Trimestral', 'Líneas de financiación y colchón', 'Dirección general']]
@@ -138,17 +138,17 @@
 
     ventas: {
       pregunta: '¿Quién me compra y cuánto dependo de él?', resp: 'Dirección comercial',
-      proposito: 'Saber quién te compra, cuánto dependes de cada cliente y cuáles te dejan dinero de verdad, para proteger a los buenos y corregir a los que restan.',
+      proposito: 'Saber quién le compra, cuánto depende de cada cliente y cuáles le dejan dinero de verdad, para proteger a los buenos y corregir a los que restan.',
       maxima: ['ABC por ventas y ABC′ por margen de clientes, productos y proveedores, actualizado cada trimestre.', 'Margen por cliente que incluye el coste de servirle (descuentos, portes, plazo de cobro).', 'Plan de cuenta para cada cliente A.', 'Límite de dependencia del primer cliente y plan para diluirla.', 'Canal de bajo coste o precio mínimo para los clientes C.'],
       consultor: ['Rentabilidad por cliente con costes de servicio reales.', 'Segmentación y política comercial diferenciada por segmento.', 'Planes de cuenta con visitas, riesgos y oportunidades.', 'Objetivo de diversificación con captación dirigida.'],
       datos: [{ t: 'Ventas del último año por cliente (y por producto si es posible), con coste o margen', tipo: 'ventas' }, { t: 'Catálogo de productos con precio y coste', tipo: 'productos' }],
       preguntas: [
-        q('v1', 'Datos', '¿Conoces el margen que te deja cada cliente, no solo lo que te compra?', 'Calcular el margen por cliente con el coste de servirle y repetirlo cada trimestre.', 'Dirección comercial', 45, 'Clientes con margen calculado'),
-        s('v2', 'Estrategia', '¿Tienes un plan de cuenta para tus cinco principales clientes?', 'no', 'Plan de cuenta para cada cliente A: contactos, riesgos, oportunidades y calendario de visitas.', 'Dirección comercial', 60, 'Clientes A con plan'),
-        q('v3', 'Estrategia', '¿Tienes un límite acordado de dependencia del primer cliente?', 'Fijar un límite (por ejemplo, 20 % de la venta) y un plan de captación para diluirla.', 'Dirección general', 90, 'Peso del primer cliente'),
+        q('v1', 'Datos', '¿Conoce el margen que le deja cada cliente, no solo lo que le compra?', 'Calcular el margen por cliente con el coste de servirle y repetirlo cada trimestre.', 'Dirección comercial', 45, 'Clientes con margen calculado'),
+        s('v2', 'Estrategia', '¿Tiene un plan de cuenta para sus cinco principales clientes?', 'no', 'Plan de cuenta para cada cliente A: contactos, riesgos, oportunidades y calendario de visitas.', 'Dirección comercial', 60, 'Clientes A con plan'),
+        q('v3', 'Estrategia', '¿Tiene un límite acordado de dependencia del primer cliente?', 'Fijar un límite (por ejemplo, 20 % de la venta) y un plan de captación para diluirla.', 'Dirección general', 90, 'Peso del primer cliente'),
         q('v4', 'Proceso', '¿Las condiciones (precios, descuentos, plazos) dependen de lo que aporta cada cliente?', 'Política comercial por segmento ABC: descuentos y plazos según el margen que deja.', 'Dirección comercial', 60, 'Descuento medio por segmento'),
-        s('v5', 'Proceso', '¿Revisas a los clientes C (poco volumen y poco margen) para reducir lo que cuesta servirles?', 'no', 'Pasar a los clientes C a un canal de bajo coste (web, pedido mínimo o tarifa propia).', 'Equipo comercial', 90, 'Coste de servicio de clientes C'),
-        q('v6', 'Datos', '¿Sabes qué productos concentran el margen?', 'ABC de productos y revisión del surtido con los productos C.', 'Dirección comercial', 60, 'Productos C revisados')
+        s('v5', 'Proceso', '¿Revisa a los clientes C (poco volumen y poco margen) para reducir lo que cuesta servirles?', 'no', 'Pasar a los clientes C a un canal de bajo coste (web, pedido mínimo o tarifa propia).', 'Equipo comercial', 90, 'Coste de servicio de clientes C'),
+        q('v6', 'Datos', '¿Sabe qué productos concentran el margen?', 'ABC de productos y revisión del surtido con los productos C.', 'Dirección comercial', 60, 'Productos C revisados')
       ],
       objetivos: [{ k: 'Peso del primer cliente', u: '%', dir: 'bajar', sug: 15, kpi: 'Peso del primer cliente' }, { k: 'Clientes «grandes no rentables»', u: 'clientes', dir: 'bajar', sug: 0, kpi: 'Clientes «grandes no rentables»' }],
       cadencia: [['Mensual', 'Ventas y margen de los clientes A', 'Dirección comercial'], ['Trimestral', 'ABC y ABC′ de clientes y productos', 'Dirección comercial'], ['Anual', 'Política comercial y límites de dependencia', 'Dirección general']]
@@ -161,11 +161,11 @@
       consultor: ['Revisión de escandallos con compras y producción.', 'Análisis de la respuesta de la demanda al precio con el histórico.', 'Prueba de precio controlada en un segmento.', 'Escala de descuentos y autorizaciones.'],
       datos: [{ t: 'Productos con precio, coste variable y unidades vendidas', tipo: 'productos' }, { t: 'Ventas por producto', tipo: 'ventas' }],
       preguntas: [
-        q('m1', 'Datos', '¿Tienes escandallos (coste unitario) actualizados de tus productos?', 'Revisar los escandallos de los veinte productos principales con compras y producción.', 'Operaciones', 60, 'Productos con escandallo al día'),
-        s('m2', 'Proceso', '¿Revisas las tarifas al menos una vez al año según los costes?', 'no', 'Revisión anual de tarifas con cláusula de actualización por costes.', 'Dirección comercial', 90, 'Tarifas revisadas'),
-        q('m3', 'Estrategia', '¿Sabes cuánto puedes subir el precio sin perder demasiado volumen?', 'Prueba de precio controlada en un segmento y medición de la respuesta.', 'Dirección comercial', 90, 'Variación de volumen tras la prueba'),
+        q('m1', 'Datos', '¿Tiene escandallos (coste unitario) actualizados de sus productos?', 'Revisar los escandallos de los veinte productos principales con compras y producción.', 'Operaciones', 60, 'Productos con escandallo al día'),
+        s('m2', 'Proceso', '¿Revisa las tarifas al menos una vez al año según los costes?', 'no', 'Revisión anual de tarifas con cláusula de actualización por costes.', 'Dirección comercial', 90, 'Tarifas revisadas'),
+        q('m3', 'Estrategia', '¿Sabe cuánto puede subir el precio sin perder demasiado volumen?', 'Prueba de precio controlada en un segmento y medición de la respuesta.', 'Dirección comercial', 90, 'Variación de volumen tras la prueba'),
         q('m4', 'Proceso', '¿Los descuentos están controlados y autorizados?', 'Escala de descuentos con aprobación por encima de un umbral.', 'Dirección comercial', 30, 'Descuento medio'),
-        s('m5', 'Estrategia', '¿Impulsas de forma activa los productos de más margen?', 'no', 'Incentivos y argumentarios orientados a los productos de mayor margen.', 'Equipo comercial', 60, 'Peso de productos A en la venta')
+        s('m5', 'Estrategia', '¿Impulsa de forma activa los productos de más margen?', 'no', 'Incentivos y argumentarios orientados a los productos de mayor margen.', 'Equipo comercial', 60, 'Peso de productos A en la venta')
       ],
       objetivos: [{ k: 'Margen de seguridad', u: '%', dir: 'subir', sug: 25, kpi: 'Margen de seguridad' }],
       cadencia: [['Mensual', 'Margen por línea de producto', 'Dirección comercial'], ['Trimestral', 'Descuentos y mezcla de ventas', 'Dirección comercial'], ['Anual', 'Tarifas y escandallos', 'Dirección y operaciones']]
@@ -178,10 +178,10 @@
       consultor: ['Definición de etapas y de los criterios para pasar de una a otra.', 'Disciplina de registro y cuotas por comercial.', 'Revisión semanal de oportunidades atascadas.', 'Análisis trimestral de oportunidades perdidas.'],
       datos: [{ t: 'Oportunidades abiertas con etapa, importe y probabilidad', tipo: 'pipeline' }, { t: 'Ventas del último año', tipo: 'ventas' }],
       preguntas: [
-        s('c1', 'Herramientas', '¿Las oportunidades están en un registro único (CRM o listado compartido)?', 'no', 'Implantar un registro único de oportunidades y actualizarlo cada semana.', 'Dirección comercial', 30, 'Oportunidades registradas'),
+        s('c1', 'Herramientas', '¿Las oportunidades están en un registro único (programa de clientes o listado compartido)?', 'no', 'Implantar un registro único de oportunidades y actualizarlo cada semana.', 'Dirección comercial', 30, 'Oportunidades registradas'),
         q('c2', 'Proceso', '¿Las etapas del proceso de venta tienen criterios claros?', 'Definir las etapas y qué tiene que pasar para avanzar de una a otra.', 'Dirección comercial', 30, 'Oportunidades con etapa correcta'),
         q('c3', 'Proceso', '¿Hay una reunión comercial semanal sobre las oportunidades?', 'Reunión comercial de treinta minutos: qué avanza, qué se atasca y próximos pasos.', 'Dirección comercial', 15, 'Reuniones celebradas'),
-        s('c4', 'Datos', '¿Analizas por qué se pierden las oportunidades?', 'no', 'Registrar el motivo de cada pérdida y revisarlo cada trimestre.', 'Equipo comercial', 60, 'Pérdidas con motivo'),
+        s('c4', 'Datos', '¿Analiza por qué se pierden las oportunidades?', 'no', 'Registrar el motivo de cada pérdida y revisarlo cada trimestre.', 'Equipo comercial', 60, 'Pérdidas con motivo'),
         q('c5', 'Estrategia', '¿El embudo cubre de sobra el objetivo pendiente?', 'Plan de generación de oportunidades hasta cubrir tres veces el objetivo pendiente.', 'Dirección comercial', 60, 'Cobertura del objetivo')
       ],
       objetivos: [{ k: 'Previsión ponderada', u: '€', dir: 'subir', kpi: 'Previsión ponderada' }],
@@ -195,11 +195,11 @@
       consultor: ['Medición del origen de cada contacto y cliente.', 'Presupuesto por canal ligado a resultados.', 'Pruebas pequeñas con canales nuevos antes de escalar.', 'Programa de fidelización para clientes A y B.'],
       datos: [{ t: 'Inversión, contactos y clientes por canal', tipo: 'marketing' }, { t: 'Ventas por cliente', tipo: 'ventas' }],
       preguntas: [
-        q('k1', 'Datos', '¿Sabes de qué canal viene cada cliente nuevo?', 'Preguntar y registrar el origen en cada alta de cliente.', 'Equipo comercial', 30, 'Clientes con origen'),
+        q('k1', 'Datos', '¿Sabe de qué canal viene cada cliente nuevo?', 'Preguntar y registrar el origen en cada alta de cliente.', 'Equipo comercial', 30, 'Clientes con origen'),
         s('k2', 'Estrategia', '¿Hay un presupuesto anual de marketing con objetivos?', 'no', 'Presupuesto por canal con objetivo de clientes y coste máximo de captación.', 'Dirección general', 60, 'Canales con objetivo'),
-        q('k3', 'Proceso', '¿Dejas de financiar los canales que no rinden?', 'Revisión trimestral: recortar los canales con LTV/CAC por debajo de 3.', 'Dirección general', 90, 'LTV/CAC'),
-        q('k4', 'Estrategia', '¿Trabajas la recompra y la recomendación de los clientes actuales?', 'Programa de fidelización y de recomendación para clientes A y B.', 'Equipo comercial', 90, 'Recompra'),
-        s('k5', 'Herramientas', '¿Tu web genera contactos medibles?', 'no', 'Formularios con seguimiento y objetivo mensual de contactos por la web.', 'Marketing', 60, 'Contactos web al mes')
+        q('k3', 'Proceso', '¿Deja de financiar los canales que no rinden?', 'Revisión trimestral: recortar los canales con LTV/CAC por debajo de 3.', 'Dirección general', 90, 'LTV/CAC'),
+        q('k4', 'Estrategia', '¿Trabaja la recompra y la recomendación de los clientes actuales?', 'Programa de fidelización y de recomendación para clientes A y B.', 'Equipo comercial', 90, 'Recompra'),
+        s('k5', 'Herramientas', '¿Su web genera contactos medibles?', 'no', 'Formularios con seguimiento y objetivo mensual de contactos por la web.', 'Marketing', 60, 'Contactos web al mes')
       ],
       objetivos: [{ k: 'CAC medio', u: '€', dir: 'bajar', kpi: 'CAC medio' }],
       cadencia: [['Mensual', 'Contactos y clientes por canal', 'Marketing'], ['Trimestral', 'CAC, LTV y reparto del presupuesto', 'Dirección'], ['Anual', 'Presupuesto de marketing', 'Dirección general']]
@@ -207,15 +207,15 @@
 
     compras: {
       pregunta: '¿De quién dependo para comprar?', resp: 'Compras',
-      proposito: 'Comprar mejor y con menos riesgo: saber de quién dependes, qué es estratégico y dónde hay ahorro negociable.',
+      proposito: 'Comprar mejor y con menos riesgo: saber de quién depende, qué es estratégico y dónde hay ahorro negociable.',
       maxima: ['Matriz de Kraljic con estrategia por cuadrante.', 'Proveedores homologados y evaluados por calidad, plazo y precio.', 'Alternativa para cada proveedor crítico.', 'Negociación anual con objetivo de ahorro.', 'Contratos con cláusulas de precio, plazo y penalización.'],
       consultor: ['Análisis del gasto por proveedor y familia.', 'Licitación de las partidas apalancadas.', 'Doble fuente para los materiales críticos.', 'Evaluación trimestral de proveedores.'],
       datos: [{ t: 'Compras del último año por proveedor (importe y plazo de pago)', tipo: 'compras' }],
       preguntas: [
-        q('o1', 'Datos', '¿Sabes cuánto compras a cada proveedor al año?', 'Sacar las compras anuales por proveedor y cargarlas en la zona de origen.', 'Administración', 30, 'Gasto analizado'),
-        s('o2', 'Estrategia', '¿Tienes alternativa homologada para los proveedores críticos?', 'no', 'Homologar un segundo proveedor para cada material crítico.', 'Compras', 120, 'Críticos con alternativa'),
-        q('o3', 'Proceso', '¿Negocias de forma planificada con tus principales proveedores?', 'Calendario anual de negociación con objetivo de ahorro por proveedor.', 'Compras', 90, 'Ahorro negociado'),
-        q('o4', 'Proceso', '¿Evalúas la calidad, el plazo y el precio de los proveedores?', 'Evaluación trimestral de proveedores con puntuación y acciones.', 'Compras', 60, 'Proveedores evaluados'),
+        q('o1', 'Datos', '¿Sabe cuánto compra a cada proveedor al año?', 'Sacar las compras anuales por proveedor y cargarlas en la zona de origen.', 'Administración', 30, 'Gasto analizado'),
+        s('o2', 'Estrategia', '¿Tiene alternativa homologada para los proveedores críticos?', 'no', 'Homologar un segundo proveedor para cada material crítico.', 'Compras', 120, 'Críticos con alternativa'),
+        q('o3', 'Proceso', '¿Negocia de forma planificada con sus principales proveedores?', 'Calendario anual de negociación con objetivo de ahorro por proveedor.', 'Compras', 90, 'Ahorro negociado'),
+        q('o4', 'Proceso', '¿Evalúa la calidad, el plazo y el precio de los proveedores?', 'Evaluación trimestral de proveedores con puntuación y acciones.', 'Compras', 60, 'Proveedores evaluados'),
         s('o5', 'Estrategia', '¿Los contratos con los principales proveedores fijan precio, plazo y penalizaciones?', 'no', 'Contrato marco con los proveedores A.', 'Dirección general', 120, 'Proveedores A con contrato')
       ],
       objetivos: [{ k: 'Dependencia del primer proveedor', u: '%', dir: 'bajar', sug: 25, kpi: 'Dependencia del primer proveedor' }],
@@ -229,11 +229,11 @@
       consultor: ['Mapa del recorrido del pedido de principio a fin.', 'Licitación del transporte.', 'Rediseño del almacén y ubicaciones por rotación.', 'Pedido mínimo o portes según tamaño.'],
       datos: [{ t: 'Pedidos, costes de transporte y almacén y datos por ruta', tipo: 'documentos' }, { t: 'Ventas por cliente', tipo: 'ventas' }],
       preguntas: [
-        q('l1', 'Datos', '¿Mides las entregas a tiempo y completas (OTIF)?', 'Medir el OTIF por cliente cada semana.', 'Logística', 30, 'OTIF'),
-        s('l2', 'Proceso', '¿Tienes pedido mínimo o portes según el tamaño del pedido?', 'no', 'Política de pedido mínimo o cargo de portes en pedidos pequeños.', 'Dirección comercial', 60, 'Pedidos pequeños'),
+        q('l1', 'Datos', '¿Mide los pedidos entregados completos y a tiempo (OTIF)?', 'Medir el OTIF por cliente cada semana.', 'Logística', 30, 'OTIF'),
+        s('l2', 'Proceso', '¿Tiene pedido mínimo o portes según el tamaño del pedido?', 'no', 'Política de pedido mínimo o cargo de portes en pedidos pequeños.', 'Dirección comercial', 60, 'Pedidos pequeños'),
         q('l3', 'Proceso', '¿El almacén está ordenado, con ubicaciones y rotación controlada?', 'Aplicar 5S en el almacén y ubicar por rotación (ABC).', 'Logística', 90, 'Tiempo de preparación por pedido'),
-        s('l4', 'Estrategia', '¿Has comparado tarifas de transporte en el último año?', 'no', 'Licitar el transporte con al menos tres ofertas.', 'Logística', 60, 'Coste de transporte por pedido'),
-        q('l5', 'Datos', '¿Conoces el coste por pedido y por ruta?', 'Coste por ruta cada mes y revisión de las rutas menos rentables.', 'Logística', 60, 'Coste por pedido')
+        s('l4', 'Estrategia', '¿Ha comparado tarifas de transporte en el último año?', 'no', 'Licitar el transporte con al menos tres ofertas.', 'Logística', 60, 'Coste de transporte por pedido'),
+        q('l5', 'Datos', '¿Conoce el coste por pedido y por ruta?', 'Coste por ruta cada mes y revisión de las rutas menos rentables.', 'Logística', 60, 'Coste por pedido')
       ],
       objetivos: [{ k: 'OTIF', u: '%', dir: 'subir', sug: 95, kpi: 'OTIF' }, { k: 'Coste logístico s/ventas', u: '%', dir: 'bajar', kpi: 'Coste logístico s/ventas' }],
       cadencia: [['Diaria', 'Incidencias de entrega', 'Logística'], ['Semanal', 'OTIF por cliente', 'Logística'], ['Mensual', 'Coste por pedido y por ruta', 'Dirección de operaciones']]
@@ -248,7 +248,7 @@
       preguntas: [
         q('h1', 'Datos', '¿Se registran las horas por tarea o por proyecto?', 'Usar el reloj de tareas durante cuatro semanas en los puestos clave.', 'Mandos', 30, 'Horas registradas'),
         q('h2', 'Proceso', '¿Se analizan las causas de las esperas y los retrabajos?', 'Reunión quincenal de causas: las tres principales esperas y retrabajos y su solución.', 'Producción', 30, 'Horas de esperas y retrabajos'),
-        s('h3', 'Estrategia', '¿Sabes cuántas horas libres tienes para crecer sin contratar?', 'no', 'Calcular la capacidad libre por equipo y usarla en el simulador.', 'Dirección general', 60, 'Capacidad libre'),
+        s('h3', 'Estrategia', '¿Sabe cuántas horas libres tiene para crecer sin contratar?', 'no', 'Calcular la capacidad libre por equipo y usarla en el simulador.', 'Dirección general', 60, 'Capacidad libre'),
         q('h4', 'Personas', '¿El equipo entiende por qué se mide el tiempo?', 'Explicar el objetivo (quitar esperas, no vigilar) y compartir los resultados.', 'Dirección general', 15, 'Participación en el registro'),
         s('h5', 'Proceso', '¿Hay tiempos estándar para las tareas repetitivas?', 'no', 'Definir el tiempo estándar de las diez tareas más frecuentes.', 'Producción', 90, 'Tareas con estándar')
       ],
@@ -263,9 +263,9 @@
       consultor: ['Taller de mapa del flujo de valor con el equipo.', 'Medición del OEE y plan para el cuello de botella.', 'Talleres kaizen y estándares de trabajo.', 'Formación de un responsable interno de mejora continua.'],
       datos: [{ t: 'Partes de producción o de horas', tipo: 'tiempos' }, { t: 'Informes de producción, calidad o incidencias', tipo: 'documentos' }],
       preguntas: [
-        q('n1', 'Datos', '¿Mides el OEE (disponibilidad × rendimiento × calidad) de los equipos principales?', 'Medir el OEE cada día en el cuello de botella.', 'Producción', 30, 'OEE medio'),
-        s('n2', 'Proceso', '¿Has dibujado el mapa del flujo de valor de tu producto principal?', 'no', 'Taller de mapa del flujo de valor de un día con el equipo.', 'Producción', 45, 'Tiempo de paso'),
-        q('n3', 'Proceso', '¿Aplicas 5S en los puestos de trabajo?', '5S en una zona piloto y auditoría mensual.', 'Producción', 60, 'Puntuación 5S'),
+        q('n1', 'Datos', '¿Mide la eficiencia global (OEE: disponibilidad × rendimiento × calidad) de los equipos principales?', 'Medir el OEE cada día en el cuello de botella.', 'Producción', 30, 'OEE medio'),
+        s('n2', 'Proceso', '¿Ha dibujado el mapa del flujo de valor de su producto principal?', 'no', 'Taller de mapa del flujo de valor de un día con el equipo.', 'Producción', 45, 'Tiempo de paso'),
+        q('n3', 'Proceso', '¿Aplica orden y limpieza (5S) en los puestos de trabajo?', '5S en una zona piloto y auditoría mensual.', 'Producción', 60, 'Puntuación 5S'),
         q('n4', 'Personas', '¿Se recogen y se aplican las ideas de mejora del equipo?', 'Tablero de mejoras y kaizen mensual de dos horas.', 'Mandos', 30, 'Mejoras aplicadas'),
         s('n5', 'Herramientas', '¿Hay gestión visual (tableros, semáforos) en planta?', 'no', 'Tablero visual diario por línea: producción, calidad e incidencias.', 'Producción', 45, 'Líneas con tablero')
       ],
@@ -282,7 +282,7 @@
       preguntas: [
         s('e1', 'Estrategia', '¿Cada puesto clave tiene un relevo preparado?', 'no', 'Mapa de puestos críticos con su relevo y plan de formación.', 'Dirección general', 120, 'Puestos críticos con relevo'),
         q('e2', 'Proceso', '¿Hay evaluaciones del desempeño al menos una vez al año?', 'Entrevista anual de desempeño con objetivos individuales.', 'Mandos', 90, 'Personas evaluadas'),
-        q('e3', 'Personas', '¿Conoces el clima del equipo y los motivos de las bajas voluntarias?', 'Encuesta de clima anual y entrevista de salida.', 'Personas', 60, 'Rotación voluntaria'),
+        q('e3', 'Personas', '¿Conoce el clima del equipo y los motivos de las bajas voluntarias?', 'Encuesta de clima anual y entrevista de salida.', 'Personas', 60, 'Rotación voluntaria'),
         s('e4', 'Proceso', '¿Hay un plan de formación anual ligado a las necesidades?', 'no', 'Plan de formación por área con presupuesto.', 'Personas', 90, 'Horas de formación por persona'),
         q('e5', 'Estrategia', '¿Las funciones y responsabilidades están definidas por escrito?', 'Fichas de puesto y organigrama publicado.', 'Dirección general', 60, 'Puestos con ficha'),
         q('e6', 'Personas', '¿Los mandos intermedios deciden sin pasar todo por la dirección?', 'Lista de decisiones que pasan a los mandos, con límites claros.', 'Dirección general', 60, 'Decisiones delegadas')
@@ -293,16 +293,16 @@
 
     expansion: {
       pregunta: '¿Dónde y cómo crecer?', resp: 'Dirección general',
-      proposito: 'Elegir dónde y cómo crecer fuera de tu zona con números: mercado, competencia, inversión y plazo de recuperación.',
+      proposito: 'Elegir dónde y cómo crecer fuera de su zona con números: mercado, competencia, inversión y plazo de recuperación.',
       maxima: ['Comparativa de zonas con los mismos criterios.', 'Modelo de entrada decidido (propio, socio o distribuidor).', 'Piloto con presupuesto, rampa e hitos de seguir o salir.', 'La inversión ensayada en el simulador antes de decidir.'],
       consultor: ['Estudio de mercado de las zonas candidatas.', 'Entrevistas a clientes potenciales.', 'Comparación de modelos de entrada por inversión, control y riesgo.', 'Plan piloto con hitos y criterio de salida.'],
       datos: [{ t: 'Estudios de mercado o datos de las zonas candidatas', tipo: 'documentos' }, { t: 'Ventas por cliente (zona actual)', tipo: 'ventas' }],
       preguntas: [
-        q('x1', 'Datos', '¿Tienes datos del tamaño del mercado y de la competencia en las zonas candidatas?', 'Estudio de mercado de las dos zonas mejor puntuadas.', 'Dirección general', 60, 'Zonas estudiadas'),
-        s('x2', 'Estrategia', '¿Has validado la demanda con clientes reales de la zona?', 'no', 'Diez entrevistas o una prueba comercial antes de invertir.', 'Dirección comercial', 60, 'Clientes potenciales validados'),
+        q('x1', 'Datos', '¿Tiene datos del tamaño del mercado y de la competencia en las zonas candidatas?', 'Estudio de mercado de las dos zonas mejor puntuadas.', 'Dirección general', 60, 'Zonas estudiadas'),
+        s('x2', 'Estrategia', '¿Ha validado la demanda con clientes reales de la zona?', 'no', 'Diez entrevistas o una prueba comercial antes de invertir.', 'Dirección comercial', 60, 'Clientes potenciales validados'),
         q('x3', 'Estrategia', '¿Está decidido el modelo de entrada (propio, socio, distribuidor)?', 'Comparar modelos de entrada por inversión, control y riesgo.', 'Dirección general', 90, 'Modelo decidido'),
         s('x4', 'Proceso', '¿Hay hitos y criterios para seguir o salir?', 'no', 'Definir los hitos a seis y doce meses y el criterio de salida.', 'Dirección general', 30, 'Hitos cumplidos'),
-        q('x5', 'Personas', '¿Tienes a la persona que liderará la expansión?', 'Identificar y preparar al responsable de la nueva zona.', 'Dirección general', 90, 'Responsable nombrado')
+        q('x5', 'Personas', '¿Tiene a la persona que liderará la expansión?', 'Identificar y preparar al responsable de la nueva zona.', 'Dirección general', 90, 'Responsable nombrado')
       ],
       objetivos: [{ k: 'Zonas rentables', u: 'zonas', dir: 'subir', kpi: 'Zonas rentables' }],
       cadencia: [['Mensual', 'Hitos del piloto', 'Responsable de la zona'], ['Trimestral', 'Decisión de seguir o salir', 'Dirección general']]
@@ -315,11 +315,11 @@
       consultor: ['Análisis PESTEL y de las cinco fuerzas del sector.', 'Ficha de los principales competidores.', 'Escenarios macro trasladados al simulador.', 'Plan de contingencia ante una caída de la demanda.'],
       datos: [{ t: 'Estudios sectoriales, informes de mercado o de competencia', tipo: 'documentos' }, { t: 'Ventas por cliente', tipo: 'ventas' }],
       preguntas: [
-        q('r1', 'Datos', '¿Sigues con regularidad los indicadores externos que afectan a tu negocio?', 'Panel trimestral con cinco indicadores externos clave.', 'Dirección general', 30, 'Indicadores vigilados'),
-        s('r2', 'Estrategia', '¿Conoces la cuota y los precios de tus tres principales competidores?', 'no', 'Ficha de los tres competidores: precios, oferta, clientes y fortalezas.', 'Dirección comercial', 60, 'Competidores analizados'),
-        q('r3', 'Estrategia', '¿Tienes un plan si la demanda cae un 15 %?', 'Plan de contingencia: costes a ajustar y en qué orden.', 'Dirección general', 60, 'Plan de contingencia'),
-        s('r4', 'Proceso', '¿Revisas la regulación que te afecta (laboral, fiscal, medioambiental, sectorial)?', 'no', 'Revisión semestral con los asesores de los cambios regulatorios.', 'Dirección general', 180, 'Cambios revisados'),
-        q('r5', 'Estrategia', '¿Tu oferta está preparada para los cambios tecnológicos del sector?', 'Vigilancia tecnológica y una prueba piloto al año.', 'Dirección general', 180, 'Pilotos al año')
+        q('r1', 'Datos', '¿Sigue con regularidad los indicadores externos que afectan a su negocio?', 'Panel trimestral con cinco indicadores externos clave.', 'Dirección general', 30, 'Indicadores vigilados'),
+        s('r2', 'Estrategia', '¿Conoce la cuota y los precios de sus tres principales competidores?', 'no', 'Ficha de los tres competidores: precios, oferta, clientes y fortalezas.', 'Dirección comercial', 60, 'Competidores analizados'),
+        q('r3', 'Estrategia', '¿Tiene un plan si la demanda cae un 15 %?', 'Plan de contingencia: costes a ajustar y en qué orden.', 'Dirección general', 60, 'Plan de contingencia'),
+        s('r4', 'Proceso', '¿Revisa la regulación que le afecta (laboral, fiscal, medioambiental, sectorial)?', 'no', 'Revisión semestral con los asesores de los cambios regulatorios.', 'Dirección general', 180, 'Cambios revisados'),
+        q('r5', 'Estrategia', '¿Su oferta está preparada para los cambios tecnológicos del sector?', 'Vigilancia tecnológica y una prueba piloto al año.', 'Dirección general', 180, 'Pilotos al año')
       ],
       objetivos: [{ k: 'Sensibilidad al ciclo', u: '/5', dir: 'bajar', sug: 3, kpi: 'Sensibilidad al ciclo' }, { k: 'Riesgos externos', u: 'riesgos', dir: 'bajar', kpi: 'Riesgos externos' }],
       cadencia: [['Trimestral', 'Indicadores externos y competencia', 'Dirección general'], ['Semestral', 'Regulación', 'Dirección y asesores'], ['Anual', 'Escenarios y contingencia', 'Comité de dirección']]
@@ -332,9 +332,9 @@
       consultor: ['Fijar el corte de referencia (punto cero) con datos reales antes de empezar a mejorar.', 'Lectura de tendencias: separar lo que mejora por decisiones propias de lo que mejora por el mercado.', 'Informe trimestral de evolución para la propiedad o el consejo.'],
       datos: [{ t: 'Balances y cuentas de resultados de los dos últimos años (punto de partida)', tipo: 'cuentas', alt: 'historico' }],
       preguntas: [
-        s('v1', 'Proceso', '¿Tienes una foto de referencia de la empresa (punto cero) con la que comparar?', 'no', 'Guardar ahora un corte de referencia con los datos reales cargados.', 'Dirección general', 7, 'Cortes guardados'),
-        q('v2', 'Proceso', '¿Revisas de forma periódica si los indicadores mejoran o empeoran?', 'Revisión trimestral de la evolución: qué mejora, qué empeora y por qué.', 'Dirección general', 90, 'Revisiones trimestrales hechas'),
-        q('v3', 'Estrategia', '¿Mides el efecto de las decisiones importantes (antes y después)?', 'Guardar un corte antes y otro después de cada decisión relevante.', 'Dirección general', 30, 'Decisiones con corte antes y después')
+        s('v1', 'Proceso', '¿Tiene una foto de referencia de la empresa (punto cero) con la que comparar?', 'no', 'Guardar ahora un corte de referencia con los datos reales cargados.', 'Dirección general', 7, 'Cortes guardados'),
+        q('v2', 'Proceso', '¿Revisa de forma periódica si los indicadores mejoran o empeoran?', 'Revisión trimestral de la evolución: qué mejora, qué empeora y por qué.', 'Dirección general', 90, 'Revisiones trimestrales hechas'),
+        q('v3', 'Estrategia', '¿Mide el efecto de las decisiones importantes (antes y después)?', 'Guardar un corte antes y otro después de cada decisión relevante.', 'Dirección general', 30, 'Decisiones con corte antes y después')
       ],
       objetivos: [{ k: 'Salud global', u: '/100', dir: 'subir', sug: 75, fn: 'salud' }],
       cadencia: [['Mensual', 'Corte automático del diagnóstico', 'Atalaya'], ['Trimestral', 'Lectura de la evolución con la dirección', 'Dirección general'], ['Anual', 'Evolución del año para la propiedad', 'Propiedad']]
@@ -350,7 +350,7 @@
         s('k1', 'Proceso', '¿Hay una política escrita de crédito a clientes (plazos, límites y quién aprueba excepciones)?', 'no', 'Redactar la política de crédito: plazos por segmento, límite por cliente y quién aprueba excepciones.', 'Dirección financiera', 45, 'Clientes dentro de límite'),
         s('k2', 'Datos', '¿Se reconoce en las cuentas el deterioro de los saldos de dudoso cobro?', 'no', 'Revisar con el asesor el deterioro de los saldos de más de seis meses y su deducibilidad.', 'Administración', 30, 'Deterioro reconocido'),
         q('k3', 'Estrategia', '¿Las condiciones de pago se deciden según la rentabilidad y el riesgo de cada cliente?', 'Condiciones por segmento ABC: plazos más cortos o garantías a los clientes de más riesgo y menos margen.', 'Dirección comercial', 60, 'Días reales de cobro'),
-        s('k4', 'Herramientas', '¿Tienes seguro de crédito o garantías con los clientes que más deben?', 'no', 'Estudiar el seguro de crédito o garantías para los clientes con más saldo vencido.', 'Dirección financiera', 60, 'Saldo asegurado')
+        s('k4', 'Herramientas', '¿Tiene seguro de crédito o garantías con los clientes que más deben?', 'no', 'Estudiar el seguro de crédito o garantías para los clientes con más saldo vencido.', 'Dirección financiera', 60, 'Saldo asegurado')
       ],
       objetivos: [{ k: 'Días reales de cobro', u: 'días', dir: 'bajar', kpi: 'Días reales de cobro' }, { k: 'Vencido sobre pendiente', u: '%', dir: 'bajar', sug: 15, kpi: 'Vencido sobre pendiente' }],
       cadencia: [['Mensual', 'Antigüedad de saldos al cierre', 'Administración'], ['Trimestral', 'Plazo real frente a pactado y política de crédito', 'Dirección financiera'], ['Anual', 'Deterioro y seguro de crédito', 'Dirección y asesor']]
@@ -366,7 +366,7 @@
         s('w1', 'Estrategia', '¿La empresa funcionaría tres meses sin la propiedad?', 'no', 'Delegar decisiones y preparar un equipo directivo que no dependa de la propiedad.', 'Propiedad', 180, 'Decisiones delegadas'),
         s('w2', 'Datos', '¿Las cuentas están auditadas o tienen un histórico fiable de al menos tres años?', 'no', 'Ordenar las cuentas y valorar una auditoría voluntaria antes de cualquier operación.', 'Administración', 120, 'Años con cuentas fiables'),
         s('w3', 'Estrategia', '¿Hay un pacto entre socios o protocolo familiar con un criterio de valoración?', 'no', 'Acordar un pacto de socios con el método de valoración para entradas, salidas y herencias.', 'Propiedad', 120, 'Pacto firmado'),
-        q('w4', 'Estrategia', '¿Sabes qué decisiones aumentarían más el valor de la empresa?', 'Priorizar las mejoras del plan por su efecto en el valor (EBITDA por múltiplo y reducción de riesgo).', 'Dirección general', 60, 'Valor con el plan')
+        q('w4', 'Estrategia', '¿Sabe qué decisiones aumentarían más el valor de la empresa?', 'Priorizar las mejoras del plan por su efecto en el valor (EBITDA por múltiplo y reducción de riesgo).', 'Dirección general', 60, 'Valor con el plan')
       ],
       objetivos: [{ k: 'Valor de las acciones', u: '€', dir: 'subir', kpi: 'Valor de las acciones' }],
       cadencia: [['Anual', 'Valoración actualizada con las cuentas del año', 'Propiedad y dirección financiera'], ['Ante cualquier operación', 'Valoración profesional independiente', 'Propiedad y asesor']]
@@ -376,7 +376,7 @@
   /* Datos que reconoce la zona de origen y a qué módulos alimentan */
   A.C360_TIPOS = {
     cuentas: { n: 'Balances y cuentas de resultados', d: 'Cuentas anuales, balance de sumas y saldos o PyG de uno o varios años.', mods: ['dinero', 'impuestos', 'presupuesto', 'tablero', 'auditoria', 'plan'] },
-    ventas: { n: 'Ventas', d: 'Listado de facturas o ventas por cliente, producto y fecha, con importe (y coste o margen si lo tienes).', mods: ['ventas', 'margen', 'presupuesto', 'tesoreria', 'marketing', 'comercial', 'expansion', 'mercado', 'logistica'] },
+    ventas: { n: 'Ventas', d: 'Listado de facturas o ventas por cliente, producto y fecha, con importe (y coste o margen si lo tiene).', mods: ['ventas', 'margen', 'presupuesto', 'tesoreria', 'marketing', 'comercial', 'expansion', 'mercado', 'logistica'] },
     productos: { n: 'Productos', d: 'Catálogo o tarifa con precio, coste y unidades vendidas.', mods: ['margen', 'ventas'] },
     compras: { n: 'Compras y proveedores', d: 'Facturas de compra o compras por proveedor, con importe y plazo de pago.', mods: ['compras', 'tesoreria', 'ventas'] },
     plantilla: { n: 'Plantilla (trabajadores)', d: 'Trabajadores con nómina: área o puesto y coste (salario o coste empresa). Los inversores no van aquí.', mods: ['personas', 'tiempos'] },

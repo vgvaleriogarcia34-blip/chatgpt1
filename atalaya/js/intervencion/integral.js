@@ -279,7 +279,11 @@
   const cargar = async (k) => { try { return await P().loadData(k); } catch (e) { return null; } };
   const kpiSim = (sim) => {
     if (!sim || !sim.empresa || (A.simEsEjemplo && A.simEsEjemplo(sim)) || !(+sim.empresa.ventas > 0)) return null;
-    const e = sim.empresa, ebitda = e.ventas * (e.margen || 0) / 100 - (e.personal || 0) - (e.fijos || 0);
+    const e = sim.empresa;
+    // Ventas, EBITDA, caja, deuda y plantilla de la fuente única (js/cifras.js), con su origen
+    if (A.cifras) { const c = A.cifras.desdeSim(sim, P().empresas && P().empresas.activa ? P().empresas.activa() : null), f = (k) => A.cifras.fmt(k, c[k]);
+      return [['Ventas anuales', f('ventas')], ['Margen bruto', c.margen == null ? '—' : Math.round(c.margen * 10) / 10 + ' %'], ['Coste de personal', fmtE(c.personal || 0) + ` (${Math.round((c.personal || 0) / c.ventas * 100)} % de las ventas)`], ['Gastos fijos', fmtE(c.fijos || 0)], ['Resultado operativo aproximado (EBITDA)', f('ebitda') + (c.ebitdaPct == null ? '' : ` (${Math.round(c.ebitdaPct * 10) / 10} %)`)], ['Caja', f('caja')], ['Deuda bancaria', f('deuda')], ['Póliza: límite / dispuesto', `${fmtE(e.polizaLimite || 0)} / ${fmtE(e.polizaDispuesta || 0)}`], ['Plazos de cobro · existencias · pago', `${e.dso || 0} · ${e.dio || 0} · ${e.dpo || 0} días`], ['Plantilla', f('plantilla')], ['Origen de las cifras', c.origen.ventas || '—']]; }
+    const ebitda = e.ventas * (e.margen || 0) / 100 - (e.personal || 0) - (e.fijos || 0);
     return [['Ventas anuales', fmtE(e.ventas)], ['Margen bruto', (e.margen || 0) + ' %'], ['Coste de personal', fmtE(e.personal || 0) + ` (${Math.round((e.personal || 0) / e.ventas * 100)} % de las ventas)`], ['Gastos fijos', fmtE(e.fijos || 0)], ['Resultado operativo aproximado (EBITDA)', fmtE(ebitda) + ` (${Math.round(ebitda / e.ventas * 1000) / 10} %)`], ['Caja', fmtE(e.caja || 0)], ['Deuda viva', fmtE(e.deudaViva || 0)], ['Póliza: límite / dispuesto', `${fmtE(e.polizaLimite || 0)} / ${fmtE(e.polizaDispuesta || 0)}`], ['Plazos de cobro · existencias · pago', `${e.dso || 0} · ${e.dio || 0} · ${e.dpo || 0} días`], ['Plantilla', String(e.plantilla || 0)]];
   };
   const MUNDOS_N = ['Simulador de inversión', 'Sistema estratégico', 'Personas y equipos', 'Mesa de trabajo'];

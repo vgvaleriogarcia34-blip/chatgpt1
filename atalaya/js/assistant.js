@@ -14,7 +14,7 @@
   const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
   const SYSTEM = `Eres el asistente de Atalaya, un simulador de inversión y crecimiento para empresarios de pymes españolas, muchos sin formación financiera.
-Habla en español claro, con frases cortas y sin jerga; si usas un término técnico, explícalo en una frase.
+Habla en español claro, con frases cortas y sin jerga, y trata siempre de usted al empresario («su empresa», «puede», nunca «tu» ni «puedes»); si usas un término técnico o una sigla (EBITDA, DSCR, VAN, TIR, OTIF), di primero su nombre en palabras llanas y explícalo en una frase. Cifras en formato español (1.250.000 €, 3,5 %). Sin superlativos.
 Antes de opinar sobre la situación de la empresa, consulta la herramienta ver_situacion. No inventes cifras: usa las del simulador.
 Cuando el usuario pida cambiar algo («pon», «sube», «prueba con…»), hazlo con las herramientas y después explica qué ha cambiado (antes → ahora) y qué significa.
 Si expresa una preocupación, identifica qué semáforos y variables la afectan y propone de una a tres acciones concretas con cifras, empezando por las más sencillas.
@@ -57,12 +57,12 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
   const PG = () => (location.pathname.split('/').pop() || 'index.html').replace(/\?.*$/, '');
   const MUNDOS = {
     inicio: { url: 'portal.html', n: 'el inicio', k: ['inicio', 'portal', 'puesto de mando', 'pantalla principal', 'menu principal', 'galaxia', 'principio'], d: 'Desde aquí se entra en cada mundo de Atalaya 360°.' },
-    simulador: { url: 'app.html', n: 'el simulador de inversión', k: ['simulador', 'simulacion', 'inversion', 'crecimiento'], d: 'Aquí se decide si la empresa puede afrontar una inversión sin romper la liquidez: punto de partida, la inversión, escenarios, semáforos, estructuras y el plan de corrección.', primero: 'Empieza por «La empresa hoy» y después «La inversión».' },
-    estrategia: { url: 'estrategia.html', n: 'el sistema estratégico', k: ['sistema estrategico', 'estrategico', 'estrategia', 'cuadro de mando'], d: 'Veintidós módulos para analizar la empresa entera: finanzas, comercial, operaciones y estrategia, cada uno con su diagnóstico 360 e informe.', primero: 'Mira primero el cuadro de mando y los indicadores en rojo.' },
-    personas: { url: 'personas.html', n: 'personas y equipos', k: ['personas y equipos', 'personas', 'equipos', 'liderazgo', 'disc', 'plantilla'], d: 'Perfiles de cada persona, puestos y encaje, equipos, liderazgo a medida y planes de desarrollo.', primero: 'Da de alta la plantilla y pasa el primer test.', plan: 'personas' },
-    mesa: { url: 'mesa.html', n: 'la mesa de trabajo', k: ['mesa de trabajo', 'mesa', 'agenda', 'prioridades', 'mis tareas', 'tareas'], d: 'Todo el trabajo del ecosistema en una sola mesa: lo de hoy, la bandeja, el 20 % que da el resultado, la agenda y las metas SMART.', primero: 'Trae el trabajo del ecosistema y revisa tu 20 %.' },
-    intervencion: { url: 'intervencion.html', n: 'la auditoría integral', k: ['auditoria integral', 'auditoría integral', 'intervencion', 'intervención', 'diagnostico', 'diagnóstico', 'triaje', 'primera sesion', 'primera sesión'], d: 'La herramienta del consultor para entrar en una empresa: primera sesión como un triaje, auditoría integral por áreas y plan de intervención con sus sesiones.', primero: 'Empieza por el guion de la primera sesión o sube la transcripción.', plan: 'intervencion' },
-    libro: { url: 'libro.html', n: 'el libro corporativo', k: ['libro corporativo', 'libro de la empresa', 'libro', 'todos los informes'], d: 'Todos los informes del ecosistema en un libro de la empresa, con índice por secciones y descarga en PDF.', primero: 'Pulsa «Recoger todos los informes» si aún está vacío.' },
+    simulador: { url: 'app.html', n: 'el simulador de inversión', k: ['simulador', 'simulacion', 'inversion', 'crecimiento'], d: 'Aquí se decide si la empresa puede afrontar una inversión sin romper la liquidez: punto de partida, la inversión, escenarios, semáforos, estructuras y el plan de corrección.', primero: 'Empiece por «La empresa hoy» y después «La inversión».' },
+    estrategia: { url: 'estrategia.html', n: 'el sistema estratégico', k: ['sistema estrategico', 'estrategico', 'estrategia', 'cuadro de mando'], d: 'Veintidós módulos para analizar la empresa entera: finanzas, comercial, operaciones y estrategia, cada uno con su diagnóstico 360 e informe.', primero: 'Mire primero el cuadro de mando y los indicadores en rojo.' },
+    personas: { url: 'personas.html', n: 'personas y equipos', k: ['personas y equipos', 'personas', 'equipos', 'liderazgo', 'disc', 'plantilla'], d: 'Perfiles de cada persona, puestos y encaje, equipos, liderazgo a medida y planes de desarrollo.', primero: 'Dé de alta la plantilla y pase el primer test.', plan: 'personas' },
+    mesa: { url: 'mesa.html', n: 'la mesa de trabajo', k: ['mesa de trabajo', 'mesa', 'agenda', 'prioridades', 'mis tareas', 'tareas'], d: 'Todo el trabajo del ecosistema en una sola mesa: lo de hoy, la bandeja, el 20 % que da el resultado, la agenda y las metas SMART.', primero: 'Traiga el trabajo del ecosistema y revise su 20 %.' },
+    intervencion: { url: 'intervencion.html', n: 'la auditoría integral', k: ['auditoria integral', 'auditoría integral', 'intervencion', 'intervención', 'diagnostico', 'diagnóstico', 'triaje', 'primera sesion', 'primera sesión'], d: 'La herramienta del consultor para entrar en una empresa: primera sesión como un triaje, auditoría integral por áreas y plan de intervención con sus sesiones.', primero: 'Empiece por el guion de la primera sesión o suba la transcripción.', plan: 'intervencion' },
+    libro: { url: 'libro.html', n: 'el libro corporativo', k: ['libro corporativo', 'libro de la empresa', 'libro', 'todos los informes'], d: 'Todos los informes del ecosistema en un libro de la empresa, con índice por secciones y descarga en PDF.', primero: 'Pulse «Recoger todos los informes» si aún está vacío.' },
     grupo: { url: 'grupo.html', n: 'la vista de grupo', k: ['vista de grupo', 'cartera de clientes', 'cartera', 'consolidado', 'sociedades del grupo'], d: 'Las empresas o sociedades de la cuenta juntas: consolidado, comparativa, riesgos cruzados y objetivos.', grupo: true }
   };
   const mundoActual = () => ({ 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'grupo.html': 'grupo', 'portal.html': 'inicio', 'libro.html': 'libro', 'intervencion.html': 'intervencion' }[PG()] || 'inicio');
@@ -140,20 +140,20 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
   /* Órdenes de guía en lenguaje llano: se resuelven aquí, al momento, con cualquiera de los tres cerebros */
   function guiaLocal(text) {
     const t = norm(text).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (/^(para|silencio|calla|basta|apaga la voz|desactiva la voz|deja de escuchar|no escuches)\b/.test(t)) { setVoz(false); return 'De acuerdo, dejo de escuchar. Cuando quieras, vuelve a activar la voz.'; }
+    if (/^(para|silencio|calla|basta|apaga la voz|desactiva la voz|deja de escuchar|no escuches)\b/.test(t)) { setVoz(false); return 'De acuerdo, dejo de escuchar. Cuando quiera, vuelva a activar la voz.'; }
     if (/\b(cierra|cerrar|quita|sal de|salir de|salte de)\b/.test(t)) {
       if (/manual/.test(t)) { A.manualLateral && A.manualLateral.cerrar(); return 'Manual cerrado.'; }
-      if (/\b(mundo|simulador|sistema|estrategia|personas|mesa|grupo)\b/.test(t) && !/(informe|ventana|mapa)/.test(t)) { const r = viajar('inicio'); return r.ok ? 'Salimos al inicio. Desde allí puedes entrar en cualquier mundo.' : r.motivo; }
-      const n = cerrarVentanas(true); return n ? 'Cerrado. ¿Dónde quieres ir ahora?' : 'No hay nada abierto que cerrar.';
+      if (/\b(mundo|simulador|sistema|estrategia|personas|mesa|grupo)\b/.test(t) && !/(informe|ventana|mapa)/.test(t)) { const r = viajar('inicio'); return r.ok ? 'Salimos al inicio. Desde allí puede entrar en cualquier mundo.' : r.motivo; }
+      const n = cerrarVentanas(true); return n ? 'Cerrado. ¿Dónde quiere ir ahora?' : 'No hay nada abierto que cerrar.';
     }
     if (/\bmanual\b/.test(t) && /\b(abre|abrir|ensena|muestra|ver|mira|consulta|como se usa|ayuda)\b/.test(t)) {
       const tema = (t.match(/manual (?:de|del|sobre|en|para) (?:la |el |los |las )?(.+)$/) || [])[1];
-      if (A.manualLateral) { A.manualLateral.abrirTema(tema).then((r) => r && r.apartado && note('Manual abierto en «' + r.apartado + '».')); return tema ? `Abro el manual en lo que explica ${tema}.` : 'Abro el manual en el apartado de esta zona. Arriba tienes el menú para ir a cualquier otro.'; }
+      if (A.manualLateral) { A.manualLateral.abrirTema(tema).then((r) => r && r.apartado && note('Manual abierto en «' + r.apartado + '».')); return tema ? `Abro el manual en lo que explica ${tema}.` : 'Abro el manual en el apartado de esta zona. Arriba tiene el menú para ir a cualquier otro.'; }
     }
     if (/\b(donde estoy|que hay aqui|que puedo hacer|guiame|guia|por donde empiezo|que hago aqui|ayudame a moverme|que mundos)\b/.test(t)) {
       const w = MUNDOS[mundoActual()], z = zonaActual(), ds = destinos().map((d) => d.n);
       const otros = Object.keys(MUNDOS).filter((k) => k !== mundoActual() && disponible(k)).map((k) => MUNDOS[k].n);
-      return `Estás en ${w.n}${z ? ', en «' + z + '»' : ''}. ${w.d}${w.primero ? ' ' + w.primero : ''}${ds.length ? ' Aquí puedes ir a ' + listaY(ds.slice(0, 6)) + (ds.length > 6 ? ', entre otras' : '') + '.' : ''} ${aDe('También puedo llevarte a ' + listaY(otros))}. Di por ejemplo «llévame a la mesa de trabajo» o «abre el manual».`;
+      return `Está en ${w.n}${z ? ', en «' + z + '»' : ''}. ${w.d}${w.primero ? ' ' + w.primero : ''}${ds.length ? ' Aquí puede ir a ' + listaY(ds.slice(0, 6)) + (ds.length > 6 ? ', entre otras' : '') + '.' : ''} ${aDe('También puedo llevarle a ' + listaY(otros))}. Diga, por ejemplo, «llévame a la mesa de trabajo» o «abre el manual».`;
     }
     if (/\b(llevame|lleva me|ve a|vete a|vamos a|ir a|quiero ir|abre|abrir|entra en|entrar en|ensename|muestrame|pasa a|cambia a|ponme en|abreme|voy a)\b/.test(t)) {
       const m = buscarMundo(t), z = buscarZona(t);
@@ -161,8 +161,8 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
         const resto = z && z.d ? z.d.n : '';
         const r = viajar(m.k, m.k !== mundoActual() ? '' : resto);
         if (!r.ok) return r.motivo;
-        if (r.yaEstaba) return r.zona ? `Abro «${r.zona}».` : `Ya estás en ${MUNDOS[m.k].n}.`;
-        return `Te llevo a ${r.mundo}. ${r.queHay}`;
+        if (r.yaEstaba) return r.zona ? `Abro «${r.zona}».` : `Ya está en ${MUNDOS[m.k].n}.`;
+        return `Le llevo a ${r.mundo}. ${r.queHay}`;
       }
       if (z) { irZona(z.d.id); return `Abro «${z.d.n}».`; }
     }
@@ -174,7 +174,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     const w = MUNDOS[l.mundo];
     setTimeout(() => {
       let z = null; if (l.zona) { z = buscarZona(norm(l.zona)); if (z) irZona(z.d.id); }
-      const txt = `Ya estás en ${w.n}${z ? ', en «' + z.d.n + '»' : ''}. ${w.primero || w.d}`;
+      const txt = `Ya está en ${w.n}${z ? ', en «' + z.d.n + '»' : ''}. ${w.primero || w.d}`;
       add('bot', txt); guardarLog('assistant', txt); hablar(txt).then(() => voz && escuchar());
     }, 1200);
   }
@@ -186,7 +186,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     const msgs = history.map((m) => ({ role: m.role, content: m.content }));
     for (let round = 0; round < 6; round++) {
       const r = await A.platform.api('/chat', { method: 'POST', body: JSON.stringify({ messages: msgs, tools: defs, page }) });
-      if (r.stop_reason === 'refusal') return 'No puedo ayudarte con esa petición. Prueba a formularla de otra manera.';
+      if (r.stop_reason === 'refusal') return 'No puedo ayudarle con esa petición. Pruebe a formularla de otra manera.';
       msgs.push({ role: 'assistant', content: r.content });
       const uses = r.content.filter((b) => b.type === 'tool_use');
       if (!uses.length || r.stop_reason !== 'tool_use') return r.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
@@ -198,7 +198,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
       }
       msgs.push({ role: 'user', content: results });
     }
-    return 'He hecho varios ajustes; revisa los semáforos y dime si quieres seguir.';
+    return 'He hecho varios ajustes; revise los semáforos y dígame si quiere seguir.';
   }
 
   /* ---------- Cerebro 2: capacidad «sample» del visor de Claude ---------- */
@@ -272,14 +272,14 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     }
     if (/(riesgo|preocup|peligro)/.test(t)) return S.riesgos.length ? 'Los riesgos principales son: ' + S.riesgos.slice(0, 4).map((r) => `${r.riesgo.toLowerCase()} (${r.area.toLowerCase()})`).join('; ') + '. Primera medida: ' + S.riesgos[0].mitigacion : 'No veo riesgos altos con los datos actuales.';
     if (/(mejora|oportunidad|donde gano|ahorro|que hago)/.test(t)) return S.hallazgos.length ? 'Las mayores oportunidades: ' + S.hallazgos.slice(0, 4).map((h) => `${h.hallazgo} (${h.impactoAnual} al año)`).join(' ') : 'Completa los módulos para encontrar oportunidades.';
-    if (/(resumen|como va|como esta|situacion)/.test(t)) { const red = S.indicadores.filter((x) => x.estado === 'Rojo'); return `Estás en ${S.moduloActual}. ${red.length ? 'Indicadores en rojo: ' + red.slice(0, 5).map((x) => `${x.indicador.toLowerCase()} (${x.area.toLowerCase()}): ${x.valor}`).join('; ') + '.' : 'No hay indicadores en rojo.'}`; }
+    if (/(resumen|como va|como esta|situacion)/.test(t)) { const red = S.indicadores.filter((x) => x.estado === 'Rojo'); return `Está en ${S.moduloActual}. ${red.length ? 'Indicadores en rojo: ' + red.slice(0, 5).map((x) => `${x.indicador.toLowerCase()} (${x.area.toLowerCase()}): ${x.valor}`).join('; ') + '.' : 'No hay indicadores en rojo.'}`; }
     return null;
   }
   function local(text) {
     const g = guiaLocal(text); if (g) return g;
     // Mundos sin cálculos propios para el asistente (personas y equipos, mesa de trabajo): guía y diccionario
-    if (!api || !api.summary) { const L = lookup(norm(text).replace(/^(que es|que son|que significa|explicame|explica|no entiendo|como funciona|define)\s+(el |la |los |las |un |una )?/, '').replace(/[?¿.!]/g, '').trim()); if (L.diccionario.length) { const d = L.diccionario[0]; return `${d.termino}: ${d.definicion}`; } return guiaLocal('donde estoy') + ' Si me lo preguntas, también te explico cómo funciona cada herramienta o abro el manual en ese apartado.'; }
-    if (page !== 'simulador') { const r = localStrategy(text); if (r) return r; const L = lookup(norm(text).replace(/^(que es|que son|que significa|explicame|explica|no entiendo|como funciona|define)\s+(el |la |los |las |un |una )?/, '').replace(/[?¿.!]/g, '').trim()); if (L.diccionario.length) { const d = L.diccionario[0]; return `${d.termino}: ${d.definicion}${d.ejemplo ? ' Por ejemplo: ' + d.ejemplo : ''}`; } if (L.grupo.length) return `${L.grupo[0].tema}: ${L.grupo[0].explicacion}`; return 'Puedo explicarte un concepto («qué es el OEE»), llevarte a un módulo («abre impuestos»), decirte los riesgos o las mejoras principales, o mover palancas («sube el precio un 3 %»).'; }
+    if (!api || !api.summary) { const L = lookup(norm(text).replace(/^(que es|que son|que significa|explicame|explica|no entiendo|como funciona|define)\s+(el |la |los |las |un |una )?/, '').replace(/[?¿.!]/g, '').trim()); if (L.diccionario.length) { const d = L.diccionario[0]; return `${d.termino}: ${d.definicion}`; } return guiaLocal('donde estoy') + ' Si me lo pregunta, también le explico cómo funciona cada herramienta o abro el manual en ese apartado.'; }
+    if (page !== 'simulador') { const r = localStrategy(text); if (r) return r; const L = lookup(norm(text).replace(/^(que es|que son|que significa|explicame|explica|no entiendo|como funciona|define)\s+(el |la |los |las |un |una )?/, '').replace(/[?¿.!]/g, '').trim()); if (L.diccionario.length) { const d = L.diccionario[0]; return `${d.termino}: ${d.definicion}${d.ejemplo ? ' Por ejemplo: ' + d.ejemplo : ''}`; } if (L.grupo.length) return `${L.grupo[0].tema}: ${L.grupo[0].explicacion}`; return 'Puedo explicarle un concepto («qué es el OEE»), llevarle a un módulo («abre impuestos»), decirle los riesgos o las mejoras principales, o mover palancas («sube el precio un 3 %»).'; }
     const t = norm(text);
     const S = api.summary();
     const fmtL = (l) => `${l.indicador}: ${l.valor}, en ${l.estado.toLowerCase()}. Verde ${l.verde}; ámbar ${l.ambar}; rojo ${l.rojo}.`;
@@ -301,7 +301,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
         const r = api.setVar(p, Math.round(v * 100) / 100);
         return `He cambiado ${r.variable.toLowerCase()} de ${r.antes} a ${r.ahora}. La liquidez mínima pasa de ${r.liquidezMinimaAntes} a ${r.liquidezMinimaAhora} y el veredicto ${r.veredictoAntes === r.veredictoAhora ? 'sigue en «' + r.veredictoAhora + '»' : 'pasa de «' + r.veredictoAntes + '» a «' + r.veredictoAhora + '»'}.`;
       }
-      if (p && !n) return `¿A qué valor quieres poner ${A.fieldLabel(p).toLowerCase()}? Por ejemplo: «pon ${A.fieldLabel(p).toLowerCase()} a ${S.variables[p]}».`;
+      if (p && !n) return `¿A qué valor quiere poner ${A.fieldLabel(p).toLowerCase()}? Por ejemplo: «pon ${A.fieldLabel(p).toLowerCase()} a ${S.variables[p]}».`;
     }
     // Semáforos
     const lights = S.semaforos || [];
@@ -312,23 +312,23 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     // Preocupaciones
     if (/(preocup|miedo|riesgo|peligro|me quita el sueno|que puede salir mal|aguanta)/.test(t)) {
       const reds = lights.filter((x) => x.estado !== 'Verde');
-      return `Veredicto: ${S.veredicto}. ${reds.length ? 'Lo que más debe preocuparte: ' + reds.slice(0, 3).map((x) => `${x.indicador.toLowerCase()} (${x.valor}, ${x.estado.toLowerCase()})`).join('; ') + '. ' : 'Todos los semáforos están en verde. '}Tu liquidez mínima es ${S.cifras.liquidezMinima} en el mes ${S.cifras.mesLiquidezMinima}, con ${String(S.cifras.colchonMinimoMeses).replace('.', ',')} meses de colchón. ${reds[0] ? 'Primera acción: ' + reds[0].consejo : ''}`;
+      return `Veredicto: ${S.veredicto}. ${reds.length ? 'Lo que más debe preocuparte: ' + reds.slice(0, 3).map((x) => `${x.indicador.toLowerCase()} (${x.valor}, ${x.estado.toLowerCase()})`).join('; ') + '. ' : 'Todos los semáforos están en verde. '}Su liquidez mínima es ${S.cifras.liquidezMinima} en el mes ${S.cifras.mesLiquidezMinima}, con ${String(S.cifras.colchonMinimoMeses).replace('.', ',')} meses de colchón. ${reds[0] ? 'Primera acción: ' + reds[0].consejo : ''}`;
     }
     if (/(resumen|como estoy|como va|situacion|veredicto|puedo invertir|me lo puedo permitir|que me recomiendas)/.test(t)) {
-      return `Escenario ${S.escenario.toLowerCase()}, estructura ${S.estructura.toLowerCase()}. Veredicto: ${S.veredicto}. Liquidez mínima ${S.cifras.liquidezMinima} en el mes ${S.cifras.mesLiquidezMinima}; recuperación en ${S.cifras.recuperacion}; cuota nueva de ${S.cifras.cuotaNueva}. ${Array.isArray(S.plan) && S.plan.length ? 'Para alcanzar tu meta: ' + S.plan.join('; ') + '.' : ''}`;
+      return `Escenario ${S.escenario.toLowerCase()}, estructura ${S.estructura.toLowerCase()}. Veredicto: ${S.veredicto}. Liquidez mínima ${S.cifras.liquidezMinima} en el mes ${S.cifras.mesLiquidezMinima}; recuperación en ${S.cifras.recuperacion}; cuota nueva de ${S.cifras.cuotaNueva}. ${Array.isArray(S.plan) && S.plan.length ? 'Para alcanzar su meta: ' + S.plan.join('; ') + '.' : ''}`;
     }
     if (/(compara|cual es mejor|que estructura)/.test(t) && api.compareStructures) {
       const c = api.compareStructures();
-      return `La que mejor encaja es ${c[0].estructura.toLowerCase()} (${c[0].encaje} puntos): liquidez mínima ${c[0].liquidezMinima}, recuperación ${c[0].recuperacion}, control ${c[0].control}. Le siguen ${c[1].estructura.toLowerCase()} y ${c[2].estructura.toLowerCase()}. Toca cada tarjeta en «Estructuras societarias» para ver su ficha completa.`;
+      return `La que mejor encaja es ${c[0].estructura.toLowerCase()} (${c[0].encaje} puntos): liquidez mínima ${c[0].liquidezMinima}, recuperación ${c[0].recuperacion}, control ${c[0].control}. Le siguen ${c[1].estructura.toLowerCase()} y ${c[2].estructura.toLowerCase()}. Toque cada tarjeta en «Estructuras societarias» para ver su ficha completa.`;
     }
     // Conceptos, grupos y estructuras
     const q = t.replace(/^(que es|que son|que significa|explicame|explica|no entiendo|como funciona|que quiere decir|define|dime que es)\s+(el |la |los |las |un |una )?/, '').replace(/[?¿.!]/g, '').trim();
     const L = lookup(q);
-    if (L.estructuras.length) { const e = L.estructuras[0]; return `${e.estructura}: ${e.comoFunciona} A favor: ${e.ventajas.slice(0, 2).join('; ').toLowerCase()}. En contra: ${e.inconvenientes.slice(0, 2).join('; ').toLowerCase()}. La fiscalidad concreta debe confirmarla tu asesor.`; }
+    if (L.estructuras.length) { const e = L.estructuras[0]; return `${e.estructura}: ${e.comoFunciona} A favor: ${e.ventajas.slice(0, 2).join('; ').toLowerCase()}. En contra: ${e.inconvenientes.slice(0, 2).join('; ').toLowerCase()}. La fiscalidad concreta debe confirmarla su asesor.`; }
     if (L.grupo.length) return `${L.grupo[0].tema}: ${L.grupo[0].explicacion}`;
     if (L.diccionario.length) { const d = L.diccionario[0]; return `${d.termino}: ${d.definicion}${d.ejemplo ? ' Por ejemplo: ' + d.ejemplo : ''}${d.directas.length ? ' Lo mueven: ' + d.directas.join(', ').toLowerCase() + '.' : ''}`; }
-    if (/(grupo|sociedades|holding)/.test(t)) return 'En un grupo, una holding suele poseer la sociedad operativa y una patrimonial. El dinero se mueve con dividendos (exentos al 95 % entre sociedades del grupo si se cumplen requisitos) y préstamos intragrupo a tipo de mercado; con un 75 % de participación pueden consolidar fiscalmente. Pregúntame por cualquiera de esos conceptos.';
-    return 'Puedo explicarte cualquier concepto («qué es el EBITDA»), revisar tu situación («¿me lo puedo permitir?»), decirte cómo poner en verde un semáforo («¿cómo mejoro la liquidez?») o hacer cambios («pon la financiación al 80 %», «sube el plazo a 9 años», «simula perder un cliente del 10 % en el mes 14», «adopta la filial»).';
+    if (/(grupo|sociedades|holding)/.test(t)) return 'En un grupo, una holding suele poseer la sociedad operativa y una patrimonial. El dinero se mueve con dividendos (exentos al 95 % entre sociedades del grupo si se cumplen requisitos) y préstamos intragrupo a tipo de mercado; con un 75 % de participación pueden consolidar fiscalmente. Pregúnteme por cualquiera de esos conceptos.';
+    return 'Puedo explicarle cualquier concepto («qué es el EBITDA»), revisar su situación («¿me lo puedo permitir?»), decirle cómo poner en verde un semáforo («¿cómo mejoro la liquidez?») o hacer cambios («pon la financiación al 80 %», «sube el plazo a 9 años», «simula perder un cliente del 10 % en el mes 14», «adopta la filial»).';
   }
 
   /* ---------- Voz ----------
@@ -365,14 +365,14 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
   const speakOut = (t) => hablar(t);
   function marcar() {
     const f = $('#asVozBtn'), st = $('#asVozSt');
-    if (f) { f.classList.toggle('on', voz); f.classList.toggle('oye', voz && listening); f.classList.toggle('habla', hablando); f.setAttribute('aria-pressed', String(voz)); f.title = voz ? 'Conversación por voz encendida: toca para apagarla' : 'Encender la conversación por voz'; }
-    if (st) st.textContent = !voz ? '' : hablando ? 'Hablando…' : listening ? 'Te escucho' : busy ? 'Pensando…' : 'En pausa';
+    if (f) { f.classList.toggle('on', voz); f.classList.toggle('oye', voz && listening); f.classList.toggle('habla', hablando); f.setAttribute('aria-pressed', String(voz)); f.title = voz ? 'Conversación por voz encendida: toque para apagarla' : 'Encender la conversación por voz'; }
+    if (st) st.textContent = !voz ? '' : hablando ? 'Hablando…' : listening ? 'Le escucho' : busy ? 'Pensando…' : 'En pausa';
     const sw = $('#asVoz'); if (sw) { sw.setAttribute('aria-pressed', String(voz)); sw.setAttribute('aria-checked', String(voz)); }
     const sp = $('#asSpeak'); if (sp) { sp.setAttribute('aria-pressed', String(speak)); sp.setAttribute('aria-checked', String(speak)); }
   }
   function pararEscucha() { if (rec) { try { rec.onend = null; rec.abort(); } catch (e) { /* ya parado */ } } rec = null; listening = false; const m = $('#asMic'); if (m) { m.classList.remove('on'); m.setAttribute('aria-pressed', 'false'); } }
   function setVoz(on) {
-    if (on && !SR) { note('Tu navegador no permite la conversación por voz. Funciona en Chrome, Edge y Safari recientes con la web en https.'); on = false; }
+    if (on && !SR) { note('Su navegador no permite la conversación por voz. Funciona en Chrome, Edge y Safari recientes con la web en https.'); on = false; }
     voz = !!on; lsSet(VOZK, voz ? '1' : '0');
     if (voz) { speak = true; fallos = 0; escuchar(); } else { pararEscucha(); if (window.speechSynthesis) speechSynthesis.cancel(); hablando = false; }
     marcar();
@@ -383,14 +383,14 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     const input = $('#asInput'); let fin = '';
     rec.onresult = (e) => { let inter = ''; for (let i = e.resultIndex; i < e.results.length; i++) { if (e.results[i].isFinal) fin += e.results[i][0].transcript; else inter += e.results[i][0].transcript; } if (input) input.value = (fin + ' ' + inter).trim(); };
     rec.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { note('El micrófono no está permitido. Da permiso en el navegador para hablar con el asistente.'); setVoz(false); }
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { note('El micrófono no está permitido. Dé permiso en el navegador para hablar con el asistente.'); setVoz(false); }
       else if (e.error !== 'no-speech' && e.error !== 'aborted') fallos++;
     };
     rec.onend = () => {
       listening = false; rec = null; marcar();
       const t = fin.trim();
       if (t) { fallos = 0; if (input) input.value = ''; send(t); return; }
-      if (fallos > 4) { note('No consigo escuchar. Revisa el micrófono; he apagado la conversación por voz.'); setVoz(false); return; }
+      if (fallos > 4) { note('No consigo escuchar. Revise el micrófono; he apagado la conversación por voz.'); setVoz(false); return; }
       if (voz) setTimeout(escuchar, 250);
     };
     try { rec.start(); listening = true; } catch (e) { listening = false; fallos++; if (voz && fallos <= 4) setTimeout(escuchar, 800); }
@@ -398,7 +398,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
   }
   /* Dictado de una sola pregunta con el botón del micrófono */
   function toggleMic() {
-    if (!SR) { note('Tu navegador no permite dictar. Funciona en Chrome, Edge y Safari recientes con la web abierta en https.'); return; }
+    if (!SR) { note('Su navegador no permite dictar. Funciona en Chrome, Edge y Safari recientes con la web abierta en https.'); return; }
     if (voz) { setVoz(false); return; }
     if (listening) { rec && rec.stop(); return; }
     rec = new SR(); rec.lang = 'es-ES'; rec.interimResults = true; rec.continuous = false;
@@ -409,7 +409,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
       for (let i = e.resultIndex; i < e.results.length; i++) { if (e.results[i].isFinal) finalText += e.results[i][0].transcript; else interim += e.results[i][0].transcript; }
       input.value = (finalText + ' ' + interim).trim();
     };
-    rec.onerror = (e) => { note(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'El micrófono no está permitido aquí. Da permiso en el navegador, o escribe tu pregunta.' : 'No te he oído bien. Prueba otra vez o escribe.'); };
+    rec.onerror = (e) => { note(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'El micrófono no está permitido aquí. Dé permiso en el navegador, o escriba su pregunta.' : 'No le he oído bien. Pruebe otra vez o escriba.'); };
     rec.onend = () => { listening = false; $('#asMic').classList.remove('on'); $('#asMic').setAttribute('aria-pressed', 'false'); if (finalText.trim()) send(finalText.trim()); };
     try { rec.start(); listening = true; $('#asMic').classList.add('on'); $('#asMic').setAttribute('aria-pressed', 'true'); speak = true; marcar(); }
     catch (e) { note('No se pudo activar el micrófono.'); }
@@ -420,7 +420,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
   const history = [];
   let busy = false;
   function note(t) { add('note', t); }
-  function activity(name) { const m = { cambiar_variable: 'Ajustando el simulador…', cambiar_escenario: 'Cambiando de escenario…', anadir_hipotesis: 'Añadiendo la hipótesis…', cambiar_estructura: 'Cambiando la estructura…', aplicar_plan: 'Aplicando el plan…', ver_situacion: 'Revisando tu situación…', comparar_estructuras: 'Comparando estructuras…', explicar_concepto: 'Buscando en el diccionario…', cambiar_palanca: 'Moviendo la palanca…', donde_estoy: 'Mirando dónde estás…', ir_a_mundo: 'Preparando el viaje…', ir_a_zona: 'Abriendo…', cerrar: 'Cerrando…', abrir_manual: 'Abriendo el manual…' }[name]; if (m) { const t = $('#asThinking'); if (t) t.textContent = m; } }
+  function activity(name) { const m = { cambiar_variable: 'Ajustando el simulador…', cambiar_escenario: 'Cambiando de escenario…', anadir_hipotesis: 'Añadiendo la hipótesis…', cambiar_estructura: 'Cambiando la estructura…', aplicar_plan: 'Aplicando el plan…', ver_situacion: 'Revisando su situación…', comparar_estructuras: 'Comparando estructuras…', explicar_concepto: 'Buscando en el diccionario…', cambiar_palanca: 'Moviendo la palanca…', donde_estoy: 'Mirando dónde está…', ir_a_mundo: 'Preparando el viaje…', ir_a_zona: 'Abriendo…', cerrar: 'Cerrando…', abrir_manual: 'Abriendo el manual…' }[name]; if (m) { const t = $('#asThinking'); if (t) t.textContent = m; } }
   function add(role, text) {
     const box = $('#asLog'); if (!box) return null;
     const el = document.createElement('div');
@@ -474,11 +474,11 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
     mesa: ['¿Dónde estoy?', 'Abre las metas SMART', 'Abre la agenda semanal', 'Abre el manual de metas', 'Llévame al sistema estratégico', 'Cierra el mundo']
   };
   const HOLA = {
-    simulador: 'Hola. Cuéntame qué te preocupa de la inversión o pregúntame lo que no entiendas. Puedo hacer cambios por ti («pon el plazo a 9 años») y llevarte a cualquier sitio («llévame a la mesa de trabajo»).',
-    estrategia: 'Hola. Puedo explicarte cualquier análisis, decirte dónde están los riesgos, mover las palancas estratégicas y llevarte a cualquier módulo o mundo.',
-    personas: 'Hola. Soy tu guía en personas y equipos: dime a qué herramienta quieres ir, pide que abra el manual de cualquier tema o que te lleve a otro mundo.',
-    intervencion: 'Hola. Soy tu guía en la auditoría integral: puedo llevarte al guion de la primera sesión, a la escucha de la transcripción, al triaje, a la auditoría o al plan de intervención, y abrir el manual de cada parte.',
-    mesa: 'Hola. Soy tu guía en la mesa de trabajo: dime qué parte quieres ver (hoy, prioridades, agenda, metas), pide el manual o que te lleve a otro mundo.'
+    simulador: 'Hola. Cuénteme qué le preocupa de la inversión o pregúnteme lo que no entienda. Puedo hacer cambios por usted («pon el plazo a 9 años») y llevarle a cualquier sitio («llévame a la mesa de trabajo»).',
+    estrategia: 'Hola. Puedo explicarle cualquier análisis, decirle dónde están los riesgos, mover las palancas estratégicas y llevarle a cualquier módulo o mundo.',
+    personas: 'Hola. Soy su guía en personas y equipos: dígame a qué herramienta quiere ir, pida que abra el manual de cualquier tema o que le lleve a otro mundo.',
+    intervencion: 'Hola. Soy su guía en la auditoría integral: puedo llevarle al guion de la primera sesión, a la escucha de la transcripción, al triaje, a la auditoría o al plan de intervención, y abrir el manual de cada parte.',
+    mesa: 'Hola. Soy su guía en la mesa de trabajo: dígame qué parte quiere ver (hoy, prioridades, agenda, metas), pida el manual o que le lleve a otro mundo.'
   };
   A.assistant = {
     init(opts) {
@@ -492,7 +492,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
           <header><div><b>Asistente y guía</b><small id="asMode"></small></div><button class="icon-btn" id="asClose" aria-label="Cerrar">×</button></header>
           <div class="as-log" id="asLog" aria-live="polite"></div>
           <div class="as-sugs" id="asSugs"></div>
-          <form id="asForm"><button type="button" class="icon-btn as-mic" id="asMic" aria-pressed="false" aria-label="Dictar una pregunta"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><input class="input" id="asInput" placeholder="Escribe o habla: «llévame a…», «¿me lo puedo permitir?»" autocomplete="off"><button class="btn solid" type="submit">Enviar</button></form>
+          <form id="asForm"><button type="button" class="icon-btn as-mic" id="asMic" aria-pressed="false" aria-label="Dictar una pregunta"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><input class="input" id="asInput" placeholder="Escriba o hable: «llévame a…», «¿me lo puedo permitir?»" autocomplete="off"><button class="btn solid" type="submit">Enviar</button></form>
           <label class="as-speak"><button type="button" class="switch" role="switch" id="asVoz" aria-pressed="false" aria-label="Conversación por voz"></button> Conversación por voz: escucha sin pulsar y responde hablando</label>
           <label class="as-speak"><button type="button" class="switch" role="switch" id="asSpeak" aria-pressed="false" aria-label="Leer las respuestas en voz alta"></button> Leer las respuestas en voz alta</label>
         </section>`;
@@ -520,7 +520,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (i
       A.platform.ready.then(async () => {
         const m = $('#asMode');
         if (A.platform.mode === 'server' && A.platform.serverInfo && A.platform.serverInfo.ia) m.textContent = 'Con Claude';
-        else { const s = await getSample(); m.textContent = s ? 'Con Claude (te pedirá permiso)' : 'Modo básico sin conexión'; }
+        else { const s = await getSample(); m.textContent = s ? 'Con Claude (le pedirá permiso)' : 'Modo básico sin conexión'; }
       });
     },
     ask(text) { send(text); },

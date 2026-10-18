@@ -5,6 +5,26 @@
   const S = () => V.int.st();
   const EST_A = { pendiente: 'Pendiente', curso: 'En curso', hecha: 'Hecha' };
 
+  /* ---------- Calendario de lo contratado ----------
+     Las sesiones y las fases salen de los meses contratados y de la frecuencia de la propuesta, no de las semanas tipo de
+     las fases (que llegaban a 48 semanas con ritmo semanal al principio). Origen, por orden: la propuesta de
+     acompañamiento (Servicio 3: meses y frecuencia), el acompañamiento contratado, la propuesta integral si es un programa
+     por meses y, sin ninguna, seis meses quincenales. Las fases del plan se reparten en proporción dentro de ese tiempo. */
+  const mesesDe = (t) => { const m = String(t || '').match(/(\d+)(?:\D+(\d+))?\s*mes/); return m ? +(m[2] || m[1]) : 0; };
+  const contrato = () => {
+    const ST = S(), R = ST.recorrido || {}, p3 = R.propS3 || {}, s3 = (R.servicios || {}).s3 || {}, pr = ST.propuesta || {};
+    let meses = +p3.meses || 0, origen = meses ? 'la propuesta de acompañamiento' : '';
+    if (!meses && s3.contratado && +s3.meses) { meses = +s3.meses; origen = 'el acompañamiento contratado'; }
+    if (!meses && pr.tipo === 'programa' && mesesDe(pr.duracion)) { meses = mesesDe(pr.duracion); origen = 'la propuesta integral'; }
+    if (!meses) { meses = 6; origen = 'la duración por defecto'; }
+    const paso = +p3.frecuencia || 14, semanas = Math.round(meses * 52 / 12), tot = D.FASES[D.FASES.length - 1].sem[1];
+    const fases = D.FASES.map((F) => ({ F, sem: [Math.round((F.sem[0] - 1) / tot * semanas) + 1, Math.max(1, Math.round(F.sem[1] / tot * semanas))] }));
+    return { meses, paso, semanas, origen, fases, n: Math.floor(semanas * 7 / paso) };
+  };
+  // Semanas de una fase dentro de lo contratado
+  const semDe = (F) => ((contrato().fases.find((x) => x.F.id === F.id) || {}).sem || F.sem);
+  V.contrato = contrato;
+
   /* ---------- Generar el plan ---------- */
   // Entran las acciones base de cada línea y las que atacan alguna causa activa (confirmada o, si aún no hay auditoría, hipótesis)
   const generar = () => {
@@ -19,10 +39,10 @@
       if (!ataca.length && !base) return;
       const f = D.FASES.find((y) => y.id === x.f), clave = ataca.some((r) => { const c = activas.find((z) => z.ref === r); return c && v20.has(c.id); });
       const old = prev.get(x.t);
-      acciones.push(Object.assign({ id: uid(), linea: L.id, t: x.t, f: x.f, sem: x.sem, ent: x.ent, quien: x.resp, responsable: '', fecha: sumar(ini, (f.sem[0] - 1) * 7 + x.sem * 7 + i), estado: 'pendiente', causas: ataca, clave }, old ? { id: old.id, responsable: old.responsable, fecha: old.fecha, estado: old.estado, enviada: old.enviada, pasos: old.pasos, kpis: old.kpis, notas: old.notas } : {}));
+      acciones.push(Object.assign({ id: uid(), linea: L.id, t: x.t, f: x.f, sem: x.sem, ent: x.ent, quien: x.resp, responsable: '', fecha: sumar(ini, Math.min((semDe(f)[0] - 1) * 7 + x.sem * 7 + i, semDe(f)[1] * 7 - 1)), estado: 'pendiente', causas: ataca, clave }, old ? { id: old.id, responsable: old.responsable, fecha: old.fecha, estado: old.estado, enviada: old.enviada, pasos: old.pasos, kpis: old.kpis, notas: old.notas } : {}));
     }));
     // Acciones de las causas propias (sin plantilla): una por causa, en la fase 2
-    activas.filter((c) => !c.ref).forEach((c) => { const t = 'Resolver: ' + c.t; const old = prev.get(t); acciones.push(Object.assign({ id: uid(), linea: lineaDeArea(c.area), t, f: 2, sem: 4, ent: 'Artefacto que cierra la causa', quien: 'consultor', responsable: '', fecha: sumar(ini, 7 * 9), estado: 'pendiente', causas: [], clave: v20.has(c.id) }, old ? { id: old.id, responsable: old.responsable, fecha: old.fecha, estado: old.estado, enviada: old.enviada, pasos: old.pasos, kpis: old.kpis, notas: old.notas } : {})); });
+    activas.filter((c) => !c.ref).forEach((c) => { const t = 'Resolver: ' + c.t; const old = prev.get(t); acciones.push(Object.assign({ id: uid(), linea: lineaDeArea(c.area), t, f: 2, sem: 4, ent: 'Artefacto que cierra la causa', quien: 'consultor', responsable: '', fecha: sumar(ini, (semDe(D.FASES[1])[0] + 1) * 7), estado: 'pendiente', causas: [], clave: v20.has(c.id) }, old ? { id: old.id, responsable: old.responsable, fecha: old.fecha, estado: old.estado, enviada: old.enviada, pasos: old.pasos, kpis: old.kpis, notas: old.notas } : {})); });
     // Hallazgos graves de la auditoría sin causa que los cubra
     ST.hallazgos.filter((h) => +h.gravedad >= 4 && !h.causa).forEach((h) => { const t = 'Corregir: ' + h.t; if (!acciones.some((a) => a.t === t)) acciones.push({ id: uid(), linea: lineaDeArea(h.area), t, f: 1, sem: 2, ent: 'Desviación corregida', quien: 'empresa', responsable: '', fecha: sumar(ini, 14), estado: 'pendiente', causas: [], clave: true }); });
     ST.plan.acciones = acciones.sort((a, b) => a.f - b.f || a.fecha.localeCompare(b.fecha));
@@ -97,7 +117,7 @@
   /* ---------- Hoja de ruta visual: del punto A (hoy) al punto B (destino) ---------- */
   const datosRuta = () => {
     const ST = S(), ini = ST.plan.inicio || hoy(), acc = ST.plan.acciones, g = global(), urg = ruta().filter((x) => x.n === 'stop'), top = causasOrdenadas().filter((x) => veinte().has(x.c.id)).slice(0, 3);
-    const fases = D.FASES.map((F) => { const l = acc.filter((a) => +a.f === F.id); return { F, desde: sumar(ini, (F.sem[0] - 1) * 7), hasta: sumar(ini, F.sem[1] * 7 - 1), n: l.length, hechas: l.filter((a) => a.estado === 'hecha').length, hitos: l.slice().sort((a, b) => (b.clave ? 1 : 0) - (a.clave ? 1 : 0) || a.fecha.localeCompare(b.fecha)).slice(0, 3).map((a) => a.ent && a.ent !== '—' ? a.ent : a.t) }; });
+    const fases = D.FASES.map((F) => { const l = acc.filter((a) => +a.f === F.id); const sm = semDe(F); return { F, desde: sumar(ini, (sm[0] - 1) * 7), hasta: sumar(ini, sm[1] * 7 - 1), n: l.length, hechas: l.filter((a) => a.estado === 'hecha').length, hitos: l.slice().sort((a, b) => (b.clave ? 1 : 0) - (a.clave ? 1 : 0) || a.fecha.localeCompare(b.fecha)).slice(0, 3).map((a) => a.ent && a.ent !== '—' ? a.ent : a.t) }; });
     const objs = (ST.objetivos || []).filter((o) => o.especifica || o.dice).slice(0, 3).map((o) => fraseObj(o));
     const A0 = { titulo: !g ? 'Sin triaje todavía' : g === 'stop' ? `${pl(urg.length, 'área', 'áreas')} en urgencias` : g === 'warn' ? 'Atención preferente' : 'Estable', lineas: top.length ? top.map((x) => x.c.t) : ['Completa la primera sesión para ver el punto de partida'], ctes: D.CONSTANTES.filter((c) => cte(c.id)).map((c) => `${c.n} ${cte(c.id)}/5`) };
     const B = { lineas: objs.length ? objs : ['La empresa funciona una semana sin el empresario en la operativa', 'Cada tarea crítica con responsable, cada límite con número, cada método escrito y cada decisión con dato'], fecha: sumar(ini, D.FASES[D.FASES.length - 1].sem[1] * 7) };
@@ -133,7 +153,7 @@
       ${acc.length ? `<section class="glass pad stack"><div class="row"><div class="eyebrow">Hoja de ruta · del punto A al punto B</div><span class="spacer"></span><small class="muted">La fase en curso, resaltada</small></div>${rutaAB()}</section>` : ''}
       ${acc.length ? (vista === 'linea'
         ? D.LINEAS.filter((L) => acc.some((a) => a.linea === L.id)).map((L) => `<section class="glass pad stack"><div class="row"><h3 class="iv-bt">${esc(L.n)}</h3><span class="spacer"></span><small class="muted">${acc.filter((a) => a.linea === L.id && a.estado === 'hecha').length}/${acc.filter((a) => a.linea === L.id).length}</small></div><ul class="iv-accs">${acc.filter((a) => a.linea === L.id).map(fila).join('')}</ul></section>`).join('')
-        : D.FASES.map((F) => { const l = acc.filter((a) => +a.f === F.id); return `<section class="glass pad stack iv-fase"><div class="row"><span class="iv-cn">${F.id}</span><div><h3 class="iv-bt">${esc(F.n)}</h3><small class="muted">${esc(F.d)} · Semanas ${F.sem[0]}-${F.sem[1]} · ${esc(D.RITMOS[ritmo(F.id)] || F.ritmo)}</small></div><span class="spacer"></span><small class="muted">${l.filter((a) => a.estado === 'hecha').length}/${l.length}</small></div>${l.length ? `<ul class="iv-accs">${l.map(fila).join('')}</ul>` : '<p class="small muted" style="margin:0">Sin acciones en esta fase.</p>'}</section>`; }).join(''))
+        : D.FASES.map((F) => { const l = acc.filter((a) => +a.f === F.id); return `<section class="glass pad stack iv-fase"><div class="row"><span class="iv-cn">${F.id}</span><div><h3 class="iv-bt">${esc(F.n)}</h3><small class="muted">${esc(F.d)} · Semanas ${semDe(F)[0]}-${semDe(F)[1]} · ${esc(D.RITMOS[contrato().paso] || F.ritmo)}</small></div><span class="spacer"></span><small class="muted">${l.filter((a) => a.estado === 'hecha').length}/${l.length}</small></div>${l.length ? `<ul class="iv-accs">${l.map(fila).join('')}</ul>` : '<p class="small muted" style="margin:0">Sin acciones en esta fase.</p>'}</section>`; }).join(''))
       + `<section class="glass pad stack"><div class="eyebrow">Añadir una acción</div><div class="iv-add"><input class="input" id="ivAN" placeholder="Acción concreta"><select class="input" id="ivAL">${D.LINEAS.map((L) => `<option value="${L.id}">${esc(L.n)}</option>`).join('')}</select><select class="input iv-n" id="ivAF">${D.FASES.map((F) => `<option value="${F.id}">${F.id}</option>`).join('')}</select><button class="btn small" id="ivAAdd">Añadir</button></div></section>` : ''}`;
     $('#ivIni', host).onchange = (e) => { ST.plan.inicio = e.target.value; guardar(); };
     $('#ivGen', host).onclick = () => { if (!ST.causas.length && !ST.hallazgos.length) return toast('Primero hacen falta causas (primera sesión) o hallazgos (auditoría integral).'); generar(); render(); toast('Plan generado: revisa responsables y fechas.'); };
@@ -149,26 +169,33 @@
       $(':scope > [data-del]', li).onclick = (e) => { if (!e.target.dataset.conf) { e.target.dataset.conf = 1; e.target.textContent = '¿?'; e.target.title = 'Pulsa otra vez para quitarla'; return; } ST.plan.acciones = acc.filter((x) => x !== a); render(); };
       wireDetalle(li, a);
     });
-    const ad = $('#ivAAdd', host); if (ad) ad.onclick = () => { const t = $('#ivAN', host).value.trim(); if (!t) return; const f = +$('#ivAF', host).value; const a = { id: uid(), linea: $('#ivAL', host).value, t, f, sem: 2, ent: '—', quien: 'consultor', responsable: '', fecha: sumar(ST.plan.inicio || hoy(), (D.FASES[f - 1].sem[0] + 1) * 7), estado: 'pendiente', causas: [], clave: false }; ST.plan.acciones.push(a); abiertas.add(a.id); render(); };
+    const ad = $('#ivAAdd', host); if (ad) ad.onclick = () => { const t = $('#ivAN', host).value.trim(); if (!t) return; const f = +$('#ivAF', host).value; const a = { id: uid(), linea: $('#ivAL', host).value, t, f, sem: 2, ent: '—', quien: 'consultor', responsable: '', fecha: sumar(ST.plan.inicio || hoy(), (semDe(D.FASES[f - 1])[0] + 1) * 7), estado: 'pendiente', causas: [], clave: false }; ST.plan.acciones.push(a); abiertas.add(a.id); render(); };
   };
 
-  /* ---------- Sesiones: ritmo configurable por fase, día y hora ---------- */
-  const RITMO_DEF = { 1: 7, 2: 14, 3: 14, 4: 28 };
-  const ritmo = (f) => { const r = S().plan.ritmo || {}; return +r[f] || RITMO_DEF[f]; };
+  /* ---------- Sesiones: de lo contratado (meses y frecuencia), con día y hora ---------- */
   const diaSem = () => { const ST = S(); return +ST.plan.dia || (new Date((ST.plan.inicio || hoy()) + 'T12:00:00').getDay() || 1); };
   const alDia = (fecha, dia) => { const d = new Date(fecha + 'T12:00:00'); const dif = (dia - d.getDay() + 7) % 7; d.setDate(d.getDate() + dif); return d.toISOString().slice(0, 10); };
   const generarSesiones = () => {
-    const ST = S(), ini = ST.plan.inicio || hoy(), hora = ST.plan.hora || '09:00', dia = diaSem(), prev = ST.sesiones.filter((s) => s.acta || (s.acuerdos || []).length || ['contacto', 'auditoria'].includes(s.tipo));
+    const ST = S(), ini = ST.plan.inicio || hoy(), hora = ST.plan.hora || '09:00', dia = diaSem(), C = contrato(), prev = ST.sesiones.filter((s) => s.acta || (s.acuerdos || []).length || ['contacto', 'auditoria'].includes(s.tipo));
     if (!prev.some((s) => s.tipo === 'contacto')) prev.unshift({ id: uid(), tipo: 'contacto', fecha: ST.sesion.fecha, hora: '', dur: 60, obj: 'Primera sesión: escuchar, recoger sus objetivos, tomar constantes y hacer el triaje.', acta: '', acuerdos: [] });
     if (!prev.some((s) => s.tipo === 'auditoria')) prev.push({ id: uid(), tipo: 'auditoria', fecha: alDia(sumar(ST.sesion.fecha, 7), dia), hora, dur: 180, obj: 'Auditoría integral según la hoja de ruta.', acta: '', acuerdos: [] });
-    const nuevas = [{ id: uid(), tipo: 'arranque', fecha: alDia(ini, dia), hora, dur: 120, obj: 'Presentar el plan de intervención, nombrar responsables y firmar las primeras decisiones.', f: 1 }];
-    D.FASES.forEach((F) => {
-      const paso = ritmo(F.id), fin = sumar(ini, F.sem[1] * 7); let d = alDia(sumar(ini, (F.sem[0] - 1) * 7 + (F.id === 1 ? 7 : 0)), dia);
-      while (d < fin) { const ult = sumar(d, paso) >= fin; nuevas.push({ id: uid(), tipo: ult ? 'revision' : F.id === 1 ? 'trabajo' : 'seguimiento', fecha: d, hora, dur: F.id === 1 ? 120 : 90, obj: (ult ? 'Revisión de la fase «' + F.n + '»: qué se ha cerrado y qué no. ' : '') + F.d, f: F.id }); d = sumar(d, paso); }
-    });
+    // Una sesión cada «paso» días durante lo contratado: la primera es el arranque y la última de cada fase, su revisión
+    const d0 = alDia(ini, dia), faseDe = (k) => { const sem = Math.floor(k * C.paso / 7) + 1; return C.fases.find((x) => sem <= x.sem[1]) || C.fases[C.fases.length - 1]; };
+    // Las sesiones ya celebradas (con acta o acuerdos) ocupan su hueco del calendario: cuentan dentro de lo contratado
+    const dias = (a, b) => Math.abs(new Date(a + 'T12:00:00') - new Date(b + 'T12:00:00')) / 864e5, usadas = new Set();
+    const ocupa = (f) => prev.find((x) => !['contacto', 'auditoria'].includes(x.tipo) && !usadas.has(x) && dias(x.fecha, f) < C.paso / 2);
+    const nuevas = [];
+    for (let k = 0; k < C.n; k++) {
+      const fa = faseDe(k), F = fa.F, ult = k === C.n - 1 || faseDe(k + 1) !== fa, ya = ocupa(sumar(d0, k * C.paso));
+      if (ya) { usadas.add(ya); if (!ya.f) ya.f = F.id; continue; }
+      nuevas.push(k === 0 ? { id: uid(), tipo: 'arranque', fecha: d0, hora, dur: 120, obj: 'Presentar el plan de intervención, nombrar responsables y firmar las primeras decisiones.', f: 1 }
+        : { id: uid(), tipo: ult ? 'revision' : F.id === 1 ? 'trabajo' : 'seguimiento', fecha: sumar(d0, k * C.paso), hora, dur: F.id === 1 ? 120 : 90, obj: (ult ? 'Revisión de la fase «' + F.n + '»: qué se ha cerrado y qué no. ' : '') + F.d, f: F.id });
+    }
     ST.sesiones = prev.concat(nuevas.filter((n) => !prev.some((p) => p.fecha === n.fecha))).map((s) => Object.assign({ acta: '', acuerdos: [] }, s)).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    ST.plan.calendario = { meses: C.meses, paso: C.paso, n: C.n, origen: C.origen, fecha: new Date().toISOString() };
     guardar();
   };
+  V.generarSesiones = generarSesiones;
   const puntosSesion = (s) => { const ST = S(), sig = ST.sesiones[ST.sesiones.indexOf(s) + 1]; const hasta = sig ? sig.fecha : sumar(s.fecha, 14); return ST.plan.acciones.filter((a) => a.estado !== 'hecha' && a.fecha <= hasta && (!s.f || a.f <= s.f)).slice(0, 10); };
   const checkSesion = (s) => { const base = ['Revisar las acciones vencidas y sus responsables', 'Indicadores del cuadro de mando: qué ha cambiado', 'Agenda del empresario: horas liberadas para su 20 %']; if (s.tipo === 'auditoria') return ruta().flatMap((x) => (D.VERIFICA[x.a.id] || []).slice(0, 2)); if (s.tipo === 'revision') base.push('Prueba: ¿qué tareas ya no pasan por el empresario?'); if ((S().objetivos || []).length) base.push('Objetivos del empresario: avance de cada indicador'); return base; };
   const evento = (s) => ({ id: s.id, titulo: (D.TIPOS_SESION[s.tipo] || 'Sesión') + ' · ' + empresa(), fecha: s.fecha, hora: s.hora || '09:00', dur: +s.dur || 90, detalle: (s.obj || '') + '\n\nOrden del día:\n' + puntosSesion(s).map((a) => '· ' + a.t).join('\n') + '\n\n(Atalaya 360°: las fechas del plan son orientativas)' });
@@ -176,10 +203,11 @@
   VISTAS.sesiones = (host) => {
     const ST = S(), sel = ST.sesiones.find((x) => x.id === V.int.get('sesSel')) || ST.sesiones.find((x) => x.fecha >= hoy()) || ST.sesiones[0];
     const C = A.calendario, prov = C ? C.proveedor() : '';
-    host.innerHTML = `<section class="glass pad stack"><div class="row"><div><div class="eyebrow">Ritmo de las sesiones</div><small class="muted">Se aplica al generar o regenerar el calendario. Las sesiones con acta o acuerdos se conservan.</small></div><span class="spacer"></span>${C ? `<button class="btn ${prov ? 'ghost' : 'solid'} small" id="ivCal">${prov ? 'Calendario: ' + esc(C.NOMBRES[prov].split(' (')[0]) + ' · cambiar' : 'Conectar mi calendario'}</button>` : ''}</div>
-        <div class="iv-ritmo">${D.FASES.map((F) => `<label class="small">${F.id} · ${esc(F.n)} <span class="muted">(sem. ${F.sem[0]}-${F.sem[1]})</span><select class="input" data-rit="${F.id}">${Object.keys(D.RITMOS).map((k) => `<option value="${k}" ${ritmo(F.id) === +k ? 'selected' : ''}>${D.RITMOS[k]}</option>`).join('')}</select></label>`).join('')}
+    const CT = contrato(), cal = ST.plan.calendario, nCont = ST.sesiones.filter((s) => !['contacto', 'auditoria'].includes(s.tipo)).length;
+    host.innerHTML = `<section class="glass pad stack"><div class="row"><div><div class="eyebrow">Calendario de lo contratado</div><small class="muted">Sale de los meses y la frecuencia de la propuesta (${esc(CT.origen)}). Se aplica al generar o regenerar el calendario. Las sesiones con acta o acuerdos se conservan.</small></div><span class="spacer"></span>${C ? `<button class="btn ${prov ? 'ghost' : 'solid'} small" id="ivCal">${prov ? 'Calendario: ' + esc(C.NOMBRES[prov].split(' (')[0]) + ' · cambiar' : 'Conectar mi calendario'}</button>` : ''}</div>
+        <div class="iv-ritmo"><label class="small">Meses contratados<select class="input" id="ivMeses">${[...new Set([3, 4, 6, 9, 12, 18, 24, CT.meses])].sort((a, b) => a - b).map((m) => `<option value="${m}" ${CT.meses === m ? 'selected' : ''}>${m} meses</option>`).join('')}</select></label><label class="small">Frecuencia<select class="input" id="ivFrec">${Object.keys(D.RITMOS).map((k) => `<option value="${k}" ${CT.paso === +k ? 'selected' : ''}>${D.RITMOS[k]}</option>`).join('')}</select></label>
           <label class="small">Día de la semana<select class="input" id="ivDia">${Object.keys(D.DIAS).map((k) => `<option value="${k}" ${diaSem() === +k ? 'selected' : ''}>${D.DIAS[k]}</option>`).join('')}</select></label><label class="small">Hora<input class="input" type="time" id="ivHora" value="${esc(ST.plan.hora || '09:00')}"></label></div>
-        <p class="small muted" style="margin:0">Recomendación: semanal al ordenar (hay urgencias y decisiones que firmar), quincenal al dar claridad y transformar (la empresa necesita tiempo para ejecutar entre sesiones) y mensual al consolidar. Si entre sesiones no se avanza, no subas la frecuencia: revisa responsables y la mesa de trabajo. ${ST.sesiones.length ? `<b>${pl(ST.sesiones.length, 'sesión', 'sesiones')}</b> en el calendario.` : ''}</p></section>
+        <p class="small muted" style="margin:0">${CT.meses} meses con frecuencia ${esc((D.RITMOS[CT.paso] || '').toLowerCase())}: <b>${pl(CT.n, 'sesión', 'sesiones')}</b> de acompañamiento, la primera de arranque. Las fases del plan se reparten en ese tiempo (${CT.fases.map((x) => `${x.F.n.toLowerCase()}, semanas ${x.sem[0]}-${x.sem[1]}`).join('; ')}). ${ST.sesiones.length ? `En el calendario: <b>${pl(nCont, 'sesión', 'sesiones')}</b> de acompañamiento${ST.sesiones.length > nCont ? ` y ${ST.sesiones.length - nCont} de la sesión previa y la auditoría` : ''}.` : ''}${cal && (cal.meses !== CT.meses || cal.paso !== CT.paso) ? ' <b>La propuesta ha cambiado desde que se generó: regenere el calendario.</b>' : ''} Si entre sesiones no se avanza, no suba la frecuencia: revise responsables y la mesa de trabajo.</p></section>
       <div class="grid iv-two"><section class="glass pad stack"><div class="row"><div class="eyebrow">Sesiones con la empresa</div><span class="spacer"></span><button class="btn small" id="ivSGen">${ST.sesiones.length > 2 ? 'Regenerar con este ritmo' : 'Generar desde el plan'}</button><button class="btn ghost small" id="ivSN">Nueva sesión</button>${C && prov === 'ics' ? '<button class="btn ghost small" id="ivIcs">Todas en .ics</button>' : ''}</div>
         ${ST.sesiones.length ? `<ol class="iv-sesl">${ST.sesiones.map((s) => `<li class="${s === sel ? 'on' : ''} ${s.fecha < hoy() ? 'pasada' : ''}" data-s="${s.id}"><span class="iv-sf">${fCorta(s.fecha)}${s.hora ? '<br>' + esc(s.hora) : ''}</span><span><b>${esc(D.TIPOS_SESION[s.tipo] || s.tipo)}</b><small>${esc((s.obj || '').slice(0, 90))}</small></span>${s.acta ? '<i class="iv-ok" title="Con acta">●</i>' : ''}</li>`).join('')}</ol>` : '<p class="small muted" style="margin:0">Genera las sesiones desde el plan de intervención o crea una.</p>'}
         <div id="ivIcsBox"></div></section>
@@ -193,7 +221,10 @@
     // Primera vez: elegir el calendario, con su guía
     if (C && !prov && !guiaCal && ST.sesiones.length) { guiaCal = true; let visto = ''; try { visto = localStorage.getItem('atalaya.calendario.guia'); localStorage.setItem('atalaya.calendario.guia', '1'); } catch (e) { /* nada */ } if (!visto) setTimeout(() => A.conexiones.abrir('calendario'), 300); }
     const cb = $('#ivCal', host); if (cb) cb.onclick = () => A.conexiones.abrir('calendario');
-    $$('[data-rit]', host).forEach((x) => (x.onchange = () => { ST.plan.ritmo = Object.assign({}, ST.plan.ritmo, { [x.dataset.rit]: +x.value }); guardar(); toast('Ritmo guardado. Pulsa «Regenerar con este ritmo» para aplicarlo.'); }));
+    // Meses y frecuencia se guardan en la propuesta de acompañamiento: propuesta y calendario dicen lo mismo
+    const p3 = () => { const R = ST.recorrido; R.propS3 = R.propS3 || {}; return R.propS3; };
+    $('#ivMeses', host).onchange = (e) => { p3().meses = +e.target.value; guardar(); render(); toast('Duración guardada en la propuesta de acompañamiento. Pulse «Regenerar con este ritmo» para aplicarla.'); };
+    $('#ivFrec', host).onchange = (e) => { p3().frecuencia = +e.target.value; guardar(); render(); toast('Frecuencia guardada en la propuesta de acompañamiento. Pulse «Regenerar con este ritmo» para aplicarla.'); };
     $('#ivDia', host).onchange = (e) => { ST.plan.dia = +e.target.value; guardar(); toast('Día guardado. Pulsa «Regenerar con este ritmo» para aplicarlo.'); };
     $('#ivHora', host).onchange = (e) => { ST.plan.hora = e.target.value; guardar(); };
     $('#ivSGen', host).onclick = () => { if (!ST.plan.acciones.length) return toast('Genera antes el plan de intervención.'); generarSesiones(); render(); toast('Sesiones generadas con el ritmo elegido.'); };
@@ -264,18 +295,18 @@
       const ST = S(), acc = ST.plan.acciones, v20 = veinte();
       if (!acc.length) return toast('Genera antes el plan de intervención.');
       marca('plan');
-      const ini = ST.plan.inicio || hoy(), fin = sumar(ini, D.FASES[D.FASES.length - 1].sem[1] * 7), emp = acc.filter((a) => a.quien === 'empresa').length, lineas = D.LINEAS.filter((L) => acc.some((a) => a.linea === L.id));
+      const ini = ST.plan.inicio || hoy(), fin = sumar(ini, contrato().semanas * 7), emp = acc.filter((a) => a.quien === 'empresa').length, lineas = D.LINEAS.filter((L) => acc.some((a) => a.linea === L.id));
       const resp = (a) => a.responsable || (a.quien === 'empresa' ? 'Empresa (por asignar)' : 'Consultor');
       let h = cover({ kicker: 'Plan de intervención', titulo: 'Plan de trabajo con la empresa', subtitulo: `${pl(acc.length, 'acción', 'acciones')} en ${D.FASES.length} fases y ${pl(lineas.length, 'línea', 'líneas')} de trabajo · del ${fLarga(ini)} al ${fLarga(fin)}` });
       h += In.summary('Resumen ejecutivo', `<p>El plan ataca primero ${pl(v20.size, 'la causa', 'las causas')} que más pesan: ${ST.causas.filter((c) => v20.has(c.id)).map((c) => c.t.toLowerCase()).join('; ') || '—'}. Cada acción tiene responsable, fecha, pasos, indicadores y un entregable concreto que resuelve una carencia concreta de la empresa: un responsable con nombre, un límite con número, un método escrito, un dato que se lee o una fecha en el calendario.</p>`
-        + In.kpis([{ k: 'Acciones', v: String(acc.length), d: `${acc.filter((a) => a.clave).length} clave (★)` }, { k: 'Las lleva la empresa', v: String(emp), d: `${acc.length - emp} lidera el consultor` }, { k: 'Duración', v: `${D.FASES[D.FASES.length - 1].sem[1]} semanas`, d: `${fCorta(ini)} → ${fCorta(fin)}` }, { k: 'Sesiones', v: String(ST.sesiones.length || '—'), d: ST.sesiones.length ? 'con orden del día' : 'por generar' }]));
+        + In.kpis([{ k: 'Acciones', v: String(acc.length), d: `${acc.filter((a) => a.clave).length} clave (★)` }, { k: 'Las lleva la empresa', v: String(emp), d: `${acc.length - emp} lidera el consultor` }, { k: 'Duración', v: `${contrato().meses} meses`, d: `${fCorta(ini)} → ${fCorta(fin)}` }, { k: 'Sesiones', v: String(ST.sesiones.length || '—'), d: ST.sesiones.length ? 'con orden del día' : 'por generar' }]));
       h += notaFechas();
       h += In.section('Hoja de ruta: del punto A al punto B', rutaABDoc());
       if (V.objSmart ? V.objSmart.seccion(In) : tablaObjetivos()) h += In.section('Los objetivos de la empresa', V.objSmart ? V.objSmart.seccion(In) : tablaObjetivos(), 'El punto B: lo que usted quiere conseguir, en formato SMART.');
       h += In.section('Resumen por línea de trabajo', In.table(['Línea', 'Acciones', 'Clave', 'Fases', 'Entregables', 'Hasta'], lineas.map((L) => { const l = acc.filter((a) => a.linea === L.id); return [L.n, String(l.length), String(l.filter((a) => a.clave).length), [...new Set(l.map((a) => +a.f))].sort().join(', '), l.map((a) => a.ent).filter((e) => e && e !== '—').slice(0, 3).join(' · ') || '—', fCorta(l.reduce((m, a) => (a.fecha > m ? a.fecha : m), ''))]; })));
       D.FASES.forEach((F) => {
         const l = acc.filter((a) => +a.f === F.id); if (!l.length) return;
-        h += In.section(`Fase ${F.id} · ${F.n}`, `<p>${esc(F.d)} Semanas ${F.sem[0]}-${F.sem[1]} (${fCorta(sumar(ini, (F.sem[0] - 1) * 7))} → ${fCorta(sumar(ini, F.sem[1] * 7 - 1))}) · ${esc((D.RITMOS[ritmo(F.id)] || F.ritmo).toLowerCase())}.</p>`
+        h += In.section(`Fase ${F.id} · ${F.n}`, `<p>${esc(F.d)} Semanas ${semDe(F)[0]}-${semDe(F)[1]} (${fCorta(sumar(ini, (semDe(F)[0] - 1) * 7))} → ${fCorta(sumar(ini, semDe(F)[1] * 7 - 1))}) · ${esc((D.RITMOS[contrato().paso] || F.ritmo).toLowerCase())}.</p>`
           + In.table(['Acción', 'Línea', 'Entregable', 'Responsable', 'Fecha'], l.map((a) => [(a.clave ? '★ ' : '') + a.t, (D.linea(a.linea) || {}).n, a.ent, resp(a), fCorta(a.fecha)]))
           + l.filter((a) => a.clave || (a.pasos || []).length).slice(0, 6).map((a) => { const ps = (a.pasos && a.pasos.length) ? a.pasos : D.pasos(a).map((t) => ({ t })); return `<div class="pdf-keep" style="margin:8px 0;padding:8px 10px;border-left:3px solid ${a.clave ? '#c48a00' : '#c8c4b6'};background:#faf9f5"><b>${a.clave ? '★ ' : ''}${esc(a.t)}</b><br><span style="font-size:10.5px;color:#7d828c">Responsable: ${esc(resp(a))} · Fecha: ${fCorta(a.fecha)} · Entregable: ${esc(a.ent)}</span><ol style="margin:4px 0 0;font-size:11px">${ps.map((p) => `<li>${p.hecho ? '☑' : '☐'} ${esc(p.t)}</li>`).join('')}</ol>${(a.kpis || []).length ? `<p style="margin:4px 0 0;font-size:11px"><b>Indicadores:</b> ${a.kpis.map((k) => `${esc(k.n)}${k.meta ? ` (${esc(k.actual || '?')} → ${esc(k.meta)})` : ''}`).join(' · ')}</p>` : ''}</div>`; }).join(''));
       });

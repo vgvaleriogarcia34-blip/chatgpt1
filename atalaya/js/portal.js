@@ -10,39 +10,51 @@
   const $$ = (s) => Array.from(document.querySelectorAll(s));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const small = Math.min(innerWidth, innerHeight) < 700;
-  const DEST = { sim: 'app.html', est: 'estrategia.html', per: 'personas.html', iv: 'intervencion.html', man: 'manual.html' };
-  const NOMBRE = { sim: 'Simulador de inversión', est: 'Sistema estratégico', per: 'Personas y equipos', iv: 'Auditoría integral', man: 'Manual' };
+  // Destinos: los de la lista común de mundos (la misma que la barra superior) y el manual
+  const DEST = { man: 'manual.html' }, NOMBRE = { man: 'Manual' };
+  P.MUNDOS.forEach((m) => { if (m.k !== 'portal') { DEST[m.k] = m.href; NOMBRE[m.k] = m.n; } });
+  const EN3D = ['sim', 'est', 'per', 'iv'];
   const LS = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
 
   let entering = false;
   function enter(w) {
     if (entering || !DEST[w]) return;
-    // Esencial incluye solo el simulador: el sistema estratégico se ofrece, no se abre
-    if (w === 'est' && P.user && !P.puede('estrategia')) { P.panelPlanes({ destacar: 'profesional', motivo: 'El sistema estratégico está incluido desde el plan Profesional. Tu plan Esencial incluye el simulador de inversión.' }); return; }
-    if (w === 'per' && P.user && !P.puede('personas')) { P.panelPlanes({ destacar: 'consultora', motivo: 'Personas y equipos (perfiles, equipos, liderazgo y tablillas) está incluido en el plan Consultora.' }); return; }
-    if (w === 'iv' && P.user && !P.puede('intervencion')) { P.panelPlanes({ destacar: 'consultora', motivo: 'La auditoría integral (primera sesión como un triaje, auditoría por áreas y plan de intervención) está incluida en el plan Consultora.' }); return; }
+    // Un mundo que el plan no incluye se ve, pero se ofrecen los planes en lugar de abrirlo
+    const m = P.MUNDOS.find((x) => x.k === w);
+    if (m && m.f && P.user && !P.puede(m.f)) { P.abrirMundo(w); return; }
     entering = true;
     LS.set('atalaya.ultimo', w);
-    if (scene && !reduce) { flyTo(w); setTimeout(() => $('#warp').classList.add('on'), 650); setTimeout(() => { location.href = DEST[w]; }, 1350); }
+    if (scene && !reduce && EN3D.includes(w)) { flyTo(w); setTimeout(() => $('#warp').classList.add('on'), 650); setTimeout(() => { location.href = DEST[w]; }, 1350); }
     else location.href = DEST[w];
   }
-  $$('[data-w]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); enter(b.dataset.w); }));
+  /* Barra de mundos del puesto de mando: arriba los cuatro del espacio; debajo, mesa, tablero, libro y grupo.
+     Se pinta al cargar y otra vez con la cuenta (planes y vista de grupo). Las teclas 1 a 9 siguen su orden. */
+  const dock = $('.pt-dock');
+  const escT = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function pintarDock() {
+    const ms = P.mundos().filter((m) => m.k !== 'portal');
+    let n = 0;
+    const it = (m) => `<button type="button" data-w="${m.k}" class="${EN3D.includes(m.k) ? '' : 'pt-sec'}${m.lock ? ' pt-lock' + (m.plan === 'consultora' ? ' pt-lock-c' : '') : ''}"><i class="d-${m.k}"${EN3D.includes(m.k) ? '' : ` style="background:${m.c}"`}></i><span><b>${escT(m.n)}</b><small>${m.lock ? `Incluido en el plan ${escT(P.PLANES[m.plan].nombre)} · ${P.verbo()} para ver los planes` : escT(m.d)}</small></span><kbd>${++n}</kbd></button>`;
+    dock.innerHTML = ms.filter((m) => EN3D.includes(m.k)).map(it).join('') + '<span class="pt-dock-br" aria-hidden="true"></span>' + ms.filter((m) => !EN3D.includes(m.k)).map(it).join('');
+    medirDock();
+  }
+  dock.addEventListener('click', (e) => { const b = e.target.closest('[data-w]'); if (b) { e.stopPropagation(); enter(b.dataset.w); } });
+  $$('.pt-labels [data-w]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); enter(b.dataset.w); }));
   // Paseo virtual con la empresa modelo, a petición desde el mapa
   const pb = $('#ptPaseo'); if (pb) pb.addEventListener('click', (e) => { e.stopPropagation(); if (A.paseo) A.paseo.iniciar(); });
   // Altura real de la barra de mundos (una o dos filas según la pantalla) para colocar encima los botones flotantes
-  const medirDock = () => { const d = $('.pt-dock'); if (d) document.documentElement.style.setProperty('--pt-dock-h', d.offsetHeight + 'px'); };
-  medirDock(); addEventListener('resize', medirDock); setTimeout(medirDock, 600);
+  function medirDock() { const d = $('.pt-dock'); if (d) document.documentElement.style.setProperty('--pt-dock-h', d.offsetHeight + 'px'); }
+  pintarDock(); addEventListener('resize', medirDock); setTimeout(medirDock, 600);
+  // Con el dedo no hay rueda ni teclas: la ayuda lo dice así
+  if (P.tactil()) { $('.pt-intro p').textContent = 'Elija un mundo: toque su nombre en la lista de abajo o el planeta en el espacio. Deslice para girar y pellizque para acercarse.'; $('#hint').textContent = 'Deslice para girar · pellizque para acercarse · toque un mundo para entrar'; }
   const vb = $('#ptVideo'); if (vb) vb.addEventListener('click', (e) => { e.stopPropagation(); P.verVideo(); });
 
   /* ---------- Cuenta y saludo ---------- */
   (async () => {
     const ok = await P.guard(); if (!ok) return;
     P.mountAccount($('#account'));
-    // Planes con varias empresas: acceso a la vista de grupo o a la cartera desde el puesto de mando
-    if (P.esGrupo && P.esGrupo()) {
-      const g = !!(P.PLANES[P.user.plan] || {}).grupo, ea = P.empresas.activa();
-      $('.pt-dock').insertAdjacentHTML('beforeend', `<a class="pt-grp" href="grupo.html"><i class="d-grp"></i><span><b>${g ? 'Vista de grupo' : 'Cartera de clientes'}</b><small>${P.empresas.reales().length} ${g ? 'sociedades' : 'empresas'}${ea ? ' · ahora en ' + ea.nombre.replace(/</g, '&lt;') : ''}</small></span></a>`);
-    }
+    // Con la cuenta ya se sabe qué incluye el plan y si hay vista de grupo o cartera de clientes
+    pintarDock();
     // Paso 1: el mapa de empresas. En planes con varias empresas se elige antes de entrar en los mundos;
     // con una sola, se enseña mientras la ficha esté a medias. Siempre se puede volver desde la barra de empresa.
     const SS = { get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
@@ -70,32 +82,16 @@
     colorBalizas();
     addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); colorBalizas(); if (!$('#empPaso').hidden) return; pintarBarra(); });
     // Esencial: el mundo del sistema estratégico se ve, pero marcado como incluido desde Profesional
-    if (!P.puede('intervencion')) $$('[data-w="iv"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido en el plan Consultora · toca para ver los planes'; });
-    if (!P.puede('personas')) $$('[data-w="per"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido en el plan Consultora · toca para ver los planes'; });
-    if (!P.puede('estrategia')) $$('[data-w="est"]').forEach((x) => { x.classList.add('pt-lock'); const q = x.querySelector('.pt-q, small'); if (q) q.textContent = 'Incluido desde el plan Profesional · toca para ver los planes'; });
+    if (!P.puede('intervencion')) $$('.pt-labels [data-w="iv"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q'); if (q) q.textContent = `Incluido en el plan Consultora · ${P.verbo()} para ver los planes`; });
+    if (!P.puede('personas')) $$('.pt-labels [data-w="per"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q'); if (q) q.textContent = `Incluido en el plan Consultora · ${P.verbo()} para ver los planes`; });
+    if (!P.puede('estrategia')) $$('.pt-labels [data-w="est"]').forEach((x) => { x.classList.add('pt-lock'); const q = x.querySelector('.pt-q'); if (q) q.textContent = `Incluido desde el plan Profesional · ${P.verbo()} para ver los planes`; });
     // Desde la página comercial con la sesión abierta: abrir el cambio de plan con el elegido
     const hp = (location.hash.match(/^#plan-(esencial|profesional|consultora|grupos)/) || [])[1];
     if (hp) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } setTimeout(() => P.panelPlanes({ destacar: hp, motivo: hp !== P.user.plan ? `Has elegido ${P.PLANES[hp].nombre}. Cámbialo aquí: se aplica al momento y conservas todos tus datos.` : '' }), 300); }
     // Con una sola empresa no se abre el mapa: la ficha se completa cuando se quiera, desde la barra de empresa
     if (location.hash === '#empresas' || (multi && !SS.get('atalaya.emp.elegida'))) abrirPaso(); else pintarBarra();
-    // Primer acceso de una cuenta nueva: ¿con sus datos, viendo antes la empresa modelo o más tarde? (se pregunta una vez)
-    if (!hp && location.hash !== '#empresas' && P.primerAcceso) P.primerAcceso.pendiente().then((si) => { if (si) comoEmpezar(); }).catch(() => {});
-    function comoEmpezar() {
-      const back = document.createElement('div'); back.className = 'ef-back';
-      back.innerHTML = `<div class="ef-card glass pa-card" role="dialog" aria-modal="true" aria-labelledby="paT">
-        <div class="eyebrow">Primer acceso</div>
-        <h3 id="paT" class="pa-t">¿Cómo quiere empezar?</h3>
-        <p class="small muted" style="margin:0">Puede cambiarlo cuando quiera desde el menú de su cuenta.</p>
-        <div class="pa-ops">
-          <button type="button" class="pa-op" data-ini="datos"><b>Con mis datos</b><small>Su empresa empieza vacía, sin datos de ejemplo. Se abre la carga de datos: cuentas anuales o unas preguntas.</small></button>
-          <button type="button" class="pa-op" data-ini="modelo"><b>Ver primero la empresa modelo</b><small>Una empresa ficticia completa para ver qué hace cada mundo antes de cargar la suya.</small></button>
-          <button type="button" class="pa-op pa-luego" data-ini="luego"><b>Decidir más tarde</b><small>Entra en el puesto de mando sin cambiar nada.</small></button>
-        </div>
-      </div>`;
-      document.body.appendChild(back);
-      back.querySelectorAll('[data-ini]').forEach((b) => b.onclick = async () => { back.querySelectorAll('button').forEach((x) => { x.disabled = true; }); await P.primerAcceso.elegir(b.dataset.ini); if (b.dataset.ini === 'luego') back.remove(); });
-      setTimeout(() => { const f = back.querySelector('[data-ini]'); if (f) f.focus(); }, 30);
-    }
+    // Primera visita de una cuenta nueva: una tarjeta con la acción clave (cargar cuentas, preguntas o el ejemplo); se pregunta una vez
+    if (!hp && location.hash !== '#empresas' && P.primerAcceso) P.primerAcceso.pendiente().then((si) => { if (si) P.primerAcceso.tarjeta(); }).catch(() => {});
     const n = (P.user && (P.user.nombre || '').split(/\s+/)[0]) || '';
     if (n) $('#hello').textContent = 'Hola, ' + n;
     const u = LS.get('atalaya.ultimo');
@@ -369,21 +365,25 @@
   canvas.addEventListener('touchmove', (e) => { if (pinch && e.touches.length === 2) { const [a, b] = e.touches; const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); view.tRadius = Math.max(16, Math.min(80, pinch.r * pinch.d / d)); } }, { passive: true });
   canvas.addEventListener('touchend', () => { pinch = null; touches.clear(); });
   addEventListener('keydown', (e) => {
+    // Las teclas son del espacio solo si no se está escribiendo ni dentro de la barra, un menú o una ventana
+    const t = e.target; if (e.ctrlKey || e.metaKey || e.altKey || (t && t.closest && (t.closest('input, textarea, select, [contenteditable], .topbar, .ef-back, .modal-back') || t.isContentEditable)) || document.querySelector('.ef-back, .modal-back') || !$('#empPaso').hidden) return;
     if (e.key === 'ArrowLeft' || e.key === 'a') setFocus('sim');
     else if (e.key === 'ArrowRight' || e.key === 'd') setFocus('est');
     else if (e.key === 'ArrowUp' || e.key === 'w') view.tRadius = Math.max(16, view.tRadius * 0.9);
     else if (e.key === 'ArrowDown' || e.key === 's') view.tRadius = Math.min(80, view.tRadius * 1.1);
     else if (e.key === 'Enter' && focus) enter(focus);
-    else if (e.key === '1') enter('sim');
-    else if (e.key === '2') enter('est');
-    else if (e.key === '3') enter('per');
-    else if (e.key === '4') enter('iv');
+    else if (/^[1-9]$/.test(e.key) && $$('.pt-dock [data-w]')[+e.key - 1]) enter($$('.pt-dock [data-w]')[+e.key - 1].dataset.w);
     else return;
     lastMove = performance.now();
   });
   // Pasar por encima de las etiquetas o del panel inferior también ilumina el mundo
-  $$('[data-w]').forEach((b) => { b.addEventListener('pointerenter', () => { hoverLabel = b.dataset.w; }); b.addEventListener('pointerleave', () => { hoverLabel = null; }); b.addEventListener('focus', () => setFocus(b.dataset.w)); });
   let hoverLabel = null;
+  $$('.pt-labels [data-w]').forEach((b) => { b.addEventListener('pointerenter', () => { hoverLabel = b.dataset.w; }); b.addEventListener('pointerleave', () => { hoverLabel = null; }); b.addEventListener('focus', () => setFocus(b.dataset.w)); });
+  // La barra de mundos se vuelve a pintar con la cuenta: se escucha en el contenedor (solo los mundos del espacio se iluminan)
+  const w3d = (e) => { const b = e.target.closest && e.target.closest('[data-w]'); return b && W[b.dataset.w] ? b.dataset.w : null; };
+  dock.addEventListener('pointerover', (e) => { hoverLabel = w3d(e); });
+  dock.addEventListener('pointerleave', () => { hoverLabel = null; });
+  dock.addEventListener('focusin', (e) => { const w = w3d(e); if (w) setFocus(w); });
 
   flyTo = (w) => {
     const to = W[w].g.position.clone();
@@ -409,7 +409,8 @@
     if (w === 'man') { lx = x - o.label.offsetWidth / 2; ly = y + 18; }
     else if (narrow) { lx = x > innerWidth / 2 ? x - o.label.offsetWidth - 30 : x + 30; ly = y - o.label.offsetHeight / 2; }
     else { lx = x + offX * (Math.min(220, 2600 / d) + (offX < 0 ? o.label.offsetWidth : 0)); ly = y - o.label.offsetHeight / 2; }
-    lx = Math.max(12, Math.min(innerWidth - o.label.offsetWidth - 12, lx)); ly = Math.max(narrow ? 200 : 140, Math.min(innerHeight - o.label.offsetHeight - (narrow ? 150 : 130), ly));
+    // Sin tapar la barra de mundos de abajo (una o dos filas)
+    lx = Math.max(12, Math.min(innerWidth - o.label.offsetWidth - 12, lx)); ly = Math.max(narrow ? 200 : 140, Math.min(innerHeight - o.label.offsetHeight - Math.max(narrow ? 150 : 130, dock.offsetHeight + 70), ly));
     o.label.style.transform = `translate(${lx}px, ${ly}px)`;
     o.label.style.visibility = behind ? 'hidden' : 'visible';
     o.label.classList.toggle('far', d > (portrait ? 64 : 46));

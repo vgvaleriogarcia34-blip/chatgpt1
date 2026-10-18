@@ -185,7 +185,23 @@
     pintarHero();
     // Triaje de cada área, en el orden de D.AREAS: lo leen las balizas del puesto de mando (portal.js)
     ST.triajeAreas = D.AREAS.map((a) => nivel(a.id) || '');
+    // Resumen del recorrido: lo lee la cartera del consultor (grupo.js) sin cargar este mundo
+    try { ST.resumen = resumenRecorrido(); } catch (e) { /* sin resumen */ }
     guardar();
+  }
+  /* Etapa y paso donde está el consultor, pasos hechos, próxima sesión y pendientes (acciones vencidas,
+     sesiones pasadas sin acta, propuestas sin respuesta y documentos pedidos sin recibir) */
+  function resumenRecorrido() {
+    const h = hoy(), u = ST.recorrido && ST.recorrido.ultimo, k = (u && u.tab) || tab, i = TABS.findIndex((t) => t[0] === k);
+    const prox = (ST.sesiones || []).filter((x) => x.fecha && x.fecha >= h).sort((a, b) => (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')))[0];
+    const pend = [];
+    (ST.plan.acciones || []).filter((a) => a.estado !== 'hecha' && a.fecha && a.fecha < h).forEach((a) => pend.push({ t: 'Acción vencida: ' + a.t, fecha: a.fecha, tipo: 'accion' }));
+    (ST.sesiones || []).filter((x) => x.fecha && x.fecha < h && !String(x.acta || '').trim() && x.tipo !== 'contacto').forEach((x) => pend.push({ t: 'Sesión sin acta: ' + (D.TIPOS_SESION[x.tipo] || 'sesión') + ' del ' + fCorta(x.fecha), fecha: x.fecha, tipo: 'acta' }));
+    const R = ST.recorrido || {};
+    [['propuesta', 'Propuesta integral'], ['propS2', 'Propuesta de la auditoría 360'], ['propS3', 'Propuesta de acompañamiento']].forEach(([key, n]) => { const pr = R[key] || {}; if (pr.estado === 'presentada') pend.push({ t: n + ' presentada, sin respuesta', fecha: pr.fecha || '', tipo: 'propuesta' }); });
+    const docs = Object.values(R.docs || {}).filter((d) => d && d.e === 'pedido').length; if (docs) pend.push({ t: `${pl(docs, 'documento pedido', 'documentos pedidos')} sin recibir`, fecha: '', tipo: 'docs' });
+    return { etapaN: i >= 0 ? etapaDe(k) : 1, etapa: i >= 0 ? TABS[i][2] : ETAPAS[0], paso: i + 1, pasoN: i >= 0 ? TABS[i][1] : '', tab: k, hechos: TABS.filter((t) => hecho(t[0])).length, total: TABS.length,
+      proxima: prox ? { fecha: prox.fecha, hora: prox.hora || '', tipo: D.TIPOS_SESION[prox.tipo] || 'Sesión' } : null, sesiones: (ST.sesiones || []).length, pendientes: pend.slice(0, 30), nPend: pend.length, triaje: global(), ts: new Date().toISOString() };
   }
   V.render = () => render();
 

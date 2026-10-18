@@ -140,14 +140,14 @@
         const ebitda = E.ebitda + precio + lean - rot, ventas = E.ventas + precio;
         const circ = ventas * (E.dso - p.dso) / 365, caja12 = E.caja + ebitda * 0.75 - E.servicioDeuda + circ;
         const mg = ebitda / ventas;
-        const L = [['Margen EBITDA', pct(mg), mg >= 0.1 ? 'ok' : mg >= 0.06 ? 'warn' : 'stop'], ['Caja a 12 meses', F.eur(caja12), caja12 >= 500000 ? 'ok' : caja12 >= 250000 ? 'warn' : 'stop'], ['Días de cobro', p.dso + ' días', p.dso <= 60 ? 'ok' : p.dso <= 90 ? 'warn' : 'stop'], ['Rotación', p.ro + ' %', p.ro <= 8 ? 'ok' : p.ro <= 14 ? 'warn' : 'stop']];
+        const L = [['Margen de beneficio (EBITDA)', pct(mg), mg >= 0.1 ? 'ok' : mg >= 0.06 ? 'warn' : 'stop'], ['Caja a 12 meses', F.eur(caja12), caja12 >= 500000 ? 'ok' : caja12 >= 250000 ? 'warn' : 'stop'], ['Días de cobro', p.dso + ' días', p.dso <= 60 ? 'ok' : p.dso <= 90 ? 'warn' : 'stop'], ['Rotación', p.ro + ' %', p.ro <= 8 ? 'ok' : p.ro <= 14 ? 'warn' : 'stop']];
         const rojos = L.filter((x) => x[2] === 'stop').length, verdes = L.filter((x) => x[2] === 'ok').length;
         return {
-          kpis: [['EBITDA', F.eur(ebitda), 'antes ' + F.eur(E.ebitda)], ['Caja a 12 meses', F.eur(caja12), 'tras el servicio de la deuda'], ['Valor de la empresa', ebitda > 0 ? F.eur(ebitda * 6) : '—', ebitda > 0 ? '6 veces el EBITDA' : 'con EBITDA negativo no se valora por múltiplo'], ['Circulante liberado', F.eur(circ), 'por cobrar antes']],
-          veredicto: [rojos ? 'stop' : verdes >= 3 ? 'go' : 'warn', rojos ? `${rojos} indicador${rojos > 1 ? 'es' : ''} en rojo` : verdes >= 3 ? 'La empresa entera mejora a la vez' : 'Mejora parcial', `${ebitda > 0 ? `El valor de la empresa pasa de ${F.eur(E.ebitda * 6)} a ${F.eur(ebitda * 6)}.` : 'Con EBITDA negativo la empresa deja de valorarse por múltiplo: destruye valor cada mes.'} Así se lee en Atalaya 360°: una decisión en un área se ve en todas las demás.`],
+          kpis: [['Beneficio antes de intereses e impuestos (EBITDA)', F.eur(ebitda), 'antes ' + F.eur(E.ebitda)], ['Caja a 12 meses', F.eur(caja12), 'tras el servicio de la deuda'], ['Valor de la empresa', ebitda > 0 ? F.eur(ebitda * 6) : '—', ebitda > 0 ? '6 veces el beneficio anual' : 'con beneficio negativo no se valora por múltiplo'], ['Circulante liberado', F.eur(circ), 'por cobrar antes']],
+          veredicto: [rojos ? 'stop' : verdes >= 3 ? 'go' : 'warn', rojos ? `${rojos} indicador${rojos > 1 ? 'es' : ''} en rojo` : verdes >= 3 ? 'La empresa entera mejora a la vez' : 'Mejora parcial', `${ebitda > 0 ? `El valor de la empresa pasa de ${F.eur(E.ebitda * 6)} a ${F.eur(ebitda * 6)}.` : 'Con beneficio negativo la empresa deja de valorarse por múltiplo: destruye valor cada mes.'} Así se lee en Atalaya 360°: una decisión en un área se ve en todas las demás.`],
           luces: L,
-          grafico: barras([{ n: 'EBITDA hoy', v: E.ebitda, c: css('--muted') }, { n: 'Precio', v: precio, c: css('--s1') }, { n: 'Lean', v: lean, c: css('--s3') }, { n: 'Rotación', v: -rot, c: rot > 0 ? css('--stop') : css('--go') }, { n: 'EBITDA nuevo', v: ebitda, c: css('--gold') }], { cero: true, h: 230, aria: 'De dónde sale el nuevo EBITDA' }),
-          pie: 'De dónde sale el nuevo EBITDA. Rotación: cada salida cuesta la mitad de un salario medio de 35.000 €.'
+          grafico: barras([{ n: 'Beneficio hoy', v: E.ebitda, c: css('--muted') }, { n: 'Precio', v: precio, c: css('--s1') }, { n: 'Lean', v: lean, c: css('--s3') }, { n: 'Rotación', v: -rot, c: rot > 0 ? css('--stop') : css('--go') }, { n: 'Beneficio nuevo', v: ebitda, c: css('--gold') }], { cero: true, h: 230, aria: 'De dónde sale el nuevo beneficio' }),
+          pie: 'De dónde sale el nuevo beneficio antes de intereses e impuestos (EBITDA). Rotación: cada salida cuesta la mitad de un salario medio de 35.000 €.'
         };
       }
     }

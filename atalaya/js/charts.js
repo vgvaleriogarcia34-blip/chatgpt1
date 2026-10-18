@@ -178,7 +178,7 @@
     if (legendEl) {
       legendEl.innerHTML = series.map((sr, i) => `<button aria-pressed="${!sr.hidden}" data-i="${i}"><i style="background:${sr.color}"></i>${esc(sr.name)}</button>`).join('') +
         `<span class="small"><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" style="stroke:var(--stop)" stroke-width="2" stroke-dasharray="3 4"/></svg> ${neta ? 'línea roja de puntos: 0 €. Por debajo, la empresa vive de la póliza' : 'línea roja de puntos: 0 €. Por debajo falta dinero, aun usando la póliza'}</span>` +
-        (!neta && opts.target ? `<span class="small"><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" style="stroke:var(--gold)" stroke-width="2" stroke-dasharray="6 4"/></svg> línea dorada discontinua: la liquidez mínima que exiges (${A.fmt.eur(opts.target)}), tu meta</span>` : '') +
+        (!neta && opts.target ? `<span class="small"><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" style="stroke:var(--gold)" stroke-width="2" stroke-dasharray="6 4"/></svg> línea dorada discontinua: la liquidez mínima que exige (${A.fmt.eur(opts.target)}), su meta</span>` : '') +
         `<span class="small"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" style="stroke:var(--gold)" stroke-width="2"/></svg> círculo: el mes más tenso del escenario activo${neta ? ' en caja neta' : ''}</span>`;
       legendEl.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { opts.onToggle && opts.onToggle(+b.dataset.i); }));
     }
@@ -302,7 +302,7 @@
     const x = (i) => m.l + i * bw;
     const y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (Hh - m.t - m.b);
     const bajo = eb.map((v, i) => v < debt[i]).reduce((a, b, i) => (b ? a.concat(i + 1) : a), []);
-    const resumen = `EBITDA mensual frente al servicio de la deuda a ${n} meses. ` + (bajo.length ? `En ${bajo.length} meses el EBITDA no cubre la cuota; el primero es el mes ${bajo[0]}.` : 'El EBITDA cubre la cuota todos los meses.');
+    const resumen = `Beneficio mensual antes de intereses e impuestos (EBITDA) frente a las cuotas de los préstamos a ${n} meses. ` + (bajo.length ? `En ${bajo.length} meses el beneficio no cubre la cuota; el primero es el mes ${bajo[0]}.` : 'El beneficio cubre la cuota todos los meses.');
     let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title><g class="grid">`;
     ticks.forEach((t) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/><text x="${m.l - 8}" y="${y(t) + 3}" text-anchor="end">${fy(t)}</text>`; });
     YEARS.filter((i) => i < n).forEach((i) => { svg += `<text x="${x(i) + bw / 2}" y="${Hh - 8}" text-anchor="middle">${yearLbl(i)}</text>`; });
@@ -313,12 +313,12 @@
     });
     svg += `<polyline points="${debt.map((v, i) => `${x(i) + bw / 2},${y(v)}`).join(' ')}" fill="none" style="stroke:var(--gold)" stroke-width="2"/>`;
     svg += `<rect class="hit" x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${Hh - m.t - m.b}" fill="transparent"/>`;
-    el.innerHTML = svg + '</svg>' + `<div class="chart-legend small" style="margin-top:8px"><span><i style="background:var(--go)"></i> EBITDA del mes que cubre la cuota</span><span><i style="background:var(--serious)"></i> EBITDA por debajo de la cuota</span><span><i style="background:var(--gold)"></i> servicio total de deuda</span></div>`;
+    el.innerHTML = svg + '</svg>' + `<div class="chart-legend small" style="margin-top:8px"><span><i style="background:var(--go)"></i> beneficio del mes (EBITDA) que cubre la cuota</span><span><i style="background:var(--serious)"></i> beneficio (EBITDA) por debajo de la cuota</span><span><i style="background:var(--gold)"></i> cuotas totales de los préstamos</span></div>`;
     const s = el.querySelector('svg');
     el.querySelector('.hit').addEventListener('pointermove', (ev) => {
       const r = s.getBoundingClientRect();
       const i = Math.max(0, Math.min(n - 1, Math.floor((((ev.clientX - r.left) / r.width) * W - m.l) / bw)));
-      C.tip(`<h5>Mes ${i + 1}</h5><dl><dt>EBITDA</dt><dd>${A.fmt.eur(eb[i])}</dd><dt>Servicio de deuda</dt><dd>${A.fmt.eur(debt[i])}</dd><dt>Personas en plantilla</dt><dd>${A.fmt.num(res.w.heads[i])}</dd><dt>Caja</dt><dd>${A.fmt.eur(res.w.cash[i])}</dd></dl>`, ev.clientX, ev.clientY);
+      C.tip(`<h5>Mes ${i + 1}</h5><dl><dt>Beneficio (EBITDA)</dt><dd>${A.fmt.eur(eb[i])}</dd><dt>Cuotas de préstamos</dt><dd>${A.fmt.eur(debt[i])}</dd><dt>Personas en plantilla</dt><dd>${A.fmt.num(res.w.heads[i])}</dd><dt>Caja</dt><dd>${A.fmt.eur(res.w.cash[i])}</dd></dl>`, ev.clientX, ev.clientY);
     });
     el.querySelector('.hit').addEventListener('pointerleave', C.hideTip);
   };

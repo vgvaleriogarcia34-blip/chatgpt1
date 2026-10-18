@@ -6,7 +6,12 @@
    · Prioridad = peso de la capa × gravedad (rojo 2, ámbar 1) × peso del punto, más un plus si sirve a un
      objetivo del empresario (de la auditoría o de las metas de la mesa).
    · Equilibrio viable: sin rojos en liquidez ni en rentabilidad (y con datos reales).
-   A.prioridad.calcular() → { puntos, capas, equilibrio, objetivos, mundos } · A.prioridad.marcarMapa(ov) */
+   · Capa del consultor: el triaje de la auditoría integral (urgencias, preferente, programable por área) entra como
+     comprobaciones más, en la capa de su principio (finanzas y legal en liquidez; clientes y operaciones en rentabilidad;
+     el resto en estructura). Si el triaje y los datos no dicen lo mismo, se avisa (r.contraste).
+   · Las cifras de la empresa (js/cifras.js) aportan sus semáforos de caja, deuda y EBITDA cuando el simulador aún no
+     tiene nota: así la liquidez nunca queda «sin rojos» por no haber abierto un mundo.
+   A.prioridad.calcular() → { puntos, capas, equilibrio, objetivos, triaje, cifras, contraste } · A.prioridad.marcarMapa(ov) */
 (function () {
   const A = (window.Atalaya = window.Atalaya || {});
   const P = () => A.platform;
@@ -42,21 +47,53 @@
     return out;
   };
 
+  // Triaje del consultor: el nivel de cada área de la auditoría integral (guardado por core.js en «triajeAreas», en el orden de sus áreas)
+  const AREAS_IV = [['gob', 'Dirección y gobierno', 'estructura'], ['fin', 'Finanzas y caja', 'liquidez'], ['com', 'Clientes y ventas', 'rentabilidad'], ['ope', 'Operaciones y procesos', 'rentabilidad'], ['per', 'Personas y equipos', 'estructura'], ['inf', 'Información y datos', 'estructura'], ['tie', 'Proyectos y tiempo', 'estructura'], ['leg', 'Legal y societario', 'liquidez']];
+  const NIVEL = { stop: 'urgencias', warn: 'preferente', ok: 'programable' };
+  const triaje = async () => {
+    if (P() && P().puede && !P().puede('intervencion')) return null;
+    let iv = null; try { iv = P() && P().loadData ? await P().loadData('intervencion') : null; } catch (e) { iv = null; }
+    if (!iv) return null;
+    const ids = (A.interv && A.interv.int && A.interv.int.D && A.interv.int.D.AREAS ? A.interv.int.D.AREAS.map((a) => a.id) : AREAS_IV.map((a) => a[0]));
+    const t = Array.isArray(iv.triajeAreas) ? iv.triajeAreas : [];
+    const areas = AREAS_IV.map(([id, n, capa]) => { const i = ids.indexOf(id), st = (iv.areas && iv.areas[id] && iv.areas[id].nivel) || (i >= 0 ? t[i] : '') || ''; return { id, n, capa, st }; }).filter((a) => SEV[a.st] != null);
+    if (!areas.length) return { areas: [], fecha: null, vacio: true };
+    const u = iv.recorrido && iv.recorrido.ultimo;
+    return { areas, fecha: (u && u.fecha) || (iv.sesion && iv.sesion.fecha) || null, vacio: false };
+  };
+
   const calcular = async () => {
     if (!A.nota || !A.nota.calcular) return null;
     const nt = (A.nota.ultima && A.nota.ultima()) || (await A.nota.calcular());
     const objs = await objetivos();
     const puntos = [], real = !!(P() && P().modoReal && P().modoReal());
-    // Con datos reales, nada que venga de datos de ejemplo puede ser una prioridad
-    Object.entries(nt.mundos).forEach(([k, m]) => (m.puntos || []).filter((x) => SEV[x.st] != null && !(real && /ejemplo/i.test(x.t + ' ' + (x.d || '')))).forEach((x) => {
-      const capa = capaDe(x, k), obj = objs.find((o) => o.capa === capa) || null;
+    const meter = (x, k, n) => {
+      const capa = x.capa || capaDe(x, k), obj = objs.find((o) => o.capa === capa) || null;
       const score = x.st === 'ok' ? 0 : W[capa].w * SEV[x.st] * (x.peso || 1) + (obj ? 3 : 0);
-      puntos.push(Object.assign({}, x, { mundo: k, mundoN: m.n, capa, capaN: W[capa].n, obj, score }));
-    }));
+      puntos.push(Object.assign({}, x, { mundo: k, mundoN: n, capa, capaN: W[capa].n, obj, score }));
+    };
+    // Con datos reales, nada que venga de datos de ejemplo puede ser una prioridad
+    Object.entries(nt.mundos).forEach(([k, m]) => (m.puntos || []).filter((x) => SEV[x.st] != null && !(real && /ejemplo/i.test(x.t + ' ' + (x.d || '')))).forEach((x) => meter(x, k, m.n)));
+    // Cifras de la empresa (fuente única): si el simulador no tiene comprobaciones, sus semáforos de caja, deuda y EBITDA
+    let cf = null; try { cf = A.cifras ? await A.cifras.actual() : null; } catch (e) { cf = null; }
+    const simConPuntos = nt.mundos.simulador && (nt.mundos.simulador.puntos || []).some((x) => SEV[x.st] != null);
+    if (cf && !simConPuntos && !(real && cf.ejemplo)) A.cifras.semaforos(cf).forEach((s) => meter({ st: s.st, peso: s.capa === 'liquidez' ? 2 : 1, t: (s.st === 'stop' ? 'En rojo: ' : s.st === 'warn' ? 'En ámbar: ' : '') + s.t + ' (' + s.v + ')', d: s.d, zona: 'empresa', capa: s.capa }, 'cifras', 'Cifras de la empresa'));
+    // Capa del consultor: su triaje por áreas
+    const tri = await triaje();
+    const sinTriaje = puntos.slice();
+    if (tri && tri.areas.length) tri.areas.forEach((a) => meter({ st: a.st, peso: a.st === 'stop' ? 2 : 1, t: `Triaje del consultor: ${a.n} en ${NIVEL[a.st]}`, d: a.st === 'stop' ? 'Cerrar ya: de 0 a 14 días.' : a.st === 'warn' ? 'Atención preferente este trimestre.' : '', zona: 'triaje', capa: a.capa, area: a.id }, 'auditoria', 'Auditoría integral · triaje del consultor'));
     const pend = puntos.filter((x) => x.st !== 'ok').sort((a, b) => b.score - a.score);
     pend.forEach((x, i) => { x.rango = i + 1; });
-    const capas = CAPAS.map((c) => { const l = puntos.filter((x) => x.capa === c.id); const r = l.filter((x) => x.st === 'stop').length, a = l.filter((x) => x.st === 'warn').length;
+    const resumenCapas = (lista) => CAPAS.map((c) => { const l = lista.filter((x) => x.capa === c.id); const r = l.filter((x) => x.st === 'stop').length, a = l.filter((x) => x.st === 'warn').length;
       return Object.assign({}, c, { total: l.length, rojos: r, ambar: a, verdes: l.length - r - a, st: !l.length ? '' : r ? 'stop' : a ? 'warn' : 'ok' }); });
+    const capas = resumenCapas(puntos);
+    // Contraste: lo que dice el consultor frente a lo que dicen los datos, en liquidez y rentabilidad
+    const capasDatos = resumenCapas(sinTriaje), contraste = [];
+    if (tri && tri.areas.length) ['liquidez', 'rentabilidad'].forEach((id) => {
+      const t = tri.areas.filter((a) => a.capa === id), d = capasDatos.find((c) => c.id === id); if (!t.length || !d.st) return;
+      const ts = t.some((a) => a.st === 'stop') ? 'stop' : t.some((a) => a.st === 'warn') ? 'warn' : 'ok';
+      if (SEV[ts] - SEV[d.st] >= 2 || SEV[d.st] - SEV[ts] >= 2) contraste.push({ capa: id, n: W[id].n, triaje: ts, datos: d.st, t: ts === 'stop' ? `El consultor pone ${t.filter((a) => a.st === 'stop').map((a) => a.n.toLowerCase()).join(' y ')} en urgencias y los datos de ${W[id].n.toLowerCase()} están en verde` : `Los datos de ${W[id].n.toLowerCase()} están en rojo y el triaje del consultor no lo marca como urgente`, d: 'Revise el triaje o los datos: una de las dos lecturas no está al día.' });
+    });
     const cp = (id) => capas.find((c) => c.id === id);
     // Sin comprobaciones de liquidez o de rentabilidad no se puede afirmar nada del equilibrio: queda sin evaluar (neutro)
     const faltan = ['liquidez', 'rentabilidad'].filter((id) => !cp(id).total);
@@ -66,7 +103,7 @@
         : cp('rentabilidad').rojos ? { st: 'warn', t: 'Liquidez sostenida, falta rentabilidad', d: 'La caja aguanta, pero lo que se hace no deja el margen suficiente: precios, costes y clientes que dejan dinero.' }
           : cp('liquidez').ambar || cp('rentabilidad').ambar ? { st: 'warn', t: 'Equilibrio viable, con vigilancia', d: 'Sin rojos en liquidez ni rentabilidad, pero con puntos en ámbar que conviene cerrar antes de crecer.' }
             : { st: 'ok', t: 'Equilibrio viable alcanzado', d: 'Liquidez y rentabilidad en verde: la empresa puede trabajar la estructura y el crecimiento.' };
-    return { nota: nt, puntos, pend, capas, equilibrio: eq, objetivos: objs };
+    return { nota: nt, puntos, pend, capas, equilibrio: eq, objetivos: objs, triaje: tri, cifras: cf, contraste };
   };
 
   /* ---------- Marcas en el mapa de cada planeta ---------- */
@@ -113,7 +150,7 @@
     if (r && r.openMap && ov && (n || 0) >= 3) { try { r.openMap(); return; } catch (e) { /* aún cargando */ } }
     if ((n || 0) < 40) setTimeout(() => abrirSiPide((n || 0) + 1), 500);
   };
-  A.prioridad = { CAPAS, calcular, capaDe, marcarMapa };
+  A.prioridad = { CAPAS, calcular, capaDe, marcarMapa, triaje };
   const iniciar = () => { vigilar(0); abrirSiPide(0); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
 })();

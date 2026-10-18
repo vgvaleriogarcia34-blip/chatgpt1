@@ -20,9 +20,9 @@
   /* Los cuatro cruces del CAME */
   const CRUCES = [
     { k: 'FO', tipo: 'Explotar', estrategia: 'Ofensiva', a: 'f', b: 'o', txt: (x, y) => `Usar «${x}» para aprovechar «${y}».`, desc: 'Fortalezas × Oportunidades: crecer apoyándote en lo que haces bien.' },
-    { k: 'FA', tipo: 'Mantener', estrategia: 'Defensiva', a: 'f', b: 'a', txt: (x, y) => `Reforzar «${x}» para protegerse de «${y}».`, desc: 'Fortalezas × Amenazas: blindar lo que te diferencia frente a lo que viene.' },
-    { k: 'DO', tipo: 'Corregir', estrategia: 'Reorientación', a: 'd', b: 'o', txt: (x, y) => `Corregir «${x}» para no perder «${y}».`, desc: 'Debilidades × Oportunidades: arreglar lo que te impide aprovechar el mercado.' },
-    { k: 'DA', tipo: 'Afrontar', estrategia: 'Supervivencia', a: 'd', b: 'a', txt: (x, y) => `Reducir la exposición: «${x}» frente a «${y}».`, desc: 'Debilidades × Amenazas: donde eres débil y el entorno aprieta. Prioridad de protección.' }
+    { k: 'FA', tipo: 'Mantener', estrategia: 'Defensiva', a: 'f', b: 'a', txt: (x, y) => `Reforzar «${x}» para protegerse de «${y}».`, desc: 'Fortalezas × Amenazas: blindar lo que le diferencia frente a lo que viene.' },
+    { k: 'DO', tipo: 'Corregir', estrategia: 'Reorientación', a: 'd', b: 'o', txt: (x, y) => `Corregir «${x}» para no perder «${y}».`, desc: 'Debilidades × Oportunidades: arreglar lo que le impide aprovechar el mercado.' },
+    { k: 'DA', tipo: 'Afrontar', estrategia: 'Supervivencia', a: 'd', b: 'a', txt: (x, y) => `Reducir la exposición: «${x}» frente a «${y}».`, desc: 'Debilidades × Amenazas: donde es débil y el entorno aprieta. Prioridad de protección.' }
   ];
 
   S.defaults.plan = {
@@ -104,23 +104,23 @@
       const top = (k) => p.dafoItems[k].slice().sort((a, b) => S.num(b.i) - S.num(a.i)).slice(0, 2);
       const propuestas = CRUCES.flatMap((c) => top(c.a).flatMap((x) => top(c.b).map((y) => ({ c, accion: c.txt(x.t, y.t), impacto: Math.round((S.num(x.i) + S.num(y.i)) / 2) })))).filter((x) => !p.came.some((c) => c.accion === x.accion));
       const RV = riesgosPorValores();
-      host.innerHTML = `${S.section('Plan de empresa', 'De la identidad de la empresa a las acciones: misión, visión y valores; un DAFO alimentado con tus datos; el CAME que lo convierte en estrategias; y la cascada de objetivos de cada área. Los valores actúan como filtro: puntúan cada acción y reordenan los riesgos según lo que la empresa no está dispuesta a negociar.')}
+      host.innerHTML = `${S.section('Plan de empresa', 'De la identidad de la empresa a las acciones: misión, visión y valores; un DAFO (debilidades, amenazas, fortalezas y oportunidades) alimentado con sus datos; el CAME (corregir, afrontar, mantener y explotar) que lo convierte en estrategias; y la cascada de objetivos de cada área. Los valores actúan como filtro: puntúan cada acción y reordenan los riesgos según lo que la empresa no está dispuesta a negociar.')}
         <div class="grid cols-3"><label class="small">Misión · por qué existimos<textarea class="input" id="plM">${esc(p.mision)}</textarea></label><label class="small">Visión · dónde queremos estar<textarea class="input" id="plV">${esc(p.vision)}</textarea></label><label class="small">Propuesta de valor · por qué nos eligen<textarea class="input" id="plP">${esc(p.propuesta)}</textarea></label></div>
 
         <div class="glass pad mt stack"><div class="row"><h4>Valores de la empresa</h4><span class="spacer"></span><span class="small muted">Peso 1-5: cuánto pesa en las decisiones</span></div>
-          <p class="small muted">Escribe 3-6 valores y la conducta concreta que significan. Cada valor se asocia a un ámbito: los riesgos de ese ámbito suben de prioridad y cada acción del CAME se puntúa según los refuerce o los contradiga.</p>
+          <p class="small muted">Escriba de 3 a 6 valores y la conducta concreta que significan. Cada valor se asocia a un ámbito: los riesgos de ese ámbito suben de prioridad y cada acción del CAME se puntúa según los refuerce o los contradiga.</p>
           <div id="plVal"></div></div>
 
-        <div class="glass pad mt stack"><div class="row"><h4>DAFO contextualizado</h4><span class="spacer"></span><span class="small muted">Impacto 1-5 · las sugerencias salen de tus datos</span></div>
+        <div class="glass pad mt stack"><div class="row"><h4>DAFO contextualizado</h4><span class="spacer"></span><span class="small muted">Impacto 1-5 · las sugerencias salen de sus datos</span></div>
           <div class="dafo">${['d', 'a', 'f', 'o'].map((k) => `<div class="dq" data-q="${k}"><div class="row"><b>${Q[k].n}</b><span class="hint">${Q[k].tipo}</span></div><p class="hint" style="margin:4px 0 8px">${Q[k].guia}</p>
             <ul class="dlist">${p.dafoItems[k].map((x, i) => `<li><input class="input" data-dt="${k}:${i}" value="${esc(x.t)}" aria-label="${Q[k].n}"><select class="input" data-di="${k}:${i}" aria-label="Impacto">${[1, 2, 3, 4, 5].map((n) => `<option ${n === S.num(x.i) ? 'selected' : ''}>${n}</option>`).join('')}</select><button class="icon-btn" data-dx="${k}:${i}" aria-label="Quitar">×</button></li>`).join('')}</ul>
             <div class="row" style="margin-top:6px"><input class="input" data-dnew="${k}" placeholder="Añadir ${Q[k].n.toLowerCase().slice(0, -1)}…" style="flex:1"><button class="btn ghost" data-dadd="${k}">Añadir</button></div>
-            ${sug[k].length ? `<div class="dsug"><span class="hint">Sugerencias desde tus datos</span>${sug[k].map((x, i) => `<button class="vchip" data-sug="${k}:${i}" title="${esc(x.por)}">+ ${esc(x.t)}</button>`).join('')}</div>` : ''}</div>`).join('')}</div></div>
+            ${sug[k].length ? `<div class="dsug"><span class="hint">Sugerencias desde sus datos</span>${sug[k].map((x, i) => `<button class="vchip" data-sug="${k}:${i}" title="${esc(x.por)}">+ ${esc(x.t)}</button>`).join('')}</div>` : ''}</div>`).join('')}</div></div>
 
         <div class="glass pad mt stack"><h4>CAME: del diagnóstico a la estrategia</h4>
-          <p class="small muted">Corregir las debilidades, Afrontar las amenazas, Mantener las fortalezas y Explotar las oportunidades. Las propuestas cruzan los puntos de mayor impacto de tu DAFO; añade las que tengan sentido, reescríbelas con tus palabras y pásalas al plan.</p>
+          <p class="small muted">Corregir las debilidades, Afrontar las amenazas, Mantener las fortalezas y Explotar las oportunidades. Las propuestas cruzan los puntos de mayor impacto de su DAFO; añada las que tengan sentido, reescríbalas con sus palabras y páselas al plan.</p>
           <div class="came">${CRUCES.map((c) => `<div class="cq"><div class="row"><b>${c.tipo}</b><span class="hint">estrategia ${c.estrategia.toLowerCase()}</span></div><p class="hint" style="margin:4px 0 8px">${c.desc}</p>
-            ${propuestas.filter((x) => x.c.k === c.k).map((x) => `<div class="cprop"><span>${esc(x.accion)}</span><button class="btn ghost" data-cadd="${esc(x.accion)}" data-ck="${c.k}" data-ci="${x.impacto}">Añadir</button></div>`).join('') || '<p class="small muted">Añade puntos al DAFO para ver propuestas.</p>'}
+            ${propuestas.filter((x) => x.c.k === c.k).map((x) => `<div class="cprop"><span>${esc(x.accion)}</span><button class="btn ghost" data-cadd="${esc(x.accion)}" data-ck="${c.k}" data-ci="${x.impacto}">Añadir</button></div>`).join('') || '<p class="small muted">Añada puntos al DAFO para ver propuestas.</p>'}
             <ul class="small">${p.came.filter((x) => x.cruce === c.k).map((x) => `<li>${esc(x.accion)}</li>`).join('')}</ul></div>`).join('')}</div>
           <div id="plCame" class="mt"></div>
           ${p.came.length && p.valores.length ? `<h4 class="mt">Filtro de valores</h4><p class="small muted">Para cada acción, marca si refuerza (+), es neutra (·) o choca (−) con cada valor. La puntuación va de −100 a +100; una acción que choca con un valor de peso 4-5 queda marcada para revisar.</p>
@@ -130,8 +130,8 @@
               <td>${x.enPlan ? '<span class="hint">en el plan</span>' : `<button class="btn ghost" data-toplan="${i}">Pasar al plan</button>`}</td></tr>`; }).join('')}</tbody></table></div>` : ''}
         </div>
 
-        <div class="glass pad mt stack"><h4>Riesgos según tus valores</h4><p class="small muted">Todos los riesgos de la empresa, reordenados: un riesgo sube cuando amenaza un ámbito al que has dado mucho peso en tus valores.</p>
-          ${RV.length ? `<div class="table-wrap"><table><thead><tr><th style="text-align:left">Riesgo</th><th>Área</th><th>Nivel</th><th>Con tus valores</th><th style="text-align:left">Valor afectado</th></tr></thead><tbody>${RV.slice(0, 10).map((r) => `<tr><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(r.nombre)}</td><td>${esc(r.fuente || '')}</td><td>${r.nivel}</td><td><b>${String(r.ajustado).replace('.', ',')}</b></td><td style="text-align:left">${esc(r.valores.join(', ') || '—')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Sin riesgos identificados.</p>'}</div>
+        <div class="glass pad mt stack"><h4>Riesgos según sus valores</h4><p class="small muted">Todos los riesgos de la empresa, reordenados: un riesgo sube cuando amenaza un ámbito al que ha dado mucho peso en sus valores.</p>
+          ${RV.length ? `<div class="table-wrap"><table><thead><tr><th style="text-align:left">Riesgo</th><th>Área</th><th>Nivel</th><th>Con sus valores</th><th style="text-align:left">Valor afectado</th></tr></thead><tbody>${RV.slice(0, 10).map((r) => `<tr><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(r.nombre)}</td><td>${esc(r.fuente || '')}</td><td>${r.nivel}</td><td><b>${String(r.ajustado).replace('.', ',')}</b></td><td style="text-align:left">${esc(r.valores.join(', ') || '—')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Sin riesgos identificados.</p>'}</div>
 
         <div class="glass pad mt stack"><div class="row"><h4>Cascada de objetivos</h4><span class="spacer"></span><button class="btn" id="plFind">Crear acciones desde los hallazgos</button></div>
           <div class="cascade">${p.objetivos.map((o) => `<div class="cobj"><div class="row"><b>${esc(o.nombre)}</b><span class="spacer"></span><span class="small muted">${esc(o.indicador)}: ${o.actual} → ${o.meta}${o.fecha ? ' · ' + esc(o.fecha) : ''}</span></div>

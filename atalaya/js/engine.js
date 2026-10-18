@@ -24,7 +24,7 @@
       mods: { ventasF: 1, retraso: 0, margenDelta: 0, sobrecoste: 0, dsoDelta: 0, tipoDelta: 0 } },
     { key: 'optimista', nombre: 'Optimista', desc: 'Un 15 % más de venta, rampa un mes antes y mejor margen.',
       mods: { ventasF: 1.15, retraso: -1, margenDelta: 1.5, sobrecoste: 0, dsoDelta: -5, tipoDelta: 0 } },
-    { key: 'hipotesis', nombre: 'Hipótesis', desc: 'Tu escenario: ajusta cada palanca a mano.', mods: null }
+    { key: 'hipotesis', nombre: 'Hipótesis', desc: 'Su escenario: ajuste cada palanca a mano.', mods: null }
   ];
   A.scenarioMods = (state, key) => {
     const sc = A.SCENARIOS.find((s) => s.key === key) || A.SCENARIOS[2];
@@ -35,8 +35,8 @@
   A.SHOCKS = {
     cliente: { nombre: 'Pérdida de un cliente relevante', unidad: '% ventas', desc: 'Cae la venta total desde ese mes.' },
     ventas: { nombre: 'Caída temporal de ventas', unidad: '% ventas', desc: 'Bache de demanda durante el periodo.' },
-    margen: { nombre: 'Subida de materias primas', unidad: 'pp margen', desc: 'El margen bruto baja durante el periodo.' },
-    tipos: { nombre: 'Subida de tipos de interés', unidad: 'pp', desc: 'El préstamo nuevo encarece desde ese mes.' },
+    margen: { nombre: 'Subida de materias primas', unidad: 'puntos de margen', desc: 'El margen bruto baja durante el periodo.' },
+    tipos: { nombre: 'Subida de tipos de interés', unidad: 'puntos', desc: 'El préstamo nuevo encarece desde ese mes.' },
     cobro: { nombre: 'Alargamiento de cobros', unidad: 'días', desc: 'Clientes que pagan más tarde.' },
     salarios: { nombre: 'Revisión salarial / convenio', unidad: '% coste', desc: 'Sube el coste de personal desde ese mes.' },
     puntual: { nombre: 'Gasto extraordinario', unidad: 'miles €', desc: 'Un pago único: avería, sanción, litigio.' }
@@ -70,7 +70,7 @@
       setup: 6, control: 65, aislamiento: 40, complejidad: 55, fiscal: 70
     },
     jv: {
-      nombre: 'Joint venture industrial', corto: 'Joint venture',
+      nombre: 'Empresa conjunta con un socio industrial (joint venture)', corto: 'Empresa conjunta',
       desc: 'Un socio del sector comparte inversión, venta y riesgo al 50 %. Aporta canal y acelera la rampa.',
       setup: 6, control: 50, aislamiento: 70, complejidad: 75, fiscal: 65
     }
@@ -473,7 +473,7 @@
     const dims = [
       { key: 'mando', corto: 'Mando', nombre: 'Estructura de mando', vars: ['humano.mandos', 'humano.mandosFormados'],
         score: C(100 - gapMandos * 28 - Math.max(0, 50 - h.mandosFormados) * 0.6),
-        lectura: (gapMandos ? `Con ${total} personas y ${sec.span} por responsable necesitas ${mandosNecesarios} mandos; tienes ${h.mandos}. ` : `${h.mandos} mandos cubren ${total} personas. `) + `${h.mandosFormados} % formados en gestión.` },
+        lectura: (gapMandos ? `Con ${total} personas y ${sec.span} por responsable se necesitan ${mandosNecesarios} mandos; hay ${h.mandos}. ` : `${h.mandos} mandos cubren ${total} personas. `) + `${h.mandosFormados} % formados en gestión.` },
       { key: 'absorcion', corto: 'Absorción', nombre: 'Capacidad de absorción', vars: ['inversion.contrataciones', 'humano.horasExtra'],
         score: C(100 - Math.max(0, crec - 0.12) * 220 - Math.max(0, h.horasExtra - 8) * 4),
         lectura: `La plantilla crece un ${Math.round(crec * 100)} % con un equipo que hoy hace un ${h.horasExtra} % de horas extra. Quien está saturado no puede formar a quien llega.` },
@@ -488,7 +488,7 @@
         lectura: `Rotación del ${h.rotacion} % y eNPS de ${h.clima}. Cada salida en plena rampa reinicia una curva de aprendizaje.` },
       { key: 'reclutamiento', corto: 'Reclutamiento', nombre: 'Tiempo de reclutamiento', vars: ['humano.tiempoContratacion', 'inversion.anticipo'],
         score: mesReclutar >= 1 ? 100 : C(100 + (mesReclutar - 1) * 25),
-        lectura: mesReclutar >= 1 ? `Debes abrir los procesos de selección en el mes ${mesReclutar}.` : `Para tener a la gente en el mes ${hireStart} tendrías que haber empezado hace ${1 - mesReclutar} meses.` },
+        lectura: mesReclutar >= 1 ? `Hay que abrir los procesos de selección en el mes ${mesReclutar}.` : `Para tener a la gente en el mes ${hireStart} habría que haber empezado hace ${1 - mesReclutar} meses.` },
       { key: 'aprendizaje', corto: 'Aprendizaje', nombre: 'Aprendizaje y formación', vars: ['humano.curva', 'humano.formacion'],
         score: C(100 - Math.max(0, h.curva - rampa) * 10 - Math.max(0, 20 - h.formacion) * 2),
         lectura: h.curva > rampa ? `Las personas nuevas tardan ${h.curva} meses en rendir y la rampa comercial es de ${rampa}: la rampa real se alarga.` : `La curva de aprendizaje (${h.curva} meses) cabe dentro de la rampa.` },
@@ -526,12 +526,12 @@
     { key: 'liquidez', nombre: 'Liquidez', better: 1,
       value: (r) => r.cajaRef, fmt: (v) => A.fmt.eur(v),
       ok: (s, r) => Math.max(s.meta.cajaMin, r.colchon), warn: () => 0,
-      que: 'El punto más bajo de dinero disponible en los próximos 60 meses (caja más póliza libre si así lo has elegido).',
+      que: 'El punto más bajo de dinero disponible en los próximos 60 meses (caja más póliza libre si así lo ha elegido).',
       lectura: (r) => r.cajaRef < 0 ? `En el mes ${r.mesCajaRef} faltarían ${A.fmt.eur(-r.cajaRef)}: la inversión rompe la tesorería si no se refuerza la financiación.` : `El punto más bajo llega en el mes ${r.mesCajaRef}, con ${A.fmt.num(Math.max(0, r.colMin))} meses de colchón.`,
       directas: [V('empresa.caja', 'Caja disponible'), V('empresa.polizaLimite', 'Límite de la póliza'), V('inversion.pctFin', 'Parte financiada'), V('inversion.aportacion', 'Aportación de socios'), V('inversion.carencia', 'Carencia'), V('inversion.plazo', 'Plazo del préstamo')],
       indirectas: [V('empresa.dso', 'Días de cobro'), V('empresa.dio', 'Días de stock'), V('empresa.dpo', 'Días de pago'), V('inversion.incVentas', 'Venta nueva (más venta inmoviliza más circulante)'), V('inversion.anticipo', 'Anticipo de contratación'), V('inversion.importe', 'Importe de la inversión')],
-      consejo: 'Primero alarga plazo y carencia o amplía la póliza (no cuesta margen). Si no basta, cobra antes y paga más tarde. Solo después recorta o fasea la inversión.' },
-    { key: 'cobertura', nombre: 'Cobertura de deuda', better: 1,
+      consejo: 'Primero alargue plazo y carencia o amplíe la póliza (no cuesta margen). Si no basta, cobre antes y pague más tarde. Solo después recorte o divida en fases la inversión.' },
+    { key: 'cobertura', nombre: 'Cobertura de las cuotas', better: 1,
       value: (r) => r.dscrMin, fmt: (v) => A.fmt.x(v),
       ok: (s) => s.meta.dscrMin, warn: () => 1,
       que: 'Cuántas veces lo que genera el negocio paga las cuotas de todos los préstamos en el peor año.',
@@ -540,13 +540,13 @@
       indirectas: [V('inversion.margenNuevo', 'Margen de la actividad nueva'), V('inversion.incVentas', 'Venta nueva'), V('inversion.fijosNuevos', 'Fijos nuevos'), V('inversion.contrataciones', 'Contrataciones')],
       consejo: 'Un plazo más largo baja la cuota de inmediato. Mejorar margen o contener fijos sube lo que genera el negocio.' },
     { key: 'endeudamiento', nombre: 'Endeudamiento', better: -1,
-      value: (r) => r.deudaEbitda, fmt: (v) => A.fmt.x(v) + ' EBITDA',
+      value: (r) => r.deudaEbitda, fmt: (v) => A.fmt.x(v) + ' el beneficio',
       ok: (s) => s.meta.deudaEbitdaMax, warn: (s) => s.meta.deudaEbitdaMax + 1,
       que: 'Años de beneficio operativo que harían falta para devolver toda la deuda neta.',
-      lectura: (r) => `La deuda neta equivale a ${A.fmt.x(r.deudaEbitda)} el EBITDA en los dos primeros años tras invertir.`,
+      lectura: (r) => `La deuda neta equivale a ${A.fmt.x(r.deudaEbitda)} el beneficio antes de intereses e impuestos (EBITDA) en los dos primeros años tras invertir.`,
       directas: [V('inversion.pctFin', 'Parte financiada'), V('inversion.aportacion', 'Aportación de socios'), V('inversion.importe', 'Importe de la inversión'), V('empresa.deudaViva', 'Deuda actual')],
       indirectas: [V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.incVentas', 'Venta nueva'), V('empresa.personal', 'Coste de personal')],
-      consejo: 'Menos deuda (más aportación o inversión por fases) o más EBITDA. Cuidado: bajar la deuda suele castigar la liquidez.' },
+      consejo: 'Menos deuda (más aportación o inversión por fases) o más beneficio del negocio. Cuidado: bajar la deuda suele castigar la liquidez.' },
     { key: 'retorno', nombre: 'Retorno', better: -1,
       value: (r) => Math.min(r.payback, 600), fmt: (v) => A.fmt.months(v),
       ok: (s) => s.meta.paybackMax * 12, warn: (s) => s.inversion.vidaUtil * 12,
@@ -556,20 +556,20 @@
       indirectas: [V('inversion.rampa', 'Meses de rampa'), V('empresa.dso', 'Días de cobro'), V('inversion.salario', 'Coste por persona')],
       consejo: 'La financiación no acorta el retorno: solo lo hacen más margen, más venta, menos coste o menos inversión.' },
     { key: 'rentabilidad', nombre: 'Rentabilidad', better: 1,
-      value: (r) => (r.tir === null ? -1 : r.tir * 100), fmt: (v) => (v <= -1 ? 'TIR n/d' : 'TIR ' + A.fmt.pct(v)),
+      value: (r) => (r.tir === null ? -1 : r.tir * 100), fmt: (v) => (v <= -1 ? 'Sin dato' : A.fmt.pct(v) + ' al año'),
       ok: (s) => s.inversion.tipo + 4, warn: () => 8,
       que: 'Rentabilidad anual del proyecto (TIR) comparada con lo que cuesta el dinero.',
       lectura: (r, s) => `Verde exige superar el tipo del préstamo más 4 puntos (${A.fmt.pct(s.inversion.tipo + 4)}); por debajo del 8 % el proyecto no cubre el coste de oportunidad.`,
       directas: [V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.incVentas', 'Venta nueva'), V('inversion.importe', 'Importe')],
       indirectas: [V('inversion.rampa', 'Meses de rampa'), V('inversion.vidaUtil', 'Vida útil'), V('inversion.fijosNuevos', 'Fijos nuevos')],
-      consejo: 'Revisa el precio y el mix de la actividad nueva antes que la financiación.' },
+      consejo: 'Revise el precio y el mix de la actividad nueva antes que la financiación.' },
     { key: 'dimension', nombre: 'Dimensión', better: -1,
-      value: (r) => r.dim.sobreEbitda, fmt: (v) => A.fmt.x(v) + ' EBITDA',
+      value: (r) => r.dim.sobreEbitda, fmt: (v) => A.fmt.x(v) + ' el beneficio',
       ok: () => 4, warn: () => 7,
       que: 'Cuántos años de beneficio operativo actual cuesta la inversión.',
       lectura: (r) => `Inversión ${r.dim.clase.toLowerCase()}: ${A.fmt.pct(r.dim.sobreVentas * 100)} de la venta actual.`,
       directas: [V('inversion.importe', 'Importe de la inversión')],
-      indirectas: [V('empresa.personal', 'Coste de personal (sube el EBITDA si baja)'), V('empresa.margen', 'Margen actual'), V('empresa.fijos', 'Otros gastos fijos')],
+      indirectas: [V('empresa.personal', 'Coste de personal (sube el beneficio si baja)'), V('empresa.margen', 'Margen actual'), V('empresa.fijos', 'Otros gastos fijos')],
       consejo: 'Si la dimensión está en rojo, divide la inversión en fases que se paguen unas con otras.' },
     { key: 'circulante', nombre: 'Circulante', better: -1,
       value: (r) => r.wcPeak, fmt: (v) => A.fmt.eur(v),
@@ -586,7 +586,7 @@
       lectura: (r, s) => `Referencia del sector: ${A.SECTORS[s.sector].pesoSalarialMax} %.`,
       directas: [V('inversion.contrataciones', 'Contrataciones'), V('inversion.salario', 'Coste por persona'), V('empresa.personal', 'Coste de personal actual')],
       indirectas: [V('inversion.incVentas', 'Venta nueva'), V('humano.absentismo', 'Absentismo'), V('humano.curva', 'Curva de aprendizaje')],
-      consejo: 'Contrata al ritmo de la venta real, no del plan, y mide ventas por persona cada trimestre.' },
+      consejo: 'Contrate al ritmo de la venta real, no del plan, y mide ventas por persona cada trimestre.' },
     { key: 'margen', nombre: 'Margen bruto', better: 1,
       value: (r) => r.tamano.despues.margen - r.tamano.antes.margen, fmt: (v) => (v >= 0 ? '+' : '') + A.fmt.pp(v),
       ok: () => -1, warn: () => -4,
@@ -602,7 +602,7 @@
       lectura: (r) => r.humano.dims.slice().sort((a, b) => a.score - b.score).slice(0, 2).map((d) => `${d.nombre}: ${Math.round(d.score)}`).join(' · ') + ' son los puntos débiles.',
       directas: [V('humano.mandos', 'Mandos intermedios'), V('humano.procesos', 'Procesos documentados'), V('humano.dependencia', 'Dependencia del fundador'), V('humano.sucesion', 'Puestos clave con sustituto')],
       indirectas: [V('inversion.contrataciones', 'Contrataciones'), V('inversion.anticipo', 'Anticipo de contratación'), V('humano.rotacion', 'Rotación'), V('humano.formacion', 'Horas de formación')],
-      consejo: 'Nombra responsables antes del arranque y escribe los procesos críticos: son baratos y decisivos.' }
+      consejo: 'Nombre responsables antes del arranque y escriba los procesos críticos: son baratos y decisivos.' }
   ];
   A.lightState = (def, v, s, r) => {
     const ok = def.ok(s, r), wr = def.warn(s, r);
@@ -649,10 +649,10 @@
   A.SENSITIVITIES = [
     { key: 'ventas', nombre: 'Venta nueva ±20 %', lo: { ventasF: -0.2 }, hi: { ventasF: 0.2 } },
     { key: 'retraso', nombre: 'Rampa ±3 meses', lo: { retraso: 3 }, hi: { retraso: -2 } },
-    { key: 'margen', nombre: 'Margen nuevo ±3 pp', lo: { margenDelta: -3 }, hi: { margenDelta: 3 } },
+    { key: 'margen', nombre: 'Margen nuevo ±3 puntos', lo: { margenDelta: -3 }, hi: { margenDelta: 3 } },
     { key: 'cobro', nombre: 'Cobro ±20 días', lo: { dsoDelta: 20 }, hi: { dsoDelta: -20 } },
     { key: 'sobrecoste', nombre: 'Sobrecoste +15 / −5 %', lo: { sobrecoste: 15 }, hi: { sobrecoste: -5 } },
-    { key: 'tipos', nombre: 'Tipo de interés ±2 pp', lo: { tipoDelta: 2 }, hi: { tipoDelta: -2 } }
+    { key: 'tipos', nombre: 'Tipo de interés ±2 puntos', lo: { tipoDelta: 2 }, hi: { tipoDelta: -2 } }
   ];
 
   A.sensitivity = function (state, mods, metric) {
@@ -711,12 +711,12 @@
       const metasOk = r.metas.filter((t) => t.ok).length;
       // Encaje: de 0 a 100, la suma de seis criterios con su peso máximo
       const desglose = [
-        { n: 'Liquidez', d: 'mantiene la caja por encima de tu meta (25), solo por encima de cero (12) o se queda sin ella (0)', v: r.cajaRef >= state.meta.cajaMin ? 25 : r.cajaRef >= 0 ? 12 : 0, max: 25 },
+        { n: 'Liquidez', d: 'mantiene la caja por encima de su meta (25), solo por encima de cero (12) o se queda sin ella (0)', v: r.cajaRef >= state.meta.cajaMin ? 25 : r.cajaRef >= 0 ? 12 : 0, max: 25 },
         { n: 'Plazo', d: `llega al tamaño pleno antes del mes ${state.meta.plazoObjetivo} (20) o después (8)`, v: enPlazo ? 20 : 8, max: 20 },
         { n: 'Control', d: 'parte del negocio nuevo que sigue en manos de los socios actuales', v: st.control * 0.15, max: 15 },
         { n: 'Aislamiento del riesgo', d: 'cuánto protege a la empresa actual si lo nuevo sale mal', v: st.aislamiento * 0.15, max: 15 },
         { n: 'Sencillez', d: 'menos sociedades, trámites y costes de gestión', v: (100 - st.complejidad) * 0.1, max: 10 },
-        { n: 'Metas cumplidas', d: 'cada una de tus cinco metas que cumple suma 3', v: metasOk * 3, max: 15 }
+        { n: 'Metas cumplidas', d: 'cada una de sus cinco metas que cumple suma 3', v: metasOk * 3, max: 15 }
       ];
       const score = clamp(desglose.reduce((a, x) => a + x.v, 0), 0, 100);
       return { key: k, ...st, r, mesPleno, enPlazo, metasOk, score, desglose };
@@ -725,10 +725,10 @@
 
   /* Qué significa cada vehículo para esta empresa, con sus cifras */
   A.STRUCT_GLOSA = {
-    encaje: 'Puntuación de 0 a 100 de lo bien que encaja el vehículo con tus objetivos: liquidez (hasta 25), plazo (20), control (15), aislamiento del riesgo (15), sencillez (10) y metas cumplidas (15). Por encima de 70 encaja bien; entre 50 y 70, con matices; por debajo de 50, no conviene. La estrella marca el de mejor encaje.',
-    control: 'Parte del negocio nuevo, y de las decisiones sobre él, que sigue en manos de los socios actuales. 100 % es que decides tú solo; 65 % es que entra un socio con el 35 %; 50 % es que lo compartes a medias.',
+    encaje: 'Puntuación de 0 a 100 de lo bien que encaja el vehículo con sus objetivos: liquidez (hasta 25), plazo (20), control (15), aislamiento del riesgo (15), sencillez (10) y metas cumplidas (15). Por encima de 70 encaja bien; entre 50 y 70, con matices; por debajo de 50, no conviene. La estrella marca el de mejor encaje.',
+    control: 'Parte del negocio nuevo, y de las decisiones sobre él, que sigue en manos de los socios actuales. 100 % es que decide usted solo; 65 % es que entra un socio con el 35 %; 50 % es que lo compartes a medias.',
     pleno: 'Mes en que lo nuevo llega al 100 % de la venta prevista: el arranque, más el tiempo de montar el vehículo (notaría, registro, negociación con el socio) y la rampa comercial. No es el mes en que se recupera la inversión.',
-    metas: 'Cuántas de tus cinco metas (liquidez mínima, recuperación, cobertura de la deuda, deuda sobre EBITDA y peso salarial) cumple este vehículo en el escenario activo. Las fijas en «Meta y plan».',
+    metas: 'Cuántas de sus cinco metas (liquidez mínima, recuperación, cobertura de las cuotas, deuda sobre beneficio y peso salarial) cumple este vehículo en el escenario activo. Las fijas en «Meta y plan».',
     marcha: 'Tiempo orientativo para tener el vehículo funcionando: constituir sociedades, escrituras, registro y financiación.'
   };
   A.structCaso = function (state, s) {
@@ -736,12 +736,12 @@
     const L = A.lineasActivas(state), que = L.length ? L.map((l) => l.nombre.toLowerCase()).join(', ') : 'el activo';
     const cuota = r.cuotaNueva, pl = (y) => String(y).replace('.', ',');
     switch (s.key) {
-      case 'directa': return `Tu empresa compra ${que} por ${F.eur(p.capexOperativa)}, pide ${F.eur(r.loan)} al banco a ${pl(inv.plazo)} años (cuota de ${F.eur(cuota)} al mes tras ${inv.carencia} meses de carencia) y pone ${F.eur(Math.max(0, p.capexOperativa - r.loan - p.aportacion))} de su caja.`;
-      case 'leasing': return `Una entidad compra ${que} y te lo cede: no pagas entrada, pagas ${F.eur(cuota)} al mes durante ${pl(Math.min(inv.plazo, 7))} años desde el primer mes. Al final puedes quedártelo por el valor residual. Cuesta algo más que un préstamo, pero no consume caja de entrada.`;
-      case 'filial': return `Creáis una sociedad filial, 100 % de tu empresa, que compra ${que} por ${F.eur(p.capexOperativa)} y pide ${F.eur(r.loan)} de préstamo. Si lo nuevo sale mal, el golpe se queda en la filial; a cambio, son unos ${F.eur(p.extraFijos)} al año más de gestión y conviene pactar bien las garantías que pida el banco.`;
-      case 'patrimonial': return `Una sociedad patrimonial de los socios compra ${que} por ${F.eur(inv.importe)} (con su propio préstamo o con aportaciones de los socios) y se lo alquila a tu empresa por unos ${F.eur(p.alquiler)} al mes (un 7,5 % anual del valor). Tu empresa no compra ni se endeuda: solo paga el alquiler, que es gasto. El activo queda fuera del riesgo del negocio.`;
-      case 'socio': return `Un inversor aporta la mitad de la inversión (${F.eur(inv.importe * 0.5)}) a cambio del 35 % del negocio nuevo. Necesitas menos deuda y menos caja, pero repartes beneficio y decisiones: los socios actuales conservan el 65 %.`;
-      case 'jv': return `Un socio del sector pone la mitad (${F.eur(inv.importe * 0.5)}) y compartís al 50 % ventas, beneficios y decisiones. Aporta clientes y oficio, por eso la rampa es más corta; a cambio, solo te quedas con la mitad de lo nuevo.`;
+      case 'directa': return `Su empresa compra ${que} por ${F.eur(p.capexOperativa)}, pide ${F.eur(r.loan)} al banco a ${pl(inv.plazo)} años (cuota de ${F.eur(cuota)} al mes tras ${inv.carencia} meses de carencia) y pone ${F.eur(Math.max(0, p.capexOperativa - r.loan - p.aportacion))} de su caja.`;
+      case 'leasing': return `Una entidad compra ${que} y se lo cede: no paga entrada, paga ${F.eur(cuota)} al mes durante ${pl(Math.min(inv.plazo, 7))} años desde el primer mes. Al final puede quedárselo por el valor residual. Cuesta algo más que un préstamo, pero no consume caja de entrada.`;
+      case 'filial': return `Se crea una sociedad filial, 100 % de su empresa, que compra ${que} por ${F.eur(p.capexOperativa)} y pide ${F.eur(r.loan)} de préstamo. Si lo nuevo sale mal, el golpe se queda en la filial; a cambio, son unos ${F.eur(p.extraFijos)} al año más de gestión y conviene pactar bien las garantías que pida el banco.`;
+      case 'patrimonial': return `Una sociedad patrimonial de los socios compra ${que} por ${F.eur(inv.importe)} (con su propio préstamo o con aportaciones de los socios) y se lo alquila a su empresa por unos ${F.eur(p.alquiler)} al mes (un 7,5 % anual del valor). Su empresa no compra ni se endeuda: solo paga el alquiler, que es gasto. El activo queda fuera del riesgo del negocio.`;
+      case 'socio': return `Un inversor aporta la mitad de la inversión (${F.eur(inv.importe * 0.5)}) a cambio del 35 % del negocio nuevo. Necesita menos deuda y menos caja, pero reparte beneficio y decisiones: los socios actuales conservan el 65 %.`;
+      case 'jv': return `Un socio del sector pone la mitad (${F.eur(inv.importe * 0.5)}) y compartís al 50 % ventas, beneficios y decisiones. Aporta clientes y oficio, por eso la rampa es más corta; a cambio, solo se queda con la mitad de lo nuevo.`;
       default: return '';
     }
   };
@@ -865,7 +865,7 @@
   A.METRICS = {
     cajaMin: { nombre: 'Liquidez mínima', f: (r) => r.cajaRef, fmt: (v) => A.fmt.eur(v), better: 1, threshold: (s) => s.meta.cajaMin, warn: () => 0 },
     payback: { nombre: 'Recuperación (meses)', f: (r) => Math.min(r.payback, 180), fmt: (v) => A.fmt.months(v), better: -1, threshold: (s) => s.meta.paybackMax * 12, warn: (s) => s.inversion.vidaUtil * 12 },
-    dscrMin: { nombre: 'Cobertura de deuda', f: (r) => Math.min(r.dscrMin, 6), fmt: (v) => A.fmt.x(v), better: 1, threshold: (s) => s.meta.dscrMin, warn: () => 1 },
+    dscrMin: { nombre: 'Cobertura de las cuotas', f: (r) => Math.min(r.dscrMin, 6), fmt: (v) => A.fmt.x(v), better: 1, threshold: (s) => s.meta.dscrMin, warn: () => 1 },
     van: { nombre: 'VAN del proyecto', f: (r) => r.van, fmt: (v) => A.fmt.eur(v), better: 1, threshold: (s) => s.inversion.importe * 0.1, warn: () => 0 }
   };
   A.axisRange = (s, ax) => {
@@ -915,7 +915,7 @@
     },
     eurFull: (v) => (v != null && isFinite(v) ? mn(nf0.format(Math.round(v) || 0)) + ' €' : '—'),
     pct: (v) => (v != null && isFinite(v) ? mn(nf1.format(v)) + ' %' : '—'),
-    pp: (v) => (v != null && isFinite(v) ? mn(nf1.format(v)) + ' pp' : '—'),
+    pp: (v) => (v != null && isFinite(v) ? mn(nf1.format(v)) + ' puntos' : '—'),
     x: (v) => (v == null || !isFinite(v) || v >= 99 ? '—' : mn(nf1.format(v)) + '×'),
     num: (v) => (v != null && isFinite(v) ? mn(nf0.format(v)) : '—'),
     months: (v) => {

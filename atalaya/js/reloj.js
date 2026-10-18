@@ -47,7 +47,7 @@
       const draw = () => {
         const T = A.relojNormaliza(store.get());
         if (!T) { root.innerHTML = '<p class="small muted">Sin datos de tiempos.</p>'; return; }
-        if (!T.personas.length) { root.innerHTML = '<p class="small">Añade primero a las personas del equipo en el <b>Gestor de tiempos</b>.</p>'; return; }
+        if (!T.personas.length) { root.innerHTML = '<p class="small">Añada primero a las personas del equipo en el <b>Gestor de tiempos</b>.</p>'; return; }
         if (!T.personas.some((p) => p.nombre === persona)) persona = (Object.keys(T.timers)[0] && T.personas.some((p) => p.nombre === Object.keys(T.timers)[0])) ? Object.keys(T.timers)[0] : T.personas[0].nombre;
         root.dataset.persona = persona;
         const run = T.timers[persona];
@@ -62,7 +62,7 @@
             <circle cx="100" cy="100" r="70" class="rj-track"/><circle cx="100" cy="100" r="70" class="rj-arc" id="rjArc" style="stroke:${cat ? tone(cat) : 'transparent'}" stroke-dasharray="0 440" transform="rotate(-90 100 100)"/>
             <line id="rjHand" x1="100" y1="100" x2="100" y2="16" class="rj-hand" style="stroke:${cat ? tone(cat) : 'var(--faint)'}"/><circle cx="100" cy="100" r="4" class="rj-pin"/></svg>
             <div class="rj-center"><b id="rjTime">${run ? hms(Date.now() - run.inicio) : '00:00:00'}</b><span>${run ? esc(cat ? cat.c : '') : 'parado'}</span></div></div>
-          <input id="rjT" class="input" placeholder="¿En qué estás? (tarea)" value="${esc(run ? run.tarea : root.dataset.tarea || '')}">
+          <input id="rjT" class="input" placeholder="¿En qué está trabajando? (tarea)" value="${esc(run ? run.tarea : root.dataset.tarea || '')}">
           <div class="rj-cats">${CATS.map((c) => `<button data-c="${c.k}" class="${run && run.categoria === c.k ? 'on' : ''}" title="${esc(c.n)}"><i style="background:${tone(c)}"></i>${c.c}</button>`).join('')}</div>
           <div class="rj-row"><button class="btn ${run ? '' : 'solid'}" id="rjGo">${run ? 'Parar' : 'Empezar'}</button><span class="rj-today">Hoy: <b>${hm(totHoy)}</b>${totHoy ? ` · ${Math.round((factHoy / totHoy) * 100)} % facturable` : ''}</span></div>
           ${!opts.compact && R.length ? `<ul class="rj-list">${R.slice(-4).reverse().map((r) => `<li><i style="background:${tone(CATS.find((c) => c.k === r.categoria) || CATS[0])}"></i>${esc(r.tarea)} <span>${hm(+r.horas || 0)}</span></li>`).join('')}</ul>` : ''}

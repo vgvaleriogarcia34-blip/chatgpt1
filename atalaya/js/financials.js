@@ -85,7 +85,7 @@
       if (!k) continue;
       yearCols.forEach((y, n) => { const v = parseNum(r[y.j]); if (isFinite(v) && anios[n][k] === undefined) { anios[n][k] = Math.abs(v); found++; } });
     }
-    if (!found) throw new Error('He encontrado los años pero ningún concepto reconocible. Usa nombres como «Ventas», «Gastos de personal», «Clientes», «Patrimonio neto».');
+    if (!found) throw new Error('Se han encontrado los años pero ningún concepto reconocible. Use nombres como «Ventas», «Gastos de personal», «Clientes», «Patrimonio neto».');
     anios.sort((a, b) => a.anio - b.anio);
     return { anios, reconocidos: found };
   };
@@ -123,7 +123,7 @@
     const y = (text.match(/(19|20)\d{2}/) || [])[0];
     const k = matchConcept(text.replace(/(19|20)\d{2}/, '').replace(/[\d.,]+\s*(millones|millon|mil|k)?/gi, ''));
     const v = A.docs.parseAmount(text.replace(/(19|20)\d{2}/, ''));
-    if (!y || !k || !isFinite(v)) throw new Error('No lo he entendido. Di, por ejemplo: «ventas de 2024, 4,2 millones».');
+    if (!y || !k || !isFinite(v)) throw new Error('No se ha entendido. Diga, por ejemplo: «ventas de 2024, 4,2 millones».');
     return { anio: +y, k, v };
   };
 
@@ -145,11 +145,11 @@
     const div = g(a, 'dividendos');
     const aport = d('fondosPropios') - (bn - div); // ampliaciones (o ajustes) de patrimonio
     const items = [
-      { k: 'beneficio', n: 'Beneficio del año', v: bn, tipo: 'origen', d: 'Lo que la cuenta de resultados dice que has ganado.' },
-      { k: 'amortizacion', n: 'Amortización (gasto sin salida de dinero)', v: g(a, 'amortizacion'), tipo: 'origen', d: 'Se restó como gasto pero no salió del banco: es dinero que sí tienes.' },
+      { k: 'beneficio', n: 'Beneficio del año', v: bn, tipo: 'origen', d: 'Lo que la cuenta de resultados dice que ha ganado.' },
+      { k: 'amortizacion', n: 'Amortización (gasto sin salida de dinero)', v: g(a, 'amortizacion'), tipo: 'origen', d: 'Se restó como gasto pero no salió del banco: es dinero que sí tiene.' },
       { k: 'clientes', n: 'Más dinero pendiente de cobrar', v: -d('clientes'), tipo: 'circulante', d: 'Si los clientes deben más que el año anterior, parte del beneficio está en sus manos.' },
       { k: 'existencias', n: 'Más stock en el almacén', v: -d('existencias'), tipo: 'circulante', d: 'El beneficio convertido en mercancía o materiales sin vender.' },
-      { k: 'proveedores', n: 'Más deuda con proveedores', v: d('proveedores'), tipo: 'circulante', d: 'Si pagas más tarde, los proveedores financian parte de tu operación.' },
+      { k: 'proveedores', n: 'Más deuda con proveedores', v: d('proveedores'), tipo: 'circulante', d: 'Si paga más tarde, los proveedores financian parte de su operación.' },
       { k: 'inversion', n: 'Inversión en activos', v: -capex, tipo: 'inversion', d: 'Maquinaria, vehículos, instalaciones: el beneficio convertido en activos.' },
       { k: 'deuda', n: deuda >= 0 ? 'Nueva deuda bancaria' : 'Devolución de préstamos', v: deuda, tipo: 'financiacion', d: 'Devolver préstamos consume beneficio; pedir nuevos aporta caja.' },
       { k: 'dividendos', n: 'Dividendos a los socios', v: -div, tipo: 'financiacion', d: 'La parte del beneficio que salió hacia los socios.' },
@@ -158,7 +158,7 @@
     const calculado = items.reduce((s, x) => s + x.v, 0);
     const cajaReal = d('tesoreria');
     // Con un año incompleto la diferencia no es «sin explicar»: falta el dato, y no se reparte aquí
-    items.push({ k: 'otros', n: 'Otras partidas del balance', v: falta.length ? 0 : cajaReal - calculado, tipo: 'otros', d: 'Cuentas no detalladas (Hacienda, otros deudores y acreedores, provisiones). Si es grande, revisa esas partidas con tu contable.' });
+    items.push({ k: 'otros', n: 'Otras partidas del balance', v: falta.length ? 0 : cajaReal - calculado, tipo: 'otros', d: 'Cuentas no detalladas (Hacienda, otros deudores y acreedores, provisiones). Si es grande, revise esas partidas con su contable.' });
     const base = Math.max(1, Math.abs(bn));
     // ¿Dónde está cada 100 € de beneficio? (solo los usos: lo que consume el beneficio)
     const destinos = [
@@ -265,7 +265,7 @@
     const dias = (v) => String(Math.round(v));
     if (ext('dso')) add('Política de crédito a clientes', trend('dso') > 5 ? 'warn' : 'ok',
       `Los días de cobro ${de('dso', dias)}.`,
-      trend('dso') > 5 ? 'Los clientes pagan cada vez más tarde: revisa condiciones y límites de crédito antes de crecer.' : 'El plazo de cobro está controlado.');
+      trend('dso') > 5 ? 'Los clientes pagan cada vez más tarde: revise condiciones y límites de crédito antes de crecer.' : 'El plazo de cobro está controlado.');
     if (ext('dio')) add('Política de stock', trend('dio') > 7 ? 'warn' : 'ok',
       `Los días de stock ${de('dio', dias)}.`,
       trend('dio') > 7 ? 'El almacén crece más que la venta: hay caja dormida en existencias.' : 'El stock acompaña a la venta.');
@@ -286,7 +286,7 @@
       cagr > crecSostenible + 2 ? 'Crece más deprisa de lo que puede financiar con sus beneficios: necesitará deuda o capital.' : 'El ritmo de crecimiento es financiable con lo que genera.');
     if (ult('margenPct', null) != null) add('Margen y precio', ext('margenPct') && trend('margenPct') < -1 ? 'warn' : 'ok',
       `Margen bruto del ${A.fmt.pct(ult('margenPct', 0))}${ext('margenPct') ? ` (${trend('margenPct') >= 0 ? '+' : ''}${A.fmt.pp(trend('margenPct'))} en el periodo${incomp('margenPct')})` : ''}.`,
-      ext('margenPct') && trend('margenPct') < -1 ? 'El margen se erosiona: revisa precios y compras antes de añadir volumen.' : 'El margen se mantiene.');
+      ext('margenPct') && trend('margenPct') < -1 ? 'El margen se erosiona: revise precios y compras antes de añadir volumen.' : 'El margen se mantiene.');
 
     return { rows, proj, cagr, crecProj: growth * 100, crecSostenible, payoutAvg, last, first, politicas: P };
   };
@@ -329,7 +329,7 @@
       const row = (c) => `<tr><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(c.l)}</td>${anios.map((a, j) => `<td><input class="gcell" data-j="${j}" data-k="${c.k}" inputmode="decimal" value="${fmt(a[c.k])}" placeholder="${c.k === 'beneficio' && a.ventas ? fmt(resultado(a)) : ''}" aria-label="${esc(c.l)} ${a.anio}"></td>`).join('')}</tr>`;
       host.innerHTML = `<div class="row" style="margin-bottom:8px"><h4>Carga manual de las cuentas</h4><span class="spacer"></span>
           <button class="btn ghost" data-g="prev">Añadir año anterior</button><button class="btn ghost" data-g="next">Añadir año siguiente</button>${anios.length > 2 ? '<button class="btn ghost" data-g="del">Quitar el primer año</button>' : ''}</div>
-        <p class="small muted">Copia las cifras de las cuentas anuales (o del cierre de la gestoría), en euros. Bastan dos años. Si dejas vacío el resultado, se calcula solo. Puedes pegar una columna entera desde Excel en la primera casilla.</p>
+        <p class="small muted">Copie las cifras de las cuentas anuales (o del cierre de la gestoría), en euros. Bastan dos años. Si deja vacío el resultado, se calcula solo. Puede pegar una columna entera desde Excel en la primera casilla.</p>
         <div class="etable table-wrap"><table><thead><tr><th style="text-align:left">Concepto</th>${anios.map((a, j) => `<th><input class="gcell gyear" data-year="${j}" value="${a.anio}" aria-label="Año"></th>`).join('')}</tr></thead><tbody>
           <tr><td colspan="${anios.length + 1}" class="hint" style="text-align:left">Cuenta de resultados</td></tr>${FIN.CONCEPTS.filter((c) => c.g === 'PyG').map(row).join('')}
           <tr><td colspan="${anios.length + 1}" class="hint" style="text-align:left">Balance a cierre del año</td></tr>${FIN.CONCEPTS.filter((c) => c.g === 'Balance').map(row).join('')}

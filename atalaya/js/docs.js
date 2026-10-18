@@ -10,7 +10,7 @@
   function load(src) {
     if (!loaded[src]) loaded[src] = new Promise((res, rej) => {
       const s = document.createElement('script'); s.src = src; s.onload = res;
-      s.onerror = () => rej(new Error('No se pudo cargar el lector necesario. Comprueba la conexión o usa Excel/CSV.'));
+      s.onerror = () => rej(new Error('No se pudo cargar el lector necesario. Compruebe la conexión o use Excel o CSV.'));
       document.head.appendChild(s);
     });
     return loaded[src];
@@ -32,7 +32,7 @@
       Object.keys(rows).map(Number).sort((a, b) => b - a).forEach((y) => lines.push(rows[y].sort((a, b) => a.x - b.x).map((i) => i.s).join('  ').replace(/\s{3,}/g, '  ').trim()));
     }
     const text = lines.filter(Boolean).join('\n');
-    if (text.replace(/\s/g, '').length < 40) throw new Error('El PDF parece una imagen escaneada: no tiene texto que leer. Exporta el documento desde tu programa contable o súbelo en Excel.');
+    if (text.replace(/\s/g, '').length < 40) throw new Error('El PDF parece una imagen escaneada: no tiene texto que leer. Exporte el documento desde su programa contable o súbalo en Excel.');
     return text;
   }
   async function docxText(file) {
@@ -77,7 +77,7 @@
     else if (n.endsWith('.docx')) texto = await docxText(file);
     else if (n.endsWith('.doc')) throw new Error('El formato .doc antiguo no se puede leer. Guárdalo como .docx o PDF.');
     else if (/\.(csv|tsv|txt|md|markdown|json)$/.test(n)) texto = await file.text();
-    else throw new Error('Formato no reconocido. Usa PDF, Word, Excel, CSV, Markdown o texto.');
+    else throw new Error('Formato no reconocido. Use PDF, Word, Excel, CSV, Markdown o texto.');
     return { texto, hojas: [{ hoja: file.name, rows: D.textToRows(texto) }] };
   };
 
@@ -118,12 +118,12 @@
   /* Dictado: devuelve el texto reconocido (una frase) */
   D.dictate = function () {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return Promise.reject(new Error('Tu navegador no permite dictar. Funciona en Chrome, Edge y Safari recientes.'));
+    if (!SR) return Promise.reject(new Error('Su navegador no permite dictar. Funciona en Chrome, Edge y Safari recientes.'));
     return new Promise((resolve, reject) => {
       const r = new SR(); r.lang = 'es-ES'; r.interimResults = false; r.maxAlternatives = 1;
       let got = '';
       r.onresult = (e) => { got = Array.from(e.results).map((x) => x[0].transcript).join(' '); };
-      r.onerror = (e) => reject(new Error(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'El micrófono no está permitido aquí. Da permiso al navegador o escribe el dato.' : 'No te he entendido. Prueba otra vez.'));
+      r.onerror = (e) => reject(new Error(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'El micrófono no está permitido aquí. Dé permiso al navegador o escriba el dato.' : 'No se ha entendido. Pruebe otra vez.'));
       r.onend = () => (got ? resolve(got) : reject(new Error('No he oído nada.')));
       try { r.start(); } catch (e) { reject(e); }
     });

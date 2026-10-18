@@ -292,7 +292,20 @@
     const sint = (a, t, cita, grav, de) => out[a].sintomas.push({ t, cita, gravedad: grav, de });
     // Simulador: la foto económica
     const sim = await cargar('simulador', 'atalaya.v1'), e = sim && sim.empresa;
-    if (e && !sim.ejemplo && num(e.ventas)) {
+    // Las cifras de la fuente única (js/cifras.js): las mismas que el simulador, el tablero, la Foto 360 y la cartera
+    const c = A.cifras ? await A.cifras.actual() : null;
+    if (c && !c.sinDatos && !c.ejemplo) {
+      fuentes.push('simulador');
+      const sem = A.cifras.semaforos(c), luz = (k) => sem.find((x) => x.k === k), de = c.deudaEbitda;
+      add('fin', 'Facturación', eur(c.ventas)); if (c.margen != null) add('fin', 'Margen bruto', Math.round(c.margen * 10) / 10 + ' %');
+      if (c.ebitda != null) add('fin', 'EBITDA', eur(c.ebitda), (luz('ebitda') || {}).st);
+      if (luz('deudaEbitda')) add('fin', 'Deuda neta / EBITDA', luz('deudaEbitda').v, luz('deudaEbitda').st);
+      if (luz('caja')) add('fin', 'Caja', luz('caja').v + ' de costes', luz('caja').st);
+      if (c.plantilla) add('per', 'Plantilla', A.cifras.fmt('plantilla', c.plantilla) + ' (' + c.origen.plantilla.split(' · ')[0].toLowerCase() + ')');
+      if (c.ebitda != null && c.ebitda <= 0) sint('fin', 'El negocio no genera EBITDA positivo', `EBITDA ${eur(c.ebitda)}`, 5, 'Simulador');
+      else if (de != null && de > 3) sint('fin', 'Cargas financieras que el negocio no genera', `Deuda neta de ${de.toFixed(1).replace('.', ',')} veces el EBITDA`, de > 4 ? 5 : 4, 'Simulador');
+      if (c.mesesCaja != null && c.mesesCaja < 1) sint('fin', 'Tesorería por debajo de un mes de costes', `Caja de ${eur(c.caja)} frente a ${eur(c.costeMes)} al mes`, 4, 'Simulador');
+    } else if (e && !sim.ejemplo && num(e.ventas)) {
       fuentes.push('simulador');
       const ebitda = num(e.ventas) * num(e.margen) / 100 - num(e.personal) - num(e.fijos), de = ebitda > 0 ? (num(e.deudaViva) - num(e.caja)) / ebitda : null, mesCaja = (num(e.personal) + num(e.fijos)) / 12;
       add('fin', 'Facturación', eur(e.ventas)); add('fin', 'Margen bruto', num(e.margen) + ' %'); add('fin', 'EBITDA estimado', eur(ebitda), ebitda <= 0 ? 'stop' : ebitda / num(e.ventas) < 0.05 ? 'warn' : 'ok');

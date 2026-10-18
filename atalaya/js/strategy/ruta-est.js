@@ -124,7 +124,7 @@
   let layout = LS.get('atalaya.rutaest.layout') || (innerWidth < 760 ? 'linea' : 'abanico');
   let foco = 0, hot = null, faseHot = null, drag = null, dragged = false;
   const LAYOUTS = [['pila', 'Pila'], ['abanico', 'Abanico'], ['circulo', 'Círculo'], ['linea', 'Línea']];
-  const hint = () => (layout === 'circulo' || layout === 'linea' ? 'Arrastra, usa la rueda o las flechas para recorrer las capas · ' : '') + 'Intro abre la capa · Esc cierra el mapa';
+  const hint = () => (layout === 'circulo' || layout === 'linea' ? 'Arrastre, use la rueda o las flechas para recorrer las capas · ' : '') + 'Intro abre la capa · Esc cierra el mapa';
   let salida = 0; // pequeña espera al salir de una capa: evita que suba y baje sin parar
   function openMap() {
     const ov = $('#rutaMap'); const O = ORDEN(), F = FASES();
@@ -134,8 +134,8 @@
     ov.hidden = false; document.body.style.overflow = 'hidden';
     foco = Math.max(0, O.indexOf(cur));
     ov.innerHTML = `<div class="rm-head">
-        <div><div class="rm-kicker">Sistema estratégico · tu recorrido</div><h2>Toda la empresa, <em>capa a capa</em></h2>
-        <p>Cinco áreas, veintiún módulos y la zona de origen de los datos. Cada ventana enseña lo que hay dentro y su estado con tus datos. Pasa por encima para elevarla y púlsala para entrar.</p></div>
+        <div><div class="rm-kicker">Sistema estratégico · su recorrido</div><h2>Toda la empresa, <em>capa a capa</em></h2>
+        <p>Cinco áreas, veintiún módulos y la zona de origen de los datos. Cada ventana enseña lo que hay dentro y su estado con sus datos. Toque una ventana para entrar en ese módulo.</p></div>
         <div class="rm-tools"><div class="seg" id="rmLay">${LAYOUTS.map(([k, n]) => `<button data-l="${k}" aria-pressed="${k === layout}">${n}</button>`).join('')}</div>
         <button class="btn ghost" id="rmAll">${modo === 'capitulo' ? 'Ver pestañas' : 'Recorrido por áreas'}</button><button class="icon-btn" id="rmX" aria-label="Cerrar el mapa">×</button></div></div>
       <ol class="rm-fases n5">${F.map((f, k) => `<li data-f="${k}"><b>${k + 1}</b><span>${esc(f.n)}</span><small>${f.ids.filter((x) => visit.has(x)).length}/${f.ids.length}</small></li>`).join('')}</ol>

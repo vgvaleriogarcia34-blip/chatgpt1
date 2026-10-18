@@ -1,6 +1,7 @@
 /* Atalaya · Recorrido del simulador
    1) Mapa de capas: cada capítulo es una ventana flotante en 3D que deja ver un fragmento real de su contenido.
       Se ordenan en pila, abanico, círculo o línea; al pasar por encima se elevan y al pulsarlas se abren.
+      Se abre solo la primera vez por empresa (P.mapa); después, con su botón o con app.html#mapa.
    2) Hoja de ruta: seis fases siempre visibles y un capítulo cada vez (anterior / siguiente), en lugar de un
       desplazamiento infinito. «Ver todo seguido» devuelve la página completa. */
 (function () {
@@ -21,9 +22,9 @@
   ];
   const CAP = {
     puente: ['Puente de mando', '¿Cómo está todo de un vistazo?'],
-    empresa: ['La empresa hoy', '¿Cómo es tu empresa ahora mismo?'],
-    historia: ['Historia y cuentas', '¿De dónde viene? Tus cuentas de otros años.'],
-    inversion: ['La inversión', '¿Qué quieres hacer y cómo lo pagas?'],
+    empresa: ['La empresa hoy', '¿Cómo es su empresa ahora mismo?'],
+    historia: ['Historia y cuentas', '¿De dónde viene? Sus cuentas de otros años.'],
+    inversion: ['La inversión', '¿Qué quiere hacer y cómo lo paga?'],
     horizonte: ['Horizonte 3D', '¿Qué pasa si cambian dos cosas a la vez?'],
     escenarios: ['Escenarios', '¿Y si sale peor, o mejor?'],
     riesgos: ['Semáforos y riesgos', '¿Qué hay que vigilar?'],
@@ -122,13 +123,20 @@
   let foco = 0, hot = null, faseHot = null;
   const LAYOUTS = [['pila', 'Pila'], ['abanico', 'Abanico'], ['circulo', 'Círculo'], ['linea', 'Línea']];
   let salida = 0; // pequeña espera al salir de una capa: evita que suba y baje sin parar
+  // Textos de ayuda según el dispositivo: con el dedo no hay «pasar por encima» ni rueda
+  const tactil = () => !!(A.platform && A.platform.tactil && A.platform.tactil());
+  const pista = () => (tactil() ? (layout === 'circulo' || layout === 'linea' ? 'Deslice para recorrer las capas · toque una para abrirla' : 'Toque una capa para abrirla')
+    : (layout === 'circulo' || layout === 'linea' ? 'Arrastre, use la rueda o las flechas para recorrer las capas · ' : '') + 'Intro abre la capa · Esc cierra el mapa');
+  // Sin las cifras de la empresa, lo primero es cargarlas: la acción clave va en la cabecera del mapa
+  const sinDatos = () => { const c = A.appCtx ? A.appCtx() : null; return !!(c && c.state && c.state.empresa && !(c.state.empresa.ventas > 0)); };
   function openMap() {
     const ov = $('#rutaMap'); ov.hidden = false; document.body.style.overflow = 'hidden';
     foco = Math.max(0, ORDEN.indexOf(actual));
-    const ch = A.appCtx ? A.appCtx() : null;
+    const vacia = sinDatos();
     ov.innerHTML = `<div class="rm-head">
-        <div><div class="rm-kicker">Simulador de inversión · tu recorrido</div><h2>Todo el camino, <em>capa a capa</em></h2>
-        <p>Seis fases, de cómo es tu empresa hoy a la decisión. Pasa por encima de una capa para ver qué hay dentro y púlsala para entrar.</p></div>
+        <div><div class="rm-kicker">Simulador de inversión · su recorrido</div><h2>Todo el camino, <em>capa a capa</em></h2>
+        <p>Seis fases, de cómo es su empresa hoy a la decisión. ${tactil() ? 'Toque una capa para entrar.' : 'Pase por encima de una capa para ver qué hay dentro y púlsela para entrar.'}</p>
+        ${vacia ? '<div class="rm-clave" role="group" aria-label="Para empezar"><b>Para empezar, faltan las cifras de su empresa.</b><button class="btn solid small" data-clave="cuentas">Cargar mis cuentas</button><button class="btn small" data-clave="preguntas">Responder unas preguntas</button></div>' : ''}</div>
         <div class="rm-tools"><div class="seg" id="rmLay">${LAYOUTS.map(([k, n]) => `<button data-l="${k}" aria-pressed="${k === layout}">${n}</button>`).join('')}</div>
         <button class="btn ghost" id="rmAll">Ver todo seguido</button>${actual ? '<button class="icon-btn" id="rmX" aria-label="Cerrar el mapa">×</button>' : ''}</div></div>
       <ol class="rm-fases">${FASES.map((f, fi) => `<li data-f="${fi}"><b>${fi + 1}</b><span>${f.n}</span><small>${f.ids.filter((x) => visit.has(x)).length}/${f.ids.length}</small></li>`).join('')}</ol>
@@ -139,7 +147,7 @@
           <span class="rm-prev" data-prev="${id}"></span>
           <span class="rm-info"><small>${fi >= 0 ? `Fase ${fi + 1} · ${esc(FASES[fi].n)}` : 'Herramienta'}</small><b>${esc(CAP[id][0])}</b><span>${esc(CAP[id][1])}</span>${e ? `<span class="rm-st ${e.st || ''}">${esc(e.t)}</span>` : ''}<span class="rm-open">Abrir →</span></span></span></button>`;
       }).join('')}</div></div>
-      <p class="rm-hint">${layout === 'circulo' || layout === 'linea' ? 'Arrastra, usa la rueda o las flechas para recorrer las capas · ' : ''}Intro abre la capa · Esc cierra el mapa</p>`;
+      <p class="rm-hint">${pista()}</p>`;
     // Fragmentos reales de cada capítulo como vista previa
     $$('[data-prev]', ov).forEach((p) => {
       const sec = document.getElementById(p.dataset.prev); if (!sec) return;
@@ -149,7 +157,8 @@
       c.classList.remove('ch-on'); c.classList.add('rm-clone');
       p.appendChild(c);
     });
-    $$('#rmLay button', ov).forEach((b) => b.onclick = () => { layout = b.dataset.l; LS.set('atalaya.ruta.layout', layout); $$('#rmLay button', ov).forEach((x) => x.setAttribute('aria-pressed', x === b)); place(); $('.rm-hint', ov).textContent = (layout === 'circulo' || layout === 'linea' ? 'Arrastra, usa la rueda o las flechas para recorrer las capas · ' : '') + 'Intro abre la capa · Esc cierra el mapa'; });
+    $$('#rmLay button', ov).forEach((b) => b.onclick = () => { layout = b.dataset.l; LS.set('atalaya.ruta.layout', layout); $$('#rmLay button', ov).forEach((x) => x.setAttribute('aria-pressed', x === b)); place(); $('.rm-hint', ov).textContent = pista(); });
+    $$('[data-clave]', ov).forEach((b) => b.onclick = () => { closeMap(); if (b.dataset.clave === 'cuentas') capitulos('empresa'); else preguntas(); });
     $('#rmAll', ov).onclick = seguido;
     const x = $('#rmX', ov); if (x) x.onclick = closeMap;
     const cards = $$('.rm-card', ov);
@@ -231,6 +240,13 @@
     setTimeout(() => { closeMap(); $('#rutaMap').classList.remove('leaving'); capitulos(id); }, 520);
   }
 
+  /* Responder las preguntas de la empresa: el botón del capítulo «La empresa hoy» las abre cuando el simulador ya ha arrancado */
+  function preguntas() {
+    capitulos('empresa');
+    let n = 0; const intento = () => { const b = document.getElementById('qEmpresa'); if (b && document.querySelector('#account .acc-btn')) b.click(); else if (++n < 40) setTimeout(intento, 250); };
+    setTimeout(intento, 100);
+  }
+
   /* ---------- Arranque ---------- */
   function init() {
     if (!document.getElementById('puente')) return;
@@ -238,12 +254,23 @@
     const ov = document.createElement('div'); ov.id = 'rutaMap'; ov.className = 'ruta-map'; ov.hidden = true; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Mapa de capas del simulador'); document.body.appendChild(ov);
     const rb = document.getElementById('rutaBtn'); if (rb) rb.onclick = () => openMap();
     const h = location.hash.replace('#', '');
-    if (modo === 'seguido') { bar.hidden = true; return; }
+    // app.html#preguntas: entrada desde la primera visita
+    if (h === 'preguntas') { preguntas(); return; }
+    if (modo === 'seguido') { bar.hidden = true; if (h === 'mapa') setTimeout(openMap, 700); return; }
     if (ORDEN.includes(h)) { show(h, true); return; }
     show('puente', true);
-    // Al entrar se ve primero todo el recorrido (una vez por sesión)
-    let first = true; try { first = !sessionStorage.getItem('atalaya.ruta.intro'); sessionStorage.setItem('atalaya.ruta.intro', '1'); } catch (e) { /* sin almacenamiento */ }
-    if (first) setTimeout(openMap, 700);
+    // Al entrar se ve primero todo el recorrido, solo la primera vez por empresa (o con #mapa).
+    // Una empresa sin cifras no lo ve: el puente de mando ya le pide cargarlas
+    const P = A.platform;
+    if (!P) { let first = true; try { first = !sessionStorage.getItem('atalaya.ruta.intro'); sessionStorage.setItem('atalaya.ruta.intro', '1'); } catch (e) { /* sin almacenamiento */ } if (first) setTimeout(openMap, 700); return; }
+    let n = 0;
+    const decidir = () => {
+      // Se espera a que la cuenta, la empresa y la simulación estén cargadas
+      if (!(P.empresas.lista().length && document.querySelector('#account .acc-btn'))) { if (++n < 60) setTimeout(decidir, 250); return; }
+      // La simulación guardada llega justo después de la cuenta
+      setTimeout(() => { if (h !== 'mapa' && sinDatos()) return; if (P.mapa.alEntrar('sim') && $('#rutaMap').hidden) openMap(); }, 600);
+    };
+    setTimeout(decidir, 700);
   }
   A.ruta = { openMap, show, seguido, capitulos };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

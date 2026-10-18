@@ -21,7 +21,7 @@
       const an = A.fin.analyze(H);
       if (!H || !H.anios || H.anios.length < 2) {
         host.innerHTML = `${S.section('Auditoría del flujo del dinero', 'Responde a la pregunta «he ganado dinero, ¿dónde está?». Necesita el balance y la cuenta de resultados de al menos dos años.')}
-          <div class="glass pad stack"><p class="small">${S.real() ? 'Dos formas de cargar los datos: escribirlos a mano en la rejilla de abajo (lo más rápido si tiene las cuentas a la vista) o adjuntar las cuentas anuales en PDF, Excel o Word.' : 'Tres formas de cargar los datos: escribirlos a mano en la rejilla de abajo (lo más rápido si tienes las cuentas a la vista), adjuntar las cuentas anuales en PDF, Excel o Word, o cargar el ejemplo para ver cómo funciona.'}</p><div class="row"><label class="btn" for="mfFile">Adjuntar cuentas</label><input type="file" id="mfFile" hidden multiple accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx">${S.real() ? '' : '<button class="btn ghost" id="mfEx">Cargar ejemplo</button>'}</div><p class="small" id="mfMsg"></p></div>
+          <div class="glass pad stack"><p class="small">${S.real() ? 'Dos formas de cargar los datos: escribirlos a mano en la rejilla de abajo (lo más rápido si tiene las cuentas a la vista) o adjuntar las cuentas anuales en PDF, Excel o Word.' : 'Tres formas de cargar los datos: escribirlos a mano en la rejilla de abajo (lo más rápido si tiene las cuentas a la vista), adjuntar las cuentas anuales en PDF, Excel o Word, o cargar el ejemplo para ver cómo funciona.'}</p><div class="row"><label class="btn" for="mfFile">Adjuntar cuentas</label><input type="file" id="mfFile" hidden multiple accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx">${S.real() ? '' : '<button class="btn ghost" id="mfEx">Cargar ejemplo</button>'}</div><p class="small" id="mfMsg"></p></div>
           <div class="glass pad mt" id="mfGrid"></div>`;
         A.fin.mountGrid($('#mfGrid', host), H, { empresa: S.sim.empresa, onSave: (h) => { S.sim.historico = h; S.saveSim(); S.rerender(); } });
         if ($('#mfEx', host)) $('#mfEx', host).onclick = () => { S.sim.historico = A.fin.example(); S.saveSim(); S.rerender(); };
@@ -40,11 +40,11 @@
         <div class="row">${H.ejemplo ? '<span class="small muted">Datos de ejemplo.</span>' : ''}${H.aviso ? `<span class="small" style="color:var(--warn)">${esc(H.aviso)}</span>` : ''}<span class="spacer"></span><button class="btn" id="mfEdit">${H.ejemplo ? 'Escribir mis datos' : 'Editar los datos'}</button><button class="btn ghost" id="mfClear">Borrar y empezar de nuevo</button></div>
         <div class="glass pad" id="mfGrid" hidden></div>
         ${S.kpiTiles([
-          { k: `Beneficio ${flows[0].previo + 1}-${last.anio}`, v: F.eur(bnTot), info: 'Beneficio', d: 'suma de los años analizados' },
-          { k: 'Variación de caja', v: F.eur(cajaTot), st: cajaTot < bnTot * 0.25 ? 'warn' : 'ok', d: `${Math.round(S.pct(cajaTot, bnTot))} % del beneficio llegó al banco` },
+          { k: `Beneficio ${flows[0].previo + 1}-${last.anio}`, v: F.eur(bnTot), info: 'Beneficio neto', d: 'suma de los años analizados' },
+          { k: 'Variación de caja', info: 'Variación de caja', v: F.eur(cajaTot), st: cajaTot < bnTot * 0.25 ? 'warn' : 'ok', d: `${Math.round(S.pct(cajaTot, bnTot))} % del beneficio llegó al banco` },
           { k: 'Atrapado en circulante', v: F.eur(-(tot('clientes') + tot('existencias') + tot('proveedores'))), st: -(tot('clientes') + tot('existencias')) > bnTot * 0.4 ? 'warn' : 'ok', info: 'Circulante' },
-          { k: 'Invertido en activos', v: F.eur(-tot('inversion')) },
-          { k: 'A bancos y socios', v: F.eur(-(Math.min(0, tot('deuda')) + tot('dividendos'))), d: 'devolución de deuda y dividendos' }
+          { k: 'Invertido en activos', info: 'Invertido en activos', v: F.eur(-tot('inversion')) },
+          { k: 'A bancos y socios', info: 'A bancos y socios', v: F.eur(-(Math.min(0, tot('deuda')) + tot('dividendos'))), d: 'devolución de deuda y dividendos' }
         ])}
         <div class="glass pad mt stack"><h4>Lectura del último año</h4><p>${last.lectura.join(' ')}</p></div>
         <div class="glass pad mt stack"><h4>Del beneficio a la caja, año a año</h4><div class="table-wrap"><table><thead><tr><th>Concepto</th>${flows.map((f) => `<th>${f.anio}</th>`).join('')}<th>Total</th></tr></thead><tbody>
@@ -55,7 +55,7 @@
         <div class="glass pad mt"><h4>Políticas de gobierno</h4>${an.politicas.map((p) => `<div class="policy"><span class="state st-${p.estado}">${S.stName[p.estado]}</span><div><b>${p.nombre}</b><p class="small">${p.lectura} <span class="muted">${p.recomendacion}</span></p></div></div>`).join('')}</div>`;
       $('#mfEdit', host).onclick = () => { const g = $('#mfGrid', host); g.hidden = false; A.fin.mountGrid(g, H, { empresa: S.sim.empresa, onSave: (h) => { S.sim.historico = h; S.saveSim(); S.rerender(); }, onCancel: () => { g.hidden = true; } }); g.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
       let armed = false;
-      $('#mfClear', host).onclick = (ev) => { if (!armed) { armed = true; ev.target.textContent = 'Pulsa otra vez para borrar'; return; } S.sim.historico = null; S.saveSim(); S.rerender(); };
+      $('#mfClear', host).onclick = (ev) => { if (!armed) { armed = true; ev.target.textContent = 'Pulse otra vez para borrar'; return; } S.sim.historico = null; S.saveSim(); S.rerender(); };
     },
     kpis() {
       const mf = A.fin.moneyFlow(S.sim.historico); if (!mf) return [];
@@ -120,8 +120,8 @@
       }
       if (m === 3 || m === 9 || m === 11) add(new Date(y, m, 20), '202', `Pago fraccionado del Impuesto sobre Sociedades (${m === 3 ? '1.º' : m === 9 ? '2.º' : '3.º'})`, isPrev * 0.18);
       if (m === 6) add(new Date(y, m, 25), '200', `Impuesto sobre Sociedades ${y - 1} (declaración anual)`, Math.max(0, isPrev - isPrev * 0.18 * 3), 'Cuota del año menos los tres pagos fraccionados');
-      if (m === T.mesIAE - 1 && T.iae && e.ventas >= 1e6) add(new Date(y, m, 20), 'IAE', 'Impuesto de Actividades Económicas', T.iae, 'Fecha según tu ayuntamiento');
-      if (m === T.mesIBI - 1 && T.ibi) add(new Date(y, m, 20), 'IBI', 'Impuesto de Bienes Inmuebles', T.ibi, 'Fecha según tu ayuntamiento');
+      if (m === T.mesIAE - 1 && T.iae && e.ventas >= 1e6) add(new Date(y, m, 20), 'IAE', 'Impuesto de Actividades Económicas', T.iae, 'Fecha según su ayuntamiento');
+      if (m === T.mesIBI - 1 && T.ibi) add(new Date(y, m, 20), 'IBI', 'Impuesto de Bienes Inmuebles', T.ibi, 'Fecha según su ayuntamiento');
       if (m === 0) add(new Date(y, 0, 30), '390/190/180', 'Resúmenes anuales informativos (sin pago)', 0, 'Declaraciones informativas');
     }
     pagos.sort((a, b) => a.fecha - b.fecha);
@@ -159,13 +159,13 @@
     { id: 'patrimonial', cat: 'Societario', nombre: 'Separar inmuebles en una patrimonial', tipo: 'Planificación', ref: 'operaciones vinculadas, art. 18 LIS',
       como: 'El alquiler a la operativa es gasto deducible y protege el patrimonio; facilita la sucesión. No reduce impuestos por sí solo si el alquiler es de mercado.', req: 'Alquiler a precio de mercado documentado.', est: () => 0 },
     { id: 'ivacaja', cat: 'Tesorería fiscal', nombre: 'Criterio de caja del IVA', tipo: 'Liquidez', ref: 'arts. 163 decies y ss. LIVA',
-      como: 'Ingresas el IVA cuando cobras, no cuando facturas. Mejora la caja si cobras a plazo.', req: 'Volumen de operaciones inferior a 2 M€.',
+      como: 'Se ingresa el IVA al cobrar, no al facturar. Mejora la caja si cobra a plazo.', req: 'Volumen de operaciones inferior a 2 M€.',
       est: (c) => (c.ventas < 2e6 ? (c.ventas * c.dso / 365) * c.iva : 0) },
     { id: 'redeme', cat: 'Tesorería fiscal', nombre: 'Devolución mensual del IVA (REDEME)', tipo: 'Liquidez', ref: 'art. 30 RIVA',
-      como: 'Si soportas más IVA del que cobras (por ejemplo, el año de la inversión), te lo devuelven cada mes en lugar de esperar al final del año.', req: 'Inscripción en el registro; presentación mensual con el SII.',
+      como: 'Si soporta más IVA del que cobra (por ejemplo, el año de la inversión), se lo devuelven cada mes en lugar de esperar al final del año.', req: 'Inscripción en el registro; presentación mensual con el SII.',
       est: (c) => c.ivaInversion * 0.5 },
     { id: 'aplazamiento', cat: 'Tesorería fiscal', nombre: 'Aplazar o fraccionar deudas tributarias', tipo: 'Liquidez', ref: 'art. 65 LGT',
-      como: 'Puedes pedir aplazar el pago de impuestos en meses tensos de tesorería, con intereses de demora.', req: 'Sin garantías hasta el umbral vigente (50.000 €); no aplicable a retenciones en ciertos casos.',
+      como: 'Puede pedir aplazar el pago de impuestos en meses tensos de tesorería, con intereses de demora.', req: 'Sin garantías hasta el umbral vigente (50.000 €); no aplicable a retenciones en ciertos casos.',
       est: (c) => Math.min(50000, c.picoImpuestos) },
     { id: 'flexible', cat: 'Personas', nombre: 'Retribución flexible', tipo: 'Ahorro para la plantilla', ref: 'art. 42 LIRPF',
       como: 'Seguro médico, formación, transporte o guardería pagados por la empresa tributan menos para el trabajador: más salario neto con el mismo coste.', req: 'Política escrita y límites por concepto.', est: (c) => c.plantilla * 500 * 0.3 },
@@ -260,10 +260,10 @@
       const bestVA = Math.max(...fis.map((f) => f.r.va)); fis.forEach((f) => { f.best = fis.length > 1 && f.r.va === bestVA && bestVA > 0; });
       host.innerHTML = `${S.section('Impuestos', 'Cuadro global de impuestos y cotizaciones de los próximos 12 meses con sus fechas de pago (calendario general de la Agencia Tributaria y la Seguridad Social), y un marco de movimientos legales para reducir o aplazar la factura fiscal en cada escenario.')}
         ${S.kpiTiles([
-          { k: 'Pagos en 12 meses', v: F.eur(tc.anual), d: `${F.pct(presion)} de las ventas` },
+          { k: 'Pagos en 12 meses', info: 'Pagos en 12 meses', v: F.eur(tc.anual), d: `${F.pct(presion)} de las ventas` },
           { k: 'Impuesto sobre Sociedades', v: F.eur((tc.porModelo['202'] || 0) + (tc.porModelo['200'] || 0)), d: `cuota de referencia ${F.eur(tc.isPrev)}`, info: 'Pago fraccionado' },
           { k: 'IVA a ingresar', v: F.eur(tc.porModelo['303'] || 0), info: 'IVA' },
-          { k: 'Seguridad Social', v: F.eur(tc.porModelo.TC || 0) },
+          { k: 'Seguridad Social', info: 'Seguridad Social', v: F.eur(tc.porModelo.TC || 0) },
           { k: 'Retenciones', v: F.eur((tc.porModelo['111'] || 0) + (tc.porModelo['115'] || 0)), info: 'Retenciones' }
         ])}
         <div class="grid cols-2 mt">
@@ -277,7 +277,7 @@
           <div class="table-wrap"><table><thead><tr><th style="text-align:left">Movimiento</th><th>Tipo</th>${ESC.map((k) => `<th>${A.SCENARIOS.find((s) => s.key === k).nombre}</th>`).join('')}<th style="text-align:left">Cómo funciona</th></tr></thead><tbody>
           ${['Resultados', 'Inversión', 'Societario', 'Tesorería fiscal', 'Personas'].map((cat) => `<tr><td colspan="${3 + ESC.length}" style="text-align:left;color:var(--gold)">${cat}</td></tr>` + LEVERS_FISCALES.filter((l) => l.cat === cat).map((l) => `<tr><td style="text-align:left;font-family:var(--font-body)"><b>${l.nombre}</b><br><span class="muted small">${l.ref}</span></td><td style="font-family:var(--font-body)">${l.tipo}</td>${ESC.map((k) => { const v = l.est(ctxs[k]); return `<td>${v > 0 ? F.eur(v) : '—'}</td>`; }).join('')}<td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:280px">${l.como} <span class="muted">Requisito: ${l.req}</span></td></tr>`).join('')).join('')}
           </tbody></table></div>
-          <p class="note">Estimaciones orientativas para preparar la reunión con tu asesor fiscal. Los porcentajes y umbrales cambian con cada reforma: confirma la normativa vigente antes de aplicar cualquier movimiento.</p></div>
+          <p class="note">Estimaciones orientativas para preparar la reunión con su asesor fiscal. Los porcentajes y umbrales cambian con cada reforma: confirma la normativa vigente antes de aplicar cualquier movimiento.</p></div>
         <div class="glass pad mt stack"><h4>Escenarios fiscales de la inversión</h4>
           <p class="small">Plantea la misma inversión de varias formas (compra, leasing o renting; amortización lineal, acelerada o con libertad por empleo; fecha de puesta en marcha; parte de I+D+i) y compara cuánto Impuesto sobre Sociedades ahorra cada una año a año. La base de partida es el beneficio previsto del escenario ${esc(T.escenario)} (${F.eur(ctxFiscal.bi)} de base imponible al ${T.tipoIS} %).</p>
           <div id="txInv"></div>
@@ -286,7 +286,7 @@
           </tbody></table></div>
           <div class="chart" id="txInvChart"></div>
           ${fis.some((f) => f.r.avisos.length) ? `<ul class="small">${fis.map((f, i) => f.r.avisos.map((a) => `<li><b>${esc(T.inversiones[i].nombre)}:</b> ${esc(a)}</li>`).join('')).join('')}</ul>` : ''}
-          <p class="note">El ahorro por amortización es sobre todo un adelanto: a lo largo de la vida del activo se deduce lo mismo, pero pagar menos los primeros años mejora la caja justo cuando la inversión la consume. Por eso se compara también en valor actual (descontado al 5 %). La deducción por I+D+i y los intereses sí son ahorro definitivo. ${fis[0] && !fis[0].r.erd ? 'Tu cifra de negocios supera los 10 M€: no aplican los incentivos de empresa de reducida dimensión.' : ''}</p>
+          <p class="note">El ahorro por amortización es sobre todo un adelanto: a lo largo de la vida del activo se deduce lo mismo, pero pagar menos los primeros años mejora la caja justo cuando la inversión la consume. Por eso se compara también en valor actual (descontado al 5 %). La deducción por I+D+i y los intereses sí son ahorro definitivo. ${fis[0] && !fis[0].r.erd ? 'Su cifra de negocios supera los 10 millones de euros: no aplican los incentivos de empresa de reducida dimensión.' : ''}</p>
         </div>`;
       S.vbars($('#txChart', host), byMonth.map((x) => x.l), [{ n: 'Impuestos y cotizaciones', data: byMonth.map((x) => x.v), c: css('--gold') }], F.eur, { aria: 'Pagos de impuestos por mes', h: 220 });
       const inputs = [['tipoIS', 'Tipo del Impuesto sobre Sociedades', '%'], ['iva', 'Tipo de IVA', '%'], ['pctVentasIVA', 'Ventas con IVA', '%'], ['pctComprasIVA', 'Compras con IVA', '%'], ['pctFijosIVA', 'Gastos fijos con IVA', '%'], ['irpf', 'Retención media de nóminas', '%'], ['ssEmpresa', 'Seguridad Social a cargo empresa', '%'], ['ssTrabajador', 'Seguridad Social del trabajador', '%'], ['alquiler', 'Alquiler mensual con retención', '€'], ['ibi', 'IBI anual', '€'], ['mesIBI', 'Mes del IBI', '1-12'], ['iae', 'IAE anual', '€'], ['mesIAE', 'Mes del IAE', '1-12'], ['cuotaAnterior', 'Cuota del IS del año anterior', '€'], ['idi', 'Gasto anual en I+D+i', '€'], ['payout', 'Beneficio que se reparte', '%']];
@@ -378,13 +378,13 @@
       const minW = weeks.reduce((a, b) => (b.fin < a.fin ? b : a));
       const tin = weeks.reduce((a, b) => a + b.tin, 0), tout = weeks.reduce((a, b) => a + b.tout, 0);
       const lbl = (wk) => fd(wk.a);
-      host.innerHTML = `${S.section('Tesorería por semanas', `Entradas y salidas previstas semana a semana. Se construye sola con los datos del simulador (cobros según tus días de cobro, pagos a proveedores según tus días de pago, nóminas a fin de mes, Seguridad Social, impuestos del calendario fiscal y cuotas de préstamos), y le sumas los movimientos que conozcas: a mano, dictados o importando el extracto del banco.`)}
+      host.innerHTML = `${S.section('Tesorería por semanas', `Entradas y salidas previstas semana a semana. Se construye sola con los datos del simulador (cobros según sus días de cobro, pagos a proveedores según sus días de pago, nóminas a fin de mes, Seguridad Social, impuestos del calendario fiscal y cuotas de préstamos), y se le suman los movimientos que conozca: a mano, dictados o importando el extracto del banco.`)}
         ${S.kpiTiles([
-          { k: 'Saldo inicial', v: F.eur(weeks[0].ini) },
-          { k: 'Entradas', v: F.eur(tin), d: `${Ts.semanas} semanas` },
-          { k: 'Salidas', v: F.eur(tout) },
-          { k: 'Semana más tensa', v: F.eur(minW.fin), st: minW.st, d: 'semana del ' + lbl(minW) },
-          { k: 'Saldo final', v: F.eur(weeks[weeks.length - 1].fin), st: weeks[weeks.length - 1].st }
+          { k: 'Saldo inicial', info: 'Saldo inicial', v: F.eur(weeks[0].ini) },
+          { k: 'Entradas', info: 'Entradas', v: F.eur(tin), d: `${Ts.semanas} semanas` },
+          { k: 'Salidas', info: 'Salidas', v: F.eur(tout) },
+          { k: 'Semana más tensa', info: 'Semana más tensa', v: F.eur(minW.fin), st: minW.st, d: 'semana del ' + lbl(minW) },
+          { k: 'Saldo final', info: 'Saldo final', v: F.eur(weeks[weeks.length - 1].fin), st: weeks[weeks.length - 1].st }
         ])}
         <div class="row mt"><div class="seg" style="margin:0" id="tsN">${[13, 26, 52].map((n) => `<button data-n="${n}" aria-pressed="${n === Ts.semanas}">${n} semanas</button>`).join('')}</div>
           <label class="small">Saldo inicial <input class="input" id="tsIni" style="width:120px" value="${Ts.saldoInicial === null ? '' : Ts.saldoInicial}" placeholder="${Math.round(e.caja)}"></label>
@@ -429,7 +429,7 @@
       });
     },
     kpis() { const { weeks } = cashWeeks(); const mn = weeks.reduce((a, b) => (b.fin < a.fin ? b : a)); return [{ k: `Saldo mínimo ${weeks.length} semanas`, v: F.eur(mn.fin), st: mn.st }]; },
-    risks() { const { weeks } = cashWeeks(); const neg = weeks.filter((w) => w.st !== 'ok'); return neg.length ? [S.mkRisk(`${neg.length} semanas con tesorería por debajo del colchón`, 4, neg.some((w) => w.st === 'stop') ? 5 : 3, 'Adelanta cobros, negocia fechas de pago o amplía la póliza antes de esas semanas.')] : []; }
+    risks() { const { weeks } = cashWeeks(); const neg = weeks.filter((w) => w.st !== 'ok'); return neg.length ? [S.mkRisk(`${neg.length} semanas con tesorería por debajo del colchón`, 4, neg.some((w) => w.st === 'stop') ? 5 : 3, 'Adelante cobros, negocie fechas de pago o amplíe la póliza antes de esas semanas.')] : []; }
   });
 
   /* =========================================================
@@ -553,12 +553,12 @@
     const ventaT = sum(MESES.map((_, m) => venta(m)));
     const tot = (g, m) => sum(lin.filter((l) => l.grupo === g).map((l) => S.num(getter(l, m))));
     const ebitda = (m) => tot('ventas', m) - tot('variable', m) - tot('personal', m) - tot('fijos', m);
-    const lineRow = (l) => { const t = sum(MESES.map((_, m) => S.num(getter(l, m)))); return `<tr><td class="pname">${opts.editNames ? `<input class="gcell txt" data-name="${l.id}" value="${esc(l.nombre)}">` : esc(l.nombre)}</td>${MESES.map((_, m) => `<td><input class="gcell" data-l="${l.id}" data-m="${m}" inputmode="decimal" value="${fmt0(getter(l, m))}" aria-label="${esc(l.nombre)} ${MESES_L[m]}"></td>`).join('')}<td><input class="gcell gtot" data-tot="${l.id}" value="${fmt0(t)}" title="Escribe un total anual y se reparte entre los meses" aria-label="${esc(l.nombre)} total anual"></td><td class="calc">${l.grupo === 'ventas' ? pctTxt(S.pct(t, ventaT)) + ' del total' : pctTxt(S.pct(t, ventaT))}</td>${opts.editNames ? `<td><button class="icon-btn" data-dell="${l.id}" aria-label="Quitar partida">×</button></td>` : ''}</tr>`; };
+    const lineRow = (l) => { const t = sum(MESES.map((_, m) => S.num(getter(l, m)))); return `<tr><td class="pname">${opts.editNames ? `<input class="gcell txt" data-name="${l.id}" value="${esc(l.nombre)}">` : esc(l.nombre)}</td>${MESES.map((_, m) => `<td><input class="gcell" data-l="${l.id}" data-m="${m}" inputmode="decimal" value="${fmt0(getter(l, m))}" aria-label="${esc(l.nombre)} ${MESES_L[m]}"></td>`).join('')}<td><input class="gcell gtot" data-tot="${l.id}" value="${fmt0(t)}" title="Escriba un total anual y se reparte entre los meses" aria-label="${esc(l.nombre)} total anual"></td><td class="calc">${l.grupo === 'ventas' ? pctTxt(S.pct(t, ventaT)) + ' del total' : pctTxt(S.pct(t, ventaT))}</td>${opts.editNames ? `<td><button class="icon-btn" data-dell="${l.id}" aria-label="Quitar partida">×</button></td>` : ''}</tr>`; };
     const totRow = (n, f, strong) => { const t = sum(MESES.map((_, m) => f(m))); return `<tr class="gsum${strong ? ' strong' : ''}"><td class="pname">${n}</td>${MESES.map((_, m) => `<td>${fmt0(f(m))}</td>`).join('')}<td>${fmt0(t)}</td><td>${pctTxt(S.pct(t, ventaT))}</td>${opts.editNames ? '<td></td>' : ''}</tr>`; };
     host.innerHTML = `<div class="etable table-wrap"><table class="bgrid"><thead><tr><th style="text-align:left">Partida</th>${MESES.map((m) => `<th>${m}</th>`).join('')}<th>Total año</th><th>% s/ventas</th>${opts.editNames ? '<th></th>' : ''}</tr></thead><tbody>
       ${Object.keys(GRUPOS).map((g) => `<tr class="ghead"><td colspan="${opts.editNames ? 16 : 15}">${GRUPOS[g]}${opts.editNames ? ` <button class="btn ghost" data-addl="${g}" style="padding:2px 8px;font-size:.7rem;margin-left:8px">+ partida</button>` : ''}</td></tr>${lin.filter((l) => l.grupo === g).map(lineRow).join('')}${totRow('Total ' + GRUPOS[g].toLowerCase(), (m) => tot(g, m))}${g === 'variable' ? totRow('Margen bruto', (m) => tot('ventas', m) - tot('variable', m)) : ''}`).join('')}
-      ${totRow('EBITDA', ebitda, true)}</tbody></table></div>
-      <p class="hint">Todas las casillas blancas se pueden escribir, incluido el total anual (se reparte entre los meses con el mismo patrón). Las filas sombreadas son totales y se calculan solas. Puedes pegar un bloque desde Excel en cualquier casilla.</p>`;
+      ${totRow('Beneficio antes de intereses e impuestos (EBITDA)', ebitda, true)}</tbody></table></div>
+      <p class="hint">Todas las casillas blancas se pueden escribir, incluido el total anual (se reparte entre los meses con el mismo patrón). Las filas sombreadas son totales y se calculan solas. Puede pegar un bloque desde Excel en cualquier casilla.</p>`;
     const L = (id) => lin.find((l) => l.id === id);
     $$('input[data-l]', host).forEach((inp) => {
       inp.addEventListener('change', () => { const v = inp.value.trim() === '' ? null : S.num(inp.value); setter(L(inp.dataset.l), +inp.dataset.m, v); opts.onChange(); });
@@ -594,45 +594,45 @@
       const conReal = meses.filter((m) => b.rows[m].has);
       const pL = (l, ms) => sum(ms.map((m) => l.meses[m])), rL = (l, ms) => sum(ms.map((m) => S.num((B.reales[l.nombre] || [])[m])));
       const vP = sum(V.lineas.filter((l) => l.grupo === 'ventas').map((l) => pL(l, conReal))), vR = sum(V.lineas.filter((l) => l.grupo === 'ventas').map((l) => rL(l, conReal)));
-      const devRow = (n, p, r, ingreso, cls) => { const d = r - p, dp = S.pct(d, Math.abs(p)); const good = ingreso ? d >= 0 : d <= 0; const st = Math.abs(dp) < 3 ? 'ok' : good ? 'ok' : Math.abs(dp) < 8 ? 'warn' : 'stop'; return `<tr class="${cls || ''}"><td class="pname">${n}</td><td>${F.eur(p)}</td><td>${conReal.length ? F.eur(r) : '—'}</td><td style="color:${conReal.length ? A.stateColor(st) : 'inherit'}">${conReal.length ? (d >= 0 ? '+' : '') + F.eur(d) : '—'}</td><td style="color:${conReal.length ? A.stateColor(st) : 'inherit'}">${conReal.length ? (dp >= 0 ? '+' : '') + pctTxt(dp) : '—'}</td><td>${pctTxt(S.pct(p, vP))}</td><td>${conReal.length ? pctTxt(S.pct(r, vR)) : '—'}</td><td>${conReal.length ? ((S.pct(r, vR) - S.pct(p, vP)) >= 0 ? '+' : '') + (Math.round((S.pct(r, vR) - S.pct(p, vP)) * 10) / 10).toLocaleString('es-ES') + ' pp' : '—'}</td></tr>`; };
+      const devRow = (n, p, r, ingreso, cls) => { const d = r - p, dp = S.pct(d, Math.abs(p)); const good = ingreso ? d >= 0 : d <= 0; const st = Math.abs(dp) < 3 ? 'ok' : good ? 'ok' : Math.abs(dp) < 8 ? 'warn' : 'stop'; return `<tr class="${cls || ''}"><td class="pname">${n}</td><td>${F.eur(p)}</td><td>${conReal.length ? F.eur(r) : '—'}</td><td style="color:${conReal.length ? A.stateColor(st) : 'inherit'}">${conReal.length ? (d >= 0 ? '+' : '') + F.eur(d) : '—'}</td><td style="color:${conReal.length ? A.stateColor(st) : 'inherit'}">${conReal.length ? (dp >= 0 ? '+' : '') + pctTxt(dp) : '—'}</td><td>${pctTxt(S.pct(p, vP))}</td><td>${conReal.length ? pctTxt(S.pct(r, vR)) : '—'}</td><td>${conReal.length ? ((S.pct(r, vR) - S.pct(p, vP)) >= 0 ? '+' : '') + (Math.round((S.pct(r, vR) - S.pct(p, vP)) * 10) / 10).toLocaleString('es-ES') + ' puntos' : '—'}</td></tr>`; };
       const grp = (g) => V.lineas.filter((l) => l.grupo === g);
       const gP = (g) => sum(grp(g).map((l) => pL(l, conReal))), gR = (g) => sum(grp(g).map((l) => rL(l, conReal)));
       const ebP = gP('ventas') - gP('variable') - gP('personal') - gP('fijos'), ebR = gR('ventas') - gR('variable') - gR('personal') - gR('fijos');
       const devTable = `<div class="table-wrap"><table class="bdev"><thead><tr><th style="text-align:left">Partida</th><th>Presupuesto</th><th>Real</th><th>Desviación €</th><th>Desviación %</th><th>% s/ventas ppto.</th><th>% s/ventas real</th><th>Diferencia de peso</th></tr></thead><tbody>
         ${Object.keys(GRUPOS).map((g) => `<tr class="ghead"><td colspan="8">${GRUPOS[g]}</td></tr>${grp(g).map((l) => devRow(esc(l.nombre), pL(l, conReal), rL(l, conReal), g === 'ventas')).join('')}${devRow('Total ' + GRUPOS[g].toLowerCase(), gP(g), gR(g), g === 'ventas', 'gsum')}`).join('')}
-        ${devRow('EBITDA', ebP, ebR, true, 'gsum strong')}</tbody></table></div>`;
+        ${devRow('Beneficio antes de intereses e impuestos (EBITDA)', ebP, ebR, true, 'gsum strong')}</tbody></table></div>`;
       const cmp = B.versiones.map((v) => { const t = (g) => sum(v.lineas.filter((l) => l.grupo === g).map((l) => sum(l.meses))); const ve = t('ventas'); return { v, ve, va: t('variable'), pe: t('personal'), fi: t('fijos'), eb: ve - t('variable') - t('personal') - t('fijos') }; });
-      host.innerHTML = `${S.section('Presupuesto y desviaciones', 'Genera propuestas de presupuesto con distintos métodos, ajústalas partida a partida y compáralas. Después introduce el real de cada mes y Atalaya mide la desviación en euros, en porcentaje y en peso sobre las ventas, por mes, trimestre o año, te dice a qué escenario se parece la realidad y proyecta el cierre.')}
-        ${B.ejemplo ? '<p class="small muted">Los reales son de ejemplo: sustitúyelos por los tuyos en la pestaña «Reales».</p>' : ''}
+      host.innerHTML = `${S.section('Presupuesto y desviaciones', 'Genere propuestas de presupuesto con distintos métodos, ajústelas partida a partida y compárelas. Después introduzca el real de cada mes y Atalaya mide la desviación en euros, en porcentaje y en peso sobre las ventas, por mes, trimestre o año, le dice a qué escenario se parece la realidad y proyecta el cierre.')}
+        ${B.ejemplo ? '<p class="small muted">Los reales son de ejemplo: sustitúyalos por los suyos en la pestaña «Reales».</p>' : ''}
         ${b.ratio == null ? S.kpiTiles([
-          { k: 'Ventas acumuladas', v: S.SIN_DATO, d: 'introduzca los reales de cada mes en la pestaña «Reales»' },
+          { k: 'Ventas acumuladas', info: 'Ventas acumuladas', v: S.SIN_DATO, d: 'introduzca los reales de cada mes en la pestaña «Reales»' },
           { k: 'EBITDA acumulado', v: S.SIN_DATO, info: 'EBITDA' },
-          { k: 'La realidad se parece a', v: S.SIN_DATO, d: 'sin meses con datos reales no hay comparación' },
+          { k: 'La realidad se parece a', info: 'La realidad se parece a', v: S.SIN_DATO, d: 'sin meses con datos reales no hay comparación' },
           { k: 'Presupuesto de ventas del año', v: F.eur(b.ventasAnual), d: esc(V.nombre), fijo: true }
         ]) : S.kpiTiles([
-          { k: 'Ventas acumuladas', v: F.eur(b.ytd('ventas', 'r')), d: `presupuesto ${F.eur(b.ytd('ventas', 'p'))} · ${pctTxt(S.pct(b.ytd('ventas', 'r') - b.ytd('ventas', 'p'), b.ytd('ventas', 'p')))}`, st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' },
+          { k: 'Ventas acumuladas', info: 'Ventas acumuladas', v: F.eur(b.ytd('ventas', 'r')), d: `presupuesto ${F.eur(b.ytd('ventas', 'p'))} · ${pctTxt(S.pct(b.ytd('ventas', 'r') - b.ytd('ventas', 'p'), b.ytd('ventas', 'p')))}`, st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' },
           { k: 'EBITDA acumulado', v: F.eur(b.ytd('ebitda', 'r')), d: `presupuesto ${F.eur(b.ytd('ebitda', 'p'))}`, st: b.ytd('ebitda', 'r') >= b.ytd('ebitda', 'p') * 0.95 ? 'ok' : 'warn', info: 'EBITDA' },
-          { k: 'La realidad se parece a', v: A.SCENARIOS.find((s) => s.key === b.escEq).nombre, d: `ventas al ${Math.round(b.ratio * 100)} % de lo previsto`, st: b.escEq === 'base' || b.escEq === 'optimista' ? 'ok' : b.escEq === 'pesimista' ? 'warn' : 'stop' },
-          { k: 'Cierre proyectado', v: F.eur(b.cierreVentas), d: `presupuesto ${F.eur(b.ventasAnual)}` }
+          { k: 'La realidad se parece a', info: 'La realidad se parece a', v: A.SCENARIOS.find((s) => s.key === b.escEq).nombre, d: `ventas al ${Math.round(b.ratio * 100)} % de lo previsto`, st: b.escEq === 'base' || b.escEq === 'optimista' ? 'ok' : b.escEq === 'pesimista' ? 'warn' : 'stop' },
+          { k: 'Cierre proyectado', info: 'Cierre proyectado', v: F.eur(b.cierreVentas), d: `presupuesto ${F.eur(b.ventasAnual)}` }
         ])}
         <div class="glass pad mt stack"><div class="row"><h4>Generar una propuesta de presupuesto</h4><span class="spacer"></span><span class="small muted">Cada propuesta se guarda como una versión</span></div>
           <div class="pmethods">${Object.keys(METODOS_P).map((k) => `<label class="pm ${prm.metodo === k ? 'on' : ''}"><input type="radio" name="pvMet" value="${k}" ${prm.metodo === k ? 'checked' : ''}><b>${METODOS_P[k].n}</b><small>${METODOS_P[k].d}</small></label>`).join('')}</div>
           <div class="lever-grid">
             ${prm.metodo === 'historico' ? `<label class="small">Crecimiento de ventas (%)<input class="input" id="pv_crecimiento" value="${prm.crecimiento === null ? '' : String(prm.crecimiento).replace('.', ',')}" placeholder="${String(S.sim.empresa.crecimiento).replace('.', ',')} (del simulador)"></label>` : ''}
-            ${prm.metodo === 'objetivo' ? `<label class="small">EBITDA objetivo (% sobre ventas)<input class="input" id="pv_ebitdaObj" value="${String(prm.ebitdaObj).replace('.', ',')}"></label>` : ''}
+            ${prm.metodo === 'objetivo' ? `<label class="small">Beneficio antes de intereses e impuestos (EBITDA) objetivo (% sobre ventas)<input class="input" id="pv_ebitdaObj" value="${String(prm.ebitdaObj).replace('.', ',')}"></label>` : ''}
             ${prm.metodo === 'escenario' ? `<label class="small">Escenario<select class="input" id="pv_escenario">${A.SCENARIOS.map((x) => `<option value="${x.key}" ${x.key === prm.escenario ? 'selected' : ''}>${x.nombre}</option>`).join('')}</select></label>` : ''}
             ${prm.metodo === 'historico' || prm.metodo === 'objetivo' ? `<label class="small">Inflación de gastos (%)<input class="input" id="pv_ipc" value="${String(prm.ipc).replace('.', ',')}" title="Previsión del Banco de España para 2026: 3,6 %"></label><label class="small">Revisión salarial (%)<input class="input" id="pv_salarios" value="${String(prm.salarios).replace('.', ',')}"></label>` : ''}
           </div>
           <div class="row"><button class="btn solid" id="pvGen">Generar propuesta</button><span class="small muted">Se añade como versión nueva; la actual no se pierde.</span></div></div>
 
         <div class="glass pad mt stack"><div class="row"><h4>Versiones</h4><span class="spacer"></span><label class="small">Versión de trabajo <select class="input" id="pvVer">${B.versiones.map((v) => `<option value="${v.id}" ${v.id === B.activa ? 'selected' : ''}>${esc(v.nombre)}</option>`).join('')}</select></label><button class="btn ghost" id="pvDup">Duplicar</button><button class="btn ghost" id="pvRen">Renombrar</button>${B.versiones.length > 1 ? '<button class="btn ghost" id="pvDel">Eliminar</button>' : ''}</div>
-          <div class="table-wrap"><table><thead><tr><th style="text-align:left">Versión</th><th>Ventas</th><th>Costes variables</th><th>Personal</th><th>Gastos fijos</th><th>EBITDA</th><th>% EBITDA</th></tr></thead><tbody>${cmp.map((c) => `<tr${c.v.id === B.activa ? ' style="background:rgba(201, 242, 77, .06)"' : ''}><td style="text-align:left;font-family:var(--font-body)">${c.v.id === B.activa ? '● ' : ''}${esc(c.v.nombre)}</td><td>${F.eur(c.ve)}</td><td>${F.eur(c.va)}</td><td>${F.eur(c.pe)}</td><td>${F.eur(c.fi)}</td><td>${F.eur(c.eb)}</td><td>${pctTxt(S.pct(c.eb, c.ve))}</td></tr>`).join('')}</tbody></table></div></div>
+          <div class="table-wrap"><table><thead><tr><th style="text-align:left">Versión</th><th>Ventas</th><th>Costes variables</th><th>Personal</th><th>Gastos fijos</th><th>Beneficio (EBITDA)</th><th>% sobre ventas</th></tr></thead><tbody>${cmp.map((c) => `<tr${c.v.id === B.activa ? ' style="background:rgba(201, 242, 77, .06)"' : ''}><td style="text-align:left;font-family:var(--font-body)">${c.v.id === B.activa ? '● ' : ''}${esc(c.v.nombre)}</td><td>${F.eur(c.ve)}</td><td>${F.eur(c.va)}</td><td>${F.eur(c.pe)}</td><td>${F.eur(c.fi)}</td><td>${F.eur(c.eb)}</td><td>${pctTxt(S.pct(c.eb, c.ve))}</td></tr>`).join('')}</tbody></table></div></div>
 
         <div class="row mt"><div class="seg" style="margin:0" id="pvTab">${[['ppto', 'Presupuesto'], ['real', 'Reales'], ['desv', 'Desviaciones']].map(([k, l]) => `<button data-t="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div><span class="spacer"></span>
           <button class="btn" id="pvSim">Llevar la desviación al escenario «Hipótesis» del simulador</button></div>
         ${tab === 'desv' ? `<div class="glass pad mt stack"><div class="row"><h4>Presupuesto frente a real</h4><span class="spacer"></span><label class="small">Periodo <select class="input" id="pvPer">${PER.map(([k, l]) => `<option value="${k}" ${k === periodo ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-            <p class="small muted">${conReal.length ? `Se comparan los meses con datos reales del periodo (${conReal.map((m) => MESES[m]).join(', ')}).` : 'Este periodo aún no tiene datos reales.'} «% s/ventas» es el peso de cada partida sobre las ventas; la diferencia de peso, en puntos (pp), enseña qué gasto ha crecido más que la venta.</p>${devTable}</div>
-          <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Ventas presupuestadas y reales</h4><div class="chart" id="pvChart"></div></div><div class="glass pad stack"><h4>EBITDA presupuestado y real</h4><div class="chart" id="pvChartE"></div></div></div>
+            <p class="small muted">${conReal.length ? `Se comparan los meses con datos reales del periodo (${conReal.map((m) => MESES[m]).join(', ')}).` : 'Este periodo aún no tiene datos reales.'} «% s/ventas» es el peso de cada partida sobre las ventas; la diferencia de peso, en puntos, enseña qué gasto ha crecido más que la venta.</p>${devTable}</div>
+          <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Ventas presupuestadas y reales</h4><div class="chart" id="pvChart"></div></div><div class="glass pad stack"><h4>Beneficio antes de intereses e impuestos (EBITDA) presupuestado y real</h4><div class="chart" id="pvChartE"></div></div></div>
           <p class="small muted">Los meses sin datos reales no se dibujan: no cuentan como cero.</p>`
         : `<div class="glass pad mt stack"><h4>${tab === 'ppto' ? 'Presupuesto · ' + esc(V.nombre) : 'Reales por partida y mes'}</h4><div id="pvGrid"></div></div>`}`;
       // Generador
@@ -643,10 +643,10 @@
       $('#pvVer', host).onchange = (e) => { B.activa = e.target.value; S.save(); S.rerender(); };
       $('#pvDup', host).onclick = () => { const c = A.clone(V); c.id = 'v' + Date.now().toString(36); c.nombre = V.nombre + ' (copia)'; c.lineas.forEach((l) => { l.id = uidP(); }); B.versiones.push(c); B.activa = c.id; S.save(); S.rerender(); };
       $('#pvRen', host).onclick = () => { const h = $('#pvRen', host); const inp = document.createElement('input'); inp.className = 'input'; inp.value = V.nombre; h.replaceWith(inp); inp.focus(); inp.onchange = () => { V.nombre = inp.value.trim() || V.nombre; S.save(); S.rerender(); }; };
-      const dl = $('#pvDel', host); if (dl) { let armed = false; dl.onclick = () => { if (!armed) { armed = true; dl.textContent = 'Pulsa otra vez para eliminar'; return; } B.versiones = B.versiones.filter((v) => v.id !== V.id); B.activa = B.versiones[0].id; S.save(); S.rerender(); }; }
+      const dl = $('#pvDel', host); if (dl) { let armed = false; dl.onclick = () => { if (!armed) { armed = true; dl.textContent = 'Pulse otra vez para eliminar'; return; } B.versiones = B.versiones.filter((v) => v.id !== V.id); B.activa = B.versiones[0].id; S.save(); S.rerender(); }; }
       $$('#pvTab button', host).forEach((bt) => bt.onclick = () => { host.dataset.tab = bt.dataset.t; S.rerender(); });
       const per = $('#pvPer', host); if (per) per.onchange = () => { host.dataset.periodo = per.value; S.rerender(); };
-      $('#pvSim', host).onclick = () => { if (b.ratio == null) { $('#pvSim', host).textContent = 'Primero introduzca los reales de algún mes'; return; } S.sim.custom.ventasF = Math.round(b.ratio * 100) / 100; S.sim.escenario = 'hipotesis'; S.saveSim(); $('#pvSim', host).textContent = 'Hecho: abre el simulador para verlo'; };
+      $('#pvSim', host).onclick = () => { if (b.ratio == null) { $('#pvSim', host).textContent = 'Primero introduzca los reales de algún mes'; return; } S.sim.custom.ventasF = Math.round(b.ratio * 100) / 100; S.sim.escenario = 'hipotesis'; S.saveSim(); $('#pvSim', host).textContent = 'Hecho: abra el simulador para verlo'; };
       if (tab === 'desv') {
         // Ventas y EBITDA en gráficos separados (escalas muy distintas); los meses sin real quedan en blanco
         S.vbars($('#pvChart', host), MESES, [{ n: 'Ventas presupuestadas', data: b.rows.map((x) => x.p.ventas), c: 'var(--s1)' }, { n: 'Ventas reales', data: b.rows.map((x) => (x.has ? S.num(x.r.ventas) : null)), c: 'var(--gold)' }], F.eur, { aria: 'Ventas presupuestadas y reales por mes', h: 200 });
@@ -658,7 +658,7 @@
     kpis() { const b = budget(); if (b.ratio == null) return [{ k: 'Ventas frente a presupuesto', v: S.SIN_DATO, st: null, sinDato: true }, { k: 'Escenario equivalente', v: S.SIN_DATO, st: null, sinDato: true }]; return [{ k: 'Ventas frente a presupuesto', v: Math.round(b.ratio * 100) + ' %', st: b.ratio >= 0.97 ? 'ok' : b.ratio >= 0.9 ? 'warn' : 'stop' }, { k: 'Escenario equivalente', v: A.SCENARIOS.find((s) => s.key === b.escEq).nombre }]; },
     risks() {
       const b = budget(), B = S.state.presupuesto, R = [];
-      if (b.ratio != null && b.ratio < 0.95) R.push(S.mkRisk('Las ventas reales van por debajo del presupuesto', 4, b.ratio < 0.85 ? 5 : 3, 'Revisa el plan comercial y lleva la desviación al simulador para ver el efecto en la inversión.'));
+      if (b.ratio != null && b.ratio < 0.95) R.push(S.mkRisk('Las ventas reales van por debajo del presupuesto', 4, b.ratio < 0.85 ? 5 : 3, 'Revise el plan comercial y lleve la desviación al simulador para ver el efecto en la inversión.'));
       const ms = b.done.map((x) => x.m);
       b.V.lineas.filter((l) => l.grupo !== 'ventas').forEach((l) => { const p = sum(ms.map((m) => l.meses[m])), r = sum(ms.map((m) => S.num((B.reales[l.nombre] || [])[m]))); if (p > 0 && r > p * 1.12 && r - p > 5000) R.push(S.mkRisk(`${l.nombre}: ${pctTxt(S.pct(r - p, p))} sobre presupuesto`, 3, r - p > 30000 ? 4 : 2, 'Analiza la causa de la desviación y corrige o actualiza el presupuesto.')); });
       return R;

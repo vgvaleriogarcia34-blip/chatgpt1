@@ -124,7 +124,7 @@
       let L = Array.from(by.values()).map((p) => { const o = old.get(p.nombre) || {}; return { nombre: p.nombre, compras: Math.round(p.compras), plazo: p.plazoP ? Math.round(p.plazoP / p.compras) : (o.plazo || S.sim.empresa.dpo || 60), alternativas: o.alternativas != null ? o.alternativas : 2, criticidad: o.criticidad != null ? o.criticidad : 3, calidad: o.calidad != null ? o.calidad : 4, puntualidad: o.puntualidad != null ? o.puntualidad : 95 }; });
       L = top(L, 'compras', 30, (r) => ({ nombre: `Resto de proveedores (${r.length})`, compras: r.reduce((a, p) => a + p.compras, 0), plazo: S.sim.empresa.dpo || 60, alternativas: 5, criticidad: 1, calidad: 4, puntualidad: 95 }));
       P.proveedores = L; P.ejemplo = false;
-      return { mods: TIPOS.compras.mods, txt: `${by.size} proveedores · ${F.eur(L.reduce((a, p) => a + p.compras, 0))} de compras. Revisa en Compras la criticidad y las alternativas de cada uno` };
+      return { mods: TIPOS.compras.mods, txt: `${by.size} proveedores · ${F.eur(L.reduce((a, p) => a + p.compras, 0))} de compras. Revise en Compras la criticidad y las alternativas de cada uno` };
     },
     productos(res) {
       const C = S.state.comercial, old = new Map((C.productos || []).map((p) => [p.nombre, p]));
@@ -233,7 +233,7 @@
       reg.cargas.push({ tipo: 'documentos', filas: 1, txt: `Documento de contexto${t.length ? ' · trata de ' + t.map((k) => (S.mod(k) || {}).nombre || k).join(', ') : ''}`, mods: t.length ? t : TIPOS.documentos.mods });
       hechas++;
     }
-    if (!hechas) { reg.estado = 'error'; reg.error = 'No he reconocido el contenido. Revisa que la primera fila tenga los nombres de las columnas.'; }
+    if (!hechas) { reg.estado = 'error'; reg.error = 'No se ha reconocido el contenido. Revise que la primera fila tenga los nombres de las columnas.'; }
     o.archivos = o.archivos.filter((a) => a.nombre !== file.name); o.archivos.unshift(reg); o.archivos = o.archivos.slice(0, 80);
     return reg;
   }
@@ -294,22 +294,22 @@
       host.innerHTML = `${S.section('Origen de datos', 'Suelta aquí toda la documentación en bruto: listados de ventas, compras, productos, clientes, plantilla, oportunidades, partes de horas, extractos del banco, balances y cuentas de resultados, informes de trabajo… Atalaya reconoce cada archivo y lo reparte solo a los módulos que lo usan (y al simulador, si son cuentas). Lo que no es una tabla se guarda como documento de contexto para los informes.')}
         <label class="or-drop glass" id="orDrop" for="orFile">
           <span class="or-orb" aria-hidden="true"><i></i><i></i><i></i></span>
-          <b>Arrastra aquí tus archivos</b><span class="small muted">o pulsa para elegirlos · Excel, CSV, PDF, Word, texto · varios a la vez</span>
+          <b>Arrastre aquí sus archivos</b><span class="small muted">o toque para elegirlos · Excel, CSV, PDF, Word, texto · varios a la vez</span>
           <input type="file" id="orFile" multiple hidden accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx,.json">
         </label>
         <p class="small" id="orMsg"></p>
-        ${last ? `<div class="glass pad stack"><h4>Lo que acabo de cargar</h4>${last.map(fila).join('')}</div>` : ''}
+        ${last ? `<div class="glass pad stack"><h4>Lo que se acaba de cargar</h4>${last.map(fila).join('')}</div>` : ''}
         ${S.kpiTiles([
           { k: 'Datos de los módulos', v: `${totOk}/${tot}`, st: totOk >= tot * 0.8 ? 'ok' : totOk >= tot * 0.4 ? 'warn' : 'stop', d: 'piezas de información aterrizadas' },
           { k: 'Archivos cargados', v: o.archivos.filter((a) => a.estado === 'ok').length, d: o.archivos.some((a) => a.estado === 'error') ? `${o.archivos.filter((a) => a.estado === 'error').length} sin reconocer` : 'todos reconocidos' },
           { k: 'Documentos de contexto', v: o.docs.length, d: 'informes, actas, estudios' },
           S.sim.historico && !S.sim.historico.ejemplo ? { k: 'Simulador', v: 'Con cuentas propias', st: 'ok', d: 'se actualiza al cargar cuentas' } : S.simConDatos() && !(A.simEsEjemplo && A.simEsEjemplo(S.sim)) ? { k: 'Simulador', v: 'Con cifras propias', st: 'ok', d: 'sin cuentas de varios años' } : S.real() || !S.simConDatos() ? { k: 'Simulador', v: S.SIN_DATO, d: 'cargue las cuentas de la empresa' } : { k: 'Simulador', v: 'Con datos de ejemplo', st: 'warn', d: 'se actualiza al cargar cuentas' }
         ])}
-        <div class="glass pad stack mt"><div class="row"><h4>Qué puedes cargar</h4></div>
+        <div class="glass pad stack mt"><div class="row"><h4>Qué puede cargar</h4></div>
           <div class="or-tipos">${Object.keys(TIPOS).map((k) => `<div class="or-tipo ${o.cargado[k] ? 'on' : ''}"><b>${esc(TIPOS[k].n)}</b><span class="small muted">${esc(TIPOS[k].d)}</span><span class="small">${o.cargado[k] ? `<span class="state st-ok">Cargado</span> ${esc(o.cargado[k].archivo)}` : `<span class="muted">Alimenta: ${TIPOS[k].mods.slice(0, 4).map((m) => esc((S.mod(m) || {}).nombre || m)).join(', ')}${TIPOS[k].mods.length > 4 ? '…' : ''}</span>`}</span></div>`).join('')}</div></div>
-        <div class="glass pad stack mt"><h4>Cobertura de cada módulo</h4><p class="small muted">Lo que cada módulo necesita para darte un diagnóstico real. Pulsa uno para ir a él: dentro te dice qué falta por aterrizar.</p>
+        <div class="glass pad stack mt"><h4>Cobertura de cada módulo</h4><p class="small muted">Lo que cada módulo necesita para darle un diagnóstico real. Pulse uno para ir a él: dentro se indica qué datos faltan.</p>
           <div class="or-cob">${cob.map((c) => `<button class="or-mod" data-go="${c.m.id}"><span class="row"><b>${esc(c.m.nombre)}</b><span class="spacer"></span><span class="state st-${c.pct >= 100 ? 'ok' : c.pct >= 50 ? 'warn' : 'stop'}">${c.ok}/${c.tot}</span></span><span class="or-bar"><i style="width:${c.pct}%"></i></span><span class="small muted">${c.faltan.length ? 'Falta: ' + esc(c.faltan.map((f) => f.t).join(' · ')) : 'Datos completos'}</span></button>`).join('')}</div></div>
-        <div class="glass pad stack mt"><h4>Archivos cargados</h4>${o.archivos.length ? o.archivos.map(fila).join('') : '<p class="small muted">Todavía no has cargado ningún archivo.</p>'}</div>
+        <div class="glass pad stack mt"><h4>Archivos cargados</h4>${o.archivos.length ? o.archivos.map(fila).join('') : '<p class="small muted">Todavía no ha cargado ningún archivo.</p>'}</div>
         ${o.docs.length ? `<div class="glass pad stack mt"><h4>Documentos de contexto</h4><p class="small muted">Se citan en los informes 360 de los módulos que tratan y sirven de contexto al asistente.</p>${o.docs.map((d, i) => `<details class="or-doc"><summary><b>${esc(d.nombre)}</b> <span class="small muted">· ${F.num(d.chars)} caracteres${d.temas.length ? ' · ' + d.temas.map((k) => esc((S.mod(k) || {}).nombre || k)).join(', ') : ''}</span> <button class="icon-btn" data-deldoc="${i}" aria-label="Quitar documento">×</button></summary><p class="small">${esc(d.texto.slice(0, 900))}${d.texto.length > 900 ? '…' : ''}</p></details>`).join('')}</div>` : ''}
         ${(S.state.inversores && (S.state.inversores.lista || []).length) ? `<div class="glass pad stack mt"><h4>Inversores (acreedores)</h4><p class="small muted">Aportan dinero a la empresa o a sus operaciones y cobran una rentabilidad o la devolución: son acreedores, no trabajadores. No tienen nómina ni cuentan en la plantilla ni en el coste de personal.</p><div class="table-wrap"><table><thead><tr><th style="text-align:left">Inversor</th><th>Aportación</th><th>Participación</th><th>Rentabilidad</th><th style="text-align:left">Operación</th><th style="text-align:left">Vencimiento</th></tr></thead><tbody>${S.state.inversores.lista.map((x) => `<tr><td style="text-align:left">${esc(x.nombre)}</td><td>${x.aportacion ? F.eur(x.aportacion) : '—'}</td><td>${x.participacion != null ? String(x.participacion).replace('.', ',') + ' %' : '—'}</td><td>${x.rentabilidad != null ? String(x.rentabilidad).replace('.', ',') + ' %' : '—'}</td><td style="text-align:left">${esc(x.operacion || '—')}</td><td style="text-align:left">${esc(x.vencimiento || '—')}</td></tr>`).join('')}</tbody></table></div></div>` : ''}`;
       const inp = $('#orFile', host), drop = $('#orDrop', host);

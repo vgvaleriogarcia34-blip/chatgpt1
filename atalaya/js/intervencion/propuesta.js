@@ -496,6 +496,46 @@
   const campo = (p, label, val, o) => `<label class="small ${o && o.cls ? o.cls : ''}">${label}${o && o.area ? `<textarea class="input" rows="${o.rows || 2}" data-p="${p}" placeholder="${esc((o && o.ph) || '')}">${esc(val)}</textarea>` : `<input class="input" ${o && o.type ? `type="${o.type}"` : ''} data-p="${p}" value="${esc(val)}" placeholder="${esc((o && o.ph) || '')}">`}</label>`;
   const lista = (p, arr, cols, add) => `<div class="pc-ed-l" data-l="${p}">${arr.map((x, i) => `<div class="pc-ed-r" style="grid-template-columns:${cols.map((c) => c.w || '1fr').join(' ')} auto">${cols.map((c) => c.area ? `<textarea class="input" rows="2" data-p="${p}.${i}.${c.k}" placeholder="${esc(c.ph)}">${esc(x[c.k])}</textarea>` : `<input class="input" data-p="${p}.${i}.${c.k}" value="${esc(x[c.k])}" placeholder="${esc(c.ph)}">`).join('')}<button class="icon-btn" data-ldel="${p}" data-i="${i}" aria-label="Quitar">×</button></div>`).join('')}<button class="btn ghost small" data-ladd="${p}">${add}</button></div>`;
   const NUEVO = { 'sit.items': { t: '', d: '', c: '' }, 'riesgo.linea': { cuando: '', que: '' }, 'riesgo.stats': { v: '', t: '', fuente: '' }, 'obtienen.items': { t: '', elimina: '', d: '' }, 'pasos.items': { t: '', d: '', cuando: '', quien: '', ent: '', imp: '' }, 'equipo.items': { n: '', rol: '', d: '', pasos: '' }, 'valor.filas': { k: '', sep: '', con: '' }, 'coste.riesgos': { r: '', q: '', imp: '' }, 'inv.hitos': { t: '', pct: '' }, 'inv.descuentos': { t: '', imp: '' }, 'inv.objetivos': { t: '', peso: '', accion: '', tramos: null } };
+  /* ---------- Plantillas de la firma: propuestas tipo y catálogo de honorarios ----------
+     Son de la firma, no de cada cliente: se guardan con la ficha de la firma, en la entrada principal del registro de
+     empresas (campo «plantillasFirma»), como A.firma en js/informe.js. Así sirven para todas las empresas de la cuenta.
+     · Plantilla de propuesta: la propuesta integral (modelo, textos, pasos, precio y forma de pago) y los honorarios,
+       duración y frecuencia de las propuestas de cada servicio, sin lo que es propio del cliente (sus problemas y objetivos).
+     · Catálogo de honorarios: conceptos con su importe y su unidad, para poner el precio con un clic. */
+  const CATALOGO_TIPO = [{ c: 'Servicio 1 · ¿Dónde está el dinero?', u: 'proyecto', s: 's1' }, { c: 'Servicio 2 · Auditoría integral 360', u: 'proyecto', s: 's2' }, { c: 'Servicio 3 · Acompañamiento por objetivos', u: 'mes', s: 's3' }, { c: 'Propuesta integral (llave en mano)', u: 'proyecto', s: 'integral' }, { c: 'Sesión suelta de seguimiento', u: 'sesión', s: '' }];
+  const UNIDAD = { proyecto: 'el proyecto', mes: 'al mes', 'sesión': 'por sesión', hora: 'por hora' };
+  const principalReg = () => { const Pl = P(); return Pl && Pl.empresas && Pl.empresas.lista ? Pl.empresas.lista().find((e) => e.id === 'principal') : null; };
+  const plantillasFirma = () => { const v = (principalReg() || {}).plantillasFirma || {}; return { propuestas: Array.isArray(v.propuestas) ? v.propuestas : [], honorarios: Array.isArray(v.honorarios) ? v.honorarios : CATALOGO_TIPO.map((x) => ({ id: uid(), concepto: x.c, importe: '', unidad: x.u, servicio: x.s })) }; };
+  const guardarPlantillas = async (v) => { try { await P().empresas.editar('principal', { plantillasFirma: v }); return true; } catch (x) { toast('No se pudo guardar en la ficha de la firma: ' + x.message); return false; } };
+  const honorarioTxt = (h) => `${eur(num(h.importe))} ${UNIDAD[h.unidad] || ''}`.trim();
+  // Lo propio del cliente no viaja en la plantilla
+  const PROPIO = ['generada', 'sit', 'subtitulo', 'fecha', 'cifra', 'dim', 'alcance', 'fusion', 'plantilla'];
+  const aPlantilla = (nombre) => { const ST = S(), pr = JSON.parse(JSON.stringify(ST.propuesta || {})), R = ST.recorrido || {}; PROPIO.forEach((k) => delete pr[k]); if (pr.inv) delete pr.inv.objetivos; if (pr.obtienen) pr.obtienen.items = []; if (pr.coste) ['vMin', 'vMax', 'valorEmpresa', 'supuestos'].forEach((k) => delete pr.coste[k]); if (pr.riesgo) delete pr.riesgo.linea; const sv = (k) => { const x = R[k] || {}; return { precio: x.precio || '', forma: x.forma || '', meses: x.meses || '', frecuencia: x.frecuencia || '' }; }; return { id: uid(), nombre, fecha: hoy(), tipo: pr.tipo || 'llave', propuesta: pr, propS2: sv('propS2'), propS3: sv('propS3') }; };
+  const aplicarPlantilla = (t) => {
+    const ST = S(); if (!ST.propuesta || !ST.propuesta.generada) preparar();
+    const pr = ST.propuesta, src = JSON.parse(JSON.stringify(t.propuesta || {}));
+    Object.keys(src).forEach((k) => { if (PROPIO.includes(k)) return; if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && pr[k] && typeof pr[k] === 'object') { if (k === 'obtienen') delete src[k].items; if (k === 'inv') delete src[k].objetivos; if (k === 'riesgo') delete src[k].linea; Object.assign(pr[k], src[k]); } else pr[k] = src[k]; });
+    const R = ST.recorrido || (ST.recorrido = {}); ['propS2', 'propS3'].forEach((k) => { const x = t[k] || {}; R[k] = R[k] || {}; Object.keys(x).forEach((y) => { if (x[y] !== '' && x[y] != null) R[k][y] = x[y]; }); });
+    pr.plantilla = { id: t.id, nombre: t.nombre, fecha: hoy() }; guardar();
+  };
+  V.plantillas = { leer: plantillasFirma, guardar: guardarPlantillas, aPlantilla, aplicar: aplicarPlantilla, honorarioTxt, UNIDAD };
+  const plantillasHTML = (pr) => { const T = plantillasFirma();
+    return `<section class="glass pad stack" id="pcPlant"><div class="row"><div><div class="eyebrow">Plantillas de la firma y catálogo de honorarios</div><small class="muted">De su firma, para todas las empresas de su cuenta: se guardan con la ficha de la firma.${pr.plantilla ? ` Esta propuesta parte de la plantilla «${esc(pr.plantilla.nombre)}».` : ''}</small></div></div>
+      <div class="iv-g3"><label class="small">Nombre de la plantilla<input class="input" id="pcPlN" placeholder="p. ej. Programa de 6 meses para industria"></label><div class="row" style="align-items:flex-end"><button class="btn small" id="pcPlG">Guardar esta propuesta como plantilla</button></div></div>
+      ${T.propuestas.length ? `<ul class="small pc-plist" style="margin:0;padding-left:18px">${T.propuestas.map((t, i) => `<li><b>${esc(t.nombre)}</b> <span class="muted">· ${t.tipo === 'programa' ? 'programa' : 'llave en mano'} · ${esc(fLarga(t.fecha))}</span> <button class="btn ghost small" data-pla="${i}">Aplicar</button><button class="btn ghost small" data-pld="${i}">Borrar</button></li>`).join('')}</ul>` : '<p class="small muted" style="margin:0">Todavía no hay plantillas: prepare una propuesta a su gusto y guárdela con un nombre.</p>'}
+      <div class="eyebrow" style="margin-top:6px">Catálogo de honorarios</div>
+      <div class="table-wrap"><table class="pc-hon"><thead><tr><th style="text-align:left">Concepto</th><th>Importe (€, sin IVA)</th><th>Unidad</th><th></th></tr></thead><tbody>${T.honorarios.map((h, i) => `<tr><td><input class="input" data-hk="concepto" data-hi="${i}" value="${esc(h.concepto)}"></td><td><input class="input" data-hk="importe" data-hi="${i}" value="${esc(h.importe)}" style="width:110px;text-align:right" placeholder="0"></td><td><select class="input" data-hk="unidad" data-hi="${i}">${Object.keys(UNIDAD).map((u) => `<option value="${u}" ${h.unidad === u ? 'selected' : ''}>${UNIDAD[u]}</option>`).join('')}</select></td><td style="white-space:nowrap">${num(h.importe) ? `<button class="btn ghost small" data-hu="${i}">Usar como precio</button>` : ''}<button class="icon-btn" data-hd="${i}" aria-label="Quitar">×</button></td></tr>`).join('')}</tbody></table></div>
+      <div class="row"><button class="btn ghost small" id="pcHonN">Añadir concepto</button></div></section>`; };
+  const wirePlantillas = (host, pr) => {
+    const T = plantillasFirma(), sv = () => guardarPlantillas({ propuestas: T.propuestas, honorarios: T.honorarios });
+    const g = $('#pcPlG', host); if (g) g.onclick = async () => { const n = ($('#pcPlN', host).value || '').trim() || 'Plantilla ' + (T.propuestas.length + 1); T.propuestas.push(aPlantilla(n)); if (await sv()) { toast(`Plantilla «${n}» guardada en la ficha de la firma.`); render(); } };
+    $$('[data-pla]', host).forEach((b) => (b.onclick = () => { const t = T.propuestas[+b.dataset.pla]; aplicarPlantilla(t); render(); toast(`Plantilla «${t.nombre}» aplicada: revise los textos y el precio.`); }));
+    $$('[data-pld]', host).forEach((b) => (b.onclick = async (e) => { if (!e.target.dataset.conf) { e.target.dataset.conf = 1; e.target.textContent = '¿Seguro?'; return; } T.propuestas.splice(+b.dataset.pld, 1); await sv(); render(); }));
+    $$('[data-hk]', host).forEach((i) => (i.onchange = async () => { T.honorarios[+i.dataset.hi][i.dataset.hk] = i.value; await sv(); if (i.dataset.hk !== 'concepto') render(); }));
+    $$('[data-hd]', host).forEach((b) => (b.onclick = async () => { T.honorarios.splice(+b.dataset.hd, 1); await sv(); render(); }));
+    $$('[data-hu]', host).forEach((b) => (b.onclick = () => { const h = T.honorarios[+b.dataset.hu]; pr.inv.precio = String(num(h.importe)); pr.inv.auto = false; guardar(); render(); toast(`Precio del catálogo aplicado: ${honorarioTxt(h)}.`); }));
+    const nn = $('#pcHonN', host); if (nn) nn.onclick = async () => { T.honorarios.push({ id: uid(), concepto: '', importe: '', unidad: 'proyecto', servicio: '' }); await sv(); render(); };
+  };
   let abierto = 'base';
   let estrechoG5 = false;
   VISTAS.propuesta = (host) => {
@@ -507,6 +547,8 @@
         <div class="row"><button class="btn solid" id="pcPrep">Preparar la propuesta desde la primera sesión</button><small class="muted">${pl((ST.objetivos || []).length, 'objetivo', 'objetivos')} · ${pl(causasOrdenadas().length, 'causa', 'causas')} · ${pl((ST.plan.acciones || []).length, 'acción del plan', 'acciones del plan')}</small></div></section>`;
       host.insertAdjacentHTML('beforeend', fuentesHTML());
       $('#pcPrep', host).onclick = () => { preparar(); render(); toast('Propuesta preparada: revisa el precio y los textos.'); };
+      const TP = plantillasFirma().propuestas;
+      if (TP.length) { $('#pcPrep', host).parentNode.insertAdjacentHTML('afterend', `<div class="row"><label class="small">O empezar desde una plantilla de su firma<select class="input" id="pcPlI">${TP.map((t, i) => `<option value="${i}">${esc(t.nombre)}</option>`).join('')}</select></label><button class="btn small" id="pcPlIGo">Preparar con esta plantilla</button></div>`); $('#pcPlIGo', host).onclick = () => { const t = TP[+$('#pcPlI', host).value]; aplicarPlantilla(t); render(); toast(`Propuesta preparada desde «${t.nombre}».`); }; }
       wireFuentes(host);
       return;
     }
@@ -541,11 +583,13 @@
           : `<div class="eyebrow">Pago por hitos</div>${lista('inv.hitos', pr.inv.hitos, [{ k: 't', ph: 'Momento' }, { k: 'pct', ph: '%', w: '80px' }], 'Añadir un hito')}${pr.inv.hitos.reduce((a, x) => a + num(x.pct), 0) !== 100 ? `<div class="alert warn small">Los hitos suman ${pr.inv.hitos.reduce((a, x) => a + num(x.pct), 0)} %: deben sumar 100 %.</div>` : ''}${campo('inv.notaHitos', 'Nota bajo la forma de pago', pr.inv.notaHitos, { area: true })}`)
           + `<div class="iv-g3">${campo('inv.incluye', 'Incluye (una línea por punto)', pr.inv.incluye, { area: true, rows: 4 })}${campo('inv.noIncluye', 'No incluye', pr.inv.noIncluye, { area: true, rows: 4 })}</div>`)}
       ${bloque('cierre', 'El siguiente paso y la firma', esc(pr.cierre.cta), `<div class="iv-g3">${campo('cierre.h1', 'Titular', pr.cierre.h1)}${campo('cierre.h2', 'Titular · en contorno', pr.cierre.h2)}${campo('cierre.cta', 'Llamada a la acción', pr.cierre.cta)}</div>${campo('cierre.texto', 'Texto', pr.cierre.texto, { area: true })}${campo('cierre.firmantes', 'Firman por la empresa (uno por línea)', pr.cierre.firmantes, { area: true })}`)}
+      ${plantillasHTML(pr)}
       ${bloque('firma', 'Ficha de tu firma', (String(f.nombre || '').trim() ? esc(f.nombre) : 'Sin nombre: los documentos llevan «Atalaya 360°»') + ' · para todas tus propuestas e informes, en todas tus empresas', `<p class="small muted" style="margin:0">Es la marca de los documentos que entregas: membrete, portada y pie de los informes, el libro corporativo y este dossier. Vale para todas las empresas de tu cuenta.</p><div class="iv-g3">${['nombre:Nombre comercial', 'lema:Lema', 'consultor:Consultor', 'cargo:Cargo', 'razon:Razón social', 'cif:CIF', 'direccion:Dirección', 'ciudad:Ciudad', 'email:Correo', 'tel:Teléfono o WhatsApp'].map((x) => { const [k, l] = x.split(':'); return `<label class="small">${l}<input class="input" data-f="${k}" value="${esc(f[k])}"></label>`; }).join('')}</div><label class="small">Descripción de la contraportada<textarea class="input" rows="2" data-f="descripcion">${esc(f.descripcion)}</textarea></label>${firmaMarcaHTML(f)}`)}`;
     // Eventos
     $('#pcVer', host).onclick = () => V.informes.propuesta();
     wireFuentes(host);
     wireDim(host, pr);
+    wirePlantillas(host, pr);
     $('#pcRe', host).onclick = (e) => { if (!e.target.dataset.conf) { e.target.dataset.conf = 1; e.target.textContent = '¿Seguro? Se rehace desde la sesión'; return; } const tipo = pr.tipo, inv = pr.inv, coste = pr.coste; ST.propuesta = null; preparar(); Object.assign(ST.propuesta, { tipo }); ST.propuesta.inv = Object.assign(inv, { objetivos: ST.propuesta.inv.objetivos }); ST.propuesta.coste = Object.assign(ST.propuesta.coste, { modo: coste.modo, vMin: coste.vMin, vMax: coste.vMax, pMin: coste.pMin, pMax: coste.pMax, valorEmpresa: coste.valorEmpresa, supuestos: coste.supuestos }); render(); };
     $$('[data-tipo]', host).forEach((b) => (b.onclick = () => { pr.tipo = b.dataset.tipo; if (pr.tipo === 'programa' && !pr.duracion) pr.duracion = '10 meses'; guardar(); render(); }));
     $$('[data-ab]', host).forEach((b) => (b.onclick = () => { abierto = abierto === b.dataset.ab ? '' : b.dataset.ab; render(); }));

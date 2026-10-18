@@ -1,0 +1,72 @@
+/* Atalaya 360° · Documento preparado para imprimir o guardar como PDF (js/informe.js · I.pdf)
+   El informe se copia a un marco oculto con esta hoja y se imprime con el navegador: el PDF lleva texto real,
+   seleccionable y buscable. Las reglas van bajo .pdf-print y valen en pantalla y en impresión, para que lo que se mide
+   al preparar el documento (tablas anchas) sea lo mismo que se imprime. La página (@page: A4, márgenes, membrete y
+   pie con la marca de la firma y el número de página) la escribe informe.js con los datos de cada documento. */
+html, body.pdf-print { margin: 0; padding: 0; background: #fff; }
+body.pdf-print { width: auto; min-height: 0; overflow: visible; }
+/* atalaya.css oculta al imprimir todo lo que no es el informe en pantalla: aquí el documento es lo único que hay */
+body.pdf-print > .pdf-sheet { display: block !important; }
+body.pdf-print *, body.pdf-print *::before, body.pdf-print *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; transition: none !important; }
+
+/* Papel: sin sombra ni marco, al ancho del área de impresión */
+.pdf-print .paper.rp { width: auto !important; max-width: none !important; margin: 0 !important; padding: 0 0 4mm; box-shadow: none !important; border-radius: 0 !important; overflow: visible !important; zoom: 1 !important; font-size: 10pt; line-height: 1.5; background: #fff; }
+.pdf-print .paper.rp > * { margin-left: 0 !important; margin-right: 0 !important; }
+.pdf-print .rp-cover { background: #f5f3ee; }
+.pdf-print .rp-brand, .pdf-print .rp-cover-body { padding-left: 8mm; padding-right: 8mm; }
+.pdf-print .paper.rp h1 { font-size: 26pt; }
+.pdf-print .paper.rp h2 { font-size: 15pt; margin-top: 7mm; }
+
+/* Saltos de página: los rótulos no se quedan solos al pie y los bloques no se parten */
+.pdf-print h1, .pdf-print h2, .pdf-print h3, .pdf-print h4, .pdf-print .rp-kicker, .pdf-print .lb-caph { break-after: avoid; page-break-after: avoid; }
+.pdf-print p { orphans: 3; widows: 3; }
+.pdf-print h2 + p, .pdf-print h3 + p, .pdf-print .rp-lede { break-after: avoid; page-break-after: avoid; }
+.pdf-print tr, .pdf-print li, .pdf-print svg, .pdf-print .chart, .pdf-print figure, .pdf-print .rp-kpi, .pdf-print .rp-callout, .pdf-print .rp-summary,
+.pdf-print .rp-bar, .pdf-print .pdf-keep, .pdf-print .cols > div, .pdf-print .rp-meta { break-inside: avoid; page-break-inside: avoid; }
+.pdf-print .rp-cover { break-after: avoid; }
+.pdf-print .rp-foot { break-before: avoid; page-break-before: avoid; break-inside: avoid; }
+
+/* Gráficos: escalados al ancho de la página y enteros en una hoja */
+.pdf-print .chart { width: 100% !important; max-width: 100%; }
+.pdf-print .chart svg { width: 100% !important; height: auto !important; max-height: 120mm; }
+.pdf-print svg { max-width: 100%; }
+.pdf-print .chart-legend button { pointer-events: none; }
+
+/* Tablas: nada de barras de desplazamiento (en papel cortan la tabla), cabecera repetida en cada hoja y filas enteras */
+.pdf-print .table-wrap, .pdf-print .rp-tw { overflow: visible !important; max-width: 100%; }
+.pdf-print .paper.rp table { width: 100%; font-size: 8.5pt; }
+.pdf-print .paper.rp thead { display: table-header-group; }
+.pdf-print .paper.rp th, .pdf-print .paper.rp td { padding: 4px 5px; }
+.pdf-print .paper.rp thead th { font-size: 0.86em; letter-spacing: 0.04em; white-space: normal; vertical-align: bottom; }
+/* Cifras y textos cortos de una celda, en una sola línea (marcadas al preparar el documento) */
+.pdf-print .paper.rp td.pdf-nw { white-space: nowrap; }
+/* Tabla que no cabe: letra menor y celdas que se envuelven (marcada al preparar el documento) */
+.pdf-print .paper.rp table.pdf-estrecha { font-size: 7.3pt; table-layout: auto; }
+.pdf-print .paper.rp table.pdf-estrecha th, .pdf-print .paper.rp table.pdf-estrecha td { padding: 3px 3px; white-space: normal; min-width: 0 !important; overflow-wrap: anywhere; }
+.pdf-print .paper.rp table.pdf-estrecha td.pdf-nw { white-space: nowrap; overflow-wrap: normal; }
+.pdf-print .paper.rp table.pdf-estrecha .rp-pill, .pdf-print .paper.rp table.pdf-estrecha .pill { overflow-wrap: normal; word-break: normal; }
+/* Tabla partida en dos bloques de columnas (la primera columna se repite en los dos) */
+.pdf-print .pdf-bloque + .pdf-bloque { margin-top: 3mm; }
+.pdf-print .pdf-bloque-t { display: block; font-size: 7.5pt; letter-spacing: 0.08em; text-transform: uppercase; color: #6e7d14; margin: 2mm 0 0; }
+
+/* Imágenes: nunca más anchas que la página */
+.pdf-print img { max-width: 100%; }
+
+/* Libro corporativo: cada sección y capítulo en hoja nueva; las hojas A4 de los informes paginados, encajadas */
+.pdf-print .paper.rp .lb-intro, .pdf-print .paper.rp .lb-indice { padding: 6mm 8mm 2mm; }
+.pdf-print .paper.rp .lb-caph { padding: 2mm 0; }
+.pdf-print .paper.rp .lb-secp { min-height: 240mm; padding: 40mm 12mm 20mm; box-sizing: border-box; }
+.pdf-print .paper.rp .lb-pp { width: 100% !important; height: auto !important; overflow: visible !important; break-inside: avoid; }
+.pdf-print .paper.rp .lb-pp > .pp-page { transform: none !important; zoom: 0.82; margin: 0 auto !important; box-shadow: none !important; }
+.pdf-print .lb-indice a { pointer-events: none; }
+
+/* Informes paginados (cada .pp-page es ya una hoja A4 con su cabecera): hoja a sangre, sin membrete añadido */
+.pdf-print .paper.rp.pp-doc { width: 210mm !important; padding: 0 !important; background: #fff; }
+.pdf-print .paper.rp.pp-doc > .pp-page { margin: 0 !important; box-shadow: none !important; }
+@media print {
+  .pdf-print .paper.rp.pp-doc > .pp-page { page: pp; width: 210mm; height: 296.6mm; break-after: page; break-inside: avoid; }
+  .pdf-print .paper.rp.pp-doc > .pp-page:last-child { break-after: auto; }
+}
+
+/* Lo que es de pantalla no va al papel */
+.pdf-print button, .pdf-print .btn, .pdf-print .icon-btn, .pdf-print .ci-add, .pdf-print .ci-del, .pdf-print .rj, .pdf-print .rj-host { display: none !important; }

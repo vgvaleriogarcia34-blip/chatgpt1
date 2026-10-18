@@ -49,9 +49,12 @@
   /* Datos de la empresa que vienen del simulador */
   S.empresa = () => S.sim.empresa;
   S.analysis = (esc) => A.analyze(S.sim, A.scenarioMods(S.sim, esc || S.sim.escenario || 'base'));
+  // Ventas y EBITDA de la fuente única (js/cifras.js), la misma que usan el simulador, el tablero, la auditoría y la cartera
+  S.cifras = () => (A.cifras ? A.cifras.desdeSim(S.sim, A.platform && A.platform.empresas && A.platform.empresas.activa ? A.platform.empresas.activa() : null) : null);
   S.baseYear = () => {
-    const e = S.sim.empresa;
-    return { ventas: e.ventas, costeVentas: e.ventas * (1 - e.margen / 100), personal: e.personal, fijos: e.fijos, ebitda: e.ventas * e.margen / 100 - e.personal - e.fijos };
+    const e = S.sim.empresa, c = S.cifras();
+    const ebitda = c && c.ebitda != null ? c.ebitda : e.ventas * e.margen / 100 - e.personal - e.fijos;
+    return { ventas: c && c.ventas != null ? c.ventas : e.ventas, costeVentas: e.ventas * (1 - e.margen / 100), personal: e.personal, fijos: e.fijos, ebitda };
   };
 
   /* ---------- Componentes ---------- */
@@ -83,7 +86,7 @@
         <button class="btn ghost" data-act="add">Añadir fila</button>
         <label class="btn ghost" for="${id}f">Importar documento</label><input type="file" id="${id}f" hidden accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.md,.pdf,.docx">
         <button class="btn ghost" data-act="paste">Pegar</button>${dictar ? '<button class="btn ghost" data-act="voice">Dictar</button>' : ''}</div>
-      <textarea class="input" data-paste hidden rows="4" style="width:100%" placeholder="Pega aquí filas copiadas de Excel con su cabecera"></textarea>
+      <textarea class="input" data-paste hidden rows="4" style="width:100%" placeholder="Pegue aquí filas copiadas de Excel con su cabecera"></textarea>
       <p class="small" data-msg></p>
       <div class="etable table-wrap"><table><thead>${head}</thead><tbody>${rows.map((r, i) => `<tr>${cols.map((c) => cell(c, r, i)).join('')}<td><button class="icon-btn" data-del="${i}" aria-label="Eliminar fila">×</button></td></tr>`).join('')}</tbody></table></div>`;
     const msg = (t, err) => { $('[data-msg]', host).innerHTML = `<span style="color:${err ? 'var(--stop)' : 'var(--go)'}">${esc(t)}</span>`; };
@@ -219,7 +222,7 @@
       <p>${esc(g.d)}</p>
       ${g.f ? `<h6>Cómo se calcula</h6><div class="formula" style="margin-top:2px;border:0;padding:0">${esc(g.f)}</div>` : ''}
       ${g.lee ? `<h6>Cómo se lee</h6>${Array.isArray(g.lee) ? list(g.lee) : `<p>${esc(g.lee)}</p>`}` : ''}
-      ${cur.valor ? `<div class="now"><b>Tu dato: ${esc(cur.valor)}</b>${cur.st ? ` · <span class="state st-${cur.st}">${stName[cur.st]}</span>` : ''}${cur.ctx ? `<p style="margin-top:6px">${esc(cur.ctx)}</p>` : ''}</div>` : ''}
+      ${cur.valor ? `<div class="now"><b>Su dato: ${esc(cur.valor)}</b>${cur.st ? ` · <span class="state st-${cur.st}">${stName[cur.st]}</span>` : ''}${cur.ctx ? `<p style="margin-top:6px">${esc(cur.ctx)}</p>` : ''}</div>` : ''}
       ${g.ej ? `<h6>Ejemplo</h6><p>${esc(g.ej)}</p>` : ''}
       ${g.mejora ? `<h6>Cómo mejorarlo</h6>${list(g.mejora)}` : ''}
       ${(g.dir && g.dir.length) || (g.ind && g.ind.length) ? `<h6>Qué lo mueve</h6><p>${g.dir && g.dir.length ? `Directas: ${vars(g.dir)}. ` : ''}${g.ind && g.ind.length ? `Indirectas: ${vars(g.ind)}.` : ''}</p>` : ''}`;
@@ -257,7 +260,7 @@
     }
     // Cuenta con datos reales: el módulo sin datos lo dice y pide la subida
     if (vacio) { const head = panel.querySelector('.st-head'), sim = m.datosSim; const av = `<div class="alert ${S.real() ? 'warn' : 'info'} st-pide st-sindatos"><b>Sin datos en este módulo.</b> ${S.real() ? 'Esta empresa trabaja con datos reales: aquí no hay datos de ejemplo. ' : ''}Los indicadores quedan «Sin datos» y no cuentan en la nota, en el DAFO ni en las prioridades hasta que haya datos propios. ${sim ? 'Cargue las cuentas en el <a href="app.html#empresa">simulador</a> o en <a href="#origen">Origen de datos</a>.' : 'Súbalos en <a href="#origen">Origen de datos</a> (Excel, CSV o PDF) o escríbalos en las tablas.'}</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
-    else if (id === 'tablero' && A.simEsEjemplo && S.sim && S.sim.sinDatos && !(S.sim.empresa && S.sim.empresa.ventas > 0)) panel.insertAdjacentHTML('afterbegin', '<div class="alert warn st-pide"><b>Faltan las cuentas de la empresa.</b> Esta empresa trabaja con datos reales y el simulador está a cero: sube el balance y la cuenta de resultados en <a href="#origen">Origen de datos</a> o en el <a href="app.html#empresa">simulador</a>.</div>');
+    else if (id === 'tablero' && A.simEsEjemplo && S.sim && S.sim.sinDatos && !(S.sim.empresa && S.sim.empresa.ventas > 0)) panel.insertAdjacentHTML('afterbegin', '<div class="alert warn st-pide"><b>Faltan las cuentas de la empresa.</b> Esta empresa trabaja con datos reales y el simulador está a cero: suba el balance y la cuenta de resultados en <a href="#origen">Origen de datos</a> o en el <a href="app.html#empresa">simulador</a>.</div>');
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
     // Al recalcular el mismo módulo se conserva la posición: solo se sube al cambiar de módulo
     if (keep) { const y = keep.y; scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
@@ -382,27 +385,27 @@
         titulo: '¿Funciona la empresa <em>como un sistema</em>, área a área?',
         lede: 'Veintiún módulos sobre los mismos datos: finanzas, clientes, operaciones y entorno. Cada indicador con su semáforo, cada riesgo con su nivel y cada mejora con lo que vale al año.',
         empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
-        datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]],
+        datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]].concat((() => { const c = S.cifras(); return c && !c.sinDatos ? A.cifras.CAMPOS.map((x) => [x.n, A.cifras.fmt(x.k, c[x.k])]) : []; })()),
         acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaEst && A.rutaEst.openMap() }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
         veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes).replace(/^s/, 'S') + '. ' : ''}${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo${nSD ? `, ${nSD} sin datos (no cuentan)` : ''} y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
           luces: k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
         kpis: [
-          { k: 'Nota del sistema estratégico', v: global === null ? 'Sin nota' : global + '/100', st: stS(global), d: global === null ? motivoSinNota : `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc == null ? 0 : x.sc, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
-          { k: 'Riesgos altos', v: String(R.filter((r) => r.estado === 'stop').length), st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados`, barras: R.slice(0, 16).map((r) => ({ n: r.nombre, v: r.nivel, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[r.estado] })) },
-          { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual`, barras: Fi.slice().sort((x, y) => (y.impactoEUR || 0) - (x.impactoEUR || 0)).slice(0, 12).map((f) => ({ n: f.hallazgo, v: f.impactoEUR || 0 })) },
-          { k: 'Veredicto de inversión', v: veredicto.titulo, d: veredicto.sd ? (S.simConDatos() ? 'defina la inversión en el simulador' : 'cargue las cuentas en el simulador') : 'del simulador · escenario ' + (S.sim.escenario || 'base'), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[veredicto.key] || null, fn: () => { location.href = 'app.html'; } }
+          { k: 'Nota del sistema estratégico', info: 'Nota del sistema estratégico', v: global === null ? 'Sin nota' : global + '/100', st: stS(global), d: global === null ? motivoSinNota : `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc == null ? 0 : x.sc, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
+          { k: 'Riesgos altos', info: 'Riesgos altos', v: String(R.filter((r) => r.estado === 'stop').length), st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados`, barras: R.slice(0, 16).map((r) => ({ n: r.nombre, v: r.nivel, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[r.estado] })) },
+          { k: 'Mejora identificada', info: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual`, barras: Fi.slice().sort((x, y) => (y.impactoEUR || 0) - (x.impactoEUR || 0)).slice(0, 12).map((f) => ({ n: f.hallazgo, v: f.impactoEUR || 0 })) },
+          { k: 'Veredicto de inversión', info: 'Veredicto de inversión', v: veredicto.titulo, d: veredicto.sd ? (S.simConDatos() ? 'defina la inversión en el simulador' : 'cargue las cuentas en el simulador') : 'del simulador · escenario ' + (S.sim.escenario || 'base'), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[veredicto.key] || null, fn: () => { location.href = 'app.html'; } }
         ]
       };
       host.innerHTML = `${A.heroMundo ? A.heroMundo.html(hc) : `<div class="eyebrow">Cuadro de mando</div><h2>La empresa <em>de un vistazo</em></h2>${S.kpiTiles([
           { k: 'Salud global', v: global === null ? '—' : global + '/100', st: global === null ? null : global >= 70 ? 'ok' : global >= 50 ? 'warn' : 'stop', d: `${k.filter((x) => x.st === 'stop').length} indicadores en rojo` },
-          { k: 'Riesgos altos', v: R.filter((r) => r.estado === 'stop').length, st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados` },
-          { k: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual` },
-          { k: 'Veredicto de inversión', v: veredicto.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base') }
+          { k: 'Riesgos altos', info: 'Riesgos altos', v: R.filter((r) => r.estado === 'stop').length, st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados` },
+          { k: 'Mejora identificada', info: 'Mejora identificada', v: F.eur(impacto), d: `${Fi.length} hallazgos con impacto anual` },
+          { k: 'Veredicto de inversión', info: 'Veredicto de inversión', v: veredicto.titulo, d: 'del simulador · escenario ' + (S.sim.escenario || 'base') }
         ])}`}
         <div class="glass pad stack mt" id="tbNota"><small class="muted">Calculando la nota de la empresa…</small></div>
         <div class="areas mt">${areas.map((a) => { const l = k.filter((x) => x.area === a); const sc = score(l); return `<button class="glass area" data-mod="${l[0].mod}"><div class="row"><b>${a}</b><span class="spacer"></span>${sc === null ? (l.every((x) => x.sinDato) ? '<span class="state st-nd">Sin datos</span>' : '') : `<span class="state st-${sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop'}">${sc}</span>`}</div>${l.slice(0, 4).map((x) => `<div class="arow"><span>${x.k}</span><b class="num">${x.v}</b>${x.st ? `<i class="dotc ${x.st}"></i>` : '<i></i>'}</div>`).join('')}</button>`; }).join('')}</div>
         <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Mapa de riesgos de todas las áreas</h4><div class="chart" id="tbRisk"></div></div><div class="glass pad stack"><h4>Riesgos principales</h4>${S.riskBlock(R.slice(0, S.N_RIESGOS), { num: true, total: R.length })}</div></div>
-        <div class="glass pad mt stack"><h4>Mayores oportunidades de mejora</h4>${Fi.length ? `<div class="table-wrap"><table><thead><tr><th>Área</th><th style="text-align:left">Hallazgo</th><th>Impacto anual</th><th style="text-align:left">Acción</th><th>Plazo</th></tr></thead><tbody>${Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0)).slice(0, 12).map((f) => `<tr><td>${esc(f.area)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.hallazgo)}</td><td>${F.eur(f.impactoEUR || 0)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.accion)}</td><td>${f.plazo} días</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Completa los módulos para ver oportunidades.</p>'}</div>`;
+        <div class="glass pad mt stack"><h4>Mayores oportunidades de mejora</h4>${Fi.length ? `<div class="table-wrap"><table><thead><tr><th>Área</th><th style="text-align:left">Hallazgo</th><th>Impacto anual</th><th style="text-align:left">Acción</th><th>Plazo</th></tr></thead><tbody>${Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0)).slice(0, 12).map((f) => `<tr><td>${esc(f.area)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.hallazgo)}</td><td>${F.eur(f.impactoEUR || 0)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(f.accion)}</td><td>${f.plazo} días</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Complete los módulos para ver oportunidades.</p>'}</div>`;
       if (A.nota && A.nota.calcular) A.nota.calcular().then((u) => { const el = host.querySelector('#tbNota'); if (!el || !u) return; const ks = Object.keys(u.mundos), f = (n) => (n == null ? '—' : String(n).replace('.', ','));
         el.innerHTML = `<div class="row"><h4>Cómo se calcula la nota</h4><span class="spacer"></span><span class="state st-${u.global == null ? '' : u.global >= 7 ? 'ok' : u.global >= 5 ? 'warn' : 'stop'}">Empresa ${f(u.global)}/10 · ${u.global == null ? '—' : Math.round(u.global * 10)}/100</span></div>
           <p class="small" style="margin:0">${esc(A.nota.regla ? A.nota.regla(u.global == null ? null : Math.round(u.global * 10)) : A.nota.REGLA)}</p>
@@ -493,7 +496,7 @@
       // Plan Esencial: solo simulador. El sistema estratégico se explica y se ofrece, sin abrirlo
       if (P.puede && !P.puede('estrategia')) {
         $('#stTabs').innerHTML = '';
-        $('#stPanel').innerHTML = `<div class="glass pad stack" style="max-width:720px;margin:40px auto"><div class="eyebrow">Sistema estratégico</div><h2>Incluido desde el plan <em>Profesional</em></h2><p>Tu plan Esencial incluye el simulador de inversión. El sistema estratégico añade 21 módulos de diagnóstico (cuadro de mando, flujo del dinero, cobros, márgenes, compras, personas, valoración, evolución…), la zona de origen de datos y los informes 360.</p><div class="row"><button class="btn solid" id="stPlanes">Cambiar de plan</button><a class="btn" href="app.html">Ir al simulador</a></div></div>`;
+        $('#stPanel').innerHTML = `<div class="glass pad stack" style="max-width:720px;margin:40px auto"><div class="eyebrow">Sistema estratégico</div><h2>Incluido desde el plan <em>Profesional</em></h2><p>Su plan Esencial incluye el simulador de inversión. El sistema estratégico añade 21 módulos de diagnóstico (cuadro de mando, flujo del dinero, cobros, márgenes, compras, personas, valoración, evolución…), la zona de origen de datos y los informes 360.</p><div class="row"><button class="btn solid" id="stPlanes">Cambiar de plan</button><a class="btn" href="app.html">Ir al simulador</a></div></div>`;
         $('#stPlanes').onclick = () => P.panelPlanes({ destacar: 'profesional' });
         return;
       }

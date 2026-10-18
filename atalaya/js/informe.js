@@ -131,95 +131,139 @@
     return c.innerHTML;
   };
 
-  /* ---------- Descarga en PDF con el mismo estilo ----------
-     Se copia el documento a un lienzo fuera de pantalla con ancho de A4 y se pasa a PDF (html2pdf).
-     Cada página lleva el membrete (la firma del consultor o Atalaya 360°), el título y el número de página.
-     Los informes paginados (cada .pp-page es ya una hoja A4 con su cabecera) se pasan hoja a hoja. */
-  const H2P = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-  let cargando = null;
-  const cargar = () => cargando || (cargando = new Promise((ok, ko) => { if (window.html2pdf) return ok(); const sc = document.createElement('script'); sc.src = H2P; sc.onload = () => ok(); sc.onerror = () => { cargando = null; ko(new Error('No se pudo cargar el generador de PDF')); }; document.head.appendChild(sc); }));
+  /* ---------- PDF con texto: impresión del navegador ----------
+     El documento se copia a un marco oculto con css/print.css y se imprime con el navegador («Guardar como PDF»).
+     Así el PDF lleva texto real (se puede seleccionar, buscar y copiar), los gráficos siguen siendo vectoriales y pesa
+     poco. Antes se pintaba cada página como una imagen (html2pdf): texto no seleccionable, tablas anchas cortadas y
+     libros de decenas de megas. La página la pone el CSS: A4, márgenes, membrete en cada hoja (logotipo y nombre de la
+     firma o Atalaya 360°, con el título) y pie (marca, fecha, «Documento confidencial», «Elaborado con Atalaya 360°» y
+     número de página). Los informes paginados (cada .pp-page es ya una hoja A4 con su cabecera) se imprimen a sangre.
+     Antes de imprimir se ajustan las tablas anchas a la página (letra menor o, si no basta, en dos bloques de columnas)
+     y se aligeran las imágenes grandes. */
   const slug = (t) => String(t || 'informe').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 70);
-  /* Documentos largos (el libro corporativo): el navegador no puede pintar más de unos 16.000 px de alto en un solo
-     lienzo, así que se parten en trozos que empiezan en página nueva (secciones, capítulos, hojas) o, si un
-     capítulo es muy largo, por sus partes. Cada trozo se pinta aparte y se añade al mismo PDF. */
-  const MAXT = 9000;
-  const partir = (doc) => {
-    const out = []; let cur = null, h = 0;
-    const nuevo = () => { cur = document.createElement('div'); cur.className = doc.className + ' pdf-trozo'; doc.parentNode.appendChild(cur); out.push(cur); h = 0; };
-    // Un rótulo suelto (menos de 120 px) se queda con lo que le sigue, aunque empiece página
-    const meter = (el, alto, corte) => { if (!cur || (h > 0 && ((corte && h > 120) || h + alto > MAXT))) nuevo(); cur.appendChild(el); h += alto; };
-    const CORTE = '.lb-secp, .lb-cap, .lb-pp';
-    const repartir = (el) => {
-      const alto = el.offsetHeight, corte = el.matches(CORTE);
-      if (alto <= MAXT || el.children.length < 2) { meter(el, alto, corte); return; }
-      // Se reparte por sus partes, cada una dentro de una copia vacía de su envoltorio (conserva las clases)
-      Array.from(el.children).map((x) => [x, x.offsetHeight]).forEach(([x, ah], i) => {
-        const env = el.cloneNode(false); env.removeAttribute('id'); env.appendChild(x);
-        if (ah > MAXT && x.children.length > 1) { const tmp = document.createElement('div'); tmp.className = 'pdf-tmp'; doc.appendChild(tmp); tmp.appendChild(env); repartir(env); tmp.remove(); return; }
-        meter(env, ah, (i === 0 && corte) || x.matches(CORTE));
+  const MM = 96 / 25.4, ANCHO = Math.floor((210 - 2 * 12) * MM); // ancho útil de la hoja A4 con 12 mm de margen (px)
+  const cssTxt = (t) => '"' + String(t == null ? '' : t).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ') + '"';
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Imagen a un tamaño razonable: el logotipo, a 4 veces su alto en el membrete; las demás, como mucho 1600 px de lado
+  const cargarImg = (src) => new Promise((ok) => { const im = new Image(); im.onload = () => ok(im.naturalWidth ? im : null); im.onerror = () => ok(null); im.src = src; });
+  const reducir = async (src, maxW, maxH, peso) => {
+    const im = await cargarImg(src); if (!im) return { src, w: 0, h: 0 };
+    const w0 = im.naturalWidth, h0 = im.naturalHeight, k = Math.min(1, maxW / w0, maxH / h0);
+    if (k >= 1 && src.length < (peso || 2e5)) return { src, w: w0, h: h0 };
+    const w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+    try {
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d'); g.drawImage(im, 0, 0, w, h);
+      const png = /^data:image\/png/.test(src) && g.getImageData(0, 0, w, h).data.some((v, i) => i % 4 === 3 && v < 250); // con transparencias se queda en PNG
+      const out = cv.toDataURL(png ? 'image/png' : 'image/jpeg', 0.86);
+      return out.length < src.length ? { src: out, w, h } : { src, w: w0, h: h0 };
+    } catch (e) { return { src, w: w0, h: h0 }; }
+  };
+  // La hoja: A4, márgenes, membrete y pie con la marca de la firma (todo como texto del PDF)
+  const hojaCss = (titulo, logo) => {
+    const F = A.firma(), c = F.color || '#55610f', elab = I.elaborado();
+    const marca = (F.propia ? F.nombre : AT).toUpperCase().slice(0, 50);
+    const img = logo && logo.h ? `image-set(url(${cssTxt(logo.src)}) ${Math.max(1, logo.h / 26).toFixed(2)}x) "  " ` : '';
+    const fuera = '@top-left { content: none; } @top-right { content: none; } @bottom-left { content: none; } @bottom-right { content: none; }';
+    return `@page { size: A4; margin: 17mm 12mm 15mm;
+  @top-left { content: ${img}${cssTxt(marca)}; font: 700 8pt Archivo, 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; color: ${c}; vertical-align: middle; }
+  @top-right { content: ${cssTxt(String(titulo).slice(0, 90))}; font: 400 7.5pt 'Libre Franklin', Arial, sans-serif; color: #5d626c; vertical-align: middle; text-align: right; }
+  @bottom-left { content: ${cssTxt(F.nombre + ' · ' + I.fecha() + ' · Documento confidencial' + (elab ? ' · ' + elab : ''))}; font: 400 7pt 'Libre Franklin', Arial, sans-serif; color: #6e7480; border-top: 0.3mm solid ${c}; vertical-align: top; padding-top: 2mm; }
+  @bottom-right { content: counter(page) " / " counter(pages); font: 600 7pt 'IBM Plex Mono', monospace; color: #6e7480; border-top: 0.3mm solid ${c}; vertical-align: top; padding-top: 2mm; text-align: right; }
+}
+@page :first { @top-left { content: none; } @top-right { content: none; } }
+@page pp { margin: 0; ${fuera} }`;
+  };
+  /* Tablas que no caben en el ancho de la hoja: primero letra menor y celdas que se envuelven; si aun así no caben,
+     se parten en dos (o más) bloques de columnas que repiten la primera. Las tablas cortas no se parten entre hojas. */
+  const ajustarTablas = (doc, ancho) => {
+    doc.querySelectorAll('table').forEach((t) => {
+      if (t.closest('.pp-page')) return;
+      const filas = t.rows.length;
+      if (filas <= 16) t.classList.add('pdf-keep');
+      t.querySelectorAll('td').forEach((c) => { const x = c.textContent.trim(); if (x.length <= 14 && !c.querySelector('.rp-pill, .pill')) c.classList.add('pdf-nw'); });
+      const cabe = () => t.offsetWidth <= ancho + 1;
+      if (cabe()) return;
+      t.classList.add('pdf-estrecha');
+      if (cabe() || t.querySelector('[colspan], [rowspan]')) return;
+      const n = t.rows[0] ? t.rows[0].cells.length : 0; if (n < 4) return;
+      const anchos = Array.from(t.rows[0].cells).map((c) => c.getBoundingClientRect().width), primera = anchos[0];
+      // Grupos de columnas que caben junto a la primera
+      const grupos = []; let g = [], w = primera;
+      for (let i = 1; i < n; i++) { if (g.length && w + anchos[i] > ancho * 0.97) { grupos.push(g); g = []; w = primera; } g.push(i); w += anchos[i]; }
+      if (g.length) grupos.push(g);
+      if (grupos.length < 2) return;
+      const caja = t.parentElement && /\b(rp-tw|table-wrap)\b/.test(t.parentElement.className) ? t.parentElement : t;
+      const frag = document.createDocumentFragment();
+      grupos.forEach((cols, k) => {
+        const c = t.cloneNode(true); c.classList.add('pdf-keep');
+        Array.from(c.rows).forEach((r) => { for (let i = r.cells.length - 1; i > 0; i--) if (cols.indexOf(i) < 0) r.deleteCell(i); });
+        const env = caja === t ? document.createElement('div') : caja.cloneNode(false); env.classList.add('pdf-bloque'); env.removeAttribute('id');
+        const tt = document.createElement('span'); tt.className = 'pdf-bloque-t'; tt.textContent = `Columnas ${k + 1} de ${grupos.length}`;
+        env.appendChild(tt); env.appendChild(c); frag.appendChild(env);
       });
-    };
-    Array.from(doc.children).map((x) => x).forEach(repartir);
-    doc.remove();
-    return out;
+      caja.replaceWith(frag);
+    });
+  };
+  /* Prepara el documento para imprimir y devuelve el marco con él cargado. o: { titulo, paginado } */
+  I.pdfMarco = async (paper, o) => {
+    o = o || {};
+    const doc = paper.cloneNode(true); doc.removeAttribute('id'); doc.style.zoom = ''; doc.style.width = ''; doc.classList.remove('pdf-doc');
+    const pag = !!(o.paginado || doc.querySelector(':scope > .pp-page'));
+    if (pag) doc.classList.add('pp-doc');
+    doc.querySelectorAll('button, .ci-add, .ci-del, script').forEach((x) => x.remove());
+    // Los campos del cuaderno se imprimen como texto
+    doc.querySelectorAll('textarea, input, select').forEach((i) => { const v = i.tagName === 'SELECT' ? (i.options[i.selectedIndex] || {}).text : i.type === 'checkbox' ? (i.checked ? '☑' : '☐') : i.value; const t = document.createElement(i.tagName === 'TEXTAREA' ? 'div' : 'span'); t.className = 'pdf-campo'; t.textContent = v || (i.type === 'checkbox' ? '' : '—'); i.replaceWith(t); });
+    // Imágenes: el logotipo de la firma, una sola vez y a su tamaño; las fotos grandes, aligeradas
+    const F = A.firma(), memo = {};
+    const logo = F.logo ? await reducir(F.logo, 600, 104, 6e4) : null;
+    if (logo) memo[F.logo] = logo.src;
+    for (const im of Array.from(doc.querySelectorAll('img[src^="data:"]'))) {
+      const s = im.getAttribute('src');
+      if (!(s in memo)) memo[s] = s.length > 2e5 ? (await reducir(s, 1600, 1600)).src : s;
+      if (memo[s] !== s) im.setAttribute('src', memo[s]);
+    }
+    // Hojas de estilo de la página, la de impresión y la de la hoja
+    const estilos = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map((x) => x.outerHTML).join('\n');
+    const titulo = o.titulo || 'Informe';
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><base href="${esc(document.baseURI)}"><title>${esc(slug(titulo))}</title>
+${estilos}
+<link rel="stylesheet" href="css/print.css">
+<style id="pdfHoja">${hojaCss(titulo, logo)}</style></head><body class="pdf-print"><div class="pdf-sheet"></div></body></html>`;
+    document.querySelectorAll('iframe.pdf-marco').forEach((x) => x.remove());
+    const fr = document.createElement('iframe'); fr.className = 'pdf-marco'; fr.setAttribute('aria-hidden', 'true'); fr.tabIndex = -1;
+    fr.style.cssText = `position:fixed;left:-20000px;top:0;width:${pag ? 794 : ANCHO}px;height:1200px;border:0;opacity:0;pointer-events:none`;
+    document.body.appendChild(fr);
+    await new Promise((ok) => { fr.onload = ok; fr.srcdoc = html; });
+    const d = fr.contentDocument;
+    d.querySelector('.pdf-sheet').appendChild(d.importNode(doc, true));
+    // Hojas de estilo, fuentes e imágenes cargadas antes de medir y de imprimir
+    await Promise.all(Array.from(d.querySelectorAll('link[rel="stylesheet"]')).map((l) => (l.sheet ? 0 : new Promise((ok) => { l.onload = l.onerror = ok; setTimeout(ok, 4000); }))));
+    if (d.fonts && d.fonts.ready) await Promise.race([d.fonts.ready, esperar(4000)]);
+    await Promise.all(Array.from(d.images).map((im) => (im.complete ? 0 : new Promise((ok) => { im.onload = im.onerror = ok; setTimeout(ok, 4000); }))));
+    if (!pag) ajustarTablas(d.querySelector('.paper'), ANCHO);
+    return fr;
+  };
+  // Aviso con los pasos para guardar el PDF, encima del documento en pantalla
+  const aviso = (paper) => {
+    const ov = paper && paper.closest('.report-overlay'); if (!ov) return;
+    let h = ov.querySelector('.rp-hint.pdf-aviso');
+    if (!h) { h = document.createElement('p'); h.className = 'rp-hint pdf-aviso'; h.setAttribute('role', 'status'); paper.parentNode.insertBefore(h, paper); }
+    h.innerHTML = 'Se abre la ventana de impresión del navegador. En <b>Destino</b> elija <b>Guardar como PDF</b> y pulse <b>Guardar</b>. Si arriba o abajo aparecen la dirección web o la fecha del navegador, desmarque <b>Encabezados y pies de página</b> en «Más ajustes». El PDF lleva el texto real: se puede buscar y copiar.';
   };
   I.pdf = async (paper, o) => {
     o = o || {};
     const b = o.boton, t0 = b && b.textContent;
     if (b) { b.disabled = true; b.textContent = 'Preparando PDF…'; }
-    const host = document.createElement('div'); host.className = 'pdf-host';
-    const doc = paper.cloneNode(true); doc.removeAttribute('id'); doc.classList.add('pdf-doc'); doc.style.zoom = '';
-    if (o.paginado || doc.querySelector(':scope > .pp-page')) doc.classList.add('pdf-pag');
-    doc.querySelectorAll('button, .ci-add, .ci-del').forEach((x) => x.remove());
-    // Los campos del cuaderno se imprimen como texto
-    doc.querySelectorAll('textarea, input, select').forEach((i) => { const v = i.tagName === 'SELECT' ? (i.options[i.selectedIndex] || {}).text : i.type === 'checkbox' ? (i.checked ? '☑' : '☐') : i.value; const t = document.createElement(i.tagName === 'TEXTAREA' ? 'div' : 'span'); t.className = 'pdf-campo'; t.textContent = v || (i.type === 'checkbox' ? '' : '—'); i.replaceWith(t); });
-    host.appendChild(doc); document.body.appendChild(host);
     try {
-      await cargar();
-      if (document.fonts && document.fonts.ready) await document.fonts.ready;
-      const pag = doc.classList.contains('pdf-pag');
-      const titulo = o.titulo || 'Informe';
-      const opt = {
-        margin: pag ? 0 : [17, 0, 15, 0], filename: slug(titulo) + '.pdf',
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#f5f3ee', scrollX: 0, scrollY: 0 },
-        jsPDF: pag ? { unit: 'px', format: [794, 1123], orientation: 'portrait', hotfixes: ['px_scaling'] } : { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: pag ? { mode: [] } : { mode: ['css', 'legacy'], avoid: ['tr', 'h2', 'h3', '.rp-kpi', '.rp-callout', '.rp-summary', '.rp-bar', 'svg', '.pdf-keep', 'li'] }
-      };
-      let w;
-      const trozos = !pag && doc.offsetHeight > MAXT * 1.4 ? partir(doc) : null;
-      if (trozos && trozos.length > 1) {
-        if (b) b.textContent = `Preparando PDF… (0 de ${trozos.length})`;
-        w = window.html2pdf().set(opt).from(trozos[0]).toPdf();
-        trozos.slice(1).forEach((el, i) => { w = w.get('pdf').then((pd) => { pd.addPage(); if (b) b.textContent = `Preparando PDF… (${i + 1} de ${trozos.length})`; }).from(el).toContainer().toCanvas().toPdf(); });
-      } else w = window.html2pdf().set(opt).from(doc).toPdf();
-      const pdf = await w.get('pdf');
-      const n = pdf.internal.getNumberOfPages();
-      // Marca de la cabecera y del pie: la firma (con su logotipo) o Atalaya 360°
-      const F = A.firma(), marcaPdf = F.propia ? F.nombre.toUpperCase() : 'ATALAYA 360°', elab = I.elaborado();
-      const lg = !pag && F.logo ? await new Promise((ok) => { const im = new Image(); im.onload = () => ok(im.naturalWidth && im.naturalHeight ? { w: Math.min(28, (7 * im.naturalWidth) / im.naturalHeight), h: 7 } : null); im.onerror = () => ok(null); im.src = F.logo; }) : null;
-      for (let i = 1; i <= n; i++) {
-        pdf.setPage(i);
-        if (!pag) { pdf.setFillColor(245, 243, 238); pdf.rect(0, 0, 210, 17, 'F'); pdf.rect(0, 282, 210, 15, 'F'); }
-        if (!pag && i > 1) {
-          pdf.setFillColor(5, 6, 10); pdf.rect(0, 0, 210, 11, 'F');
-          let x0 = 10;
-          if (lg) { try { pdf.setFillColor(255, 255, 255); pdf.rect(9, 1.5, lg.w + 2, lg.h + 1, 'F'); pdf.addImage(F.logo, /^data:image\/png/.test(F.logo) ? 'PNG' : /webp/.test(F.logo) ? 'WEBP' : 'JPEG', 10, 2, lg.w, lg.h); x0 = 14 + lg.w; } catch (x) { x0 = 10; } }
-          pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(201, 242, 77); pdf.text(marcaPdf.slice(0, 50), x0, 7);
-          pdf.setFont('helvetica', 'normal'); pdf.setTextColor(200, 196, 182); pdf.text(String(titulo).slice(0, 80), 200, 7, { align: 'right' });
-        }
-        if (!pag) {
-          pdf.setDrawColor(110, 125, 20); pdf.setLineWidth(0.4); pdf.line(10, 284, 200, 284);
-          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(110, 116, 128);
-          pdf.text(F.nombre + ' · ' + I.fecha() + ' · Documento confidencial' + (elab ? ' · ' + elab : ''), 10, 289);
-          pdf.text(`${i} / ${n}`, 200, 289, { align: 'right' });
-        }
-      }
-      try { await w.save(); } catch (x) { window.open(pdf.output('bloburl'), '_blank'); }
+      aviso(paper);
+      const fr = await I.pdfMarco(paper, o), w = fr.contentWindow;
+      if (b) { b.disabled = false; b.textContent = t0; }
+      const quitar = () => setTimeout(() => fr.remove(), 1000);
+      w.addEventListener('afterprint', quitar);
+      w.focus(); w.print();
     } catch (e) {
-      alert((e && e.message) || 'No se pudo generar el PDF.');
+      alert('No se pudo preparar el PDF: ' + ((e && e.message) || 'error') + '. Puede usar «Imprimir» del navegador con el informe abierto.');
     } finally {
-      host.remove();
       if (b) { b.disabled = false; b.textContent = t0; }
     }
   };
@@ -237,7 +281,7 @@
     const close = () => { ov.hidden = true; document.body.style.overflow = ''; if (o.onClose) o.onClose(); };
     ov.querySelector('#rpClose').onclick = close;
     ov.onkeydown = (e) => { if (e.key === 'Escape') close(); };
-    const pr = ov.querySelector('#rpPrint'); if (pr) pr.onclick = () => window.print();
+    const pr = ov.querySelector('#rpPrint'); if (pr) pr.onclick = (e) => I.pdf(ov.querySelector('#paper'), { titulo: o.barra || o.titulo, boton: e.currentTarget, paginado: o.paginado });
     ov.querySelector('#rpPdf').onclick = (e) => I.pdf(ov.querySelector('#paper'), { titulo: o.barra || o.titulo, boton: e.currentTarget, paginado: o.paginado });
     ov.querySelector('#rpCopy').onclick = (e) => {
       const t = o.texto || ov.querySelector('#paper').innerText;

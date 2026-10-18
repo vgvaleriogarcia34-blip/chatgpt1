@@ -190,6 +190,7 @@
     startHeartbeat();
     if (P.mode === 'server' && pendientes().length) { hayPend = true; programar(); setTimeout(reenviar, 0); }
     await P.empresas.cargar();
+    prepararMapa();
     return true;
   };
 
@@ -733,12 +734,57 @@
     },
     async elegir(eleccion) {
       await P.empresas.cargar(); REG.inicio = { eleccion, fecha: new Date().toISOString() };
-      if (eleccion === 'datos') { LS.set(ACT, 'principal'); try { await P.activarModoReal('inicio'); } catch (e) { /* se guarda abajo */ } }
+      const real = eleccion === 'datos' || eleccion === 'preguntas';
+      if (real) { LS.set(ACT, 'principal'); try { await P.activarModoReal('inicio'); } catch (e) { /* se guarda abajo */ } }
       try { await P.empresas.guardar(); } catch (e) { /* se volverá a preguntar */ }
       if (eleccion === 'datos') location.href = 'app.html#empresa';
+      else if (eleccion === 'preguntas') location.href = 'app.html#preguntas';
       else if (eleccion === 'modelo') P.empresas.cambiar(MID);
+    },
+    /* La tarjeta de primera visita: una sola, con la acción clave delante (no un recorrido largo) */
+    tarjeta() {
+      if (document.querySelector('.pa-back')) return;
+      const back = document.createElement('div'); back.className = 'ef-back pa-back';
+      back.innerHTML = `<div class="ef-card glass pa-card" role="dialog" aria-modal="true" aria-labelledby="paT" aria-describedby="paD">
+        <div class="eyebrow">Primera visita</div>
+        <h3 id="paT" class="pa-t">¿Cómo quiere empezar?</h3>
+        <p id="paD" class="small muted" style="margin:0">${P.verbo(true)} una opción. Podrá hacer las otras después desde el menú de su cuenta.</p>
+        <div class="pa-ops">
+          <button type="button" class="pa-op pa-clave" data-ini="datos"><b>Cargar mis cuentas</b><small>Suba el balance y la cuenta de resultados y el simulador toma sus cifras. Su empresa empieza sin datos de ejemplo.</small></button>
+          <button type="button" class="pa-op" data-ini="preguntas"><b>Responder unas preguntas</b><small>Ventas, gastos, caja y deuda en lenguaje llano. Lo que no sepa se estima con los valores de su sector y queda marcado como estimado.</small></button>
+          <button type="button" class="pa-op" data-ini="modelo"><b>Ver el ejemplo</b><small>Una empresa ficticia completa para ver qué hace cada mundo antes de cargar la suya.</small></button>
+        </div>
+        <button type="button" class="btn ghost small pa-luego" data-ini="luego">Decidir más tarde</button>
+      </div>`;
+      document.body.appendChild(back);
+      const ops = Array.from(back.querySelectorAll('[data-ini]'));
+      ops.forEach((b) => b.onclick = async () => { ops.forEach((x) => { x.disabled = true; }); await P.primerAcceso.elegir(b.dataset.ini); if (b.dataset.ini === 'luego') back.remove(); });
+      // El foco queda dentro de la tarjeta; Esc equivale a «Decidir más tarde»
+      back.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); back.querySelector('[data-ini="luego"]').click(); return; }
+        if (e.key !== 'Tab') return;
+        const i = ops.indexOf(document.activeElement), n = ops.length;
+        if (e.shiftKey && i <= 0) { e.preventDefault(); ops[n - 1].focus(); } else if (!e.shiftKey && i === n - 1) { e.preventDefault(); ops[0].focus(); }
+      });
+      setTimeout(() => ops[0].focus(), 30);
     }
   };
+  /* ---------- Mapa de cada mundo visto ----------
+     El mapa de capas de un mundo se abre solo la primera vez por empresa y mundo; después, con su botón o con #mapa.
+     Se recuerda en la ficha de la empresa (registro «empresas», campo mapas), así vale en cualquier navegador. */
+  const MAPA_SS = { sim: 'atalaya.ruta.intro', est: 'atalaya.rutaest.intro', per: 'atalaya.rutaper.intro' };
+  P.mapa = {
+    visto(pl) { const e = P.empresas.activa(); return !!(e && e.mapas && e.mapas[pl]); },
+    marcar(pl) { const e = P.empresas.activa(); if (!e || (e.mapas && e.mapas[pl])) return; const m = Object.assign({}, e.mapas, { [pl]: today() }); P.empresas.editar(e.id, { mapas: m }).catch(() => {}); },
+    // ¿Se abre al entrar? Con #mapa siempre; si no, solo si no se ha visto (y queda visto)
+    alEntrar(pl) { if (location.hash === '#mapa') return true; if (!REG || P.mapa.visto(pl)) return false; P.mapa.marcar(pl); return true; }
+  };
+  /* Los mapas del sistema estratégico y de personas deciden con una marca de la sesión de la pestaña: se ajusta aquí,
+     antes de que arranquen, según lo que recuerda la empresa */
+  function prepararMapa() {
+    const pl = { 'estrategia.html': 'est', 'personas.html': 'per' }[(location.pathname.split('/').pop() || '').toLowerCase()]; if (!pl) return;
+    try { if (P.mapa.alEntrar(pl)) sessionStorage.removeItem(MAPA_SS[pl]); else sessionStorage.setItem(MAPA_SS[pl], '1'); } catch (e) { /* sin almacenamiento */ }
+  }
   /* Alta: el nombre y el sector de la empresa van a la ficha de la empresa principal */
   P.fichaInicial = async function (d) {
     LS.set(ACT, 'principal'); REG = null;
@@ -1260,17 +1306,103 @@
     const cb = host.querySelector('[data-cerrar]'); if (cb && opts.onCerrar) cb.onclick = opts.onCerrar;
   };
 
+  /* ---------- Navegación común: una sola lista de mundos ----------
+     La usan la barra superior de cada página (botón «Mundos»; en el móvil, el menú con la cuenta) y el puesto de mando.
+     f: permiso del plan (P.puede); si el plan no lo incluye, el mundo se ve y al pulsarlo se ofrecen los planes. */
+  P.MUNDOS = [
+    { k: 'portal', n: 'Puesto de mando', d: 'Elegir mundo y empresa', href: 'portal.html', c: '#c9f24d' },
+    { k: 'sim', n: 'Simulador de inversión', d: 'Decidir una inversión', href: 'app.html', c: '#d4ae64' },
+    { k: 'est', n: 'Sistema estratégico', d: 'Gobernar el día a día', href: 'estrategia.html', f: 'estrategia', plan: 'profesional', c: '#3987e5' },
+    { k: 'per', n: 'Personas y equipos', d: 'Perfiles, puestos y equipos', href: 'personas.html', f: 'personas', plan: 'consultora', c: '#ab7bff' },
+    { k: 'iv', n: 'Auditoría integral', d: 'Diagnóstico e intervención', href: 'intervencion.html', f: 'intervencion', plan: 'consultora', c: '#e86a5a' },
+    { k: 'mesa', n: 'Mesa de trabajo', d: 'Hoy, prioridades y agenda', href: 'mesa.html', c: '#199e70' },
+    { k: 'tablero', n: 'Tablero general', d: 'Toda la empresa de un vistazo', href: 'tablero.html', c: '#9ba4ba' },
+    { k: 'libro', n: 'Libro corporativo', d: 'Los informes en un libro', href: 'libro.html', c: '#ecd6a6' },
+    { k: 'grupo', n: 'Vista de grupo', d: 'Consolidado y sociedades', href: 'grupo.html', grupo: true, c: '#86b4ff' }
+  ];
+  const MOTIVO_PLAN = {
+    est: 'El sistema estratégico está incluido desde el plan Profesional. Su plan incluye el simulador de inversión.',
+    per: 'Personas y equipos (perfiles, equipos, liderazgo y tablillas) está incluido en el plan Consultora.',
+    iv: 'La auditoría integral (primera sesión como un triaje, auditoría por áreas y plan de intervención) está incluida en el plan Consultora.'
+  };
+  // Mundos de la cuenta: la vista de grupo solo en planes con varias empresas (en Consultora se llama cartera de clientes)
+  P.mundos = (u) => {
+    u = u || P.user; const pl = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional;
+    return P.MUNDOS.filter((m) => !m.grupo || P.esGrupo(u)).map((m) => Object.assign({}, m, m.grupo && !pl.grupo ? { n: 'Cartera de clientes', d: 'Empresas cliente de un vistazo' } : {}, { lock: !!(m.f && u && !P.puede(m.f)) }));
+  };
+  P.mundoActual = () => { const f = (location.pathname.split('/').pop() || 'index.html').toLowerCase(); const m = P.MUNDOS.find((x) => x.href === f); return m ? m.k : null; };
+  P.abrirMundo = (k) => {
+    const m = P.MUNDOS.find((x) => x.k === k); if (!m) return;
+    if (m.f && P.user && !P.puede(m.f)) { P.panelPlanes({ destacar: m.plan, motivo: MOTIVO_PLAN[k] }); return; }
+    location.href = m.href;
+  };
+  // Pantalla táctil sin ratón: los textos dicen «toque» en lugar de «pase por encima» o «pulse»
+  P.tactil = () => { try { return matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) { return false; } };
+  P.verbo = (mayus) => (P.tactil() ? (mayus ? 'Toque' : 'toque') : (mayus ? 'Pulse' : 'pulse'));
+  const listaMundos = (cls) => {
+    const act = P.mundoActual();
+    return P.mundos().map((m) => `<a class="${cls}" href="${m.href}" data-mundo="${m.k}"${m.k === act ? ' aria-current="page"' : ''}${m.lock ? ' data-lock="1"' : ''}><i style="background:${m.c}" aria-hidden="true"></i><span><b>${escH(m.n)}</b><small>${m.lock ? `Incluido en el plan ${escH(PLANES[m.plan].nombre)}` : escH(m.d)}</small></span></a>`).join('');
+  };
+  const atarMundos = (host, alCerrar) => host.querySelectorAll('[data-mundo]').forEach((a) => a.addEventListener('click', (e) => {
+    if (a.getAttribute('aria-current') === 'page') { e.preventDefault(); alCerrar && alCerrar(); return; }
+    if (a.dataset.lock && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); alCerrar && alCerrar(); P.abrirMundo(a.dataset.mundo); }
+  }));
+  const MOVIL = '(max-width: 560px)';
+  const esMovil = () => { try { return matchMedia(MOVIL).matches; } catch (e) { return false; } };
+  /* Barra común: tras la marca, el botón «Mundos» con su lista. En el móvil (≤ 560 px) ese mismo botón es el menú:
+     abre la lista de mundos y la cuenta en una hoja que ocupa el ancho de la pantalla. Esc o pulsar fuera la cierran. */
+  function montarBarra(el) {
+    const bar = el.closest('.topbar, .pt-top'); if (!bar) return;
+    bar.classList.add('barra-comun');
+    let w = bar.querySelector('.bm-wrap');
+    if (!w) {
+      w = document.createElement('div'); w.className = 'bm-wrap';
+      // El botón dice en qué mundo se está (la marca ya no lo repite) y abre la lista para cambiar
+      const aqui = P.MUNDOS.find((m) => m.k === P.mundoActual()), nAqui = aqui && aqui.k !== 'portal' ? (aqui.grupo ? (bar.querySelector('.brand span') || {}).textContent || aqui.n : aqui.n) : '';
+      w.innerHTML = `<button class="bm-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="bmLista" aria-label="${nAqui ? 'Mundos · está en ' + escH(nAqui) : 'Mundos'}"><i class="bm-ico" aria-hidden="true"><b></b><b></b><b></b></i><span class="bm-t">${escH(nAqui || 'Mundos')}</span><span class="bm-tm">Menú</span><span class="bm-car" aria-hidden="true">▾</span></button>
+        <nav class="bm-lista glass" id="bmLista" aria-label="Mundos de Atalaya" hidden></nav>`;
+      const br = bar.querySelector('.brand'); if (br) br.after(w); else bar.prepend(w);
+      const btn = w.querySelector('.bm-btn'), lista = w.querySelector('.bm-lista');
+      const cerrar = (foco) => { if (lista.hidden) return; lista.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (foco) btn.focus(); };
+      w._cerrar = cerrar;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // En el móvil el botón abre el menú de la cuenta, que lleva los mundos arriba
+        if (esMovil()) { const acc = bar.querySelector('.acc-btn'); if (acc) { acc.click(); btn.setAttribute('aria-expanded', acc.getAttribute('aria-expanded')); const mm = bar.querySelector('.acc-menu'); if (mm && !mm.hidden && e.detail === 0) { const f = mm.querySelector('a, button'); if (f) f.focus(); } return; } }
+        const abrir = lista.hidden;
+        if (abrir) { lista.innerHTML = `<div class="bm-h">Ir a</div>${listaMundos('bm-it')}`; atarMundos(lista, () => cerrar()); }
+        lista.hidden = !abrir; btn.setAttribute('aria-expanded', String(abrir));
+        // Con el teclado (detail 0) el foco pasa al primer mundo
+        if (abrir && e.detail === 0) { const f = lista.querySelector('a'); if (f) f.focus(); }
+      });
+      w.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          const mm = bar.querySelector('.acc-menu');
+          if (esMovil() && mm && !mm.hidden) { mm.hidden = true; const bb = bar.querySelector('.acc-btn'); if (bb) bb.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-expanded', 'false'); btn.focus(); return; }
+          cerrar(true); return;
+        }
+        if (lista.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+        const its = Array.from(lista.querySelectorAll('a')), i = its.indexOf(document.activeElement);
+        e.preventDefault(); its[(i + (e.key === 'ArrowDown' ? 1 : its.length - 1)) % its.length].focus();
+      });
+      w.addEventListener('focusout', (e) => { if (e.relatedTarget && !w.contains(e.relatedTarget)) cerrar(); });
+      document.addEventListener('click', (e) => { if (!w.contains(e.target)) cerrar(); });
+    }
+  }
+
   P.mountAccount = function (el) {
     if (!el) return;
     const u = P.user; if (!u) { el.innerHTML = ''; return; }
+    montarBarra(el);
     const acc = P.accessOf(u);
     // Todo lo que escribe la persona (nombre, correo, empresa) se escapa antes de pintarlo
     const esc = escH, planN = PLANES[u.plan] ? PLANES[u.plan].nombre : esc(u.plan);
     const ini = String(u.nombre || u.email || '').split(/\s+/).map((x) => x[0] || '').slice(0, 2).join('').toUpperCase();
-    el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" title="${esc(u.email)}"><span>${esc(ini)}</span></button>
+    el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" aria-label="Su cuenta" title="${esc(u.email)}"><span>${esc(ini)}</span></button>
       <div class="acc-menu glass" hidden>
+        <nav class="acc-mundos" aria-label="Mundos de Atalaya"><div class="bm-h">Ir a</div>${listaMundos('bm-it')}</nav>
         <div class="acc-head"><b>${esc(u.nombre || u.email)}</b><small>${esc(u.email)}</small><small>Plan ${planN} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="portal.html">Inicio · elegir herramienta</a><a href="tablero.html">Tablero general de la empresa</a>${P.esGrupo(u) ? `<a href="grupo.html">${PLANES[u.plan] && PLANES[u.plan].grupo ? 'Vista de grupo' : 'Cartera de clientes'}</a>` : ''}<a href="app.html">Simulador de inversión</a><a href="estrategia.html">Sistema estratégico</a><a href="personas.html">Personas y equipos</a>${P.puede && P.puede('intervencion', u) ? '<a href="intervencion.html">Auditoría integral</a>' : ''}<a href="mesa.html">Mesa de trabajo</a><a href="libro.html">Libro corporativo</a><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
+        <a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button><button data-pw>Cambiar contraseña</button><button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
@@ -1305,8 +1437,25 @@
       if (nf) nf.onsubmit = async (e) => { e.preventDefault(); try { const ne = await P.empresas.crear({ nombre: nf.nombre.value, rol: nf.rol ? nf.rol.value : undefined, participacion: nf.participacion ? nf.participacion.value : undefined }); P.empresas.cambiar(ne.id); } catch (x) { nf.querySelector('[data-empmsg]').textContent = x.message; } };
     }
     const b = el.querySelector('.acc-btn'), m = el.querySelector('.acc-menu');
-    b.onclick = (e) => { e.stopPropagation(); m.hidden = !m.hidden; b.setAttribute('aria-expanded', !m.hidden); };
-    document.addEventListener('click', (e) => { if (!el.contains(e.target)) m.hidden = true; });
+    const bmb = () => { const bar = el.closest('.barra-comun'); return bar && bar.querySelector('.bm-btn'); };
+    const ponerMenu = (abierto) => { m.hidden = !abierto; b.setAttribute('aria-expanded', String(abierto)); const x = bmb(); if (x && esMovil()) x.setAttribute('aria-expanded', String(abierto)); };
+    b.onclick = (e) => {
+      e.stopPropagation(); const w = el.closest('.barra-comun'), bw = w && w.querySelector('.bm-wrap'); if (bw && bw._cerrar) bw._cerrar();
+      ponerMenu(m.hidden);
+      // Abierto con el teclado: el foco entra en la lista
+      if (!m.hidden && e.isTrusted && e.detail === 0) { const f = m.querySelector('a, button'); if (f) f.focus(); }
+    };
+    atarMundos(m, () => ponerMenu(false));
+    if (!el._cerrarMenu) {
+      // Una sola vez por cabecera, aunque la cuenta se vuelva a pintar
+      el._cerrarMenu = true;
+      document.addEventListener('click', (e) => { const mm = el.querySelector('.acc-menu'); if (mm && !el.contains(e.target)) { mm.hidden = true; const bb = el.querySelector('.acc-btn'); if (bb) bb.setAttribute('aria-expanded', 'false'); const x = bmb(); if (x && esMovil()) x.setAttribute('aria-expanded', 'false'); } });
+      el.addEventListener('keydown', (e) => {
+        const mm = el.querySelector('.acc-menu'); if (e.key !== 'Escape' || !mm || mm.hidden) return;
+        mm.hidden = true; const bb = el.querySelector('.acc-btn'); if (bb) bb.setAttribute('aria-expanded', 'false');
+        const x = bmb(); if (x && esMovil()) { x.setAttribute('aria-expanded', 'false'); x.focus(); } else if (bb) bb.focus();
+      });
+    }
     el.querySelector('[data-logout]').onclick = P.logout;
     el.querySelector('[data-planes]').onclick = () => { m.hidden = true; P.panelPlanes(); };
     el.querySelector('[data-exp]').onclick = () => { m.hidden = true; P.descargarDatos(); };

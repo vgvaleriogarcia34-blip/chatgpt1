@@ -81,7 +81,7 @@
     host.innerHTML = `<div class="row"><h4>Organigrama</h4><span class="spacer"></span>
         <div class="seg" style="margin:0" id="ogModo">${[['mover', 'Mover y editar'], ['lapiz', 'Lápiz'], ['goma', 'Borrar trazos']].map(([k, l]) => `<button data-m="${k}" aria-pressed="${k === modo}">${l}</button>`).join('')}</div></div>
       <div class="row"><button class="btn" id="ogAdd">Añadir puesto</button><button class="btn ghost" id="ogSort">Ordenar automáticamente</button><button class="btn ghost" id="ogGen">Proponer desde las áreas</button><button class="btn ghost" id="ogClear">Vaciar</button>
-        <span class="small muted">${modo === 'lapiz' ? 'Dibuja a mano alzada sobre el organigrama.' : modo === 'goma' ? 'Toca un trazo para borrarlo.' : 'Arrastra los puestos. Toca uno para editarlo y decir de quién depende.'}</span></div>
+        <span class="small muted">${modo === 'lapiz' ? 'Dibuje a mano alzada sobre el organigrama.' : modo === 'goma' ? 'Toque un trazo para borrarlo.' : 'Arrastre los puestos. Toque uno para editarlo y decir de quién depende.'}</span></div>
       ${desfase ? `<div class="alert warn small og-desfase"><span>Las áreas de la tabla han cambiado desde que se preparó este organigrama (${totA} personas en las áreas, ${totO} en el organigrama).</span> <button class="btn ghost" id="ogRegen">Regenerar desde las áreas</button> <button class="btn ghost" id="ogKeep">Mantener este</button></div>` : ''}
       <div class="ogwrap"><svg id="ogSvg" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}" class="og ${modo}" style="min-width:${Math.max(760, Math.round(VB.w * 0.62))}px" role="img" aria-label="Organigrama de la empresa: ${O.nodos.length} puestos en ${an.niveles} niveles">
         <g class="oglinks">${O.nodos.filter((n) => n.jefe && O.nodos.some((m) => m.id === n.jefe)).map((n) => { const j = O.nodos.find((m) => m.id === n.jefe); const x1 = j.x + NW / 2, y1 = j.y + NH, x2 = n.x + NW / 2, y2 = n.y, ym = (y1 + y2) / 2; return `<path class="oglink" d="M${x1},${y1} V${ym} H${x2} V${y2}" fill="none" stroke-width="1.6"/>`; }).join('')}</g>
@@ -106,7 +106,7 @@
     $('#ogSort', host).onclick = () => { ordenar(O.nodos); save(); S.orgChart(host); };
     $('#ogGen', host).onclick = () => { O.nodos = generar(S.state.personas.areas); O.trazos = []; O.vacio = false; O.firma = firma(S.state.personas.areas); host.dataset.sel = ''; save(); S.orgChart(host); };
     let armed = false;
-    $('#ogClear', host).onclick = (e) => { if (!armed) { armed = true; e.target.textContent = 'Pulsa otra vez para vaciar'; return; } O.nodos = []; O.trazos = []; O.vacio = true; host.dataset.sel = ''; save(); S.orgChart(host); };
+    $('#ogClear', host).onclick = (e) => { if (!armed) { armed = true; e.target.textContent = 'Pulse otra vez para vaciar'; return; } O.nodos = []; O.trazos = []; O.vacio = true; host.dataset.sel = ''; save(); S.orgChart(host); };
 
     if (modo === 'mover') {
       $$('.ognode', svg).forEach((g) => {
@@ -143,7 +143,7 @@
         <div class="row"><button class="btn ghost" id="ogLink">Elegir responsable en el dibujo</button><button class="btn ghost" id="ogChild">Añadir puesto debajo</button><button class="btn ghost" id="ogDel" style="color:var(--stop)">Eliminar puesto</button></div></div>`;
       const set = (id, k, re) => { $(id, ed).onchange = (e) => { n[k] = e.target.value || (k === 'jefe' ? null : ''); const m = /^(\d+)\s*personas?$/i.exec(n.persona || ''); n.equipo = m ? +m[1] : undefined; save(); if (re) S.orgChart(host); }; };
       set('#ogP', 'puesto', true); set('#ogN', 'persona', true); set('#ogA', 'area', true); set('#ogJ', 'jefe', true);
-      $('#ogLink', ed).onclick = (e) => { enlazando = true; e.target.textContent = 'Ahora toca el puesto del que depende'; };
+      $('#ogLink', ed).onclick = (e) => { enlazando = true; e.target.textContent = 'Ahora toque el puesto del que depende'; };
       $('#ogChild', ed).onclick = () => { const c = { id: uid(), puesto: 'Nuevo puesto', persona: '', area: n.area, jefe: n.id, x: n.x + 30, y: n.y + 120 }; O.nodos.push(c); host.dataset.sel = c.id; save(); S.orgChart(host); };
       $('#ogDel', ed).onclick = () => { O.nodos.forEach((m) => { if (m.jefe === n.id) m.jefe = n.jefe; }); O.nodos = O.nodos.filter((m) => m.id !== n.id); host.dataset.sel = ''; save(); S.orgChart(host); };
     }

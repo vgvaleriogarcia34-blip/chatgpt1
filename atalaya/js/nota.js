@@ -194,9 +194,11 @@
       if (nota == null && !motivo && puntos) motivo = nd ? nd.t.charAt(0).toLowerCase() + nd.t.slice(1) : puntos.length ? 'sin comprobaciones con datos' : '';
       mundos[k] = { n: MUNDOS[k].n, nota, puntos: puntos || [], vivo, fecha: vivo ? new Date().toISOString() : (cache[k] && cache[k].fecha) || null, motivo: nota == null ? motivo : '' };
     }
-    guardarCache();
     const ns = Object.values(mundos).map((m) => m.nota).filter((n) => n != null);
-    ultima = { global: ns.length ? Math.round((ns.reduce((a, b) => a + b, 0) / ns.length) * 10) / 10 : null, mundos, actual: mundoDePagina() };
+    ultima = { global: ns.length ? Math.round((ns.reduce((a, b) => a + b, 0) / ns.length) * 10) / 10 : null, mundos, actual: mundoDePagina(), fecha: new Date().toISOString() };
+    // Resumen con fecha para quien no calcula los mundos (cartera, grupo, tablero): la última nota de la empresa y la de cada mundo
+    cache._global = { nota: ultima.global, fecha: ultima.fecha, mundos: Object.fromEntries(Object.entries(mundos).map(([k, m]) => [k, { nota: m.nota, fecha: m.fecha, rojos: m.puntos.filter((x) => x.st === 'stop').length }])) };
+    guardarCache();
     return ultima;
   };
 
@@ -217,7 +219,7 @@
     if (!chip || !ultima) return;
     const m = ultima.actual && ultima.mundos[ultima.actual];
     chip.innerHTML = `<span class="nt-n ${stDeNota(ultima.global)}">${ultima.global == null ? 'Sin nota' : fmt(ultima.global)}</span><small>Empresa</small>${m ? `<span class="nt-sep"></span><span class="nt-n ${stDeNota(m.nota)}">${m.nota == null ? 'Sin nota' : fmt(m.nota)}</span><small>Este mundo</small>` : ''}`;
-    chip.title = 'Nota de la empresa de 0 a 10 (media de los mundos) y nota de este mundo, con el mismo criterio que el cuadro de mando y los informes: toque para ver los puntos a tratar';
+    chip.title = 'Nota de la empresa de 0 a 10 (media de los mundos) y nota de este mundo, con el mismo criterio que el cuadro de mando y los informes. Se recalcula al guardar' + (ultima.fecha ? ' (última: ' + new Date(ultima.fecha).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ')' : '') + ': toque para ver los puntos a tratar';
   };
   const pintarPanel = () => {
     if (!panel || !ultima) return;

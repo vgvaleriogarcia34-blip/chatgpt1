@@ -12,14 +12,14 @@
     return cls;
   };
   const CROSS = {
-    AA: ['Estratégicos', 'Protégelos: servicio prioritario, contratos a largo y precios cuidados.'],
-    AB: ['Grandes y correctos', 'Busca subir margen con servicios añadidos.'],
-    AC: ['Te hacen grande, no rico', 'Renegocia precio, rappels y coste de servirles; fija mínimos de pedido.'],
-    BA: ['Rentables en crecimiento', 'Invierte en crecer con ellos: son tus próximos A.'],
-    BB: ['Cartera media', 'Mantén con coste comercial contenido.'],
-    BC: ['Margen débil', 'Revisa tarifas y condiciones.'],
-    CA: ['Joyas pequeñas', 'Mucho margen y poco volumen: dales más gama.'],
-    CB: ['Ocasionales', 'Atiéndelos por canales de bajo coste.'],
+    AA: ['Estratégicos', 'Protéjalos: servicio prioritario, contratos a largo y precios cuidados.'],
+    AB: ['Grandes y correctos', 'Busque subir margen con servicios añadidos.'],
+    AC: ['Le hacen grande, no rico', 'Renegocie precio, descuentos por volumen y coste de servirles; fije mínimos de pedido.'],
+    BA: ['Rentables en crecimiento', 'Invierta en crecer con ellos: son sus próximos A.'],
+    BB: ['Cartera media', 'Manténgalos con un coste comercial contenido.'],
+    BC: ['Margen débil', 'Revise tarifas y condiciones.'],
+    CA: ['Joyas pequeñas', 'Mucho margen y poco volumen: ofrézcales más gama.'],
+    CB: ['Ocasionales', 'Atiéndalos por canales de bajo coste.'],
     CC: ['Revisar', 'Probablemente cuesta más servirles de lo que aportan: canal digital o precio mínimo.']
   };
 
@@ -83,8 +83,8 @@
   S.hhiSt = (h) => (h > 2500 ? 'stop' : h > 1500 ? 'warn' : 'ok');
   S.hhiCtx = (h, mayor, pesoMayor, quien) => {
     const eq = Math.max(1, Math.round(10000 / Math.max(1, h)));
-    const nivel = h > 2500 ? 'alta: dependes de muy pocos' : h > 1500 ? 'moderada: hay dependencia de los mayores' : 'baja: la cartera está repartida';
-    return `Tu índice es ${S.miles(h)}, concentración ${nivel}. Equivale a depender de unos ${eq} ${quien} del mismo tamaño. ${mayor ? `El mayor, ${mayor}, pesa el ${F.pct(pesoMayor)}: ${pesoMayor > 25 ? 'perderlo pondría en riesgo la caja y el margen' : pesoMayor > 15 ? 'su pérdida se notaría mucho; conviene tener un plan de sustitución' : 'su pérdida sería asumible'}.` : ''}`;
+    const nivel = h > 2500 ? 'alta: depende de muy pocos' : h > 1500 ? 'moderada: hay dependencia de los mayores' : 'baja: la cartera está repartida';
+    return `Su índice es ${S.miles(h)}, concentración ${nivel}. Equivale a depender de unos ${eq} ${quien} del mismo tamaño. ${mayor ? `El mayor, ${mayor}, pesa el ${F.pct(pesoMayor)}: ${pesoMayor > 25 ? 'perderlo pondría en riesgo la caja y el margen' : pesoMayor > 15 ? 'su pérdida se notaría mucho; conviene tener un plan de sustitución' : 'su pérdida sería asumible'}.` : ''}`;
   };
   /* Pareto genérico: barras por elemento coloreadas por clase ABC y línea de % acumulado */
   /* Los valores negativos o nulos no caben en un Pareto: se quedan fuera y se avisa de cuántos son */
@@ -121,10 +121,10 @@
       ${S.kpiTiles([
         { k: 'Ventas por producto', v: F.eur(a.tot), d: `${a.L.length} líneas` },
         { k: 'Primer producto', v: a.vacio ? '—' : F.pct(S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot)), d: a.vacio ? 'sin ventas por producto' : a.sorted[0] ? a.sorted[0].nombre : '' },
-        { k: 'Concentración (HHI)', v: a.vacio ? '—' : S.miles(a.hhi), st: a.vacio ? null : S.hhiSt(a.hhi), d: 'toca para ver qué significa', info: 'Concentración (HHI)', exp: S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot), 'productos') },
+        { k: 'Concentración de clientes (índice HHI)', v: a.vacio ? '—' : S.miles(a.hhi), st: a.vacio ? null : S.hhiSt(a.hhi), d: 'toque para ver qué significa', info: 'Concentración de clientes', exp: S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, S.pct(a.sorted[0] ? a.sorted[0].ventas : 0, a.tot), 'productos') },
         { k: 'Margen de contribución', v: a.vacio ? '—' : F.pct(S.pct(mcT, a.tot)), info: 'Margen de contribución', exp: `${F.eur(mcT)} al año entre todos los productos.` }
       ])}
-      <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Matriz ABC (ventas) × ABC′ (margen)</h4>${matrix(a.L, a.abcV, a.abcM, 'ventas', 'margen', (c) => c.ventas)}<p class="small" id="abcRead">Toca una casilla.</p></div>
+      <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Matriz ABC (ventas) × ABC′ (margen)</h4>${matrix(a.L, a.abcV, a.abcM, 'ventas', 'margen', (c) => c.ventas)}<p class="small" id="abcRead">Toque una casilla.</p></div>
         <div class="glass pad stack"><h4>Pareto de ventas por producto</h4><div class="chart" id="abcPareto"></div></div></div>
       <div class="glass pad mt table-wrap"><table><thead><tr><th style="text-align:left">Producto</th><th>Ventas</th><th>Margen</th><th>MC %</th><th>ABC / ABC′</th><th style="text-align:left">Qué hacer</th></tr></thead><tbody>${a.sorted.map((p) => `<tr><td style="text-align:left">${esc(p.nombre)}</td><td>${F.eur(p.ventas)}</td><td>${F.eur(p.mc)}</td><td>${F.pct(S.pct(p.mc, p.ventas))}</td><td><span class="abc ${a.abcV.get(p)}">${a.abcV.get(p)}</span> <span class="abc ${a.abcM.get(p)}">${a.abcM.get(p)}′</span></td><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${CROSS[a.abcV.get(p) + a.abcM.get(p)][1]}</td></tr>`).join('')}</tbody></table></div>`;
     $$('[data-cell]', body).forEach((c) => c.onclick = () => { const k = c.dataset.cell, l = a.L.filter((x) => a.abcV.get(x) === k[0] && a.abcM.get(x) === k[1]); $('#abcRead', body).innerHTML = `<b>${CROSS[k][0]}.</b> ${CROSS[k][1]}<br>${l.map((x) => esc(x.nombre)).join(', ') || 'Ningún producto.'}`; });
@@ -139,10 +139,10 @@
     const unicos = c.R.filter((p) => S.num(p.alternativas) <= 1);
     body.innerHTML = `${S.state.compras.ejemplo ? '<p class="small muted">Datos de ejemplo: los proveedores se editan en la tabla de abajo o en el módulo Compras.</p>' : ''}
       ${S.kpiTiles([
-        { k: 'Compras anuales', v: F.eur(c.tot), d: `${c.R.length} proveedores` },
-        { k: 'Primer proveedor', v: F.pct(sorted[0] ? sorted[0].imp * 100 : 0), st: sorted[0] && sorted[0].imp > 0.3 ? 'stop' : sorted[0] && sorted[0].imp > 0.2 ? 'warn' : 'ok', d: sorted[0] ? sorted[0].nombre : '' },
+        { k: 'Compras anuales', info: 'Compras anuales', v: F.eur(c.tot), d: `${c.R.length} proveedores` },
+        { k: 'Primer proveedor', info: 'Primer proveedor', v: F.pct(sorted[0] ? sorted[0].imp * 100 : 0), st: sorted[0] && sorted[0].imp > 0.3 ? 'stop' : sorted[0] && sorted[0].imp > 0.2 ? 'warn' : 'ok', d: sorted[0] ? sorted[0].nombre : '' },
         { k: 'Tres primeros', v: F.pct(top3), st: top3 > 75 ? 'warn' : 'ok' },
-        { k: 'Concentración de compras (HHI)', v: S.miles(hhi), st: S.hhiSt(hhi), d: 'toca para ver qué significa', info: 'Concentración de compras', exp: S.hhiCtx(hhi, sorted[0] && sorted[0].nombre, sorted[0] ? sorted[0].imp * 100 : 0, 'proveedores') },
+        { k: 'Concentración de compras (HHI)', v: S.miles(hhi), st: S.hhiSt(hhi), d: 'toque para ver qué significa', info: 'Concentración de compras', exp: S.hhiCtx(hhi, sorted[0] && sorted[0].nombre, sorted[0] ? sorted[0].imp * 100 : 0, 'proveedores') },
         { k: 'Sin alternativa', v: unicos.length, st: unicos.length ? 'warn' : 'ok', d: unicos.map((p) => p.nombre).join(', ') || 'todos tienen sustituto' }
       ])}
       <div class="grid cols-2 mt"><div class="glass pad stack"><h4>Pareto de compras</h4><div class="chart" id="abcPareto"></div></div>
@@ -157,7 +157,7 @@
     clave: 'comercial', datos: () => (S.state.comercial.clientes || []).some((c) => S.num(c.ventas) > 0),
     render(host) {
       const vista = S.state.comercial.vistaABC || 'clientes';
-      host.innerHTML = `${S.section('Análisis ABC y ABC′', 'El ABC ordena por lo que facturan (o por lo que te compras, en proveedores); el ABC′ (ABC prima) por el margen de contribución que dejan. Cruzarlos enseña a quién proteger, con quién renegociar y a quién atender por un canal más barato. Toca cualquier indicador con «?» para ver qué significa y cómo leer tu dato.')}
+      host.innerHTML = `${S.section('Análisis ABC y ABC′', 'El ABC ordena por lo que facturan (o por lo que se les compra, en proveedores); el ABC′ (ABC prima) por el margen de contribución que dejan. Cruzarlos enseña a quién proteger, con quién renegociar y a quién atender por un canal más barato. Toque cualquier indicador con «?» para ver qué significa y cómo leer su dato.')}
         <div class="tabs" role="tablist" id="abcTabs">${[['clientes', 'Clientes'], ['productos', 'Productos'], ['proveedores', 'Proveedores y compras']].map(([k, l]) => `<button role="tab" data-v="${k}" aria-selected="${k === vista}">${l}</button>`).join('')}</div>
         <div id="abcBody" class="stack"></div>`;
       $$('#abcTabs button', host).forEach((b) => b.onclick = () => { S.state.comercial.vistaABC = b.dataset.v; S.save(); S.rerender(); });
@@ -165,17 +165,17 @@
       if (vista === 'productos') return renderProductos(body);
       if (vista === 'proveedores') return renderProveedores(body);
       const a = analisisClientes();
-      body.innerHTML = `${C().ejemplo ? '<p class="small muted">Datos de ejemplo: importa tu listado de ventas por cliente (Excel, CSV o PDF) o escríbelo en la tabla de abajo.</p>' : ''}
+      body.innerHTML = `${C().ejemplo ? '<p class="small muted">Datos de ejemplo: importe su listado de ventas por cliente (Excel, CSV o PDF) o escríbalo en la tabla de abajo.</p>' : ''}
         ${S.kpiTiles([
-          { k: 'Ventas de la cartera', v: F.eur(a.tot), d: `${a.L.length} clientes` },
-          { k: 'Primer cliente', v: a.vacio ? '—' : F.pct(a.top1), st: a.vacio ? null : a.top1 > 25 ? 'stop' : a.top1 > 15 ? 'warn' : 'ok', d: a.vacio ? 'sin ventas por cliente' : 'de la facturación' },
-          { k: 'Cinco primeros', v: a.vacio ? '—' : F.pct(a.top5), st: a.vacio ? null : a.top5 > 70 ? 'warn' : 'ok' },
-          { k: 'Concentración (HHI)', v: a.vacio ? '—' : S.miles(a.hhi), st: a.vacio ? null : S.hhiSt(a.hhi), d: 'toca para ver qué significa', info: 'Concentración (HHI)', exp: a.vacio ? 'Sin ventas por cliente todavía.' : S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, a.top1, 'clientes') },
+          { k: 'Ventas de la cartera', info: 'Ventas de la cartera', v: F.eur(a.tot), d: `${a.L.length} clientes` },
+          { k: 'Primer cliente', info: 'Primer cliente', v: a.vacio ? '—' : F.pct(a.top1), st: a.vacio ? null : a.top1 > 25 ? 'stop' : a.top1 > 15 ? 'warn' : 'ok', d: a.vacio ? 'sin ventas por cliente' : 'de la facturación' },
+          { k: 'Cinco primeros', info: 'Cinco primeros', v: a.vacio ? '—' : F.pct(a.top5), st: a.vacio ? null : a.top5 > 70 ? 'warn' : 'ok' },
+          { k: 'Concentración de clientes (índice HHI)', v: a.vacio ? '—' : S.miles(a.hhi), st: a.vacio ? null : S.hhiSt(a.hhi), d: 'toque para ver qué significa', info: 'Concentración de clientes', exp: a.vacio ? 'Sin ventas por cliente todavía.' : S.hhiCtx(a.hhi, a.sorted[0] && a.sorted[0].nombre, a.top1, 'clientes') },
           { k: 'Margen de contribución', v: a.vacio ? '—' : F.pct(S.pct(a.L.reduce((s, c) => s + c.mc, 0), a.tot)), info: 'Margen de contribución', exp: 'Margen medio de la cartera después de los costes variables de servir a cada cliente.' }
         ])}
         <div class="grid cols-2 mt">
           <div class="glass pad stack"><h4>Matriz ABC (ventas) × ABC′ (margen)</h4>${matrix(a.L, a.abcV, a.abcM, 'ventas', 'margen', (c) => c.ventas)}
-            <p class="small" id="abcRead">Toca una casilla para ver qué clientes hay y qué hacer con ellos.</p></div>
+            <p class="small" id="abcRead">Toque una casilla para ver qué clientes hay y qué hacer con ellos.</p></div>
           <div class="glass pad stack"><h4>Pareto de ventas</h4><div class="chart" id="abcPareto"></div></div>
         </div>
         <div class="glass pad mt" id="cliTable"></div>`;
@@ -246,8 +246,8 @@
     clave: 'comercial', datos: () => (S.state.comercial.productos || []).some((p) => S.num(p.unidades) * S.num(p.precio) > 0),
     render(host) {
       const L = C().palancas;
-      const lv = [['precio', 'Precio', -15, 15, 0.5], ['volumen', 'Esfuerzo comercial (volumen)', -20, 30, 1], ['costeVariable', 'Coste variable (compras)', -15, 15, 0.5], ['fijos', 'Costes fijos', -20, 20, 1], ['mix', 'Mix hacia productos de más margen', 0, 30, 1]];
-      host.innerHTML = `${S.section('Cuadro operativo: margen de contribución sobre la demanda', 'Compara lo que deja la demanda actual con lo que dejaría tu estrategia. Mueve las palancas: el volumen reacciona al precio según la elasticidad de cada producto y se limita a la capacidad. El efecto se descompone en precio, volumen, mix y coste.')}
+      const lv = [['precio', 'Precio', -15, 15, 0.5], ['volumen', 'Esfuerzo comercial (volumen)', -20, 30, 1], ['costeVariable', 'Coste variable (compras)', -15, 15, 0.5], ['fijos', 'Costes fijos', -20, 20, 1], ['mix', 'Mezcla hacia productos de más margen', 0, 30, 1]];
+      host.innerHTML = `${S.section('Cuadro operativo: margen de contribución sobre la demanda', 'Compara lo que deja la demanda actual con lo que dejaría su estrategia. Mueva las palancas: el volumen reacciona al precio según la elasticidad de cada producto y se limita a la capacidad. El efecto se descompone en precio, volumen, mix y coste.')}
         <div id="mcKpis"></div>
         <div class="grid cols-2 mt">
           <div class="glass pad stack"><h4>Palancas de la estrategia</h4><div class="lever-grid">${lv.map(([k, n, mn, mx, st]) => `<div class="field"><div class="top"><label for="lv_${k}">${n}</label><span class="num" id="lvv_${k}">${L[k] >= 0 ? '+' : ''}${L[k]} %</span></div><input type="range" id="lv_${k}" min="${mn}" max="${mx}" step="${st}" value="${L[k]}" style="--p:${((L[k] - mn) / (mx - mn)) * 100}%"></div>`).join('')}</div>
@@ -261,11 +261,11 @@
         const M = mcModel();
         $('#mcKpis', host).innerHTML = S.kpiTiles([
           { k: 'Margen de contribución', v: F.eur(M.A1.mc), d: `hoy ${F.eur(M.A0.mc)}`, st: M.A1.mc <= 0 ? 'stop' : M.A1.mc >= M.A0.mc ? 'ok' : 'warn', info: 'Margen de contribución' },
-          { k: 'Resultado operativo', v: F.eur(M.A1.baii), d: `hoy ${F.eur(M.A0.baii)}`, st: M.A1.baii >= M.A0.baii ? 'ok' : 'stop' },
+          { k: 'Resultado operativo', info: 'Resultado operativo', v: F.eur(M.A1.baii), d: `hoy ${F.eur(M.A0.baii)}`, st: M.A1.baii >= M.A0.baii ? 'ok' : 'stop' },
           { k: 'Punto de equilibrio', v: M.A1.equilibrio == null ? 'No alcanzable' : F.eur(M.A1.equilibrio), st: M.A1.equilibrio == null ? 'stop' : null, d: M.A1.equilibrio == null ? 'el margen de contribución no cubre nada de los fijos' : `hoy ${M.A0.equilibrio == null ? 'no alcanzable' : F.eur(M.A0.equilibrio)}`, info: 'Punto de equilibrio' },
-          { k: 'Margen de seguridad', v: M.A1.seguridad == null ? '—' : F.pct(M.A1.seguridad * 100), st: M.A1.seguridad == null ? 'stop' : M.A1.seguridad > 0.15 ? 'ok' : M.A1.seguridad > 0 ? 'warn' : 'stop', d: 'cuánto pueden caer las ventas sin pérdidas' }
+          { k: 'Margen de seguridad', info: 'Margen de seguridad', v: M.A1.seguridad == null ? '—' : F.pct(M.A1.seguridad * 100), st: M.A1.seguridad == null ? 'stop' : M.A1.seguridad > 0.15 ? 'ok' : M.A1.seguridad > 0 ? 'warn' : 'stop', d: 'cuánto pueden caer las ventas sin pérdidas' }
         ]) + (M.sinPrecio ? `<p class="small muted">${M.sinPrecio} producto${M.sinPrecio > 1 ? 's' : ''} sin precio no se ${M.sinPrecio > 1 ? 'cuentan' : 'cuenta'} en el cálculo: complete su precio medio en la tabla.</p>` : '');
-        $('#mcEf', host).innerHTML = S.hbars([{ n: 'Efecto precio', v: M.efectos.precio }, { n: 'Efecto volumen', v: M.efectos.volumen }, { n: 'Efecto mix', v: M.efectos.mix }, { n: 'Efecto coste variable', v: M.efectos.coste }, { n: 'Efecto costes fijos', v: M.efectos.fijos }].map((x) => Object.assign(x, { c: x.v >= 0 ? css('--s1') : css('--s2') })), (v) => (v >= 0 ? '+' : '') + F.eur(v)) +
+        $('#mcEf', host).innerHTML = S.hbars([{ n: 'Efecto precio', v: M.efectos.precio }, { n: 'Efecto volumen', v: M.efectos.volumen }, { n: 'Efecto mezcla', v: M.efectos.mix }, { n: 'Efecto coste variable', v: M.efectos.coste }, { n: 'Efecto costes fijos', v: M.efectos.fijos }].map((x) => Object.assign(x, { c: x.v >= 0 ? css('--s1') : css('--s2') })), (v) => (v >= 0 ? '+' : '') + F.eur(v)) +
           `<p class="small">Resultado: ${F.eur(M.A0.baii)} → <b>${F.eur(M.A1.baii)}</b> (${M.A1.baii - M.A0.baii >= 0 ? '+' : ''}${F.eur(M.A1.baii - M.A0.baii)}).</p>`;
         $('#mcProd', host).innerHTML = `<table><thead><tr><th>Producto</th><th>Unidades hoy</th><th>Unidades estrategia</th><th>Precio</th><th>MC unitario</th><th>MC %</th><th>MC total</th><th>Capacidad</th></tr></thead><tbody>
           ${M.est.map((x, i) => `<tr><td>${esc(x.nombre)}</td><td>${F.num(M.actual[i].u)}</td><td>${F.num(x.u)}</td><td>${F.eurFull(x.precio)}</td><td>${F.eurFull(x.precio - x.cv)}</td><td>${F.pct(S.pct(x.precio - x.cv, x.precio))}</td><td>${F.eur(x.mc)}</td><td>${x.limitado ? '<span class="state st-warn">al límite</span>' : 'holgura'}</td></tr>`).join('')}</tbody></table>`;
@@ -283,7 +283,7 @@
         cols: [{ k: 'nombre', l: 'Producto', type: 'text', syn: ['producto', 'articulo', 'referencia', 'familia'] }, { k: 'unidades', l: 'Demanda (uds/año)', type: 'num', syn: ['unidades', 'cantidad', 'demanda'] }, { k: 'precio', l: 'Precio medio', type: 'num', syn: ['precio', 'pvp', 'precio medio'] }, { k: 'cv', l: 'Coste variable unitario', type: 'num', syn: ['coste', 'coste unitario', 'coste variable'] }, { k: 'capacidad', l: 'Capacidad (uds/año)', type: 'num', syn: ['capacidad'] }, { k: 'elasticidad', l: 'Elasticidad precio', type: 'num', syn: ['elasticidad'] }]
       });
     },
-    kpis() { const M = mcModel(); return [{ k: 'Margen de seguridad', v: M.A0.seguridad == null ? '—' : F.pct(M.A0.seguridad * 100), st: M.A0.seguridad == null ? 'stop' : M.A0.seguridad > 0.15 ? 'ok' : M.A0.seguridad > 0 ? 'warn' : 'stop' }, { k: 'Mejora de la estrategia', v: F.eur(M.A1.baii - M.A0.baii), st: M.A1.baii >= M.A0.baii ? 'ok' : 'warn' }]; },
+    kpis() { const M = mcModel(); return [{ k: 'Margen de seguridad', info: 'Margen de seguridad', v: M.A0.seguridad == null ? '—' : F.pct(M.A0.seguridad * 100), st: M.A0.seguridad == null ? 'stop' : M.A0.seguridad > 0.15 ? 'ok' : M.A0.seguridad > 0 ? 'warn' : 'stop' }, { k: 'Mejora de la estrategia', v: F.eur(M.A1.baii - M.A0.baii), st: M.A1.baii >= M.A0.baii ? 'ok' : 'warn' }]; },
     risks() { const M = mcModel(); const lim = M.est.filter((x) => x.limitado); return lim.length ? [S.mkRisk(`Capacidad al límite en ${lim.map((x) => x.nombre).join(', ')}`, 3, 3, 'La demanda supera la capacidad: subir precio en esas líneas o ampliar capacidad (ver simulador).')] : []; },
     findings() {
       const M = mcModel(); const out = [];
@@ -295,7 +295,7 @@
   /* ---------- Pipeline comercial ---------- */
   const ETAPAS = ['Contacto', 'Cualificada', 'Propuesta', 'Negociación', 'Ganada', 'Perdida'];
   S.register({
-    id: 'comercial', nombre: 'Pipeline comercial', grupo: 'Comercial',
+    id: 'comercial', nombre: 'Ventas en camino', grupo: 'Comercial',
     clave: 'comercial', datos: () => (S.state.comercial.oportunidades || []).some((o) => S.num(o.importe) > 0),
     render(host) {
       const O = C().oportunidades.filter((o) => o.etapa !== 'Perdida');
@@ -304,12 +304,12 @@
       const pipe = abiertas.reduce((a, o) => a + S.num(o.importe), 0), pond = abiertas.reduce((a, o) => a + S.num(o.importe) * S.num(o.prob) / 100, 0);
       const ganada = O.filter((o) => o.etapa === 'Ganada').reduce((a, o) => a + S.num(o.importe), 0);
       const porCom = {}; abiertas.forEach((o) => { porCom[o.comercial || 'Sin asignar'] = (porCom[o.comercial || 'Sin asignar'] || 0) + S.num(o.importe) * S.num(o.prob) / 100; });
-      host.innerHTML = `${S.section('Pipeline comercial', 'Las oportunidades abiertas, su probabilidad y la previsión ponderada frente al objetivo de venta nueva del año.')}
+      host.innerHTML = `${S.section('Ventas en camino (pipeline comercial)', 'Las oportunidades abiertas, su probabilidad y la previsión ponderada frente al objetivo de venta nueva del año.')}
         ${S.kpiTiles([
-          { k: 'Pipeline abierto', v: F.eur(pipe), d: `${abiertas.length} oportunidades` },
-          { k: 'Previsión ponderada', v: F.eur(pond) },
-          { k: 'Ganado', v: F.eur(ganada) },
-          { k: 'Cobertura del objetivo', v: F.x(pipe / Math.max(1, objetivo - ganada)), st: pipe >= (objetivo - ganada) * 3 ? 'ok' : pipe >= (objetivo - ganada) * 1.5 ? 'warn' : 'stop', d: `objetivo de venta nueva ${F.eur(objetivo)}; lo sano es 3×` }
+          { k: 'Ventas en curso', info: 'Ventas en curso', v: F.eur(pipe), d: `${abiertas.length} oportunidades` },
+          { k: 'Previsión ponderada', info: 'Previsión ponderada', v: F.eur(pond) },
+          { k: 'Ganado', info: 'Ganado', v: F.eur(ganada) },
+          { k: 'Cobertura del objetivo', info: 'Cobertura del objetivo', v: F.x(pipe / Math.max(1, objetivo - ganada)), st: pipe >= (objetivo - ganada) * 3 ? 'ok' : pipe >= (objetivo - ganada) * 1.5 ? 'warn' : 'stop', d: `objetivo de venta nueva ${F.eur(objetivo)}; lo sano es 3×` }
         ])}
         <div class="row mt"><label class="small">Objetivo anual de venta nueva <input class="input" id="obj" style="width:130px" value="${C().objetivoAnual || ''}" placeholder="${Math.round(objetivo)}"></label></div>
         <div class="kanban mt">${ETAPAS.slice(0, 5).map((e) => { const l = O.filter((o) => o.etapa === e); return `<div class="col"><h4>${e}</h4><b class="num">${F.eur(l.reduce((a, o) => a + S.num(o.importe), 0))}</b>${l.map((o) => `<p class="small">${esc(o.cliente)} · ${F.eur(o.importe)} · ${o.prob} %</p>`).join('')}</div>`; }).join('')}</div>
@@ -322,8 +322,8 @@
         dictar: (t) => { const v = A.docs.parseAmount(t); if (!isFinite(v)) return null; return { cliente: t.split(/\d/)[0].replace(/oportunidad( con| de)?/i, '').trim() || t, importe: v, etapa: 'Contacto', prob: 10, cierre: '', comercial: '' }; }
       });
     },
-    kpis() { const O = C().oportunidades.filter((o) => !['Ganada', 'Perdida'].includes(o.etapa)); const p = O.reduce((a, o) => a + S.num(o.importe) * S.num(o.prob) / 100, 0); return [{ k: 'Previsión ponderada', v: F.eur(p) }]; },
-    risks() { const O = C().oportunidades.filter((o) => !['Ganada', 'Perdida'].includes(o.etapa)); const pipe = O.reduce((a, o) => a + S.num(o.importe), 0); const inc = S.sim.inversion.incVentas / 100 * S.sim.empresa.ventas; return pipe < inc ? [S.mkRisk('El pipeline no cubre la venta nueva que exige la inversión', 4, 4, `Hace falta ${F.eur(inc)} de venta nueva; el pipeline abierto suma ${F.eur(pipe)}. Precomprometer clientes antes de invertir.`)] : []; }
+    kpis() { const O = C().oportunidades.filter((o) => !['Ganada', 'Perdida'].includes(o.etapa)); const p = O.reduce((a, o) => a + S.num(o.importe) * S.num(o.prob) / 100, 0); return [{ k: 'Previsión ponderada', info: 'Previsión ponderada', v: F.eur(p) }]; },
+    risks() { const O = C().oportunidades.filter((o) => !['Ganada', 'Perdida'].includes(o.etapa)); const pipe = O.reduce((a, o) => a + S.num(o.importe), 0); const inc = S.sim.inversion.incVentas / 100 * S.sim.empresa.ventas; return pipe < inc ? [S.mkRisk('Las ventas en curso no cubren la venta nueva que exige la inversión', 4, 4, `Hace falta ${F.eur(inc)} de venta nueva; las ventas en curso suman ${F.eur(pipe)}. Precomprometer clientes antes de invertir.`)] : []; }
   });
 
   /* ---------- Marketing ---------- */
@@ -335,8 +335,8 @@
       const inv = R.reduce((a, c) => a + S.num(c.inversion), 0), cli = R.reduce((a, c) => a + S.num(c.clientes), 0);
       const best = R.filter((c) => S.num(c.clientes) > 0).sort((a, b) => b.ratio - a.ratio);
       host.innerHTML = `${S.section('Marketing', 'Lo que cuesta conseguir un cliente en cada canal (CAC) frente a lo que deja a lo largo de la relación (LTV). Por encima de 3 veces, el canal merece más presupuesto.')}
-        ${S.kpiTiles([{ k: 'Inversión anual', v: F.eur(inv) }, { k: 'Clientes nuevos', v: F.num(cli) }, { k: 'CAC medio', v: F.eur(inv / Math.max(1, cli)), info: 'CAC' }, { k: 'Mejor canal', v: best[0] ? best[0].canal : '—', d: best[0] ? `LTV/CAC ${F.x(best[0].ratio)}` : '' }])}
-        <div class="glass pad mt stack"><h4>Rendimiento por canal</h4><div class="table-wrap"><table><thead><tr><th>Canal</th><th>Coste por lead</th><th>Conversión</th><th>CAC</th><th>LTV</th><th>LTV/CAC</th><th>ROI 1.er año</th></tr></thead><tbody>${R.map((c) => S.num(c.clientes) > 0 ? `<tr><td>${esc(c.canal)}</td><td>${F.eur(c.cpl)}</td><td>${F.pct(c.conv)}</td><td>${F.eur(c.cac)}</td><td>${F.eur(c.ltv)}</td><td><span class="state st-${c.ratio >= 3 ? 'ok' : c.ratio >= 1.5 ? 'warn' : 'stop'}">${F.x(c.ratio)}</span></td><td>${F.pct(c.roi * 100)}</td></tr>` : `<tr><td>${esc(c.canal)}</td><td>${F.eur(c.cpl)}</td><td>${F.pct(c.conv)}</td><td colspan="4" class="muted" style="text-align:center">sin clientes captados: CAC y retorno no se pueden medir</td></tr>`).join('')}</tbody></table></div>
+        ${S.kpiTiles([{ k: 'Inversión anual', info: 'Inversión anual', v: F.eur(inv) }, { k: 'Clientes nuevos', info: 'Clientes nuevos', v: F.num(cli) }, { k: 'Coste medio de captar un cliente (CAC)', v: F.eur(inv / Math.max(1, cli)), info: 'CAC y LTV' }, { k: 'Mejor canal', info: 'Mejor canal', v: best[0] ? best[0].canal : '—', d: best[0] ? `valor del cliente ÷ coste de captarlo: ${F.x(best[0].ratio)}` : '' }])}
+        <div class="glass pad mt stack"><h4>Rendimiento por canal</h4><div class="table-wrap"><table><thead><tr><th>Canal</th><th>Coste por contacto</th><th>Conversión</th><th>CAC</th><th>LTV</th><th>LTV/CAC</th><th>ROI 1.er año</th></tr></thead><tbody>${R.map((c) => S.num(c.clientes) > 0 ? `<tr><td>${esc(c.canal)}</td><td>${F.eur(c.cpl)}</td><td>${F.pct(c.conv)}</td><td>${F.eur(c.cac)}</td><td>${F.eur(c.ltv)}</td><td><span class="state st-${c.ratio >= 3 ? 'ok' : c.ratio >= 1.5 ? 'warn' : 'stop'}">${F.x(c.ratio)}</span></td><td>${F.pct(c.roi * 100)}</td></tr>` : `<tr><td>${esc(c.canal)}</td><td>${F.eur(c.cpl)}</td><td>${F.pct(c.conv)}</td><td colspan="4" class="muted" style="text-align:center">sin clientes captados: CAC y retorno no se pueden medir</td></tr>`).join('')}</tbody></table></div>
         ${best.length > 1 ? `<p class="small">Reasignar un 20 % del presupuesto de <b>${esc(best[best.length - 1].canal)}</b> a <b>${esc(best[0].canal)}</b> aportaría unos ${F.num(Math.round(S.num(best[best.length - 1].inversion) * 0.2 / Math.max(1, best[0].cac)))} clientes más al año con el mismo gasto.</p>` : ''}</div>
         <div class="glass pad mt" id="chTable"></div>`;
       S.etable($('#chTable', host), {
@@ -344,8 +344,8 @@
         cols: [{ k: 'canal', l: 'Canal', type: 'text' }, { k: 'inversion', l: 'Inversión', type: 'num' }, { k: 'leads', l: 'Contactos', type: 'num', syn: ['leads'] }, { k: 'oportunidades', l: 'Oportunidades', type: 'num' }, { k: 'clientes', l: 'Clientes', type: 'num' }, { k: 'ticket', l: 'Venta media anual', type: 'num', syn: ['ticket'] }, { k: 'margen', l: 'Margen %', type: 'num' }, { k: 'recurrencia', l: 'Años de relación', type: 'num' }]
       });
     },
-    kpis() { const c = C().canales; const inv = c.reduce((a, x) => a + S.num(x.inversion), 0), cl = c.reduce((a, x) => a + S.num(x.clientes), 0); return [{ k: 'CAC medio', v: F.eur(inv / Math.max(1, cl)) }]; },
-    findings() { return C().canales.filter((c) => { const cac = S.num(c.inversion) / Math.max(1, S.num(c.clientes)); const ltv = S.num(c.ticket) * S.num(c.margen) / 100 * S.num(c.recurrencia); return ltv / cac < 1.5; }).map((c) => ({ hallazgo: `El canal ${c.canal} no recupera lo que cuesta captar cada cliente.`, accion: 'Reducir o rediseñar el canal y mover el presupuesto al de mejor LTV/CAC.', impactoEUR: S.num(c.inversion) * 0.4, tipo: 'ebitda', plazo: 90 })); }
+    kpis() { const c = C().canales; const inv = c.reduce((a, x) => a + S.num(x.inversion), 0), cl = c.reduce((a, x) => a + S.num(x.clientes), 0); return [{ k: 'Coste medio de captar un cliente (CAC)', v: F.eur(inv / Math.max(1, cl)) }]; },
+    findings() { return C().canales.filter((c) => { const cac = S.num(c.inversion) / Math.max(1, S.num(c.clientes)); const ltv = S.num(c.ticket) * S.num(c.margen) / 100 * S.num(c.recurrencia); return ltv / cac < 1.5; }).map((c) => ({ hallazgo: `El canal ${c.canal} no recupera lo que cuesta captar cada cliente.`, accion: 'Reducir o rediseñar el canal y mover el presupuesto al que mejor relación tiene entre valor del cliente y coste de captarlo (LTV/CAC).', impactoEUR: S.num(c.inversion) * 0.4, tipo: 'ebitda', plazo: 90 })); }
   });
 
   /* ---------- Expansión territorial ---------- */
@@ -354,8 +354,8 @@
     clave: 'comercial', datos: () => (S.state.comercial.zonas || []).some((z) => S.num(z.mercado) > 0),
     render(host) {
       const Z = C().zonas.map((z) => { const ventas = S.num(z.mercado) * S.num(z.cuota) / 100; const ebitda = ventas * S.num(z.margen) / 100 - S.num(z.fijos); const pay = ebitda > 0 ? S.num(z.apertura) / ebitda + S.num(z.rampa) / 24 : Infinity; const score = Math.max(0, Math.min(100, (ebitda > 0 ? 40 : 0) + Math.max(0, 30 - (isFinite(pay) ? pay * 6 : 30)) + (5 - S.num(z.competencia)) * 6)); return Object.assign({}, z, { ventas, ebitda, pay, score }); }).sort((a, b) => b.score - a.score);
-      host.innerHTML = `${S.section('Expansión territorial', 'Compara zonas candidatas por mercado, cuota alcanzable, competencia, inversión de apertura y recuperación. La mejor puedes enviarla al simulador para comprobar si la empresa la soporta sin romper la tesorería.')}
-        <div class="glass pad stack"><h4>Ranking de zonas</h4><div class="table-wrap"><table><thead><tr><th>#</th><th>Zona</th><th>Ventas objetivo</th><th>EBITDA anual</th><th>Recuperación</th><th>Competencia</th><th>Atractivo</th><th></th></tr></thead><tbody>${Z.map((z, i) => `<tr><td>${i + 1}</td><td>${esc(z.zona)}</td><td>${F.eur(z.ventas)}</td><td style="color:${z.ebitda < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(z.ebitda)}</td><td>${isFinite(z.pay) ? F.months(z.pay * 12) : 'No recupera'}</td><td>${z.competencia}/5</td><td><span class="state st-${z.score >= 60 ? 'ok' : z.score >= 35 ? 'warn' : 'stop'}">${Math.round(z.score)}</span></td><td><button class="btn ghost" data-sim="${i}">Probar en el simulador</button></td></tr>`).join('')}</tbody></table></div><p class="small" id="exMsg"></p></div>
+      host.innerHTML = `${S.section('Expansión territorial', 'Compara zonas candidatas por mercado, cuota alcanzable, competencia, inversión de apertura y recuperación. La mejor puede enviarla al simulador para comprobar si la empresa la soporta sin romper la tesorería.')}
+        <div class="glass pad stack"><h4>Ranking de zonas</h4><div class="table-wrap"><table><thead><tr><th>#</th><th>Zona</th><th>Ventas objetivo</th><th>Beneficio anual (EBITDA)</th><th>Recuperación</th><th>Competencia</th><th>Atractivo</th><th></th></tr></thead><tbody>${Z.map((z, i) => `<tr><td>${i + 1}</td><td>${esc(z.zona)}</td><td>${F.eur(z.ventas)}</td><td style="color:${z.ebitda < 0 ? 'var(--stop)' : 'inherit'}">${F.eur(z.ebitda)}</td><td>${isFinite(z.pay) ? F.months(z.pay * 12) : 'No recupera'}</td><td>${z.competencia}/5</td><td><span class="state st-${z.score >= 60 ? 'ok' : z.score >= 35 ? 'warn' : 'stop'}">${Math.round(z.score)}</span></td><td><button class="btn ghost" data-sim="${i}">Probar en el simulador</button></td></tr>`).join('')}</tbody></table></div><p class="small" id="exMsg"></p></div>
         <div class="glass pad mt" id="zTable"></div>`;
       $$('[data-sim]', host).forEach((b) => b.onclick = () => {
         const z = Z[+b.dataset.sim], inv = S.sim.inversion;

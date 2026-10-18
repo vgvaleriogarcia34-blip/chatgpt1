@@ -318,6 +318,53 @@
     return Array.isArray(nodos) ? nodos : [];
   };
 
+  /* Importar la plantilla desde un CSV (exportado de la nómina o de una hoja de cálculo), en lugar de dar de alta una a una.
+     Columnas reconocidas por su cabecera: nombre (o nombre y apellidos por separado), puesto, área o departamento,
+     responsable (de quién depende, por su nombre) y correo. Sin cabecera reconocible: nombre, puesto, área y responsable.
+     Separador «;», «,» o tabulador; comillas dobles para textos con separador. Una persona que ya está (mismo nombre)
+     no se duplica: se completan su puesto, área y correo si los tenía vacíos. Los puestos nuevos se crean sin perfil.
+     No se importan fechas de nacimiento ni otros datos personales que la plantilla no necesita. */
+  const normT = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  R.leerCsv = (texto) => {
+    const t = String(texto || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+    const prim = t.split('\n').find((l) => l.trim()) || '', cuenta = (c) => prim.split(c).length - 1;
+    const sep = [';', '\t', ','].sort((a, b) => cuenta(b) - cuenta(a))[0];
+    const filas = []; let fila = [], campo = '', q = false;
+    for (let i = 0; i < t.length; i++) {
+      const ch = t[i];
+      if (q) { if (ch === '"') { if (t[i + 1] === '"') { campo += '"'; i++; } else q = false; } else campo += ch; continue; }
+      if (ch === '"') q = true; else if (ch === sep) { fila.push(campo); campo = ''; } else if (ch === '\n') { fila.push(campo); filas.push(fila); fila = []; campo = ''; } else campo += ch;
+    }
+    if (campo || fila.length) { fila.push(campo); filas.push(fila); }
+    return filas.map((f) => f.map((c) => c.trim())).filter((f) => f.some(Boolean));
+  };
+  const COLS = { nombre: /^(nombre( y apellidos| completo)?|empleado|trabajador|persona)$/, apellidos: /^apellidos?$/, puesto: /^(puesto|cargo|categoria|funcion|puesto de trabajo)$/, area: /^(area|departamento|seccion|equipo)$/, responsable: /^(responsable|depende de|jefe|superior|jefe directo|manager)$/, email: /^(correo|email|e-mail|correo electronico)$/ };
+  R.importarCsv = (texto) => {
+    const filas = R.leerCsv(texto); if (!filas.length) return { np: 0, nq: 0, act: 0, nr: 0, sinNombre: 0, total: 0 };
+    const cab = filas[0].map(normT), idx = {};
+    Object.keys(COLS).forEach((k) => { const i = cab.findIndex((c) => COLS[k].test(c)); if (i >= 0) idx[k] = i; });
+    const conCab = idx.nombre != null || idx.apellidos != null;
+    if (!conCab) Object.assign(idx, { nombre: 0, puesto: 1, area: 2, responsable: 3 });
+    const datos = (conCab ? filas.slice(1) : filas).slice(0, 2000), st = R.state, ps = st.personas, pu = st.puestos;
+    let np = 0, nq = 0, act = 0, nr = 0, sinNombre = 0; const resp = [];
+    const col = (f, k) => (idx[k] != null ? String(f[idx[k]] || '').trim() : '');
+    datos.forEach((f) => {
+      const nombre = [col(f, 'nombre'), col(f, 'apellidos')].filter(Boolean).join(' ').replace(/\s+/g, ' ');
+      if (!nombre) { sinNombre++; return; }
+      const puesto = col(f, 'puesto'), area = col(f, 'area'), email = col(f, 'email');
+      let q = puesto ? pu.find((x) => normT(x.nombre) === normT(puesto)) : null;
+      if (!q && puesto) { q = { id: R.uid('q'), nombre: puesto, area, mision: '', disc: null, roles: [], critico: false, sucesor: '' }; pu.push(q); nq++; }
+      let p = ps.find((x) => normT(x.nombre) === normT(nombre));
+      if (p) { let c = false; if (q && !p.puestoId) { p.puestoId = q.id; c = true; } if (area && !p.area) { p.area = area; c = true; } if (email && !p.email) { p.email = email; c = true; } if (c) act++; }
+      else { p = { id: R.uid('p'), nombre, puestoId: q ? q.id : '', area, responsable: '', alta: R.hoy(), consentimiento: false, origen: 'csv' }; if (email) p.email = email; ps.push(p); np++; }
+      const rs = col(f, 'responsable'); if (rs) resp.push([p, rs]);
+    });
+    // De quién depende cada uno, por el nombre, cuando ya están todas las personas
+    resp.forEach(([p, n]) => { const j = ps.find((x) => normT(x.nombre) === normT(n) && x.id !== p.id); if (j && !p.responsable) { p.responsable = j.id; nr++; } });
+    if (np || nq || act || nr) R.save();
+    return { np, nq, act, nr, sinNombre, total: datos.length };
+  };
+
   /* ---------- Arranque ---------- */
   R.start = async function () {
     A.sky && A.sky();

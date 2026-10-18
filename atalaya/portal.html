@@ -15,10 +15,9 @@
 <div class="pt-vignette" aria-hidden="true"></div>
 <div class="pt-warp" id="warp" aria-hidden="true"></div>
 
-<header class="pt-top">
-  <a class="brand" href="portal.html"><b>Atalaya</b><span>Su puesto de mando</span></a>
+<header class="topbar">
+  <a class="brand" href="portal.html"><b>Atalaya</b><span>Puesto de mando</span></a>
   <span class="spacer"></span>
-  <a class="pt-link" href="manual.html">Manual</a>
   <div class="account" id="account"></div>
 </header>
 
@@ -65,14 +64,10 @@
   <button class="pt-moon" data-w="man" aria-label="Abrir el manual">Manual</button>
 </div>
 
-<!-- Alternativa siempre visible (y para teclado o sin 3D) -->
-<nav class="pt-dock" aria-label="Elegir herramienta">
-  <button data-w="sim"><i class="d-sim"></i><span><b>Simulador de inversión</b><small>Decidir una inversión</small></span><kbd>1</kbd></button>
-  <button data-w="est"><i class="d-est"></i><span><b>Sistema estratégico</b><small>Gobernar el día a día</small></span><kbd>2</kbd></button>
-  <button data-w="per"><i class="d-per"></i><span><b>Personas y equipos</b><small>Perfiles, puestos y equipos</small></span><kbd>3</kbd></button>
-  <button data-w="iv"><i class="d-iv"></i><span><b>Auditoría integral</b><small>Diagnóstico e intervención</small></span><kbd>4</kbd></button>
-</nav>
-<p class="pt-hint" id="hint">Arrastre para girar · rueda o pellizco para acercarse · teclas 1 a 4 para entrar en cada mundo · Intro para entrar</p>
+<!-- Alternativa siempre visible (y para teclado, móvil o sin 3D): la misma lista de mundos que la barra superior.
+     portal.js la rellena desde Atalaya.platform.MUNDOS: los cuatro mundos del espacio y, debajo, mesa, tablero, libro y grupo -->
+<nav class="pt-dock" aria-label="Elegir mundo"></nav>
+<p class="pt-hint" id="hint">Arrastre para girar · rueda para acercarse · teclas 1 a 7 para entrar en cada mundo · Intro para entrar</p>
 <div class="pt-last" id="last" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
