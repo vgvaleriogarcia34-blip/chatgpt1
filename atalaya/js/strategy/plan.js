@@ -42,7 +42,7 @@
       o: [{ t: 'Nueva línea de producción', i: 4 }, { t: 'Expansión a Portugal', i: 3 }, { t: 'Digitalizar pedidos', i: 2 }]
     },
     came: [],
-    objetivos: [{ id: 'o1', nombre: 'Crecer de forma rentable', indicador: 'EBITDA sobre ventas', actual: 9, meta: 13, fecha: '2027-12-31' }, { id: 'o2', nombre: 'Tesorería sin tensiones', indicador: 'Meses de colchón mínimos', actual: 2, meta: 3, fecha: '2027-06-30' }],
+    objetivos: [{ id: 'o1', nombre: 'Crecer de forma rentable', indicador: 'Beneficio del negocio sobre ventas (EBITDA %)', actual: 9, meta: 13, fecha: '2027-12-31' }, { id: 'o2', nombre: 'Tesorería sin tensiones', indicador: 'Meses de colchón mínimos', actual: 2, meta: 3, fecha: '2027-06-30' }],
     areas: [{ macro: 'o1', area: 'Comercial', objetivo: 'Subir margen en clientes A', kpi: 'Margen de contribución clientes A (%)', actual: 33, meta: 37 }, { macro: 'o1', area: 'Operaciones', objetivo: 'Productividad en planta', kpi: 'OEE medio (%)', actual: 62, meta: 75 }, { macro: 'o2', area: 'Finanzas', objetivo: 'Cobrar antes', kpi: 'Días de cobro', actual: 75, meta: 60 }],
     acciones: [{ area: 'Comercial', accion: 'Renegociar tarifas con Distribuciones Norte', responsable: 'Dirección comercial', inicio: '', fin: '', estado: 'Pendiente' }, { area: 'Operaciones', accion: 'Plan de mantenimiento preventivo en montaje', responsable: 'Jefe de planta', inicio: '', fin: '', estado: 'En marcha' }, { area: 'Finanzas', accion: 'Política de crédito y reclamación de vencidos', responsable: 'Administración', inicio: '', fin: '', estado: 'Pendiente' }]
   };

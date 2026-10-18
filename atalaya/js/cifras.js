@@ -22,7 +22,7 @@
   // Las cifras, en el orden en que se enseñan
   const CAMPOS = [
     { k: 'ventas', n: 'Ventas', u: '€' },
-    { k: 'ebitda', n: 'EBITDA', u: '€', exp: 'Resultado antes de intereses, impuestos y amortizaciones: ventas × margen − personal − gastos fijos.' },
+    { k: 'ebitda', n: 'Beneficio del negocio (EBITDA)', u: '€', exp: 'Resultado antes de intereses, impuestos y amortizaciones: ventas × margen − personal − gastos fijos.' },
     { k: 'deuda', n: 'Deuda bancaria', u: '€' },
     { k: 'caja', n: 'Caja', u: '€' },
     { k: 'plantilla', n: 'Plantilla', u: 'personas' }
@@ -89,8 +89,8 @@
   const semaforos = (c) => {
     const out = [];
     if (!c || c.sinDatos) return out;
-    if (c.ebitda != null && c.ventas > 0) out.push({ k: 'ebitda', capa: 'rentabilidad', t: 'EBITDA sobre ventas', v: dec(c.ebitdaPct) + ' %', st: c.ebitda <= 0 ? 'stop' : c.ebitdaPct < 5 ? 'warn' : 'ok', d: c.ebitda <= 0 ? 'El negocio no genera resultado operativo.' : c.ebitdaPct < 5 ? 'Margen operativo estrecho: menos del 5 % de las ventas.' : '' });
-    if (c.deuda) out.push({ k: 'deudaEbitda', capa: 'liquidez', t: 'Deuda neta / EBITDA', v: c.deudaEbitda == null ? 'EBITDA ≤ 0' : dec(c.deudaEbitda) + ' veces', st: c.deudaEbitda == null || c.deudaEbitda > 4 ? 'stop' : c.deudaEbitda > 3 ? 'warn' : 'ok', d: c.deudaEbitda == null ? 'Sin EBITDA positivo, la deuda no se puede pagar con lo que genera el negocio.' : c.deudaEbitda > 3 ? 'Cargas financieras por encima de lo que genera el negocio.' : '' });
+    if (c.ebitda != null && c.ventas > 0) out.push({ k: 'ebitda', capa: 'rentabilidad', t: 'Beneficio del negocio (EBITDA) sobre ventas', v: dec(c.ebitdaPct) + ' %', st: c.ebitda <= 0 ? 'stop' : c.ebitdaPct < 5 ? 'warn' : 'ok', d: c.ebitda <= 0 ? 'El negocio no genera resultado operativo.' : c.ebitdaPct < 5 ? 'Margen operativo estrecho: menos del 5 % de las ventas.' : '' });
+    if (c.deuda) out.push({ k: 'deudaEbitda', capa: 'liquidez', t: 'Años de beneficio para pagar la deuda (deuda neta / EBITDA)', v: c.deudaEbitda == null ? 'EBITDA ≤ 0' : dec(c.deudaEbitda) + ' veces', st: c.deudaEbitda == null || c.deudaEbitda > 4 ? 'stop' : c.deudaEbitda > 3 ? 'warn' : 'ok', d: c.deudaEbitda == null ? 'Sin beneficio del negocio positivo, la deuda no se puede pagar con lo que genera el negocio.' : c.deudaEbitda > 3 ? 'Cargas financieras por encima de lo que genera el negocio.' : '' });
     if (c.caja != null && c.costeMes > 0) out.push({ k: 'caja', capa: 'liquidez', t: 'Caja en meses de costes', v: `${eur(c.caja)} · ${dec(c.mesesCaja)} meses`, st: c.mesesCaja < 1 ? 'stop' : c.mesesCaja < 2 ? 'warn' : 'ok', d: c.mesesCaja < 1 ? 'La tesorería no cubre un mes de personal y gastos fijos.' : c.mesesCaja < 2 ? 'Colchón corto: menos de dos meses de costes.' : '' });
     return out;
   };

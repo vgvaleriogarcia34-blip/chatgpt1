@@ -977,7 +977,7 @@
   const finView = { metric: 'ventas', horiz: null, crec: null };
   const FIN_METRICS = {
     ventas: { n: 'Ventas y beneficio (EBITDA)', u: '€', series: [{ k: 'ventas', n: 'Ventas', c: '--s1', t: 'bar', p: true }, { k: 'ebitda', n: 'Beneficio antes de intereses e impuestos (EBITDA)', c: '--gold', t: 'bar', p: true }] },
-    margenes: { n: 'Márgenes', u: '%', series: [{ k: 'margenPct', n: 'Margen bruto', c: '--s1', t: 'line', p: true }, { k: 'ebitdaPct', n: 'EBITDA sobre ventas', c: '--gold', t: 'line', p: true }, { k: 'pesoSalarial', n: 'Peso salarial', c: '--s2', t: 'line', p: true }] },
+    margenes: { n: 'Márgenes', u: '%', series: [{ k: 'margenPct', n: 'Margen bruto', c: '--s1', t: 'line', p: true }, { k: 'ebitdaPct', n: 'Beneficio del negocio sobre ventas (EBITDA %)', c: '--gold', t: 'line', p: true }, { k: 'pesoSalarial', n: 'Peso salarial', c: '--s2', t: 'line', p: true }] },
     beneficio: { n: 'Beneficio y autofinanciación', u: '€', series: [{ k: 'bn', n: 'Beneficio neto', c: '--s3', t: 'bar' }, { k: 'autofinanciacion', n: 'Autofinanciación', c: '--s1', t: 'bar' }] },
     deuda: { n: 'Deuda y fondo de maniobra', u: '€', series: [{ k: 'dfn', n: 'Deuda neta', c: '--s2', t: 'bar' }, { k: 'fondoManiobra', n: 'Fondo de maniobra', c: '--s1', t: 'bar' }] },
     ciclo: { n: 'Días de cobro, stock y pago', u: 'días', series: [{ k: 'dso', n: 'Cobro', c: '--s2', t: 'line', p: true }, { k: 'dio', n: 'Stock', c: '--s4', t: 'line' }, { k: 'dpo', n: 'Pago', c: '--s3', t: 'line' }] },

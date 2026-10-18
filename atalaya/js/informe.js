@@ -127,7 +127,7 @@
     c.querySelectorAll('[style*="cursor"]').forEach((x) => { x.style.cursor = ''; });
     c.querySelectorAll('[id]').forEach((x) => x.removeAttribute('id'));
     // Fuera las instrucciones de uso de la pantalla («Toca…», «Pulsa…»): en papel no tienen sentido
-    c.querySelectorAll('p, small, span').forEach((x) => { if (!x.children.length && /^(Toca|Pulsa|Pasa (el ratón|por encima)|Arrastra|Elige|Escribe|Di, por ejemplo)/.test(x.textContent.trim())) x.remove(); });
+    c.querySelectorAll('p, small, span').forEach((x) => { if (!x.children.length && /^(Toca|Toque|Pulsa|Pulse|Pasa (el ratón|por encima)|Pase (el ratón|por encima)|Arrastra|Arrastre|Elige|Elija|Escribe|Escriba|Di, por ejemplo|Diga, por ejemplo)/.test(x.textContent.trim())) x.remove(); });
     return c.innerHTML;
   };
 

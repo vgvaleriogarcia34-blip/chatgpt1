@@ -35,15 +35,15 @@
     s2cierre: (st) => !!(st.informes && st.informes.auditoria) && ['presentada', 'aceptada', 'rechazada'].includes((st.recorrido.propS3 || {}).estado)
   });
   Object.assign(V.pasoTxt, {
-    triaje: 'Confirma el triaje de cada área (urgencias, preferente o programable): de aquí salen las prioridades que ordenan la propuesta integral.',
-    foto: 'Cierra la sesión previa con la foto inicial: sus prioridades, el 20 % de causas que explica el 80 % y qué servicio le toca primero. Entrega el informe de la sesión previa.',
-    propuesta: 'Prepara la propuesta integral y personalizada: los tres servicios en orden, ajustados a sus prioridades, con el valor en juego y la forma de pago. Queda hecho al abrir el dossier.',
-    aceptacion: 'Anota cómo quedó la propuesta (presentada, aceptada o rechazada) y qué servicios contrata. Al aceptarse, el primer servicio queda en curso.',
-    s1docs: 'Pide la documentación del Servicio 1 con la solicitud para la empresa y marca lo que llega. Lo que subas en «Documentación» se reparte a los mundos.',
-    s1dinero: 'Con las cuentas cargadas, mira año a año dónde acabó el beneficio (clientes, stock, inversiones, préstamos, dividendos o caja) y escribe tus conclusiones.',
-    s1cierre: 'Entrega el informe «Dónde está su dinero» y presenta, con lo que ha revelado, la propuesta de la Auditoría 360.',
-    foto360: 'La foto completa en seis bloques, de los datos a la operativa: flujos de caja, sistema operativo, ABC de clientes y producto, estructura económica y sistema financiero. Pon el semáforo y tu nota en cada uno.',
-    s2cierre: 'Entrega el informe de la auditoría 360 y presenta la propuesta de acompañamiento de 6 a 12 meses, con sesiones quincenales por objetivos.'
+    triaje: 'Confirme el triaje de cada área (urgencias, preferente o programable): de aquí salen las prioridades que ordenan la propuesta integral.',
+    foto: 'Cierre la sesión previa con la foto inicial: sus prioridades, el 20 % de causas que explica el 80 % y qué servicio le toca primero. Entregue el informe de la sesión previa.',
+    propuesta: 'Prepare la propuesta integral y personalizada: los tres servicios en orden, ajustados a sus prioridades, con el valor en juego y la forma de pago. Queda hecho al abrir el dossier.',
+    aceptacion: 'Anote cómo quedó la propuesta (presentada, aceptada o rechazada) y qué servicios contrata. Al aceptarse, el primer servicio queda en curso.',
+    s1docs: 'Pida la documentación del Servicio 1 con la solicitud para la empresa y marque lo que llega. Lo que suba en «Documentación» se reparte a los mundos.',
+    s1dinero: 'Con las cuentas cargadas, mire año a año dónde acabó el beneficio (clientes, stock, inversiones, préstamos, dividendos o caja) y escriba sus conclusiones.',
+    s1cierre: 'Entregue el informe «Dónde está su dinero» y presente, con lo que ha revelado, la propuesta de la Auditoría 360.',
+    foto360: 'La foto completa en seis bloques, de los datos a la operativa: flujos de caja, sistema operativo, ABC de clientes y producto, estructura económica y sistema financiero. Ponga el semáforo y su nota en cada uno.',
+    s2cierre: 'Entregue el informe de la auditoría 360 y presente la propuesta de acompañamiento de 6 a 12 meses, con sesiones quincenales por objetivos.'
   });
 
   /* ================= ETAPA 1 · FOTO INICIAL ================= */
@@ -57,7 +57,7 @@
     const st = S(), r = I.ruta(), g = I.global(), v = I.veinte ? [...I.veinte()] : [], sp = servicioPrimero(); // veinte() devuelve un Set
     const citas = st.sintomas.filter((s) => s.cita).sort((a, b) => (b.gravedad || 0) - (a.gravedad || 0)).slice(0, 4);
     host.innerHTML = `<div class="glass pad stack">
-        <div class="row"><div><div class="eyebrow">Foto inicial · cierre de la sesión previa</div><h3 style="margin:4px 0 0">${esc(empresa())}</h3><small class="muted">Lo que ya sabes después de escucharle. Con esto se prepara la propuesta integral.</small></div><span class="spacer"></span>${luz(g)}</div>
+        <div class="row"><div><div class="eyebrow">Foto inicial · cierre de la sesión previa</div><h3 style="margin:4px 0 0">${esc(empresa())}</h3><small class="muted">Lo que ya sabe después de escucharle. Con esto se prepara la propuesta integral.</small></div><span class="spacer"></span>${luz(g)}</div>
         <div class="sv-g3">
           <div class="sv-kpi"><span>Áreas en urgencias</span><b>${r.filter((x) => x.n === 'stop').length}</b></div>
           <div class="sv-kpi"><span>Síntomas</span><b>${st.sintomas.length}</b></div>
@@ -69,7 +69,7 @@
       </div>
       ${v.length ? `<div class="glass pad stack"><div class="eyebrow">El 20 % de causas que explica el 80 %</div><ol class="sv-prio">${v.map((id) => st.causas.find((c) => c.id === id)).filter(Boolean).map((c) => `<li>${luz(c.estado === 'confirmada' ? 'stop' : 'warn')}<b>${esc(c.t)}</b><small>${esc((D.area(c.area) || {}).n || '')} · ${c.estado === 'confirmada' ? 'confirmada' : 'hipótesis'}</small></li>`).join('')}</ol></div>` : ''}
       <div class="glass pad stack"><div class="eyebrow">Con sus palabras</div>
-        ${citas.length ? citas.map((s) => `<blockquote class="sv-cita">«${esc(s.cita)}»<small>${esc(s.t)}</small></blockquote>`).join('') : '<p class="small muted">Sin frases literales todavía: súbelas desde la transcripción o apúntalas en el guion.</p>'}
+        ${citas.length ? citas.map((s) => `<blockquote class="sv-cita">«${esc(s.cita)}»<small>${esc(s.t)}</small></blockquote>`).join('') : '<p class="small muted">Sin frases literales todavía: súbalas desde la transcripción o apúntelas en el guion.</p>'}
       </div>
       <div class="glass pad stack sv-sig"><div class="eyebrow">Qué servicio le toca primero</div><p>${esc(sp.texto)}</p>
         <ol class="sv-serv"><li class="${sp.urgFin ? 'urg' : ''}"><b>Servicio 1 · ¿Dónde está el dinero que gana la empresa?</b><small>Documentación, análisis e informe completo.</small></li><li><b>Servicio 2 · Auditoría integral 360</b><small>La foto completa: de los datos a la operativa.</small></li><li><b>Servicio 3 · Acompañamiento por objetivos (6 a 12 meses)</b><small>Sesiones quincenales sobre las prioridades que revela la auditoría.</small></li></ol>
@@ -87,7 +87,7 @@
         <div class="sv-g3"><label class="small">Estado<select class="input" data-p="estado">${ESTADO_PROP.map(([k, n]) => `<option value="${k}" ${p.estado === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
           <label class="small">Fecha<input class="input" type="date" data-p="fecha" value="${esc(p.fecha || '')}"></label>
           <div class="row" style="align-items:end"><button class="btn ghost small" data-ir="propuesta">Ver la propuesta integral</button></div></div>
-        ${p.estado === 'rechazada' ? `<label class="small">Motivo (queda en tu autoevaluación)<textarea class="input" rows="2" data-p="motivo" placeholder="Precio, momento, no vio el valor, otra prioridad…">${esc(p.motivo || '')}</textarea></label>` : ''}
+        ${p.estado === 'rechazada' ? `<label class="small">Motivo (queda en su autoevaluación)<textarea class="input" rows="2" data-p="motivo" placeholder="Precio, momento, no vio el valor, otra prioridad…">${esc(p.motivo || '')}</textarea></label>` : ''}
       </div>
       <div class="glass pad stack"><div class="eyebrow">Servicios contratados</div><small class="muted">Cada servicio se presenta y se acepta por separado; al cerrar uno se presenta la propuesta del siguiente.</small>
         <ul class="sv-contr">
@@ -125,7 +125,7 @@
     const d = R().docs;
     const n = DOCS_S1.filter((x) => ['recibido', 'revisado', 'na'].includes(d[x.id] && d[x.id].e)).length;
     host.innerHTML = `<div class="glass pad stack">
-        <div class="row"><div><div class="eyebrow">Servicio 1 · documentación que se pide</div><small class="muted">${n} de ${DOCS_S1.length} recibidos o resueltos. Envíale la solicitud y marca lo que llega.</small></div><span class="spacer"></span><button class="btn solid small" id="svSolic">Solicitud para la empresa</button></div>
+        <div class="row"><div><div class="eyebrow">Servicio 1 · documentación que se pide</div><small class="muted">${n} de ${DOCS_S1.length} recibidos o resueltos. Envíele la solicitud y marque lo que llega.</small></div><span class="spacer"></span><button class="btn solid small" id="svSolic">Solicitud para la empresa</button></div>
         <div class="iv-prog"><span style="width:${Math.round((n / DOCS_S1.length) * 100)}%"></span></div>
         <ul class="sv-docs">${DOCS_S1.map((x) => { const v = d[x.id] || {}; return `<li class="${v.e || ''}"><div><b>${esc(x.n)}</b><small>${esc(x.d)}</small></div><select class="input small" data-d="${x.id}">${DOC_E.map(([k, l]) => `<option value="${k}" ${(v.e || '') === k ? 'selected' : ''}>${l}</option>`).join('')}</select><input class="input small" data-dn="${x.id}" value="${esc(v.nota || '')}" placeholder="Nota"></li>`; }).join('')}</ul>
         <div class="row"><button class="btn" data-ir="documentacion">Subir lo recibido en «Documentación» →</button><a class="btn ghost" href="app.html#historia">Cargar las cuentas en el simulador</a></div>
@@ -189,7 +189,7 @@
       if (!host.isConnected) return; // la vista ya cambió mientras se leían las cuentas
       const Y = aniosDe(sim), an = Y.length >= 2 ? analisisDinero(Y) : null, dn = R().dinero;
       if (!an) {
-        host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 1 · ¿Dónde está el dinero?</div><div class="alert warn">Faltan las cuentas de al menos dos años. Cárgalas en el simulador (cuentas históricas) o súbelas en «Documentación»; Atalaya no inventa cifras.</div><div class="row"><a class="btn solid" href="app.html#historia">Cargar las cuentas</a><button class="btn" data-ir="s1docs">Ver la documentación pedida</button></div></div>${notasHTML(dn)}`;
+        host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 1 · ¿Dónde está el dinero?</div><div class="alert warn">Faltan las cuentas de al menos dos años. Cárguelas en el simulador (cuentas históricas) o súbalas en «Documentación»; Atalaya no inventa cifras.</div><div class="row"><a class="btn solid" href="app.html#historia">Cargar las cuentas</a><button class="btn" data-ir="s1docs">Ver la documentación pedida</button></div></div>${notasHTML(dn)}`;
       } else {
         const f = anioSel(an, dn);
         host.innerHTML = `<div class="glass pad stack">
@@ -201,7 +201,7 @@
             <div class="rp-tw"><table class="sv-tab"><thead><tr><th>Año</th><th>Beneficio</th><th>Recursos generados</th><th>Variación de caja</th><th>Atrapado en circulante</th><th>Inversión</th><th>Deuda</th><th>Dividendos</th><th>Días cobro</th></tr></thead><tbody>
               ${an.F.map((x) => `<tr class="${x === f ? 'on' : ''}" data-an="${x.anio}" tabindex="0" role="button" aria-pressed="${x === f}" aria-label="Ver ${x.anio}"><td>${x.anio}</td><td>${eur(x.bn)}</td><td>${eur(x.recursos)}</td><td class="${x.caja < 0 ? 'neg' : ''}">${eur(x.caja)}</td><td>${eur(x.atrapado)}</td><td>${eur(x.capex)}</td><td>${eur(x.deuda)}</td><td>${eur(x.div)}</td><td>${x.dso ? Math.round(x.dso) : '—'}</td></tr>`).join('')}</tbody></table></div>
             ${barras100(f)}
-            <small class="muted">Toca un año en la tabla (o elígelo con el teclado y pulsa Intro) para verlo.</small>
+            <small class="muted">Toque un año en la tabla (o elíjalo con el teclado y pulse Intro) para verlo.</small>
           </div>${notasHTML(dn)}`;
         $$('[data-an]', host).forEach((tr) => { tr.onclick = () => { dn.anio = +tr.dataset.an; guardar(); render(); }; tr.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tr.onclick(); } }; });
       }
@@ -210,7 +210,7 @@
       if (I.botonesAmpliar) I.botonesAmpliar();
     });
   };
-  const notasHTML = (dn) => `<div class="glass pad stack"><div class="eyebrow">Tus conclusiones (van al informe)</div><textarea class="input" rows="5" id="svDinNotas" placeholder="Qué explica la diferencia entre beneficio y caja, qué decisión la causa y qué propones atacar primero…">${esc(dn.notas || '')}</textarea><div class="row"><button class="btn solid" data-ir="s1cierre">Informe y siguiente propuesta →</button></div></div>`;
+  const notasHTML = (dn) => `<div class="glass pad stack"><div class="eyebrow">Sus conclusiones (van al informe)</div><textarea class="input" rows="5" id="svDinNotas" placeholder="Qué explica la diferencia entre beneficio y caja, qué decisión la causa y qué propone atacar primero…">${esc(dn.notas || '')}</textarea><div class="row"><button class="btn solid" data-ir="s1cierre">Informe y siguiente propuesta →</button></div></div>`;
   const wireNotas = (host, dn) => { const t = $('#svDinNotas', host); if (t) t.oninput = () => { dn.notas = t.value; guardar(); }; };
 
   const informeDinero = async () => {
@@ -281,7 +281,7 @@
     const s1 = svc('s1');
     host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 1 · entrega</div>
         <div class="row"><button class="btn solid" id="svInfDin">Informe «Dónde está su dinero»</button><label class="small"><input type="checkbox" id="svS1Ent" ${s1.estado === 'entregado' ? 'checked' : ''}> Servicio entregado</label></div>
-        <small class="muted">El informe recoge el análisis año a año y tus conclusiones. Después, presenta la propuesta de la Auditoría 360 con lo que ha revelado.</small></div>${propForm('propS2')}`;
+        <small class="muted">El informe recoge el análisis año a año y sus conclusiones. Después, presente la propuesta de la Auditoría 360 con lo que ha revelado.</small></div>${propForm('propS2')}`;
     $('#svInfDin', host).onclick = () => informeDinero();
     $('#svS1Ent', host).onchange = (e) => { s1.estado = e.target.checked ? 'entregado' : 'curso'; guardar(); render(); };
     wireProp(host, 'propS2');
@@ -310,7 +310,7 @@
     if (c && !c.sinDatos) {
       const sem = A.cifras.semaforos(c), luzDe = (k) => (sem.find((x) => x.k === k) || {}).st;
       const v = c.ventas, fijos = (c.personal || 0) + (c.fijos || 0), pe = c.margen > 0 ? fijos / (c.margen / 100) : null;
-      out.economica.push({ k: 'Margen bruto', v: c.margen == null ? '—' : pct(c.margen), st: c.margen == null ? '' : c.margen < 30 ? 'warn' : 'ok' }, { k: 'Peso del personal', v: c.personal == null ? '—' : pct(c.personal / v * 100), st: c.personal == null ? '' : c.personal / v * 100 > 35 ? 'warn' : 'ok' }, { k: 'Otros gastos', v: c.fijos == null ? '—' : pct(c.fijos / v * 100) }, { k: 'EBITDA', v: c.ebitda == null ? '—' : `${eur(c.ebitda)} · ${pct(c.ebitdaPct)} de las ventas`, st: luzDe('ebitda') || '' });
+      out.economica.push({ k: 'Margen bruto', v: c.margen == null ? '—' : pct(c.margen), st: c.margen == null ? '' : c.margen < 30 ? 'warn' : 'ok' }, { k: 'Peso del personal', v: c.personal == null ? '—' : pct(c.personal / v * 100), st: c.personal == null ? '' : c.personal / v * 100 > 35 ? 'warn' : 'ok' }, { k: 'Otros gastos', v: c.fijos == null ? '—' : pct(c.fijos / v * 100) }, { k: 'Beneficio del negocio (EBITDA)', v: c.ebitda == null ? '—' : `${eur(c.ebitda)} · ${pct(c.ebitdaPct)} de las ventas`, st: luzDe('ebitda') || '' });
       if (pe) out.economica.push({ k: 'Punto de equilibrio', v: eur(pe), st: v < pe * 1.1 ? 'stop' : v < pe * 1.25 ? 'warn' : 'ok' });
       out.financiero.push({ k: 'Deuda bancaria', v: c.deuda == null ? '— (sin dato)' : eur(c.deuda) }, { k: 'Deuda neta (deuda − caja)', v: c.deudaNeta == null ? '—' : eur(c.deudaNeta), st: luzDe('deudaEbitda') || '' });
       if (u) { const deuda = g(u, 'deudaLP') + g(u, 'deudaCP'), activo = g(u, 'inmovilizado') + g(u, 'existencias') + g(u, 'clientes') + g(u, 'tesoreria'); out.financiero.push({ k: 'Deuda a corto sobre el total', v: deuda ? pct(g(u, 'deudaCP') / deuda * 100) : '—', st: deuda && g(u, 'deudaCP') / deuda > 0.6 ? 'warn' : deuda ? 'ok' : '' }, { k: 'Autonomía (fondos propios / activo)', v: activo ? pct(g(u, 'fondosPropios') / activo * 100) : '—', st: activo && g(u, 'fondosPropios') / activo < 0.3 ? 'warn' : activo ? 'ok' : '' }); }
@@ -319,8 +319,8 @@
       const v0 = g(u, 'ventas'), v = v0 || 1, mb = (v - g(u, 'costeVentas')) / v * 100, per = g(u, 'personal') / v * 100, otros = g(u, 'otrosGastos') / v * 100, ebitda = (v - g(u, 'costeVentas') - g(u, 'personal') - g(u, 'otrosGastos'));
       const fijos = g(u, 'personal') + g(u, 'otrosGastos'), pe = mb > 0 ? fijos / (mb / 100) : null;
       // Sin ventas no hay porcentajes sobre ventas: se dice que falta el dato, sin semáforo
-      if (!v0) out.economica.push({ k: 'Ventas del último año', v: '— (sin dato)' }, { k: 'Margen bruto', v: '—' }, { k: 'Peso del personal', v: '—' }, { k: 'EBITDA sobre ventas', v: '—' });
-      else out.economica.push({ k: 'Margen bruto', v: pct(mb), st: mb < 30 ? 'warn' : 'ok' }, { k: 'Peso del personal', v: pct(per), st: per > 35 ? 'warn' : 'ok' }, { k: 'Otros gastos', v: pct(otros) }, { k: 'EBITDA sobre ventas', v: pct(ebitda / v * 100), st: ebitda <= 0 ? 'stop' : ebitda / v < 0.06 ? 'warn' : 'ok' });
+      if (!v0) out.economica.push({ k: 'Ventas del último año', v: '— (sin dato)' }, { k: 'Margen bruto', v: '—' }, { k: 'Peso del personal', v: '—' }, { k: 'Beneficio del negocio (EBITDA) sobre ventas', v: '—' });
+      else out.economica.push({ k: 'Margen bruto', v: pct(mb), st: mb < 30 ? 'warn' : 'ok' }, { k: 'Peso del personal', v: pct(per), st: per > 35 ? 'warn' : 'ok' }, { k: 'Otros gastos', v: pct(otros) }, { k: 'Beneficio del negocio (EBITDA) sobre ventas', v: pct(ebitda / v * 100), st: ebitda <= 0 ? 'stop' : ebitda / v < 0.06 ? 'warn' : 'ok' });
       if (pe && v0) out.economica.push({ k: 'Punto de equilibrio', v: eur(pe), st: v < pe * 1.1 ? 'stop' : v < pe * 1.25 ? 'warn' : 'ok' });
       const deuda = g(u, 'deudaLP') + g(u, 'deudaCP'), activo = g(u, 'inmovilizado') + g(u, 'existencias') + g(u, 'clientes') + g(u, 'tesoreria');
       out.financiero.push({ k: 'Deuda bancaria', v: eur(deuda) }, { k: 'Deuda / EBITDA', v: ebitda > 0 ? (deuda / ebitda).toFixed(1).replace('.', ',') + ' veces' : '—', st: ebitda <= 0 || deuda / ebitda > 4 ? 'stop' : deuda / ebitda > 3 ? 'warn' : 'ok' }, { k: 'Deuda a corto sobre el total', v: deuda ? pct(g(u, 'deudaCP') / deuda * 100) : '—', st: deuda && g(u, 'deudaCP') / deuda > 0.6 ? 'warn' : 'ok' }, { k: 'Autonomía (fondos propios / activo)', v: activo ? pct(g(u, 'fondosPropios') / activo * 100) : '—', st: activo && g(u, 'fondosPropios') / activo < 0.3 ? 'warn' : 'ok' });
@@ -338,11 +338,11 @@
     datos360().then((dat) => {
       if (!host.isConnected) return; // la vista ya cambió mientras se reunían los datos
       const F = R().foto360, pr = prioridades360();
-      host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 2 · Foto 360</div><small class="muted">De los datos a la operativa. Cada bloque toma sus cifras de los mundos; pon tu semáforo y tu nota. Lo que falte, pídelo: el bloque lo dice.</small>${A.cifras ? `<div class="sv-cifras" id="svCifras">${A.cifras.html(dat._cifras)}</div>` : ''}</div>
+      host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 2 · Foto 360</div><small class="muted">De los datos a la operativa. Cada bloque toma sus cifras de los mundos; ponga su semáforo y su nota. Lo que falte, pídalo: el bloque lo dice.</small>${A.cifras ? `<div class="sv-cifras" id="svCifras">${A.cifras.html(dat._cifras)}</div>` : ''}</div>
         <div class="sv-360">${BLOQUES.map((b, i) => { const l = dat[b.id] || [], auto = peor(l.map((x) => x.st).filter(Boolean)), f = F[b.id] || {}; return `<section class="glass pad stack sv-bl"><div class="row"><span class="sv-n">${i + 1}</span><div><b>${esc(b.n)}</b><small class="muted">${esc(b.q)}</small></div><span class="spacer"></span>${luz(f.st || auto)}</div>
-          ${l.length ? `<ul class="sv-dat">${l.map((x) => `<li>${luz(x.st)}<span>${esc(x.k)}</span><b>${esc(x.v)}</b></li>`).join('')}</ul>` : '<small class="muted">Sin datos de los mundos: pide la documentación de este bloque.</small>'}
+          ${l.length ? `<ul class="sv-dat">${l.map((x) => `<li>${luz(x.st)}<span>${esc(x.k)}</span><b>${esc(x.v)}</b></li>`).join('')}</ul>` : '<small class="muted">Sin datos de los mundos: pida la documentación de este bloque.</small>'}
           <div class="row"><select class="input small" data-fs="${b.id}"><option value="">Semáforo: automático${auto ? ' (' + ({ ok: 'verde', warn: 'ámbar', stop: 'rojo' })[auto] + ')' : ''}</option>${[['ok', 'Verde'], ['warn', 'Ámbar'], ['stop', 'Rojo']].map(([v, n]) => `<option value="${v}" ${f.st === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
-          <textarea class="input" rows="2" data-fn="${b.id}" placeholder="Tu nota: qué has visto y qué propones">${esc(f.nota || '')}</textarea></section>`; }).join('')}</div>
+          <textarea class="input" rows="2" data-fn="${b.id}" placeholder="Su nota: qué ha visto y qué propone">${esc(f.nota || '')}</textarea></section>`; }).join('')}</div>
         <div class="glass pad stack"><div class="eyebrow">Prioridades que revela la foto</div><small class="muted">Ordenadas por la regla base: primero la liquidez, después la rentabilidad, después el crecimiento.</small>
           ${pr.length ? `<ol class="sv-prio">${pr.map(({ x, p }) => `<li>${luz(x.n)}<b>${esc(x.a.n)}</b><small>${esc(I.PRIN_N && I.PRIN_N[p] ? I.PRIN_N[p] : p)}${x.cs[0] ? ' · ' + esc(x.cs[0].t) : ''}</small></li>`).join('')}</ol>` : '<p class="small muted">Sin áreas en urgencias o preferentes.</p>'}
           <div class="row"><button class="btn solid" data-ir="s2cierre">Informe y propuesta de acompañamiento →</button></div></div>`;

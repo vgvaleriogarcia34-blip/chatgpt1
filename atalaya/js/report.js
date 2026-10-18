@@ -12,7 +12,7 @@
     const F = f();
     const e = state.empresa;
     const parts = [];
-    parts.push(`En el escenario ${scName.toLowerCase()}, la inversión de ${F.eur(r.dim.inversion)} es ${r.dim.clase.toLowerCase()} para una empresa que hoy factura ${F.eur(e.ventas)}: equivale a ${F.x(r.dim.sobreEbitda)} su EBITDA actual y al ${F.pct(r.dim.sobreFondos * 100)} de sus fondos propios.`);
+    parts.push(`En el escenario ${scName.toLowerCase()}, la inversión de ${F.eur(r.dim.inversion)} es ${r.dim.clase.toLowerCase()} para una empresa que hoy factura ${F.eur(e.ventas)}: equivale a ${F.x(r.dim.sobreEbitda)} su beneficio antes de intereses e impuestos (EBITDA) actual y al ${F.pct(r.dim.sobreFondos * 100)} de sus fondos propios.`);
     const liq = r.contarPoliza ? 'liquidez (caja más póliza disponible)' : 'caja';
     parts.push(r.cajaRef < 0
       ? `La tesorería se rompe: la ${liq} cae hasta ${F.eur(r.cajaRef)} en el mes ${r.mesCajaRef}. La empresa no puede afrontar el movimiento solo con su rentabilidad tal como está planteado.`
@@ -45,12 +45,12 @@
     h += `<h2><span class="rp-n">02</span>Dimensión de la inversión</h2><div class="cols">
       <div><span>Inversión total</span><b>${F.eur(r.dim.inversion)}</b></div>
       <div><span>Sobre ventas</span><b>${F.pct(r.dim.sobreVentas * 100)}</b></div>
-      <div><span>Años de EBITDA</span><b>${F.x(r.dim.sobreEbitda)}</b></div>
+      <div><span>Años de beneficio del negocio (EBITDA)</span><b>${F.x(r.dim.sobreEbitda)}</b></div>
       <div><span>Sobre fondos propios</span><b>${F.pct(r.dim.sobreFondos * 100)}</b></div>
       <div><span>Préstamo</span><b>${F.eur(r.loan)}</b></div>
       <div><span>Cuota mensual</span><b>${F.eur(r.cuotaNueva)}</b></div></div>`;
 
-    h += `<h2><span class="rp-n">03</span>Escenarios</h2><div class="table-wrap"><table><thead><tr><th>Escenario</th><th>Liquidez mín.</th><th>Mes</th><th>Colchón mín.</th><th>Caja a 5 años</th><th>Recuperación</th><th>DSCR mín.</th><th>Deuda/EBITDA</th><th>VAN</th><th>Veredicto</th></tr></thead><tbody>`;
+    h += `<h2><span class="rp-n">03</span>Escenarios</h2><div class="table-wrap"><table><thead><tr><th>Escenario</th><th>Liquidez mín.</th><th>Mes</th><th>Colchón mín.</th><th>Caja a 5 años</th><th>Recuperación</th><th>Veces que cubre las cuotas (DSCR mín.)</th><th>Deuda/EBITDA</th><th>Valor actual neto (VAN)</th><th>Veredicto</th></tr></thead><tbody>`;
     ctx.all.filter((x) => inc.indexOf(x.key) >= 0).forEach((x) => {
       const q = x.r;
       h += `<tr><td>${x.nombre}</td><td>${F.eur(q.cajaRef)}</td><td>${q.mesCajaRef}</td><td>${String(Math.round(q.colMin * 10) / 10).replace('.', ',')} m</td><td>${F.eur(q.cajaFinal)}</td><td>${F.months(q.payback)}</td><td>${F.x(q.dscrMin)}</td><td>${F.x(q.deudaEbitda)}</td><td>${F.eur(q.van)}</td><td>${pill(vKey[q.verdict.key], q.verdict.titulo)}</td></tr>`;
@@ -86,7 +86,7 @@
     h += `<h2><span class="rp-n">08</span>Estructura societaria</h2><div class="table-wrap"><table><thead><tr><th>Vehículo</th><th>Encaje</th><th>Liquidez mínima</th><th>Recuperación</th><th>Tamaño pleno</th><th>Control</th><th>Metas</th></tr></thead><tbody>`;
     ctx.structs.forEach((s) => { h += `<tr><td>${s.nombre}${s.key === state.estructura ? ' (actual)' : ''}</td><td>${Math.round(s.score)}</td><td>${F.eur(s.r.cajaRef)}</td><td>${F.months(s.r.payback)}</td><td>mes ${s.mesPleno} ${s.enPlazo ? '' : '(fuera de plazo)'}</td><td>${s.control} %</td><td>${s.metasOk}/5</td></tr>`; });
     const best = ctx.structs[0];
-    h += `</tbody></table></div><p>Mejor encaje para tus objetivos: <b>${best.nombre}</b>${best.key === state.estructura ? ' (es la que tienes elegida)' : ` (la elegida en la simulación es ${A.STRUCTURES[state.estructura].nombre.toLowerCase()})`}. ${A.structCaso ? A.structCaso(state, best) : best.desc}</p>
+    h += `</tbody></table></div><p>Mejor encaje para sus objetivos: <b>${best.nombre}</b>${best.key === state.estructura ? ' (es la que tiene elegida)' : ` (la elegida en la simulación es ${A.STRUCTURES[state.estructura].nombre.toLowerCase()})`}. ${A.structCaso ? A.structCaso(state, best) : best.desc}</p>
       <p class="rp-muted"><b>Cómo leer la tabla.</b> <b>Encaje</b>: ${A.STRUCT_GLOSA.encaje} <b>Control</b>: ${A.STRUCT_GLOSA.control} <b>Tamaño pleno</b>: ${A.STRUCT_GLOSA.pleno} <b>Metas</b>: ${A.STRUCT_GLOSA.metas}</p>`;
 
     const P = ctx.plan;
@@ -95,7 +95,7 @@
     h += `<div class="table-wrap"><table><thead><tr><th>Meta</th><th>Objetivo</th><th>Hoy</th><th>Tras el plan</th></tr></thead><tbody>`;
     P.antes.metas.forEach((m, i) => { const d = P.despues.metas[i]; h += `<tr><td>${m.nombre}</td><td>${m.f(m.objetivo)}</td><td>${pill(m.ok ? 'ok' : 'stop', m.f(m.valor))}</td><td>${pill(d.ok ? 'ok' : 'stop', d.f(d.valor))}</td></tr>`; });
     h += `</tbody></table></div>`;
-    if (P.ok) h += `<p>El escenario ${sc.nombre.toLowerCase()} ya cumple todas las metas. No hace falta corregir; mantén la vigilancia de los semáforos en ámbar.</p>`;
+    if (P.ok) h += `<p>El escenario ${sc.nombre.toLowerCase()} ya cumple todas las metas. No hace falta corregir; mantenga la vigilancia de los semáforos en ámbar.</p>`;
     else {
       if (P.acciones.length) {
         h += `<h3>Acciones, de la más sencilla a la más costosa</h3><ol>`;

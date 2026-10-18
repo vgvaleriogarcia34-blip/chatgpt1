@@ -20,8 +20,9 @@
 
   /* ================= TRANSCRIPCIONES ================= */
   const parecido = (a, b) => { const A1 = new Set(palabras(a)), B1 = palabras(b); if (!A1.size) return 0; return B1.filter((w) => A1.has(w)).length / A1.size; };
-  const VACIAS = new Set('para como cuando donde quien quienes cual cuales sobre entre desde hasta tiene tienen hacer hace haces estas estan esta este esto eso esos esas porque pero tambien todo todos todas mucho muchos poco cosa cosas tienes vamos puede pueden seria sería ahora antes despues después aqui aquí empresa tuyo tuya hemos habeis habéis decir dime cuentame cuéntame'.split(' '));
-  const palabras = (t) => norm(t).split(/[^a-zñ]+/).filter((w) => w.length > 3 && !VACIAS.has(w));
+  const VACIAS = new Set('para como cuando donde quien quienes cual cuales sobre entre desde hasta tiene tienen hacer hace haces estas estan esta este esto eso esos esas porque pero tambien todo todos todas mucho muchos poco cosa cosas tienes vamos puede pueden seria sería ahora antes despues después aqui aquí empresa tuyo tuya hemos habeis habéis decir dime cuentame cuéntame usted ustedes suyo suya digame cuenteme hableme'.split(' '));
+  // Sin la «s» final, la pregunta del guion (de usted) y la que se dijo en la sesión (de tú o de usted) se reconocen igual: «quiere» y «quieres»
+  const palabras = (t) => norm(t).split(/[^a-zñ]+/).filter((w) => w.length > 3 && !VACIAS.has(w)).map((w) => (w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w));
   const clientesDe = (tr) => new Set(tr.clientes && tr.clientes.length ? tr.clientes : (tr.hablantes[0] ? [tr.hablantes[0].n] : []));
   // ¿Primera sesión o intervención? Por lo que se dice y por el punto en que está la cuenta
   const adivinarMomento = (tr) => {
@@ -82,7 +83,7 @@
      Aunque la grabadora meta frases del consultor en el turno del empresario (pasa a menudo cuando hablan
      seguido), cada respuesta se limpia frase a frase: fuera las preguntas, lo que explica o propone el consultor
      (la sesión, la propuesta, la auditoría, «como os he comentado», «te explico»…) y la pregunta del guion leída. */
-  const VOZ_CONS = /(\?|¿|\b(como (os|te|le|les) (he|hemos) (comentado|dicho|explicado|contado)|(te|os|le|les) (explico|cuento|propongo|pregunto|recomiendo|comento)|vamos a (ver|trabajar|hacer|empezar|repasar|hablar|centrarnos)|lo que vamos a hacer|lo que (yo )?(veo|haria|recomiendo)|mi recomendacion|nuestro (metodo|trabajo|equipo|enfoque)|nuestra (metodologia|propuesta)|la (propuesta|auditoria|intervencion|metodologia)|esta (sesion|hora|reunion)|en la (sesion|primera sesion)|cuentame|dime|hablame|imaginate|piensa en|antes de empezar|business avance|el consultor|consultoria)\b)/;
+  const VOZ_CONS = /(\?|¿|\b(como (os|te|le|les) (he|hemos) (comentado|dicho|explicado|contado)|(te|os|le|les) (explico|cuento|propongo|pregunto|recomiendo|comento)|vamos a (ver|trabajar|hacer|empezar|repasar|hablar|centrarnos)|lo que vamos a hacer|lo que (yo )?(veo|haria|recomiendo)|mi recomendacion|nuestro (metodo|trabajo|equipo|enfoque)|nuestra (metodologia|propuesta)|la (propuesta|auditoria|intervencion|metodologia)|esta (sesion|hora|reunion)|en la (sesion|primera sesion)|cuentame|cuenteme|dime|digame|hablame|hableme|imaginate|imaginese|piensa en|piense en|antes de empezar|business avance|el consultor|consultoria)\b)/;
   const frasesR = (t) => D.frases(t, { preg: true });
   const esDelConsultor = (f, q) => VOZ_CONS.test(norm(f)) || (q && parecido(q, f) >= 0.5);
   const soloEmpresa = (t, q) => frasesR(t).filter((f) => !esDelConsultor(f, q)).join(' ').replace(/\s+/g, ' ').trim();
@@ -299,7 +300,7 @@
       const sem = A.cifras.semaforos(c), luz = (k) => sem.find((x) => x.k === k), de = c.deudaEbitda;
       add('fin', 'Facturación', eur(c.ventas)); if (c.margen != null) add('fin', 'Margen bruto', Math.round(c.margen * 10) / 10 + ' %');
       if (c.ebitda != null) add('fin', 'Beneficio del negocio (EBITDA)', eur(c.ebitda), (luz('ebitda') || {}).st);
-      if (luz('deudaEbitda')) add('fin', 'Deuda neta / EBITDA', luz('deudaEbitda').v, luz('deudaEbitda').st);
+      if (luz('deudaEbitda')) add('fin', 'Años de beneficio para pagar la deuda (deuda neta / EBITDA)', luz('deudaEbitda').v, luz('deudaEbitda').st);
       if (luz('caja')) add('fin', 'Caja', luz('caja').v + ' de costes', luz('caja').st);
       if (c.plantilla) add('per', 'Plantilla', A.cifras.fmt('plantilla', c.plantilla) + ' (' + c.origen.plantilla.split(' · ')[0].toLowerCase() + ')');
       if (c.ebitda != null && c.ebitda <= 0) sint('fin', 'El negocio no genera beneficio antes de intereses e impuestos (EBITDA)', `EBITDA ${eur(c.ebitda)}`, 5, 'Simulador');

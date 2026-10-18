@@ -34,81 +34,81 @@
   const rojas = () => D.CONSTANTES.filter((c) => cte(c.id) >= 4);
   const FICHA = {
     guion: {
-      donde: 'Estás en la primera conversación con la empresa. Tu trabajo es escuchar, no proponer.',
-      ves: () => { const ST = ST_(), h = Object.values(ST.sesion.hechas || {}).filter(Boolean).length, o = (ST.objetivos || []).length; return [`Llevas ${h} de ${nPreg()} preguntas hechas.`, o ? `Has recogido ${pl(o, 'objetivo', 'objetivos')} con sus palabras.` : 'Aún no hay objetivos recogidos: salen del bloque «Sus objetivos».']; },
-      sig: [{ f: 'coa', t: 'Pregunta qué quiere conseguir y deja silencio.', q: '¿Qué tendría que pasar este año para que dijera que ha merecido la pena?' }, { f: 'con', t: 'Apunta frases literales: valen más que tu resumen.' }, { f: 'men', t: 'Si no sabe responder, no le enseñes todavía: anota la duda.' }],
+      donde: 'Está en la primera conversación con la empresa. Su trabajo es escuchar, no proponer.',
+      ves: () => { const ST = ST_(), h = Object.values(ST.sesion.hechas || {}).filter(Boolean).length, o = (ST.objetivos || []).length; return [`Lleva ${h} de ${nPreg()} preguntas hechas.`, o ? `Ha recogido ${pl(o, 'objetivo', 'objetivos')} con sus palabras.` : 'Aún no hay objetivos recogidos: salen del bloque «Sus objetivos».']; },
+      sig: [{ f: 'coa', t: 'Pregunte qué quiere conseguir y deje silencio.', q: '¿Qué tendría que pasar este año para que dijera que ha merecido la pena?' }, { f: 'con', t: 'Apunte frases literales: valen más que su resumen.' }, { f: 'men', t: 'Si no sabe responder, no le enseñe todavía: anote la duda.' }],
       pedir: ['Permiso para grabar la sesión', 'Cuentas del último año, si las trae'],
       medir: ['Preguntas con respuesta (la mitad, como mínimo)', 'Objetivos dichos por la empresa, con sus palabras'],
-      exp: 'Bloques de 5 a 20 minutos. Ve de lo general (objetivos) a lo concreto (áreas). Cierra con un compromiso pequeño y con fecha.'
+      exp: 'Bloques de 5 a 20 minutos. Vaya de lo general (objetivos) a lo concreto (áreas). Cierre con un compromiso pequeño y con fecha.'
     },
     constantes: {
-      donde: 'Al terminar la sesión: pones nota del 1 al 5 a seis señales de salud de la empresa.',
+      donde: 'Al terminar la sesión: pone nota del 1 al 5 a seis señales de salud de la empresa.',
       ves: () => { const t = D.CONSTANTES.filter((c) => cte(c.id)).length, r = rojas(); return [`${t} de ${D.CONSTANTES.length} constantes tomadas.`, r.length ? `En rojo (4 o 5): ${r.map((c) => c.n).join(', ')}. Por ahí empieza la conversación.` : t ? 'Ninguna en rojo: no hay urgencia vital.' : 'Un 1 es sano y un 5 es crítico.']; },
-      sig: [{ f: 'con', t: 'Pon la nota con lo que has visto y oído, no con lo que crees.' }, { f: 'coa', t: 'Si una constante está en rojo, pregúntale cómo lo vive.', q: 'Del 1 al 10, ¿cuánto le pesa esto ahora mismo?' }],
+      sig: [{ f: 'con', t: 'Ponga la nota con lo que ha visto y oído, no con lo que cree.' }, { f: 'coa', t: 'Si una constante está en rojo, pregúntele cómo lo vive.', q: 'Del 1 al 10, ¿cuánto le pesa esto ahora mismo?' }],
       pedir: ['Saldo de caja y pagos de las próximas semanas, si el pulso está en rojo'],
       medir: ['Cada constante, en cada sesión: si baja, la intervención funciona'],
-      exp: 'Compara tu nota con la estimación por el lenguaje (marca blanca). Si no coinciden, hay algo que no se ha dicho.'
+      exp: 'Compare su nota con la estimación por el lenguaje (marca blanca). Si no coinciden, hay algo que no se ha dicho.'
     },
     escucha: {
-      donde: 'Subes la grabación transcrita. Atalaya separa lo que dice la empresa de lo que dices tú.',
-      ves: () => { const T = ST_().transcripciones || [], n = (k) => T.filter((t) => (t.momento || 'primera') === k).length; return T.length ? [`${pl(T.length, 'transcripción', 'transcripciones')}: ${n('primera')} de diagnóstico, ${n('comercial')} comerciales y ${n('intervencion')} de sesiones de trabajo.`, 'Revisa que cada una esté en su fase y que el cliente sea quien es.'] : ['Todavía no hay transcripciones.']; },
-      sig: [{ f: 'con', t: 'Comprueba quién es el cliente en cada transcripción.' }, { f: 'con', t: 'Elige la fase correcta: diagnóstico, comercial o sesión de trabajo.' }],
+      donde: 'Sube la grabación transcrita. Atalaya separa lo que dice la empresa de lo que dice usted.',
+      ves: () => { const T = ST_().transcripciones || [], n = (k) => T.filter((t) => (t.momento || 'primera') === k).length; return T.length ? [`${pl(T.length, 'transcripción', 'transcripciones')}: ${n('primera')} de diagnóstico, ${n('comercial')} comerciales y ${n('intervencion')} de sesiones de trabajo.`, 'Revise que cada una esté en su fase y que el cliente sea quien es.'] : ['Todavía no hay transcripciones.']; },
+      sig: [{ f: 'con', t: 'Compruebe quién es el cliente en cada transcripción.' }, { f: 'con', t: 'Elija la fase correcta: diagnóstico, comercial o sesión de trabajo.' }],
       pedir: ['La grabación de cada sesión (la grabadora o el móvil sirven)'],
-      medir: ['Que habla más la empresa que tú (más del 60 % de las palabras)'],
+      medir: ['Que habla más la empresa que usted (más del 60 % de las palabras)'],
       exp: 'Los huecos con cita y el «yo / nosotros» dicen cuánto se implica el equipo. La comercial no cuenta para el diagnóstico.'
     },
     sintomas: {
-      donde: 'Separas lo que se ve (síntoma) de lo que lo produce (causa).',
-      ves: () => { const ST = ST_(), sc = ST.sintomas.filter((s) => !s.causa).length, l = causasOrdenadas(); return [`${pl(ST.sintomas.length, 'síntoma', 'síntomas')}${sc ? `, ${sc} sin causa` : ''}.`, l.length ? `La causa que más pesa: «${l[0].c.t}». Si la resuelves, se alivian ${pl(l[0].ss.length, 'síntoma', 'síntomas')}.` : 'Enlaza cada síntoma con su causa para ver por dónde empezar.']; },
-      sig: [{ f: 'con', t: 'Enlaza cada síntoma con una causa (o pulsa «Proponer causas»).' }, { f: 'coa', t: 'Para confirmar una causa, pregunta cinco veces «¿por qué?».', q: '¿Y eso por qué pasa?' }, { f: 'men', t: 'Explícale con un ejemplo la diferencia entre síntoma y causa.' }],
+      donde: 'Separa lo que se ve (síntoma) de lo que lo produce (causa).',
+      ves: () => { const ST = ST_(), sc = ST.sintomas.filter((s) => !s.causa).length, l = causasOrdenadas(); return [`${pl(ST.sintomas.length, 'síntoma', 'síntomas')}${sc ? `, ${sc} sin causa` : ''}.`, l.length ? `La causa que más pesa: «${l[0].c.t}». Si la resuelve, se alivian ${pl(l[0].ss.length, 'síntoma', 'síntomas')}.` : 'Enlace cada síntoma con su causa para ver por dónde empezar.']; },
+      sig: [{ f: 'con', t: 'Enlace cada síntoma con una causa (o pulse «Proponer causas»).' }, { f: 'coa', t: 'Para confirmar una causa, pregunte cinco veces «¿por qué?».', q: '¿Y eso por qué pasa?' }, { f: 'men', t: 'Explíquele con un ejemplo la diferencia entre síntoma y causa.' }],
       pedir: ['Un ejemplo real de cada síntoma (un pedido, una factura, un correo)'],
       medir: ['Síntomas con causa: todos', 'Causas confirmadas con la empresa'],
       exp: 'El orden sale del peso (gravedad y área en urgencias), no del número de síntomas. Liquidez, después rentabilidad, después crecimiento.'
     },
     triaje: {
-      donde: 'Decides qué áreas se atienden ya, cuáles este trimestre y cuáles pueden esperar.',
+      donde: 'Decide qué áreas se atienden ya, cuáles este trimestre y cuáles pueden esperar.',
       ves: () => { const r = ruta(), u = r.filter((x) => x.n === 'stop'); return [u.length ? `En urgencias: ${u.map((x) => x.a.n).join(', ')} (cerrar en 0 a 14 días).` : 'Ninguna área en urgencias.', `${pl(r.length, 'área', 'áreas')} entran en la hoja de ruta.`]; },
-      sig: [{ f: 'con', t: 'Confirma el nivel de cada área: urgencias, preferente o programable.' }, { f: 'coa', t: 'Pregúntale si está de acuerdo con el orden.', q: 'Si solo pudiera arreglar una cosa este mes, ¿cuál sería?' }],
+      sig: [{ f: 'con', t: 'Confirme el nivel de cada área: urgencias, preferente o programable.' }, { f: 'coa', t: 'Pregúntele si está de acuerdo con el orden.', q: 'Si solo pudiera arreglar una cosa este mes, ¿cuál sería?' }],
       pedir: ['Lo que haga falta para verificar las áreas en urgencias'],
       medir: ['Áreas con triaje confirmado'],
       exp: 'Urgencias: de 0 a 14 días. Preferente: este trimestre. Programable: sin urgencia. Lo que amenaza la caja va siempre primero.'
     },
     propuesta: {
-      donde: 'Preparas la propuesta: qué vas a hacer, cuánto vale y cómo se paga.',
+      donde: 'Prepara la propuesta: qué va a hacer, cuánto vale y cómo se paga.',
       ves: () => { const p = ST_().propuesta; return [p && p.generada ? 'La propuesta está preparada.' : 'La propuesta está sin preparar.']; },
-      sig: [{ f: 'con', t: 'Parte de lo que ha dicho la empresa: sus objetivos y lo que le cuesta no resolverlo.' }, { f: 'coa', t: 'Antes de dar el precio, pregunta por el valor.', q: '¿Cuánto le cuesta al año que esto siga igual?' }],
+      sig: [{ f: 'con', t: 'Parta de lo que ha dicho la empresa: sus objetivos y lo que le cuesta no resolverlo.' }, { f: 'coa', t: 'Antes de dar el precio, pregunte por el valor.', q: '¿Cuánto le cuesta al año que esto siga igual?' }],
       pedir: ['Quién decide y para cuándo'],
       medir: ['Propuesta enviada y respuesta con fecha'],
       exp: 'El componente variable es una condición del contrato, no un objetivo de la empresa: se sigue aparte.'
     },
     documentacion: {
-      donde: 'Subes todo lo que te da la empresa. Atalaya reconoce cada archivo y lo lleva a su sitio.',
-      ves: () => { const L = ST_().documentacion || [], e = L.filter((x) => x.err).length; return [L.length ? `${pl(L.filter((x) => !x.err && x.nombre !== '—').length, 'archivo repartido', 'archivos repartidos')}.` : 'Aún no has subido nada.', e ? `${pl(e, 'archivo', 'archivos')} sin reconocer: revisa que la primera fila tenga los nombres de las columnas.` : 'La lista «Qué tienes y qué falta» dice lo que queda por pedir.']; },
-      sig: [{ f: 'con', t: 'Pide lo que está en ○ y súbelo todo junto.' }, { f: 'men', t: 'Enséñale de qué programa sale cada listado para que lo pueda sacar solo.' }],
+      donde: 'Sube todo lo que le da la empresa. Atalaya reconoce cada archivo y lo lleva a su sitio.',
+      ves: () => { const L = ST_().documentacion || [], e = L.filter((x) => x.err).length; return [L.length ? `${pl(L.filter((x) => !x.err && x.nombre !== '—').length, 'archivo repartido', 'archivos repartidos')}.` : 'Aún no ha subido nada.', e ? `${pl(e, 'archivo', 'archivos')} sin reconocer: revise que la primera fila tenga los nombres de las columnas.` : 'La lista «Qué tiene y qué falta» dice lo que queda por pedir.']; },
+      sig: [{ f: 'con', t: 'Pida lo que está en ○ y súbalo todo junto.' }, { f: 'men', t: 'Enséñele de qué programa sale cada listado para que lo pueda sacar solo.' }],
       pedir: ['Cuentas de los dos o tres últimos años', 'Listados de ventas, compras y cobros en Excel', 'Plantilla con puesto y área'],
       medir: ['Los tres mundos con datos (simulador, estratégico y personas)'],
       exp: 'Las tablas se reconocen por las columnas. Los inversores van como acreedores, no como plantilla.'
     },
     auditoria: {
-      donde: 'Con la documentación delante, compruebas punto por punto las áreas de la hoja de ruta.',
+      donde: 'Con la documentación delante, comprueba punto por punto las áreas de la hoja de ruta.',
       ves: () => { const ST = ST_(), r = ruta(), tot = r.reduce((a, x) => a + (D.VERIFICA[x.a.id] || []).length, 0), rev = r.reduce((a, x) => a + Object.values(ST.verifica[x.a.id] || {}).filter((v) => v && v.e && v.e !== 'pend').length, 0); return [`${rev} de ${tot} puntos revisados.`, `${pl(ST.hallazgos.length, 'hallazgo', 'hallazgos')} anotados.`]; },
-      sig: [{ f: 'con', t: 'Revisa cada punto y anota lo que veas como hallazgo, con su gravedad.' }, { f: 'con', t: 'Confirma o descarta cada causa con datos.' }, { f: 'men', t: 'Si el equipo no sabe sacar un dato, enséñale a hacerlo una vez.' }],
+      sig: [{ f: 'con', t: 'Revise cada punto y anote lo que vea como hallazgo, con su gravedad.' }, { f: 'con', t: 'Confirme o descarte cada causa con datos.' }, { f: 'men', t: 'Si el equipo no sabe sacar un dato, enséñele a hacerlo una vez.' }],
       pedir: ['El documento que pruebe cada punto (extracto, informe, contrato)'],
       medir: ['Puntos revisados: la mitad como mínimo', 'Causas confirmadas o descartadas'],
       exp: 'Un hallazgo es un hecho con prueba. Una causa sin prueba sigue siendo una idea por confirmar.'
     },
     ecosistema: {
-      donde: 'Traes lo que ya miden el simulador, el sistema estratégico, personas y la mesa.',
-      ves: () => [ST_().volcado ? 'Ya has traído las desviaciones del resto de Atalaya.' : 'Aún no has traído las desviaciones.'],
-      sig: [{ f: 'con', t: 'Marca las desviaciones que confirman lo que has visto y vuélcalas.' }],
+      donde: 'Trae lo que ya miden el simulador, el sistema estratégico, personas y la mesa.',
+      ves: () => [ST_().volcado ? 'Ya ha traído las desviaciones del resto de Atalaya.' : 'Aún no ha traído las desviaciones.'],
+      sig: [{ f: 'con', t: 'Marque las desviaciones que confirman lo que ha visto y vuélquelas.' }],
       pedir: [],
       medir: ['Desviaciones volcadas como hallazgos'],
       exp: 'Si un dato del ecosistema contradice lo que dice la empresa, es una pregunta para la próxima sesión.'
     },
     plan: {
-      donde: 'Conviertes causas y hallazgos en acciones con fecha, responsable e indicador.',
-      ves: () => { const a = ST_().plan.acciones; return [a.length ? `${pl(a.length, 'acción', 'acciones')} en el plan; ${a.filter((x) => x.estado === 'hecha').length} hechas.` : 'Aún no hay plan: genéralo desde las causas y los hallazgos.']; },
-      sig: [{ f: 'con', t: 'Genera el plan y revisa que cada acción tenga responsable.' }, { f: 'coa', t: 'Que la empresa elija la primera acción y ponga la fecha.', q: '¿Qué va a hacer usted antes de la próxima sesión?' }, { f: 'men', t: 'Enséñale a medir el indicador de cada acción.' }],
+      donde: 'Convierte causas y hallazgos en acciones con fecha, responsable e indicador.',
+      ves: () => { const a = ST_().plan.acciones; return [a.length ? `${pl(a.length, 'acción', 'acciones')} en el plan; ${a.filter((x) => x.estado === 'hecha').length} hechas.` : 'Aún no hay plan: genérelo desde las causas y los hallazgos.']; },
+      sig: [{ f: 'con', t: 'Genere el plan y revise que cada acción tenga responsable.' }, { f: 'coa', t: 'Que la empresa elija la primera acción y ponga la fecha.', q: '¿Qué va a hacer usted antes de la próxima sesión?' }, { f: 'men', t: 'Enséñele a medir el indicador de cada acción.' }],
       pedir: ['Nombre del responsable de cada acción'],
       medir: ['Acciones hechas en su fecha', 'Indicador de cada acción, de la foto inicial a la meta'],
       exp: 'Fases por orden de liquidez, rentabilidad y crecimiento. Pocas acciones con dueño valen más que muchas sin él.'
@@ -116,15 +116,15 @@
     sesiones: {
       donde: 'Las sesiones de seguimiento: cada una revisa acuerdos, avances y constantes.',
       ves: () => { const s = ST_().sesiones || [], f = s.filter((x) => x.fecha >= hoy()).sort((a, b) => a.fecha.localeCompare(b.fecha))[0]; return [`${pl(s.length, 'sesión', 'sesiones')} en el calendario.`, f ? `La próxima: ${fCorta(f.fecha)}.` : 'No hay ninguna sesión próxima.']; },
-      sig: [{ f: 'coa', t: 'Abre cada sesión preguntando por lo que se comprometió.', q: '¿Qué ha hecho desde la última vez y qué ha aprendido?' }, { f: 'men', t: 'Acompaña en la acción que se ha atascado: hazla con él una vez.' }, { f: 'con', t: 'Sube la transcripción como sesión de trabajo.' }],
+      sig: [{ f: 'coa', t: 'Abra cada sesión preguntando por lo que se comprometió.', q: '¿Qué ha hecho desde la última vez y qué ha aprendido?' }, { f: 'men', t: 'Acompañe en la acción que se ha atascado: hágala con él una vez.' }, { f: 'con', t: 'Suba la transcripción como sesión de trabajo.' }],
       pedir: ['Los datos del indicador de cada acción, antes de la sesión'],
       medir: ['Acuerdos cumplidos sesión a sesión', 'Constantes, en cada sesión'],
-      exp: 'Si un objetivo desaparece de lo que dice la empresa, revísalo: puede haber dejado de importarle.'
+      exp: 'Si un objetivo desaparece de lo que dice la empresa, revíselo: puede haber dejado de importarle.'
     },
     informes: {
-      donde: 'Abres y descargas los informes. Los de la empresa no llevan nada interno; la guía del auditor, sí.',
-      ves: () => { const k = Object.keys(ST_().informes || {}); return [k.length ? `Has abierto ${pl(k.length, 'informe', 'informes')}.` : 'Aún no has abierto ningún informe.']; },
-      sig: [{ f: 'con', t: 'Repasa la guía del auditor antes de cada sesión.' }, { f: 'men', t: 'Entrega el informe en persona y explica cada parte.' }],
+      donde: 'Abre y descarga los informes. Los de la empresa no llevan nada interno; la guía del auditor, sí.',
+      ves: () => { const k = Object.keys(ST_().informes || {}); return [k.length ? `Ha abierto ${pl(k.length, 'informe', 'informes')}.` : 'Aún no ha abierto ningún informe.']; },
+      sig: [{ f: 'con', t: 'Repase la guía del auditor antes de cada sesión.' }, { f: 'men', t: 'Entregue el informe en persona y explique cada parte.' }],
       pedir: [],
       medir: ['Informe entregado y comentado con la empresa'],
       exp: 'La guía del auditor recoge de dónde sale cada lectura, los objetivos sin validar, quién habló y los datos que faltan.'
@@ -186,8 +186,8 @@
     const sig = F.sig.map((x) => `<li>${foco(x.f)}<span>${esc(x.t)}${x.q && (nv === 'basico' || x.f === 'coa') ? `<em>«${esc(x.q)}»</em>` : ''}</span></li>`).join('');
     el.innerHTML = on ? `<div class="iv-fh"><b>Ficha de recorrido</b><span class="spacer"></span><button class="iv-fx" data-fcerrar aria-label="Plegar la ficha" title="Plegar">⟩</button></div>
       <div class="iv-fnv" role="group" aria-label="Nivel"><button data-nv="basico" aria-pressed="${nv === 'basico'}">Básico</button><button data-nv="experto" aria-pressed="${nv === 'experto'}">Experto</button></div>
-      ${nv === 'basico' ? `<div class="iv-fs"><span class="iv-fk">Dónde estás</span><p>${esc(F.donde)}</p></div>` : ''}
-      ${ves.length ? `<div class="iv-fs"><span class="iv-fk">Qué significa lo que ves</span>${ves.map((t) => `<p>${esc(t)}</p>`).join('')}</div>` : ''}
+      ${nv === 'basico' ? `<div class="iv-fs"><span class="iv-fk">Dónde está</span><p>${esc(F.donde)}</p></div>` : ''}
+      ${ves.length ? `<div class="iv-fs"><span class="iv-fk">Qué significa lo que ve</span>${ves.map((t) => `<p>${esc(t)}</p>`).join('')}</div>` : ''}
       <div class="iv-fs"><span class="iv-fk">Siguiente paso</span><ol class="iv-fsig">${sig}</ol></div>
       ${F.pedir.length && nv === 'basico' ? `<div class="iv-fs"><span class="iv-fk">Qué pedir a la empresa</span><ul>${F.pedir.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
       ${F.medir.length ? `<div class="iv-fs"><span class="iv-fk">Cómo medirlo</span><ul>${F.medir.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}

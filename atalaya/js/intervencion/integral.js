@@ -175,7 +175,7 @@
       tu.forEach((u, j) => {
         if (!set.has(u.h)) { const f = fechaDe(u.t, base); if (f && /(conseguir|objetivo|quieres|quiere|meta)/i.test(u.t)) fechaG = fechaG || f; return; }
         const prev = tu.slice(Math.max(0, j - 2), j).filter((y) => !set.has(y.h)).map((y) => y.t).join(' ');
-        const preguntaObj = /(conseguir|objetivo|quieres|quiere|c[oó]mo sabr[ií]as|qu[eé] n[uú]mero|para cu[aá]ndo|qu[eé] ganar)/i.test(prev);
+        const preguntaObj = /(conseguir|objetivo|quieres|quiere|c[oó]mo sabr[ií]as?|qu[eé] n[uú]mero|para cu[aá]ndo|qu[eé] ganar)/i.test(prev);
         let enDeseo = false;
         frases(u.t).forEach((fr) => {
           if (URGE.test(fr) && !urge) urge = fr;
