@@ -1572,7 +1572,7 @@
   /* ---------- Fondo animado compartido ----------
      Con una ventana encima (o la pestaña oculta) los fondos animados no se redibujan: bajo los paneles con desenfoque
      cada fotograma obliga a recalcularlo y el contenido de la ventana tarda en pintarse. */
-  A.pausaFondo = () => document.hidden || !!document.querySelector('.modal-back, .ef-back, .ruta-map:not([hidden]), .rp-back, .ml-panel');
+  A.pausaFondo = () => document.hidden || !!document.querySelector('.modal-back, .ef-back, .ruta-map:not([hidden]), #report:not([hidden]), .ml-panel');
   A.sky = function () {
     const cv = document.getElementById('sky'); if (!cv) return;
     const g = cv.getContext('2d');
