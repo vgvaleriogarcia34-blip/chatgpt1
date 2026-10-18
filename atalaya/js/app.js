@@ -1683,7 +1683,6 @@
   A.toast = toast;
 
   /* ---------------- Informe ---------------- */
-  const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
   let repSc = null;
   function ensureHeavy() {
     if (!ctx.plan || !ctx.structs || !ctx.risks) {
