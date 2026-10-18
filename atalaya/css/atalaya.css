@@ -1162,3 +1162,6 @@ html body.portal.no3d .pt-labels { bottom: calc(var(--pt-dock-h, 56px) + 76px + 
 .df-card { width: min(520px, 100%); }
 .df-clave, .df-codigos { font-family: var(--font-data); font-size: 0.95rem; letter-spacing: 0.06em; color: var(--gold-soft); overflow-wrap: anywhere; }
 .df-codigos { margin: 0; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: rgba(255, 255, 255, 0.03); white-space: pre-wrap; }
+/* Con una ventana abierta, nada de lo que queda debajo se desenfoca: el desenfoque se recalcula al cambiar la ventana */
+body:has(> .modal-back, > .ef-back) :is(.glass, .topbar, .dock, .ruta-bar, .assistant *, .kpi, .ml-tab) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body:has(> .modal-back, > .ef-back) :is(.modal-back, .ef-back) { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(6, 7, 9, 0.86); }

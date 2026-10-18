@@ -84,7 +84,7 @@
     return { back, close };
   };
   const compartir = (url, p, test, extra) => {
-    const T = C.TESTS[test], txt = `Hola${p ? ' ' + p.nombre.split(' ')[0] : ''}: te paso un cuestionario breve de ${R.empresa().nombre} (${T.n.toLowerCase()}, unos ${T.min} minutos). Se responde desde el móvil, sin crear cuenta: ${url}`;
+    const T = C.TESTS[test], txt = `Hola${p ? ' ' + p.nombre.split(' ')[0] : ''}: le paso un cuestionario breve de ${R.empresa().nombre} (${T.n.toLowerCase()}, unos ${T.min} minutos). Se responde desde el móvil, sin crear cuenta: ${url}`;
     return `<div class="pe-link"><input class="input" readonly value="${esc(url)}" aria-label="Enlace del cuestionario"><div class="row"><button class="btn solid small" data-copy="${esc(url)}">Copiar enlace</button><a class="btn small" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(txt)}">WhatsApp</a>${p && p.email ? `<a class="btn ghost small" href="mailto:${esc(p.email)}?subject=${encodeURIComponent('Cuestionario de ' + R.empresa().nombre)}&body=${encodeURIComponent(txt)}">Abrir en mi correo</a>` : ''}${extra || ''}</div></div>`;
   };
   const wireCopy = (root) => $$('[data-copy]', root).forEach((b) => (b.onclick = () => { (navigator.clipboard ? navigator.clipboard.writeText(b.dataset.copy) : Promise.reject()).then(() => (b.textContent = 'Copiado'), () => { const i = b.closest('.pe-link').querySelector('input'); i.select(); b.textContent = 'Pulse Ctrl+C'; }); }));
@@ -173,7 +173,7 @@
         <div class="glass pad stack"><div class="eyebrow">Enviar a varias personas</div>
           ${ps.length ? `<label class="small">Test<select class="input" id="envT">${TESTS_PERSONA.map((k) => `<option value="${k}">${esc(C.TESTS[k].n)}</option>`).join('')}</select></label>
           <label class="small">Quién<select class="input" id="envQ"><option value="pend">Quienes no lo han hecho todavía</option><option value="todos">Toda la plantilla</option>${R.state.equipos.map((q) => `<option value="q:${q.id}">Equipo · ${esc(q.nombre)}</option>`).join('')}</select></label>
-          <p class="small muted" id="envN" style="margin:0"></p><div class="row"><button class="btn solid" id="envGo">Preparar envío</button></div>` : R.vacia('Da de alta la plantilla para enviar cuestionarios.', 'Ir a la plantilla')}</div></div>
+          <p class="small muted" id="envN" style="margin:0"></p><div class="row"><button class="btn solid" id="envGo">Preparar envío</button></div>` : R.vacia('Dé de alta la plantilla para enviar cuestionarios.', 'Ir a la plantilla')}</div></div>
         <div class="glass pad stack" id="envList"><div class="eyebrow">Envíos</div><p class="small muted">Cargando…</p></div>${R.aviso()}`;
       R.wireEnvio(host);
       const hecho = (p, t) => (t === 'disc' ? p.disc : t === 'roles' ? p.roles && p.roles.scores : t === 'enea' ? p.enea && p.enea.tipo : p.lid && p.lid.estilo);

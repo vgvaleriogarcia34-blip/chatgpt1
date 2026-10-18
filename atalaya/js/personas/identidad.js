@@ -96,7 +96,7 @@
       if (!p.consentimiento) { host.insertAdjacentHTML('beforeend', R.pideConsent(p)); R.wireConsent(host, p); return; }
       wireFecha(host, p, 'idFecha');
       $('#idNom', host).onchange = (e) => { const v = e.target.value.trim(); p.nombreCompleto = v && v !== p.nombre ? v : ''; R.save(); R.rerender(); };
-      host.insertAdjacentHTML('beforeend', (R.identidad(p) ? R.identidadHTML(p) : '<div class="alert info">Indica la fecha de nacimiento para ver su perfil de identidad. También puede ponerla la propia persona, de forma opcional, al responder un cuestionario por enlace.</div>') + aviso() + ajuste());
+      host.insertAdjacentHTML('beforeend', (R.identidad(p) ? R.identidadHTML(p) : '<div class="alert info">Indique la fecha de nacimiento para ver su perfil de identidad. También puede ponerla la propia persona, de forma opcional, al responder un cuestionario por enlace.</div>') + aviso() + ajuste());
       wireAjuste(host);
     }
   });

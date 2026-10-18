@@ -242,7 +242,7 @@
   function pwDialog(u) {
     const gen = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const r = crypto.getRandomValues(new Uint32Array(12)); return Array.from(r, (x) => c[x % c.length]).join(''); };
     const el = openModal(`<div class="eyebrow">Cambiar contraseña</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
-      <p class="small muted">Escribe una contraseña nueva para ${esc(u.email)} o genera una segura. Al guardarla se cierran las sesiones que tenga abiertas; dásela por un canal de confianza y pídele que la cambie desde su menú («Cambiar contraseña»).</p>
+      <p class="small muted">Escriba una contraseña nueva para ${esc(u.email)} o genere una segura. Al guardarla se cierran las sesiones que tenga abiertas; désela por un canal de confianza y pídale que la cambie desde su menú («Cambiar contraseña»).</p>
       <form class="stack mt" id="pwF"><label class="small">Contraseña nueva (mínimo 8 caracteres)<div class="row"><input class="input" id="pwN" type="text" autocomplete="off" minlength="8" style="flex:1" value="${gen()}"><button type="button" class="btn ghost" id="pwG">Generar otra</button><button type="button" class="btn ghost" id="pwC">Copiar</button></div></label>
         <button class="btn solid">Guardar contraseña</button><p class="small" id="pwM"></p></form>`);
     $('#pwG', el).onclick = () => { $('#pwN', el).value = gen(); };
@@ -305,10 +305,10 @@
   async function resetDialog(u) {
     const st = await P.adminAuth.status().catch(() => ({}));
     const el = openModal(`<div class="eyebrow">Recuperar contraseña</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
-      <p class="small muted">Genera un enlace de un solo uso, válido 60 minutos, para que ${esc(u.email)} cree una contraseña nueva. Tú nunca ves ni eliges su contraseña.</p>
+      <p class="small muted">Se genera un enlace de un solo uso, válido 60 minutos, para que ${esc(u.email)} cree una contraseña nueva. La administración nunca ve ni elige su contraseña.</p>
       <div class="row mt"><button class="btn solid" id="rGen">Generar enlace</button>${st.correo ? '<button class="btn" id="rMail">Enviar por correo</button>' : ''}</div>
       <div id="rOut" class="stack mt"></div>`);
-    const show = (r) => { $('#rOut', el).innerHTML = `${r.enviado ? '<p class="alert info">Enlace enviado a su correo.</p>' : '<p class="small">Envíale este enlace por un canal de confianza (correo, WhatsApp…). Caduca en ' + r.minutos + ' minutos.</p>'}<textarea class="input" rows="3" readonly style="width:100%">${esc(r.link)}</textarea><button class="btn ghost" id="rCopy">Copiar enlace</button>`; $('#rCopy', el).onclick = () => navigator.clipboard && navigator.clipboard.writeText(r.link).then(() => { $('#rCopy', el).textContent = 'Copiado'; }); };
+    const show = (r) => { $('#rOut', el).innerHTML = `${r.enviado ? '<p class="alert info">Enlace enviado a su correo.</p>' : '<p class="small">Envíele este enlace por un canal de confianza (correo, WhatsApp…). Caduca en ' + r.minutos + ' minutos.</p>'}<textarea class="input" rows="3" readonly style="width:100%">${esc(r.link)}</textarea><button class="btn ghost" id="rCopy">Copiar enlace</button>`; $('#rCopy', el).onclick = () => navigator.clipboard && navigator.clipboard.writeText(r.link).then(() => { $('#rCopy', el).textContent = 'Copiado'; }); };
     $('#rGen', el).onclick = async () => { try { show(await P.admin.resetLink(u.id, false)); load(); } catch (e) { $('#rOut', el).innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; } };
     const m = $('#rMail', el); if (m) m.onclick = async () => { try { show(await P.admin.resetLink(u.id, true)); load(); } catch (e) { $('#rOut', el).innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; } };
   }
@@ -417,7 +417,7 @@
     if (!st.configurado) {
       card.innerHTML = `<div class="eyebrow">Administración</div><h1>Crea la contraseña <em>de administración</em></h1>
         <p class="small muted">Solo quien tenga esta contraseña podrá entrar al gestor de usuarios. No está ligada a ninguna cuenta de cliente: guárdala en un gestor de contraseñas.</p>
-        ${P.mode === 'server' ? '<p class="alert info">Escribe el código de configuración que aparece en la consola del servidor al arrancarlo (o arranca el servidor con ADMIN_PASSWORD).</p>' : '<p class="alert warn">Modo demostración: la contraseña se guarda solo en este navegador.</p>'}
+        ${P.mode === 'server' ? '<p class="alert info">Escriba el código de configuración que aparece en la consola del servidor al arrancarlo (o arranque el servidor con ADMIN_PASSWORD).</p>' : '<p class="alert warn">Modo demostración: la contraseña se guarda solo en este navegador.</p>'}
         <form id="gForm">${P.mode === 'server' ? '<label>Código de configuración<input class="input" name="codigo" autocomplete="off" required></label><label>Su nombre (firma lo que haga en el registro de actividad)<input class="input" name="nombre" maxlength="60" autocomplete="name"></label>' : ''}
           <label>Contraseña de administración (mínimo 10 caracteres)<input class="input" type="password" name="pw" minlength="10" autocomplete="new-password" required></label>
           <label>Repítela<input class="input" type="password" name="pw2" minlength="10" autocomplete="new-password" required></label>
@@ -439,7 +439,7 @@
           <label>Contraseña de administración<input class="input" type="password" name="pw" autocomplete="current-password" required autofocus></label>
           <label id="gCodL" ${st.dosPasos ? '' : 'hidden'}>Código de 6 cifras (o un código de recuperación)<input class="input" name="codigo" autocomplete="one-time-code" inputmode="numeric" maxlength="11" style="letter-spacing:.15em"></label>
           <button class="btn solid">Entrar</button><p class="small" id="gMsg"></p></form>
-        ${P.mode === 'server' ? '<p class="small muted">¿La has olvidado? Arranca el servidor con <span class="mono">ADMIN_PASSWORD=nueva-contraseña</span> para fijar una nueva. ¿Has perdido el teléfono y los códigos de recuperación? Arráncalo con <span class="mono">ADMIN_2FA_RESET=una-palabra</span>.</p>' : ''}`;
+        ${P.mode === 'server' ? '<p class="small muted">¿La ha olvidado? Arranque el servidor con <span class="mono">ADMIN_PASSWORD=nueva-contraseña</span> para fijar una nueva. ¿Ha perdido el teléfono y los códigos de recuperación? Arránquelo con <span class="mono">ADMIN_2FA_RESET=una-palabra</span>.</p>' : ''}`;
       $('#gForm').onsubmit = async (e) => {
         e.preventDefault(); const f = e.target;
         try {
@@ -459,7 +459,7 @@
   let wired = false;
   function openPanel() {
     $('#gate').hidden = true; $('#panel').hidden = false; $('#admBar').hidden = false;
-    if (P.mode === 'local') $('#modeNote').innerHTML = '<div class="alert info">Modo demostración: solo ves las cuentas creadas en este navegador. Con el servidor de Atalaya (carpeta <span class="mono">server/</span>) verás a todos tus clientes, sus pagos y sus horas de uso reales, con registro de actividad, segundo factor y cobro con Stripe.</div>';
+    if (P.mode === 'local') $('#modeNote').innerHTML = '<div class="alert info">Modo demostración: solo se ven las cuentas creadas en este navegador. Con el servidor de Atalaya (carpeta <span class="mono">server/</span>) verá a todos sus clientes, sus pagos y sus horas de uso reales, con registro de actividad, segundo factor y cobro con Stripe.</div>';
     else {
       const avisos = [];
       if (!estado.dosPasos) avisos.push('La administración entra solo con contraseña. Active el segundo factor en «Seguridad».');

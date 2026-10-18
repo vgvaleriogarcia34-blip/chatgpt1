@@ -787,11 +787,11 @@ La <b>vista de grupo</b> (menú de la cuenta, puesto de mando o selector) reúne
     <tr><td class="n">COOKIE_SECURE=1</td><td>Cookies solo por https (recomendado en producción).</td></tr>
     <tr><td class="n">ANTHROPIC_API_KEY</td><td>Activa el asistente con IA, la lectura inteligente y el agente de mercado.</td></tr>
     <tr><td class="n">SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_SECURE</td><td>Correo para enviar los enlaces de recuperación.</td></tr>
-    <tr><td class="n">ATALAYA_DATA</td><td>Carpeta de datos (por defecto <span class="path">server/data</span>). Haz copias de seguridad.</td></tr>
+    <tr><td class="n">ATALAYA_DATA</td><td>Carpeta de datos (por defecto <span class="path">server/data</span>). Haga copias de seguridad.</td></tr>
     <tr><td class="n">MERCADO_AUTO_DIAS</td><td>Refresco automático del análisis de mercado cada N días.</td></tr>
   </tbody>
 </table></div>
-<p>Ponlo detrás de un proxy con https: lo necesitan el micrófono y las cookies seguras. El cobro con tarjeta automático no está incluido: el pago se registra desde el gestor de usuarios o conectando una pasarela.</p>
+<p>Póngalo detrás de un proxy con https: lo necesitan el micrófono y las cookies seguras. El cobro con tarjeta automático no está incluido: el pago se registra desde el gestor de usuarios o conectando una pasarela.</p>
 </section>
 
 <section id="glosario">
@@ -802,16 +802,16 @@ La <b>vista de grupo</b> (menú de la cuenta, puesto de mando o selector) reúne
   <tbody>
     <tr><td><b>Liquidez disponible</b></td><td>Caja en el banco más la parte libre de la póliza.</td><td>Por debajo de cero, falta dinero ese mes.</td></tr>
     <tr><td><b>Meses de colchón</b></td><td>Meses de nóminas, fijos y cuotas que cubre la liquidez.</td><td>Menos de 1 es zona de riesgo; 2-3 es cómodo.</td></tr>
-    <tr><td><b>EBITDA</b></td><td>Beneficio operativo antes de intereses, impuestos y amortizaciones.</td><td>Lo que genera el negocio para pagar deuda e invertir.</td></tr>
-    <tr><td><b>DSCR</b></td><td>(EBITDA − impuestos) ÷ cuotas de deuda del año.</td><td>≥ 1,25 sano; &lt; 1 no se pagan las cuotas con el negocio.</td></tr>
+    <tr><td><b>Beneficio antes de intereses e impuestos (EBITDA)</b></td><td>Beneficio operativo antes de intereses, impuestos y amortizaciones.</td><td>Lo que genera el negocio para pagar deuda e invertir.</td></tr>
+    <tr><td><b>Veces que el negocio cubre las cuotas (DSCR)</b></td><td>(EBITDA − impuestos) ÷ cuotas de deuda del año.</td><td>≥ 1,25 sano; &lt; 1 no se pagan las cuotas con el negocio.</td></tr>
     <tr><td><b>Deuda neta / EBITDA</b></td><td>Años de EBITDA para devolver la deuda neta.</td><td>≤ 3 cómodo para el banco; &gt; 4 tenso.</td></tr>
-    <tr><td><b>Payback</b></td><td>Tiempo para recuperar lo invertido con el flujo que genera.</td><td>Debe ser menor que la vida útil del activo.</td></tr>
-    <tr><td><b>VAN y TIR</b></td><td>Valor de hoy de los flujos futuros; rentabilidad anual del proyecto.</td><td>VAN positivo y TIR por encima del coste del dinero más un margen.</td></tr>
-    <tr><td><b>Circulante</b></td><td>Dinero atrapado en clientes y stock menos lo que financian los proveedores.</td><td>Crecer en ventas lo aumenta: es caja que se inmoviliza.</td></tr>
-    <tr><td><b>HHI</b></td><td>Suma de los cuadrados de las cuotas (en %) de cada cliente o proveedor.</td><td>&lt; 1.500 repartido; 1.500-2.500 moderado; &gt; 2.500 dependencia alta. 10.000 ÷ HHI ≈ número de clientes «equivalentes».</td></tr>
-    <tr><td><b>ABC y ABC′</b></td><td>Clasificación por venta (o compra) y por margen.</td><td>Un cliente A en venta y C en margen te hace grande pero no rico.</td></tr>
+    <tr><td><b>Recuperación de la inversión (payback)</b></td><td>Tiempo para recuperar lo invertido con el flujo que genera.</td><td>Debe ser menor que la vida útil del activo.</td></tr>
+    <tr><td><b>Valor actual neto (VAN) y rentabilidad anual del proyecto (TIR)</b></td><td>Valor de hoy de los flujos futuros; rentabilidad anual del proyecto.</td><td>VAN positivo y TIR por encima del coste del dinero más un margen.</td></tr>
+    <tr><td><b>Dinero atado en el día a día (circulante)</b></td><td>Dinero atrapado en clientes y stock menos lo que financian los proveedores.</td><td>Crecer en ventas lo aumenta: es caja que se inmoviliza.</td></tr>
+    <tr><td><b>Concentración de clientes (índice HHI)</b></td><td>Suma de los cuadrados de las cuotas (en %) de cada cliente o proveedor.</td><td>&lt; 1.500 repartido; 1.500-2.500 moderado; &gt; 2.500 dependencia alta. 10.000 ÷ HHI ≈ número de clientes «equivalentes».</td></tr>
+    <tr><td><b>ABC y ABC′</b></td><td>Clasificación por venta (o compra) y por margen.</td><td>Un cliente A en venta y C en margen le hace grande pero no rico.</td></tr>
     <tr><td><b>DAFO y CAME</b></td><td>Diagnóstico interno y externo; y las acciones que lo convierten en estrategia.</td><td>Corregir, Afrontar, Mantener y Explotar.</td></tr>
-    <tr><td><b>Takt time y OEE</b></td><td>Ritmo que pide la demanda; eficiencia global de una máquina.</td><td>OEE ≥ 85 % es clase mundial; &lt; 60 % hay mucho margen.</td></tr>
+    <tr><td><b>Ritmo de la demanda (takt time) y rendimiento global de las máquinas (OEE)</b></td><td>Ritmo que pide la demanda; eficiencia global de una máquina.</td><td>Un OEE ≥ 85 % suele tomarse como referencia alta; por debajo del 60 % hay mucho margen de mejora.</td></tr>
   </tbody>
 </table></div>
 </section>
@@ -823,22 +823,22 @@ La <b>vista de grupo</b> (menú de la cuenta, puesto de mando o selector) reúne
 <h3>El micrófono no funciona</h3>
 <p>El dictado y la voz necesitan Chrome, Edge o Safari recientes, una conexión https (o localhost) y permiso del navegador para el micrófono. Dentro de algunas vistas previas el micrófono está bloqueado.</p>
 <h3>He cambiado de ordenador y no veo mis datos</h3>
-<p>En modo demostración los datos están solo en el navegador donde los creaste. Con el servidor, tus datos te siguen al entrar con tu cuenta.</p>
+<p>En modo demostración los datos están solo en el navegador donde los creó. Con el servidor, sus datos le siguen al entrar con su cuenta.</p>
 <h3>Un documento no se lee bien</h3>
-<p>Prueba con la hoja de cálculo original, con <b>Pegar tabla</b> o con la rejilla de carga manual. Si el servidor tiene IA, usa <b>Releer con IA</b>.</p>
+<p>Pruebe con la hoja de cálculo original, con <b>Pegar tabla</b> o con la rejilla de carga manual. Si el servidor tiene IA, use <b>Releer con IA</b>.</p>
 <h3>Un número parece raro</h3>
-<p>Revisa el formato: en Atalaya el punto separa miles y la coma, decimales. Pulsa el indicador para ver cómo se calcula y qué variables lo mueven.</p>
+<p>Revise el formato: en Atalaya el punto separa miles y la coma, decimales. Pulse el indicador para ver cómo se calcula y qué variables lo mueven.</p>
 <h3>Mi acceso ha caducado</h3>
-<p>En la pantalla de acceso pulsa <b>Solicitar la activación</b>. Cuando la administración registra el pago, vuelves a entrar con todos tus datos.</p>
+<p>En la pantalla de acceso pulse <b>Solicitar la activación</b>. Cuando la administración registra el pago, vuelve a entrar con todos sus datos.</p>
 </section>
 
 <section id="avisos">
 <h2><span class="num">13</span>Límites y avisos</h2>
 <ul>
   <li>Las cifras son estimaciones a partir de los datos introducidos. Sirven para decidir con criterio y preparar las conversaciones con banco, asesor y socios, no sustituyen la contabilidad.</li>
-  <li>La fiscalidad (calendario, movimientos de reducción y escenarios fiscales de la inversión) es orientativa y simplificada; los porcentajes cambian con cada reforma. Confírmala con tu asesor antes de aplicar nada.</li>
+  <li>La fiscalidad (calendario, movimientos de reducción y escenarios fiscales de la inversión) es orientativa y simplificada; los porcentajes cambian con cada reforma. Confírmela con su asesor antes de aplicar nada.</li>
   <li>Las fichas societarias describen el funcionamiento general; cada operación necesita su análisis jurídico y fiscal.</li>
-  <li>Los datos macro de referencia son de la consulta del 1 de octubre de 2026; actualízalos cuando se publiquen datos nuevos o usa el agente de mercado.</li>
+  <li>Los datos macro de referencia son de la consulta del 1 de octubre de 2026; actualícelos cuando se publiquen datos nuevos o use el agente de mercado.</li>
 </ul>
 </section>
 

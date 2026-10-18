@@ -160,8 +160,8 @@
     const niveles = ps.length ? Math.max(...ps.map(nivel)) + 1 : 0;
     const ocupantes = (id) => ps.filter((p) => p.puestoId === id);
     const avisos = [];
-    if (ps.length > 1 && raices.length > 1) avisos.push({ st: 'warn', t: `${raices.length} personas no dependen de nadie (${raices.slice(0, 4).map((p) => p.nombre).join(', ')}${raices.length > 4 ? '…' : ''}). Lo normal es una sola cabecera: revisa de quién depende cada una.` });
-    mandos.filter((m) => m.n > 8).forEach((m) => avisos.push({ st: 'warn', t: `${m.p.nombre} tiene ${m.n} personas a su cargo: más de 8 suele significar poco tiempo para cada una. Valora un mando intermedio.` }));
+    if (ps.length > 1 && raices.length > 1) avisos.push({ st: 'warn', t: `${raices.length} personas no dependen de nadie (${raices.slice(0, 4).map((p) => p.nombre).join(', ')}${raices.length > 4 ? '…' : ''}). Lo normal es una sola cabecera: revise de quién depende cada una.` });
+    mandos.filter((m) => m.n > 8).forEach((m) => avisos.push({ st: 'warn', t: `${m.p.nombre} tiene ${m.n} personas a su cargo: más de 8 suele significar poco tiempo para cada una. Valore un mando intermedio.` }));
     mandos.filter((m) => m.n === 1 && ps.length > 4).forEach((m) => avisos.push({ st: 'info', t: `${m.p.nombre} tiene una sola persona a su cargo: un nivel que quizá no hace falta.` }));
     if (niveles > 4 && ps.length < 50) avisos.push({ st: 'warn', t: `${niveles} niveles jerárquicos para ${ps.length} personas: demasiadas capas para una pyme; la información tarda en subir y bajar.` });
     pu.filter((x) => x.critico).forEach((x) => {
@@ -180,15 +180,15 @@
 
   /* ---------- 9-box: desempeño × potencial ---------- */
   R.CAJAS = {
-    '3-1': { n: 'Enigma', a: 'Mucho potencial que no se ve en resultados: revisa si el puesto le encaja y qué le frena.' },
-    '3-2': { n: 'Talento en desarrollo', a: 'Dale retos y formación: es cantera para puestos de más responsabilidad.' },
-    '3-3': { n: 'Estrella', a: 'Retén y prepara para el siguiente paso; buena candidata a sucesora en puestos críticos.' },
-    '2-1': { n: 'Por ajustar', a: 'Objetivos claros y acompañamiento; revisa el encaje con el puesto.' },
-    '2-2': { n: 'Pilar', a: 'Base estable del equipo: reconoce y desarrolla en su puesto.' },
-    '2-3': { n: 'Alto desempeño', a: 'Reconoce, amplía responsabilidades y valora si puede crecer más.' },
-    '1-1': { n: 'Situación de riesgo', a: 'Conversación franca, plan de mejora concreto y revisa si el puesto es el adecuado.' },
-    '1-2': { n: 'Eficaz', a: 'Cumple en su puesto: mantén la motivación y el reconocimiento.' },
-    '1-3': { n: 'Experto de confianza', a: 'Aprovecha su conocimiento: que forme a otros y documente lo que sabe.' }
+    '3-1': { n: 'Enigma', a: 'Mucho potencial que no se ve en resultados: revise si el puesto le encaja y qué le frena.' },
+    '3-2': { n: 'Talento en desarrollo', a: 'Dele retos y formación: es cantera para puestos de más responsabilidad.' },
+    '3-3': { n: 'Estrella', a: 'Reténgala y prepárela para el siguiente paso; buena candidata a sucesora en puestos críticos.' },
+    '2-1': { n: 'Por ajustar', a: 'Objetivos claros y acompañamiento; revise el encaje con el puesto.' },
+    '2-2': { n: 'Pilar', a: 'Base estable del equipo: reconozca su aportación y desarróllela en su puesto.' },
+    '2-3': { n: 'Alto desempeño', a: 'Reconozca su trabajo, amplíe sus responsabilidades y valore si puede crecer más.' },
+    '1-1': { n: 'Situación de riesgo', a: 'Conversación franca, plan de mejora concreto y revise si el puesto es el adecuado.' },
+    '1-2': { n: 'Eficaz', a: 'Cumple en su puesto: mantenga la motivación y el reconocimiento.' },
+    '1-3': { n: 'Experto de confianza', a: 'Aproveche su conocimiento: que forme a otros y documente lo que sabe.' }
   };
   R.caja = (p) => (p.val && p.val.desempeno && p.val.potencial ? p.val.potencial + '-' + p.val.desempeno : null);
 

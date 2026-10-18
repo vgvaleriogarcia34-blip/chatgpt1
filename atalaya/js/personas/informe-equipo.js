@@ -134,7 +134,7 @@
     if (id === 'informes') {
       const g = body.querySelector('.grid'); if (!g) return;
       const box = document.createElement('div'); box.className = 'glass pad stack';
-      box.innerHTML = `<div class="eyebrow">Informes completos en PDF</div><p class="small" style="margin:0">Documentos paginados con el membrete de tu firma (o de Atalaya 360°), listos para entregar: la foto completa de una persona (comportamiento, aportación, motivación, identidad, liderazgo y competencias), la del equipo y el alineamiento entre perfiles, puestos y equipos.</p>
+      box.innerHTML = `<div class="eyebrow">Informes completos en PDF</div><p class="small" style="margin:0">Documentos paginados con el membrete de su firma (o de Atalaya 360°), listos para entregar: la foto completa de una persona (comportamiento, aportación, motivación, identidad, liderazgo y competencias), la del equipo y el alineamiento entre perfiles, puestos y equipos.</p>
         <div class="row">${R.selPersona('peInfC', (R.personaActiva() || {}).id)}<button class="btn solid" data-c="per">Informe completo de la persona</button><button class="btn" data-c="eq">Foto de toda la empresa</button><button class="btn" data-c="al">Alineamiento</button></div>`;
       g.before(box);
       box.querySelector('[data-c="per"]').onclick = () => R.informeCompleto(R.persona(box.querySelector('#peInfC').value));
