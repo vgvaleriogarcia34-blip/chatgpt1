@@ -82,7 +82,7 @@
    "esperar": 4500,
    "marcas": {
     "semaforos": {
-     "texto": "Cobertura de deuda",
+     "texto": "Cobertura de las cuotas",
      "subir": 3
     },
     "liquidez": {
@@ -391,6 +391,10 @@
     {
      "click": "#ivTabs [data-t=escucha]",
      "esperar": 2500
+    },
+    {
+     "eval": "document.querySelectorAll('[aria-label=Cerrar], .ef-x, .icon-btn.x').forEach((b) => { if (b.offsetParent) b.click(); })",
+     "esperar": 800
     },
     {
      "scrollTexto": "Transcripción de la sesión",

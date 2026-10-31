@@ -4,6 +4,10 @@
 Uso: python3 voz.py <promo.json> <carpeta-trabajo> <modelo.onnx> [voces.bin]
   · Kokoro: <modelo.onnx> = kokoro-v1.0.onnx y [voces.bin] = voices-v1.0.bin. Voz en "voz_nombre" (em_alex por defecto).
   · Piper:  <modelo.onnx> = es_ES-davefx-medium.onnx (sin voces.bin), o "motor": "piper" en el montaje.
+  · Voz clonada (Chatterbox multilingüe, MIT): <modelo.onnx> = un .wav de 8-15 s de la persona hablando sola y sin
+    ruido, con "motor": "clon" en el montaje. Se ejecuta con el Python donde esté instalado chatterbox-tts. Sin
+    tarjeta gráfica es lento (del orden de un minuto por segundo de voz): los bloques ya generados se conservan y,
+    si se vuelve a lanzar, solo se generan los que faltan (borre voz-<n>.wav para rehacer uno).
 Lee el campo "voz" de cada bloque (escrito como se dice: números en palabras) y guarda voz-<n>.wav y voz.json con la
 duración de cada uno. El montaje corta los planos según estas duraciones, así los cortes caen al final de las frases.
 
@@ -56,6 +60,18 @@ def piper(modelo, P):
     return decir
 
 
+def clon(muestra, P):
+    import torch
+    from chatterbox.mtl_tts import ChatterboxMultilingualTTS
+    torch.set_num_threads(os.cpu_count() or 4)
+    m = ChatterboxMultilingualTTS.from_pretrained(device='cuda' if torch.cuda.is_available() else 'cpu')
+    expr, cfg = float(P.get('expresividad', 0.5)), float(P.get('cfg_voz', 0.5))
+    def decir(f):
+        w = m.generate(f, language_id='es', audio_prompt_path=muestra, exaggeration=expr, cfg_weight=cfg)
+        return w.squeeze().cpu().numpy().astype(np.float32), m.sr
+    return decir
+
+
 def recortar(a, umbral=0.01):
     # Quita el silencio de los extremos de cada frase para que la pausa sea la que decidimos
     i = np.where(np.abs(a) > umbral)[0]
@@ -69,13 +85,19 @@ def main():
     voces = sys.argv[4] if len(sys.argv) > 4 else None
     os.makedirs(work, exist_ok=True)
     P = json.load(open(promo, encoding='utf-8'))
-    usar_kokoro = voces and P.get('motor', 'kokoro') == 'kokoro'
-    decir = kokoro(modelo, voces, P) if usar_kokoro else piper(modelo, P)
+    motor = P.get('motor', 'kokoro')
+    usar_kokoro = voces and motor == 'kokoro'
+    decir = clon(modelo, P) if motor == 'clon' else kokoro(modelo, voces, P) if usar_kokoro else piper(modelo, P)
     out = []
     for i, b in enumerate(P['bloques']):
         t = (b.get('voz') or '').strip()
         if not t:
             out.append({'bloque': i, 'archivo': None, 'dur': 0})
+            continue
+        f = os.path.join(work, f'voz-{i}.wav')
+        if motor == 'clon' and os.path.exists(f):  # ya generado en una pasada anterior
+            dur = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).decode())
+            out.append({'bloque': i, 'archivo': f, 'dur': round(dur, 3)})
             continue
         trozos, sr = [], 24000
         fs = frases(t)
@@ -92,9 +114,9 @@ def main():
         os.remove(crudo)
         dur = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).decode())
         out.append({'bloque': i, 'archivo': f, 'dur': round(dur, 3)})
-        print(f'bloque {i}: {dur:.1f} s ({len(fs)} frases)')
+        print(f'bloque {i}: {dur:.1f} s ({len(fs)} frases)', flush=True)
     json.dump(out, open(os.path.join(work, 'voz.json'), 'w'), indent=1)
-    print('total voz', round(sum(x['dur'] for x in out), 1), 's', '· Kokoro' if usar_kokoro else '· Piper')
+    print('total voz', round(sum(x['dur'] for x in out), 1), 's', '· voz clonada' if motor == 'clon' else '· Kokoro' if usar_kokoro else '· Piper')
 
 
 if __name__ == '__main__':
