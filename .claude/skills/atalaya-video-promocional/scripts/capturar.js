@@ -50,9 +50,19 @@ const RELOJ = () => {
 
   // Cuenta de demostración (modo local de la aplicación) y empresa modelo con todo conectado
   await p.goto(APP + '/acceso.html#alta-consultora'); await p.waitForTimeout(600);
-  await p.fill('#upName', C.nombre || 'Dirección'); await p.fill('#upEmail', 'promo' + Date.now() + '@ejemplo.es');
+  await p.fill('#upName', C.nombre || 'Dirección General'); if (await p.$('#upCo')) await p.fill('#upCo', C.empresa || 'Empresa de demostración');
+  await p.fill('#upEmail', 'promo' + Date.now() + '@ejemplo.es');
   await p.fill('#upPass', 'promo-' + Date.now()); await p.check('#upOk'); await p.click('#fUp button[type=submit]'); await p.waitForTimeout(2200);
+  if (/acceso\.html/.test(p.url())) throw new Error('El alta de la cuenta de demostración ha fallado: revise los campos del formulario de acceso.html');
   await p.goto(APP + '/portal.html'); await p.waitForTimeout(1500);
+  // Sin la tarjeta de primera visita y con los mapas ya vistos, para que no tapen las pantallas (los abanicos usan #mapa)
+  await p.evaluate(async () => {
+    const P = window.Atalaya.platform;
+    if (P.primerAcceso) await P.primerAcceso.elegir('modelo');
+    const vistos = { sim: '2026-01-01', est: '2026-01-01', per: '2026-01-01' };
+    for (const id of ['principal', P.modelo.ID]) { try { await P.empresas.editar(id, { mapas: vistos }); } catch (e) { /* sin registro */ } }
+  });
+  await p.waitForTimeout(800);
   await p.evaluate((plan) => {
     const P = window.Atalaya.platform, c = P.modelo.cfg(); c.plan = plan; Object.keys(c.con).forEach((k) => { c.con[k] = true; }); P.modelo.guardarCfg(c);
     localStorage.setItem('atalaya.empresa.activa', JSON.stringify(P.modelo.ID)); sessionStorage.setItem('atalaya.ruta.intro', '1'); sessionStorage.setItem('atalaya.emp.elegida', 'modelo');
