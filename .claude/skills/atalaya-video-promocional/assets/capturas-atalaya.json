@@ -454,6 +454,24 @@
    ]
   },
   {
+   "id": "mesa-prioridades",
+   "url": "mesa.html",
+   "esperar": 4000,
+   "acciones": [
+    {
+     "click": "#msTabs [data-t=prioridades]",
+     "esperar": 2500
+    },
+    {
+     "scroll": "#msTabs",
+     "esperar": 800
+    },
+    {
+     "eval": "window.scrollBy(0,-30)"
+    }
+   ]
+  },
+  {
    "id": "mesa-agenda",
    "url": "mesa.html",
    "esperar": 4000,
