@@ -65,9 +65,12 @@ def clon(muestra, P):
     from chatterbox.mtl_tts import ChatterboxMultilingualTTS
     torch.set_num_threads(os.cpu_count() or 4)
     m = ChatterboxMultilingualTTS.from_pretrained(device='cuda' if torch.cuda.is_available() else 'cpu')
-    expr, cfg = float(P.get('expresividad', 0.5)), float(P.get('cfg_voz', 0.5))
+    expr, cfg, temp = float(P.get('expresividad', 0.5)), float(P.get('cfg_voz', 0.5)), float(P.get('temperatura', 0.8))
+    semilla = P.get('semilla')
     def decir(f):
-        w = m.generate(f, language_id='es', audio_prompt_path=muestra, exaggeration=expr, cfg_weight=cfg)
+        if semilla is not None:
+            torch.manual_seed(int(semilla))  # misma semilla en cada frase: el carácter de la voz elegida en la prueba
+        w = m.generate(f, language_id='es', audio_prompt_path=muestra, exaggeration=expr, cfg_weight=cfg, temperature=temp)
         return w.squeeze().cpu().numpy().astype(np.float32), m.sr
     return decir
 
