@@ -351,7 +351,10 @@ export async function enviarProactivo(tel, plantilla, variables = [], { idioma =
   let contacto = db.contactoPorTelefono(t);
   const base = baseLegal || contacto?.base_legal;
   if (!base) return { enviado: false, motivo: 'sin base legal registrada' };
-  if (db.enRobinson(t) && !/^(consentimiento|cliente)/i.test(base)) return { enviado: false, motivo: 'en la lista Robinson sin consentimiento' };
+  // Las reglas de cumplimiento de la prospección mandan: consentimiento expreso para WhatsApp, Robinson siempre, intentos
+  const { puedeEnviarWhatsApp } = await import('../prospeccion/cumplimiento.js');
+  const ok = puedeEnviarWhatsApp(contacto ? { ...contacto, base_legal: base } : { telefono: t, base_legal: base }, { plantilla });
+  if (!ok.ok) return { enviado: false, motivo: ok.motivo, codigo: ok.codigo };
   const vars = (variables || []).map(meta.variablePlantilla);
   const id = await meta.enviarPlantilla(t, plantilla, idioma, vars.length ? [{ type: 'body', parameters: vars.map((v) => ({ type: 'text', text: v })) }] : []);
   contacto ||= db.guardarContacto({ telefono: t, base_legal: base, origen: 'prospeccion' });

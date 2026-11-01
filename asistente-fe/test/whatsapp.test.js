@@ -257,7 +257,9 @@ test('enviar_whatsapp: texto libre dentro de la ventana; fuera, plantilla o rech
 test('enviarProactivo: solo plantillas, respeta bajas y exige base legal', async () => {
   assert.deepEqual(await canal.enviarProactivo('+34600000008', 'presentacion', ['Ana']), { enviado: false, motivo: 'de baja' });
   assert.equal((await canal.enviarProactivo('+34622222222', 'presentacion', ['Pedro'])).motivo, 'sin base legal registrada');
-  db.guardarContacto({ telefono: '+34633333333', nombre: 'Rosa', base_legal: 'consentimiento', base_legal_detalle: 'formulario web' });
+  db.guardarContacto({ telefono: '+34644444444', nombre: 'Luis', base_legal: 'cliente' });
+  assert.equal((await canal.enviarProactivo('+34644444444', 'presentacion', ['Luis'])).codigo, 'sin_consentimiento_whatsapp');
+  db.guardarContacto({ telefono: '+34633333333', nombre: 'Rosa', base_legal: 'consentimiento', base_legal_detalle: 'formulario web', base_legal_fecha: '2026-10-01', consentimiento_whatsapp: '2026-10-01' });
   const r = await canal.enviarProactivo('+34633333333', 'presentacion', ['Rosa', 'relevo'], { texto: 'Hola, Rosa: le escribimos por el relevo.' });
   assert.equal(r.enviado, true);
   const p = enviados.at(-1);

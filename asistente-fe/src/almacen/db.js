@@ -69,7 +69,7 @@ export function contactoPorId(id) { return abrir().prepare('SELECT * FROM contac
 export function guardarContacto(c) {
   const d = abrir(), tel = normTel(c.telefono);
   const prev = tel ? contactoPorTelefono(tel) : (c.id ? contactoPorId(c.id) : null);
-  const campos = ['email', 'nombre', 'empresa', 'cargo', 'hubspot_id', 'base_legal', 'base_legal_detalle', 'base_legal_fecha', 'origen', 'notas'];
+  const campos = ['email', 'nombre', 'empresa', 'cargo', 'hubspot_id', 'base_legal', 'base_legal_detalle', 'base_legal_fecha', 'origen', 'notas', 'tipo_linea', 'consentimiento_whatsapp'];
   if (prev) {
     const set = campos.filter((k) => c[k] !== undefined && c[k] !== null);
     if (set.length) d.prepare(`UPDATE contactos SET ${set.map((k) => `${k} = ?`).join(', ')}, actualizado = datetime('now') WHERE id = ?`).run(...set.map((k) => c[k]), prev.id);
