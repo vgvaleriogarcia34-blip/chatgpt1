@@ -31,6 +31,14 @@ const MIGRACIONES = [
      campana_id INTEGER, contacto_id INTEGER, estado TEXT DEFAULT 'pendiente', intentos INTEGER DEFAULT 0,
      proximo TEXT, resultado TEXT, PRIMARY KEY (campana_id, contacto_id));
    CREATE TABLE eventos (id INTEGER PRIMARY KEY, tipo TEXT, datos TEXT, ts TEXT DEFAULT (datetime('now')));`,
+  // Prospección: tipo de línea y consentimiento de WhatsApp del contacto; seguimiento de cada intento de la campaña
+  `ALTER TABLE contactos ADD COLUMN tipo_linea TEXT;
+   ALTER TABLE contactos ADD COLUMN consentimiento_whatsapp TEXT;
+   ALTER TABLE campana_contactos ADD COLUMN ultimo_intento TEXT;
+   ALTER TABLE campana_contactos ADD COLUMN conversacion_id INTEGER;
+   ALTER TABLE campana_contactos ADD COLUMN llamada_id TEXT;
+   ALTER TABLE campana_contactos ADD COLUMN motivo TEXT;
+   CREATE INDEX cc_estado ON campana_contactos(estado, proximo);`,
 ];
 
 let db;
