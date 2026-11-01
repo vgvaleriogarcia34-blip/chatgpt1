@@ -49,6 +49,8 @@ P.bloques.forEach((b, i) => {
   if (v.archivo) {
     pistas.push({ archivo: v.archivo, t: t + retardo });
     // Subtítulos: trozos de hasta 8 palabras, cortados en la puntuación cuando se puede, repartidos por número de palabras
+    // Con locución grabada, "subs" trae cada trozo con sus tiempos (segundos desde el inicio del bloque)
+    if (Array.isArray(b.subs)) { b.subs.forEach((x) => subs.push({ t0: t + retardo + x.t0, t1: t + retardo + x.t1, texto: x.texto })); t += dur; return; }
     const texto = (b.sub || b.voz || '').trim(), ws = texto.split(/\s+/), trozos = []; let cur = [];
     ws.forEach((w, k) => { cur.push(w); const fin = /[.,;:?!]$/.test(w); if ((fin && cur.length >= 4) || cur.length >= 8 || k === ws.length - 1) { trozos.push(cur.join(' ')); cur = []; } });
     const n = ws.length; let ts = t + retardo;
