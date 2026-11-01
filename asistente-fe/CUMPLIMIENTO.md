@@ -124,7 +124,7 @@ Valore una **evaluación de impacto** (EIPD): llamadas automatizadas con IA, per
 1. **Requisitos de numeración para llamadas comerciales en España**: se han aprobado o anunciado normas que obligan a usar numeración identificable o específica para llamadas comerciales y que permiten a los operadores bloquear llamadas que no la cumplan. Confirmar qué numeración exige hoy la normativa (prefijo concreto, si se pueden usar números geográficos o móviles) y si el número comprado en Twilio sirve. **A confirmar.**
 2. **Interés legítimo B2B**: si es admisible para llamar en frío a profesionales con la LGT art. 66 y el criterio de la AEPD; contenido de la evaluación; si cambia algo que el número sea corporativo.
 3. **«Relación previa»** (asistentes a ponencias, asociaciones, tarjetas): qué información debe haberse dado al recoger los datos para poder llamar, y si hay que pedir consentimiento expreso a partir de ahora (casilla en la inscripción a ponencias).
-4. **Clientes y excliente**s: alcance (¿solo servicios similares?) y plazo tras terminar la relación.
+4. **Clientes y exclientes**: alcance (¿solo servicios similares?) y plazo tras terminar la relación.
 5. **Lista Robinson**: periodicidad de consulta, si se aplica entre empresas, y formato del fichero.
 6. **Horario**: confirmar la norma exacta y su aplicación en B2B.
 7. **Grabación**: si se activa, base legal, texto del aviso y plazo de conservación.
