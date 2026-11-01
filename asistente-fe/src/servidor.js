@@ -62,10 +62,12 @@ export async function cargarModulos() {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  // Sin await de nivel superior: los módulos importan este archivo, y un await aquí los dejaría esperando para siempre
   db.abrir();
-  await cargarModulos();
-  const srv = crearServidor();
-  srv.listen(C.puerto, () => console.log(`Asistente de ${C.empresa.nombre} escuchando en :${C.puerto} · URL pública: ${C.urlPublica || '(sin configurar)'}`));
-  const parar = () => { console.log('Cerrando…'); srv.close(); db.cerrar(); process.exit(0); };
-  process.on('SIGTERM', parar); process.on('SIGINT', parar);
+  cargarModulos().then(() => {
+    const srv = crearServidor();
+    srv.listen(C.puerto, () => console.log(`Asistente de ${C.empresa.nombre} escuchando en :${C.puerto} · URL pública: ${C.urlPublica || '(sin configurar)'}`));
+    const parar = () => { console.log('Cerrando…'); srv.close(); db.cerrar(); process.exit(0); };
+    process.on('SIGTERM', parar); process.on('SIGINT', parar);
+  }, (err) => { console.error('No se pudieron cargar los módulos:', err); process.exit(1); });
 }
