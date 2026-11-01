@@ -1,0 +1,24 @@
+{
+  "name": "asistente-fe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Asistente de Familias Empresarias: llamadas entrantes y salientes, WhatsApp, CRM y agenda, con Claude como cerebro",
+  "type": "module",
+  "main": "src/servidor.js",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node src/servidor.js",
+    "ingestar": "node src/conocimiento/ingestar.js",
+    "test": "node --test --test-concurrency=1 test/",
+    "check": "node --check src/servidor.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "googleapis": "^189.0.0",
+    "twilio": "^6.2.0",
+    "ws": "^8.22.1",
+    "zod": "^4.6.7"
+  }
+}

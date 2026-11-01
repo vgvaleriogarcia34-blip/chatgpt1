@@ -1,0 +1,5 @@
+node_modules/
+.env
+datos/*.db*
+datos/grabaciones/
+datos/conocimiento/fuentes/
