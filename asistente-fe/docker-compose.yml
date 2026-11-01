@@ -1,0 +1,31 @@
+# Asistente + Caddy (HTTPS automático con Let's Encrypt).
+# Uso: cree el fichero .env (a partir de .env.ejemplo), apunte el DNS de su dominio a este servidor y ejecute:
+#   DOMINIO=asistente.su-dominio.es docker compose up -d
+services:
+  asistente:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "8090"
+      GOOGLE_CREDENCIALES: /app/secretos/google-cuenta-servicio.json
+    volumes:
+      - ./datos:/app/datos
+      - ./secretos:/app/secretos:ro
+    expose:
+      - "8090"
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    depends_on: [asistente]
+    ports:
+      - "80:80"
+      - "443:443"
+    # Proxy HTTPS hacia el asistente; Caddy pasa también el WebSocket del audio (/voz/stream)
+    command: caddy reverse-proxy --from ${DOMINIO:?Indique DOMINIO=asistente.su-dominio.es} --to asistente:8090
+    volumes:
+      - caddy_datos:/data
+
+volumes:
+  caddy_datos:

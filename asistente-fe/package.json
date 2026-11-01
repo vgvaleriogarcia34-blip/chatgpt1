@@ -11,7 +11,7 @@
   "scripts": {
     "start": "node src/servidor.js",
     "ingestar": "node src/conocimiento/ingestar.js",
-    "test": "node --test --test-concurrency=1 test/",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
     "check": "node --check src/servidor.js"
   },
   "dependencies": {

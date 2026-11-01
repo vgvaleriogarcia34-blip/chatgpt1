@@ -17,7 +17,7 @@ const asociar = (contactoId, tipo) => (contactoId ? [{ to: { id: String(contacto
 
 const espera = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
-/** Petición a HubSpot con reintentos ante 429 y 5xx (respeta Retry-After). Devuelve el JSON o null (204). */
+/** Petición a HubSpot con reintentos ante 429 (respeta Retry-After) y, salvo en altas, ante 5xx. Devuelve el JSON o null (204). */
 export async function hs(metodo, ruta, cuerpo) {
   if (!cfg.token) throw new Error('HubSpot no configurado');
   for (let intento = 0; ; intento++) {
@@ -27,7 +27,7 @@ export async function hs(metodo, ruta, cuerpo) {
       body: cuerpo ? JSON.stringify(cuerpo) : undefined,
       signal: AbortSignal.timeout(20000),
     });
-    if ((r.status === 429 || r.status >= 500) && intento < 4) {
+    if ((r.status === 429 || (r.status >= 500 && metodo !== 'POST')) && intento < 4) {
       const ra = Number(r.headers.get('retry-after'));
       const ms = Math.min(cfg.esperaMaxMs, Number.isFinite(ra) && ra > 0 ? ra * 1000 : 500 * 2 ** intento);
       await r.arrayBuffer().catch(() => {});
@@ -211,7 +211,7 @@ async function enCrm(tareas) {
 }
 
 // ---------- Utilidades para las herramientas ----------
-const telDe = (ctx) => db.normTel(ctx?.telefono || ctx?.contacto?.telefono);
+const telDe = (ctx) => db.normTel(ctx?.telefono || ctx?.sesion?.telefono || ctx?.contacto?.telefono);
 /** Contacto local del contexto (lo crea si solo hay teléfono). */
 export function contactoDe(ctx) {
   if (ctx?.contacto?.id) return db.contactoPorId(ctx.contacto.id) || ctx.contacto;
@@ -233,6 +233,8 @@ function textoTranscripcion(conversacionId) {
   return db.mensajes(conversacionId).filter((m) => nombres[m.rol] && m.texto).map((m) => `${nombres[m.rol]}: ${m.texto}`).join('\n');
 }
 
+// Valores admitidos por fe_asistente_resultado (los de finalizar y «colgada», que pone la voz)
+export const RESULTADOS = ['reunion_agendada', 'interesado', 'enviar_informacion', 'volver_a_llamar', 'no_interesado', 'baja', 'atendido', 'transferido', 'buzon', 'equivocado', 'colgada'];
 const RESULTADOS_NEGOCIO = new Set(['reunion_agendada', 'interesado']);
 const RESULTADOS_TAREA = { volver_a_llamar: 'Volver a llamar', enviar_informacion: 'Enviar información', interesado: 'Dar seguimiento', transferido: 'Atender lo transferido' };
 
@@ -319,8 +321,9 @@ registrar('dar_de_baja', async (e, ctx) => {
 export async function subirCierre({ conversacionId, canal, direccion, contacto, resultado, resumen, transcripcion, duracionS, registrarComoLlamada = canal === 'voz', seguimiento = true, nota = true }) {
   if (!hubspotActivo()) return [];
   const yaTenia = contacto?.hubspot_id;
-  const id = contacto ? (yaTenia || (await sincronizarContacto(contacto, { fe_asistente_resultado: resultado }))) : null;
-  if (yaTenia && resultado) {
+  const valido = RESULTADOS.includes(resultado) ? resultado : undefined;
+  const id = contacto ? (yaTenia || (await sincronizarContacto(contacto, { fe_asistente_resultado: valido }))) : null;
+  if (yaTenia && valido) {
     const fe = await propsFe();
     if (fe.has('fe_asistente_resultado')) await enCrm([() => hs('PATCH', `/crm/v3/objects/contacts/${id}`, { properties: { fe_asistente_resultado: resultado } })]);
   }
@@ -340,6 +343,7 @@ export async function subirCierre({ conversacionId, canal, direccion, contacto, 
 }
 
 const cierresSubidos = new Set(); // conversaciones cuya llamada ya está en HubSpot (finalizar y fin de llamada no la duplican)
+const seguimientoHecho = new Set(); // conversaciones cuyo negocio/tarea ya creó finalizar
 let ganchoVoz = false;
 
 registrar('finalizar', async (e, ctx) => {
@@ -351,29 +355,29 @@ registrar('finalizar', async (e, ctx) => {
   const llamadaDespues = ctx.canal === 'voz' && ganchoVoz;
   const errores = await subirCierre({ conversacionId: ctx.conversacionId, canal: ctx.canal, direccion: ctx.direccion, contacto, resultado: e.resultado, resumen: e.resumen,
     registrarComoLlamada: ctx.canal === 'voz' && !llamadaDespues, nota: !llamadaDespues });
+  if (ctx.conversacionId) seguimientoHecho.add(ctx.conversacionId);
   if (ctx.canal === 'voz' && !llamadaDespues && ctx.conversacionId) cierresSubidos.add(ctx.conversacionId);
   return errores.length ? `Conversación cerrada en la base local; parte del CRM ha fallado (${errores[0]}).` : `Conversación cerrada (${e.resultado}) y registrada en el CRM.`;
 });
 
 /**
- * Fin de una llamada (gancho de la sesión de voz). Acepta la sesión o un objeto con
- * { conversacionId, contacto, direccion, duracion|duracionS, transcripcion, resultado, resumen }.
+ * Fin de una llamada (gancho de la sesión de voz: fn(conversacionId, datos)), con
+ * datos = { direccion, contacto, resultado, resumen, duracion, transcripcion: [{ rol, texto }] | string }.
  */
-export async function alTerminarLlamada(s = {}) {
-  const conv = s.conversacion || {};
-  const conversacionId = s.conversacionId ?? conv.conversacionId;
+export async function alTerminarLlamada(conversacionId, d = {}) {
   if (!conversacionId || cierresSubidos.has(conversacionId)) return;
   cierresSubidos.add(conversacionId);
-  const fila = db.abrir().prepare('SELECT * FROM conversaciones WHERE id = ?').get(conversacionId) || {};
-  const contacto = s.contacto || conv.contacto || (fila.contacto_id ? db.contactoPorId(fila.contacto_id) : null);
-  const terminada = conv.terminada || {};
-  const resultado = s.resultado || terminada.resultado || fila.resultado || null;
-  const resumen = s.resumen || terminada.resumen || fila.resumen || null;
   if (!hubspotActivo()) return;
-  await subirCierre({ conversacionId, canal: 'voz', direccion: s.direccion || conv.direccion || fila.direccion, contacto, resultado, resumen,
-    transcripcion: typeof s.transcripcion === 'string' ? s.transcripcion : undefined, duracionS: s.duracionS ?? s.duracion ?? fila.duracion_s ?? 0,
-    // si hubo finalizar, el negocio y la tarea ya se crearon entonces
-    seguimiento: !conv.terminada && !fila.resultado });
+  const fila = db.abrir().prepare('SELECT * FROM conversaciones WHERE id = ?').get(conversacionId) || {};
+  const contacto = d.contacto || (fila.contacto_id ? db.contactoPorId(fila.contacto_id) : null);
+  const nombres = { usuario: 'Interlocutor', asistente: C.empresa.asistente };
+  const transcripcion = Array.isArray(d.transcripcion)
+    ? d.transcripcion.filter((x) => x?.texto).map((x) => `${nombres[x.rol] || x.rol}: ${x.texto}`).join('\n')
+    : (typeof d.transcripcion === 'string' ? d.transcripcion : undefined);
+  await subirCierre({ conversacionId, canal: 'voz', direccion: d.direccion || fila.direccion, contacto,
+    resultado: d.resultado || fila.resultado || null, resumen: d.resumen || fila.resumen || null,
+    transcripcion, duracionS: d.duracion ?? d.duracionS ?? fila.duracion_s ?? 0,
+    seguimiento: !seguimientoHecho.has(conversacionId) }); // si hubo finalizar, el negocio y la tarea ya se crearon entonces
 }
 
 /** Se suscribe al fin de llamada de la voz si ese módulo existe. */
@@ -381,7 +385,7 @@ export async function engancharVoz() {
   try {
     const m = await import('../voz/sesion.js');
     if (Array.isArray(m.ganchos?.alTerminar)) {
-      m.ganchos.alTerminar.push((s) => alTerminarLlamada(s).catch((err) => console.warn('[hubspot] fin de llamada:', err.message)));
+      m.ganchos.alTerminar.push((id, datos) => alTerminarLlamada(id, datos).catch((err) => console.warn('[hubspot] fin de llamada:', err.message)));
       ganchoVoz = true;
     }
   } catch (err) {

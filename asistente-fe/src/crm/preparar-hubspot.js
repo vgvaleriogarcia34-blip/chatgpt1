@@ -1,5 +1,5 @@
 // Crea en HubSpot las propiedades de contacto que usa el asistente (ejecutar una vez): node src/crm/preparar-hubspot.js
-import { hs, hubspotActivo } from './hubspot.js';
+import { hs, hubspotActivo, RESULTADOS } from './hubspot.js';
 
 const GRUPO = 'familias_empresarias';
 const si_no = [{ label: 'Sí', value: 'true', displayOrder: 0 }, { label: 'No', value: 'false', displayOrder: 1 }];
@@ -10,7 +10,7 @@ export const PROPIEDADES = [
   { name: 'fe_dolor', label: 'Preocupación principal', type: 'string', fieldType: 'textarea', description: 'El problema principal con sus palabras, según el asistente' },
   { name: 'fe_origen', label: 'Origen del contacto', type: 'string', fieldType: 'text', description: 'Canal o campaña por la que llegó' },
   { name: 'fe_asistente_resultado', label: 'Último resultado del asistente', type: 'enumeration', fieldType: 'select',
-    options: opciones(['reunion_agendada', 'interesado', 'enviar_informacion', 'volver_a_llamar', 'no_interesado', 'baja', 'atendido', 'transferido', 'buzon', 'equivocado']) },
+    options: opciones(RESULTADOS) },
   { name: 'fe_baja', label: 'Baja de comunicaciones comerciales', type: 'enumeration', fieldType: 'booleancheckbox', options: si_no, description: 'No contactar con fines comerciales (pedido por el interlocutor)' },
 ];
 

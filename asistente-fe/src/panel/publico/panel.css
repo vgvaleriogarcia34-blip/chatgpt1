@@ -1,0 +1,41 @@
+/* Panel del asistente: sencillo, legible en el móvil, con modo oscuro */
+:root { --fondo: #f6f5f2; --tarjeta: #fff; --texto: #1d1d1b; --suave: #5f5e5a; --borde: #dedcd5; --acento: #1f5f8b; --ok: #2e7d4f; --error: #b3261e; }
+@media (prefers-color-scheme: dark) { :root { --fondo: #161615; --tarjeta: #222220; --texto: #ecebe6; --suave: #a8a69f; --borde: #3a3936; --acento: #6fb1e0; --ok: #6cc391; --error: #f2847b; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fondo); color: var(--texto); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { padding: 16px; max-width: 1100px; margin: 0 auto; }
+.estrecho { max-width: 560px; }
+h1 { font-size: 1.5rem; margin: .5rem 0 1rem; } h2 { font-size: 1.2rem; margin: 1.5rem 0 .5rem; }
+a { color: var(--acento); }
+.cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; background: var(--tarjeta); border-bottom: 1px solid var(--borde); }
+.cabecera form { margin: 0; }
+nav { display: flex; gap: 4px; overflow-x: auto; padding: 8px 16px 0; max-width: 1100px; margin: 0 auto; }
+nav button { background: none; border: 0; border-bottom: 3px solid transparent; color: var(--suave); padding: 8px 10px; font: inherit; cursor: pointer; white-space: nowrap; }
+nav button[aria-selected="true"] { color: var(--texto); border-color: var(--acento); font-weight: 600; }
+.tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; padding: 16px; margin: 0 0 12px; }
+.cifras { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.cifra { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; padding: 12px; }
+.cifra b { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.cifra span { color: var(--suave); font-size: .9rem; }
+label { display: block; margin: 0 0 10px; font-weight: 500; }
+input, textarea, select { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; color: var(--texto); background: var(--fondo); border: 1px solid var(--borde); border-radius: 6px; }
+textarea { min-height: 80px; resize: vertical; }
+label.casilla { display: flex; gap: 8px; align-items: center; font-weight: 400; } label.casilla input { width: auto; margin: 0; }
+button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--acento); background: var(--acento); color: #fff; cursor: pointer; }
+button.secundario { background: none; color: var(--acento); }
+button.enlace { background: none; border: 0; color: var(--acento); padding: 0; text-decoration: underline; }
+button:disabled { opacity: .6; cursor: wait; }
+.botones { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.tabla { width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+th { color: var(--suave); font-weight: 500; }
+.suave { color: var(--suave); font-size: .9rem; }
+.error { color: var(--error); } .ok { color: var(--ok); }
+.aviso { border-left: 4px solid var(--acento); padding: 8px 12px; background: var(--tarjeta); margin: 8px 0; }
+.transcripcion .msg, #chat .msg { margin: 8px 0; padding: 8px 12px; border-radius: 10px; background: var(--tarjeta); border: 1px solid var(--borde); }
+.msg p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg .rol { font-size: .8rem; color: var(--suave); }
+.msg.usuario { margin-left: 15%; } .msg.asistente { margin-right: 15%; } .msg.herramienta { opacity: .75; font-size: .9rem; }
+#chat { max-height: 55vh; overflow-y: auto; }
+@media (max-width: 600px) { th.opcional, td.opcional { display: none; } .msg.usuario { margin-left: 5%; } .msg.asistente { margin-right: 5%; } }
