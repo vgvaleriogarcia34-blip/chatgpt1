@@ -227,7 +227,9 @@ test('ingesta: Drive simulado (solo lectura), subcarpetas, PDF y formatos que se
 });
 
 test('base real: cubre los temas clave y respeta las normas', () => {
-  const temas = { 'servicios.md': 1, 'metodo.md': 1, 'casos.md': 1, 'ponencias.md': 1, 'preguntas-frecuentes.md': 1, 'dolores-y-respuestas.md': 1, 'equipo.md': 1, 'PENDIENTE.md': 1 };
+  const temas = { 'servicios.md': 1, 'metodo.md': 1, 'casos.md': 1, 'ponencias.md': 1, 'preguntas-frecuentes.md': 1, 'dolores-y-respuestas.md': 1, 'equipo.md': 1 };
+  assert.ok(fs.existsSync(path.join(REAL, '..', 'interno', 'PENDIENTE.md')), 'falta datos/interno/PENDIENTE.md');
+  assert.ok(!fs.existsSync(path.join(REAL, 'PENDIENTE.md')), 'las preguntas internas no deben estar en la base del asistente');
   for (const n of Object.keys(temas)) assert.ok(fs.existsSync(path.join(REAL, n)), `falta ${n}`);
   for (const n of fs.readdirSync(REAL).filter((x) => x.endsWith('.md'))) {
     const md = fs.readFileSync(path.join(REAL, n), 'utf8');

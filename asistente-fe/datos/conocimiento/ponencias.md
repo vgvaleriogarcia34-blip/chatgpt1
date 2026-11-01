@@ -25,7 +25,7 @@ Se cotizan por programa y número de asistentes.
 Cocinando Empresas 5 Estrellas, Pendragón, El Evangelio del Legado, Sexo para Empresarios y MenopausIA Empresarial (este último de Cecilia Torralba). Cuatro de ellos han sido número uno en su categoría en Amazon según el dosier.
 
 ## Escuela de consultoría de Business Avance
-Formación para consultores con el método de la firma (en la web de Atalaya: 300 horas, 51 % práctica, siete módulos y certificación; en la web de Business Avance figura un título universitario en evaluación, con denominación y aprobación pendientes). Ver PENDIENTE.md antes de dar detalles.
+Formación para consultores con el método de la firma (en la web de Atalaya: 300 horas, 51 % práctica, siete módulos y certificación; en la web de Business Avance figura un título universitario en evaluación, con denominación y aprobación pendientes). Los detalles los confirma el equipo.
 
 ---
 Fuentes: «Dossier corporativo - Familias Empresarias.pdf» (Drive, 23-10-2026); web valeriogarciamentor.com y businessavance.es, consultadas el 01-11-2026; descripción de las plantillas internas de taller «Pensar antes de preguntar» (taller FREMM, fotos en Drive del 24-10-2026); repositorio atalaya (index.html).

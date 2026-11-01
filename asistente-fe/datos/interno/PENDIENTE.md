@@ -35,3 +35,12 @@ Preguntas que el equipo debe responder para completar la base de conocimiento. M
 
 ---
 Detectado al revisar: Drive («Dossier corporativo», «Casos_Exito», propuestas), businessavance.es, valeriogarciamentor.com y el repositorio atalaya, el 01-11-2026.
+
+
+## Referencias internas de precios (NO comunicar hasta que Valerio las valide)
+Importes que aparecen en propuestas reales recientes. Sirven al equipo para orientarse; el asistente no debe citarlos a clientes mientras este apartado siga marcado como pendiente en PENDIENTE.md:
+- Mentoría ejecutiva de 6 sesiones online de 90 minutos: 3.200 € (pago único o en dos pagos).
+- Implantación de 90 días: entre 9.000 € y 12.000 € según alcance; versión de 4 semanas centrada en caja y datos: 4.500 €.
+- Continuidad mensual tras una implantación: 1.500 €/mes (mínimo 6 meses).
+- Acompañamiento de 12 meses en una pyme de suministro industrial: 36.000 € (unos 3.000 €/mes de media, más al principio y menos al final).
+
