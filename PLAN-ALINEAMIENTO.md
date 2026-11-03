@@ -39,7 +39,7 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 - **Hecho cuando:** las pruebas simulan cada caso y comprueban el aviso y la tarea.
 - **Resultado (3 nov 2026):** nuevo `src/avisos.js` (correo por SMTP propio, sin dependencias, en `src/correo.js`, y WhatsApp con la plantilla `WHATSAPP_PLANTILLA_AVISO_EQUIPO`) en transferencia sin respuesta o imposible, urgencia (`registrar_nota` con `urgente`), fallo de voz o de WhatsApp, sesión pendiente de confirmar y baja. La transferencia lleva `<Dial action="/voz/transferencia-fin">`: si nadie contesta, se le dice que le devolverán la llamada, tarea de prioridad alta en HubSpot y aviso; queda registrado si se atendió. El fallo de Claude deja la disculpa en la transcripción; en WhatsApp la disculpa solo se anota si se envió. Pruebas en `test/avisos.test.js` y `test/voz.test.js`.
 
-### 6. ◐ Un solo responsable de los datos y la privacidad del asistente
+### 6. ☑ Un solo responsable de los datos y la privacidad del asistente
 - **Decisión de Valerio:** qué sociedad es la responsable (la web dice AKOMPANO GROUP, S.L., nombre comercial Business Avance) y con qué marca se presenta el asistente (Familias Empresarias o Business Avance).
 - **Qué se hace después:** mismo responsable en la web de Atalaya, sus textos legales y el asistente; apartado «Asistente telefónico y WhatsApp» en la política de privacidad (finalidades, bases, proveedores, plazos, cómo oponerse) que el asistente cita y puede enviar.
 - **Hecho cuando:** los tres sistemas nombran al mismo responsable y la política cubre llamadas, transcripción y proveedores. Revisión final con su abogado.
@@ -99,14 +99,14 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 - **Qué se hace:** el formulario de contacto y las solicitudes de sesión o activación de Atalaya crean o actualizan el contacto en HubSpot, con una tarea y su origen. Una sola bandeja de interesados.
 - **Resultado (3 nov 2026):** el servidor envía a HubSpot (API v3, `HUBSPOT_TOKEN`; sin él no hace nada) cada alta, contacto, solicitud de sesión estratégica, de activación y de cambio de plan: contacto por correo o teléfono, empresa por dominio o nombre, nota con el origen y tarea para `HUBSPOT_OWNER_ID`. En segundo plano y en fila, con reintentos ante 429; un reenvío no duplica (ni la solicitud en Atalaya ni la nota o la tarea). Los ids de HubSpot quedan en la cuenta y en la solicitud. Probado con un HubSpot falso.
 
-### 17. ◐ Identificadores cruzados y alta en Atalaya desde HubSpot
+### 17. ☑ Identificadores cruzados y alta en Atalaya desde HubSpot
 - **Qué se hace:** la ficha de empresa de Atalaya guarda el id de HubSpot y el CIF; HubSpot guarda la cuenta de Atalaya; desde un negocio de HubSpot (o el panel del asistente) se envía la invitación de alta en Atalaya con nombre y empresa ya rellenos.
 - **Fuentes de verdad:** HubSpot para la relación comercial, Atalaya para los datos de la empresa cliente, el asistente para la operación y el cumplimiento.
 - **Resultado (asistente, 3 nov 2026):** el asistente guarda el id de la empresa en HubSpot (`hubspot_company_id`) y la ficha del panel tiene «Invitar a Atalaya» (`POST /api/integracion/invitar` con `INTEGRACION_TOKEN`). Falta la parte de Atalaya y la de HubSpot.
 - **Resultado, parte del servidor (3 nov 2026):** el registro `empresas` acepta `cif` y `hubspotId`; `POST /api/integracion/invitar` (Bearer `INTEGRACION_TOKEN`, tiempo constante, 404 sin configurar, límite por IP) crea la cuenta en prueba con nombre, empresa, teléfono y la ficha principal con `hubspotId`, y envía el enlace de alta (lo devuelve solo si no hay correo). La cuenta guarda `hubspotContactId` y `hubspotCompanyId`. Falta: el campo en la ficha (equipo «navegacion») y el botón en HubSpot o el panel del asistente.
 - **Resultado, ficha (3 nov 2026):** la ficha de empresa tiene «CIF o NIF» e «ID de empresa en HubSpot» (opcional, con ayuda breve); se guardan en el registro `empresas` como `cif` (en mayúsculas) y `hubspotId` (sin espacios).
 
-### 18. ◐ Las reuniones del asistente en la mesa de trabajo
+### 18. ☑ Las reuniones del asistente en la mesa de trabajo
 - **Qué se hace:** la mesa de Atalaya muestra las reuniones agendadas por el asistente para esa empresa (desde el calendario o a través del puente del punto 17).
 - **Resultado (asistente, 3 nov 2026):** al reservar una sesión, el asistente envía `POST {ATALAYA_URL}/api/integracion/reunion` con el contrato común (sin `ATALAYA_URL`/`INTEGRACION_TOKEN` no hace nada; resultado en eventos). Las peticiones sin agenda conectada no se envían (quedan por confirmar). Falta la parte de Atalaya.
 - **Resultado, parte de Atalaya (3 nov 2026):** `POST /api/integracion/reunion` busca la empresa por `hubspotId` de la ficha, por los ids de la cuenta o por correo, y añade a su mesa (`agenda` o `agenda--<empresa>`) la tarea «Sesión estratégica con … (…)», tipo reunión, hora local, con `oid` `asistente:reunion:<id>`: idempotente y actualiza si cambia la hora. La escritura cambia la versión del dato y la pestaña abierta lo combina. Registro de actividad y documentación en PUESTA-EN-MARCHA.md. Falta que el asistente la llame al agendar.
