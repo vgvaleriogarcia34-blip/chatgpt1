@@ -187,7 +187,7 @@
     const n = C.TESTS[meta.test].len();
     if (!Array.isArray(resp) || resp.length !== n) resp = Array.from({ length: n }, () => null);
     $('#tpEmp').textContent = meta.empresa || '';
-    document.title = 'Atalaya · ' + C.TESTS[meta.test].n;
+    document.title = 'Atalaya 360° · ' + C.TESTS[meta.test].n;
     intro();
   }
   start();

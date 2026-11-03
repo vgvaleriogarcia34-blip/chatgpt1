@@ -111,7 +111,7 @@
       document.querySelectorAll('link[rel="stylesheet"], style').forEach((n) => w.document.head.appendChild(n.cloneNode(true)));
       w.document.documentElement.setAttribute('style', document.documentElement.getAttribute('style') || '');
       w.document.body.className = 'rj-window';
-      w.document.title = 'Reloj de tareas · Atalaya';
+      w.document.title = 'Atalaya 360° · Reloj de tareas';
       const root = w.document.createElement('div'); w.document.body.appendChild(root);
       A.reloj.mount(root, store, {});
       w.addEventListener('pagehide', () => { if (onClose) onClose(); });

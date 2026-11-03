@@ -80,7 +80,7 @@
     return In.section('Con su consultor', `<p>Este informe dice qué hacer y en qué orden. Llevarlo a la operativa y sostenerlo semana a semana es la parte difícil. Ahí un consultor externo es un punto de apoyo: aporta método, una mirada de fuera y la experiencia de haberlo implantado en otras empresas, y ayuda a que el plan no se quede en el cajón.</p>
       <h3>Cómo se implanta con un consultor</h3><ol class="rp-steps"><li><b>Sesión de arranque (60 minutos).</b> Se repasa este informe con la dirección y se eligen las tres prioridades del trimestre.</li><li><b>Hoja de ruta de 90 días.</b> Cada acción con su responsable, su fecha y la señal de que está hecha.</li><li><b>Seguimiento quincenal.</b> Indicadores, acciones vencidas, bloqueos y próximos compromisos, con acta.</li><li><b>Revisión a los 90 días.</b> Se repite el diagnóstico en Atalaya y se compara con este informe.</li></ol>
       <h3>Normas para trabajar con su consultor</h3><ol class="rp-steps"><li>El consultor asesora; la empresa decide.</li><li>Cada acción tiene una persona responsable dentro de la empresa.</li><li>Los datos se actualizan en Atalaya antes de cada sesión.</li><li>Las sesiones tienen fecha fija y orden del día; lo acordado se escribe.</li><li>Se mide con los indicadores de este informe.</li><li>Todo lo que se comparte es confidencial.</li></ol>
-      ${In.callout('Puede pedir una sesión de 60 minutos desde Atalaya: menú de su cuenta, «Hablar con un consultor». Traiga este informe y sus objetivos.', 'info')}`, 'Su consultor como punto de referencia externo para implantar el plan y acelerar los resultados.');
+      ${In.callout('Puede pedir una sesión estratégica de 60 minutos con Valerio García, sin coste, con el botón «Pedir la sesión estratégica» de este informe. Traiga este informe y sus objetivos.', 'info')}`, 'Su consultor como punto de referencia externo para implantar el plan y acelerar los resultados.');
   };
 
   /* ---------- Cuaderno del consultor (interno) ---------- */
@@ -204,7 +204,7 @@
     const externo = i >= 0 ? o.html.slice(0, i) + extra + o.html.slice(i) : o.html + extra;
     const barExtra = cons
       ? `<div class="seg ci-seg" role="tablist" aria-label="Versión del informe"><button role="tab" aria-selected="true" data-v="ext">Para la empresa</button><button role="tab" aria-selected="false" data-v="int">Guía y cuaderno del consultor</button></div>`
-      : `<button class="btn ghost" id="ciSesion">Hablar con un consultor</button>`;
+      : `<button class="btn ghost" id="ciSesion">Pedir la sesión estratégica</button>`;
     In.open(Object.assign({}, o, {
       html: externo, barExtra: (o.barExtra || '') + barExtra,
       after(paper) {
