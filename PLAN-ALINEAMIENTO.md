@@ -8,11 +8,12 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 
 ## Fase 1 · Que no se pierda nada
 
-### 1. ☐ Cambios desde varias pestañas (Atalaya)
+### 1. ☑ Cambios desde varias pestañas (Atalaya)
 - **Problema:** con la misma página abierta en dos pestañas, al guardar en una se borra lo escrito en la otra. Si se cambia de cliente en una pestaña, la otra sigue en el anterior.
 - **Qué se hace:** cada dato guardado lleva su versión; antes de guardar se comprueba que nadie lo ha cambiado desde que se cargó. Si ha cambiado, se avisa («Hay cambios hechos en otra pestaña») y se ofrece recargar sin perder lo escrito. Las pestañas se escuchan entre sí y se actualizan solas cuando no hay nada sin guardar. Si cambia la empresa activa en otra pestaña, aviso y recarga.
 - **Dónde:** `atalaya/js/platform.js` (guardado y empresa activa), y las páginas que guardan su estado completo (mesa, simulador, sistema estratégico, auditoría, personas).
 - **Hecho cuando:** la prueba de dos pestañas de la auditoría ya no pierde la tarea; cambiar de cliente en una pestaña avisa en la otra; en modo servidor, el servidor rechaza una escritura con versión vieja.
+- **Resultado (3 nov 2026):** combinación a tres bandas al guardar (las altas y cambios de los dos lados se conservan), aviso «Actualizar» en la pestaña visible y actualización automática al volver a una pestaña oculta. Empresa activa propia de cada pestaña: una pestaña que se quedó en un cliente ya no puede guardar en otro. El servidor entrega la versión de cada dato y responde 409 con lo guardado si se escribe sobre una versión vieja; el navegador lo combina y vuelve a guardar. Probado con dos pestañas en modo local y con servidor, y con dos equipos con la misma cuenta; regresión de todas las páginas sin errores.
 
 ### 2. ☐ Mesa de trabajo: un solo identificador por acción
 - **Problema:** el plan de la auditoría y el del sistema estratégico llegan a la mesa por dos caminos con identificadores distintos: tareas duplicadas.

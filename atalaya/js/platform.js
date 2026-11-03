@@ -221,7 +221,14 @@
      en el servidor. El registro de empresas se guarda como un dato más de la cuenta («empresas»). */
   const ACT = 'atalaya.empresa.activa';
   const SCOPED = ['simulador', 'estrategia', 'personas', 'consultor', 'agenda', 'nota', 'libro', 'intervencion'];
-  P.empresaId = () => LS.get(ACT) || 'principal';
+  /* Empresa activa: cada pestaña trabaja con la suya (sesión de la pestaña), aunque en otra se cambie de empresa. Así una
+     pestaña que se quedó en el cliente A nunca guarda sus datos en el cliente B. Al elegir empresa se apunta para las dos. */
+  const SACT = 'atalaya.empresa.tab';
+  let actTab = (() => { try { const v = JSON.parse(sessionStorage.getItem(SACT)); if (v) return v; } catch (e) { /* sin sesión */ } return LS.get(ACT) || 'principal'; })();
+  const ponerAct = (id) => { actTab = id || 'principal'; LS.set(ACT, actTab); try { sessionStorage.setItem(SACT, JSON.stringify(actTab)); } catch (e) { /* sin sesión */ } };
+  try { sessionStorage.setItem(SACT, JSON.stringify(actTab)); } catch (e) { /* sin sesión */ }
+  P.empresaId = () => actTab;
+  P.ponerEmpresa = ponerAct;
   /* ---------- Empresa modelo ----------
      Valdenorte (js/modelo/datos.js): una empresa ficticia completa que vive solo en este navegador. No se guarda en el
      servidor ni cuenta para el límite del plan. Sus datos se crean de la fuente común la primera vez que un mundo los pide y
@@ -276,7 +283,7 @@
         if (!v) return null;
         const c = P.modelo.cfg(); c.plan = (v.cfg && v.cfg.plan) || ''; if (v.cfg && v.cfg.con) c.con = Object.assign(c.con, v.cfg.con); P.modelo.guardarCfg(c);
         const l = REG ? REG.lista : [], id = quedarse ? MID : (l.some((e) => e.id === v.emp) ? v.emp : 'principal');
-        LS.set(ACT, id);
+        ponerAct(id);
         const e = l.find((x) => x.id === id);
         // El aviso se enseña al cargar la página siguiente (la vuelta suele terminar en una recarga)
         ssSet('atalaya.aviso', id === MID ? (quedarse ? 'Sigue con la empresa modelo, con los mundos y el plan que tenía antes del paseo.' : 'Ha vuelto a la empresa modelo, con los mundos y el plan que tenía antes del paseo.') : `Ha vuelto a su empresa: ${(e && e.nombre) || 'Mi empresa'}`);
@@ -325,7 +332,7 @@
       // Un paseo virtual terminado o abandonado: se vuelve a la empresa y a la configuración de antes
       if (vueltaPendiente()) P.modelo.vuelta.restaurar();
       // Si el navegador recuerda una empresa que no es de esta cuenta, se vuelve a la principal
-      if (!REG.lista.some((e) => e.id === P.empresaId())) { LS.set(ACT, 'principal'); location.reload(); return REG; }
+      if (!REG.lista.some((e) => e.id === P.empresaId())) { ponerAct('principal'); location.reload(); return REG; }
       const av = ssGet('atalaya.aviso'); if (av) { try { sessionStorage.removeItem('atalaya.aviso'); } catch (x) { /* sin almacenamiento */ } P.toast(av, 6000); }
       return REG;
     },
@@ -355,10 +362,118 @@
       if (id === MID) throw new Error('La empresa modelo no se borra: desde su ficha se desconecta de los mundos o se restablece.');
       REG.lista = REG.lista.filter((x) => x.id !== id); await P.empresas.guardar();
       for (const k of SCOPED) { await P.saveData(k + '--' + id, null); LS.del(P.k({ simulador: 'atalaya.v1', estrategia: 'atalaya.estrategia.v1', personas: 'atalaya.personas.v1', consultor: 'atalaya.consultor.v1', agenda: 'atalaya.agenda.v1', nota: 'atalaya.nota.v1', libro: 'atalaya.libro.v1', intervencion: 'atalaya.intervencion.v1' }[k], id)); }
-      if (P.empresaId() === id) LS.set(ACT, 'principal');
+      if (P.empresaId() === id) ponerAct('principal');
     },
-    cambiar(id) { LS.set(ACT, id); location.reload(); }
+    cambiar(id) { ponerAct(id); location.reload(); }
   };
+  /* ---------- Varias pestañas y varios equipos ----------
+     Cada dato que esta pestaña carga o guarda se recuerda tal como lo tenía la página (BASE). Antes de guardar se comprueba si
+     alguien lo ha cambiado desde entonces (otra pestaña, u otro equipo en el servidor). Si es así, no se pisa: se combinan los
+     dos cambios (combinar3) y se guarda el resultado. Las demás pestañas se enteran por BroadcastChannel y, al volver a ellas,
+     se actualizan solas; si están a la vista, avisan. */
+  const BASE = new Map(); // id de almacén → { j: JSON que tiene la página, sj: JSON guardado (servidor), ver: versión del servidor }
+  const TAB = uid();
+  const CALLADOS = ['nota']; // cachés calculadas: se combinan sin avisar a nadie
+  const canalDatos = (() => { try { return new BroadcastChannel('atalaya-datos'); } catch (e) { return null; } })();
+  const jparse = (j) => { try { return j == null ? null : JSON.parse(j); } catch (e) { return null; } };
+  const esObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const conId = (arr) => Array.isArray(arr) && arr.length > 0 && arr.every((x) => esObj(x) && x.id != null);
+  /* Combinación a tres bandas: base (lo que vio esta página), mio (lo que quiere guardar) y suyo (lo que hay guardado ahora).
+     Gana el cambio de cada lado allí donde el otro no tocó; si los dos cambiaron lo mismo, gana el de esta página (es la última
+     acción de quien está mirando). Las listas de elementos con id se combinan elemento a elemento: altas de los dos lados,
+     bajas solo si el otro lado no editó ese elemento. */
+  function combinar3(base, mio, suyo) {
+    if (igual(mio, base)) return suyo;
+    if (igual(suyo, base) || igual(mio, suyo)) return mio;
+    if (esObj(mio) && esObj(suyo)) {
+      const b = esObj(base) ? base : {}, out = {};
+      for (const k of new Set([...Object.keys(suyo), ...Object.keys(mio)])) {
+        const enM = k in mio, enS = k in suyo, enB = k in b;
+        if (enM && enS) out[k] = combinar3(b[k], mio[k], suyo[k]);
+        else if (enM) { if (!(enB && igual(mio[k], b[k]))) out[k] = mio[k]; } // el otro lado lo quitó: se quita si aquí no cambió
+        else if (enS) { if (!(enB && igual(suyo[k], b[k]))) out[k] = suyo[k]; }
+      }
+      return out;
+    }
+    if ((conId(mio) || conId(suyo)) && Array.isArray(mio) && Array.isArray(suyo)) {
+      const idx = (a) => new Map((Array.isArray(a) ? a : []).filter(esObj).map((x) => [String(x.id), x]));
+      const B = idx(base), M = idx(mio), S = idx(suyo), out = [];
+      const orden = [...suyo.map((x) => esObj(x) ? String(x.id) : null), ...mio.map((x) => esObj(x) ? String(x.id) : null)].filter((x) => x != null);
+      for (const id of new Set(orden)) {
+        const m = M.get(id), t = S.get(id), b0 = B.get(id);
+        if (m && t) out.push(combinar3(b0, m, t));
+        else if (m) { if (!(b0 && igual(m, b0))) out.push(m); } // lo borró el otro lado y aquí no se editó: fuera
+        else if (t) { if (!(b0 && igual(t, b0))) out.push(t); }
+      }
+      return out;
+    }
+    return mio;
+  }
+  P.combinar3 = combinar3;
+  const NOMBRES = { agenda: 'la mesa de trabajo', simulador: 'el simulador', estrategia: 'el sistema estratégico', personas: 'personas y equipos', intervencion: 'la auditoría integral', consultor: 'el cuaderno del consultor', libro: 'el libro corporativo', grupo: 'la vista de grupo', empresas: 'las empresas de la cuenta' };
+  const nombreDe = (k) => NOMBRES[String(k).split('--')[0]] || 'estos datos';
+  const callado = (k) => CALLADOS.includes(String(k).split('--')[0]);
+  function avisoCombinado(key) {
+    if (callado(key)) return;
+    banda(`Mientras trabajaba, otra pestaña u otro equipo guardó cambios en ${escH(nombreDe(key))}. Se han combinado con los suyos sin perder ninguno. Actualice la página para verlo todo junto.`, { tipo: 'warn', clave: 'combinado:' + key, accion: { texto: 'Actualizar', fn: () => location.reload() } });
+  }
+  const avisarPestanas = (id, key) => { if (canalDatos) try { canalDatos.postMessage({ tab: TAB, id, key, user: P.user && P.user.id }); } catch (e) { /* sin canal */ } };
+  /* Guardado con versión en este navegador (modo local y empresa modelo): leer() da el JSON guardado ahora, escribir(obj) lo guarda */
+  function guardarLocal(id, key, obj, leer, escribir) {
+    const b = BASE.get(id), actual = leer();
+    let final = obj;
+    if (b && actual != null && actual !== b.j && obj != null) { final = combinar3(jparse(b.j), obj, jparse(actual)); avisoCombinado(key); }
+    escribir(final);
+    if (obj == null) BASE.delete(id); else BASE.set(id, { j: JSON.stringify(obj) });
+    avisarPestanas(id, key);
+  }
+  // Se apunta lo que vio la página solo la primera vez: si otra parte de la misma página vuelve a leer el dato para consultarlo,
+  // la página sigue teniendo en memoria su versión, y es esa la que hay que combinar al guardar
+  const verlo = (id, v) => { if (!BASE.has(id)) BASE.set(id, { j: JSON.stringify(v ?? null) }); return v; };
+  /* Guardado con versión en el servidor: manda la versión que vio; si el servidor tiene otra, responde 409 con lo que hay y
+     se combina. Si la página tiene pendiente una combinación anterior (sj distinto de j), se combina antes de mandar. */
+  async function guardarServidor(key, obj) {
+    const id = 's:' + key, b = BASE.get(id);
+    const mandar = async (cuerpo, ver) => api('/data/' + encodeURIComponent(key), { method: 'PUT', body: JSON.stringify(cuerpo), headers: Object.assign({ 'Content-Type': 'application/json' }, ver != null ? { 'X-Atalaya-Version': ver } : {}) });
+    let final = obj;
+    if (obj != null && b && b.sj != null && b.sj !== b.j) final = combinar3(jparse(b.j), obj, jparse(b.sj));
+    let r;
+    try { r = await mandar(final, b ? (b.ver || '') : null); }
+    catch (e) {
+      if (!(e && e.status === 409 && e.body && e.body.conflicto) || obj == null) throw e;
+      final = combinar3(b ? jparse(b.j) : null, obj, e.body.data);
+      r = await mandar(final, e.body.ver || '');
+      avisoCombinado(key);
+    }
+    if (obj == null) BASE.delete(id); else BASE.set(id, { j: JSON.stringify(obj), sj: JSON.stringify(final), ver: (r && r.ver) || '' });
+    avisarPestanas(id, key);
+  }
+  async function leerServidor(key) {
+    const r = await api('/data/' + encodeURIComponent(key));
+    const v = r ? r.data : null, id = 's:' + key, b = BASE.get(id);
+    if (!b) BASE.set(id, { j: JSON.stringify(v ?? null), sj: JSON.stringify(v ?? null), ver: (r && r.ver) || '' });
+    else Object.assign(b, { sj: JSON.stringify(v ?? null), ver: (r && r.ver) || '' }); // se sabe qué hay guardado y con qué versión
+    return v;
+  }
+  /* Otra pestaña ha guardado algo que esta página tiene cargado: si está oculta, se actualiza al volver; si se ve, avisa */
+  let recargarAlVolver = false;
+  if (canalDatos) canalDatos.onmessage = (ev) => {
+    const m = ev.data || {};
+    if (m.tab === TAB || !BASE.has(m.id) || (P.user && m.user && m.user !== P.user.id) || callado(m.key)) return;
+    if (document.hidden) { recargarAlVolver = true; return; }
+    banda(`Se han guardado cambios en ${escH(nombreDe(m.key))} desde otra pestaña. Lo que haga aquí se combinará con ellos; actualice para verlos.`, { tipo: 'warn', clave: 'otra:' + m.key, accion: { texto: 'Actualizar', fn: () => location.reload() } });
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && recargarAlVolver) location.reload(); });
+  // Si en otra pestaña se elige otra empresa, esta sigue con la suya (y lo dice): así nada se guarda en la empresa equivocada
+  addEventListener('storage', (e) => {
+    if (e.key !== ACT || !e.newValue) return;
+    let nueva; try { nueva = JSON.parse(e.newValue); } catch (x) { return; }
+    if (nueva === actTab) return;
+    const nom = (id) => { const x = REG && REG.lista ? REG.lista.find((y) => y.id === id) : null; return (x && x.nombre) || (id === MID ? 'la empresa modelo' : 'otra empresa'); };
+    banda(`En otra pestaña ha pasado a ${escH(nom(nueva))}. Esta pestaña sigue trabajando con ${escH(nom(actTab))}.`, { tipo: 'warn', clave: 'empresa:' + nueva, accion: { texto: 'Cambiar aquí también', fn: () => { ponerAct(nueva); location.reload(); } } });
+  });
+
   /* Datos de otra empresa de la cuenta (vista de grupo) */
   P.loadDataOf = async function (key, id) {
     await P.ready;
@@ -384,26 +499,34 @@
   };
   P.saveData = async function (key, obj) {
     await P.ready;
-    if (P.empresaId() === MID && SCOPED.includes(key)) { P.modelo.guardar(key, obj); return; }
+    if (P.empresaId() === MID && SCOPED.includes(key)) {
+      const mk = MK('d.' + key);
+      guardarLocal('m:' + key, key, obj, () => { try { return localStorage.getItem(mk); } catch (e) { return null; } }, (o) => P.modelo.guardar(key, o));
+      return;
+    }
     key = dk(key);
     if (P.mode === 'server') {
       // Si el servidor no lo recibe, se queda una copia en este navegador marcada como pendiente y se reenvía después
-      try { await api('/data/' + encodeURIComponent(key), { method: 'PUT', body: JSON.stringify(obj) }); quitarPend(key); }
+      try { await guardarServidor(key, obj); quitarPend(key); }
       catch (e) { ponerPend(key, obj, e); }
       return;
     }
-    const s = L.session(); if (s) LS.set(`atalaya.data.${s.id}.${key}`, obj);
+    const s = L.session(); if (!s) return;
+    const lk = `atalaya.data.${s.id}.${key}`;
+    guardarLocal('l:' + lk, key, obj, () => { try { return localStorage.getItem(lk); } catch (e) { return null; } }, (o) => { if (o == null) LS.del(lk); else LS.set(lk, o); });
   };
   P.loadData = async function (key) {
     await P.ready;
-    if (P.empresaId() === MID && SCOPED.includes(key)) return P.modelo.leer(key);
+    if (P.empresaId() === MID && SCOPED.includes(key)) return verlo('m:' + key, P.modelo.leer(key));
     key = dk(key);
     if (P.mode === 'server') {
       // Una copia pendiente es más nueva que lo que tiene el servidor (no llegó a guardarse): manda la copia
       const pd = leerPend(key); if (pd) { setTimeout(reenviar, 0); return pd.v; }
-      try { const r = await api('/data/' + encodeURIComponent(key)); return r && r.data; } catch (e) { return null; }
+      try { return await leerServidor(key); } catch (e) { return null; }
     }
-    const s = L.session(); return s ? LS.get(`atalaya.data.${s.id}.${key}`) : null;
+    const s = L.session(); if (!s) return null;
+    const lk = `atalaya.data.${s.id}.${key}`;
+    return verlo('l:' + lk, LS.get(lk));
   };
 
   /* ---------- Guardado pendiente (modo servidor) ----------
@@ -477,7 +600,8 @@
       if (o.clave && bandaOculta === o.clave) return;
       if (!b) { b = document.createElement('div'); b.id = 'atGuardado'; b.className = 'at-aviso'; b.setAttribute('role', 'status'); b.setAttribute('aria-live', 'polite'); document.body.appendChild(b); }
       b.dataset.tipo = o.tipo || 'warn'; b.dataset.clave = o.clave || '';
-      b.innerHTML = `<span class="at-aviso-t">${html}</span>${o.entrar ? '<a class="btn ghost small" href="acceso.html" target="_blank" rel="noopener">Entrar de nuevo</a>' : ''}${o.reintentar ? '<button type="button" class="btn ghost small" data-reint>Reintentar ahora</button>' : ''}<button type="button" class="icon-btn at-aviso-x" aria-label="Ocultar el aviso">×</button>`;
+      b.innerHTML = `<span class="at-aviso-t">${html}</span>${o.entrar ? '<a class="btn ghost small" href="acceso.html" target="_blank" rel="noopener">Entrar de nuevo</a>' : ''}${o.reintentar ? '<button type="button" class="btn ghost small" data-reint>Reintentar ahora</button>' : ''}${o.accion ? '<button type="button" class="btn solid small" data-accion></button>' : ''}<button type="button" class="icon-btn at-aviso-x" aria-label="Ocultar el aviso">×</button>`;
+      const ab = b.querySelector('[data-accion]'); if (ab) { ab.textContent = o.accion.texto; ab.onclick = o.accion.fn; }
       const rb = b.querySelector('[data-reint]'); if (rb) rb.onclick = () => { rb.disabled = true; rb.textContent = 'Reintentando…'; reenviar().then(() => { if (rb.isConnected) { rb.disabled = false; rb.textContent = 'Reintentar ahora'; } }); };
       b.querySelector('.at-aviso-x').onclick = () => { bandaOculta = o.clave || ''; b.remove(); };
       if (o.dura) setTimeout(() => { if (b.isConnected && b.dataset.clave === (o.clave || '')) b.remove(); }, o.dura);
@@ -585,7 +709,7 @@
     // Copias locales de cada mundo (espejos del navegador) y pendientes: fuera, para que manden los datos importados
     idsAntes.concat(idsNuevos).forEach((id) => SCOPED.forEach((k) => { LS.del(P.k(MBASE[k], id)); quitarPend(id === 'principal' ? k : k + '--' + id); }));
     quitarPend('empresas'); quitarPend('grupo');
-    LS.set(ACT, 'principal'); REG = null;
+    ponerAct('principal'); REG = null;
     return { ok: !fallos.length, fallos };
   };
   P.importarDatos = function () {
@@ -822,7 +946,7 @@
     async elegir(eleccion) {
       await P.empresas.cargar(); REG.inicio = { eleccion, fecha: new Date().toISOString() };
       const real = eleccion === 'datos' || eleccion === 'preguntas';
-      if (real) { LS.set(ACT, 'principal'); try { await P.activarModoReal('inicio'); } catch (e) { /* se guarda abajo */ } }
+      if (real) { ponerAct('principal'); try { await P.activarModoReal('inicio'); } catch (e) { /* se guarda abajo */ } }
       try { await P.empresas.guardar(); } catch (e) { /* se volverá a preguntar */ }
       if (eleccion === 'datos') location.href = 'app.html#empresa';
       else if (eleccion === 'preguntas') location.href = 'app.html#preguntas';
@@ -874,7 +998,7 @@
   }
   /* Alta: el nombre y el sector de la empresa van a la ficha de la empresa principal */
   P.fichaInicial = async function (d) {
-    LS.set(ACT, 'principal'); REG = null;
+    ponerAct('principal'); REG = null;
     await P.empresas.cargar();
     const c = {}; if (d.nombre) c.nombre = String(d.nombre).trim().slice(0, 160); if (d.sector) c.sector = d.sector;
     if (Object.keys(c).length) await P.empresas.editar('principal', c);

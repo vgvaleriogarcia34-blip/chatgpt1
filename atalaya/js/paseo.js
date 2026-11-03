@@ -86,7 +86,7 @@
     SS.set({ i: 0, prevEmp: Pl.empresaId(), prevCfg: { plan: c.plan, con: Object.assign({}, c.con) } });
     // Durante el paseo se enseñan todos los mundos (como en el plan Consultora)
     c.plan = 'consultora'; Object.keys(c.con).forEach((k) => { c.con[k] = true; }); Pl.modelo.guardarCfg(c);
-    try { sessionStorage.setItem('atalaya.ruta.intro', '1'); localStorage.setItem('atalaya.empresa.activa', JSON.stringify(Pl.modelo.ID)); } catch (e) { /* sin almacenamiento */ }
+    try { sessionStorage.setItem('atalaya.ruta.intro', '1'); Pl.ponerEmpresa(Pl.modelo.ID); } catch (e) { /* sin almacenamiento */ }
     ir(0);
   }
   function ir(i) {
@@ -102,7 +102,7 @@
     if (Pl && Pl.modelo && Pl.modelo.vuelta && Pl.modelo.vuelta.pendiente()) { Pl.modelo.vuelta.restaurar(); location.href = 'portal.html'; return; }
     if (st && Pl && Pl.modelo) {
       const c = Pl.modelo.cfg(); c.plan = (st.prevCfg && st.prevCfg.plan) || ''; if (st.prevCfg && st.prevCfg.con) c.con = st.prevCfg.con; Pl.modelo.guardarCfg(c);
-      try { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(st.prevEmp || 'principal')); } catch (e) { /* sin almacenamiento */ }
+      try { Pl.ponerEmpresa(st.prevEmp || 'principal'); } catch (e) { /* sin almacenamiento */ }
     }
     location.href = 'portal.html';
   }

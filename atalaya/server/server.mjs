@@ -1153,7 +1153,10 @@ function claveDe(key) {
 }
 const mb = (b) => (b < 1048576 ? Math.ceil(b / 1024) + ' KB' : (b / 1048576).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' MB');
 // Lectura permitida aunque la prueba o el pago hayan vencido, para que el cliente pueda descargar sus datos; la escritura sigue bloqueada.
-route('GET', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => { if (access(u).motivo === 'bloqueado') throw fallo(402, 'Su acceso está suspendido'); claveDe(m[1]); return { data: D.get(u.id, m[1]) }; }, { noAccess: true });
+// Versión de un dato: huella de su contenido. El navegador la manda al guardar (X-Atalaya-Version) y, si otra pestaña u otro
+// equipo guardó antes, se responde 409 con lo que hay para que lo combine en lugar de pisarlo.
+const versionDe = (v) => (v == null ? '' : crypto.createHash('sha1').update(JSON.stringify(v)).digest('hex').slice(0, 16));
+route('GET', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => { if (access(u).motivo === 'bloqueado') throw fallo(402, 'Su acceso está suspendido'); claveDe(m[1]); const data = D.get(u.id, m[1]); return { data, ver: versionDe(data) }; }, { noAccess: true });
 // Empresas por plan: el servidor también lo comprueba (no basta con el navegador)
 const LIMITE_EMPRESAS = { esencial: 1, profesional: 1, consultora: 15, grupos: Infinity };
 route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => {
@@ -1173,12 +1176,17 @@ route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m
     const reg = D.get(u.id, 'empresas'), ids = reg && Array.isArray(reg.lista) ? reg.lista.map((e) => e && e.id) : [];
     if (!ids.includes(empresa)) throw fallo(403, 'Esa empresa no está dada de alta en su cuenta');
   }
+  const esperada = req.headers['x-atalaya-version'];
+  if (esperada !== undefined) {
+    const actual = D.get(u.id, key);
+    if (actual != null && versionDe(actual) !== esperada) throw fallo(409, 'Otra pestaña u otro equipo ha guardado cambios antes', { conflicto: true, data: actual, ver: versionDe(actual) });
+  }
   if (borrar) { D.del(u.id, key); return { ok: true }; }
   const t = D.tamanos(u.id), json = JSON.stringify(body), bytes = Buffer.byteLength(json);
   if (bytes > DATA_MAX_CLAVE) throw fallo(413, `Este dato ocupa ${mb(bytes)} y el máximo es ${mb(DATA_MAX_CLAVE)}. Borre documentos o cargas antiguas y vuelva a guardar.`);
   const total = Object.values(t).reduce((a, b) => a + b, 0) - (t[key] || 0) + bytes;
   if (total > DATA_MAX_CUENTA) throw fallo(413, `Su cuenta llegaría a ${mb(total)} y el máximo es ${mb(DATA_MAX_CUENTA)}. Borre empresas o datos que no use, o escríbanos para ampliarlo.`);
-  D.set(u.id, key, body, json); return { ok: true };
+  D.set(u.id, key, body, json); return { ok: true, ver: versionDe(body) };
 });
 
 /* ---------- Test de personas por enlace ----------

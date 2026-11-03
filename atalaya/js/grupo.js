@@ -182,7 +182,7 @@
       <section class="glass pad stack mt"><h4>Comparativa</h4><div class="gr-cmp">${['ebitdaPct', 'ventasEmpleado', 'dso', 'liquidezMin'].map((k) => barras(k)).join('')}</div></section>
       <section class="glass pad stack mt"><h4>Riesgos que solo se ven en conjunto</h4>${cr.length ? `<div class="risklist">${cr.map((r) => `<div class="risk"><span class="state st-${r.st}">${r.st === 'stop' ? 'Alto' : 'Medio'}</span><div><b>${esc(r.t)}</b><p>${esc(r.d)}</p></div><span></span></div>`).join('')}</div>` : '<p class="small muted">Sin riesgos cruzados con los datos actuales.</p>'}</section>
       ${grupo ? objetivosHTML() : ''}`;
-    $$('[data-go]', main).forEach((b) => b.onclick = () => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(b.dataset.go)); location.href = b.dataset.pag || 'estrategia.html'; });
+    $$('[data-go]', main).forEach((b) => b.onclick = () => { P.ponerEmpresa(b.dataset.go); location.href = b.dataset.pag || 'estrategia.html'; });
     wireClonar(main);
     pintaSky();
     $$('[data-elim]', main).forEach((inp) => inp.onchange = () => { G.elim = G.elim || {}; G.elim[inp.dataset.elim] = A.fin ? A.fin.parseNum(inp.value) || 0 : +inp.value || 0; guardar(); render(true); });
@@ -253,15 +253,9 @@
      los umbrales del simulador (sin cifras); los puestos con su perfil (sin personas); la propuesta integral como base
      (sin sus problemas ni objetivos), los honorarios, la duración y la frecuencia de las propuestas; y el día y la hora de
      las sesiones. La empresa nueva trabaja con datos reales: sus mundos empiezan vacíos y piden sus datos. */
-  // Guarda un dato de otra empresa de la cuenta (la API pública solo guarda la activa; ver el informe de la fase 2)
+  // Guarda un dato de otra empresa de la cuenta sin cambiar la empresa activa de esta pestaña
   async function guardarEn(id, key, obj) {
-    if (P.saveDataOf) return P.saveDataOf(key, id, obj);
-    await P.ready;
-    if (P.mode === 'server') return P.api('/data/' + encodeURIComponent(key + '--' + id), { method: 'PUT', body: JSON.stringify(obj) });
-    // Modo local: se cambia la empresa activa solo mientras se escribe (sin esperas de red, no se cruza con otros guardados)
-    const ACT = 'atalaya.empresa.activa', antes = localStorage.getItem(ACT);
-    localStorage.setItem(ACT, JSON.stringify(id));
-    try { await P.saveData(key, obj); } finally { if (antes == null) localStorage.removeItem(ACT); else localStorage.setItem(ACT, antes); }
+    return P.saveDataOf(key, id, obj);
   }
   const COPIA = [['ficha', 'Ficha tipo: forma jurídica, sector, actividad y provincia'], ['simulador', 'Umbrales del simulador (caja mínima, plazos, deuda), sin cifras'], ['puestos', 'Puestos con su perfil ideal, sin personas'], ['propuesta', 'Propuesta integral como base, honorarios y duración de las propuestas'], ['sesiones', 'Día y hora de las sesiones']];
   function clonarHTML() {
@@ -366,7 +360,7 @@
     const holding = E.find((x) => x.e.rol === 'holding') || E[0]; if (!holding) return;
     skyW = sky.clientWidth || 900;
     sky.innerHTML = constelacion(holding, skyW); encajar(sky);
-    const entrar = (g) => { localStorage.setItem('atalaya.empresa.activa', JSON.stringify(g.dataset.id)); location.href = 'estrategia.html'; };
+    const entrar = (g) => { P.ponerEmpresa(g.dataset.id); location.href = 'estrategia.html'; };
     $$('.gr-planet', sky).forEach((g) => { g.addEventListener('click', () => entrar(g)); g.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); entrar(g); } }); });
   }
   // Un solo oyente de cambio de tamaño para la constelación (con espera), sin oyentes nuevos en cada pintado
