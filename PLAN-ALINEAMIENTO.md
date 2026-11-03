@@ -15,39 +15,45 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 - **Hecho cuando:** la prueba de dos pestañas de la auditoría ya no pierde la tarea; cambiar de cliente en una pestaña avisa en la otra; en modo servidor, el servidor rechaza una escritura con versión vieja.
 - **Resultado (3 nov 2026):** combinación a tres bandas al guardar (las altas y cambios de los dos lados se conservan), aviso «Actualizar» en la pestaña visible y actualización automática al volver a una pestaña oculta. Empresa activa propia de cada pestaña: una pestaña que se quedó en un cliente ya no puede guardar en otro. El servidor entrega la versión de cada dato y responde 409 con lo guardado si se escribe sobre una versión vieja; el navegador lo combina y vuelve a guardar. Probado con dos pestañas en modo local y con servidor, y con dos equipos con la misma cuenta; regresión de todas las páginas sin errores.
 
-### 2. ☐ Mesa de trabajo: un solo identificador por acción
+### 2. ☑ Mesa de trabajo: un solo identificador por acción
 - **Problema:** el plan de la auditoría y el del sistema estratégico llegan a la mesa por dos caminos con identificadores distintos: tareas duplicadas.
 - **Qué se hace:** una única función que fabrica el identificador de origen de cada acción (mundo, empresa, tipo e id propio de la acción, nunca su texto ni su posición), usada por todos los envíos y por «Traer el trabajo del ecosistema». Al cargar, la mesa fusiona los duplicados que ya existan.
 - **Dónde:** `atalaya/js/mesa-comun.js`, `js/mesa.js`, `js/intervencion/plan.js`, `js/strategy/consultor.js`, `js/strategy/plan.js`, `js/app.js`, `js/personas/liderazgo.js`.
 - **Hecho cuando:** enviar y traer, en cualquier orden y varias veces, deja una sola tarea por acción en la empresa modelo; los duplicados antiguos desaparecen.
+- **Resultado (3 nov 2026):** `A.mesa.oid(mundo, tipo, id)` en `mesa-comun.js` (p. ej. `intervencion:accion:<id>`, `estrategia:plan:<id>`, `simulador:palanca:<clave>`) y tabla de equivalencias de los oids antiguos; al cargar la mesa se traducen y se fusionan los duplicados (gana hecha > en curso > pendiente; se conservan notas y fecha). Todos los envíos y «Traer» usan el id propio; acuerdos, acciones del plan de empresa y objetivos del sistema estratégico que no tenían id lo reciben (estable). Probado en la empresa modelo y en una empresa con datos propios con duplicados antiguos: una tarea por acción.
 
-### 3. ☐ Mesa de trabajo: el estado viaja en los dos sentidos
+### 3. ☑ Mesa de trabajo: el estado viaja en los dos sentidos
 - **Problema:** cerrar una tarea en la mesa no cambia su origen, ni al revés.
 - **Qué se hace:** al marcar hecha (o reabrir) una tarea con origen, se escribe en su origen; el origen muestra «en la mesa · hecha el …». Al cerrar en el origen, la tarea de la mesa se cierra. Las metas cumplidas cierran su objetivo en el tablero.
 - **Hecho cuando:** en los cinco orígenes (simulador, sistema estratégico, personas, auditoría, objetivos), cerrar en un lado se ve en el otro tras recargar.
+- **Resultado (3 nov 2026):** cerrar o reabrir en la mesa escribe en el origen (acción del plan de intervención, acuerdo, hito, acción del módulo y del plan de empresa; en simulador y personas, `mesaEstado`); cerrar en el origen cierra la tarea (`A.mesa.cerrar`). Cada origen muestra «En la mesa · hecha el …» y, donde no tenía estado propio (palancas, plan de desarrollo), una casilla «Hecha». Una meta cumplida marca `cumplido` en su objetivo (auditoría o plan de empresa). Probado en los cinco orígenes.
 
-### 4. ☐ Mesa de trabajo: ir al origen y reenvíos que actualizan
+### 4. ☑ Mesa de trabajo: ir al origen y reenvíos que actualizan
 - **Qué se hace:** enlace «Ir al origen» en cada tarea; el filtro de la bandeja incluye todos los mundos (también la auditoría integral); reenviar actualiza texto, fecha y responsable de las tareas abiertas y marca «ya no aplica» las que el origen ha retirado; el botón «Actualizar en la mesa» actualiza de verdad; fuera el HTML visible en los textos.
 - **Hecho cuando:** cambiar los días de cobro y reenviar el plan de corrección deja la mesa con el plan nuevo; desde cualquier tarea se llega a su pantalla de origen.
+- **Resultado (3 nov 2026):** «Ir al origen» en cada fila y en la ventana de edición (intervencion.html#plan/#sesiones/#objetivos/#guion, estrategia.html#<módulo>/#plan, personas.html#lid-plan/#lid-mapa, app.html#plan); filtro con todos los orígenes y filtro «Ya no aplican». Reenviar actualiza texto, fecha, responsable y área de las abiertas; con la lista completa de un origen, lo retirado queda «ya no aplica» (sin borrarse) y vuelve a abrirse si reaparece. «Actualizar en la mesa» actualiza de verdad y dice qué cambió; textos sin HTML. Probado cambiando los días de cobro y reenviando.
 
-### 5. ☐ Asistente: avisos al equipo y transferencias con salida
+### 5. ☑ Asistente: avisos al equipo y transferencias con salida
 - **Qué se hace:** aviso inmediato a Valerio (correo y, si hay plantilla aprobada, WhatsApp) cuando hay transferencia, urgencia, fallo técnico o reunión pendiente de confirmar. La transferencia, si nadie contesta en 25 s, vuelve al asistente, que dice que le devolverán la llamada y crea una tarea de prioridad alta.
 - **Dónde:** `asistente-fe/src/voz/twilio.js`, `src/voz/rutas.js`, nuevo `src/avisos.js`, `src/crm/hubspot.js`.
 - **Hecho cuando:** las pruebas simulan cada caso y comprueban el aviso y la tarea.
+- **Resultado (3 nov 2026):** nuevo `src/avisos.js` (correo por SMTP propio, sin dependencias, en `src/correo.js`, y WhatsApp con la plantilla `WHATSAPP_PLANTILLA_AVISO_EQUIPO`) en transferencia sin respuesta o imposible, urgencia (`registrar_nota` con `urgente`), fallo de voz o de WhatsApp, sesión pendiente de confirmar y baja. La transferencia lleva `<Dial action="/voz/transferencia-fin">`: si nadie contesta, se le dice que le devolverán la llamada, tarea de prioridad alta en HubSpot y aviso; queda registrado si se atendió. El fallo de Claude deja la disculpa en la transcripción; en WhatsApp la disculpa solo se anota si se envió. Pruebas en `test/avisos.test.js` y `test/voz.test.js`.
 
-### 6. ⏸ Un solo responsable de los datos y la privacidad del asistente
+### 6. ◐ Un solo responsable de los datos y la privacidad del asistente
 - **Decisión de Valerio:** qué sociedad es la responsable (la web dice AKOMPANO GROUP, S.L., nombre comercial Business Avance) y con qué marca se presenta el asistente (Familias Empresarias o Business Avance).
 - **Qué se hace después:** mismo responsable en la web de Atalaya, sus textos legales y el asistente; apartado «Asistente telefónico y WhatsApp» en la política de privacidad (finalidades, bases, proveedores, plazos, cómo oponerse) que el asistente cita y puede enviar.
 - **Hecho cuando:** los tres sistemas nombran al mismo responsable y la política cubre llamadas, transcripción y proveedores. Revisión final con su abogado.
+- **Resultado (asistente, 3 nov 2026):** la asistente se presenta como «Lucía, la asistente de inteligencia artificial de Familias Empresarias, de Business Avance», nombra a AKOMPANO GROUP, S.L. (NIF B05544713) si le preguntan y ofrece enviar por WhatsApp la política (`URL_PRIVACIDAD`). Borrador del apartado «Asistente telefónico y WhatsApp» en `asistente-fe/datos/interno/privacidad-asistente.md` (copia para el equipo legal en el scratchpad `alineamiento/privacidad-asistente.md`), pendiente del abogado. Falta: incorporarlo a la web de Atalaya (equipo legal).
 - **Resultado, parte de Atalaya (3 nov 2026):** aviso legal, privacidad, cookies y condiciones nombran a AKOMPANO GROUP, S.L. (NIF B05544713, C/ Fernández Ardavín 6, 6º, 30001 Murcia, servicios@akompanogroup.es, datos de la política publicada en businessavance.es); registro y DPO siguen [PENDIENTE]. Nuevo apartado `privacidad.html#asistente` «Asistente telefónico y WhatsApp de Familias Empresarias» (finalidades, bases, encargados Twilio, Deepgram, ElevenLabs, Anthropic, Meta, HubSpot y Google, transcripción y grabación opcional con aviso, plazos propuestos, oposición y lista de exclusión), HubSpot como proveedor y RGPD.md con los nuevos tratamientos. Todo sigue como borrador para el abogado. Falta la parte del asistente (que cite y envíe ese enlace).
 
 ---
 
 ## Fase 2 · Que todo diga lo mismo
 
-### 7. ⏸ La primera reunión, igual en todas partes
+### 7. ◐ La primera reunión, igual en todas partes
 - **Decisión de Valerio:** nombre (propuesta: «sesión estratégica»), duración (30 o 60 minutos) y con quién.
 - **Qué se hace:** el mismo nombre, duración y persona en la web, Atalaya, el asistente, el evento de Google Calendar y el negocio de HubSpot.
+- **Resultado (asistente, 3 nov 2026):** «sesión estratégica», 60 minutos (`REUNION_MINUTOS`), con Valerio García, sin coste, en las instrucciones, el conocimiento, el evento de Google Calendar («Sesión estratégica · empresa»), la reunión y el negocio de HubSpot («empresa · sesión estratégica»). Sin «diagnóstico» para la reunión gratuita y sin instrucciones en inglés.
 
 ### 8. ☐ Nota, triaje y valoración calculados desde los datos guardados
 - **Qué se hace:** la nota de cada mundo, el triaje y la valoración se calculan a partir de lo guardado, sin esperar a que se abra su página, y muestran su fecha. Una sola valoración con los mismos parámetros en todos los mundos. «Deuda sobre EBITDA» dice si es hoy o tras invertir.
@@ -56,9 +62,10 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 ### 9. ☐ Libro corporativo: avisa de todo capítulo desactualizado
 - **Qué se hace:** los capítulos que usan cifras del simulador se marcan como desactualizados cuando cambian esas cifras; el libro puede recoger también el tablero y la cartera.
 
-### 10. ☐ Objetivos con identificador único
+### 10. ☑ Objetivos con identificador único
 - **Qué se hace:** un objetivo nace con su identificador (en la auditoría, el plan de empresa o la mesa) y viaja con él; nada lo vuelve a crear con otro texto. Las causas que ya tienen meta no se vuelven a ofrecer.
 - **Hecho cuando:** «Bajar los días de cobro de 86 a 65» aparece una sola vez en el tablero y en la mesa.
+- **Resultado (3 nov 2026):** cada objetivo lleva `objetivoId` (el de la auditoría, `intervencion:objetivo:<id>`, viaja al plan de empresa y a la meta de la mesa); «Objetivos por prioridad» une lo que comparte identificador, rellena «En la mesa» y ya no ofrece las causas que tienen meta. En la mesa aparece una vez. Falta que el tablero (equipo «cifras», `js/prioridad.js`) deduplique por `objetivoId` y descarte los objetivos con `cumplido`.
 
 ### 11. ☐ Manual lateral en su sitio y un nombre por mundo
 - **Qué se hace:** el manual abre en el apartado de la zona visible (simulador, tablero, libro, cartera); el selector del manual coincide con lo que muestra; la cartera se llama igual en título, barra y botón (sale de la lista común de mundos).
@@ -83,20 +90,24 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 - **Qué se hace:** el formulario de contacto y las solicitudes de sesión o activación de Atalaya crean o actualizan el contacto en HubSpot, con una tarea y su origen. Una sola bandeja de interesados.
 - **Resultado (3 nov 2026):** el servidor envía a HubSpot (API v3, `HUBSPOT_TOKEN`; sin él no hace nada) cada alta, contacto, solicitud de sesión estratégica, de activación y de cambio de plan: contacto por correo o teléfono, empresa por dominio o nombre, nota con el origen y tarea para `HUBSPOT_OWNER_ID`. En segundo plano y en fila, con reintentos ante 429; un reenvío no duplica (ni la solicitud en Atalaya ni la nota o la tarea). Los ids de HubSpot quedan en la cuenta y en la solicitud. Probado con un HubSpot falso.
 
-### 17. ☐ Identificadores cruzados y alta en Atalaya desde HubSpot
+### 17. ◐ Identificadores cruzados y alta en Atalaya desde HubSpot
 - **Qué se hace:** la ficha de empresa de Atalaya guarda el id de HubSpot y el CIF; HubSpot guarda la cuenta de Atalaya; desde un negocio de HubSpot (o el panel del asistente) se envía la invitación de alta en Atalaya con nombre y empresa ya rellenos.
 - **Fuentes de verdad:** HubSpot para la relación comercial, Atalaya para los datos de la empresa cliente, el asistente para la operación y el cumplimiento.
+- **Resultado (asistente, 3 nov 2026):** el asistente guarda el id de la empresa en HubSpot (`hubspot_company_id`) y la ficha del panel tiene «Invitar a Atalaya» (`POST /api/integracion/invitar` con `INTEGRACION_TOKEN`). Falta la parte de Atalaya y la de HubSpot.
 - **Resultado, parte del servidor (3 nov 2026):** el registro `empresas` acepta `cif` y `hubspotId`; `POST /api/integracion/invitar` (Bearer `INTEGRACION_TOKEN`, tiempo constante, 404 sin configurar, límite por IP) crea la cuenta en prueba con nombre, empresa, teléfono y la ficha principal con `hubspotId`, y envía el enlace de alta (lo devuelve solo si no hay correo). La cuenta guarda `hubspotContactId` y `hubspotCompanyId`. Falta: el campo en la ficha (equipo «navegacion») y el botón en HubSpot o el panel del asistente.
 
-### 18. ☐ Las reuniones del asistente en la mesa de trabajo
+### 18. ◐ Las reuniones del asistente en la mesa de trabajo
 - **Qué se hace:** la mesa de Atalaya muestra las reuniones agendadas por el asistente para esa empresa (desde el calendario o a través del puente del punto 17).
+- **Resultado (asistente, 3 nov 2026):** al reservar una sesión, el asistente envía `POST {ATALAYA_URL}/api/integracion/reunion` con el contrato común (sin `ATALAYA_URL`/`INTEGRACION_TOKEN` no hace nada; resultado en eventos). Las peticiones sin agenda conectada no se envían (quedan por confirmar). Falta la parte de Atalaya.
 - **Resultado, parte de Atalaya (3 nov 2026):** `POST /api/integracion/reunion` busca la empresa por `hubspotId` de la ficha, por los ids de la cuenta o por correo, y añade a su mesa (`agenda` o `agenda--<empresa>`) la tarea «Sesión estratégica con … (…)», tipo reunión, hora local, con `oid` `asistente:reunion:<id>`: idempotente y actualiza si cambia la hora. La escritura cambia la versión del dato y la pestaña abierta lo combina. Registro de actividad y documentación en PUESTA-EN-MARCHA.md. Falta que el asistente la llame al agendar.
 
-### 19. ☐ Panel del asistente para el día a día
+### 19. ☑ Panel del asistente para el día a día
 - **Qué se hace:** ficha por contacto con toda su cronología y enlace a HubSpot; bandeja «requiere acción» (reuniones por confirmar, transferencias sin atender, fallos); búsqueda, filtros y exportación CSV (también de los contactos a escribir por correo o LinkedIn); enlace a la grabación; estado de las integraciones; textos legibles en lugar de códigos y móvil sin columnas cortadas.
+- **Resultado (3 nov 2026):** pestañas Requiere acción (con contador), Contactos (ficha con cronología, enlace a HubSpot, invitar a Atalaya, baja) e Integraciones (configurada y si responde); búsqueda y filtros por texto, canal, resultado y fechas; CSV de conversaciones, contactos y sin base legal («;», BOM, fórmulas neutralizadas); grabación desde el aviso de Twilio; las sesiones por confirmar no cuentan como agendadas; textos legibles; a 390 px las tablas pasan a tarjetas y las pestañas no se esconden (comprobado con Playwright en todas las vistas). Pruebas en `test/panel-dia.test.js`.
 
-### 20. ☐ Bajas compartidas y conservación en el asistente
+### 20. ☑ Bajas compartidas y conservación en el asistente
 - **Qué se hace:** las bajas del panel llegan a HubSpot; una oposición por correo bloquea también por teléfono; purga de datos al vencer los plazos de `CUMPLIMIENTO.md`; la importación avisa de los contactos que nunca se llamarán y la campaña avisa si la prospección está apagada; «volver a llamar» respeta la hora pedida.
+- **Resultado (3 nov 2026):** bajas del panel a HubSpot; una baja por correo bloquea el teléfono del contacto y al revés; purga diaria (`src/conservacion.js`) con los plazos documentados en `CUMPLIMIENTO.md` §6.3; la importación avisa de los que no se llamarán nunca; la campaña avisa si la prospección está apagada; «volver a llamar» usa la fecha pedida en `finalizar`; la campaña de origen queda en HubSpot (`fe_campana`). Pruebas en `test/prospeccion.test.js`, `test/conservacion.test.js` y `test/crm.test.js`.
 
 ### 21. ☐ Asistente guía y manual en todas las páginas
 - **Qué se hace:** asistente en el puesto de mando, tablero, libro y cartera (y que sepa ir al tablero); manual lateral en el puesto de mando; barra común en el manual a página completa.
