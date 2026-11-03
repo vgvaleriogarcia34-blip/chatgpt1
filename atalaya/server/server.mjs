@@ -120,7 +120,7 @@ function cargarJson() {
 
 /* --- SQLite: esquema con migraciones numeradas (PRAGMA user_version) --- */
 const COLS = { // tabla → registros [clave, valor] de la base en memoria
-  meta: (d) => ['admin', 'adminEnv', 'adminTotp', 'admin2faReset', 'sesionesHash'].filter((k) => d[k] != null).map((k) => [k, d[k]]),
+  meta: (d) => ['admin', 'adminEnv', 'adminTotp', 'admin2faReset', 'sesionesHash', 'hubspot'].filter((k) => d[k] != null).map((k) => [k, d[k]]),
   usuarios: (d) => d.users.map((u) => [u.id, u]),
   sesiones: (d) => Object.entries(d.sessions),
   sesiones_admin: (d) => Object.entries(d.adminSessions),
@@ -407,7 +407,8 @@ function ipDe(req) {
 /* ---------- Límites de intentos: un contador por ruta y por clave (IP, correo o cuenta) ---------- */
 const LIMITES = { // [máximo, minutos]
   login_ip: [30, 15], login_email: [10, 15], verificar: [10, 15], registro: [num('REGISTROS_HORA', 5), 60],
-  contacto: [6, 60], olvido_ip: [10, 60], olvido_email: [3, 60], restablecer: [20, 15], admin: [10, 15], test: [300, 15], dospasos: [10, 15]
+  contacto: [6, 60], olvido_ip: [10, 60], olvido_email: [3, 60], restablecer: [20, 15], admin: [10, 15], test: [300, 15], dospasos: [10, 15],
+  integracion: [num('INTEGRACION_MINUTO', 60), 1], integracion_fallo: [10, 15]
 };
 const intentos = new Map();
 function bloqueado(tipo, clave) {
@@ -506,6 +507,98 @@ function avisarEquipo(asunto, lineas) {
   if (!env.AVISOS_EMAIL || !env.SMTP_HOST) return;
   const texto = lineas.filter(Boolean).join('\n') + `\n\nGestor de usuarios: ${APP_URL}/admin.html`;
   sendMail(env.AVISOS_EMAIL, `Atalaya · ${asunto}`, texto).catch(() => { /* ya registrado en sendMail */ });
+}
+
+/* ---------- HubSpot (CRM de Business Avance): una sola bandeja de interesados ----------
+   Con HUBSPOT_TOKEN (token de una aplicación privada con permisos de contactos, empresas, notas y tareas), cada solicitud
+   de contacto, de sesión estratégica, de activación o de cambio de plan y cada alta crean o actualizan el contacto por su
+   correo (o su teléfono), lo asocian a su empresa (por dominio o por nombre), añaden una nota con el origen y una tarea
+   para HUBSPOT_OWNER_ID. Va en segundo plano y en fila (no retrasa la respuesta al cliente); ante 429 o fallos del
+   servidor de HubSpot se reintenta. Cada envío tiene una clave: si se repite, no se duplican ni la nota ni la tarea.
+   Sin HUBSPOT_TOKEN no hace nada. HUBSPOT_API_URL cambia la dirección base (pruebas). */
+const HS_URL = (env.HUBSPOT_API_URL || 'https://api.hubapi.com').replace(/\/$/, '');
+const HS_GENERICOS = new Set(['gmail.com', 'googlemail.com', 'hotmail.com', 'hotmail.es', 'outlook.com', 'outlook.es', 'live.com', 'live.es', 'msn.com', 'yahoo.com', 'yahoo.es', 'icloud.com', 'me.com', 'protonmail.com', 'proton.me', 'gmx.com', 'gmx.es', 'aol.com', 'telefonica.net', 'movistar.es']);
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms).unref());
+const hsEnviados = () => (db.hubspot = db.hubspot && typeof db.hubspot === 'object' ? db.hubspot : {});
+async function hsApi(metodo, ruta, cuerpo) {
+  for (let i = 0; ; i++) {
+    let r = null, j = {};
+    try {
+      r = await fetch(HS_URL + ruta, { method: metodo, signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, 'Content-Type': 'application/json' }, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
+      j = await r.json().catch(() => ({}));
+    } catch (e) { r = null; j = { message: e.message }; }
+    if (r && r.ok) return j;
+    const reintentar = !r || r.status === 429 || r.status >= 500;
+    if (!reintentar || i >= (r && r.status === 429 ? 6 : 3)) throw Object.assign(new Error(`HubSpot ${metodo} ${ruta}: ${r ? r.status : 'sin respuesta'} ${j.message || ''}`.trim()), { status: r && r.status, cuerpo: j });
+    const ra = r && +r.headers.get('retry-after');
+    await esperar(ra > 0 ? Math.min(ra, 30) * 1000 : Math.min(10000, 500 * 2 ** i));
+  }
+}
+const hsBuscar = async (objeto, prop, valor) => {
+  const r = await hsApi('POST', `/crm/v3/objects/${objeto}/search`, { filterGroups: [{ filters: [{ propertyName: prop, operator: 'EQ', value: valor }] }], properties: [prop], limit: 1 });
+  return (r.results && r.results[0] && String(r.results[0].id)) || null;
+};
+// Contacto por correo (o teléfono): lo crea o le completa los datos. Devuelve su id.
+async function hsContacto(d) {
+  const props = {};
+  if (d.email) props.email = d.email;
+  if (d.nombre) { const [nom, ...ap] = d.nombre.trim().split(/\s+/); props.firstname = nom; if (ap.length) props.lastname = ap.join(' '); }
+  if (d.telefono) props.phone = d.telefono;
+  if (d.empresa) props.company = d.empresa;
+  if (d.cuenta && env.HUBSPOT_PROP_CUENTA) props[env.HUBSPOT_PROP_CUENTA] = d.cuenta;
+  let id = d.hubspotContactId || (d.email && (await hsBuscar('contacts', 'email', d.email))) || (d.telefono && (await hsBuscar('contacts', 'phone', d.telefono))) || null;
+  if (id) { await hsApi('PATCH', `/crm/v3/objects/contacts/${id}`, { properties: props }); return id; }
+  try { return String((await hsApi('POST', '/crm/v3/objects/contacts', { properties: props })).id); }
+  catch (e) { const m = e.status === 409 && /Existing ID:\s*(\d+)/.exec((e.cuerpo && e.cuerpo.message) || ''); if (m) return m[1]; throw e; }
+}
+// Empresa por dominio del correo (si no es de un proveedor genérico) o por nombre; si no existe se crea
+async function hsEmpresa(d) {
+  if (d.hubspotCompanyId) return String(d.hubspotCompanyId);
+  const dom = d.email && d.email.split('@')[1], dominio = dom && !HS_GENERICOS.has(dom) ? dom : null;
+  if (!dominio && !d.empresa) return null;
+  const id = (dominio && (await hsBuscar('companies', 'domain', dominio))) || (d.empresa && (await hsBuscar('companies', 'name', d.empresa)));
+  if (id) return id;
+  return String((await hsApi('POST', '/crm/v3/objects/companies', { properties: Object.assign({ name: d.empresa || dominio }, dominio ? { domain: dominio } : {}) })).id);
+}
+const hsA = (id, tipo) => ({ to: { id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: tipo }] });
+const hsHtml = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/\n/g, '<br>');
+// Un envío: { clave, origen, nombre, email, telefono, empresa, mensaje, cuenta, contacto (id de la solicitud), tarea (false: solo nota) }
+async function hsEnviar(ev) {
+  const reg = hsEnviados(), hecho = (reg[ev.clave] = reg[ev.clave] || { fecha: now(), origen: ev.origen });
+  const u = ev.cuenta ? db.users.find((x) => x.id === ev.cuenta) : null;
+  const d = Object.assign({}, ev, { hubspotContactId: (u && u.hubspotContactId) || null, hubspotCompanyId: (u && u.hubspotCompanyId) || ev.hubspotCompanyId || null });
+  if (!hecho.contacto) hecho.contacto = await hsContacto(d);
+  else await hsContacto(Object.assign(d, { hubspotContactId: hecho.contacto })); // reenvío: solo se actualizan los datos
+  if (hecho.empresa === undefined) {
+    hecho.empresa = await hsEmpresa(d);
+    if (hecho.empresa) await hsApi('PUT', `/crm/v3/objects/contacts/${hecho.contacto}/associations/companies/${hecho.empresa}/contact_to_company`);
+  }
+  // Los identificadores quedan en la cuenta y en la solicitud (para el gestor de usuarios y la integración con el asistente)
+  if (u) { u.hubspotContactId = hecho.contacto; if (hecho.empresa && !u.hubspotCompanyId) u.hubspotCompanyId = hecho.empresa; }
+  const c = ev.contacto && (db.contactos || []).find((x) => x.id === ev.contacto); if (c) { c.hubspotContactId = hecho.contacto; if (hecho.empresa) c.hubspotCompanyId = hecho.empresa; }
+  save();
+  const asoc = (tc, te) => [hsA(hecho.contacto, tc)].concat(hecho.empresa ? [hsA(hecho.empresa, te)] : []);
+  if (!hecho.nota) {
+    const cuerpo = `<b>${hsHtml(ev.origen)}</b><br>${hsHtml([ev.nombre, ev.email, ev.telefono, ev.empresa].filter(Boolean).join(' · '))}${ev.mensaje ? '<br><br>' + hsHtml(ev.mensaje) : ''}${ev.cuenta ? `<br><br>Cuenta de Atalaya 360°: ${hsHtml(ev.cuenta)} · ${hsHtml(APP_URL)}/admin.html` : ''}`;
+    hecho.nota = String((await hsApi('POST', '/crm/v3/objects/notes', { properties: { hs_timestamp: now(), hs_note_body: cuerpo }, associations: asoc(202, 190) })).id); save();
+  }
+  if (ev.tarea !== false && !hecho.tarea) {
+    const props = { hs_timestamp: new Date(Date.now() + 864e5).toISOString(), hs_task_subject: `${ev.origen}: ${ev.nombre || ev.email}`.slice(0, 250), hs_task_body: hsHtml([ev.mensaje, ev.telefono ? 'Teléfono: ' + ev.telefono : ''].filter(Boolean).join('\n')), hs_task_status: 'NOT_STARTED', hs_task_priority: 'HIGH', hs_task_type: ev.telefono ? 'CALL' : 'EMAIL' };
+    if (env.HUBSPOT_OWNER_ID) props.hubspot_owner_id = env.HUBSPOT_OWNER_ID;
+    hecho.tarea = String((await hsApi('POST', '/crm/v3/objects/tasks', { properties: props, associations: asoc(204, 192) })).id); save();
+  }
+  hecho.ok = now();
+  const ks = Object.keys(reg); if (ks.length > 3000) ks.sort((a, b) => String(reg[a].fecha).localeCompare(String(reg[b].fecha))).slice(0, ks.length - 3000).forEach((k) => delete reg[k]);
+  save();
+}
+let hsFila = Promise.resolve();
+function aHubspot(ev) {
+  if (!env.HUBSPOT_TOKEN || !ev || !ev.email && !ev.telefono) return;
+  ev.email = ev.email ? String(ev.email).trim().toLowerCase() : '';
+  const r = hsEnviados()[ev.clave];
+  if (r && r.ok && (ev.tarea === false || r.tarea)) return; // ya enviado entero: un reenvío no duplica
+  // En fila: dos envíos seguidos del mismo correo no crean dos contactos
+  hsFila = hsFila.then(() => hsEnviar(ev)).catch((e) => console.error(`HubSpot (${ev.origen}):`, e.message));
 }
 
 /* ---------- Registro de actividad ----------
@@ -906,6 +999,7 @@ route('POST', /^\/api\/register$/, async (req, res, body) => {
   db.users.push(u); save(); startSession(res, u);
   anotarActividad(req, 'cuenta.alta', u, { quien: 'cliente', despues: { plan: u.plan, periodo: u.periodo } });
   avisarEquipo(`Nueva cuenta: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}>${u.empresa ? ' · ' + u.empresa : ''}${u.telefono ? ' · ' + u.telefono : ''}`, `Plan elegido: ${NOMBRE_PLAN[u.plan]} (${u.periodo}). Prueba de ${PRUEBA_DIAS} días.`]);
+  aHubspot({ clave: 'alta:' + u.id, origen: 'Atalaya · alta de cuenta', nombre: u.nombre, email: u.email, telefono: u.telefono, empresa: u.empresa, cuenta: u.id, mensaje: `Alta en Atalaya 360° con el plan ${NOMBRE_PLAN[u.plan]} (${u.periodo}). Prueba de ${PRUEBA_DIAS} días.` });
   return { user: pub(u) };
 }, { public: true });
 
@@ -955,10 +1049,12 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
       save();
       anotarActividad(req, 'plan.solicitud', u, { quien: 'cliente', despues: { planPendiente: u.planPendiente } });
       avisarEquipo(`Cambio de plan pedido: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> pide pasar de ${NOMBRE_PLAN[u.plan] || u.plan} a ${NOMBRE_PLAN[nuevo]} (pago ${periodo}) con el acceso ya pagado.`, 'Se confirma cambiando su plan en el gestor de usuarios.']);
+      aHubspot({ clave: `plan:${u.id}:${nuevo}:${periodo}:${today()}`, origen: 'Atalaya · cambio de plan', nombre: u.nombre, email: u.email, telefono: u.telefono, empresa: u.empresa, cuenta: u.id, contacto: db.contactos[0].id, mensaje: db.contactos[0].mensaje });
       throw fallo(409, `Hemos recibido su petición de pasar al plan ${NOMBRE_PLAN[nuevo]}. Como su acceso ya está activado, el cambio se aplica cuando nuestro equipo confirme la nueva cuota; le avisaremos. Mientras, sigue con su plan actual.`, { pendiente: true, planPendiente: u.planPendiente });
     }
     (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: nuevo, fecha: now() });
     anotarActividad(req, 'plan.cambio', u, { quien: 'cliente', antes: { plan: u.plan }, despues: { plan: nuevo } });
+    aHubspot({ clave: `plan:${u.id}:${nuevo}:${today()}`, origen: 'Atalaya · cambio de plan', nombre: u.nombre, email: u.email, telefono: u.telefono, empresa: u.empresa, cuenta: u.id, mensaje: `Ha cambiado su plan de ${NOMBRE_PLAN[u.plan] || u.plan} a ${NOMBRE_PLAN[nuevo]} (${u.pagado ? 'acceso pagado' : 'en prueba o pendiente de activar'}).` });
     u.plan = nuevo;
     if (u.planPendiente) { delete u.planPendiente; (db.contactos || []).forEach((c) => { if (c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido) c.atendido = now(); }); }
   }
@@ -973,13 +1069,20 @@ route('POST', /^\/api\/contacto$/, async (req, res, body) => {
   const t = (k, n) => String(body[k] || '').slice(0, n || 160);
   if (!emailOk(t('email'))) throw fallo(400, 'Escriba un correo válido');
   db.contactos = db.contactos || [];
-  const c = { id: nid('c'), fecha: now(), plan: t('plan', 20), nombre: t('nombre'), email: t('email'), telefono: t('telefono', 40), empresa: t('empresa'), sociedades: t('sociedades', 6), mensaje: t('mensaje', 2000), origen: t('origen', 40) };
+  const c = { id: nid('c'), fecha: now(), plan: body.tipo === 'sesion' ? 'sesion' : t('plan', 20), nombre: t('nombre'), email: t('email'), telefono: t('telefono', 40), empresa: t('empresa'), sociedades: t('sociedades', 6), mensaje: t('mensaje', 2000), origen: t('origen', 40) };
   // Si llega con sesión de cliente (p. ej. datos de facturación al pedir la activación), se enlaza con su cuenta
   const yo = currentUser(req); if (yo && String(yo.email) === c.email.toLowerCase()) c.cuenta = yo.id;
+  // Un reenvío de la misma solicitud (mismo correo, tipo y mensaje, sin atender, en las últimas 24 horas) no se duplica
+  const huella = sha([c.email.toLowerCase(), c.plan, c.origen, c.mensaje].join('|')).slice(0, 24);
+  const previa = (db.contactos || []).find((x) => x.huella === huella && !x.atendido && Date.now() - Date.parse(x.fecha) < 864e5);
+  if (previa) return { ok: true, repetida: true };
+  c.huella = huella;
   db.contactos.unshift(c);
   db.contactos = db.contactos.slice(0, 500); save();
   const que = c.plan === 'sesion' ? 'Sesión de 60 minutos' : c.origen === 'activacion' ? 'Solicitud de activación' : `Contacto${c.plan ? ' · plan ' + (NOMBRE_PLAN[c.plan] || c.plan) : ''}`;
   avisarEquipo(`${que}: ${c.nombre || c.email}`, [`${c.nombre} <${c.email}>${c.telefono ? ' · ' + c.telefono : ''}${c.empresa ? ' · ' + c.empresa : ''}${c.sociedades ? ' · ' + c.sociedades + ' sociedades' : ''}`, c.mensaje ? `\n${c.mensaje}` : '']);
+  const origenHs = c.plan === 'sesion' ? 'Atalaya · solicitud de sesión estratégica' : c.origen === 'activacion' ? 'Atalaya · solicitud de activación' : c.plan === 'grupos' ? 'Atalaya · contacto del plan Grupos' : 'Atalaya · solicitud de contacto';
+  aHubspot({ clave: 'contacto:' + huella, origen: origenHs, nombre: c.nombre, email: c.email, telefono: c.telefono, empresa: c.empresa, cuenta: c.cuenta || null, contacto: c.id, tarea: !(c.origen === 'activacion' && c.cuenta), mensaje: [c.mensaje, c.sociedades ? `Sociedades: ${c.sociedades}` : '', c.origen ? `Página de origen: ${c.origen}` : ''].filter(Boolean).join('\n') });
   return { ok: true };
 }, { public: true });
 route('GET', /^\/api\/admin\/contactos$/, async () => ({ contactos: db.contactos || [] }), { admin: true });
@@ -997,6 +1100,7 @@ route('POST', /^\/api\/me\/solicitar-pago$/, async (req, res, body, u) => {
   if (nueva) {
     anotarActividad(req, 'pago.solicitud', u, { quien: 'cliente', despues: { plan: u.plan, periodo: u.periodo || 'mensual' } });
     avisarEquipo(`Solicitud de activación: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> quiere activar el plan ${NOMBRE_PLAN[u.plan] || u.plan} (pago ${u.periodo || 'mensual'}).`, u.telefono ? `Teléfono: ${u.telefono}` : '', 'Envíele el enlace de pago y regístrelo en el gestor de usuarios al cobrar.']);
+    aHubspot({ clave: `activacion:${u.id}:${today()}`, origen: 'Atalaya · solicitud de activación', nombre: u.nombre, email: u.email, telefono: u.telefono, empresa: u.empresa, cuenta: u.id, mensaje: `Quiere activar el plan ${NOMBRE_PLAN[u.plan] || u.plan} (pago ${u.periodo || 'mensual'}). Enviarle el enlace de pago.` });
   }
   return { ok: true };
 }, { noAccess: true });
@@ -1582,6 +1686,103 @@ route('POST', /^\/api\/mercado\/actualizar$/, async (req, res, body, u) => {
   return { analisis: a };
 });
 
+/* ---------- Integración con el asistente de Familias Empresarias ----------
+   El asistente (asistente-fe) llama a estas rutas con «Authorization: Bearer <INTEGRACION_TOKEN>». Sin INTEGRACION_TOKEN
+   configurado responden 404. La comprobación del token y el límite de peticiones están en manejar().
+   · POST /api/integracion/reunion: la sesión estratégica agendada pasa a la mesa de trabajo de la empresa (clave agenda o
+     agenda--<empresa>) como tarea de tipo reunión con oid «asistente:reunion:<id>». Si se repite, se actualiza la misma.
+   · POST /api/integracion/invitar: invitación de alta en Atalaya 360° con nombre, empresa, teléfono y empresa de HubSpot
+     ya rellenos (cuenta en prueba y enlace para elegir contraseña, válido 7 días). */
+const ZONA = env.ZONA_HORARIA || 'Europe/Madrid';
+const OID_REUNION = (id) => `asistente:reunion:${id}`; // mismo formato que A.mesa.oid(mundo, tipo, id) de js/mesa-comun.js
+// Fecha y hora locales (zona de la empresa) de un instante ISO
+function fechaHoraLocal(iso) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return { fecha: `${p.year}-${p.month}-${p.day}`, hora: `${p.hour}:${p.minute}` };
+}
+const txt = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 160);
+// Empresa de Atalaya a la que pertenece la reunión: por el id de HubSpot de la ficha de empresa, por el de la cuenta,
+// por el correo de la ficha (contacto o responsable) o por el correo de la cuenta (su empresa principal)
+function buscarEmpresa(d) {
+  const hs = txt(d.hubspotCompanyId || d.hubspotId, 40), email = txt(d.email).toLowerCase();
+  const regs = db.users.map((u) => { const r = D.get(u.id, 'empresas'); return { u, lista: r && Array.isArray(r.lista) ? r.lista.filter((e) => e && e.id && !e.modelo) : [] }; });
+  if (hs) {
+    for (const { u, lista } of regs) { const e = lista.find((x) => String(x.hubspotId || '') === hs); if (e) return { u, e, por: 'hubspotId' }; }
+    const u = db.users.find((x) => String(x.hubspotCompanyId || '') === hs); if (u) return { u, e: { id: 'principal', nombre: u.empresa }, por: 'hubspotId de la cuenta' };
+  }
+  if (d.hubspotContactId) { const u = db.users.find((x) => String(x.hubspotContactId || '') === txt(d.hubspotContactId, 40)); if (u) return { u, e: { id: 'principal', nombre: u.empresa }, por: 'contacto de HubSpot' }; }
+  if (email) {
+    const u = db.users.find((x) => x.email === email);
+    if (u) return { u, e: (regs.find((r) => r.u === u).lista.find((x) => x.id === 'principal')) || { id: 'principal', nombre: u.empresa }, por: 'correo de la cuenta' };
+    for (const { u: v, lista } of regs) { const e = lista.find((x) => [x.email, x.contacto, x.responsableEmail].some((c) => String(c || '').trim().toLowerCase() === email)); if (e) return { u: v, e, por: 'correo de la ficha' }; }
+  }
+  return null;
+}
+route('POST', /^\/api\/integracion\/reunion$/, async (req, res, body) => {
+  const id = txt(body.id, 120);
+  if (!/^[\w.:@-]{1,120}$/.test(id)) throw fallo(400, 'Falta el identificador de la reunión (id)');
+  if (isNaN(Date.parse(body.inicio))) throw fallo(400, 'Falta la fecha de inicio (inicio, ISO)');
+  const b = buscarEmpresa(body);
+  if (!b) {
+    anotarActividad(req, 'integracion.reunion.sin-cuenta', null, { quien: 'asistente', email: txt(body.email) || null, nota: `Reunión ${id} · ${txt(body.empresa)}${body.hubspotCompanyId ? ' · HubSpot ' + txt(body.hubspotCompanyId, 40) : ''}` });
+    return { ok: false, motivo: 'sin-cuenta' };
+  }
+  const { u, e } = b, clave = e.id === 'principal' ? 'agenda' : 'agenda--' + e.id;
+  const { fecha, hora } = fechaHoraLocal(body.inicio);
+  const fin = Date.parse(body.fin), dur = fin > Date.parse(body.inicio) ? Math.min(600, Math.round((fin - Date.parse(body.inicio)) / 60000)) : 60;
+  const nombre = txt(body.nombre, 120), empresa = txt(body.empresa) || e.nombre || u.empresa || '';
+  const t = nombre ? `Sesión estratégica con ${nombre}${empresa ? ` (${empresa})` : ''}` : txt(body.titulo) || `Sesión estratégica${empresa ? ` (${empresa})` : ''}`;
+  const enlace = /^https?:\/\//.test(txt(body.enlace, 500)) ? txt(body.enlace, 500) : '';
+  const oid = OID_REUNION(id);
+  const st = Object.assign({ v: 1, tareas: [], repetitivas: [], metas: [], semana: [], reuniones: [], delegaciones: [], descartadas: [], logros: {} }, D.get(u.id, clave) || {});
+  if (!Array.isArray(st.tareas)) st.tareas = [];
+  const datos = { t, fecha, hora, dur, enlace, contacto: [nombre, txt(body.telefono, 40), txt(body.email)].filter(Boolean).join(' · '), inicio: new Date(body.inicio).toISOString() };
+  let x = st.tareas.find((y) => y.oid === oid), accion = 'sin-cambios';
+  if (!x) {
+    x = Object.assign({ id: 't' + crypto.randomBytes(5).toString('hex'), oid, entrada: today(), tipo: 'imperativa', estado: 'pendiente', impacto: 4, esfuerzo: 2, clave: true, area: 'Dirección', mundo: 'reunion', origen: 'asistente', resp: 'Valerio García (Business Avance)' }, datos);
+    st.tareas.push(x); accion = 'creada';
+  } else if (Object.keys(datos).some((k) => String(x[k] || '') !== String(datos[k] || ''))) {
+    // Cambio de hora o de datos: se actualiza la misma tarea (y vuelve a pendiente si se había movido de día)
+    Object.assign(x, datos, { actualizado: now() }); accion = 'actualizada';
+  }
+  if (accion !== 'sin-cambios') {
+    // El servidor escribe la fuente: cambia la versión del dato y el navegador lo combina con lo suyo al guardar (409)
+    const json = JSON.stringify(st);
+    if (Buffer.byteLength(json) > DATA_MAX_CLAVE) throw fallo(413, 'La agenda de esa empresa ocupa demasiado');
+    D.set(u.id, clave, st, json);
+    anotarActividad(req, 'integracion.reunion', u, { quien: 'asistente', despues: { empresa: e.id, clave, fecha, hora, dur, oid }, nota: `${accion === 'creada' ? 'Reunión añadida' : 'Reunión actualizada'} en la mesa de ${e.nombre || 'la empresa'} (${b.por}): ${t}` });
+  }
+  return { ok: true, cuenta: u.id, empresa: e.id, tarea: x.id, accion };
+}, { integracion: true });
+route('POST', /^\/api\/integracion\/invitar$/, async (req, res, body) => {
+  const email = txt(body.email).toLowerCase();
+  if (!emailOk(email)) throw fallo(400, 'Correo no válido');
+  const hs = txt(body.hubspotCompanyId || body.hubspotId, 40) || null, hc = txt(body.hubspotContactId, 40) || null;
+  let u = db.users.find((x) => x.email === email), creada = false;
+  // Una cuenta que ya se usa no se toca: basta con que entre con su contraseña
+  if (u && (u.ultimoAcceso || (u.sesiones || 0) > 0)) {
+    if (hs && !u.hubspotCompanyId) { u.hubspotCompanyId = hs; save(); }
+    anotarActividad(req, 'integracion.invitar', u, { quien: 'asistente', nota: 'Ya tenía cuenta en uso: no se envía invitación' });
+    return { ok: true, cuenta: u.id, existente: true };
+  }
+  if (!u) {
+    u = cuentaNueva({ nombre: txt(body.nombre, 120), empresa: txt(body.empresa), telefono: txt(body.telefono, 40) }, email);
+    u.creadoPor = 'asistente'; u.plan = PLANES_LIBRES.includes(body.plan) ? body.plan : 'profesional';
+    db.users.push(u); creada = true;
+    // Ficha de la empresa principal con su nombre y su id de HubSpot
+    if (hs || u.empresa) { const j = JSON.stringify({ lista: [{ id: 'principal', nombre: u.empresa || 'Mi empresa', rol: 'holding', participacion: 100, alta: now(), hubspotId: hs || '' }] }); D.set(u.id, 'empresas', JSON.parse(j), j); }
+  } else ['nombre', 'empresa', 'telefono'].forEach((k) => { if (!u[k] && txt(body[k])) u[k] = txt(body[k], k === 'telefono' ? 40 : 160); });
+  if (hs) u.hubspotCompanyId = hs; if (hc) u.hubspotContactId = hc;
+  // La prueba empieza al invitar: 14 días desde hoy
+  u.pruebaHasta = new Date(Date.now() + PRUEBA_DIAS * 864e5).toISOString(); u.invitado = now();
+  const token = newResetToken(u, 'invitación', 7 * 24 * 60), enlace = `${APP_URL}/acceso.html#reset=${token}`;
+  const enviado = await sendMail(u.email, 'Atalaya 360° · Su invitación', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nLe invitamos a Atalaya 360°, el software de Business Avance, con ${PRUEBA_DIAS} días de prueba del plan ${NOMBRE_PLAN[u.plan]}${u.empresa ? ` para ${u.empresa}` : ''}.\nPara elegir su contraseña y entrar abra este enlace (válido 7 días):\n${enlace}\n\nEquipo de Business Avance`);
+  anotarActividad(req, 'integracion.invitar', u, { quien: 'asistente', despues: creada ? foto(u) : { pruebaHasta: u.pruebaHasta }, nota: `${creada ? 'Cuenta creada' : 'Invitación renovada'} desde el asistente o HubSpot${hs ? ' · empresa HubSpot ' + hs : ''} · ${enviado ? 'correo enviado' : 'sin correo: enlace devuelto'}` });
+  save();
+  aHubspot({ clave: `invitacion:${u.id}:${today()}`, origen: 'Atalaya · invitación de alta enviada', nombre: u.nombre, email: u.email, telefono: u.telefono, empresa: u.empresa, cuenta: u.id, hubspotCompanyId: hs, tarea: false, mensaje: `Invitación de alta en Atalaya 360° (plan ${NOMBRE_PLAN[u.plan]}, ${PRUEBA_DIAS} días de prueba). ${enviado ? 'Enviada por correo.' : 'Sin correo configurado: enlace entregado al asistente.'}` });
+  return Object.assign({ ok: true, cuenta: u.id, creada, enviado }, enviado ? {} : { enlace });
+}, { integracion: true });
+
 /* ---------- Ficheros estáticos ----------
    Solo se sirven los tipos que usa la web; nunca server/, node_modules/, ficheros o carpetas que empiezan por punto,
    ni documentos internos (.md, .skill, .json…). */
@@ -1641,12 +1842,22 @@ async function manejar(req, res) {
   if (url.pathname === '/api/stripe/webhook') return webhookStripe(req, res);
   const r = routes.find((x) => x.method === req.method && x.re.test(url.pathname));
   if (!r) return send(res, 404, { error: 'Ruta no encontrada' });
+  if (r.opts.integracion) {
+    // Sin token configurado la integración no existe; con token, Bearer comparado en tiempo constante y límite por IP
+    if (!env.INTEGRACION_TOKEN) return send(res, 404, { error: 'Ruta no encontrada' });
+    const ip = ipDe(req);
+    if (bloqueado('integracion_fallo', ip) || bloqueado('integracion', ip)) return send(res, 429, { error: 'Demasiadas peticiones' });
+    anotar('integracion', ip);
+    const m = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+    if (!m || !igualTexto(sha('int:' + m[1].trim()), sha('int:' + env.INTEGRACION_TOKEN))) { anotar('integracion_fallo', ip); return send(res, 401, { error: 'No autorizado' }); }
+  }
   try {
     // Las peticiones que cambian datos deben ser JSON: un formulario de otra web no puede enviarlas sin permiso del navegador
     if (req.method !== 'GET' && !(req.headers['content-type'] || '').includes('application/json')) return send(res, 415, { error: 'Se esperaba JSON' });
     const body = req.method === 'GET' ? {} : await readBody(req);
     const u = currentUser(req);
-    if (r.opts.admin) {
+    if (r.opts.integracion) { /* ya autenticada arriba */ }
+    else if (r.opts.admin) {
       if (!isAdmin(req)) return send(res, 401, { error: 'Entre con la contraseña de administración' });
     } else if (!r.opts.public) {
       if (!u) return send(res, 401, { error: 'Inicie sesión' });

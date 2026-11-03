@@ -123,6 +123,36 @@ Qué hace el servidor:
 
 **Pendiente en el navegador** (`js/platform.js`, fuera de esta versión del servidor): que «Pagar ahora» llame a `/api/me/pago/checkout` cuando `/api/health` anuncia Stripe y que el menú de la cuenta ofrezca «Gestionar el pago» con `/api/me/pago/portal`. Hasta entonces, la pantalla de activación sigue con el enlace manual o la solicitud.
 
+## 5 bis. HubSpot y la integración con el asistente de Familias Empresarias
+
+**Variables** (todas opcionales; sin ellas no se llama a HubSpot y las rutas de integración responden 404):
+
+| Variable | Para qué |
+|---|---|
+| `HUBSPOT_TOKEN` | Token de una aplicación privada de HubSpot con permisos `crm.objects.contacts.read/write`, `crm.objects.companies.read/write` y de notas y tareas. Con él, cada **alta**, **solicitud de contacto**, **solicitud de sesión estratégica**, **solicitud de activación**, **cambio de plan** e **invitación de alta** crea o actualiza el contacto (por correo y, si no hay, por teléfono), lo asocia a su empresa (por el dominio del correo si no es de un proveedor genérico, o por el nombre; si no existe, la crea), añade una nota con el origen («Atalaya · solicitud de sesión estratégica», «Atalaya · alta de cuenta», «Atalaya · solicitud de activación», «Atalaya · cambio de plan»…) y una tarea para el propietario. Va en segundo plano y en fila: no retrasa la respuesta al cliente. Ante 429 espera lo que diga `Retry-After` (o 0,5-10 s) y reintenta hasta 6 veces; ante fallos 5xx o de red, 3. Cada envío tiene una clave (`meta.hubspot` en la base): si se reenvía la misma solicitud no se duplican la nota ni la tarea. Los ids de contacto y de empresa de HubSpot quedan en la cuenta (`hubspotContactId`, `hubspotCompanyId`) y en la solicitud. |
+| `HUBSPOT_OWNER_ID` | Propietario (id de usuario de HubSpot) al que se asignan las tareas. Sin él, la tarea queda sin propietario. |
+| `HUBSPOT_PROP_CUENTA` | Nombre interno de una propiedad personalizada del contacto (texto) donde guardar el id de la cuenta de Atalaya 360°. Créela antes en HubSpot; sin esta variable, el id va en la nota. |
+| `HUBSPOT_API_URL` (`https://api.hubapi.com`) | Dirección base de la API (solo para pruebas con un HubSpot falso). |
+| `INTEGRACION_TOKEN` | Secreto compartido con el asistente (el mismo valor en los dos servidores; al menos 32 caracteres aleatorios, por ejemplo `openssl rand -hex 32`). Activa `POST /api/integracion/reunion` y `POST /api/integracion/invitar`, que exigen `Authorization: Bearer <INTEGRACION_TOKEN>` (comparación en tiempo constante). Sin él, 404. |
+| `INTEGRACION_MINUTO` (60) | Peticiones de integración por minuto y por IP. Con 10 tokens erróneos en 15 minutos, esa IP queda bloqueada 15 minutos (429). |
+| `ZONA_HORARIA` (`Europe/Madrid`) | Zona en la que se calcula la fecha y la hora de las reuniones que llegan en ISO. |
+
+**`POST /api/integracion/reunion`** · cuerpo `{ id, inicio, fin, titulo, enlace, nombre, email, telefono, empresa, hubspotContactId, hubspotCompanyId, origen: 'asistente' }`.
+- Busca la empresa por `hubspotCompanyId` en el campo `hubspotId` de las fichas de empresa (registro `empresas` de cada cuenta), después por el `hubspotCompanyId` o `hubspotContactId` de la cuenta, después la cuenta por el correo del contacto (empresa principal) y, por último, una ficha cuyo correo de contacto coincida.
+- Añade a la mesa de esa empresa (clave `agenda`, o `agenda--<empresa>`) una tarea `{ oid: 'asistente:reunion:<id>', t: 'Sesión estratégica con <nombre> (<empresa>)', tipo: 'imperativa', mundo: 'reunion', origen: 'asistente', fecha, hora, dur, enlace, contacto, clave: true }`. Si llega otra vez, actualiza la misma tarea (cambio de hora) o no hace nada. La escritura del servidor cambia la versión del dato: la pestaña que tenga la mesa abierta recibe 409 al guardar y lo combina.
+- Responde `{ ok: true, cuenta, empresa, tarea, accion: 'creada' | 'actualizada' | 'sin-cambios' }` o `{ ok: false, motivo: 'sin-cuenta' }`.
+
+**`POST /api/integracion/invitar`** · cuerpo `{ email, nombre, empresa, telefono, hubspotCompanyId, hubspotContactId?, plan? }`.
+- Si no hay cuenta con ese correo, la crea en prueba (14 días desde hoy, plan elegido entre Esencial, Profesional y Consultora; Profesional por defecto) con nombre, empresa y teléfono, y su ficha de empresa principal con `hubspotId`. Si ya existe pero nunca se ha usado, renueva la invitación. Si ya se usa, no envía nada (`existente: true`).
+- Envía el correo con el enlace para elegir la contraseña (el mismo mecanismo que el restablecimiento, válido 7 días). Responde `{ ok, cuenta, creada, enviado }` y, **solo si el correo no se ha podido enviar**, `enlace`.
+- Las dos rutas quedan en el registro de actividad con autor «asistente» (`integracion.reunion`, `integracion.reunion.sin-cuenta`, `integracion.invitar`).
+
+**Comprobación**
+- [ ] `HUBSPOT_TOKEN` y `HUBSPOT_OWNER_ID` puestos; una solicitud de sesión de prueba aparece en HubSpot con su nota y su tarea.
+- [ ] El mismo `INTEGRACION_TOKEN` en Atalaya y en el asistente; la ruta sin token responde 401.
+- [ ] Las fichas de empresa de los clientes que vienen de HubSpot tienen su `hubspotId`.
+- Pruebas con un HubSpot y un SMTP falsos: `prueba-integracion.mjs` (45 comprobaciones) y `prueba-servidor.mjs` (regresión básica).
+
 ## 6. Otros
 
 - [ ] Las librerías externas (Three.js, lectura de Excel y PDF) se cargan de cdnjs: comprobar que el servidor no las bloquea.

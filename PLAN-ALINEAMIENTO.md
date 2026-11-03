@@ -39,6 +39,7 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 - **Decisión de Valerio:** qué sociedad es la responsable (la web dice AKOMPANO GROUP, S.L., nombre comercial Business Avance) y con qué marca se presenta el asistente (Familias Empresarias o Business Avance).
 - **Qué se hace después:** mismo responsable en la web de Atalaya, sus textos legales y el asistente; apartado «Asistente telefónico y WhatsApp» en la política de privacidad (finalidades, bases, proveedores, plazos, cómo oponerse) que el asistente cita y puede enviar.
 - **Hecho cuando:** los tres sistemas nombran al mismo responsable y la política cubre llamadas, transcripción y proveedores. Revisión final con su abogado.
+- **Resultado, parte de Atalaya (3 nov 2026):** aviso legal, privacidad, cookies y condiciones nombran a AKOMPANO GROUP, S.L. (NIF B05544713, C/ Fernández Ardavín 6, 6º, 30001 Murcia, servicios@akompanogroup.es, datos de la política publicada en businessavance.es); registro y DPO siguen [PENDIENTE]. Nuevo apartado `privacidad.html#asistente` «Asistente telefónico y WhatsApp de Familias Empresarias» (finalidades, bases, encargados Twilio, Deepgram, ElevenLabs, Anthropic, Meta, HubSpot y Google, transcripción y grabación opcional con aviso, plazos propuestos, oposición y lista de exclusión), HubSpot como proveedor y RGPD.md con los nuevos tratamientos. Todo sigue como borrador para el abogado. Falta la parte del asistente (que cite y envíe ese enlace).
 
 ---
 
@@ -78,15 +79,18 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 
 ## Fase 3 · Un solo hilo por cliente
 
-### 16. ☐ Las solicitudes de Atalaya llegan a HubSpot
+### 16. ☑ Las solicitudes de Atalaya llegan a HubSpot
 - **Qué se hace:** el formulario de contacto y las solicitudes de sesión o activación de Atalaya crean o actualizan el contacto en HubSpot, con una tarea y su origen. Una sola bandeja de interesados.
+- **Resultado (3 nov 2026):** el servidor envía a HubSpot (API v3, `HUBSPOT_TOKEN`; sin él no hace nada) cada alta, contacto, solicitud de sesión estratégica, de activación y de cambio de plan: contacto por correo o teléfono, empresa por dominio o nombre, nota con el origen y tarea para `HUBSPOT_OWNER_ID`. En segundo plano y en fila, con reintentos ante 429; un reenvío no duplica (ni la solicitud en Atalaya ni la nota o la tarea). Los ids de HubSpot quedan en la cuenta y en la solicitud. Probado con un HubSpot falso.
 
 ### 17. ☐ Identificadores cruzados y alta en Atalaya desde HubSpot
 - **Qué se hace:** la ficha de empresa de Atalaya guarda el id de HubSpot y el CIF; HubSpot guarda la cuenta de Atalaya; desde un negocio de HubSpot (o el panel del asistente) se envía la invitación de alta en Atalaya con nombre y empresa ya rellenos.
 - **Fuentes de verdad:** HubSpot para la relación comercial, Atalaya para los datos de la empresa cliente, el asistente para la operación y el cumplimiento.
+- **Resultado, parte del servidor (3 nov 2026):** el registro `empresas` acepta `cif` y `hubspotId`; `POST /api/integracion/invitar` (Bearer `INTEGRACION_TOKEN`, tiempo constante, 404 sin configurar, límite por IP) crea la cuenta en prueba con nombre, empresa, teléfono y la ficha principal con `hubspotId`, y envía el enlace de alta (lo devuelve solo si no hay correo). La cuenta guarda `hubspotContactId` y `hubspotCompanyId`. Falta: el campo en la ficha (equipo «navegacion») y el botón en HubSpot o el panel del asistente.
 
 ### 18. ☐ Las reuniones del asistente en la mesa de trabajo
 - **Qué se hace:** la mesa de Atalaya muestra las reuniones agendadas por el asistente para esa empresa (desde el calendario o a través del puente del punto 17).
+- **Resultado, parte de Atalaya (3 nov 2026):** `POST /api/integracion/reunion` busca la empresa por `hubspotId` de la ficha, por los ids de la cuenta o por correo, y añade a su mesa (`agenda` o `agenda--<empresa>`) la tarea «Sesión estratégica con … (…)», tipo reunión, hora local, con `oid` `asistente:reunion:<id>`: idempotente y actualiza si cambia la hora. La escritura cambia la versión del dato y la pestaña abierta lo combina. Registro de actividad y documentación en PUESTA-EN-MARCHA.md. Falta que el asistente la llame al agendar.
 
 ### 19. ☐ Panel del asistente para el día a día
 - **Qué se hace:** ficha por contacto con toda su cronología y enlace a HubSpot; bandeja «requiere acción» (reuniones por confirmar, transferencias sin atender, fallos); búsqueda, filtros y exportación CSV (también de los contactos a escribir por correo o LinkedIn); enlace a la grabación; estado de las integraciones; textos legibles en lugar de códigos y móvil sin columnas cortadas.

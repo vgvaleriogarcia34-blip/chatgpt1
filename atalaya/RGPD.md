@@ -1,6 +1,6 @@
 # Atalaya 360° · Protección de datos (RGPD)
 
-> **Borrador pendiente de validación jurídica.** Este documento describe lo que hace hoy el código de Atalaya 360° (octubre de 2026) para que un abogado lo revise. No es un dictamen. Los datos entre corchetes están pendientes: [RAZÓN SOCIAL], [NIF], [DOMICILIO], [DATOS REGISTRALES], [EMAIL DE CONTACTO], [DELEGADO DE PROTECCIÓN DE DATOS, si procede], [PROVEEDOR DE ALOJAMIENTO], [PROVEEDOR DE CORREO], [PROVEEDOR DE PAGOS].
+> **Borrador pendiente de validación jurídica.** Este documento describe lo que hace hoy el código de Atalaya 360° (octubre de 2026) para que un abogado lo revise. No es un dictamen. Responsable: **AKOMPANO GROUP, S.L.**, NIF B05544713, nombre comercial Business Avance International Consulting, C/ Fernández Ardavín 6, 6º, 30001 Murcia, servicios@akompanogroup.es (datos de la política de privacidad publicada en businessavance.es; noviembre de 2026). Es también la responsable del asistente telefónico y de WhatsApp de Familias Empresarias. Siguen pendientes: [PENDIENTE: datos registrales], [PENDIENTE: delegado de protección de datos, si procede], [PROVEEDOR DE ALOJAMIENTO], [PROVEEDOR DE CORREO], [PROVEEDOR DE PAGOS].
 
 Páginas públicas relacionadas: `aviso-legal.html`, `privacidad.html`, `cookies.html`, `condiciones.html`.
 
@@ -10,7 +10,8 @@ Páginas públicas relacionadas: `aviso-legal.html`, `privacidad.html`, `cookies
 
 | Datos | Responsable | Encargado | Subencargados |
 |---|---|---|---|
-| Cuentas de cliente, contactos comerciales, seguridad del acceso | Business Avance ([RAZÓN SOCIAL]) | — | Alojamiento, correo, pagos |
+| Cuentas de cliente, contactos comerciales, seguridad del acceso | Business Avance (AKOMPANO GROUP, S.L.) | — | Alojamiento, correo, pagos, HubSpot |
+| Asistente telefónico y de WhatsApp de Familias Empresarias (llamadas, mensajes, transcripciones, agenda) | AKOMPANO GROUP, S.L. | — | Twilio, Deepgram, ElevenLabs, Anthropic, Meta (WhatsApp), HubSpot, Google, alojamiento del asistente |
 | Datos de empresa que carga el cliente (incluidos datos personales de socios, clientes, empleados, transcripciones) | El cliente | Business Avance | Alojamiento, Anthropic (si se usa la IA), correo |
 | Personas y equipos: plantilla de una empresa cliente de una consultora (plan Consultora) | La empresa cliente (empleadora) | La firma consultora titular de la cuenta | Business Avance (proveedor de la aplicación) y, por debajo, alojamiento y correo |
 | Personas y equipos cuando la propia empresa usa la aplicación sin consultor | La empresa | Business Avance | Alojamiento, correo |
@@ -38,6 +39,26 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 - Base: medidas precontractuales a petición del interesado (6.1.b). **[VALIDAR]**
 - Datos: nombre, correo, teléfono, empresa, nº de personas o de sociedades, mensaje, origen, fecha.
 - Plazo implementado: se guardan las 500 más recientes (`db.contactos.slice(0, 500)`); se borran con la cuenta asociada. **[PENDIENTE: plazo máximo, p. ej. 12 meses sin relación]**
+
+**B ter. Envío al CRM (HubSpot)** (`aHubspot` en `server/server.mjs`; solo con `HUBSPOT_TOKEN`)
+- Finalidad: una sola bandeja de interesados y clientes: cada alta, solicitud de contacto, de sesión estratégica, de activación o de cambio de plan, e invitación de alta, crea o actualiza el contacto en HubSpot, lo asocia a su empresa y deja una nota con el origen y una tarea para el propietario.
+- Base: la del tratamiento de origen (A o B: contrato o medidas precontractuales). **[VALIDAR]**
+- Datos enviados: nombre (separado en nombre y apellidos), correo, teléfono, empresa, dominio del correo (si no es de un proveedor genérico), mensaje de la solicitud, página de origen, plan, id de la cuenta de Atalaya 360°. En la base de Atalaya quedan los ids de HubSpot (`hubspotContactId`, `hubspotCompanyId`) en la cuenta y en la solicitud, y en `meta.hubspot` la clave de cada envío con los ids creados (máximo 3.000 entradas), para no duplicar un reenvío.
+- Destinatario: HubSpot, Inc. (encargado; apartado 3). Al borrar una cuenta en Atalaya **no** se borra en HubSpot: hay que hacerlo allí. **[PENDIENTE: procedimiento de supresión coordinado]**
+
+**B quater. Integración con el asistente de Familias Empresarias** (`/api/integracion/reunion` e `/api/integracion/invitar`; solo con `INTEGRACION_TOKEN`)
+- Reunión: el asistente envía la sesión estratégica agendada (id, inicio, fin, enlace, nombre, correo, teléfono, empresa, ids de HubSpot). Atalaya la anota como tarea en la mesa de trabajo de la empresa (dato de la cuenta del cliente: Atalaya actúa por cuenta del cliente para el contenido de la mesa, apartado D). Se guarda nombre, teléfono y correo del contacto en el campo `contacto` de la tarea.
+- Invitación: desde HubSpot o el panel del asistente se crea la cuenta en prueba con nombre, empresa, teléfono e id de empresa de HubSpot, y se envía el enlace de alta (7 días). Base: medidas precontractuales a petición del interesado (6.1.b). **[VALIDAR que la invitación se envía solo a quien la ha pedido o aceptado]**
+- Las dos acciones quedan en el registro de actividad (B bis) con autor «asistente»; si una reunión no encuentra cuenta se anota el correo recibido.
+- Comunicación entre dos sistemas del mismo responsable (AKOMPANO GROUP, S.L.); autenticación con secreto compartido, comparación en tiempo constante y límite de peticiones.
+
+**B quinquies. Asistente telefónico y de WhatsApp** (código en `asistente-fe/`; detalle en `asistente-fe/CUMPLIMIENTO.md`)
+- Finalidades: atención de llamadas y mensajes, cualificación, agenda de la sesión estratégica (60 minutos con Valerio García, sin coste), seguimiento comercial con base legal registrada, gestión de la lista de exclusión.
+- Bases: 6.1.b (atención y agenda), 6.1.a o 6.1.f con art. 66 LGT (seguimiento comercial; nunca sin base registrada), 6.1.c y art. 23 LOPDGDD (exclusiones y Robinson). **[VALIDAR]**
+- Datos: teléfono, nombre, empresa, cargo, correo, transcripción y resumen de cada conversación, mensajes de WhatsApp, grabación de audio solo si se activa (`GRABAR_LLAMADAS`, desactivada por defecto, con aviso al inicio), base legal con fecha y origen, bajas.
+- Encargados: Twilio, Deepgram, ElevenLabs, Anthropic, Meta (WhatsApp), HubSpot, Google y el alojamiento del asistente.
+- Plazos propuestos: transcripciones y mensajes de no clientes 12 meses desde la última interacción; grabaciones 3 meses; ficha en el CRM de clientes, la relación más los plazos legales; prueba de la base legal, el uso más 3 años; bajas sin plazo (solo teléfono o correo y fecha). **[VALIDAR; pendiente técnico en el asistente: purga automática]**
+- Información: apartado `privacidad.html#asistente`, que el asistente cita y puede enviar por WhatsApp o correo.
 
 **B bis. Registro de actividad del gestor de usuarios** (`ACT` en `server/server.mjs`, tabla `actividad`; `GET /api/admin/actividad`)
 - Finalidad: rendir cuentas de quién cambió qué en las cuentas de clientes (planes, bloqueos, pagos, pruebas, cuentas creadas o eliminadas, solicitudes cerradas, cobros de Stripe), detectar errores o abusos del personal y atender reclamaciones sobre cobros y accesos.
@@ -90,6 +111,7 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 | Anthropic, PBC | API de Claude (asistente, extracción, escucha, agente de mercado con búsqueda web, propuestas) | Texto enviado a esas funciones | EE. UU. | [DPF / CCT] |
 | [PROVEEDOR DE CORREO] (SMTP configurado con `SMTP_HOST`) | Correos de contraseña, acceso e invitaciones a test | Correo, nombre, enlace, nombre de la empresa | [PAÍS] | [DPA] |
 | Stripe (Stripe Payments Europe, Ltd., si se configura `STRIPE_SECRET_KEY`; `PUESTA-EN-MARCHA.md` apartado 5) | Cobro de suscripciones, facturas y portal de cliente | Correo, identificador interno de la cuenta, plan y periodo; Stripe recoge directamente tarjeta, nombre, dirección de facturación y NIF | UE/EE. UU. | [DPA de Stripe; para los datos de pago Stripe actúa también como responsable] **[VALIDAR]** |
+| HubSpot, Inc. (si se configura `HUBSPOT_TOKEN`) | CRM: contactos, empresas, notas y tareas de las solicitudes y altas | Nombre, correo, teléfono, empresa, mensaje, origen, id de la cuenta | UE/EE. UU. | [DPA de HubSpot; DPF / CCT] **[VALIDAR]** |
 | Google (Google Fonts) | Tipografías | IP y agente de usuario de cada visitante | EE. UU./UE | Recomendado: alojar las fuentes en el servidor y eliminar esta transmisión |
 | Cloudflare (cdnjs) | Bibliotecas JS (Three.js, PDF.js, lectura de Excel, html2pdf) | IP y agente de usuario | EE. UU./UE | Recomendado: servirlas desde el propio servidor |
 
@@ -167,7 +189,7 @@ h) Poner a disposición del Responsable la información necesaria para demostrar
 
 **Anexo I. Medidas de seguridad.** Las del apartado 2.3 de este documento y [MEDIDAS PROPIAS DE LA CONSULTORA].
 
-**Anexo II. Subencargados autorizados.** Business Avance ([RAZÓN SOCIAL], [NIF]) como proveedor de Atalaya 360°; [PROVEEDOR DE ALOJAMIENTO]; [PROVEEDOR DE CORREO].
+**Anexo II. Subencargados autorizados.** Business Avance (AKOMPANO GROUP, S.L., NIF B05544713) como proveedor de Atalaya 360°; [PROVEEDOR DE ALOJAMIENTO]; [PROVEEDOR DE CORREO].
 
 Firmas.
 
@@ -206,6 +228,8 @@ Firmas.
 - Confirmar los roles (responsable, encargado, subencargado) del apartado 1, en especial con clave de API propia.
 - Base jurídica de los cuestionarios a empleados y si procede la evaluación de impacto.
 - Mecanismo de transferencia con Anthropic y condiciones de conservación de su API.
+- Asistente de Familias Empresarias: apartado `privacidad.html#asistente` (finalidades, bases, encargados, plazos propuestos, oposición) y puntos del apartado 9 de `asistente-fe/CUMPLIMIENTO.md`.
+- HubSpot: DPA, transferencia y supresión coordinada al borrar una cuenta en Atalaya 360°.
 - Plazos de conservación pendientes (apartado 4).
 - Condiciones de uso: consumidores y desistimiento, renovación, reembolsos, límite de responsabilidad, fuero.
 - Si las cookies técnicas y el almacenamiento local descritos quedan exentos de consentimiento (art. 22.2 LSSI).
