@@ -261,7 +261,9 @@
     // Cuenta con datos reales: el módulo sin datos lo dice y pide la subida
     if (vacio) { const head = panel.querySelector('.st-head'), sim = m.datosSim; const av = `<div class="alert ${S.real() ? 'warn' : 'info'} st-pide st-sindatos"><b>Sin datos en este módulo.</b> ${S.real() ? 'Esta empresa trabaja con datos reales: aquí no hay datos de ejemplo. ' : ''}Los indicadores quedan «Sin datos» y no cuentan en la nota, en el DAFO ni en las prioridades hasta que haya datos propios. ${sim ? 'Cargue las cuentas en el <a href="app.html#empresa">simulador</a> o en <a href="#origen">Origen de datos</a>.' : 'Súbalos en <a href="#origen">Origen de datos</a> (Excel, CSV o PDF) o escríbalos en las tablas.'}</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
     else if (id === 'tablero' && A.simEsEjemplo && S.sim && S.sim.sinDatos && !(S.sim.empresa && S.sim.empresa.ventas > 0)) panel.insertAdjacentHTML('afterbegin', '<div class="alert warn st-pide"><b>Faltan las cuentas de la empresa.</b> Esta empresa trabaja con datos reales y el simulador está a cero: suba el balance y la cuenta de resultados en <a href="#origen">Origen de datos</a> o en el <a href="app.html#empresa">simulador</a>.</div>');
-    try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
+    // Historial: cada módulo abierto es una entrada (atrás y adelante recorren lo visitado); la primera se sustituye
+    if (location.hash !== '#' + id) { try { if (S._hist && !S._volviendo) history.pushState(null, '', '#' + id); else history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ } }
+    S._hist = true;
     // Al recalcular el mismo módulo se conserva la posición: solo se sube al cambiar de módulo
     if (keep) { const y = keep.y; scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
     if (S.onShow) try { S.onShow(id, !!keep); } catch (e) { console.error(e); }
@@ -372,6 +374,7 @@
       const areas = Array.from(new Set(k.map((x) => x.area)));
       const score = (list) => S.notaN([...new Set(list.map((x) => x.mod))], list);
       const global = S.notaN(null, k), gRes = S.notaRes(null);
+      const compr = ((A.nota && A.nota.estrategia ? A.nota.estrategia() : null) || []).filter((x) => ['ok', 'warn', 'stop', 'nd'].includes(x.st));
       const impacto = Fi.reduce((a, f) => a + (f.impactoEUR || 0), 0);
       const stS = (x) => (x === null ? null : x >= 70 ? 'ok' : x >= 50 ? 'warn' : 'stop');
       const porArea = areas.map((a) => { const l = k.filter((x) => x.area === a); return { a, mod: l[0].mod, sc: score(l), st: stS(score(l)) }; });
@@ -383,12 +386,13 @@
       const hc = {
         kicker: 'Sistema estratégico · cuadro de mando',
         titulo: '¿Funciona la empresa <em>como un sistema</em>, área a área?',
-        lede: 'Veintiún módulos sobre los mismos datos: finanzas, clientes, operaciones y entorno. Cada indicador con su semáforo, cada riesgo con su nivel y cada mejora con lo que vale al año.',
+        lede: 'Veintidós módulos sobre los mismos datos: finanzas, clientes, operaciones y entorno. Cada indicador con su semáforo, cada riesgo con su nivel y cada mejora con lo que vale al año.',
         empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
         datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]].concat((() => { const c = S.cifras(); return c && !c.sinDatos ? A.cifras.CAMPOS.map((x) => [x.n, A.cifras.fmt(x.k, c[x.k])]) : []; })()),
         acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaEst && A.rutaEst.openMap() }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
-        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes).replace(/^s/, 'S') + '. ' : ''}${rojos} indicador${rojos === 1 ? '' : 'es'} en rojo${nSD ? `, ${nSD} sin datos (no cuentan)` : ''} y ${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
-          luces: k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
+        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes || A.nota.puntuar(compr, true)).replace(/^s/, 'S') + ' (indicadores, datos pendientes, plan, objetivos, madurez y riesgos). ' : ''}${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
+          // Una franja por comprobación de la nota: el recuento de debajo es el mismo que el del texto
+          luces: compr.length ? compr.map((x) => ({ n: x.t, v: String(x.d || '').replace(/<[^>]+>/g, ''), st: x.st === 'nd' ? null : x.st, fn: S.mod(x.zona) ? () => show(x.zona) : null })) : k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
         kpis: [
           { k: 'Nota del sistema estratégico', info: 'Nota del sistema estratégico', v: global === null ? 'Sin nota' : global + '/100', st: stS(global), d: global === null ? motivoSinNota : `${rojos} indicadores en rojo · misma regla que la cabecera`, barras: porArea.map((x) => ({ n: x.a, v: x.sc == null ? 0 : x.sc, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[x.st] })) },
           { k: 'Riesgos altos', info: 'Riesgos altos', v: String(R.filter((r) => r.estado === 'stop').length), st: R.some((r) => r.estado === 'stop') ? 'stop' : 'ok', d: `${R.length} riesgos identificados`, barras: R.slice(0, 16).map((r) => ({ n: r.nombre, v: r.nivel, c: { ok: '#2fb24a', warn: '#e8a33b', stop: '#e04848' }[r.estado] })) },
@@ -487,6 +491,7 @@
       try { S.state[k] = S.quitarEjemplo(k, ant); return ms.some((m) => (m.propios ? !!m.propios() : S.conDatos(m))); } catch (e) { return false; } finally { S.state[k] = ant; } });
   };
   S.start = async function () {
+    S.__vivo = true; // estado de su página (no el cálculo sin pantalla de js/calculo-mundos.js)
     A.sky();
     S.sim = LS.get(SIMK);
     const P = A.platform;
@@ -496,8 +501,7 @@
       // Plan Esencial: solo simulador. El sistema estratégico se explica y se ofrece, sin abrirlo
       if (P.puede && !P.puede('estrategia')) {
         $('#stTabs').innerHTML = '';
-        $('#stPanel').innerHTML = `<div class="glass pad stack" style="max-width:720px;margin:40px auto"><div class="eyebrow">Sistema estratégico</div><h2>Incluido desde el plan <em>Profesional</em></h2><p>Su plan Esencial incluye el simulador de inversión. El sistema estratégico añade 21 módulos de diagnóstico (cuadro de mando, flujo del dinero, cobros, márgenes, compras, personas, valoración, evolución…), la zona de origen de datos y los informes 360.</p><div class="row"><button class="btn solid" id="stPlanes">Cambiar de plan</button><a class="btn" href="app.html">Ir al simulador</a></div></div>`;
-        $('#stPlanes').onclick = () => P.panelPlanes({ destacar: 'profesional' });
+        P.bloqueo('est', $('#stPanel'));
         return;
       }
       const remoteSim = await P.loadData('simulador'); if (remoteSim && remoteSim.empresa) S.sim = remoteSim;
@@ -516,7 +520,9 @@
     buildTabs();
     const h = location.hash.replace('#', '');
     show(S.mod(h) ? h : 'tablero');
-    addEventListener('hashchange', () => { const k = location.hash.replace('#', ''); if (S.mod(k) && k !== current) show(k); });
+    // Atrás y adelante del navegador: se vuelve al módulo de esa entrada sin añadir otra
+    const alVolver = () => { const k = location.hash.replace('#', '') || 'tablero'; if (S.mod(k) && k !== current) { S._volviendo = true; try { show(k); } finally { S._volviendo = false; } } };
+    addEventListener('hashchange', alVolver); addEventListener('popstate', alVolver);
     if (S.onStart) try { S.onStart(); } catch (e) { console.error(e); }
     if (A.assistant) A.assistant.init({ api: apiFor(), page: 'estrategia' });
     try { if (localStorage.getItem('atalaya.reloj.flotante') === '1') S.relojFlotante(true); } catch (e) { /* sin almacenamiento */ }

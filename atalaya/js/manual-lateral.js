@@ -17,11 +17,15 @@
   const PER_ID = { identidad: 'per-identidad', envios: 'per-distancia' };
   const PER = { 'Visión': 'personas', Herramientas: 'per-herramientas', Estructura: 'per-estructura', Equipos: 'per-equipos', Liderazgo: 'per-liderazgo', Desarrollo: 'per-desarrollo' };
   const MESA = { hoy: 'mesa-hoy', bandeja: 'mesa-hoy', prioridades: 'mesa-prioridades', agenda: 'mesa-prioridades', metas: 'mesa-metas', repetitivas: 'mesa-rutinas', reuniones: 'mesa-rutinas' };
+  // Capítulo del simulador en pantalla: el abierto en la hoja de ruta o, con todo seguido, el último visible que
+  // ya ha llegado a media pantalla (los capítulos ocultos no cuentan: su posición es 0)
   const capituloSim = () => {
+    const r = A.ruta && A.ruta.actual && A.ruta.actual(); if (r) return r;
     let id = null;
-    document.querySelectorAll('section.chapter[id]').forEach((s) => { if (s.getBoundingClientRect().top < innerHeight * 0.45) id = s.id; });
+    document.querySelectorAll('section.chapter[id]').forEach((s) => { const b = s.getBoundingClientRect(); if (b.height > 0 && b.top < innerHeight * 0.45) id = s.id; });
     return id;
   };
+  A.capituloSim = capituloSim;
   const contexto = () => {
     try {
       if (typeof A.manualCtx === 'function') { const c = A.manualCtx(); if (c) return c; }
@@ -31,14 +35,16 @@
       if (p === 'personas.html' && A.personas && A.personas.current) { const id = A.personas.current(), m = A.personas.mod && A.personas.mod(id); return PER_ID[id] || (m && PER[m.grupo]) || 'personas'; }
       if (p === 'mesa.html') return MESA[location.hash.slice(1)] || 'mesa';
       if (p === 'intervencion.html') return ({ guion: 'iv-guion', constantes: 'iv-primera', escucha: 'iv-escucha', sintomas: 'iv-escucha', triaje: 'iv-primera', propuesta: 'iv-propuesta', auditoria: 'iv-auditoria', ecosistema: 'iv-auditoria', plan: 'iv-plan', sesiones: 'iv-plan', informes: 'iv-plan' })[location.hash.slice(1)] || 'intervencion';
-      if (p === 'grupo.html') return 'modos';
+      if (p === 'grupo.html') return 'grupo';
+      if (p === 'tablero.html') return 'tablero';
+      if (p === 'libro.html') return 'libro';
       if (p === 'portal.html') return 'navegar';
     } catch (e) { /* sin contexto */ }
     return 'que-es';
   };
 
   /* ---------- Panel ---------- */
-  let wrap = null, frame = null, listo = false, pendiente = null, temas = [];
+  let wrap = null, frame = null, listo = false, pendiente = null, ultimo = null, temas = [];
   const construir = () => {
     if (wrap) return;
     wrap = document.createElement('div');
@@ -63,30 +69,39 @@
   };
   const doc = () => { try { return frame && frame.contentDocument; } catch (e) { return null; } };
   const alCargar = () => {
-    const d = doc(); if (!d) return;
+    // El marco vacío del principio también avisa al cargar: solo cuenta el manual
+    const d = doc(); if (!d || !d.getElementById('main')) return;
     listo = true;
     // Índice para el menú de arriba: apartados (h2) y subapartados (h3 con id)
     temas = [];
     d.querySelectorAll('main section[id]').forEach((s) => {
       const h = s.querySelector('h2'); if (!h) return;
-      const g = { id: s.id, t: h.textContent.replace(/^\s*\d+\s*/, '').trim(), n: (h.querySelector('.num') || {}).textContent || '', sub: [] };
+      const n = (h.querySelector('.num') || {}).textContent || '', g = { id: s.id, t: h.textContent.trim().slice(n.length).trim(), n, sub: [] };
       s.querySelectorAll('h3[id]').forEach((x) => g.sub.push({ id: x.id, t: x.textContent.trim() }));
       temas.push(g);
     });
     $('#mlIr', wrap).innerHTML = temas.map((g) => `<optgroup label="${esc((g.n ? g.n + '. ' : '') + g.t)}"><option value="${g.id}">${esc(g.t)} · inicio</option>${g.sub.map((x) => `<option value="${x.id}">${esc(x.t)}</option>`).join('')}</optgroup>`).join('');
     // Los enlaces del manual a otras páginas de la aplicación se abren en la ventana principal
     d.addEventListener('click', (e) => { const a = e.target.closest('a[href]'); if (!a) return; const h = a.getAttribute('href'); if (h.startsWith('#')) return; e.preventDefault(); cerrar(); location.href = h; });
-    if (pendiente) { ir(pendiente); pendiente = null; }
+    const p0 = pendiente || ultimo; pendiente = null; if (p0) ir(p0);
   };
   const ir = (id) => {
     id = String(id || '').replace(/^#/, '');
     if (!id) return;
+    ultimo = id;
     const d = doc();
     if (!listo || !d) { pendiente = id; return; }
     // El manual comprueba el acceso antes de mostrarse: hasta entonces no se puede desplazar
     const w = d.getElementById('wrap'); if (w && w.hidden) { setTimeout(() => ir(id), 150); return; }
     const el = d.getElementById(id);
-    if (el) { el.scrollIntoView({ block: 'start' }); const s = $('#mlIr', wrap); if ([...s.options].some((o) => o.value === id)) s.value = id; }
+    if (el) {
+      el.scrollIntoView({ block: 'start' });
+      // El menú de arriba marca el apartado que se ve: el mismo o, si no está en el menú, el anterior que lo contiene
+      const s = $('#mlIr', wrap), ops = [...s.options].map((o) => o.value);
+      let v = ops.includes(id) ? id : null;
+      if (!v) d.querySelectorAll('main section[id], main h3[id]').forEach((x) => { if (ops.includes(x.id) && (x === el || x.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING || x.contains(el))) v = x.id; });
+      if (v) s.value = v;
+    }
     $('#mlFull', wrap).href = 'manual.html#' + id;
   };
   const abrir = (id) => {

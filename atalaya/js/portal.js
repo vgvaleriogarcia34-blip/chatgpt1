@@ -1,6 +1,6 @@
 /* Atalaya · Puesto de mando 3D
-   Una galaxia con tres mundos: el simulador de inversión (planeta dorado con cinco lunas, una por escenario),
-   el sistema estratégico (núcleo azul con 21 módulos en órbita, agrupados por áreas) y personas y equipos
+   Una galaxia con cuatro mundos: el simulador de inversión (planeta dorado con cinco lunas, una por escenario),
+   el sistema estratégico (núcleo azul con sus módulos en órbita, agrupados por áreas) y personas y equipos
    (planeta violeta con cuatro equipos de personas, uno por estilo DISC, unidos en red) y la auditoría integral
    (planeta coral con su pulso en órbita, un radar que barre y ocho balizas de triaje, una por área). Se navega arrastrando,
    con la rueda, pellizcando o con el teclado; al elegir un mundo la cámara vuela hacia él y se abre la herramienta. */
@@ -19,6 +19,8 @@
   let entering = false;
   function enter(w) {
     if (entering || !DEST[w]) return;
+    // El manual se abre en el lateral, sin salir del puesto de mando
+    if (w === 'man' && A.manualLateral) { A.manualLateral.abrir('navegar'); return; }
     // Un mundo que el plan no incluye se ve, pero se ofrecen los planes en lugar de abrirlo
     const m = P.MUNDOS.find((x) => x.k === w);
     if (m && m.f && P.user && !P.puede(m.f)) { P.abrirMundo(w); return; }
@@ -36,12 +38,14 @@
     let n = 0;
     const it = (m) => `<button type="button" data-w="${m.k}" class="${EN3D.includes(m.k) ? '' : 'pt-sec'}${m.lock ? ' pt-lock' + (m.plan === 'consultora' ? ' pt-lock-c' : '') : ''}"><i class="d-${m.k}"${EN3D.includes(m.k) ? '' : ` style="background:${m.c}"`}></i><span><b>${escT(m.n)}</b><small>${m.lock ? `Incluido en el plan ${escT(P.PLANES[m.plan].nombre)} · ${P.verbo()} para ver los planes` : escT(m.d)}</small></span><kbd>${++n}</kbd></button>`;
     dock.innerHTML = ms.filter((m) => EN3D.includes(m.k)).map(it).join('') + '<span class="pt-dock-br" aria-hidden="true"></span>' + ms.filter((m) => !EN3D.includes(m.k)).map(it).join('');
+    // La pista de las teclas cuenta los mundos de la lista (cambian con el plan)
+    const h = $('#hint'); if (h && !P.tactil() && /teclas/.test(h.textContent)) h.textContent = `Arrastre para girar · rueda para acercarse · teclas 1 a ${Math.min(9, n)} para entrar en cada mundo · Intro para entrar`;
     medirDock();
   }
   dock.addEventListener('click', (e) => { const b = e.target.closest('[data-w]'); if (b) { e.stopPropagation(); enter(b.dataset.w); } });
   $$('.pt-labels [data-w]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); enter(b.dataset.w); }));
   // Paseo virtual con la empresa modelo, a petición desde el mapa
-  const pb = $('#ptPaseo'); if (pb) pb.addEventListener('click', (e) => { e.stopPropagation(); if (A.paseo) A.paseo.iniciar(); });
+  const pb = $('#ptPaseo'); if (pb) pb.addEventListener('click', (e) => { e.stopPropagation(); if (!A.paseo) return; const antes = P.empresaId(); A.paseo.iniciar(); if (A.paseo.activo() && P.empresaId() !== antes) location.reload(); });
   // Altura real de la barra de mundos (una o dos filas según la pantalla) para colocar encima los botones flotantes
   function medirDock() { const d = $('.pt-dock'); if (d) document.documentElement.style.setProperty('--pt-dock-h', d.offsetHeight + 'px'); }
   pintarDock(); addEventListener('resize', medirDock); setTimeout(medirDock, 600);
@@ -57,12 +61,15 @@
     pintarDock();
     // Paso 1: el mapa de empresas. En planes con varias empresas se elige antes de entrar en los mundos;
     // con una sola, se enseña mientras la ficha esté a medias. Siempre se puede volver desde la barra de empresa.
-    const SS = { get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
+    // La empresa elegida se recuerda en este navegador para la cuenta (no solo en la sesión): el paso 1 no vuelve cada vez
+    const PA = P.primerAcceso;
     const act = P.empresas.activa(), multi = P.limiteEmpresas() > 1 || P.empresas.reales().length > 1;
-    const cerrarPaso = () => { document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; SS.set('atalaya.emp.elegida', P.empresaId()); pintarBarra(); };
+    const cerrarPaso = () => { document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; PA.recordar(P.empresaId()); pintarBarra(); };
+    // Paseo virtual desde el mapa: primero se cierra el mapa y se pasa a la empresa modelo, que es la que se enseña
+    const paseo = () => { if (!A.paseo) return; document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; const antes = P.empresaId(); A.paseo.iniciar(); if (A.paseo.activo() && P.empresaId() !== antes) location.reload(); };
     const abrirPaso = () => {
       document.body.classList.add('paso-emp'); $('#empPaso').hidden = false; $('#empBar').hidden = true;
-      P.mapaEmpresas($('#empMapa'), { paso: multi, cerrar: true, onCerrar: cerrarPaso, onEnter: (id) => { SS.set('atalaya.emp.elegida', id); if (id !== P.empresaId()) P.empresas.cambiar(id); else cerrarPaso(); } });
+      P.mapaEmpresas($('#empMapa'), { paso: multi, cerrar: true, onCerrar: cerrarPaso, onPaseo: paseo, onEnter: (id) => { PA.recordar(id); if (id !== P.empresaId()) P.empresas.cambiar(id); else cerrarPaso(); } });
     };
     function pintarBarra() {
       const e = P.empresas.activa(), b = $('#empBar'); if (!e) return;
@@ -81,17 +88,25 @@
     } catch (e) { /* sin datos: colores de siempre */ } };
     colorBalizas();
     addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); colorBalizas(); if (!$('#empPaso').hidden) return; pintarBarra(); });
-    // Esencial: el mundo del sistema estratégico se ve, pero marcado como incluido desde Profesional
-    if (!P.puede('intervencion')) $$('.pt-labels [data-w="iv"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q'); if (q) q.textContent = `Incluido en el plan Consultora · ${P.verbo()} para ver los planes`; });
-    if (!P.puede('personas')) $$('.pt-labels [data-w="per"]').forEach((x) => { x.classList.add('pt-lock', 'pt-lock-c'); const q = x.querySelector('.pt-q'); if (q) q.textContent = `Incluido en el plan Consultora · ${P.verbo()} para ver los planes`; });
-    if (!P.puede('estrategia')) $$('.pt-labels [data-w="est"]').forEach((x) => { x.classList.add('pt-lock'); const q = x.querySelector('.pt-q'); if (q) q.textContent = `Incluido desde el plan Profesional · ${P.verbo()} para ver los planes`; });
+    // Mundos que el plan no incluye: se ven, marcados, y al tocarlos sale el aviso común con «Ver planes» y «Volver»
+    const bloquear = (w, plan, desde) => $$(`.pt-labels [data-w="${w}"]`).forEach((x) => {
+      x.classList.add('pt-lock'); if (plan === 'consultora') x.classList.add('pt-lock-c');
+      const q = x.querySelector('.pt-q'); if (q) q.textContent = `${desde ? 'Incluido desde' : 'Incluido en'} el plan ${P.PLANES[plan].nombre} · ${P.verbo()} para ver los planes`;
+      const g = x.querySelector('.pt-go'); if (g) g.innerHTML = 'Ver planes <i>→</i>';
+      x.setAttribute('aria-label', `${NOMBRE[w]}: incluido ${desde ? 'desde' : 'en'} el plan ${P.PLANES[plan].nombre}. Ver planes`);
+    });
+    if (!P.puede('intervencion')) bloquear('iv', 'consultora');
+    if (!P.puede('personas')) bloquear('per', 'consultora');
+    if (!P.puede('estrategia')) bloquear('est', 'profesional', true);
     // Desde la página comercial con la sesión abierta: abrir el cambio de plan con el elegido
     const hp = (location.hash.match(/^#plan-(esencial|profesional|consultora|grupos)/) || [])[1];
     if (hp) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } setTimeout(() => P.panelPlanes({ destacar: hp, motivo: hp !== P.user.plan ? `Ha elegido ${P.PLANES[hp].nombre}. Cámbielo aquí: se aplica al momento y conserva todos sus datos.` : '' }), 300); }
-    // Con una sola empresa no se abre el mapa: la ficha se completa cuando se quiera, desde la barra de empresa
-    if (location.hash === '#empresas' || (multi && !SS.get('atalaya.emp.elegida'))) abrirPaso(); else pintarBarra();
-    // Primera visita de una cuenta nueva: una tarjeta con la acción clave (cargar cuentas, preguntas o el ejemplo); se pregunta una vez
-    if (!hp && location.hash !== '#empresas' && P.primerAcceso) P.primerAcceso.pendiente().then((si) => { if (si) P.primerAcceso.tarjeta(); }).catch(() => {});
+    // Primera visita de una cuenta nueva: una sola tarjeta con la acción clave (en Consultora, dar de alta el primer cliente);
+    // se pregunta una vez. Mientras está abierta no se enseña el mapa de empresas; con una sola empresa el mapa no se abre solo
+    const enPaseo = !!(A.paseo && A.paseo.activo());
+    const pendiente = !hp && !enPaseo && location.hash !== '#empresas' ? await PA.pendiente().catch(() => false) : false;
+    if (pendiente) { pintarBarra(); PA.tarjeta(); }
+    else if (location.hash === '#empresas' || (multi && !enPaseo && !PA.elegida())) abrirPaso(); else pintarBarra();
     const n = (P.user && (P.user.nombre || '').split(/\s+/)[0]) || '';
     if (n) $('#hello').textContent = 'Hola, ' + n;
     const u = LS.get('atalaya.ultimo');

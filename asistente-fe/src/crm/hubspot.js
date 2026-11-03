@@ -4,10 +4,11 @@
 import { C } from '../config.js';
 import * as db from '../almacen/db.js';
 import { registrar } from '../cerebro/herramientas.js';
+import { avisar } from '../avisos.js';
 
-const cfg = { base: 'https://api.hubapi.com', token: C.hubspot.token, propietarioId: C.hubspot.propietarioId, pipeline: C.hubspot.pipeline, etapa: C.hubspot.etapaInicial, esperaMaxMs: 30000 };
+const cfg = { base: 'https://api.hubapi.com', token: C.hubspot.token, propietarioId: C.hubspot.propietarioId, pipeline: C.hubspot.pipeline, etapa: C.hubspot.etapaInicial, portalId: C.hubspot.portalId, esperaMaxMs: 30000 };
 /** Para tests o reconfiguración: { base, token, propietarioId, pipeline, etapa, esperaMaxMs } */
-export function configurarHubspot(o = {}) { Object.assign(cfg, o); propsCache = null; }
+export function configurarHubspot(o = {}) { Object.assign(cfg, o); propsCache = null; portal = cfg.portalId ? { portalId: cfg.portalId, uiDomain: 'app.hubspot.com' } : null; }
 export const hubspotActivo = () => !!cfg.token;
 const SIN_CRM = 'HubSpot no está configurado: queda guardado solo en la base local.';
 
@@ -73,7 +74,7 @@ export function variantesTelefono(tel) {
   return [...v];
 }
 
-const PROPS_CONTACTO = ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company', 'jobtitle', 'hs_lead_status', 'lifecyclestage', 'hubspot_owner_id', 'fe_base_legal', 'fe_dolor', 'fe_origen', 'fe_asistente_resultado', 'fe_baja'];
+const PROPS_CONTACTO = ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company', 'jobtitle', 'hs_lead_status', 'lifecyclestage', 'hubspot_owner_id', 'fe_base_legal', 'fe_dolor', 'fe_origen', 'fe_campana', 'fe_asistente_resultado', 'fe_baja'];
 
 /** Busca un contacto por teléfono (phone y mobilephone, con variantes) o por email. Devuelve el objeto de HubSpot o null. */
 export async function buscarContacto({ telefono, email } = {}) {
@@ -112,7 +113,11 @@ export async function guardarContactoHubspot(c, extra = {}) {
     catch (err) { if (err.status !== 404) throw err; id = null; }
   }
   if (!id) id = (await hs('POST', '/crm/v3/objects/contacts', { properties: { ...props, ...(cfg.propietarioId ? { hubspot_owner_id: cfg.propietarioId } : {}) } })).id;
-  if (c.empresa) await asegurarEmpresa(id, c.empresa, extra).catch((err) => console.warn('[hubspot] empresa:', err.message));
+  if (c.empresa) {
+    // El id de la empresa en HubSpot se guarda en local: Atalaya busca la ficha de la empresa por él
+    const empresaId = await asegurarEmpresa(id, c.empresa, extra).catch((err) => { console.warn('[hubspot] empresa:', err.message); return null; });
+    if (empresaId && c.id && String(empresaId) !== c.hubspot_company_id) { db.guardarContacto({ id: c.id, telefono: c.telefono, hubspot_company_id: String(empresaId) }); c.hubspot_company_id = String(empresaId); }
+  }
   return String(id);
 }
 
@@ -141,6 +146,19 @@ export async function sincronizarContacto(contacto, extra = {}) {
     return null;
   }
 }
+
+// ---------- Cuenta (para los enlaces del panel) ----------
+let portal = cfg.portalId ? { portalId: cfg.portalId, uiDomain: 'app.hubspot.com' } : null;
+/** { portalId, uiDomain } de la cuenta (HUBSPOT_PORTAL_ID o /account-info/v3/details), o null. */
+export async function cuentaHubspot({ forzar = false } = {}) {
+  if (portal && !forzar) return portal;
+  if (!hubspotActivo()) return null;
+  const r = await hs('GET', '/account-info/v3/details');
+  portal = { portalId: String(r?.portalId ?? cfg.portalId ?? ''), uiDomain: r?.uiDomain || 'app.hubspot.com' };
+  return portal;
+}
+/** Enlace a la ficha del contacto en HubSpot (o null si no se conoce la cuenta). */
+export const enlaceContactoHubspot = (id, p = portal) => (id && p?.portalId ? `https://${p.uiDomain || 'app.hubspot.com'}/contacts/${p.portalId}/record/0-1/${id}` : null);
 
 // ---------- Actividades ----------
 const ahoraIso = () => new Date().toISOString();
@@ -237,6 +255,9 @@ function textoTranscripcion(conversacionId) {
 export const RESULTADOS = ['reunion_agendada', 'interesado', 'enviar_informacion', 'volver_a_llamar', 'no_interesado', 'baja', 'atendido', 'transferido', 'buzon', 'equivocado', 'colgada'];
 const RESULTADOS_NEGOCIO = new Set(['reunion_agendada', 'interesado']);
 const RESULTADOS_TAREA = { volver_a_llamar: 'Volver a llamar', enviar_informacion: 'Enviar información', interesado: 'Dar seguimiento', transferido: 'Atender lo transferido' };
+export const NOMBRE_NEGOCIO = (quien) => `${quien} · sesión estratégica`;
+/** 'AAAA-MM-DD HH:MM:SS' (UTC, de SQLite) o ISO → ISO, o undefined */
+const isoDe = (v) => { if (!v) return undefined; const f = new Date(/^\d{4}-\d\d-\d\d \d\d:\d\d(:\d\d)?$/.test(v) ? v.replace(' ', 'T') + 'Z' : v); return isNaN(f) ? undefined : f.toISOString(); };
 
 // ---------- Herramientas ----------
 registrar('ficha_contacto', async (_e, ctx) => {
@@ -245,7 +266,7 @@ registrar('ficha_contacto', async (_e, ctx) => {
   const ficha = {
     local: limpio({ nombre: c.nombre, empresa: c.empresa, cargo: c.cargo, email: c.email, telefono: c.telefono, origen: c.origen, notas: c.notas }),
     consentimiento: c.base_legal ? `${c.base_legal}${c.base_legal_detalle ? ' (' + c.base_legal_detalle + ')' : ''}` : 'no consta',
-    de_baja: c.telefono ? db.estaDeBaja(c.telefono) : false,
+    de_baja: db.estaDeBaja(c.telefono, c.email),
     conversaciones_anteriores: db.historialContacto(c.id),
   };
   if (!hubspotActivo()) return { ...ficha, crm: SIN_CRM.replace('queda guardado', 'datos') };
@@ -279,25 +300,32 @@ registrar('actualizar_contacto', async (e, ctx) => {
 });
 
 registrar('registrar_nota', async (e, ctx) => {
-  const tipo = e.tipo || 'nota';
-  if (ctx.conversacionId) db.anotar(ctx.conversacionId, 'nota', e.texto, { tipo, fecha: e.fecha || null });
+  const tipo = e.urgente ? 'tarea' : (e.tipo || 'nota');
+  if (ctx.conversacionId) db.anotar(ctx.conversacionId, 'nota', e.texto, { tipo, fecha: e.fecha || null, urgente: !!e.urgente });
   else db.evento('nota', { tipo, texto: e.texto, contacto: ctx.contacto?.id ?? null });
-  if (!hubspotActivo()) return `Anotado (${tipo}). ${SIN_CRM}`;
+  if (e.urgente) {
+    db.evento('urgencia', { conversacionId: ctx.conversacionId ?? null, contacto: contactoDe(ctx)?.id ?? null, texto: e.texto.slice(0, 500), canal: ctx.canal });
+    avisar({ tipo: 'urgencia', contacto: contactoDe(ctx), conversacionId: ctx.conversacionId, detalle: `Por ${ctx.canal === 'voz' ? 'teléfono' : ctx.canal === 'whatsapp' ? 'WhatsApp' : ctx.canal}: ${e.texto}` });
+  }
+  if (!hubspotActivo()) return `Anotado (${tipo}${e.urgente ? ', y el equipo está avisado' : ''}). ${SIN_CRM}`;
   const id = await idHubspot(ctx);
   const c = contactoDe(ctx);
   const quien = c?.nombre || c?.telefono || 'contacto';
   const errores = await enCrm([
-    tipo === 'tarea' ? () => crearTarea({ contactoId: id, asunto: `${quien}: ${e.texto}`, cuerpo: e.texto, vence: e.fecha })
+    tipo === 'tarea' ? () => crearTarea({ contactoId: id, asunto: `${e.urgente ? 'URGENTE · ' : ''}${quien}: ${e.texto}`, cuerpo: e.texto, vence: e.fecha || (e.urgente ? new Date(Date.now() + 2 * 3600e3).toISOString() : undefined), prioridad: e.urgente ? 'HIGH' : 'MEDIUM' })
       : tipo === 'oportunidad' ? () => asegurarNegocio(ctx.conversacionId, { contactoId: id, nombre: `${c?.empresa || quien} · ${e.texto}` }).then(() => crearNota({ contactoId: id, texto: 'Oportunidad: ' + e.texto }))
         : () => crearNota({ contactoId: id, texto: e.texto }),
   ]);
-  return errores.length ? `Anotado en la base local; HubSpot ha fallado (${errores[0]}).` : `Anotado en el CRM (${tipo}).`;
+  return (errores.length ? `Anotado en la base local; HubSpot ha fallado (${errores[0]}).` : `Anotado en el CRM (${tipo}).`) + (e.urgente ? ' El equipo está avisado.' : '');
 });
 
 /** Baja comercial: base local (manda siempre) y HubSpot (fe_baja si existe, y una nota). */
 export async function bajaComercial({ telefono, email, motivo, canal, contacto }) {
   db.darDeBaja(telefono, { email, motivo, canal });
-  db.evento('baja', { telefono: db.normTel(telefono), canal, motivo: motivo || null });
+  contacto ||= (telefono && db.contactoPorTelefono(telefono)) || (email && db.contactoPorEmail(email)) || null;
+  db.evento('baja', { telefono: db.normTel(telefono), email: email || contacto?.email || null, canal, motivo: motivo || null, contacto: contacto?.id ?? null });
+  // Pedida a la asistente (teléfono o WhatsApp): el equipo la extiende a lo que la asistente no controla (correo, LinkedIn)
+  if (canal && canal !== 'panel' && canal !== 'hubspot') avisar({ tipo: 'baja', contacto, detalle: `Pedida por ${canal === 'voz' ? 'teléfono' : canal}${motivo ? ': «' + String(motivo).slice(0, 200) + '»' : ''}. Ya no se le llama ni se le escribe por WhatsApp; no le escriban tampoco por correo ni por LinkedIn.` });
   if (!hubspotActivo()) return false;
   const id = contacto?.hubspot_id || (contacto ? await sincronizarContacto(contacto) : (await buscarContacto({ telefono, email }).catch(() => null))?.id);
   if (!id) return false;
@@ -318,26 +346,34 @@ registrar('dar_de_baja', async (e, ctx) => {
 });
 
 /** Sube al CRM el cierre de una conversación: llamada o WhatsApp con resumen, negocio y tarea según el resultado. */
-export async function subirCierre({ conversacionId, canal, direccion, contacto, resultado, resumen, transcripcion, duracionS, registrarComoLlamada = canal === 'voz', seguimiento = true, nota = true }) {
+export async function subirCierre({ conversacionId, canal, direccion, contacto, resultado, resumen, transcripcion, duracionS, registrarComoLlamada = canal === 'voz', seguimiento = true, nota = true, prioridad = null, volverLlamar = null, campana = null }) {
   if (!hubspotActivo()) return [];
   const yaTenia = contacto?.hubspot_id;
   const valido = RESULTADOS.includes(resultado) ? resultado : undefined;
-  const id = contacto ? (yaTenia || (await sincronizarContacto(contacto, { fe_asistente_resultado: valido }))) : null;
-  if (yaTenia && valido) {
+  // La campaña de origen queda en el contacto (fe_campana, si existe) y en la llamada
+  const extra = { fe_asistente_resultado: valido, fe_campana: campana?.nombre };
+  const id = contacto ? (yaTenia || (await sincronizarContacto(contacto, extra))) : null;
+  if (yaTenia && (valido || campana?.nombre)) {
     const fe = await propsFe();
-    if (fe.has('fe_asistente_resultado')) await enCrm([() => hs('PATCH', `/crm/v3/objects/contacts/${id}`, { properties: { fe_asistente_resultado: resultado } })]);
+    const props = Object.fromEntries(Object.entries(extra).filter(([k, v]) => v && fe.has(k)));
+    if (Object.keys(props).length) await enCrm([() => hs('PATCH', `/crm/v3/objects/contacts/${id}`, { properties: props })]);
   }
   const quien = contacto?.nombre || contacto?.telefono || 'contacto';
+  const deCampana = campana?.nombre ? ` · campaña «${campana.nombre}»` : '';
   const tareas = [];
   if (registrarComoLlamada) {
-    tareas.push(() => registrarLlamada({ contactoId: id, resumen, resultado, transcripcion: transcripcion ?? textoTranscripcion(conversacionId), direccion, duracionS,
-      estado: resultado === 'buzon' ? 'NO_ANSWER' : 'COMPLETED', titulo: `Llamada ${direccion || ''} · ${quien}`.replace(/\s+/g, ' ') }));
+    tareas.push(() => registrarLlamada({ contactoId: id, resumen: campana?.nombre ? `${resumen || '(sin resumen)'}\nCampaña de origen: ${campana.nombre}` : resumen, resultado, transcripcion: transcripcion ?? textoTranscripcion(conversacionId), direccion, duracionS,
+      estado: resultado === 'buzon' ? 'NO_ANSWER' : 'COMPLETED', titulo: `Llamada ${direccion || ''} · ${quien}${deCampana}`.replace(/\s+/g, ' ') }));
   } else if (resumen && nota) {
-    tareas.push(() => crearNota({ contactoId: id, texto: `Conversación por ${canal === 'whatsapp' ? 'WhatsApp' : canal} con el asistente\nResultado: ${resultado || '-'}\n${resumen}` }));
+    tareas.push(() => crearNota({ contactoId: id, texto: `Conversación por ${canal === 'whatsapp' ? 'WhatsApp' : canal} con la asistente\nResultado: ${resultado || '-'}${deCampana ? '\nCampaña de origen: ' + campana.nombre : ''}\n${resumen}` }));
   }
   if (seguimiento && id) {
-    if (RESULTADOS_NEGOCIO.has(resultado)) tareas.push(() => asegurarNegocio(conversacionId, { contactoId: id, nombre: `${contacto?.empresa || quien} · diagnóstico` }));
-    if (RESULTADOS_TAREA[resultado]) tareas.push(() => crearTarea({ contactoId: id, asunto: `${RESULTADOS_TAREA[resultado]}: ${quien}`, cuerpo: resumen }));
+    if (RESULTADOS_NEGOCIO.has(resultado)) tareas.push(() => asegurarNegocio(conversacionId, { contactoId: id, nombre: NOMBRE_NEGOCIO(contacto?.empresa || quien) }));
+    if (RESULTADOS_TAREA[resultado]) {
+      const vence = resultado === 'volver_a_llamar' ? isoDe(volverLlamar) : undefined;
+      tareas.push(() => crearTarea({ contactoId: id, asunto: `${RESULTADOS_TAREA[resultado]}: ${quien}${vence ? ' (' + new Intl.DateTimeFormat('es-ES', { timeZone: C.empresa.zonaHoraria, dateStyle: 'short', timeStyle: 'short' }).format(new Date(vence)) + ', hora pedida)' : ''}`,
+        cuerpo: resumen, vence, prioridad: prioridad || 'MEDIUM' }));
+    }
   }
   return enCrm(tareas);
 }
@@ -347,14 +383,15 @@ const seguimientoHecho = new Set(); // conversaciones cuyo negocio/tarea ya cre�
 let ganchoVoz = false;
 
 registrar('finalizar', async (e, ctx) => {
-  if (ctx.conversacionId) db.cerrarConversacion(ctx.conversacionId, { resumen: e.resumen, resultado: e.resultado });
+  const volverLlamar = e.resultado === 'volver_a_llamar' ? db.fechaPedida(e.volver_a_llamar) : null;
+  if (ctx.conversacionId) db.cerrarConversacion(ctx.conversacionId, { resumen: e.resumen, resultado: e.resultado, volverLlamar });
   const contacto = contactoDe(ctx);
   if (e.resultado === 'baja' && contacto?.telefono && !db.estaDeBaja(contacto.telefono)) await bajaComercial({ telefono: contacto.telefono, email: contacto.email, motivo: e.resumen, canal: ctx.canal, contacto });
   if (!hubspotActivo()) return `Conversación cerrada (${e.resultado}). ${SIN_CRM}`;
   // En voz, si la sesión avisa al terminar, la llamada se sube entonces (con duración y transcripción completa)
   const llamadaDespues = ctx.canal === 'voz' && ganchoVoz;
   const errores = await subirCierre({ conversacionId: ctx.conversacionId, canal: ctx.canal, direccion: ctx.direccion, contacto, resultado: e.resultado, resumen: e.resumen,
-    registrarComoLlamada: ctx.canal === 'voz' && !llamadaDespues, nota: !llamadaDespues });
+    registrarComoLlamada: ctx.canal === 'voz' && !llamadaDespues, nota: !llamadaDespues, volverLlamar, campana: ctx.campana });
   if (ctx.conversacionId) seguimientoHecho.add(ctx.conversacionId);
   if (ctx.canal === 'voz' && !llamadaDespues && ctx.conversacionId) cierresSubidos.add(ctx.conversacionId);
   return errores.length ? `Conversación cerrada en la base local; parte del CRM ha fallado (${errores[0]}).` : `Conversación cerrada (${e.resultado}) y registrada en el CRM.`;
@@ -376,7 +413,8 @@ export async function alTerminarLlamada(conversacionId, d = {}) {
     : (typeof d.transcripcion === 'string' ? d.transcripcion : undefined);
   await subirCierre({ conversacionId, canal: 'voz', direccion: d.direccion || fila.direccion, contacto,
     resultado: d.resultado || fila.resultado || null, resumen: d.resumen || fila.resumen || null,
-    transcripcion, duracionS: d.duracion ?? d.duracionS ?? fila.duracion_s ?? 0,
+    transcripcion, duracionS: d.duracion ?? d.duracionS ?? fila.duracion_s ?? 0, prioridad: d.prioridad || null, volverLlamar: d.volverLlamar || fila.volver_llamar || null,
+    campana: d.campana || (fila.campana_id ? db.abrir().prepare('SELECT nombre FROM campanas WHERE id = ?').get(fila.campana_id) : null),
     seguimiento: !seguimientoHecho.has(conversacionId) }); // si hubo finalizar, el negocio y la tarea ya se crearon entonces
 }
 

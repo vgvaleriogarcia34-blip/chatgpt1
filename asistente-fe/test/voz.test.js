@@ -68,7 +68,7 @@ before(async () => {
   S.fabricas.stt = () => new DeepgramSTT({ urlBase: `ws://127.0.0.1:${dgPuerto}` });
   S.fabricas.tts = () => new ElevenLabsTTS({ urlBase: `ws://127.0.0.1:${elPuerto}`, silencioFinMs: 60 });
   // Falso cliente REST de Twilio
-  const calls = (sid) => ({ update: async (o) => { restTwilio.push({ sid, ...o }); }, recordings: { create: async () => restTwilio.push({ sid, grabar: true }) } });
+  const calls = (sid) => ({ update: async (o) => { restTwilio.push({ sid, ...o }); }, recordings: { create: async (o) => restTwilio.push({ sid, grabar: true, ...o }) } });
   calls.create = async (o) => { restTwilio.push({ crear: o }); return { sid: 'CAsaliente1' }; };
   T.ponerClienteTwilio({ calls });
 
@@ -330,4 +330,99 @@ test('llamar(): crea la llamada con AMD asíncrono y bloquea bajas', async () =>
   assert.equal(c.asyncAmdStatusCallback, 'https://asistente.test/voz/amd?contactoId=4&campanaId=9');
   db.darDeBaja('+34611999777');
   assert.deepEqual(await R.llamar({ telefono: '+34611999777' }), { ok: false, motivo: 'baja' });
+});
+
+// ---------- Transferencia con salida, fallo técnico y grabación ----------
+const firmado = (ruta, p) => fetch(`http://127.0.0.1:${puerto}${ruta}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Twilio-Signature': twilio.getExpectedTwilioSignature('token-de-prueba', 'https://asistente.test' + ruta, p) }, body: new URLSearchParams(p) });
+
+async function prepararAvisosYHubspot() {
+  const http = await import('node:http');
+  const hs = [];
+  const fakeHs = http.createServer((req, res) => {
+    let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => {
+      hs.push({ metodo: req.method, ruta: req.url.split('?')[0], cuerpo: b ? JSON.parse(b) : null });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (req.url.startsWith('/crm/v3/properties')) return res.end(JSON.stringify({ results: [] }));
+      if (req.url.endsWith('/search')) return res.end(JSON.stringify({ results: [] }));
+      res.end(JSON.stringify({ id: 'hs-' + hs.length }));
+    });
+  });
+  await new Promise((ok) => fakeHs.listen(0, '127.0.0.1', ok));
+  const hubspot = await import('../src/crm/hubspot.js');
+  hubspot.configurarHubspot({ base: `http://127.0.0.1:${fakeHs.address().port}`, token: 'hs', esperaMaxMs: 10 });
+  const { C } = await import('../src/config.js');
+  Object.assign(C.smtp, { host: 'smtp.test', de: 'asistente@ejemplo.es' }); C.empresa.emailResponsable = 'valerio@ejemplo.es';
+  const correos = [];
+  (await import('../src/avisos.js')).configurarAvisos({ correo: async (m) => { correos.push(m); } });
+  return { hs, correos, cerrar: () => { fakeHs.close(); hubspot.configurarHubspot({ token: '' }); } };
+}
+
+test('transferencia: <Dial> con action; sin respuesta → mensaje, tarea de prioridad alta y aviso; atendida → se registra', async () => {
+  const x = await prepararAvisosYHubspot();
+  try {
+    conversacionSimulada([{ frases: ['Le paso ahora mismo.'], transferir: 'Cliente con una urgencia' }]);
+    const f = await abrirFlujo({ callSid: 'CAtr2', parametros: { direccion: 'entrante', desde: '+34655000002' } });
+    await hasta(() => restTwilio.some((r) => r.sid === 'CAtr2' && r.twiml), 3000, 'transferencia');
+    const conv = db.conversacionPorExterno('CAtr2');
+    const tw = restTwilio.find((r) => r.sid === 'CAtr2').twiml;
+    assert.ok(tw.includes(`action="https://asistente.test/voz/transferencia-fin?conversacionId=${conv.id}&amp;contactoId=${conv.contacto_id}"`), tw);
+    assert.match(tw, /timeout="25"/);
+    f.ws.send(JSON.stringify({ event: 'stop', streamSid: 'MZ1' }));
+    await hasta(() => db.conversacionPorId(conv.id).estado === 'cerrada', 2000);
+
+    const r = await firmado(`/voz/transferencia-fin?conversacionId=${conv.id}&contactoId=${conv.contacto_id}`, { CallSid: 'CAtr2', DialCallStatus: 'no-answer' });
+    assert.equal(r.status, 200);
+    const xml = await r.text();
+    assert.match(xml, /<Say language="es-ES">Disculpe, en este momento Valerio no puede atenderle\. Le devolverá la llamada/); assert.match(xml, /<Hangup\/>/);
+    assert.equal(db.conversacionPorId(conv.id).transferencia, 'sin_respuesta');
+    await hasta(() => x.hs.some((p) => p.ruta === '/crm/v3/objects/tasks'), 2000, 'tarea en HubSpot');
+    const t = x.hs.find((p) => p.ruta === '/crm/v3/objects/tasks').cuerpo.properties;
+    assert.equal(t.hs_task_priority, 'HIGH'); assert.match(t.hs_task_subject, /Devolver la llamada a \+34655000002/);
+    await hasta(() => x.correos.length === 1, 2000, 'aviso por correo');
+    assert.match(x.correos[0].asunto, /transferida sin respuesta/);
+    assert.ok(db.abrir().prepare(`SELECT 1 FROM eventos WHERE tipo = 'transferencia_sin_respuesta' AND resuelto IS NULL`).get());
+    // Sin firma: rechazada
+    assert.equal((await fetch(`http://127.0.0.1:${puerto}/voz/transferencia-fin`, { method: 'POST', body: 'DialCallStatus=completed' })).status, 403);
+    // Atendida
+    const r2 = await firmado(`/voz/transferencia-fin?conversacionId=${conv.id}`, { CallSid: 'CAtr2', DialCallStatus: 'completed', DialCallDuration: '95' });
+    assert.match(await r2.text(), /<Hangup\/>/);
+    assert.equal(db.conversacionPorId(conv.id).transferencia, 'atendida');
+  } finally { x.cerrar(); }
+});
+
+test('fallo de Claude en una llamada: la disculpa queda en la transcripción, aviso al equipo y volver a llamar con prioridad alta', async () => {
+  const x = await prepararAvisosYHubspot();
+  const terminadas = [];
+  S.ganchos.alTerminar.push((id, d) => terminadas.push({ id, d }));
+  try {
+    S.fabricas.conversacion = (o) => ({ ...o, messages: [], terminada: null, contextoPendiente: null, async responder() { throw new Error('overloaded_error'); } });
+    const f = await abrirFlujo({ callSid: 'CAfallo', parametros: { direccion: 'entrante', desde: '+34655000003' } });
+    await hasta(() => f.audios().includes('he tenido un problema técnico'), 3000, 'disculpa');
+    await hasta(() => restTwilio.some((r) => r.sid === 'CAfallo' && r.status === 'completed'), 3000, 'colgar');
+    await hasta(() => terminadas.length === 1, 2000, 'cierre');
+    const conv = db.conversacionPorExterno('CAfallo');
+    assert.equal(conv.resultado, 'volver_a_llamar');
+    assert.ok(db.mensajes(conv.id).some((m) => m.rol === 'asistente' && /problema técnico/.test(m.texto)), 'disculpa en la transcripción');
+    assert.equal(terminadas[0].d.prioridad, 'HIGH');
+    await hasta(() => x.correos.length === 1, 2000, 'aviso');
+    assert.match(x.correos[0].asunto, /Fallo técnico en una llamada/);
+    assert.match(x.correos[0].texto, /overloaded_error/);
+    // El cierre en HubSpot crea la tarea de volver a llamar con prioridad alta
+    const hubspot = await import('../src/crm/hubspot.js');
+    await hubspot.alTerminarLlamada(conv.id, terminadas[0].d);
+    const t = x.hs.find((p) => p.ruta === '/crm/v3/objects/tasks').cuerpo.properties;
+    assert.equal(t.hs_task_priority, 'HIGH'); assert.match(t.hs_task_subject, /^Volver a llamar/);
+  } finally { x.cerrar(); S.ganchos.alTerminar.length = 0; }
+});
+
+test('grabación: la dirección del audio llega por el aviso firmado de Twilio y se guarda en la conversación', async () => {
+  const conv = db.abrirConversacion({ canal: 'voz', direccion: 'entrante', externoId: 'CAgrab' });
+  const r = await firmado(`/voz/grabacion?conversacionId=${conv}`, { CallSid: 'CAgrab', RecordingSid: 'RE123', RecordingUrl: 'https://api.twilio.com/2010-04-01/Accounts/ACprueba/Recordings/RE123', RecordingStatus: 'completed', RecordingDuration: '61' });
+  assert.equal(r.status, 204);
+  const c = db.conversacionPorId(conv);
+  assert.equal(c.grabacion_sid, 'RE123'); assert.match(c.grabacion_url, /Recordings\/RE123$/);
+  // La petición de grabar lleva su aviso
+  await T.grabarLlamada('CAgrab', { conversacionId: conv });
+  const g = restTwilio.find((x) => x.grabar && x.sid === 'CAgrab');
+  assert.equal(g.recordingStatusCallback, `https://asistente.test/voz/grabacion?conversacionId=${conv}`);
 });

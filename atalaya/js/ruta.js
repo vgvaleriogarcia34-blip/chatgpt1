@@ -77,12 +77,19 @@
     return nativeSIV.call(this, o);
   };
 
-  function show(id, quiet) {
+  // Historial: cada capítulo abierto es una entrada (atrás y adelante recorren lo visitado); al entrar y al
+  // volver con atrás se sustituye la entrada en lugar de añadir otra
+  let arrancado = false;
+  const marcar = (id, sustituir) => {
+    if (location.hash === '#' + id) return;
+    try { if (sustituir || !arrancado) history.replaceState(null, '', '#' + id); else history.pushState(null, '', '#' + id); } catch (e) { /* sin historial */ }
+  };
+  function show(id, quiet, sustituir) {
     if (!document.getElementById(id)) return;
     actual = id; visit.add(id); LS.set('atalaya.ruta.visto', Array.from(visit));
     document.body.classList.add('ch-mode');
     sections().forEach((s) => s.classList.toggle('ch-on', s.id === id));
-    try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
+    marcar(id, sustituir); arrancado = true;
     drawBar(); drawNext();
     if (A.cosmos) { const fi = faseDe(id); A.cosmos.go(id, [0xecd6a6, 0x3987e5, 0xd4ae64, 0xd55181, 0x199e70, 0xd95926][fi] || 0x9ba4ba); }
     if (!quiet) scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
@@ -253,6 +260,9 @@
     const bar = document.createElement('nav'); bar.id = 'rutaBar'; bar.className = 'ruta-bar'; bar.setAttribute('aria-label', 'Hoja de ruta del simulador'); document.body.appendChild(bar);
     const ov = document.createElement('div'); ov.id = 'rutaMap'; ov.className = 'ruta-map'; ov.hidden = true; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Mapa de capas del simulador'); document.body.appendChild(ov);
     const rb = document.getElementById('rutaBtn'); if (rb) rb.onclick = () => openMap();
+    // Atrás y adelante del navegador dentro del simulador: se vuelve al capítulo de esa entrada
+    const alVolver = () => { if (!document.body.classList.contains('ch-mode')) return; const k = location.hash.replace('#', ''); if (k === 'mapa') { openMap(); return; } closeMap(); const d = ORDEN.includes(k) ? k : !k ? 'puente' : null; if (d && d !== actual) show(d, false, true); };
+    addEventListener('popstate', alVolver); addEventListener('hashchange', alVolver);
     const h = location.hash.replace('#', '');
     // app.html#preguntas: entrada desde la primera visita
     if (h === 'preguntas') { preguntas(); return; }
@@ -272,6 +282,6 @@
     };
     setTimeout(decidir, 700);
   }
-  A.ruta = { openMap, show, seguido, capitulos };
+  A.ruta = { openMap, show, seguido, capitulos, actual: () => (document.body.classList.contains('ch-mode') ? actual : null) };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

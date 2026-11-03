@@ -328,6 +328,7 @@
     }
   });
 
+  const oidPaso = (x) => A.mesa.oid('personas', 'paso', x.f.c.id + ':' + x.f.t.id);
   R.register({
     id: 'lid-plan', grupo: 'Liderazgo', nombre: 'Plan de desarrollo', pregunta: '¿Qué tiene que entrenar el líder y qué necesita cada colaborador para subir de nivel?',
     informe: () => { const p = liderDe(); if (p) R.informeLider(p); }, informeTxt: 'Informe del líder',
@@ -339,14 +340,18 @@
       host.innerHTML = cabLider(host, p, '');
       wireLider(host);
       host.insertAdjacentHTML('beforeend', `<div class="glass pad stack"><div class="eyebrow">Para ${esc(p.nombre)} como líder</div>${prop.length ? `<div class="pe-tabs">${prop.slice(0, 6).map((x) => R.tablillaHTML(x.t, x.motivos)).join('')}</div>` : `<p class="muted" style="margin:0">Sin propuestas todavía: ${p.lid && p.lid.estilo ? 'valore las tareas de su equipo en «Preparación por tarea».' : 'haga primero su test de estilo.'}</p>`}</div>
-        <div class="glass pad stack"><div class="eyebrow">Para cada colaborador: el siguiente paso</div>${pasos.length ? `<div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Colaborador · tarea</th><th>Ahora</th><th style="text-align:left">Siguiente paso</th><th style="text-align:left">Primer paso concreto</th></tr></thead><tbody>${pasos.map((x) => `<tr><td>${esc(x.f.c.nombre)} · ${esc(x.f.t.nombre)}</td><td style="text-align:center">${chipN(x.f.nv.nivel)}</td><td>${esc(x.t.titulo)}</td><td class="small">${esc((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted" style="margin:0">Valore las tareas de su equipo para ver el siguiente paso de cada persona.</p>'}</div>${aviso()}`);
+        <div class="glass pad stack"><div class="eyebrow">Para cada colaborador: el siguiente paso</div>${pasos.length ? `<div class="table-wrap"><table class="pe-table"><thead><tr><th style="text-align:left">Colaborador · tarea</th><th>Ahora</th><th style="text-align:left">Siguiente paso</th><th style="text-align:left">Primer paso concreto</th></tr></thead><tbody>${pasos.map((x) => `<tr><td>${esc(x.f.c.nombre)} · ${esc(x.f.t.nombre)}</td><td style="text-align:center">${chipN(x.f.nv.nivel)}</td><td>${esc(x.t.titulo)}</td><td class="small">${esc((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0])}${A.mesa && A.mesa.oid ? `<small data-mesa-oid="${esc(oidPaso(x))}"></small>${A.mesa.casilla(oidPaso(x))}` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted" style="margin:0">Valore las tareas de su equipo para ver el siguiente paso de cada persona.</p>'}</div>${aviso()}`);
       // El plan de desarrollo, a la mesa de trabajo del responsable
       if (A.mesa && A.mesa.boton && (prop.length || pasos.length)) {
         const fila = document.createElement('div'); fila.className = 'row';
-        fila.appendChild(A.mesa.boton(() => prop.slice(0, 6).map((x) => ({ t: `Entrenar como líder: ${x.t.titulo}`, area: 'Personas', mundo: 'personas', resp: p.nombre, origen: 'Plan de desarrollo de ' + p.nombre, oid: 'per:plan:' + p.id + ':' + x.t.titulo, impacto: 4 }))
-          .concat(pasos.map((x) => ({ t: `${x.f.c.nombre} · ${x.f.t.nombre}: ${x.t.titulo}`, area: 'Personas', mundo: 'personas', resp: p.nombre, tipo: 'seguimiento', contacto: 'Equipo de ' + p.nombre, origen: 'Plan de desarrollo · ' + ((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0] || ''), oid: 'per:paso:' + x.f.c.id + ':' + x.f.t.id, fecha: (x.f.t.acuerdo && x.f.t.acuerdo.revision) || '', impacto: 3 }))), 'Llevar el plan a mi mesa de trabajo'));
+        // Ids propios: la tablilla para el líder y la tarea de cada colaborador (lo que ya no se propone, «ya no aplica»)
+        const O = A.mesa.oid;
+        fila.appendChild(A.mesa.boton(() => prop.slice(0, 6).map((x) => ({ t: `Entrenar como líder: ${x.t.titulo}`, area: 'Personas', mundo: 'personas', resp: p.nombre, origen: 'Plan de desarrollo de ' + p.nombre, oid: O('personas', 'plan', p.id + ':' + x.t.id), aka: ['per:plan:' + p.id + ':' + x.t.titulo], impacto: 4 }))
+          .concat(pasos.map((x) => ({ t: `${x.f.c.nombre} · ${x.f.t.nombre}: ${x.t.titulo}`, area: 'Personas', mundo: 'personas', resp: p.nombre, tipo: 'seguimiento', contacto: 'Equipo de ' + p.nombre, origen: 'Plan de desarrollo · ' + ((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0] || ''), oid: oidPaso(x), fecha: (x.f.t.acuerdo && x.f.t.acuerdo.revision) || '', impacto: 3 }))), 'Llevar el plan a mi mesa de trabajo', () => ({ origen: [O('personas', 'plan', p.id + ':')].concat(pasos.map((x) => O('personas', 'paso', x.f.c.id + ':'))), completo: true })));
         host.appendChild(fila);
+        fila.addEventListener('mesa:enviado', () => A.mesa.marcar(host));
       }
+      if (A.mesa && A.mesa.marcar) A.mesa.marcar(host);
     }
   });
 

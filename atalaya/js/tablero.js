@@ -18,17 +18,18 @@
 
   const pintar = (r) => {
     const main = $('#tbMain'), emp = (P.empresas && P.empresas.activa && P.empresas.activa()) || {}, nt = r.nota, mundos = Object.entries(nt.mundos);
-    const objs = r.objetivos.map((o) => Object.assign(o, { st: (r.capas.find((c) => c.id === o.capa) || {}).st || '' }));
+    // Un objetivo cumplido (su meta de la mesa está cumplida) sale en verde y ya no depende de su capa
+    const objs = r.objetivos.map((o) => Object.assign(o, { st: o.cumplido ? 'ok' : (r.capas.find((c) => c.id === o.capa) || {}).st || '' }));
     main.innerHTML = `
       <section class="glass pad tb-hero"><div><div class="eyebrow">Tablero general${emp.nombre ? ' · ' + esc(emp.nombre) : ''}</div><h1 class="tb-h1">La empresa, <em>de un vistazo</em></h1>
         <p class="muted" style="margin:0">Primero lo que la sostiene: liquidez, después rentabilidad y, con las dos en verde, crecimiento. Las prioridades salen de los semáforos de todos los mundos y de sus objetivos.</p></div>
-        <div class="tb-kpis"><div class="tb-k"><small>Nota de la empresa</small><b class="${stN(nt.global)}">${nt.global == null ? 'Sin nota' : fmt(nt.global) + '<span>/10</span>'}</b>${nt.global == null ? '<span>Ningún mundo tiene todavía datos propios con los que calcularla.</span>' : ''}${(() => { const sc = mundos.filter(([, m]) => m.nota == null && !m.fecha).map(([, m]) => m.n.toLowerCase()); return sc.length ? `<span>Sin calcular todavía: ${esc(sc.join(' y '))}. La nota de cada mundo se calcula al abrirlo y al guardar en él.</span>` : nt.fecha ? `<span>Calculada el ${esc(new Date(nt.fecha).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}.</span>` : ''; })()}</div>
+        <div class="tb-kpis"><div class="tb-k"><small>Nota de la empresa</small><b class="${stN(nt.global)}">${nt.global == null ? 'Sin nota' : fmt(nt.global) + '<span>/10</span>'}</b>${nt.global == null ? '<span>Ningún mundo tiene todavía datos propios con los que calcularla.</span>' : ''}${nt.fecha ? `<span>Calculada con los datos guardados de cada mundo el ${esc(new Date(nt.fecha).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}: la misma nota en todas las páginas.</span>` : ''}</div>
           <div class="tb-k tb-eq ${r.equilibrio.st}"><small>Equilibrio viable</small><b><i class="pr-luz ${r.equilibrio.st}"></i>${esc(r.equilibrio.t)}</b><span>${esc(r.equilibrio.d)}</span></div></div></section>
 
       <section class="glass pad stack" id="tbCifras"><div class="row"><div class="eyebrow">Cifras clave</div><span class="spacer"></span><small class="muted">Una sola fuente para todos los mundos: simulador, sistema estratégico, auditoría y cartera</small></div>
         ${A.cifras ? A.cifras.html(r.cifras) : ''}</section>
 
-      ${r.triaje ? `<section class="glass pad stack" id="tbTriaje"><div class="row"><div class="eyebrow">Triaje del consultor · auditoría integral</div><span class="spacer"></span>${r.triaje.fecha ? `<small class="muted">Actualizado el ${esc(fecha(r.triaje.fecha))}</small>` : ''}<a class="btn small" href="intervencion.html#triaje">Abrir el triaje</a></div>
+      ${r.triaje ? `<section class="glass pad stack" id="tbTriaje"><div class="row"><div class="eyebrow">Triaje del consultor · auditoría integral</div><span class="spacer"></span><small class="muted">${r.triaje.calculado ? 'Calculado con los datos guardados de la auditoría' : 'Lo último guardado en la auditoría'}${r.triaje.fecha ? ' · última sesión el ' + esc(fecha(r.triaje.fecha)) : ''}</small><a class="btn small" href="intervencion.html#triaje">Abrir el triaje</a></div>
         ${r.triaje.areas.length ? `<ul class="tb-objs">${['stop', 'warn', 'ok'].flatMap((st) => r.triaje.areas.filter((a) => a.st === st)).map((a) => `<li><i class="pr-luz ${a.st}"></i><span><b>${esc(a.n)} · ${NIV[a.st]}</b><small>Cuenta en la capa «${esc((r.capas.find((c) => c.id === a.capa) || {}).n || '')}»</small></span></li>`).join('')}</ul>` : '<p class="small muted" style="margin:0">El consultor todavía no ha hecho el triaje de las áreas.</p>'}
         ${(r.contraste || []).map((c) => `<div class="alert warn small"><b>${esc(c.t)}.</b> ${esc(c.d)}</div>`).join('')}</section>` : ''}
 
@@ -37,7 +38,7 @@
 
       <section class="tb-grid">${mundos.map(([k, m]) => { const top = r.pend.filter((x) => x.mundo === k).slice(0, 3);
         return `<article class="glass pad tb-planeta"><div class="row"><b class="tb-pn">${esc(m.n)}</b><span class="spacer"></span><span class="tb-nota ${stN(m.nota)}">${m.nota == null ? 'Sin nota' : fmt(m.nota)}</span></div>
-          <small class="muted">${m.nota == null ? esc(m.motivo ? 'Sin nota: ' + m.motivo : 'Ábralo para calcular su nota') : esc(A.nota.desglose(A.nota.puntuar(m.puntos)))} · ${esc(A.nota.fechaTxt ? A.nota.fechaTxt(m) : fecha(m.fecha))}</small>
+          <small class="muted">${m.nota == null ? esc(m.motivo ? 'Sin nota: ' + m.motivo : 'Sin datos con los que calcular su nota') : esc(A.nota.desglose(A.nota.puntuar(m.puntos)))} · ${esc(A.nota.fechaTxt ? A.nota.fechaTxt(m) : fecha(m.fecha))}</small>
           <ol class="tb-top">${top.map((x) => `<li class="${x.st}"><a href="${URL[k]}${x.zona ? '#' + esc(x.zona) : ''}"><i class="pr-luz ${x.st}"></i><span>${esc(x.t)}<em>${esc(x.capaN)} · prioridad ${x.rango}</em></span></a></li>`).join('') || '<li class="tb-vacio">Nada pendiente en rojo ni en ámbar.</li>'}</ol>
           <div class="row"><a class="btn small" href="${URL[k]}${MAPA[k] ? '#mapa' : ''}">${MAPA[k] ? 'Abrir el mapa con sus prioridades' : 'Abrir'}</a></div></article>`; }).join('')}</section>
 
@@ -45,15 +46,35 @@
         <ol class="tb-prio">${r.pend.slice(0, 10).map((x) => `<li><a class="tb-pi ${x.st}" href="${URL[x.mundo]}${x.zona ? '#' + esc(x.zona) : ''}"><b>${x.rango}</b><i class="pr-luz ${x.st}"></i><span><strong>${esc(x.t)}</strong>${x.d ? `<small>${esc(x.d)}</small>` : ''}<em>${esc(x.mundoN)} · ${esc(x.capaN)}${x.obj ? ' · sirve a «' + esc(x.obj.t) + '»' : ''}</em></span><span class="tb-go">→</span></a></li>`).join('') || '<li class="tb-vacio">Nada en rojo ni en ámbar.</li>'}</ol></section>
 
       <section class="glass pad stack"><div class="eyebrow">Objetivos del empresario</div>
-        ${objs.length ? `<ul class="tb-objs">${objs.map((o) => `<li><i class="pr-luz ${o.st}"></i><span><b>${esc(o.t)}</b><small>${esc(o.fuente)} · depende de la capa «${esc((r.capas.find((c) => c.id === o.capa) || {}).n || '')}», hoy en ${esc(ST[o.st] || 'sin datos').toLowerCase()}${o.fecha ? ' · fecha ' + esc(o.fecha) : ''}</small></span></li>`).join('')}</ul>`
+        ${objs.length ? `<ul class="tb-objs">${objs.map((o) => `<li><i class="pr-luz ${o.st}"></i><span><b>${esc(o.t)}</b><small>${esc(o.fuente)} · ${o.cumplido ? `cumplido${o.cumplidoFecha ? ' el ' + esc(fecha(o.cumplidoFecha)) : ''} (meta de la mesa cumplida)` : `depende de la capa «${esc((r.capas.find((c) => c.id === o.capa) || {}).n || '')}», hoy en ${esc(ST[o.st] || 'sin datos').toLowerCase()}${o.fecha ? ' · fecha ' + esc(o.fecha) : ''}`}</small></span></li>`).join('')}</ul>`
           : '<p class="small muted" style="margin:0">Sin objetivos todavía. Se recogen de la primera sesión de la auditoría y de las metas de la mesa de trabajo.</p>'}
         <p class="small muted" style="margin:0">Regla: liquidez genera rentabilidad, rentabilidad genera crecimiento; no se busca crecimiento con liquidez. Un objetivo de crecimiento con la liquidez en rojo espera a que la caja esté sostenida.</p></section>`;
     if (A.cosmos && A.cosmos.type3d) try { A.cosmos.type3d(main); } catch (e) { /* sin volumen */ }
   };
+  /* Capítulo del libro corporativo: el tablero en formato de informe (lo recoge js/libro-comun.js) */
+  let ultimo = null;
+  const informe = () => {
+    const I = A.informe, r = ultimo; if (!I || !r) return '';
+    I.reset();
+    const emp = (P.empresas && P.empresas.activa && P.empresas.activa()) || {}, nt = r.nota, f10 = (n) => (n == null ? 'Sin nota' : fmt(n) + '/10');
+    const pill = (st, t) => (st ? I.pill(st, t || ST[st]) : esc(t || 'Sin datos'));
+    let h = I.cover({ tipo: 'Tablero general', titulo: 'La empresa, de un vistazo', empresa: emp.nombre || '' });
+    h += I.summary('En pocas palabras', `<p><b>Nota de la empresa: ${esc(f10(nt.global))}.</b> ${esc(r.equilibrio.t)}. ${esc(r.equilibrio.d)}</p><p class="rp-muted">Calculada con los datos guardados de cada mundo${nt.fecha ? ' el ' + esc(new Date(nt.fecha).toLocaleString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })) : ''}.</p>`, r.equilibrio.st || null);
+    h += I.section('Nota de cada mundo', I.table(['Mundo', 'Nota', 'Comprobaciones', 'Calculada'], Object.values(nt.mundos).map((m) => [m.n, { h: pill(stN(m.nota), f10(m.nota)) }, m.nota == null ? (m.motivo ? 'Sin nota: ' + m.motivo : '—') : A.nota.desglose(A.nota.puntuar(m.puntos)), A.nota.fechaTxt ? A.nota.fechaTxt(m) : fecha(m.fecha)])));
+    h += I.section('Las capas de la empresa', I.table(['Capa', 'Estado', 'Rojos', 'Ámbar', 'Verdes'], r.capas.map((c) => [c.n, { h: pill(c.st) }, String(c.rojos), String(c.ambar), String(c.verdes)]), { num: [2, 3, 4] }));
+    if (r.cifras && !r.cifras.sinDatos && A.cifras) h += I.section('Cifras clave', I.table(['Cifra', 'Valor', 'Origen'], A.cifras.CAMPOS.map((c) => [c.n, A.cifras.fmt(c.k, r.cifras[c.k]), r.cifras[c.k] == null ? 'Sin dato' : r.cifras.origen[c.k] + ' · ' + A.cifras.fechaTxt(r.cifras.fecha[c.k])])));
+    if (r.triaje && r.triaje.areas.length) h += I.section('Triaje del consultor', I.table(['Área', 'Nivel'], ['stop', 'warn', 'ok'].flatMap((st) => r.triaje.areas.filter((a) => a.st === st)).map((a) => [a.n, { h: I.pill(a.st, NIV[a.st]) }])));
+    h += I.section('Prioridades de la empresa', r.pend.length ? I.table(['N.º', 'Qué tratar', 'Mundo', 'Capa'], r.pend.slice(0, 15).map((x) => [String(x.rango), x.t, x.mundoN, x.capaN]), { num: [0] }) : '<p class="rp-muted">Nada en rojo ni en ámbar.</p>');
+    const objs = r.objetivos || [];
+    if (objs.length) h += I.section('Objetivos del empresario', I.table(['Objetivo', 'Origen', 'Estado'], objs.map((o) => [o.t, o.fuente, { h: o.cumplido ? I.pill('ok', 'Cumplido') : pill(o.st, 'Capa ' + ((r.capas.find((c) => c.id === o.capa) || {}).n || '').toLowerCase()) }])));
+    h += I.foot('Tablero general: las prioridades siguen la regla liquidez, rentabilidad y crecimiento. Las notas se calculan con los datos guardados de cada mundo.');
+    return h;
+  };
+  A.tablero = { informe, get listo() { return !!ultimo; } };
   const iniciar = async () => {
     const ok = await P.guard(); if (!ok) return;
     P.mountAccount($('#account')); if (P.empresas && P.empresas.cargar) await P.empresas.cargar();
-    try { const r = await A.prioridad.calcular(); if (r) pintar(r); else $('#tbMain').innerHTML = '<p>No se ha podido calcular el tablero.</p>'; }
+    try { const r = await A.prioridad.calcular(); ultimo = r; if (r) pintar(r); else $('#tbMain').innerHTML = '<p>No se ha podido calcular el tablero.</p>'; }
     catch (e) { console.error(e); $('#tbMain').innerHTML = '<p>No se ha podido calcular el tablero.</p>'; }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();

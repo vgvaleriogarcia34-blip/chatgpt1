@@ -44,7 +44,10 @@
     // Lo que necesita la cartera operativa: recorrido de la auditoría, mesa de trabajo, nota y personas dadas de alta
     const ld = async (k) => { try { return await P.loadDataOf(k, e.id); } catch (x) { return null; } };
     const [iv, agenda, nota, pe] = await Promise.all([!grupo && P.puede('intervencion') ? ld('intervencion') : null, ld('agenda'), ld('nota'), P.puede('personas') ? ld('personas') : null]);
-    Object.assign(out, { iv, agenda, nota: nota && nota._global, personasN: pe && Array.isArray(pe.personas) && pe.personas.length ? pe.personas.length : null });
+    // Nota de la empresa calculada con sus datos guardados (js/nota.js), la misma que dan sus mundos y el tablero
+    let notaE = nota && nota._global;
+    if (A.nota && A.nota.calcularDe) { try { const r = await A.nota.calcularDe(e.id); notaE = { nota: r.global, fecha: r.fecha, mundos: Object.fromEntries(Object.entries(r.mundos).map(([k, m]) => [k, { nota: m.nota, fecha: m.fecha }])) }; } catch (x) { /* la última guardada */ } }
+    Object.assign(out, { iv, agenda, nota: notaE, personasN: pe && Array.isArray(pe.personas) && pe.personas.length ? pe.personas.length : null });
     out.c = A.cifras ? A.cifras.desdeSim(sim, e, { personas: out.personasN }) : null;
     if (!out.ok) return out;
     const s = Object.assign(A.defaultState(), sim);
@@ -58,7 +61,8 @@
       liquidezMin: r ? r.cajaRef : null, serieLiq: r && r.w ? (r.contarPoliza ? r.w.liquidez : r.w.cash) : null, verdict: r ? r.verdict : null, rojos: r ? r.lights.filter((l) => l.estado === 'stop').map((l) => l.nombre) : [], ambar: r ? r.lights.filter((l) => l.estado === 'warn').length : 0,
       sector: (A.SECTORS[s.sector] || {}).nombre || '', inversion: s.inversion ? s.inversion.importe : 0, nombre: s.empresaNombre
     };
-    try { const v = (est && est.valoracion) || {}; out.m.valor = A.valorar ? A.valorar(sim, { multiplo: v.multiplo, wacc: v.wacc, g: v.g, pesoMult: v.pesoMult, ajustes: v.ajustes || {}, noOperativos: v.noOperativos, contingencias: v.contingencias }).central : null; } catch (x) { out.m.valor = null; }
+    // La misma valoración que el sistema estratégico: mismos parámetros y factores de descuento (js/valoracion-core.js)
+    try { out.m.valor = A.valoracionDe ? A.valoracionDe(sim, est, { real: !!(e.datosReales && !e.modelo) }).central : null; } catch (x) { out.m.valor = null; }
     out.clientes = est && est.comercial && !est.comercial.ejemplo ? (est.comercial.clientes || []).map((c) => c.nombre) : [];
     out.proveedores = est && est.compras && !est.compras.ejemplo ? (est.compras.proveedores || []).map((p) => p.nombre) : [];
     out.reales = !!(sim.historico && !sim.historico.ejemplo && sim.historico.anios && sim.historico.anios.length);
@@ -228,7 +232,8 @@
     }
     const atr = ((x.agenda && x.agenda.tareas) || []).filter((t) => t.estado !== 'hecha' && t.fecha && t.fecha < h).length;
     if (atr) pend.push({ t: 'Mesa de trabajo: ' + plu(atr, 'tarea atrasada', 'tareas atrasadas'), f: '' });
-    const tri = iv && Array.isArray(iv.triajeAreas) ? (iv.triajeAreas.includes('stop') ? 'stop' : iv.triajeAreas.includes('warn') ? 'warn' : iv.triajeAreas.includes('ok') ? 'ok' : '') : '';
+    // Triaje calculado con los datos guardados de la auditoría (js/triaje.js), sin esperar a que se abra su página
+    const tri = iv && A.triaje ? A.triaje.global(iv) : iv && Array.isArray(iv.triajeAreas) ? (iv.triajeAreas.includes('stop') ? 'stop' : iv.triajeAreas.includes('warn') ? 'warn' : iv.triajeAreas.includes('ok') ? 'ok' : '') : '';
     return { etN, etapa, det, prox, pend, tri, nota: x.nota || null, sesiones: ses.length };
   }
   function operativaHTML() {
@@ -424,15 +429,14 @@
     A.sky();
     const ok = await P.guard(); if (!ok) return;
     user = P.user; plan = P.PLANES[user.plan] || P.PLANES.profesional; grupo = !!plan.grupo;
-    P.mountAccount($('#account'));
+    // El nombre de la página va antes que la barra: el botón «Mundos» lo toma de aquí
     $('#gKind').textContent = grupo ? 'Vista de grupo' : 'Cartera de clientes';
-    document.title = 'Atalaya · ' + (grupo ? 'Vista de grupo' : 'Cartera de clientes');
+    document.title = 'Atalaya 360° · ' + (grupo ? 'Vista de grupo' : 'Cartera de clientes');
+    P.mountAccount($('#account'));
     // La empresa modelo (datos ficticios) no entra en el consolidado, la cartera, las comparativas ni el tramo: va aparte
     lista = P.empresas.reales(); modelo = P.empresas.lista().find((e) => e.modelo) || null;
     if (!P.esGrupo(user)) {
-      $('#gMain').innerHTML = `<div class="glass pad stack"><h2>Varias empresas, <em>una sola mirada</em></h2><p>Su plan (${esc(plan.nombre)}) incluye una empresa. Con <b>Consultora</b> lleva hasta quince empresas cliente por separado y con <b>Grupos</b> reúne las sociedades de un grupo con su consolidado, la comparativa y los objetivos de la holding en cascada.</p><p class="small muted">El plan Grupos se prepara a medida con nuestro equipo, según sus sociedades y su estructura.</p><div class="row"><button class="btn solid" id="gCont">Contactar con nuestro equipo</button><button class="btn" id="gPlanes">Ver los planes</button></div></div>`;
-      const gp = document.getElementById('gPlanes'); if (gp) gp.onclick = () => P.panelPlanes({ destacar: 'grupos' });
-      const gc = document.getElementById('gCont'); if (gc) gc.onclick = () => P.formContacto({ plan: 'grupos', origen: 'vista-grupo' });
+      P.bloqueo('grupo', $('#gMain'));
       return;
     }
     G = (await P.loadData('grupo')) || { elim: {}, objetivos: [] };

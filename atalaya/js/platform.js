@@ -23,8 +23,8 @@
      Pago anual: un 30 % de descuento sobre el precio mensual, pagando el año por adelantado. */
   const PLANES = {
     esencial: { nombre: 'Esencial', precio: 49, periodo: 'mes', empresas: 1, para: 'Para estudiar una inversión', incluye: ['Simulador de inversión y crecimiento', 'Horizonte 3D y cinco escenarios', 'Semáforos con horquillas y plan de corrección', 'Informe de decisión', '1 empresa'] },
-    profesional: { nombre: 'Profesional', precio: 129, periodo: 'mes', empresas: 1, destacado: true, para: 'Para diagnosticar su empresa y decidir', incluye: ['Todo lo de Esencial', 'Sistema estratégico completo: 21 módulos, zona de origen de datos e informes 360', 'Análisis de cuentas de varios años', 'Asistente con voz', '1 empresa'] },
-    consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Personas y equipos: DISC, aportaciones al equipo, eneagrama, encaje persona-puesto, liderazgo y tablillas de entrenamiento', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
+    profesional: { nombre: 'Profesional', precio: 129, periodo: 'mes', empresas: 1, destacado: true, para: 'Para diagnosticar su empresa y decidir', incluye: ['Todo lo de Esencial', 'Sistema estratégico completo: 22 módulos en cinco áreas, zona de origen de datos e informes 360', 'Análisis de cuentas de varios años', 'Asistente con voz', '1 empresa'] },
+    consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Personas y equipos: DISC, aportaciones al equipo, eneagrama, encaje persona-puesto, liderazgo y tablillas de entrenamiento', 'Auditoría integral: primera sesión como un triaje, auditoría por áreas y plan de intervención con sus sesiones', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
     // Grupos se contrata a medida con el equipo: no se publica precio. Los tramos quedan como referencia interna de administración
     grupos: { nombre: 'Grupos', precio: 690, periodo: 'mes', empresas: Infinity, grupo: true, aMedida: true, para: 'Para holdings y grupos familiares', tramos: [{ hasta: 5, precio: 690, n: 'De 1 a 5 sociedades' }, { hasta: 10, precio: 970, n: 'De 6 a 10 sociedades' }, { hasta: Infinity, precio: 1790, n: 'Más de 10 sociedades' }], incluye: ['Todo lo de Profesional, en cada sociedad del grupo', 'Estructuras de holding: sociedad dominante, filiales y participaciones, con su mapa', 'Vista de grupo: consolidado con eliminaciones intragrupo, comparativa y tesorería entre sociedades', 'Informes del grupo e informe 360 de cada sociedad', 'Plan estratégico de toda la corporación: objetivos de la holding en cascada a cada sociedad', 'Sociedades sin límite y acompañamiento de nuestro equipo'] }
   };
@@ -948,36 +948,58 @@
       const real = eleccion === 'datos' || eleccion === 'preguntas';
       if (real) { ponerAct('principal'); try { await P.activarModoReal('inicio'); } catch (e) { /* se guarda abajo */ } }
       try { await P.empresas.guardar(); } catch (e) { /* se volverá a preguntar */ }
+      P.primerAcceso.recordar();
       if (eleccion === 'datos') location.href = 'app.html#empresa';
       else if (eleccion === 'preguntas') location.href = 'app.html#preguntas';
       else if (eleccion === 'modelo') P.empresas.cambiar(MID);
+      else if (eleccion === 'cliente') {
+        // Consultora: la ficha del primer cliente y, al guardarla, se trabaja con él
+        const e = await P.fichaEmpresa(null, { nuevo: true });
+        if (e && e.id) { P.primerAcceso.recordar(e.id); P.empresas.cambiar(e.id); }
+        return !!e;
+      }
+      return true;
     },
-    /* La tarjeta de primera visita: una sola, con la acción clave delante (no un recorrido largo) */
+    /* La empresa elegida en el puesto de mando se recuerda en este navegador para la cuenta: el paso 1 (mapa de empresas)
+       no vuelve a salir en cada sesión */
+    clave: () => 'atalaya.emp.elegida.' + ((P.user && (P.user.id || P.user.email)) || ''),
+    elegida() { try { return localStorage.getItem(P.primerAcceso.clave()); } catch (e) { return null; } },
+    recordar(id) { try { localStorage.setItem(P.primerAcceso.clave(), id || P.empresaId()); } catch (e) { /* sin almacenamiento */ } },
+    /* La tarjeta de primera visita: una sola, con la acción clave delante (no un recorrido largo). También se abre
+       desde «Cómo empezar», en el menú de la cuenta. En los planes con varias empresas, la acción clave es el primer cliente */
     tarjeta() {
       if (document.querySelector('.pa-back')) return;
+      const lim = P.limiteEmpresas(), grupo = !!(PLANES[(P.user && P.user.plan) || ''] || {}).grupo;
+      const ops = lim > 1
+        ? `<button type="button" class="pa-op pa-clave" data-ini="cliente"><b>${grupo ? 'Dar de alta su primera sociedad' : 'Dar de alta su primer cliente'}</b><small>${grupo ? 'Su ficha (holding o filial y participación) y, después, sus cuentas: cada sociedad con sus datos por separado.' : 'Su ficha y, después, sus cuentas o la transcripción de la primera sesión. Cada cliente con sus datos por separado y sin datos de ejemplo.'}</small></button>
+          <button type="button" class="pa-op" data-ini="modelo"><b>Ver el ejemplo</b><small>Una empresa ficticia completa para ver qué hace cada mundo antes de dar de alta ${grupo ? 'las suyas' : 'a sus clientes'}.</small></button>`
+        : `<button type="button" class="pa-op pa-clave" data-ini="datos"><b>Cargar mis cuentas</b><small>Suba el balance y la cuenta de resultados y el simulador toma sus cifras. Su empresa empieza sin datos de ejemplo.</small></button>
+          <button type="button" class="pa-op" data-ini="preguntas"><b>Responder unas preguntas</b><small>Ventas, gastos, caja y deuda en lenguaje llano. Lo que no sepa se estima con los valores de su sector y queda marcado como estimado.</small></button>
+          <button type="button" class="pa-op" data-ini="modelo"><b>Ver el ejemplo</b><small>Una empresa ficticia completa para ver qué hace cada mundo antes de cargar la suya.</small></button>`;
       const back = document.createElement('div'); back.className = 'ef-back pa-back';
       back.innerHTML = `<div class="ef-card glass pa-card" role="dialog" aria-modal="true" aria-labelledby="paT" aria-describedby="paD">
-        <div class="eyebrow">Primera visita</div>
+        <div class="eyebrow">Cómo empezar</div>
         <h3 id="paT" class="pa-t">¿Cómo quiere empezar?</h3>
-        <p id="paD" class="small muted" style="margin:0">${P.verbo(true)} una opción. Podrá hacer las otras después desde el menú de su cuenta.</p>
-        <div class="pa-ops">
-          <button type="button" class="pa-op pa-clave" data-ini="datos"><b>Cargar mis cuentas</b><small>Suba el balance y la cuenta de resultados y el simulador toma sus cifras. Su empresa empieza sin datos de ejemplo.</small></button>
-          <button type="button" class="pa-op" data-ini="preguntas"><b>Responder unas preguntas</b><small>Ventas, gastos, caja y deuda en lenguaje llano. Lo que no sepa se estima con los valores de su sector y queda marcado como estimado.</small></button>
-          <button type="button" class="pa-op" data-ini="modelo"><b>Ver el ejemplo</b><small>Una empresa ficticia completa para ver qué hace cada mundo antes de cargar la suya.</small></button>
-        </div>
+        <p id="paD" class="small muted" style="margin:0">${P.verbo(true)} una opción. Podrá volver a esta tarjeta cuando quiera desde «Cómo empezar», en el menú de su cuenta.</p>
+        <div class="pa-ops">${ops}</div>
         <button type="button" class="btn ghost small pa-luego" data-ini="luego">Decidir más tarde</button>
       </div>`;
       document.body.appendChild(back);
-      const ops = Array.from(back.querySelectorAll('[data-ini]'));
-      ops.forEach((b) => b.onclick = async () => { ops.forEach((x) => { x.disabled = true; }); await P.primerAcceso.elegir(b.dataset.ini); if (b.dataset.ini === 'luego') back.remove(); });
+      const bs = Array.from(back.querySelectorAll('[data-ini]'));
+      bs.forEach((b) => b.onclick = async () => {
+        bs.forEach((x) => { x.disabled = true; });
+        if (b.dataset.ini === 'cliente') back.hidden = true;
+        const r = await P.primerAcceso.elegir(b.dataset.ini);
+        if (b.dataset.ini === 'luego' || (b.dataset.ini === 'cliente' && !r)) { back.remove(); try { window.dispatchEvent(new CustomEvent('atalaya:inicio', { detail: b.dataset.ini })); } catch (e) { /* sin eventos */ } }
+      });
       // El foco queda dentro de la tarjeta; Esc equivale a «Decidir más tarde»
       back.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') { e.preventDefault(); back.querySelector('[data-ini="luego"]').click(); return; }
         if (e.key !== 'Tab') return;
-        const i = ops.indexOf(document.activeElement), n = ops.length;
-        if (e.shiftKey && i <= 0) { e.preventDefault(); ops[n - 1].focus(); } else if (!e.shiftKey && i === n - 1) { e.preventDefault(); ops[0].focus(); }
+        const i = bs.indexOf(document.activeElement), n = bs.length;
+        if (e.shiftKey && i <= 0) { e.preventDefault(); bs[n - 1].focus(); } else if (!e.shiftKey && i === n - 1) { e.preventDefault(); bs[0].focus(); }
       });
-      setTimeout(() => ops[0].focus(), 30);
+      setTimeout(() => bs[0].focus(), 30);
     }
   };
   /* ---------- Mapa de cada mundo visto ----------
@@ -1137,7 +1159,7 @@
   P.PLAN_RESUMEN = {
     esencial: { mundos: 'Simulador de inversión', empresas: '1 empresa', vista: '—' },
     profesional: { mundos: 'Simulador y sistema estratégico', empresas: '1 empresa', vista: '—' },
-    consultora: { mundos: 'Simulador, sistema estratégico y personas y equipos', empresas: 'Hasta 15 empresas cliente', vista: 'Cartera de clientes' },
+    consultora: { mundos: 'Simulador, sistema estratégico, personas y equipos y auditoría integral', empresas: 'Hasta 15 empresas cliente', vista: 'Cartera de clientes' },
     grupos: { mundos: 'Simulador y sistema estratégico', empresas: 'Sociedades sin límite', vista: 'Vista de grupo con consolidado' }
   };
   P.cambiarPlan = async function (plan, periodo) {
@@ -1166,11 +1188,11 @@
     opts = opts || {};
     const u = P.user || {}, ses = opts.tipo === 'sesion';
     const back = document.createElement('div'); back.className = 'ef-back';
-    back.innerHTML = `<form class="ef-card glass" role="dialog" aria-modal="true" aria-label="Contactar con nuestro equipo" style="width:min(600px,100%)">
+    back.innerHTML = `<form class="ef-card glass" role="dialog" aria-modal="true" aria-label="${ses ? 'Solicitar la sesión estratégica' : 'Contactar con nuestro equipo'}" style="width:min(600px,100%)">
       <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
-      ${ses ? `<div class="eyebrow">Business Avance · sesión de 60 minutos</div>
+      ${ses ? `<div class="eyebrow">Business Avance · sesión estratégica de 60 minutos</div>
       <h3 style="margin:0;font-family:var(--font-display);font-weight:700;font-size:1.5rem">Traiga sus objetivos</h3>
-      <p class="small muted" style="margin:0">Una sesión de 60 minutos con la dirección de Business Avance: si sus objetivos son alcanzables con la estructura que tiene hoy, cuánto le cuestan hoy los problemas que ve y qué retorno puede esperar. Sin coste y sin propuesta comercial.</p>` : `<div class="eyebrow">Plan Grupos · a medida</div>
+      <p class="small muted" style="margin:0">Una sesión estratégica de 60 minutos con Valerio García, de Business Avance: si sus objetivos son alcanzables con la estructura que tiene hoy, cuánto le cuestan hoy los problemas que ve y qué retorno puede esperar. Sin coste y sin compromiso.</p>` : `<div class="eyebrow">Plan Grupos · a medida</div>
       <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.5rem">Hablemos de su grupo</h3>
       <p class="small muted" style="margin:0">El plan Grupos se ajusta a cada holding o grupo familiar: número de sociedades, estructura y acompañamiento. Déjenos sus datos y nuestro equipo le llamará para preparar la propuesta.</p>`}
       <div class="ef-grid">
@@ -1182,7 +1204,7 @@
         <label class="ef-wide"><span>${ses ? 'Sus objetivos' : 'Qué necesita'}</span><textarea class="input" name="mensaje" rows="3" placeholder="${ses ? 'Qué quiere conseguir este año: margen, crecimiento, inversión, equipo…' : 'Estructura del grupo, qué quiere consolidar, plazos…'}"></textarea></label>
       </div>
       <p class="small" data-msg style="margin:0"></p>
-      <div class="row"><button class="btn solid" type="submit">${ses ? 'Solicitar la sesión' : 'Enviar a nuestro equipo'}</button><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
+      <div class="row"><button class="btn solid" type="submit">${ses ? 'Solicitar la sesión estratégica' : 'Enviar a nuestro equipo'}</button><button type="button" class="btn ghost" data-cancel>Cancelar</button></div>
     </form>`;
     document.body.appendChild(back);
     const f = back.querySelector('form'), close = () => back.remove();
@@ -1190,9 +1212,9 @@
     back.addEventListener('click', (ev) => { if (ev.target === back) close(); });
     f.onsubmit = async (ev) => {
       ev.preventDefault();
-      const d = { plan: opts.plan || 'grupos', origen: opts.origen || location.pathname.split('/').pop(), cuenta: u.id || null };
+      const d = { plan: opts.plan || (ses ? 'sesion' : 'grupos'), tipo: opts.tipo, origen: opts.origen || location.pathname.split('/').pop(), cuenta: u.id || null };
       ['nombre', 'email', 'telefono', 'empresa', 'sociedades', 'mensaje'].forEach((k) => { d[k] = f[k].value.trim(); });
-      try { await P.contactar(d); f.innerHTML = `<button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button><div class="eyebrow">Recibido</div><h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.5rem">Gracias, ${escH(d.nombre.split(' ')[0])}</h3><p>${ses ? `La dirección de Business Avance le escribirá a ${escH(d.email)}${d.telefono ? ' o le llamará al ' + escH(d.telefono) : ''} para fijar la sesión.` : `Nuestro equipo le escribirá a ${escH(d.email)}${d.telefono ? ' o le llamará al ' + escH(d.telefono) : ''} para preparar la propuesta del plan Grupos.`}</p><div class="row"><button type="button" class="btn solid" data-ok>Cerrar</button></div>`; f.querySelector('.ef-x').onclick = close; f.querySelector('[data-ok]').onclick = close; }
+      try { await P.contactar(d); f.innerHTML = `<button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button><div class="eyebrow">Recibido</div><h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.5rem">Gracias, ${escH(d.nombre.split(' ')[0])}</h3><p>${ses ? `Valerio García, de Business Avance, le escribirá a ${escH(d.email)}${d.telefono ? ' o le llamará al ' + escH(d.telefono) : ''} para fijar la sesión estratégica.` : `Nuestro equipo le escribirá a ${escH(d.email)}${d.telefono ? ' o le llamará al ' + escH(d.telefono) : ''} para preparar la propuesta del plan Grupos.`}</p><div class="row"><button type="button" class="btn solid" data-ok>Cerrar</button></div>`; f.querySelector('.ef-x').onclick = close; f.querySelector('[data-ok]').onclick = close; }
       catch (x) { f.querySelector('[data-msg]').textContent = x.message; }
     };
   };
@@ -1258,8 +1280,10 @@
     opts = opts || {};
     if (e && e.modelo) return P.fichaModelo(e);
     const u = P.user, plan = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional, grupo = !!plan.grupo;
-    const d = Object.assign({ nombre: '', forma: P.FORMAS[0], cif: '', constitucion: '', sector: '', actividad: '', provincia: '', plantilla: '', socios: [], rol: grupo ? 'filial' : (e && e.id === 'principal' ? 'holding' : 'cliente'), matriz: '', participacion: 100, contacto: '' }, e || {});
+    const d = Object.assign({ nombre: '', forma: P.FORMAS[0], cif: '', constitucion: '', sector: '', actividad: '', provincia: '', plantilla: '', socios: [], rol: grupo ? 'filial' : (e && e.id === 'principal' ? 'holding' : 'cliente'), matriz: '', participacion: 100, contacto: '', hubspotId: '' }, e || {});
     const S = sectores(), lista = P.empresas.reales(); // la empresa modelo no puede ser dominante de una sociedad real
+    // Una empresa cliente nueva (planes con varias empresas) empieza con datos reales: sin cifras de ejemplo que parezcan suyas
+    const porDefReal = !!opts.nuevo && P.limiteEmpresas(u) > 1;
     const holdings = lista.filter((x) => x.rol === 'holding' && (!e || x.id !== e.id));
     return new Promise((resolve) => {
       const back = document.createElement('div'); back.className = 'ef-back';
@@ -1276,6 +1300,7 @@
           <label class="ef-wide"><span>A qué se dedica</span><input class="input" name="actividad" value="${escH(d.actividad)}" placeholder="Fabricación de envases de cartón para la industria alimentaria"></label>
           <label><span>Provincia</span><input class="input" name="provincia" value="${escH(d.provincia)}" placeholder="Valencia"></label>
           <label><span>Personas en plantilla</span><input class="input" name="plantilla" type="number" min="0" value="${escH(d.plantilla)}"></label>
+          <label><span>ID de empresa en HubSpot <small class="muted">(opcional)</small></span><input class="input" name="hubspotId" inputmode="numeric" value="${escH(d.hubspotId)}" placeholder="Por ejemplo: 18273645" title="El número de la ficha de empresa en HubSpot (aparece en su dirección). Sirve para que las reuniones del asistente lleguen a la mesa de esta empresa."><small class="muted">Número de la ficha en HubSpot. Sirve para que las reuniones del asistente lleguen a esta empresa.</small></label>
           ${!grupo && d.rol === 'cliente' ? `<label class="ef-wide"><span>Persona de contacto</span><input class="input" name="contacto" value="${escH(d.contacto)}" placeholder="Nombre, cargo y teléfono"></label>` : ''}
         </div>
         ${grupo ? `<h4>En el grupo</h4><div class="ef-grid">
@@ -1289,8 +1314,8 @@
         <div class="row"><button type="button" class="btn ghost small" data-sadd>Añadir socio</button><span class="small" data-stot></span></div>
         <h4>Datos con los que se trabaja</h4>
         <div class="ef-datos">
-          <label class="ef-modo"><input type="radio" name="modoDatos" value="ejemplo" ${d.datosReales ? '' : 'checked'}><span><b>Trabajar con datos ficticios</b><small>Sirven de ejemplo para conocer la herramienta: los mundos sin datos muestran una empresa ficticia.</small></span></label>
-          <label class="ef-modo"><input type="radio" name="modoDatos" value="real" ${d.datosReales ? 'checked' : ''}><span><b>Trabajar con datos reales</b><small>Solo cuenta lo que se adjunta: transcripciones y documentación. Cada mundo con el que no se haya trabajado se pone a cero y pide sus datos; lo ya trabajado se conserva.</small></span></label>
+          <label class="ef-modo"><input type="radio" name="modoDatos" value="ejemplo" ${d.datosReales || porDefReal ? '' : 'checked'}><span><b>Trabajar con datos ficticios</b><small>Sirven de ejemplo para conocer la herramienta: los mundos sin datos muestran una empresa ficticia.</small></span></label>
+          <label class="ef-modo"><input type="radio" name="modoDatos" value="real" ${d.datosReales || porDefReal ? 'checked' : ''}><span><b>Trabajar con datos reales</b><small>Solo cuenta lo que se adjunta: transcripciones y documentación. Cada mundo con el que no se haya trabajado se pone a cero y pide sus datos; lo ya trabajado se conserva.</small></span></label>
           ${d.datosReales && d.datosRealesDesde ? `<small class="muted">Con datos reales desde el ${new Date(d.datosRealesDesde + 'T12:00:00').toLocaleDateString('es-ES')}.</small>` : ''}
         </div>
         <p class="small" data-msg style="color:var(--stop)"></p>
@@ -1313,7 +1338,7 @@
         ev.preventDefault();
         const socios = Array.from(f.querySelectorAll('.ef-socio')).map((r) => ({ nombre: r.querySelector('[data-sn]').value.trim(), pct: parseFloat(r.querySelector('[data-sp]').value) })).filter((s) => s.nombre || isFinite(s.pct)).map((s) => ({ nombre: s.nombre || 'Socio', pct: isFinite(s.pct) ? s.pct : null }));
         const v = (n) => (f[n] ? f[n].value.trim() : undefined);
-        const datos = { nombre: v('nombre') || (e && e.nombre) || 'Mi empresa', forma: v('forma'), cif: v('cif').toUpperCase(), constitucion: v('constitucion') ? +v('constitucion') : '', sector: v('sector'), actividad: v('actividad'), provincia: v('provincia'), plantilla: v('plantilla') ? +v('plantilla') : '', socios };
+        const datos = { nombre: v('nombre') || (e && e.nombre) || 'Mi empresa', forma: v('forma'), cif: v('cif').toUpperCase(), constitucion: v('constitucion') ? +v('constitucion') : '', sector: v('sector'), actividad: v('actividad'), provincia: v('provincia'), plantilla: v('plantilla') ? +v('plantilla') : '', hubspotId: (v('hubspotId') || '').replace(/\s+/g, ''), socios };
         if (f.contacto) datos.contacto = v('contacto');
         const quiereReal = (f.querySelector('[name=modoDatos]:checked') || {}).value === 'real', cambiaModo = quiereReal !== !!d.datosReales;
         if (opts.nuevo && quiereReal) Object.assign(datos, { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesTs: new Date().toISOString(), datosRealesOrigen: 'ficha' });
@@ -1511,7 +1536,7 @@
     const redraw = () => P.mapaEmpresas(host, opts);
     host.querySelectorAll('[data-enter]').forEach((b) => b.onclick = () => { const id = b.dataset.enter; if (opts.onEnter) opts.onEnter(id); else P.empresas.cambiar(id); });
     host.querySelectorAll('[data-ficha]').forEach((b) => b.onclick = async () => { const r = await P.fichaEmpresa(listaT.find((x) => x.id === b.dataset.ficha)); if (r) redraw(); });
-    host.querySelectorAll('[data-paseo]').forEach((b) => b.onclick = () => window.Atalaya.paseo && window.Atalaya.paseo.iniciar());
+    host.querySelectorAll('[data-paseo]').forEach((b) => b.onclick = () => { if (opts.onPaseo) opts.onPaseo(); else if (window.Atalaya.paseo) window.Atalaya.paseo.iniciar(); });
     host.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { const e = lista.find((x) => x.id === b.dataset.del); if (!(await P.borrarEmpresaSeguro(e))) return; if (e.id === act.id) location.reload(); else redraw(); });
     const nb = host.querySelector('[data-new]'); if (nb) nb.onclick = async () => { const r = await P.fichaEmpresa(null, { nuevo: true }); if (r) redraw(); };
     const cb = host.querySelector('[data-cerrar]'); if (cb && opts.onCerrar) cb.onclick = opts.onCerrar;
@@ -1544,8 +1569,48 @@
   P.mundoActual = () => { const f = (location.pathname.split('/').pop() || 'index.html').toLowerCase(); const m = P.MUNDOS.find((x) => x.href === f); return m ? m.k : null; };
   P.abrirMundo = (k) => {
     const m = P.MUNDOS.find((x) => x.k === k); if (!m) return;
-    if (m.f && P.user && !P.puede(m.f)) { P.panelPlanes({ destacar: m.plan, motivo: MOTIVO_PLAN[k] }); return; }
+    if (m.f && P.user && !P.puede(m.f)) { P.bloqueo(k); return; }
     location.href = m.href;
+  };
+  /* ---------- Aviso de bloqueo por plan: uno solo para todas las páginas y para los planetas ----------
+     P.bloqueo(k, host): con host, ocupa esa zona de la página; sin host, sale en una ventana. Siempre con «Ver planes» y «Volver». */
+  const BLOQUEO = {
+    est: { d: 'El sistema estratégico añade veintidós módulos de diagnóstico en cinco áreas (cuadro de mando, flujo del dinero, cobros, márgenes, compras, personas, valoración, evolución…), la zona de origen de datos y los informes 360.' },
+    per: { d: 'Perfiles de comportamiento (DISC), mapa de aportaciones al equipo y eneagrama; puestos y encaje persona-puesto; organigrama, relevos y mapa de talento; equipos equilibrados, liderazgo a medida y tablillas de entrenamiento, con informes para presentar a la empresa.' },
+    iv: { d: 'La herramienta del consultor para entrar en una empresa: la primera sesión como un triaje (constantes, escucha y síntomas), la hoja de ruta de la auditoría integral y el plan de intervención completo con sus sesiones.' },
+    grupo: { n: 'Cartera de clientes', plan: 'consultora', d: 'Con Consultora lleva hasta quince empresas cliente por separado y las ve juntas en la cartera de clientes. Con Grupos reúne las sociedades de un grupo con su consolidado, la comparativa y los objetivos de la holding en cascada; ese plan se prepara a medida con nuestro equipo.', contacto: true }
+  };
+  P.bloqueo = function (k, host) {
+    const m = P.MUNDOS.find((x) => x.k === k) || {}, b = BLOQUEO[k] || {}, pk = b.plan || m.plan || 'consultora';
+    const desde = pk === 'profesional', nombre = b.n || m.n || 'Este mundo', u = P.user || {};
+    const planN = PLANES[u.plan] ? PLANES[u.plan].nombre : '';
+    const html = `<div class="eyebrow">${escH(nombre)}</div>
+      <h2 id="bqT">${desde ? 'Disponible desde el plan' : 'Disponible en el plan'} <em>${escH(PLANES[pk].nombre)}</em></h2>
+      <p>${escH(b.d || '')}</p>
+      <p class="small muted">${planN ? `Su plan actual es ${escH(planN)}. ` : ''}Si ya tiene datos aquí, se conservan: vuelven a estar disponibles al cambiar de plan.</p>
+      <div class="row"><button type="button" class="btn solid" data-bq="planes">Ver planes</button>${b.contacto ? '<button type="button" class="btn" data-bq="contacto">Contactar con nuestro equipo</button>' : ''}<button type="button" class="btn ghost" data-bq="volver">Volver</button></div>`;
+    let caja, cerrar;
+    if (host) {
+      host.innerHTML = `<div class="glass pad stack bq-card" role="region" aria-labelledby="bqT">${html}</div>`;
+      caja = host.firstElementChild;
+      // Volver: a la página anterior de Atalaya o, si se entró directamente, al puesto de mando
+      cerrar = () => { let mismo = false; try { mismo = !!document.referrer && new URL(document.referrer).origin === location.origin && history.length > 1; } catch (e) { /* sin referencia */ } if (mismo) history.back(); else location.href = 'portal.html'; };
+    } else {
+      document.querySelectorAll('.bq-back').forEach((x) => x.remove());
+      const back = document.createElement('div'); back.className = 'ef-back bq-back';
+      back.innerHTML = `<div class="ef-card glass stack bq-card" role="dialog" aria-modal="true" aria-labelledby="bqT"><button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>${html}</div>`;
+      document.body.appendChild(back); caja = back.firstElementChild;
+      const onKey = (e) => { if (e.key === 'Escape') cerrar(); };
+      cerrar = () => { back.remove(); removeEventListener('keydown', onKey); };
+      addEventListener('keydown', onKey);
+      back.addEventListener('click', (e) => { if (e.target === back) cerrar(); });
+      caja.querySelector('.ef-x').onclick = cerrar;
+      setTimeout(() => { const f = caja.querySelector('[data-bq="planes"]'); if (f) f.focus(); }, 30);
+    }
+    caja.querySelector('[data-bq="planes"]').onclick = () => { if (!host) cerrar(); P.panelPlanes({ destacar: pk, motivo: MOTIVO_PLAN[k] || '' }); };
+    const cb = caja.querySelector('[data-bq="contacto"]'); if (cb) cb.onclick = () => { if (!host) cerrar(); P.formContacto({ plan: 'grupos', origen: 'bloqueo-' + k }); };
+    caja.querySelector('[data-bq="volver"]').onclick = cerrar;
+    return caja;
   };
   // Pantalla táctil sin ratón: los textos dicen «toque» en lugar de «pase por encima» o «pulse»
   P.tactil = () => { try { return matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) { return false; } };
@@ -1569,7 +1634,7 @@
     if (!w) {
       w = document.createElement('div'); w.className = 'bm-wrap';
       // El botón dice en qué mundo se está (la marca ya no lo repite) y abre la lista para cambiar
-      const aqui = P.MUNDOS.find((m) => m.k === P.mundoActual()), nAqui = aqui && aqui.k !== 'portal' ? (aqui.grupo ? (bar.querySelector('.brand span') || {}).textContent || aqui.n : aqui.n) : '';
+      const aqui = P.MUNDOS.find((m) => m.k === P.mundoActual()), nAqui = aqui && aqui.k !== 'portal' ? (aqui.grupo ? (P.mundos().find((m) => m.k === 'grupo') || {}).n || (bar.querySelector('.brand span') || {}).textContent || aqui.n : aqui.n) : '';
       w.innerHTML = `<button class="bm-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="bmLista" aria-label="${nAqui ? 'Mundos · está en ' + escH(nAqui) : 'Mundos'}"><i class="bm-ico" aria-hidden="true"><b></b><b></b><b></b></i><span class="bm-t">${escH(nAqui || 'Mundos')}</span><span class="bm-tm">Menú</span><span class="bm-car" aria-hidden="true">▾</span></button>
         <nav class="bm-lista glass" id="bmLista" aria-label="Mundos de Atalaya" hidden></nav>`;
       const br = bar.querySelector('.brand'); if (br) br.after(w); else bar.prepend(w);
@@ -1613,7 +1678,7 @@
       <div class="acc-menu glass" hidden>
         <nav class="acc-mundos" aria-label="Mundos de Atalaya"><div class="bm-h">Ir a</div>${listaMundos('bm-it')}</nav>
         <div class="acc-head"><b>${esc(u.nombre || u.email)}</b><small>${esc(u.email)}</small><small>Plan ${planN} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button>${P.mode === 'server' && u.stripeCliente ? '<button data-portalpago>Gestionar el pago: tarjeta y facturas</button>' : ''}<button data-pw>Cambiar contraseña</button>${P.mode === 'server' ? `<button data-2fa>${u.dosPasos ? 'Verificación en dos pasos: activada · desactivar' : 'Activar la verificación en dos pasos'}</button>` : ''}<button data-logout>Cerrar sesión</button>
+        <button data-inicio>Cómo empezar</button><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button>${P.mode === 'server' && u.stripeCliente ? '<button data-portalpago>Gestionar el pago: tarjeta y facturas</button>' : ''}<button data-pw>Cambiar contraseña</button>${P.mode === 'server' ? `<button data-2fa>${u.dosPasos ? 'Verificación en dos pasos: activada · desactivar' : 'Activar la verificación en dos pasos'}</button>` : ''}<button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
@@ -1630,11 +1695,11 @@
       const pal = ['#c9f24d', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
       sel.innerHTML = `<button class="emp-btn" aria-haspopup="true" title="Cambiar de ${grupo ? 'sociedad' : 'empresa'}"><i style="background:${pal[lista.indexOf(act) % pal.length]}"></i><span>${esc(act.nombre)}</span><b>▾</b></button>
         <div class="emp-menu glass" hidden>
-          <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : 'Empresas cliente'}</b><small>${P.empresas.reales().length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ' · plan a medida' : ''} · más la empresa modelo</small></div>
-          <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${esc(e.id)}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.modelo ? 'Empresa modelo · datos ficticios' : e.rol === 'holding' ? 'Holding · sociedad dominante' : e.rol === 'filial' ? `Filial · ${esc(e.participacion != null ? e.participacion : 100)} %` : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' && !e.modelo ? `<button class="icon-btn" data-empdel="${esc(e.id)}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${esc(e.id)}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
+          <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : lim > 1 ? 'Empresas cliente' : 'Su empresa'}</b><small>${lim > 1 ? `${P.empresas.reales().length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ' · plan a medida' : ''} · más la empresa modelo` : 'Y la empresa modelo, para probar sin tocar la suya'}</small></div>
+          <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${esc(e.id)}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.modelo ? 'Empresa modelo · datos ficticios' : grupo && e.rol === 'holding' ? 'Holding · sociedad dominante' : grupo && e.rol === 'filial' ? `Filial · ${esc(e.participacion != null ? e.participacion : 100)} %` : lim === 1 ? 'Su empresa' : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' && !e.modelo ? `<button class="icon-btn" data-empdel="${esc(e.id)}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${esc(e.id)}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
           <a class="emp-group" href="portal.html#empresas">Mapa de ${grupo ? 'sociedades' : 'empresas'} y fichas →</a>
-          ${P.empresas.reales().length < lim ? `<form class="emp-new stack" data-empnew><input class="input" name="nombre" placeholder="Nombre de la ${grupo ? 'sociedad' : 'empresa'}" required>${grupo ? '<div class="row"><select class="input" name="rol"><option value="filial">Filial</option><option value="holding">Holding</option></select><input class="input" name="participacion" type="number" min="0" max="100" value="100" title="% de participación" style="width:90px"></div>' : ''}<button class="btn solid" type="submit">Añadir ${grupo ? 'sociedad' : 'empresa'}</button><small class="muted" data-empmsg></small></form>` : `<p class="small muted" style="padding:8px 12px">Ha llegado al máximo de su plan.</p>`}
-          <a class="emp-group" href="grupo.html">${grupo ? 'Vista de grupo →' : 'Cartera de clientes →'}</a>
+          ${lim === 1 ? '' : P.empresas.reales().length < lim ? `<form class="emp-new stack" data-empnew><input class="input" name="nombre" placeholder="Nombre de la ${grupo ? 'sociedad' : 'empresa'}" required>${grupo ? '<div class="row"><select class="input" name="rol"><option value="filial">Filial</option><option value="holding">Holding</option></select><input class="input" name="participacion" type="number" min="0" max="100" value="100" title="% de participación" style="width:90px"></div>' : ''}<button class="btn solid" type="submit">Añadir ${grupo ? 'sociedad' : 'empresa'}</button><small class="muted" data-empmsg></small></form>` : `<p class="small muted" style="padding:8px 12px">Ha llegado al máximo de su plan.</p>`}
+          ${P.esGrupo(u) ? `<a class="emp-group" href="grupo.html">${grupo ? 'Vista de grupo →' : 'Cartera de clientes →'}</a>` : ''}
         </div>`;
       el.prepend(sel);
       const eb = sel.querySelector('.emp-btn'), em = sel.querySelector('.emp-menu');
@@ -1668,6 +1733,7 @@
       });
     }
     el.querySelector('[data-logout]').onclick = P.logout;
+    el.querySelector('[data-inicio]').onclick = () => { m.hidden = true; P.primerAcceso.tarjeta(); };
     el.querySelector('[data-planes]').onclick = () => { m.hidden = true; P.panelPlanes(); };
     el.querySelector('[data-exp]').onclick = () => { m.hidden = true; P.descargarDatos(); };
     el.querySelector('[data-imp]').onclick = () => { m.hidden = true; P.importarDatos(); };

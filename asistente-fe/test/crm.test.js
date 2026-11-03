@@ -195,3 +195,42 @@ test('sin HUBSPOT_TOKEN: todo funciona con la base local y lo indica', async () 
     assert.equal(peticiones.length, 0);
   } finally { hubspot.configurarHubspot({ token: 'hs-prueba' }); }
 });
+
+test('empresa: el id de la empresa en HubSpot queda en la ficha local (lo usa Atalaya)', async () => {
+  const c = db.guardarContacto({ telefono: '+34655000333' });
+  await herramientas.ejecutar('actualizar_contacto', { nombre: 'Lola', empresa: 'Aceitunas Lola' }, { canal: 'voz', contacto: c });
+  const id = de('POST', '/crm/v3/objects/companies')[0];
+  assert.ok(id);
+  assert.match(db.contactoPorTelefono('+34655000333').hubspot_company_id, /^companies-\d+$/);
+});
+
+test('registrar_nota urgente: tarea de prioridad alta, evento y aviso', async () => {
+  const c = db.contactoPorTelefono('+34600111222');
+  const conv = db.abrirConversacion({ canal: 'whatsapp', direccion: 'entrante', contactoId: c.id });
+  const r = await herramientas.ejecutar('registrar_nota', { texto: 'Se le ha parado la nómina y necesita hablar hoy', urgente: true }, { canal: 'whatsapp', contacto: c, conversacionId: conv });
+  assert.match(r.contenido, /equipo está avisado/);
+  const t = de('POST', '/crm/v3/objects/tasks')[0].cuerpo.properties;
+  assert.equal(t.hs_task_priority, 'HIGH'); assert.match(t.hs_task_subject, /^URGENTE · Carmen/);
+  assert.ok(db.abrir().prepare(`SELECT 1 FROM eventos WHERE tipo = 'urgencia' AND json_extract(datos, '$.conversacionId') = ?`).get(conv));
+});
+
+test('finalizar «volver a llamar» con hora pedida y campaña de origen: la tarea vence a esa hora y la llamada nombra la campaña', async () => {
+  const c = db.contactoPorTelefono('+34600111222');
+  const conv = db.abrirConversacion({ canal: 'voz', direccion: 'saliente', contactoId: c.id });
+  const pedida = new Date(Date.now() + 2 * 86400e3); pedida.setUTCSeconds(0, 0);
+  await herramientas.ejecutar('finalizar', { resultado: 'volver_a_llamar', resumen: 'Mejor pasado mañana.', volver_a_llamar: pedida.toISOString() }, { canal: 'voz', direccion: 'saliente', contacto: c, conversacionId: conv, campana: { id: 3, nombre: 'Relevo 2026' } });
+  assert.equal(db.conversacionPorId(conv).volver_llamar, pedida.toISOString().slice(0, 19).replace('T', ' '));
+  const t = de('POST', '/crm/v3/objects/tasks')[0].cuerpo.properties;
+  assert.equal(t.hs_timestamp, pedida.toISOString()); assert.match(t.hs_task_subject, /Volver a llamar: Carmen \(.+hora pedida\)/);
+  const ll = de('POST', '/crm/v3/objects/calls')[0].cuerpo.properties;
+  assert.match(ll.hs_call_title, /campaña «Relevo 2026»/); assert.match(ll.hs_call_body, /Campaña de origen: Relevo 2026/);
+  // Una fecha pasada no se guarda
+  const conv2 = db.abrirConversacion({ canal: 'voz', direccion: 'saliente', contactoId: c.id });
+  await herramientas.ejecutar('finalizar', { resultado: 'volver_a_llamar', resumen: 'x', volver_a_llamar: '2020-01-01T10:00:00Z' }, { canal: 'voz', contacto: c, conversacionId: conv2 });
+  assert.equal(db.conversacionPorId(conv2).volver_llamar, null);
+});
+
+test('cuenta de HubSpot para los enlaces del panel', async () => {
+  assert.equal(hubspot.enlaceContactoHubspot('42', { portalId: '99', uiDomain: 'app-eu1.hubspot.com' }), 'https://app-eu1.hubspot.com/contacts/99/record/0-1/42');
+  assert.equal(hubspot.enlaceContactoHubspot('42', null), null);
+});

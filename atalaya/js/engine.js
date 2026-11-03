@@ -543,7 +543,8 @@
       value: (r) => r.deudaEbitda, fmt: (v) => A.fmt.x(v) + ' el beneficio',
       ok: (s) => s.meta.deudaEbitdaMax, warn: (s) => s.meta.deudaEbitdaMax + 1,
       que: 'Años de beneficio operativo que harían falta para devolver toda la deuda neta.',
-      lectura: (r) => `La deuda neta equivale a ${A.fmt.x(r.deudaEbitda)} el beneficio antes de intereses e impuestos (EBITDA) en los dos primeros años tras invertir.`,
+      // Deuda sobre EBITDA de la proyección (tras la inversión, si la hay); la de hoy es deudaEbitdaPre
+      lectura: (r, s) => { const inv = s && s.inversion && (+s.inversion.importe > 0 || (s.inversion.lineas || []).some((l) => +l.importe > 0)); return `La deuda neta equivale a ${A.fmt.x(r.deudaEbitda)} el beneficio antes de intereses e impuestos (EBITDA) en los dos primeros años ${inv ? 'tras la inversión' : 'de la proyección, sin inversión'}. Hoy es ${r.deudaEbitdaPre >= 99 ? 'incalculable (EBITDA ≤ 0)' : A.fmt.x(r.deudaEbitdaPre)}.`; },
       directas: [V('inversion.pctFin', 'Parte financiada'), V('inversion.aportacion', 'Aportación de socios'), V('inversion.importe', 'Importe de la inversión'), V('empresa.deudaViva', 'Deuda actual')],
       indirectas: [V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.incVentas', 'Venta nueva'), V('empresa.personal', 'Coste de personal')],
       consejo: 'Menos deuda (más aportación o inversión por fases) o más beneficio del negocio. Cuidado: bajar la deuda suele castigar la liquidez.' },

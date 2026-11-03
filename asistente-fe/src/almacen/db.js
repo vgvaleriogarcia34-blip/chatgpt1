@@ -39,6 +39,18 @@ const MIGRACIONES = [
    ALTER TABLE campana_contactos ADD COLUMN llamada_id TEXT;
    ALTER TABLE campana_contactos ADD COLUMN motivo TEXT;
    CREATE INDEX cc_estado ON campana_contactos(estado, proximo);`,
+  // Operación del día a día: empresa en HubSpot, transferencias, grabaciones, «volver a llamar» con fecha pedida,
+  // bandeja «requiere acción» (eventos resueltos) y búsquedas por correo
+  `ALTER TABLE contactos ADD COLUMN hubspot_company_id TEXT;
+   ALTER TABLE conversaciones ADD COLUMN transferencia TEXT;
+   ALTER TABLE conversaciones ADD COLUMN grabacion_url TEXT;
+   ALTER TABLE conversaciones ADD COLUMN grabacion_sid TEXT;
+   ALTER TABLE conversaciones ADD COLUMN volver_llamar TEXT;
+   ALTER TABLE campana_contactos ADD COLUMN pedido TEXT;
+   ALTER TABLE eventos ADD COLUMN resuelto TEXT;
+   CREATE INDEX evt_tipo ON eventos(tipo, resuelto);
+   CREATE INDEX contactos_email ON contactos(email);
+   CREATE INDEX bajas_email ON bajas(email);`,
 ];
 
 let db;
@@ -66,10 +78,13 @@ export const normTel = (t) => {
 // ---------- Contactos ----------
 export function contactoPorTelefono(tel) { return abrir().prepare('SELECT * FROM contactos WHERE telefono = ?').get(normTel(tel)) || null; }
 export function contactoPorId(id) { return abrir().prepare('SELECT * FROM contactos WHERE id = ?').get(id) || null; }
+const normEmail = (e) => (e && String(e).trim() ? String(e).trim().toLowerCase() : null);
+export function contactosPorEmail(email) { const m = normEmail(email); return m ? abrir().prepare('SELECT * FROM contactos WHERE lower(email) = ? ORDER BY id').all(m) : []; }
+export const contactoPorEmail = (email) => contactosPorEmail(email)[0] || null;
 export function guardarContacto(c) {
   const d = abrir(), tel = normTel(c.telefono);
   const prev = tel ? contactoPorTelefono(tel) : (c.id ? contactoPorId(c.id) : null);
-  const campos = ['email', 'nombre', 'empresa', 'cargo', 'hubspot_id', 'base_legal', 'base_legal_detalle', 'base_legal_fecha', 'origen', 'notas', 'tipo_linea', 'consentimiento_whatsapp'];
+  const campos = ['email', 'nombre', 'empresa', 'cargo', 'hubspot_id', 'hubspot_company_id', 'base_legal', 'base_legal_detalle', 'base_legal_fecha', 'origen', 'notas', 'tipo_linea', 'consentimiento_whatsapp'];
   if (prev) {
     const set = campos.filter((k) => c[k] !== undefined && c[k] !== null);
     if (set.length) d.prepare(`UPDATE contactos SET ${set.map((k) => `${k} = ?`).join(', ')}, actualizado = datetime('now') WHERE id = ?`).run(...set.map((k) => c[k]), prev.id);
@@ -89,8 +104,24 @@ export function conversacionAbiertaWhatsApp(contactoId) {
   return abrir().prepare(`SELECT * FROM conversaciones WHERE canal = 'whatsapp' AND contacto_id = ? AND estado = 'abierta' AND inicio > datetime('now', '-1 day') ORDER BY id DESC LIMIT 1`).get(contactoId) || null;
 }
 export function conversacionPorExterno(externoId) { return abrir().prepare('SELECT * FROM conversaciones WHERE externo_id = ? ORDER BY id DESC LIMIT 1').get(externoId) || null; }
-export function cerrarConversacion(id, { resumen = null, resultado = null, duracion = null } = {}) {
-  abrir().prepare(`UPDATE conversaciones SET estado = 'cerrada', fin = datetime('now'), resumen = COALESCE(?, resumen), resultado = COALESCE(?, resultado), duracion_s = COALESCE(?, duracion_s) WHERE id = ?`).run(resumen, resultado, duracion, id);
+export function cerrarConversacion(id, { resumen = null, resultado = null, duracion = null, volverLlamar = null } = {}) {
+  abrir().prepare(`UPDATE conversaciones SET estado = 'cerrada', fin = COALESCE(fin, datetime('now')), resumen = COALESCE(?, resumen), resultado = COALESCE(?, resultado), duracion_s = COALESCE(?, duracion_s), volver_llamar = COALESCE(?, volver_llamar) WHERE id = ?`).run(resumen, resultado, duracion, fechaPedida(volverLlamar), id);
+}
+export function conversacionPorId(id) { return abrir().prepare('SELECT * FROM conversaciones WHERE id = ?').get(id) || null; }
+/** Cambia campos operativos de una conversación (transferencia, grabación). */
+export function marcarConversacion(id, campos) {
+  const k = Object.keys(campos).filter((x) => ['transferencia', 'grabacion_url', 'grabacion_sid', 'volver_llamar'].includes(x));
+  if (id && k.length) abrir().prepare(`UPDATE conversaciones SET ${k.map((x) => `${x} = ?`).join(', ')} WHERE id = ?`).run(...k.map((x) => campos[x] ?? null), id);
+}
+/**
+ * Fecha y hora que ha pedido el interlocutor para que le vuelvan a llamar, en formato SQLite (UTC), o null
+ * si no es válida, ya ha pasado o está a más de 90 días.
+ */
+export function fechaPedida(v, ahora = Date.now()) {
+  if (!v) return null;
+  const f = new Date(v);
+  if (isNaN(f) || f.getTime() < ahora - 60e3 || f.getTime() > ahora + 90 * 86400e3) return null;
+  return f.toISOString().slice(0, 19).replace('T', ' ');
 }
 export function anotar(conversacionId, rol, texto, datos = null) {
   abrir().prepare('INSERT INTO mensajes (conversacion_id, rol, texto, datos) VALUES (?, ?, ?, ?)').run(conversacionId, rol, texto, datos ? JSON.stringify(datos) : null);
@@ -102,14 +133,37 @@ export function historialContacto(contactoId, limite = 5) {
 }
 
 // ---------- Bajas y lista Robinson ----------
+/**
+ * Registra una baja comercial. Vale para todos los canales del contacto: una baja dada con el correo bloquea también
+ * los teléfonos de los contactos con ese correo, y una dada con el teléfono guarda también el correo del contacto.
+ */
 export function darDeBaja(telefono, { email = null, motivo = null, canal = null } = {}) {
-  abrir().prepare('INSERT OR REPLACE INTO bajas (telefono, email, motivo, canal) VALUES (?, ?, ?, ?)').run(normTel(telefono), email, motivo, canal);
+  const d = abrir(), tel = normTel(telefono);
+  const c = tel ? contactoPorTelefono(tel) : null;
+  const correo = normEmail(email) || normEmail(c?.email);
+  const telefonos = new Set(tel ? [tel] : []);
+  for (const x of contactosPorEmail(correo)) if (x.telefono) telefonos.add(x.telefono);
+  const st = d.prepare('INSERT OR REPLACE INTO bajas (telefono, email, motivo, canal) VALUES (?, ?, ?, ?)');
+  if (telefonos.size) { for (const t of telefonos) st.run(t, correo, motivo, canal); return; }
+  if (correo && !d.prepare('SELECT 1 FROM bajas WHERE telefono IS NULL AND email = ?').get(correo)) st.run(null, correo, motivo, canal);
 }
-export function estaDeBaja(telefono) { return !!abrir().prepare('SELECT 1 FROM bajas WHERE telefono = ?').get(normTel(telefono)); }
+/** ¿Pidió la baja? Por el teléfono o por el correo (el indicado o el del contacto con ese teléfono). */
+export function estaDeBaja(telefono, email = null) {
+  const d = abrir(), tel = normTel(telefono);
+  if (tel && d.prepare('SELECT 1 FROM bajas WHERE telefono = ?').get(tel)) return true;
+  const correos = new Set([normEmail(email), tel ? normEmail(contactoPorTelefono(tel)?.email) : null].filter(Boolean));
+  const st = d.prepare('SELECT 1 FROM bajas WHERE email = ?');
+  return [...correos].some((m) => st.get(m));
+}
+export function bajaDe({ telefono = null, email = null } = {}) {
+  const d = abrir(), tel = normTel(telefono), m = normEmail(email);
+  return (tel && d.prepare('SELECT * FROM bajas WHERE telefono = ?').get(tel)) || (m && d.prepare('SELECT * FROM bajas WHERE email = ? ORDER BY ts LIMIT 1').get(m)) || null;
+}
 export function enRobinson(telefono) { return !!abrir().prepare('SELECT 1 FROM robinson WHERE telefono = ?').get(normTel(telefono)); }
 export function cargarRobinson(telefonos, fechaLista) {
   const d = abrir(), st = d.prepare('INSERT OR REPLACE INTO robinson (telefono, fecha_lista) VALUES (?, ?)');
   d.exec('BEGIN'); for (const t of telefonos) { const x = normTel(t); if (x) st.run(x, fechaLista); } d.exec('COMMIT');
 }
 
-export function evento(tipo, datos) { abrir().prepare('INSERT INTO eventos (tipo, datos) VALUES (?, ?)').run(tipo, JSON.stringify(datos ?? null)); }
+export function evento(tipo, datos) { return Number(abrir().prepare('INSERT INTO eventos (tipo, datos) VALUES (?, ?)').run(tipo, JSON.stringify(datos ?? null)).lastInsertRowid); }
+export function resolverEvento(id, quien = 'panel') { return abrir().prepare(`UPDATE eventos SET resuelto = ? WHERE id = ? AND resuelto IS NULL`).run(`${new Date().toISOString()} ${quien}`, id).changes > 0; }

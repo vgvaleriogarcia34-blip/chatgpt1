@@ -70,16 +70,31 @@ export async function colgarLlamada(callSid) {
   if (c && callSid) await c.calls(callSid).update({ status: 'completed' });
 }
 
-/** Sustituye el flujo de audio por un aviso y un <Dial> al móvil indicado (por defecto, el del responsable). */
-export async function transferirLlamada(callSid, { aviso, numero = C.empresa.movilResponsable } = {}) {
+/** Consulta firmada (por Twilio) que acompaña a las URL de devolución: solo los valores con contenido. */
+const consulta = (o) => { const q = new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => [k, String(v)])).toString(); return q ? '?' + q : ''; };
+
+/**
+ * Sustituye el flujo de audio por un aviso y un <Dial> al móvil indicado (por defecto, el del responsable).
+ * Al acabar el <Dial>, Twilio llama a /voz/transferencia-fin con DialCallStatus: si nadie contesta, se avisa y se cuelga con
+ * un mensaje de que le devolverán la llamada.
+ */
+export async function transferirLlamada(callSid, { aviso, numero = C.empresa.movilResponsable, conversacionId = null, contactoId = null } = {}) {
   const c = clienteTwilio();
   if (!c) throw new Error('Twilio no está configurado');
   if (!numero) throw new Error('No hay móvil configurado para transferir');
-  const twiml = `<Response>${aviso ? `<Say language="es-ES">${esc(aviso)}</Say>` : ''}<Dial callerId="${esc(C.twilio.numero)}" timeout="25">${esc(numero)}</Dial></Response>`;
+  const accion = urlPublica('/voz/transferencia-fin') + consulta({ conversacionId, contactoId });
+  const twiml = `<Response>${aviso ? `<Say language="es-ES">${esc(aviso)}</Say>` : ''}<Dial callerId="${esc(C.twilio.numero)}" timeout="25" action="${esc(accion)}" method="POST">${esc(numero)}</Dial></Response>`;
   await c.calls(callSid).update({ twiml });
 }
 
-export async function grabarLlamada(callSid) {
+/** Graba la llamada (dos canales); al terminar, Twilio avisa en /voz/grabacion con la dirección del audio. */
+export async function grabarLlamada(callSid, { conversacionId = null } = {}) {
   const c = clienteTwilio();
-  if (c && callSid) await c.calls(callSid).recordings.create({ recordingChannels: 'dual' });
+  if (c && callSid) await c.calls(callSid).recordings.create({ recordingChannels: 'dual', recordingStatusCallback: urlPublica('/voz/grabacion') + consulta({ conversacionId }), recordingStatusCallbackMethod: 'POST', recordingStatusCallbackEvent: ['completed'] });
+}
+
+/** Borra una grabación en Twilio (purga de conservación). */
+export async function borrarGrabacion(sid) {
+  const c = clienteTwilio();
+  if (c && sid) await c.recordings(sid).remove();
 }

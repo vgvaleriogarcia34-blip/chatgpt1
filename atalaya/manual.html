@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Manual de Atalaya</title>
+<title>Atalaya 360° · Manual de uso</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('embed');</script>
+<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('embed');
+/* A página completa, la barra común de Atalaya (botón «Mundos» y cuenta): sus estilos van en una capa por debajo de los del manual */
+else document.write('<style>@import url("css/atalaya.css") layer(app);</style>');</script>
 <link rel="stylesheet" href="css/cosmos.css">
 <style>
 /* Dentro del panel lateral de la aplicación: sin cabecera ni índice propios (el panel tiene su menú y su buscador) */
@@ -98,6 +100,19 @@ td.n { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-
 .grid2 .box h3 { margin-top: 0; font-size: 1rem; }
 .grid2 .box p { margin: 4px 0 0; font-size: 0.92rem; color: var(--muted); }
 section.hide { display: none; }
+/* Lo que la hoja común (capa «app») trae para otras páginas y no corresponde al manual */
+main { position: static; width: auto; margin: 0; padding: 0; }
+.hero { display: block; padding-top: 10px; }
+th, td { white-space: normal; text-align: left; }
+td { font-family: inherit; font-variant-numeric: normal; }
+ol.steps { display: block; }
+.top.topbar { position: sticky; top: env(safe-area-inset-top, 0px); left: auto; transform: none; width: auto; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 10px 16px; gap: 12px; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--bg) 88%, transparent); }
+.top .account { display: flex; align-items: center; gap: 8px; }
+.top .acc-menu, .top .emp-menu, .top .bm-lista { text-align: left; line-height: 1.4; }
+@media (max-width: 560px) {
+  .top.topbar { flex-wrap: wrap; }
+  .top input { order: 9; flex: 1 1 100%; margin-left: 0; }
+}
 .noresults { display: none; color: var(--muted); }
 footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--faint); font-size: 0.85rem; }
 @media (max-width: 900px) {
@@ -112,11 +127,11 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
 </style>
 </head>
 <body>
-<header class="top">
+<header class="top topbar">
   <a class="brand" href="portal.html">Atalaya<small>Manual de uso</small></a>
   <button class="tocbtn" id="tocBtn" aria-expanded="false" aria-controls="toc">Índice</button>
-  <nav class="toplinks" aria-label="Volver a la aplicación"><a href="app.html">Simulador</a><a href="estrategia.html">Sistema estratégico</a></nav>
   <input type="search" id="q" placeholder="Buscar en el manual (p. ej. HHI, póliza, DAFO)" aria-label="Buscar en el manual">
+  <div class="account" id="account"></div>
 </header>
 
 <p class="gatemsg" id="gateMsg">Comprobando su acceso…</p>
@@ -175,9 +190,9 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
 <h2><span class="num">2</span>Empezar</h2>
 <h3 id="cuenta">Crear la cuenta y entrar</h3>
 <ol class="steps">
-  <li>Abra la página de Atalaya y pulse <b>Empezar la prueba</b> (o vaya a <span class="path">acceso.html</span> → pestaña <b>Crear cuenta</b>).</li>
+  <li>Abra la página de Atalaya y pulse <b>Probar 14 días</b> (o vaya a <span class="path">acceso.html</span> → pestaña <b>Crear cuenta</b>).</li>
   <li>Escriba nombre, empresa, correo, una contraseña de al menos 8 caracteres y elija plan (Esencial, Profesional o Consultora). Acepte las condiciones.</li>
-  <li>Entra con <b>14 días de prueba</b> y todas las funciones. Lo primero que ve es el <b>puesto de mando</b>: un espacio en 3D con cuatro mundos: el <b>simulador de inversión</b>, el <b>sistema estratégico</b>, <b>personas y equipos</b> y la <b>auditoría integral</b> (planeta coral con su pulso, un radar que barre y ocho balizas de triaje, una por área; plan Consultora). Arrastre para moverse, acérquese con la rueda (o pellizcando en el móvil) y toque el mundo al que quiere entrar; también puede usar los botones de abajo o las teclas 1 a 4. Vuelve a él desde el logotipo o desde el menú de su cuenta («Inicio · elegir herramienta»).</li>
+  <li>Entra con <b>14 días de prueba</b> y todas las funciones. Lo primero que ve es el <b>puesto de mando</b>: un espacio en 3D con cuatro mundos: el <b>simulador de inversión</b>, el <b>sistema estratégico</b>, <b>personas y equipos</b> y la <b>auditoría integral</b> (planeta coral con su pulso, un radar que barre y ocho balizas de triaje, una por área; plan Consultora). Arrastre para moverse, acérquese con la rueda (o pellizcando en el móvil) y toque el mundo al que quiere entrar; también puede usar la lista de abajo o las teclas numéricas (1 para el primero de la lista, 2 para el segundo…). Debajo de los cuatro mundos están la mesa de trabajo, el tablero general, el libro corporativo y, en los planes con varias empresas, la cartera de clientes o la vista de grupo. Vuelve al puesto de mando desde el logotipo o desde el botón <b>Mundos</b> («Puesto de mando»).</li>
   <li>Al terminar la prueba, la pantalla de acceso le ofrece <b>Solicitar la activación</b>. La administración registra el pago y su acceso vuelve con todos sus datos.</li>
 </ol>
 <h3 id="contrasena">Contraseñas</h3>
@@ -200,7 +215,7 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Caja de herramientas</b> (icono de la llave): cambia escenario activo, sector y estructura societaria; añade campos hipotéticos; guarda y carga escenarios de trabajo; copia y pega todos los datos; carga el ejemplo; abre el asistente; genera el informe.</li>
   <li><b>Tarjetas flotantes:</b> casi todo es pulsable. Un semáforo, un anillo, un escenario o una estructura abren su explicación. En el sistema estratégico, los indicadores con <b>?</b> abren una ficha que se cierra con la <b>X</b>, con <kbd>Esc</kbd> o pulsando fuera; también se cierra sola al cambiar de módulo.</li>
   <li><b>Nota de la empresa:</b> en la cabecera de cada mundo, dos notas de 0 a 10: la de la empresa (media de los mundos de su plan) y la del mundo en el que está. <b>El criterio es el mismo en toda Atalaya</b>: cada comprobación (indicadores con semáforo, datos que faltan o de ejemplo, objetivos, plan, riesgos altos y madurez de la gestión) vale verde 1, ámbar 0,5 y rojo 0 según su peso, y la nota es esa proporción sobre 100; sobre 10 es la misma cifra con una coma (58/100 = 5,8/10). Por eso «Este mundo» en el sistema estratégico es la nota del cuadro de mando, y la nota de cada módulo en su informe es la de su tarjeta en el cuadro de mando. La nota de la empresa es distinta porque suma los demás mundos; el cuadro de mando muestra la tabla con la nota de cada mundo y cuándo se calculó (la de un mundo calculado en otra fecha no recoge los cambios posteriores hasta que se abre). Al pulsar la nota se despliegan los puntos a tratar, primero los rojos.</li>
-  <li id="tablero"><b>Tablero general de la empresa</b> (menú de la cuenta, «Tablero general de la empresa»): la visión macro. Arriba, la nota de la empresa y el <b>equilibrio viable</b>: sin datos reales no hay base; con semáforos de caja o deuda en rojo, «primero la liquidez»; con la caja sostenida pero sin margen, «falta rentabilidad»; con las dos sin rojos, viable (con vigilancia si queda algo en ámbar). Debajo, las <b>cinco capas</b> en el orden en que se sostienen —datos fiables, liquidez, rentabilidad, estructura y gestión, crecimiento—, cada una con su semáforo y sus rojos, ámbar y verdes; cada planeta con su nota y lo primero que toca; las <b>diez prioridades de la empresa</b> y los <b>objetivos del empresario</b> (de la auditoría y de la mesa) con el estado de la capa de la que dependen. La prioridad se calcula con la regla de la casa: liquidez genera rentabilidad y rentabilidad genera crecimiento; pesa más la capa más baja, el rojo pesa el doble que el ámbar y sube si sirve a un objetivo del empresario.</li>
+  <li id="tablero"><b>Tablero general de la empresa</b> (botón <b>Mundos</b>, «Tablero general»): la visión macro. Arriba, la nota de la empresa y el <b>equilibrio viable</b>: sin datos reales no hay base; con semáforos de caja o deuda en rojo, «primero la liquidez»; con la caja sostenida pero sin margen, «falta rentabilidad»; con las dos sin rojos, viable (con vigilancia si queda algo en ámbar). Debajo, las <b>cinco capas</b> en el orden en que se sostienen —datos fiables, liquidez, rentabilidad, estructura y gestión, crecimiento—, cada una con su semáforo y sus rojos, ámbar y verdes; cada planeta con su nota y lo primero que toca; las <b>diez prioridades de la empresa</b> y los <b>objetivos del empresario</b> (de la auditoría y de la mesa) con el estado de la capa de la que dependen. La prioridad se calcula con la regla de la casa: liquidez genera rentabilidad y rentabilidad genera crecimiento; pesa más la capa más baja, el rojo pesa el doble que el ámbar y sube si sirve a un objetivo del empresario.</li>
   <li><b>Prioridades en el mapa de cada planeta.</b> Al abrir el mapa del simulador, del sistema estratégico o de personas y equipos, una banda arriba dice cómo está el equilibrio viable y qué tres capas tocar primero en ese planeta (con el objetivo al que sirven); las ventanas de esas capas llevan su semáforo y su orden (1º, 2º, 3º). Desde el tablero, «Abrir el mapa con sus prioridades» lleva directamente.</li>
   <li><b>Manual en el lateral:</b> la pestaña «Manual» del borde derecho (y el botón «Manual» de cada cabecera) abre este manual en un panel, sin salir de la pantalla, directamente en el apartado de la zona en la que está. Arriba tiene un menú para saltar a cualquier apartado y un buscador; «Página completa» lo abre aparte (también con Ctrl o Cmd al pulsar el enlace).</li>
   <li><b>Pestañas</b> del sistema estratégico, agrupadas en Visión, Finanzas, Comercial, Operaciones y Estrategia. Cada módulo tiene su dirección propia (por ejemplo <span class="path">estrategia.html#presupuesto</span>) para enlazarlo.</li>
@@ -259,7 +274,7 @@ footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Cómo se hace.</b> Lo produce la skill <code>atalaya-video-promocional</code> del repositorio: guion, capturas y escenas en movimiento, voz sintética en español que funciona sin conexión y montaje. Para cambiar el texto o hacer otra versión (más corta, para redes), se pide a esa skill.</li>
 </ul>
 <div class="box tip"><b class="lbl">Moverse entre mundos</b>Todas las páginas tienen la misma barra: el botón <b>Mundos</b> (en el móvil, <b>Menú</b>) abre la lista del puesto de mando, simulador, sistema estratégico, personas, auditoría integral, mesa de trabajo, tablero, libro y grupo o cartera, según su plan. Los que su plan no incluye aparecen marcados y muestran los planes. Se maneja con el ratón, con el dedo o con el teclado (Intro, flechas y Esc).</div>
-<div class="box tip"><b class="lbl">Primera visita</b>Al entrar por primera vez, una tarjeta le propone cómo empezar: <b>Cargar mis cuentas</b>, <b>Responder unas preguntas</b>, <b>Ver el ejemplo</b> o decidir más tarde. El mapa de cada planeta se abre solo la primera vez para cada empresa; después, con su botón <b>Mapa</b>.</div>
+<div class="box tip"><b class="lbl">Primera visita</b>Al entrar por primera vez, una tarjeta le propone cómo empezar: <b>Cargar mis cuentas</b>, <b>Responder unas preguntas</b>, <b>Ver el ejemplo</b> o decidir más tarde. En Consultora, la acción clave es <b>Dar de alta su primer cliente</b>; la empresa con la que trabaja se recuerda y el mapa de empresas no vuelve a salir solo. La tarjeta se vuelve a abrir desde <b>Cómo empezar</b>, en el menú de su cuenta. El mapa de cada planeta se abre solo la primera vez para cada empresa; después, con su botón <b>Mapa</b>.</div>
 </section>
 
 <section id="simulador">
@@ -529,12 +544,12 @@ El botón <b>Informe 360</b> de la cabecera genera el documento completo: resume
 <p>En el plan <b>Consultora</b>, los informes (de Personas y equipos, de liderazgo y del sistema estratégico) tienen dos partes, que se eligen arriba en la barra del informe:</p>
 <ul><li><b>Para la empresa</b>: el informe con su <b>hoja de ruta de implantación</b> en tres fases (arranque, implantación y consolidación), cada paso con cómo se hace, responsable, fecha y la <b>señal de que está hecho</b>; las <b>pautas de seguimiento</b> (frecuencia, qué se revisa, con qué indicador, quién y qué se decide) y las reglas del seguimiento; y el reparto entre la empresa y el consultor, con el nombre y el contacto del consultor.</li>
 <li><b>Guía y cuaderno del consultor</b> (interno, marcado «no entregar»). Primero, la <b>guía de ejecución</b>, que no está en el informe de la empresa: lectura rápida del encargo y primer resultado rápido recomendado; cómo trabajar con el empresario según el estilo que el consultor observa en quien decide (qué funciona y con qué tener cuidado); para cada paso de la hoja de ruta, cómo abordarlo, la resistencia previsible, la pregunta que desbloquea y la señal de alarma; y el ritmo de las sesiones. Después, el <b>cuaderno de trabajo</b>: un espacio de reflexiones, comentarios y notas del encargo, el registro de sesiones y la próxima sesión con su orden del día. Se escribe en el propio informe, se guarda con la empresa y se descarga en PDF.</li></ul>
-<p>En el resto de planes, los informes del sistema estratégico terminan con el apartado <b>Con su consultor</b>: cómo se implanta acompañado (sesión de arranque, hoja de ruta de 90 días, seguimiento quincenal y revisión), las normas para trabajar con un consultor y un botón para pedir una sesión de 60 minutos.</p>
+<p>En el resto de planes, los informes del sistema estratégico terminan con el apartado <b>Con su consultor</b>: cómo se implanta acompañado (sesión de arranque, hoja de ruta de 90 días, seguimiento quincenal y revisión), las normas para trabajar con un consultor y un botón para pedir una sesión estratégica de 60 minutos con Valerio García, de Business Avance, sin coste y sin compromiso.</p>
 </section>
 
 <section id="mesa">
 <h2><span class="num">6</span>Mesa de trabajo</h2>
-<p>Los objetivos, planes de acción y tareas que salen del simulador, del sistema estratégico y de personas y equipos se reúnen en un solo sitio: <b>la mesa de trabajo</b> (<code>mesa.html</code>, también desde el menú de la cuenta). Sirve para tres cosas: <b>pensar</b> qué hay que hacer, <b>priorizar</b> el 20 % que da el 80 % del resultado y <b>proteger el tiempo</b> para hacerlo. Cada empresa de la cuenta tiene su propia mesa y está disponible en todos los planes.</p>
+<p>Los objetivos, planes de acción y tareas que salen del simulador, del sistema estratégico y de personas y equipos se reúnen en un solo sitio: <b>la mesa de trabajo</b> (<code>mesa.html</code>, también desde el botón <b>Mundos</b>). Sirve para tres cosas: <b>pensar</b> qué hay que hacer, <b>priorizar</b> el 20 % que da el 80 % del resultado y <b>proteger el tiempo</b> para hacerlo. Cada empresa de la cuenta tiene su propia mesa y está disponible en todos los planes.</p>
 <p>Arriba, la portada resume la semana: tareas pendientes y de hoy, metas activas, horas reservadas, qué parte de ese tiempo va a actividades clave, tareas atrasadas y metas SMART completas. La franja de colores muestra las tareas de los próximos siete días (rojo: atrasada; verde: actividad clave).</p>
 
 <h3 id="mesa-objetivos">Objetivos por prioridad, desde los datos reales</h3>
@@ -718,7 +733,7 @@ El botón <b>Informe 360</b> de la cabecera genera el documento completo: resume
 
 <section id="libro">
 <h2><span class="num">6·b</span>Libro corporativo</h2>
-<p>El <b>libro corporativo</b> (<code>libro.html</code>, en el menú de la cuenta o pidiéndoselo al asistente: «llévame al libro corporativo») reúne los informes de todos los mundos en un único documento de la empresa, con portada, introducción propia, índice y secciones. Sirve como manual de la empresa: se consulta en pantalla y se descarga en PDF completo o por secciones.</p>
+<p>El <b>libro corporativo</b> (<code>libro.html</code>, en el botón <b>Mundos</b> o pidiéndoselo al asistente: «llévame al libro corporativo») reúne los informes de todos los mundos en un único documento de la empresa, con portada, introducción propia, índice y secciones. Sirve como manual de la empresa: se consulta en pantalla y se descarga en PDF completo o por secciones.</p>
 <ul><li><b>Añadir al libro:</b> cada informe que abra en el simulador, el sistema estratégico, personas y equipos o la mesa de trabajo tiene el botón <b>Añadir al libro</b> en su barra. Guarda la versión que está viendo; si el informe ya estaba, lo actualiza. En el plan Consultora, al libro va la versión para la empresa, no la guía interna del consultor.</li>
 <li><b>Recoger todos los informes:</b> la aplicación recorre los mundos de su plan, genera sus informes sin mostrarlos (el de la inversión, los de cada módulo con su diagnóstico 360, el alineamiento y la foto de los equipos, y el plan de trabajo) y vuelve al libro con el resumen de lo recogido. Tarda unos segundos por mundo.</li>
 <li><b>Índice interactivo:</b> a la izquierda, las secciones con sus capítulos numerados. Cada capítulo se incluye o no con su casilla, se ordena con ↑ ↓ y se cambia de sección desde el lector. Las secciones se renombran escribiendo sobre su nombre, se ordenan, se crean («Nueva sección») y se quitan cuando están vacías. ⤓ abre solo esa sección para verla o descargarla.</li>
@@ -750,17 +765,18 @@ El botón <b>Informe 360</b> de la cabecera genera el documento completo: resume
   <div class="box"><h3>Preguntar</h3><p>«¿Qué es el DSCR?» · «¿Cómo pongo en verde la liquidez?» · «¿Dónde está el mayor riesgo?» · «Resumen de la situación».</p></div>
   <div class="box"><h3>Cambiar el simulador</h3><p>«Pon la financiación al 80 %» · «Alarga el plazo a 9 años» · «Simula perder un cliente del 10 % en el mes 14» · «Cambia a escenario pesimista».</p></div>
   <div class="box"><h3>Sistema estratégico</h3><p>«Sube el precio un 3 %» · «Abre impuestos» · «Abre clientes» · «¿Cómo va el presupuesto?» · «¿Qué clientes me hacen grande pero no rico?».</p></div>
-  <div class="box"><h3>Guía: moverse por Atalaya</h3><p>«¿Dónde estoy?» · «Llévame a la mesa de trabajo» · «Abre las metas SMART» · «Abre liderazgo a medida» · «Cierra el informe» · «Abre el manual de semáforos» · «Cierra el mundo» (vuelve al inicio).</p></div>
+  <div class="box"><h3>Guía: moverse por Atalaya</h3><p>«¿Dónde estoy?» · «Llévame a la mesa de trabajo» · «Abre las metas SMART» · «Abre liderazgo a medida» · «Cierra el informe» · «Abre el manual de semáforos» · «Llévame al tablero» · «Cierra el mundo» (vuelve al puesto de mando).</p></div>
 </div>
 <h3 id="asistente-voz">Conversación por voz y guía</h3>
 <ul><li>El botón redondo del micrófono, junto a «Asistente», enciende o apaga la <b>conversación por voz</b>: con ella encendida el asistente escucha sin pulsar nada, responde en voz alta y vuelve a escuchar. El botón se pone verde y late mientras escucha, y en lima mientras habla. Para apagarla, toque el botón o diga «para» o «silencio». También se enciende desde el panel del asistente.</li>
-<li>El asistente está en el simulador, en el sistema estratégico, en personas y equipos y en la mesa de trabajo, y hace de <b>guía</b>: lleva a otro mundo, abre un módulo, capítulo o pestaña, cierra informes, mapas y ventanas, abre el manual en el apartado del tema y explica qué hay en cada sitio y por dónde empezar.</li>
+<li>El asistente está en el puesto de mando, el simulador, el sistema estratégico, personas y equipos, la auditoría integral, la mesa de trabajo, el tablero, el libro corporativo y la cartera de clientes o vista de grupo, y hace de <b>guía</b>: lleva a otro mundo, abre un módulo, capítulo o pestaña, cierra informes, mapas y ventanas, abre el manual en el apartado del tema y explica qué hay en cada sitio y por dónde empezar.</li>
 <li>Al pasar de un mundo a otro con el asistente, la conversación continúa y, si la voz estaba encendida, sigue escuchando al llegar. Algunos navegadores piden tocar la página una vez antes de volver a hablar.</li>
 <li>El micrófono pequeño del panel sirve para dictar una sola pregunta. La voz necesita un navegador que la permita (Chrome, Edge o Safari recientes) y la web abierta en https.</li></ul>
+<h3 id="grupo">Varias empresas: cartera de clientes y vista de grupo</h3>
 <div class="box tip"><b class="lbl">Planes, varias empresas y vista de grupo</b>
 <ul><li><b>Esencial</b> (49 €/mes) y <b>Profesional</b> (129 €/mes): una empresa.</li><li><b>Consultora</b> (349 €/mes): hasta quince empresas cliente, cada una por separado, con su cartera de clientes.</li><li><b>Grupos</b>: holding y filiales con su estructura, vista consolidada, informes del grupo y el plan estratégico de toda la corporación. Se prepara <b>a medida</b> con nuestro equipo («Contactar con nuestro equipo»).</li><li><b>Pago anual</b>: cuota del año con un 30 % de descuento en Esencial, Profesional y Consultora, pagando el año por adelantado.</li></ul>
 <b>Mi plan.</b> Desde el menú de la cuenta («Mi plan · cambiar»), el mapa de empresas o la página de planes con la sesión abierta se cambia de plan sin salir de la aplicación: en la prueba, libre y al momento; con el acceso activado, al momento y con la cuota ajustada en el siguiente cobro. Para bajar a un plan con menos empresas hay que borrar antes las que sobran. Esencial incluye solo el simulador: el sistema estratégico aparece marcado como incluido desde Profesional.<br><br><b>El mapa de empresas es el primer paso.</b> Al entrar en el puesto de mando, antes de elegir mundo, aparece el mapa: en Grupos, la holding arriba y sus filiales debajo con el porcentaje que tiene; en Consultora, las empresas cliente; con una sola empresa, su ficha. Cada empresa tiene una <b>ficha</b> con nombre o razón social, forma jurídica, CIF, año de constitución, sector, actividad, provincia, plantilla y <b>socios con su porcentaje</b> (en un grupo, además, de qué sociedad depende y qué participación tiene). Se elige la empresa con «Entrar con esta» y después el mundo (simulador o sistema estratégico). Una barra arriba recuerda con qué empresa trabaja y permite cambiarla. El nombre, el sector y la plantilla de la ficha pasan al simulador; la ficha se abre también desde el botón con el nombre de la empresa en la cabecera de cualquier pantalla.<br><br>Con Consultora o Grupos aparece en la cabecera el <b>selector de empresa</b>: muestra la empresa activa, permite cambiar a otra, darla de alta (en Grupos, como holding o filial y con su porcentaje de participación), cambiarle el nombre o borrarla. Cada empresa tiene sus propios datos: simulador, sistema estratégico, zona de origen e informes. La empresa que ya tenía pasa a ser la principal.<br><br>
-La <b>vista de grupo</b> (menú de la cuenta, puesto de mando o selector) reúne todas las sociedades: la constelación del grupo (tamaño según ventas, color según veredicto; pulse una para entrar), la tabla de sociedades con el consolidado, las operaciones entre sociedades que se eliminan al consolidar (ventas, margen y préstamos intragrupo), la comparativa, los riesgos que solo se ven en conjunto (clientes y proveedores comunes, sociedades en rojo o sin liquidez, dependencia de una sociedad) y los objetivos de la holding en cascada, con un botón para repartir la meta según el peso de cada sociedad. La <b>tesorería del grupo</b> plantea la pregunta «¿quién financia a quién dentro del grupo?»: se apuntan los préstamos entre sociedades (quién presta, a quién, cuánto, a qué interés, vencimiento y si hay contrato), se ve la posición de cada sociedad y Atalaya propone qué sociedad podría prestar a cuál sin bajar de su colchón, y qué parte necesita financiación de fuera. Tres preguntas de gobierno (contrato escrito, interés de mercado y política de caja) completan el diagnóstico; mientras falten, aparecen como pregunta pendiente al entrar en la vista de grupo. «Informe del grupo» lo recoge todo en un documento. En Consultora la misma página es la cartera de clientes, sin consolidado.</div>
+La <b>vista de grupo</b> (botón <b>Mundos</b>, puesto de mando o selector de empresa; en Consultora se llama <b>cartera de clientes</b>) reúne todas las sociedades: la constelación del grupo (tamaño según ventas, color según veredicto; pulse una para entrar), la tabla de sociedades con el consolidado, las operaciones entre sociedades que se eliminan al consolidar (ventas, margen y préstamos intragrupo), la comparativa, los riesgos que solo se ven en conjunto (clientes y proveedores comunes, sociedades en rojo o sin liquidez, dependencia de una sociedad) y los objetivos de la holding en cascada, con un botón para repartir la meta según el peso de cada sociedad. La <b>tesorería del grupo</b> plantea la pregunta «¿quién financia a quién dentro del grupo?»: se apuntan los préstamos entre sociedades (quién presta, a quién, cuánto, a qué interés, vencimiento y si hay contrato), se ve la posición de cada sociedad y Atalaya propone qué sociedad podría prestar a cuál sin bajar de su colchón, y qué parte necesita financiación de fuera. Tres preguntas de gobierno (contrato escrito, interés de mercado y política de caja) completan el diagnóstico; mientras falten, aparecen como pregunta pendiente al entrar en la vista de grupo. «Informe del grupo» lo recoge todo en un documento. En Consultora la misma página es la cartera de clientes, sin consolidado.</div>
 </section>
 
 <section id="admin">
@@ -895,7 +911,8 @@ La <b>vista de grupo</b> (menú de la cuenta, puesto de mando o selector) reúne
     const u = await P.me();
     const ok = P.accessOf(u).ok || (await P.adminAuth.status().catch(() => ({}))).sesion;
     if (!ok) { location.replace('acceso.html'); return; }
-    if (u && P.accessOf(u).ok) P.guard();
+    // A página completa, la misma barra que el resto de Atalaya: «Mundos» (en el móvil, «Menú») y la cuenta
+    if (u && P.accessOf(u).ok && (await P.guard()) && !document.documentElement.classList.contains('embed')) P.mountAccount(document.getElementById('account'));
   }
   document.getElementById('gateMsg').remove();
   document.getElementById('wrap').hidden = false;

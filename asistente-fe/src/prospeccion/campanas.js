@@ -3,7 +3,7 @@
 import { C } from '../config.js';
 import * as db from '../almacen/db.js';
 import { leerCSVObjetos } from './csv.js';
-import { puedeLlamar, normalizarBase, comprobarHorario, enRobinson, separacionHoras, BASES_POR_DEFECTO } from './cumplimiento.js';
+import { puedeLlamar, reglasPermanentes, normalizarBase, comprobarHorario, enRobinson, separacionHoras, BASES_POR_DEFECTO } from './cumplimiento.js';
 
 const sql = (d) => d.toISOString().slice(0, 19).replace('T', ' '); // mismo formato que datetime('now') de SQLite (UTC)
 const q = () => db.abrir();
@@ -76,7 +76,12 @@ const vacio = (v) => (v === undefined || v === null || String(v).trim() === '' ?
 export function importarFilas(campanaId, filas, { origen = 'importacion' } = {}) {
   if (!obtenerCampana(campanaId)) throw Object.assign(new Error('Campaña no encontrada'), { codigo: 404 });
   const d = q();
-  const r = { importados: 0, yaEstaban: 0, sinBaseLegal: 0, excluidos: 0, rechazados: [] };
+  const campana = obtenerCampana(campanaId);
+  // nuncaSeLlamaran: los que no se llamarán en esta campaña por su base legal (consentimiento sin fecha, interés legítimo
+  // no admitido, base no admitida, móvil personal); sinBaseLegal: a escribirles por correo o LinkedIn
+  const r = { importados: 0, yaEstaban: 0, sinBaseLegal: 0, excluidos: 0, nuncaSeLlamaran: [], rechazados: [] };
+  const previo = d.prepare('SELECT estado, intentos FROM campana_contactos WHERE campana_id = ? AND contacto_id = ?');
+  const reevaluar = d.prepare('UPDATE campana_contactos SET estado = ?, motivo = ? WHERE campana_id = ? AND contacto_id = ?');
   const insertar = d.prepare('INSERT OR IGNORE INTO campana_contactos (campana_id, contacto_id, estado, motivo) VALUES (?, ?, ?, ?)');
   const extra = d.prepare('UPDATE contactos SET tipo_linea = COALESCE(?, tipo_linea), consentimiento_whatsapp = COALESCE(?, consentimiento_whatsapp) WHERE id = ?');
   d.exec('BEGIN');
@@ -97,11 +102,19 @@ export function importarFilas(campanaId, filas, { origen = 'importacion' } = {})
       });
       extra.run(linea ?? null, vacio(f.consentimiento_whatsapp) ?? null, c.id);
       let estado = 'pendiente', motivo = null;
+      const permanente = reglasPermanentes({ ...c, tipo_linea: linea ?? c.tipo_linea }, campana);
       if (!c.base_legal) { estado = 'sin_base_legal'; motivo = 'Sin base legal: primer contacto por correo o LinkedIn.'; r.sinBaseLegal++; }
-      else if (db.estaDeBaja(tel)) { estado = 'excluido'; motivo = 'baja'; r.excluidos++; }
+      else if (db.estaDeBaja(tel, c.email)) { estado = 'excluido'; motivo = 'baja'; r.excluidos++; }
       else if (enRobinson(tel)) { estado = 'excluido'; motivo = 'robinson'; r.excluidos++; }
+      else if (!permanente.ok) { estado = 'excluido'; motivo = permanente.motivo; r.nuncaSeLlamaran.push({ fila, telefono: tel, nombre: c.nombre || null, codigo: permanente.codigo, motivo: permanente.motivo }); }
       const ins = insertar.run(campanaId, c.id, estado, motivo);
-      if (ins.changes) r.importados++; else r.yaEstaban++;
+      if (ins.changes) r.importados++;
+      else {
+        r.yaEstaban++;
+        // Reimportado sin haberle llamado aún: se vuelve a evaluar (p. ej. ahora trae la fecha del consentimiento)
+        const p = previo.get(campanaId, c.id);
+        if (p && !p.intentos && ['pendiente', 'excluido', 'sin_base_legal'].includes(p.estado)) reevaluar.run(estado, motivo, campanaId, c.id);
+      }
     }
     d.exec('COMMIT');
   } catch (err) { d.exec('ROLLBACK'); throw err; }
@@ -198,11 +211,11 @@ export async function vuelta(ahora = new Date(), { llamar } = {}) {
   if (!llamar) return { lanzadas: 0, motivo: 'módulo de voz no disponible' };
 
   const ahoraSql = sql(ahora);
-  const candidatos = d.prepare(`SELECT c.*, cc.campana_id, cc.estado AS cc_estado, cc.intentos, cc.ultimo_intento FROM campana_contactos cc JOIN contactos c ON c.id = cc.contacto_id
-    WHERE cc.campana_id = ? AND cc.estado IN ('pendiente', 'reintentar') AND (cc.proximo IS NULL OR cc.proximo <= ?) ORDER BY cc.intentos, cc.proximo, cc.contacto_id LIMIT 100`);
+  const candidatos = d.prepare(`SELECT c.*, cc.campana_id, cc.estado AS cc_estado, cc.intentos, cc.ultimo_intento, cc.pedido FROM campana_contactos cc JOIN contactos c ON c.id = cc.contacto_id
+    WHERE cc.campana_id = ? AND cc.estado IN ('pendiente', 'reintentar') AND (cc.proximo IS NULL OR cc.proximo <= ?) ORDER BY cc.pedido IS NULL, cc.intentos, cc.proximo, cc.contacto_id LIMIT 100`);
   const excluir = d.prepare('UPDATE campana_contactos SET estado = ?, motivo = ? WHERE campana_id = ? AND contacto_id = ?');
   const aplazar = d.prepare('UPDATE campana_contactos SET proximo = ? WHERE campana_id = ? AND contacto_id = ?');
-  const marcar = d.prepare(`UPDATE campana_contactos SET estado = 'llamando', intentos = intentos + 1, ultimo_intento = ?, proximo = NULL, motivo = NULL WHERE campana_id = ? AND contacto_id = ? AND estado IN ('pendiente', 'reintentar')`);
+  const marcar = d.prepare(`UPDATE campana_contactos SET estado = 'llamando', intentos = intentos + 1, ultimo_intento = ?, proximo = NULL, motivo = NULL, pedido = NULL WHERE campana_id = ? AND contacto_id = ? AND estado IN ('pendiente', 'reintentar')`);
   const anotarLlamada = d.prepare('UPDATE campana_contactos SET llamada_id = ?, conversacion_id = ? WHERE campana_id = ? AND contacto_id = ?');
   const fallo = d.prepare(`UPDATE campana_contactos SET estado = 'reintentar', intentos = intentos - 1, proximo = ?, motivo = ? WHERE campana_id = ? AND contacto_id = ?`);
 
@@ -263,15 +276,18 @@ export function alEstado(ev = {}, ahora = new Date()) {
   let resultado = ev.resultado ?? (convId ? d.prepare('SELECT resultado FROM conversaciones WHERE id = ?').get(convId)?.resultado : null) ?? null;
   if (!resultado && /machine|fax/.test(String(ev.answeredBy ?? ev.AnsweredBy ?? ''))) resultado = 'buzon';
   const clave = estado === 'completed' ? resultado : estado;
+  // «Volver a llamar» con día y hora pedidos (finalizar → conversaciones.volver_llamar): se respeta esa hora
+  const aSql = (v) => (!v ? null : /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(v) ? v : db.fechaPedida(v, +ahora));
+  const pedido = resultado === 'volver_a_llamar' ? (aSql(ev.volverLlamar) ?? aSql(convId ? db.conversacionPorId(convId)?.volver_llamar : null)) : null;
   let nuevo;
   if (estado === 'failed') nuevo = 'error';
   else if (resultado === 'baja') nuevo = 'baja';
   else if (estado === 'completed' && !resultado && Number(ev.duracion) >= 20) nuevo = 'completado'; // hablaron, aunque no conste el resultado
-  else if (estado === 'canceled' || REINTENTABLES.has(clave) || (estado === 'completed' && !resultado)) nuevo = cc.intentos >= C.prospeccion.maxIntentos ? 'agotado' : 'reintentar';
+  else if (estado === 'canceled' || REINTENTABLES.has(clave) || (estado === 'completed' && !resultado)) nuevo = cc.intentos >= C.prospeccion.maxIntentos && !pedido ? 'agotado' : 'reintentar';
   else nuevo = 'completado';
-  const proximo = nuevo === 'reintentar' ? sql(new Date(+ahora + separacionHoras() * 3600e3)) : null;
-  d.prepare('UPDATE campana_contactos SET estado = ?, resultado = ?, motivo = ?, proximo = ? WHERE campana_id = ? AND contacto_id = ?')
-    .run(nuevo, resultado || (estado === 'completed' ? 'sin_resultado' : estado), estado, proximo, cc.campana_id, cc.contacto_id);
+  const proximo = nuevo === 'reintentar' ? (pedido || sql(new Date(+ahora + separacionHoras() * 3600e3))) : null;
+  d.prepare('UPDATE campana_contactos SET estado = ?, resultado = ?, motivo = ?, proximo = ?, pedido = ? WHERE campana_id = ? AND contacto_id = ?')
+    .run(nuevo, resultado || (estado === 'completed' ? 'sin_resultado' : estado), pedido ? 'volver a llamar a la hora pedida' : estado, proximo, nuevo === 'reintentar' ? pedido : null, cc.campana_id, cc.contacto_id);
   return d.prepare('SELECT * FROM campana_contactos WHERE campana_id = ? AND contacto_id = ?').get(cc.campana_id, cc.contacto_id);
 }
 
@@ -291,7 +307,7 @@ export async function iniciarPlanificador({ intervaloMs = 60_000, llamar, suscri
       if (Array.isArray(m.alEstadoLlamada)) m.alEstadoLlamada.push(manejar);
       else if (typeof m.alEstadoLlamada === 'function') m.alEstadoLlamada(manejar);
       // Resultado de la conversación (finalizar), en cuanto la sesión de voz la cierra
-      m.ganchos?.alTerminar?.push((conversacionId, x) => manejar({ estado: 'completed', conversacionId, callSid: x.callSid, campanaId: x.campana?.id, contactoId: x.contacto?.id, resultado: x.resultado, duracion: x.duracion }));
+      m.ganchos?.alTerminar?.push((conversacionId, x) => manejar({ estado: 'completed', conversacionId, callSid: x.callSid, campanaId: x.campana?.id, contactoId: x.contacto?.id, resultado: x.resultado, duracion: x.duracion, volverLlamar: x.volverLlamar }));
     } catch {}
   }
   let ocupado = false;

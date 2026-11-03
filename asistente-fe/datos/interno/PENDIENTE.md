@@ -11,8 +11,8 @@ Preguntas que el equipo debe responder para completar la base de conocimiento. M
 6. Precios de Atalaya 360°: el repositorio dice que los importes de los planes son de ejemplo. ¿Cuáles son los definitivos y se pueden comunicar?
 
 ## Servicios y duración
-7. Primera conversación: el dosier dice «sesión estratégica de 30 minutos» y la web de Business Avance «una hora con un socio, sin coste». ¿Cuál ofrece el asistente y con quién se agenda?
-8. ¿Cuándo se presenta el trabajo como Familias Empresarias y cuándo como Business Avance? ¿Qué marca usa el asistente al presentarse?
+7. ~~Primera conversación~~ **Decidido (3 nov 2026):** «sesión estratégica», 60 minutos, con Valerio García, sin coste y sin compromiso. Nunca se llama «diagnóstico» (es un servicio de pago).
+8. ~~Marca del asistente~~ **Decidido (3 nov 2026):** se presenta como «Lucía, la asistente de inteligencia artificial de Familias Empresarias, de Business Avance». Responsable de los datos: AKOMPANO GROUP, S.L. (NIF B05544713), nombre comercial Business Avance International Consulting.
 9. ¿Qué duración y formato tienen las ponencias y talleres (horas, presencial/online, número de asistentes)? ¿Lista de temas cerrada?
 10. Escuela de consultoría de Business Avance: la web de Atalaya dice 300 horas y certificación; la de Business Avance, título universitario en evaluación (500 horas, 10 meses). ¿Qué dato es el vigente?
 11. ¿Tamaño mínimo o perfil de empresa con el que no trabajan (facturación, plantilla, sectores)?

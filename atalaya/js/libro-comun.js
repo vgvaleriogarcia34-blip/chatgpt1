@@ -2,20 +2,23 @@
    Cada informe que se abre (en cualquier mundo) lleva el botón «Añadir al libro»: guarda la versión que se está
    viendo como un capítulo del libro de la empresa. Desde la página del libro se puede pedir «recoger todos los
    informes»: la aplicación recorre los mundos, genera sus informes sin mostrarlos y vuelve al libro.
-   A.libro.cargar() · guardar(lib) · anadir(cap) · recoger(mundo) */
+   El tablero general y la cartera de clientes pueden entrar también como capítulos (opcionales en la recogida).
+   A.libro.cargar() · guardar(lib) · anadir(cap) · recoger(mundo) · firma(mundo) */
 (function () {
   const A = (window.Atalaya = window.Atalaya || {});
   const P = () => A.platform;
   const $ = (s, r) => (r || document).querySelector(s);
   const pagina = () => (location.pathname.split('/').pop() || 'index.html').replace(/\?.*$/, '');
-  const MUNDO = { 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'intervencion.html': 'intervencion' };
+  const MUNDO = { 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'intervencion.html': 'intervencion', 'tablero.html': 'tablero', 'grupo.html': 'cartera' };
   const SECCION = { intervencion: 'Auditoría integral', simulador: 'Inversión y crecimiento', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Plan de trabajo' };
-  const URL = { simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html', intervencion: 'intervencion.html' };
+  // Capítulos opcionales: su sección se crea al añadir el primero
+  const SECCION_EXTRA = { tablero: 'Tablero general', cartera: 'Cartera de clientes' };
+  const URL = { simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html', intervencion: 'intervencion.html', tablero: 'tablero.html', cartera: 'grupo.html' };
   const LIMITE = 3.6e6; // el servidor admite peticiones de hasta 4 MB
   const L = (A.libro = A.libro || {});
   const uid = () => 'c' + Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 5);
   L.vacio = () => ({ v: 1, titulo: '', intro: '', secciones: Object.keys(SECCION).map((k) => ({ id: k, t: SECCION[k] })), caps: [] });
-  L.SECCION = SECCION;
+  L.SECCION = SECCION; L.SECCION_EXTRA = SECCION_EXTRA;
   L.cargar = async () => {
     let lib = null;
     if (P() && P().loadData) { try { lib = await P().loadData('libro'); } catch (e) { lib = null; } }
@@ -33,23 +36,45 @@
   /* Limpia el HTML de un informe para guardarlo: sin scripts, sin controles de edición y sin espacios de más */
   const limpiar = (html) => String(html || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<(button|input|select|textarea)\b[^>]*>(?:[\s\S]*?<\/\1>)?/gi, '').replace(/\s{2,}/g, ' ');
   /* Firma de los datos guardados de un mundo: cada capítulo guarda la de su momento y el libro la compara con la
-     actual para avisar de los capítulos desactualizados (los datos de su mundo han cambiado desde que se generó). */
+     actual para avisar de los capítulos desactualizados (los datos de su mundo han cambiado desde que se generó).
+     La firma incluye también las cifras del simulador que usa el capítulo: el sistema estratégico calcula con la
+     simulación entera (cuentas, proyección e inversión); la auditoría, con las cifras de la empresa (js/cifras.js:
+     ventas, margen, personal, gastos fijos, caja, deuda, días de cobro, plantilla y cuentas de años anteriores).
+     El tablero depende de todos los mundos y la cartera, de las empresas de la cuenta. Firmas «v2.»; las de antes
+     (solo los datos del mundo) se siguen comparando como se guardaron (L.firmaV1). */
   const DATOS = { simulador: 'simulador', estrategia: 'estrategia', personas: 'personas', mesa: 'agenda', intervencion: 'intervencion' };
+  const USA = { simulador: ['simulador'], estrategia: ['estrategia', 'simulador'], personas: ['personas'], mesa: ['agenda'], intervencion: ['intervencion', '@cifras'], tablero: ['simulador', 'estrategia', 'personas', 'agenda', 'intervencion'], cartera: ['@cartera'] };
   const hash = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + '.' + t.length.toString(36); };
+  const CIFRAS_E = ['ventas', 'margen', 'personal', 'fijos', 'caja', 'deudaViva', 'dso', 'plantilla'];
+  L.cifrasSim = (sim) => { const e = (sim && sim.empresa) || {}, h = sim && sim.historico && !sim.historico.ejemplo ? sim.historico.anios || [] : []; return { e: CIFRAS_E.map((k) => (e[k] == null ? null : e[k])), h, ej: sim ? sim.ejemplo !== false && !sim.sinDatos : true, f: (sim && sim.fechaCifras) || null }; };
   const memo = {};
+  const leer = async (k) => { try { return P() && P().loadData ? await P().loadData(k) : null; } catch (e) { return null; } };
+  const parte = async (k) => {
+    if (k === '@cifras') return L.cifrasSim(await leer('simulador'));
+    if (k === '@cartera') { const Pl = P(); if (!Pl || !Pl.empresas || !Pl.empresas.reales || !Pl.loadDataOf) return null; const out = [await leer('grupo')]; for (const e of Pl.empresas.reales()) { let sim = null; try { sim = await Pl.loadDataOf('simulador', e.id); } catch (x) { sim = null; } out.push([e.id, e.nombre, L.cifrasSim(sim)]); } return out; }
+    return leer(k);
+  };
   L.firma = async (mundo) => {
-    const k = DATOS[mundo]; if (!k || !P() || !P().loadData) return null;
+    const ks = USA[mundo]; if (!ks || !P() || !P().loadData) return null;
     const m = memo[mundo]; if (m && Date.now() - m.t < 4000) return m.v;
-    let v = null; try { const d = await P().loadData(k); v = d ? hash(JSON.stringify(d)) : null; } catch (e) { v = null; }
+    let v = null; try { const ps = []; for (const k of ks) ps.push(await parte(k)); v = ps[0] == null && ks.length === 1 ? null : 'v2.' + hash(JSON.stringify(ps)); } catch (e) { v = null; }
     memo[mundo] = { t: Date.now(), v }; return v;
   };
+  // Firma de antes (solo los datos del mundo): para los capítulos guardados con ella
+  L.firmaV1 = async (mundo) => { const k = DATOS[mundo]; if (!k) return null; const d = await leer(k); return d ? hash(JSON.stringify(d)) : null; };
+  // ¿Ha cambiado lo que usa el capítulo desde que se generó? f: { v2, v1 } firmas actuales de su mundo
+  L.cambiado = (c, f) => { if (!c || !c.firma || !f) return false; const v2 = /^v2\./.test(c.firma), act = v2 ? f.v2 : f.v1; return !!(act && c.firma !== act); };
   L.anadir = async (cap, lib) => {
     const propio = !lib; lib = lib || (await L.cargar());
     const clave = cap.clave || cap.t;
     let c = lib.caps.find((x) => x.clave === clave);
     const datos = { t: cap.t, mundo: cap.mundo, html: limpiar(cap.html), cls: cap.cls || '', fecha: new Date().toISOString(), firma: await L.firma(cap.mundo) };
     if (c) Object.assign(c, datos);
-    else { c = Object.assign({ id: uid(), clave, sec: cap.mundo && lib.secciones.some((s) => s.id === cap.mundo) ? cap.mundo : lib.secciones[0].id, incl: true }, datos); lib.caps.push(c); }
+    else {
+      // Tablero y cartera: su propia sección, al final, la primera vez
+      if (SECCION_EXTRA[cap.mundo] && !lib.secciones.some((s) => s.id === cap.mundo)) lib.secciones.push({ id: cap.mundo, t: SECCION_EXTRA[cap.mundo] });
+      c = Object.assign({ id: uid(), clave, sec: cap.mundo && lib.secciones.some((s) => s.id === cap.mundo) ? cap.mundo : lib.secciones[0].id, incl: true }, datos); lib.caps.push(c);
+    }
     if (propio) await L.guardar(lib);
     return c;
   };
@@ -143,6 +168,16 @@
       if (!ag || !((ag.tareas || []).length || (ag.metas || []).length)) { quitar(['Plan de trabajo']); await L.guardar(lib); return 0; } // mesa vacía: sin capítulo
       progreso('Mesa de trabajo · plan de trabajo');
       await meter(await capturar(() => A.mesa.informe()));
+    } else if (mundo === 'tablero') {
+      await hasta(() => A.tablero && A.tablero.informe && A.tablero.listo, 120);
+      progreso('Tablero general · la empresa de un vistazo');
+      const html = A.tablero && A.tablero.informe ? A.tablero.informe() : '';
+      if (html) await meter([{ t: 'Tablero general', clave: 'tablero:general', html, cls: '' }]);
+    } else if (mundo === 'cartera') {
+      await hasta(() => document.getElementById('gRep'), 120);
+      const b = document.getElementById('gRep'); if (!b) return 0;
+      progreso('Cartera de clientes · informe');
+      await meter(await capturar(() => b.click()));
     } else if (mundo === 'simulador') {
       await hasta(() => document.getElementById('openReport') && A.appApi, 120);
       const st = A.appApi.getState ? A.appApi.getState() : null;

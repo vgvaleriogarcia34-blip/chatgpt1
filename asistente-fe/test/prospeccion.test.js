@@ -251,3 +251,43 @@ test('planificador: respuestas { ok:false } de llamar() y resultado de la conver
   ca.alEstado({ callSid: 'CA-tarde', estado: 'no-answer' }, LUNES_11);
   assert.equal(ca.resultadosCampana(k.id, { estado: 'completado' }).contactos.length, 1);
 });
+
+test('importación: avisa de los que no se llamarán nunca y los vuelve a evaluar si se reimportan corregidos', () => {
+  const k = ca.crearCampana({ nombre: 'Aviso al importar', basesPermitidas: ['consentimiento', 'relacion_previa'] });
+  const r = ca.importarCSV(k.id, 'telefono,nombre,base_legal,base_legal_fecha\n'
+    + '910000101,Con fecha,consentimiento,2026-09-01\n'
+    + '910000102,Sin fecha,consentimiento,\n'
+    + '910000103,Frío,interes_legitimo_b2b,\n'
+    + '910000104,Cliente,cliente,\n'
+    + '910000105,Sin base,,\n');
+  assert.equal(r.importados, 5); assert.equal(r.sinBaseLegal, 1); assert.equal(r.excluidos, 0);
+  assert.deepEqual(r.nuncaSeLlamaran.map((x) => [x.nombre, x.codigo]), [['Sin fecha', 'consentimiento_sin_fecha'], ['Frío', 'interes_legitimo_no_permitido'], ['Cliente', 'base_no_admitida']]);
+  assert.match(r.nuncaSeLlamaran[0].motivo, /sin prueba no se llama/);
+  const est = () => Object.fromEntries(ca.resultadosCampana(k.id).contactos.map((x) => [x.nombre, x.estado]));
+  assert.deepEqual(est(), { 'Con fecha': 'pendiente', 'Sin fecha': 'excluido', 'Frío': 'excluido', 'Cliente': 'excluido', 'Sin base': 'sin_base_legal' });
+  // Reimportado con la fecha del consentimiento: pasa a pendiente
+  const r2 = ca.importarCSV(k.id, 'telefono,nombre,base_legal,base_legal_fecha\n910000102,Sin fecha,consentimiento,2026-10-15\n');
+  assert.equal(r2.yaEstaban, 1); assert.equal(r2.nuncaSeLlamaran.length, 0);
+  assert.equal(est()['Sin fecha'], 'pendiente');
+});
+
+test('«volver a llamar» respeta el día y la hora pedidos (antes de las 48 h y aunque se hayan agotado los intentos)', async () => {
+  C.prospeccion.llamadasSimultaneas = 5; C.prospeccion.maxIntentos = 1;
+  const k = campanaConContactos(1);
+  const llamar = async () => ({ callSid: 'CA-pedido', conversacionId: null });
+  assert.equal((await ca.vuelta(LUNES_11, { llamar })).lanzadas, 1);
+  const cc0 = ca.resultadosCampana(k.id).contactos[0];
+  // Pide que le llamen mañana martes a las 17:00 (Madrid) = 16:00 UTC
+  const conv = db.abrirConversacion({ canal: 'voz', direccion: 'saliente', contactoId: cc0.contacto_id, campanaId: k.id });
+  db.cerrarConversacion(conv, { resultado: 'volver_a_llamar', resumen: 'Mejor mañana por la tarde', volverLlamar: '2026-11-03T17:00:00+01:00' });
+  // fechaPedida usa la hora real para descartar fechas pasadas: en la prueba se guarda tal cual
+  db.marcarConversacion(conv, { volver_llamar: '2026-11-03 16:00:00' });
+  ca.alEstado({ campanaId: k.id, contactoId: cc0.contacto_id, estado: 'completed', conversacionId: conv }, LUNES_11);
+  let cc = ca.resultadosCampana(k.id).contactos[0];
+  assert.equal(cc.estado, 'reintentar', 'no se agota: lo pidió'); assert.equal(cc.proximo, '2026-11-03 16:00:00'); assert.equal(cc.pedido, '2026-11-03 16:00:00');
+  assert.equal((await ca.vuelta(h(LUNES_11, 28), { llamar })).lanzadas, 0, 'a las 15:00 del martes todavía no');
+  assert.equal((await ca.vuelta(h(LUNES_11, 30.1), { llamar })).lanzadas, 1, 'a las 17:06 del martes, sí (30 h después, sin esperar 48)');
+  cc = ca.resultadosCampana(k.id).contactos[0];
+  assert.equal(cc.pedido, null); assert.equal(cc.intentos, 2);
+  C.prospeccion.maxIntentos = 3;
+});

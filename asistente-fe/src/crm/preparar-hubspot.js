@@ -9,6 +9,7 @@ export const PROPIEDADES = [
   { name: 'fe_base_legal', label: 'Base legal del contacto', type: 'string', fieldType: 'text', description: 'Por qué se le puede contactar (consentimiento, cliente, interés legítimo…) y de dónde sale' },
   { name: 'fe_dolor', label: 'Preocupación principal', type: 'string', fieldType: 'textarea', description: 'El problema principal con sus palabras, según el asistente' },
   { name: 'fe_origen', label: 'Origen del contacto', type: 'string', fieldType: 'text', description: 'Canal o campaña por la que llegó' },
+  { name: 'fe_campana', label: 'Campaña de la asistente', type: 'string', fieldType: 'text', description: 'Última campaña de prospección de la asistente en la que se le llamó' },
   { name: 'fe_asistente_resultado', label: 'Último resultado del asistente', type: 'enumeration', fieldType: 'select',
     options: opciones(RESULTADOS) },
   { name: 'fe_baja', label: 'Baja de comunicaciones comerciales', type: 'enumeration', fieldType: 'booleancheckbox', options: si_no, description: 'No contactar con fines comerciales (pedido por el interlocutor)' },

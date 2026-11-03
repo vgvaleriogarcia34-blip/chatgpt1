@@ -54,18 +54,21 @@
   /* ---------- Envío a la mesa de trabajo ---------- */
   const aMesa = async (acc) => {
     if (!A.mesa || !A.mesa.enviar) return toast('La mesa de trabajo no está disponible aquí.');
-    const n = await A.mesa.enviar(acc.map((a) => ({ t: a.t, area: (D.linea(a.linea) || {}).n, mundo: 'intervencion', origen: 'Plan de intervención · ' + (D.linea(a.linea) || {}).n + ' · ' + a.ent, oid: 'iv:' + a.id, fecha: a.fecha, resp: a.responsable, impacto: a.clave ? 5 : 3, esfuerzo: 3, clave: !!a.clave })));
+    // Lo que ya no está en el plan (regenerado o quitado) queda en la mesa como «ya no aplica»
+    const O = A.mesa.oid, n = await A.mesa.enviar(acc.map((a) => ({ t: a.t, area: (D.linea(a.linea) || {}).n, mundo: 'intervencion', origen: 'Plan de intervención · ' + (D.linea(a.linea) || {}).n + ' · ' + a.ent, oid: O('intervencion', 'accion', a.id), fecha: a.fecha, resp: a.responsable, impacto: a.clave ? 5 : 3, esfuerzo: 3, clave: !!a.clave })), { origen: O('intervencion', 'accion', ''), completo: true, vigentes: S().plan.acciones.map((a) => O('intervencion', 'accion', a.id)) });
     acc.forEach((a) => (a.enviada = true)); guardar(); return n;
   };
+  // Cerrar o reabrir en el plan cierra o reabre la tarea de la mesa
+  const aMesaEstado = (a) => { if (A.mesa && A.mesa.cerrar) A.mesa.cerrar(A.mesa.oid('intervencion', 'accion', a.id), a.estado === 'hecha' ? hoy() : false).then(() => { if (A.mesa.marcar) A.mesa.marcar(document); }); };
   // Una meta SMART en la mesa por cada causa del 20 %, ya con su plan de acción
   const metasMesa = async () => {
     if (!A.mesa || !A.mesa.cargar) return 0;
     const ST = S(), st = await A.mesa.cargar(), v20 = veinte(); let n = 0;
     ST.causas.filter((c) => v20.has(c.id)).forEach((c) => {
-      const oid = 'iv-meta:' + c.id; if (st.metas.some((m) => m.oid === oid)) return;
+      const oid = A.mesa.oid('intervencion', 'causa', c.id); if (st.metas.some((m) => m.oid === oid || m.objetivoId === oid)) return;
       const acc = ST.plan.acciones.filter((a) => (c.ref && a.causas.includes(c.ref)) || a.t === 'Resolver: ' + c.t);
       const fin = acc.reduce((m, a) => (a.fecha > m ? a.fecha : m), '');
-      st.metas.push({ id: 'm' + Date.now().toString(36) + n, oid, creada: hoy(), area: (D.area(c.area) || {}).n || '', objetivo: 'Cerrar la causa: ' + c.t, especifica: acc[0] ? acc[0].t : '', indicador: '', actual: '', valor: '', unidad: '', fecha: fin, responsable: '', medios: false, solo: false, beneficio: '', beneficios: '', perdidas: '', pros: '', contras: '', obstaculos: [{ o: '', s: '' }], acciones: acc.map((a) => ({ t: a.t, fecha: a.fecha, revisada: '', hecha: a.estado === 'hecha' ? hoy() : '' })), seguimiento: 'En las sesiones de seguimiento con el consultor', valores: '', merece: '', afirmacion: '', prioridad: st.metas.length + 1, plazo: 'corto', tangible: true, estado: 'activa' });
+      st.metas.push({ id: 'm' + Date.now().toString(36) + n, oid, objetivoId: oid, creada: hoy(), area: (D.area(c.area) || {}).n || '', objetivo: 'Cerrar la causa: ' + c.t, especifica: acc[0] ? acc[0].t : '', indicador: '', actual: '', valor: '', unidad: '', fecha: fin, responsable: '', medios: false, solo: false, beneficio: '', beneficios: '', perdidas: '', pros: '', contras: '', obstaculos: [{ o: '', s: '' }], acciones: acc.map((a) => ({ t: a.t, fecha: a.fecha, revisada: '', hecha: a.estado === 'hecha' ? hoy() : '', oid: A.mesa.oid('intervencion', 'accion', a.id) })), seguimiento: 'En las sesiones de seguimiento con el consultor', valores: '', merece: '', afirmacion: '', prioridad: st.metas.length + 1, plazo: 'corto', tangible: true, estado: 'activa' });
       n++;
     });
     if (n) await A.mesa.guardarYa(st);
@@ -98,7 +101,7 @@
           <button class="btn ghost small" data-kn>Indicador propio</button></div>
       </div>
       <label class="small">Notas y acuerdos<textarea class="input" rows="2" data-k="notas" placeholder="Qué se ha decidido, qué falta, con quién hablar">${esc(a.notas)}</textarea></label>
-      <div class="row"><button class="btn small" data-amesa>${a.enviada ? 'Actualizar en la mesa de trabajo' : 'Enviar esta acción a la mesa'}</button><small class="muted">Llega a la bandeja de la empresa con su responsable y su fecha.</small></div></div>`;
+      <div class="row"><button class="btn small" data-amesa>${a.enviada ? 'Actualizar en la mesa de trabajo' : 'Enviar esta acción a la mesa'}</button><small class="muted">Llega a la bandeja de la empresa con su responsable y su fecha; si ya está, se actualizan el texto, la fecha y el responsable.</small><small data-mesa-oid="${esc(A.mesa ? A.mesa.oid('intervencion', 'accion', a.id) : '')}"></small></div></div>`;
   };
   const wireDetalle = (li, a) => {
     const det = $('.iv-det', li); if (!det) return;
@@ -111,7 +114,7 @@
     $$('[data-ks]', det).forEach((b) => (b.onclick = () => { a.kpis.push({ n: b.dataset.ks, actual: '', meta: '' }); render(); }));
     $('[data-kn]', det).onclick = () => { a.kpis.push({ n: '', actual: '', meta: '' }); render(); };
     $$('.iv-det > label [data-k], .iv-dg [data-k]', det).forEach((i) => (i.onchange = i.oninput = () => { a[i.dataset.k] = i.dataset.k === 'f' ? +i.value : i.value; if (i.tagName === 'SELECT') render(); else guardar(); }));
-    $('[data-amesa]', det).onclick = async () => { const n = await aMesa([a]); render(); toast(n ? 'Acción enviada a la mesa de trabajo.' : 'Actualizada en la mesa de trabajo.'); };
+    $('[data-amesa]', det).onclick = async () => { const O = A.mesa.oid; await A.mesa.enviar([{ t: a.t, area: (D.linea(a.linea) || {}).n, mundo: 'intervencion', origen: 'Plan de intervención · ' + (D.linea(a.linea) || {}).n + ' · ' + a.ent, oid: O('intervencion', 'accion', a.id), fecha: a.fecha, resp: a.responsable, impacto: a.clave ? 5 : 3, esfuerzo: 3, clave: !!a.clave }]); a.enviada = true; guardar(); render(); toast(A.mesa.resumen()); };
   };
 
   /* ---------- Hoja de ruta visual: del punto A (hoy) al punto B (destino) ---------- */
@@ -144,7 +147,7 @@
   /* ---------- Plan de intervención ---------- */
   VISTAS.plan = (host) => {
     const ST = S(), acc = ST.plan.acciones, vista = V.int.get('vistaPlan'), hechas = acc.filter((a) => a.estado === 'hecha').length;
-    const fila = (a) => { const ab = abiertas.has(a.id), ps = Array.isArray(a.pasos) ? a.pasos : []; return `<li class="iv-acc ${a.estado} ${a.clave ? 'clave' : ''} ${ab ? 'abierta' : ''}" data-a="${a.id}"><input type="checkbox" data-hecha ${a.estado === 'hecha' ? 'checked' : ''} aria-label="Hecha"><button class="iv-at" data-abrir aria-expanded="${ab}" title="${ab ? 'Cerrar el detalle' : 'Ver pasos, indicadores y responsable'}"><b>${a.clave ? '★ ' : ''}${esc(a.t)}</b><small>${esc((D.linea(a.linea) || {}).n)} · Entregable: ${esc(a.ent)} · ${a.quien === 'empresa' ? 'La hace la empresa' : 'La lidera el consultor'}${ps.length ? ` · ${ps.filter((p) => p.hecho).length}/${ps.length} pasos` : ''}${(a.kpis || []).length ? ` · ${pl(a.kpis.length, 'indicador', 'indicadores')}` : ''}${a.enviada ? ' · en la mesa' : ''}</small><span class="iv-ver">${ab ? 'Cerrar ▴' : 'Ver el plan de la acción ▾'}</span></button>
+    const fila = (a) => { const ab = abiertas.has(a.id), ps = Array.isArray(a.pasos) ? a.pasos : []; return `<li class="iv-acc ${a.estado} ${a.clave ? 'clave' : ''} ${ab ? 'abierta' : ''}" data-a="${a.id}"><input type="checkbox" data-hecha ${a.estado === 'hecha' ? 'checked' : ''} aria-label="Hecha"><button class="iv-at" data-abrir aria-expanded="${ab}" title="${ab ? 'Cerrar el detalle' : 'Ver pasos, indicadores y responsable'}"><b>${a.clave ? '★ ' : ''}${esc(a.t)}</b><small>${esc((D.linea(a.linea) || {}).n)} · Entregable: ${esc(a.ent)} · ${a.quien === 'empresa' ? 'La hace la empresa' : 'La lidera el consultor'}${ps.length ? ` · ${ps.filter((p) => p.hecho).length}/${ps.length} pasos` : ''}${(a.kpis || []).length ? ` · ${pl(a.kpis.length, 'indicador', 'indicadores')}` : ''}<span data-mesa-oid="${esc(A.mesa ? A.mesa.oid('intervencion', 'accion', a.id) : '')}"></span></small><span class="iv-ver">${ab ? 'Cerrar ▴' : 'Ver el plan de la acción ▾'}</span></button>
       <input class="input" data-k="responsable" value="${esc(a.responsable)}" placeholder="Responsable"><input class="input" type="date" data-k="fecha" value="${esc(a.fecha)}"><select class="input" data-k="estado">${Object.keys(EST_A).map((k) => `<option value="${k}" ${a.estado === k ? 'selected' : ''}>${EST_A[k]}</option>`).join('')}</select><button class="icon-btn" data-del aria-label="Quitar">×</button>${ab ? detalleHTML(a) : ''}</li>`; };
     host.innerHTML = `<section class="glass pad stack"><div class="row"><div><div class="eyebrow">Plan de intervención</div><small class="muted">${acc.length ? `${pl(acc.length, 'acción', 'acciones')} · ${hechas} hechas · desde el ${fLarga(ST.plan.inicio)}` : 'Se genera con las causas priorizadas, el triaje y los hallazgos de la auditoría integral.'}</small></div><span class="spacer"></span>
         <label class="small">Inicio<input class="input" type="date" id="ivIni" value="${esc(ST.plan.inicio || hoy())}"></label><button class="btn solid" id="ivGen">${acc.length ? 'Regenerar el plan' : 'Generar el plan'}</button></div>
@@ -158,17 +161,18 @@
     $('#ivIni', host).onchange = (e) => { ST.plan.inicio = e.target.value; guardar(); };
     $('#ivGen', host).onclick = () => { if (!ST.causas.length && !ST.hallazgos.length) return toast('Primero hacen falta causas (primera sesión) o hallazgos (auditoría integral).'); generar(); render(); toast('Plan generado: revise responsables y fechas.'); };
     $$('[data-vp]', host).forEach((b) => (b.onclick = () => { V.int.set('vistaPlan', b.dataset.vp); render(); }));
-    const m = $('#ivMesa', host); if (m) m.onclick = async () => { const n = await aMesa(acc.filter((a) => a.quien === 'empresa' && a.estado !== 'hecha')); render(); toast(n ? `${pl(n, 'tarea enviada', 'tareas enviadas')} a la mesa de trabajo de la empresa.` : 'Ya estaban en la mesa.'); };
+    const m = $('#ivMesa', host); if (m) m.onclick = async () => { await aMesa(acc.filter((a) => a.quien === 'empresa' && a.estado !== 'hecha')); render(); toast(A.mesa.resumen()); };
     const mt = $('#ivMetas', host); if (mt) mt.onclick = async () => { const n = await metasMesa(); toast(n ? `${pl(n, 'meta creada', 'metas creadas')} en la mesa de trabajo, una por cada causa del 20 %.` : 'Las metas ya estaban creadas.'); };
     const sg = $('#ivSesGen', host); if (sg) sg.onclick = () => { generarSesiones(); ir('sesiones', { ver: true }); toast('Calendario de sesiones generado.'); };
     $$('.iv-acc', host).forEach((li) => {
       const a = acc.find((x) => x.id === li.dataset.a);
-      $('[data-hecha]', li).onchange = (e) => { a.estado = e.target.checked ? 'hecha' : 'pendiente'; render(); };
+      $('[data-hecha]', li).onchange = (e) => { a.estado = e.target.checked ? 'hecha' : 'pendiente'; aMesaEstado(a); render(); };
       $('[data-abrir]', li).onclick = () => { if (abiertas.has(a.id)) abiertas.delete(a.id); else abiertas.add(a.id); render(); };
-      $$(':scope > [data-k]', li).forEach((i) => (i.onchange = () => { a[i.dataset.k] = i.value; if (i.dataset.k === 'estado') render(); else guardar(); }));
+      $$(':scope > [data-k]', li).forEach((i) => (i.onchange = () => { const antes = a.estado; a[i.dataset.k] = i.value; if (i.dataset.k === 'estado') { if ((antes === 'hecha') !== (a.estado === 'hecha')) aMesaEstado(a); render(); } else guardar(); }));
       $(':scope > [data-del]', li).onclick = (e) => { if (!e.target.dataset.conf) { e.target.dataset.conf = 1; e.target.textContent = '¿?'; e.target.title = 'Pulse otra vez para quitarla'; return; } ST.plan.acciones = acc.filter((x) => x !== a); render(); };
       wireDetalle(li, a);
     });
+    if (A.mesa && A.mesa.marcar) A.mesa.marcar(host);
     const ad = $('#ivAAdd', host); if (ad) ad.onclick = () => { const t = $('#ivAN', host).value.trim(); if (!t) return; const f = +$('#ivAF', host).value; const a = { id: uid(), linea: $('#ivAL', host).value, t, f, sem: 2, ent: '—', quien: 'consultor', responsable: '', fecha: sumar(ST.plan.inicio || hoy(), (semDe(D.FASES[f - 1])[0] + 1) * 7), estado: 'pendiente', causas: [], clave: false }; ST.plan.acciones.push(a); abiertas.add(a.id); render(); };
   };
 
@@ -201,6 +205,7 @@
   const evento = (s) => ({ id: s.id, titulo: (D.TIPOS_SESION[s.tipo] || 'Sesión') + ' · ' + empresa(), fecha: s.fecha, hora: s.hora || '09:00', dur: +s.dur || 90, detalle: (s.obj || '') + '\n\nOrden del día:\n' + puntosSesion(s).map((a) => '· ' + a.t).join('\n') + '\n\n(Atalaya 360°: las fechas del plan son orientativas)' });
   let guiaCal = false;
   VISTAS.sesiones = (host) => {
+    if (A.mesa && A.mesa.idsIntervencion && A.mesa.idsIntervencion(S())) guardar();
     const ST = S(), sel = ST.sesiones.find((x) => x.id === V.int.get('sesSel')) || ST.sesiones.find((x) => x.fecha >= hoy()) || ST.sesiones[0];
     const C = A.calendario, prov = C ? C.proveedor() : '';
     const CT = contrato(), cal = ST.plan.calendario, nCont = ST.sesiones.filter((s) => !['contacto', 'auditoria'].includes(s.tipo)).length;
@@ -217,7 +222,7 @@
         <div><b class="small">Orden del día (acciones que vencen hasta la siguiente sesión)</b><ul class="small" style="margin:4px 0 0;padding-left:18px">${puntosSesion(sel).map((a) => `<li>${a.clave ? '★ ' : ''}${esc(a.t)} <span class="muted">· ${fCorta(a.fecha)}${a.responsable ? ' · ' + esc(a.responsable) : ''}</span></li>`).join('') || '<li class="muted">Sin acciones pendientes en este tramo.</li>'}</ul></div>
         <div><b class="small">Qué chequear</b><ul class="small" style="margin:4px 0 0;padding-left:18px">${checkSesion(sel).map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>
         <label class="small">Acta y observaciones<textarea class="input" rows="4" data-k="acta" placeholder="Qué se ha visto, qué ha cambiado, qué preocupa">${esc(sel.acta || '')}</textarea></label>
-        <div><b class="small">Acuerdos</b>${(sel.acuerdos || []).map((a, i) => `<div class="iv-g3 iv-acu" data-i="${i}"><input class="input" data-ak="t" value="${esc(a.t)}" placeholder="Acuerdo"><input class="input" data-ak="resp" value="${esc(a.resp || '')}" placeholder="Responsable"><input class="input" type="date" data-ak="fecha" value="${esc(a.fecha || '')}"></div>`).join('')}<div class="row"><button class="btn ghost small" id="ivAcuN">Añadir acuerdo</button><span class="spacer"></span><button class="btn small" id="ivAcuM">Llevar los acuerdos a la mesa</button><button class="btn ghost small" id="ivSDel">Borrar la sesión</button></div></div>` : '<p class="small muted">Sin sesiones.</p>'}</section></div>`;
+        <div><b class="small">Acuerdos</b>${(sel.acuerdos || []).map((a, i) => `<div class="iv-g3 iv-acu" data-i="${i}"><input class="input" data-ak="t" value="${esc(a.t)}" placeholder="Acuerdo"><input class="input" data-ak="resp" value="${esc(a.resp || '')}" placeholder="Responsable"><input class="input" type="date" data-ak="fecha" value="${esc(a.fecha || '')}"><label class="small iv-inl"><input type="checkbox" data-ah ${a.hecho ? 'checked' : ''}> Hecho<small data-mesa-oid="${esc(A.mesa && a.id ? A.mesa.oid('intervencion', 'acuerdo', sel.id + ':' + a.id) : '')}"></small></label></div>`).join('')}<div class="row"><button class="btn ghost small" id="ivAcuN">Añadir acuerdo</button><span class="spacer"></span><button class="btn small" id="ivAcuM">Llevar los acuerdos a la mesa</button><button class="btn ghost small" id="ivSDel">Borrar la sesión</button></div></div>` : '<p class="small muted">Sin sesiones.</p>'}</section></div>`;
     // Primera vez: elegir el calendario, con su guía
     if (C && !prov && !guiaCal && ST.sesiones.length) { guiaCal = true; let visto = ''; try { visto = localStorage.getItem('atalaya.calendario.guia'); localStorage.setItem('atalaya.calendario.guia', '1'); } catch (e) { /* nada */ } if (!visto) setTimeout(() => A.conexiones.abrir('calendario'), 300); }
     const cb = $('#ivCal', host); if (cb) cb.onclick = () => A.conexiones.abrir('calendario');
@@ -237,8 +242,11 @@
     $$('[data-k]', host).forEach((i) => (i.oninput = () => { sel[i.dataset.k] = i.value; guardar(); }));
     $$('[data-k=fecha], [data-k=hora], [data-k=tipo]', host).forEach((i) => (i.onchange = () => { sel[i.dataset.k] = i.value; ST.sesiones.sort((a, b) => a.fecha.localeCompare(b.fecha)); render(); }));
     $$('.iv-acu', host).forEach((d) => $$('[data-ak]', d).forEach((i) => (i.oninput = () => { sel.acuerdos[+d.dataset.i][i.dataset.ak] = i.value; guardar(); })));
-    $('#ivAcuN', host).onclick = () => { sel.acuerdos = sel.acuerdos || []; sel.acuerdos.push({ t: '', resp: '', fecha: sumar(sel.fecha, 14) }); render(); };
-    $('#ivAcuM', host).onclick = async () => { if (!A.mesa || !A.mesa.enviar) return; const n = await A.mesa.enviar((sel.acuerdos || []).filter((a) => a.t).map((a, i) => ({ t: a.t, resp: a.resp, fecha: a.fecha, mundo: 'intervencion', origen: 'Acuerdo de la sesión del ' + fCorta(sel.fecha), oid: 'iv-acu:' + sel.id + ':' + i, impacto: 4 }))); toast(n ? `${pl(n, 'acuerdo enviado', 'acuerdos enviados')} a la mesa de trabajo.` : 'No hay acuerdos nuevos.'); };
+    // Cada acuerdo con su id (nunca la posición): marcar «Hecho» aquí cierra su tarea en la mesa, y al revés
+    $$('.iv-acu', host).forEach((d) => { const c = $('[data-ah]', d); if (c) c.onchange = () => { const a = sel.acuerdos[+d.dataset.i]; a.hecho = c.checked ? hoy() : false; guardar(); if (A.mesa && A.mesa.cerrar && a.id) A.mesa.cerrar(A.mesa.oid('intervencion', 'acuerdo', sel.id + ':' + a.id), a.hecho).then(() => A.mesa.marcar(host)); }; });
+    $('#ivAcuN', host).onclick = () => { sel.acuerdos = sel.acuerdos || []; sel.acuerdos.push({ id: uid(), t: '', resp: '', fecha: sumar(sel.fecha, 14) }); render(); };
+    $('#ivAcuM', host).onclick = async () => { if (!A.mesa || !A.mesa.enviar) return; if (A.mesa.idsIntervencion(ST)) guardar(); await A.mesa.enviar((sel.acuerdos || []).filter((a) => a.t).map((a, i) => ({ t: a.t, resp: a.resp, fecha: a.fecha, mundo: 'intervencion', origen: 'Acuerdo de la sesión del ' + fCorta(sel.fecha), oid: A.mesa.oid('intervencion', 'acuerdo', sel.id + ':' + a.id), aka: ['iv-acu:' + sel.id + ':' + i], impacto: 4, hechaEnOrigen: a.hecho || undefined }))); toast(A.mesa.resumen()); render(); };
+    if (A.mesa && A.mesa.marcar) A.mesa.marcar(host);
     $('#ivSDel', host).onclick = (e) => { if (!e.target.dataset.conf) { e.target.dataset.conf = 1; e.target.textContent = '¿Seguro?'; return; } ST.sesiones = ST.sesiones.filter((x) => x !== sel); V.int.set('sesSel', null); render(); };
   };
   document.addEventListener('atalaya:calendario', () => { if (location.hash === '#sesiones') render(); });

@@ -132,8 +132,11 @@ const no = (codigo, motivo) => ({ ok: false, codigo, motivo });
 function comunes(contacto, ahora) {
   const tel = db.normTel(contacto?.telefono);
   if (!tel || !/^\+\d{9,15}$/.test(tel)) return no('sin_telefono', 'Sin teléfono válido.');
-  if (db.estaDeBaja(tel)) return no('baja', 'Pidió no recibir más comunicaciones comerciales (baja propia).');
+  if (db.estaDeBaja(tel, contacto.email)) return no('baja', 'Pidió no recibir más comunicaciones comerciales (baja propia).');
   if (enRobinson(tel)) return no('robinson', 'Está inscrito en la lista Robinson.');
+  // Si pidió que le llamaran a una hora concreta, esa llamada no cuenta contra el máximo ni espera la separación mínima
+  const pedido = contacto.pedido ? new Date(String(contacto.pedido).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(contacto.pedido) ? '' : 'Z')) : null;
+  if (pedido && !isNaN(pedido) && ahora >= pedido) return null;
   const max = C.prospeccion.maxIntentos;
   if ((contacto.intentos || 0) >= max) return no('max_intentos', `Alcanzado el máximo de ${max} intentos.`);
   if (contacto.ultimo_intento) {
@@ -152,6 +155,20 @@ function comunes(contacto, ahora) {
  * @returns {{ok:boolean, codigo?:string, motivo?:string, aviso?:string}}
  */
 export function puedeLlamar(contacto, campana, ahora = new Date()) {
+  const p = reglasPermanentes(contacto, campana);
+  if (!p.ok) return p;
+  const c = comunes(contacto, ahora);
+  if (c) return c;
+  const h = comprobarHorario(ahora);
+  if (!h.ok) return h;
+  return p.aviso ? { ok: true, aviso: p.aviso } : { ok: true };
+}
+
+/**
+ * Lo que no cambia con el tiempo (base legal, lo que admite la campaña, móvil personal): si falla, a este contacto
+ * no se le llamará nunca en esta campaña. Se evalúa al importar para avisar.
+ */
+export function reglasPermanentes(contacto, campana) {
   const base = normalizarBase(contacto?.base_legal);
   const sinBase = 'Sin base legal para llamarle: primer contacto por correo o LinkedIn, no por teléfono.';
   if (!base) return no('sin_base_legal', sinBase);
@@ -164,10 +181,6 @@ export function puedeLlamar(contacto, campana, ahora = new Date()) {
       return no('movil_personal', 'Base B2B sin consentimiento: no se llama a móviles personales (márquelo como móvil corporativo si lo es).');
     aviso = 'Interés legítimo B2B: revisar con abogado.';
   } else if (!reglas.bases.has(base)) return no('base_no_admitida', `La campaña no admite la base «${base}».`);
-  const c = comunes(contacto, ahora);
-  if (c) return c;
-  const h = comprobarHorario(ahora);
-  if (!h.ok) return h;
   return aviso ? { ok: true, aviso } : { ok: true };
 }
 

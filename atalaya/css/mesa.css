@@ -29,6 +29,9 @@
 .ms-t input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--go); }
 .ms-t.clave { border-left: 3px solid var(--gold); }
 .ms-t.hecha .ms-tx b { text-decoration: line-through; color: var(--muted); }
+.ms-t.noaplica .ms-tx b, tr.noaplica b { text-decoration: line-through; color: var(--muted); opacity: .8; }
+.ms-irl { margin-left: 6px; font-size: 12px; }
+a.icon-btn.ms-ir { text-decoration: none; }
 .ms-tx { display: grid; gap: 2px; min-width: 0; }
 .ms-tx b { font-weight: 600; overflow-wrap: anywhere; }
 .ms-tx small { color: var(--muted); font-size: var(--t-xs); }

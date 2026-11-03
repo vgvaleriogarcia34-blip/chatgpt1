@@ -1,6 +1,6 @@
 # Dolores típicos y cómo hablar de ellos
 
-Pauta general: escuchar primero y anotar las palabras exactas del empresario. No vender urgencia artificial ni prometer cifras. Ayudar a ver el coste de no hacer nada con un ejemplo de cálculo, decir que no es falta de talento ni de esfuerzo sino de diseño, y proponer el siguiente paso pequeño (la sesión estratégica de 30 minutos, sin coste).
+Pauta general: escuchar primero y anotar las palabras exactas del empresario. No vender urgencia artificial ni prometer cifras. Ayudar a ver el coste de no hacer nada con un ejemplo de cálculo, decir que no es falta de talento ni de esfuerzo sino de diseño, y proponer el siguiente paso pequeño (la sesión estratégica de 60 minutos con Valerio García, sin coste ni compromiso).
 
 ## «Todo pasa por mí» / dependencia del fundador
 - Lo que suele decir: «Si me voy una semana, aquí no se mueve nada». Presupuestos, pedidos, contrataciones y compras esperan su firma; el equipo sabe hacerlo, pero no sabe si puede.

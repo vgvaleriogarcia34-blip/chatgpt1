@@ -179,3 +179,62 @@ test('agendar_reunion sin credenciales: queda como petición y tarea en el CRM',
   assert.match(t.cuerpo.properties.hs_task_subject, /Confirmar reunión con Inés: jueves 5 de noviembre a las 16:30/);
   assert.equal(t.cuerpo.properties.hs_task_priority, 'HIGH');
 });
+
+test('sesión estratégica: mismo nombre en Calendar y HubSpot, y la sesión llega a la mesa de Atalaya con el contrato común', async () => {
+  const at = [];
+  const fakeAt = http.createServer((req, res) => {
+    let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => {
+      at.push({ ruta: req.url, auth: req.headers.authorization, cuerpo: JSON.parse(b) });
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, empresa: 'emp-1' }));
+    });
+  });
+  await new Promise((ok) => fakeAt.listen(0, '127.0.0.1', ok));
+  const atalaya = await import('../src/integraciones/atalaya.js');
+  try {
+    atalaya.configurarAtalaya({ url: `http://127.0.0.1:${fakeAt.address().port}/`, token: 'tok-integracion' });
+    agenda.configurarAgenda({ calendario: cal, duracionMin: 60 });
+    const c = db.guardarContacto({ telefono: '+34600123199', nombre: 'Rosa Gil', empresa: 'Muebles Gil', email: 'rosa@gil.es' });
+    const conv = db.abrirConversacion({ canal: 'whatsapp', direccion: 'entrante', contactoId: c.id });
+    const r = JSON.parse((await herramientas.ejecutar('agendar_reunion', { inicio: '2026-11-05T10:00:00+01:00', nombre: 'Rosa Gil', email: 'rosa@gil.es', motivo: 'Relevo', modalidad: 'videollamada' }, { canal: 'whatsapp', contacto: c, conversacionId: conv })).contenido);
+    assert.equal(r.reservado, true);
+    const p = cal.inserciones[0].requestBody;
+    assert.equal(p.summary, 'Sesión estratégica · Muebles Gil');
+    assert.equal(p.end.dateTime, '2026-11-05T11:00:00+01:00', '60 minutos');
+    assert.match(p.description, /^Sesión estratégica con Valerio García \(Familias Empresarias, de Business Avance\): 60 minutos, sin coste y sin compromiso\./);
+    assert.doesNotMatch(p.description + p.summary, /diagn[oó]stico/i);
+    assert.equal(hsPeticiones.find((x) => x.ruta === '/crm/v3/objects/meetings').cuerpo.properties.hs_meeting_title, 'Sesión estratégica · Muebles Gil');
+    assert.equal(hsPeticiones.find((x) => x.ruta === '/crm/v3/objects/deals').cuerpo.properties.dealname, 'Muebles Gil · sesión estratégica');
+    // Atalaya (en segundo plano)
+    for (let i = 0; i < 100 && !at.length; i++) await new Promise((ok) => setTimeout(ok, 10));
+    assert.equal(at.length, 1);
+    assert.equal(at[0].ruta, '/api/integracion/reunion'); assert.equal(at[0].auth, 'Bearer tok-integracion');
+    const b = at[0].cuerpo;
+    assert.equal(b.id, 'ev1'); assert.equal(b.inicio, '2026-11-05T09:00:00.000Z'); assert.equal(b.fin, '2026-11-05T10:00:00.000Z');
+    assert.equal(b.titulo, 'Sesión estratégica · Muebles Gil'); assert.equal(b.enlace, 'https://meet.google.com/abc-defg-hij');
+    assert.equal(b.nombre, 'Rosa Gil'); assert.equal(b.email, 'rosa@gil.es'); assert.equal(b.telefono, '+34600123199'); assert.equal(b.empresa, 'Muebles Gil');
+    assert.equal(b.origen, 'asistente'); assert.ok(b.hubspotContactId);
+    assert.ok(db.abrir().prepare(`SELECT 1 FROM eventos WHERE tipo = 'atalaya_reunion' AND json_extract(datos, '$.ok') = 1`).get());
+    // Sin configurar no se llama
+    atalaya.configurarAtalaya({ url: '', token: '' });
+    assert.deepEqual(await atalaya.reunionAAtalaya({ id: 'x', inicio: new Date(), fin: new Date() }), { ok: false, motivo: 'no_configurada' });
+    assert.equal(at.length, 1);
+  } finally { fakeAt.close(); }
+});
+
+test('sesión pendiente de confirmar (sin agenda): aviso inmediato al equipo y evento para la bandeja', async () => {
+  const avisos = await import('../src/avisos.js');
+  const { C } = await import('../src/config.js');
+  Object.assign(C.smtp, { host: 'smtp.test', de: 'asistente@ejemplo.es' }); C.empresa.emailResponsable = 'valerio@ejemplo.es';
+  const correos = [];
+  avisos.configurarAvisos({ correo: async (m) => { correos.push(m); } });
+  const c = db.guardarContacto({ telefono: '+34600123126', nombre: 'Jaime' });
+  const conv = db.abrirConversacion({ canal: 'voz', direccion: 'entrante', contactoId: c.id });
+  const r = JSON.parse((await herramientas.ejecutar('agendar_reunion', { inicio: '2026-11-05T17:00:00+01:00', nombre: 'Jaime', motivo: 'Caja' }, { canal: 'voz', contacto: c, conversacionId: conv })).contenido);
+  assert.equal(r.pendiente_de_confirmar, true);
+  const ev = JSON.parse(db.abrir().prepare(`SELECT datos FROM eventos WHERE tipo = 'reunion_pendiente' ORDER BY id DESC`).get().datos);
+  assert.equal(ev.conversacionId, conv); assert.equal(ev.contacto, c.id);
+  for (let i = 0; i < 100 && !correos.length; i++) await new Promise((ok) => setTimeout(ok, 10));
+  assert.match(correos[0].asunto, /Sesión estratégica pendiente de confirmar · Jaime/);
+  assert.match(correos[0].texto, /jueves 5 de noviembre a las 17:00/);
+  assert.match(hsPeticiones.find((x) => x.ruta === '/crm/v3/objects/deals').cuerpo.properties.dealname, /Jaime · sesión estratégica/);
+});

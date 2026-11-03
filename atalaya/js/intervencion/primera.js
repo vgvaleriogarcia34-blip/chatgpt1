@@ -263,7 +263,7 @@
           ${hs.map((x, i) => `<div class="row iv-hito ${estadoHito(x)}"><input type="checkbox" data-hh="${i}" ${x.hecho ? 'checked' : ''} aria-label="Hito cumplido"><input class="input" data-ht="${i}" value="${esc(x.t)}" style="flex:1 1 220px"><input class="input" type="date" data-hf="${i}" value="${esc(x.fecha || '')}"><input class="input" data-hr="${i}" value="${esc(x.resp || '')}" placeholder="Responsable" style="width:130px"><small class="muted">${EST_H[estadoHito(x)]}${x.hecho ? ' · ' + fCorta(x.hecho) : ''}</small><button class="icon-btn" data-hd="${i}" aria-label="Quitar el hito">×</button></div>`).join('') || '<small class="muted">Sin hitos: propóngalos y ajústelos con él.</small>'}`;
         $('[data-hp]', box).onclick = () => { o.hitos = proponerHitos(o); guardar(); pinta(); };
         $('[data-ha]', box).onclick = () => { (o.hitos = o.hitos || []).push({ id: uid(), t: '', fecha: '', resp: o.responsable || '', hecho: '' }); guardar(); pinta(); };
-        $$('[data-hh]', box).forEach((c) => (c.onchange = () => { o.hitos[+c.dataset.hh].hecho = c.checked ? V.int.hoy() : ''; guardar(); pinta(); }));
+        $$('[data-hh]', box).forEach((c) => (c.onchange = () => { const x = o.hitos[+c.dataset.hh]; x.hecho = c.checked ? V.int.hoy() : ''; guardar(); pinta(); if (A.mesa && A.mesa.cerrar && x.id) A.mesa.cerrar(A.mesa.oid('intervencion', 'hito', o.id + ':' + x.id), x.hecho || false); }));
         [['ht', 't'], ['hf', 'fecha'], ['hr', 'resp']].forEach(([a, k]) => $$(`[data-${a}]`, box).forEach((c) => (c.onchange = () => { o.hitos[+c.dataset[a]][k] = c.value; guardar(); })));
         $$('[data-hd]', box).forEach((b) => (b.onclick = () => { o.hitos.splice(+b.dataset.hd, 1); guardar(); pinta(); }));
       };

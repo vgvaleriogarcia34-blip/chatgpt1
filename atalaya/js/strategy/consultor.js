@@ -49,8 +49,12 @@
   /* ---------- Plan de acción ---------- */
   const hash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
   const PRI = { Alta: 0, Media: 1, Baja: 2 };
+  // El oid de una acción del plan del módulo en la mesa (los objetivos, por el id del objetivo)
+  const oidDe = (id, x) => (/^o:/.test(x.id) ? A.mesa.oid('estrategia', 'objetivo', id + ':' + x.id.slice(2)) : A.mesa.oid('estrategia', 'accion', id + ':' + x.id));
+  const nuevoIdObj = () => 'ob' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   function plan(id) {
     const d = D(id), c = st360(id), m = S.mod(id); if (!d || !m) return [];
+    if (A.mesa && A.mesa.idsEstrategia && (c.obj || []).some((o) => o && !o.id) && A.mesa.idsEstrategia(S.state)) setTimeout(S.save, 0);
     const out = [];
     const add = (x) => { if (!x.accion || out.some((y) => y.accion === x.accion)) return; out.push(Object.assign({ resp: d.resp, prio: 'Media', plazo: 60 }, x)); };
     // 1. Datos que faltan: sin ellos el diagnóstico es parcial
@@ -65,7 +69,7 @@
     c.obj.forEach((o, i) => {
       if (o.meta === '' || o.meta == null) return;
       const dias = o.fecha ? Math.max(7, Math.round((new Date(o.fecha) - Date.now()) / 864e5)) : 180;
-      add({ id: 'o:' + i, accion: `${o.dir === 'bajar' ? 'Bajar' : 'Subir'} «${o.k}» de ${fmtV(o.actual, o.u)} a ${fmtV(+o.meta, o.u)}${o.fecha ? ' antes del ' + new Date(o.fecha).toLocaleDateString('es-ES') : ''}`, origen: 'Objetivo del empresario', prio: 'Alta', plazo: dias, resp: o.resp || d.resp, kpi: o.k });
+      add({ id: 'o:' + (o.id || i), pos: i, accion: `${o.dir === 'bajar' ? 'Bajar' : 'Subir'} «${o.k}» de ${fmtV(o.actual, o.u)} a ${fmtV(+o.meta, o.u)}${o.fecha ? ' antes del ' + new Date(o.fecha).toLocaleDateString('es-ES') : ''}`, origen: 'Objetivo del empresario', prio: 'Alta', plazo: dias, resp: o.resp || d.resp, kpi: o.k });
     });
     // 4. Hallazgos con impacto y 5. riesgos del módulo
     let Fi = [], R = []; try { Fi = m.findings ? m.findings() : []; } catch (e) { /* sin hallazgos */ } try { R = m.risks ? m.risks() : []; } catch (e) { /* sin riesgos */ }
@@ -127,7 +131,7 @@
     if (!P.length) return '<p class="small muted">Todavía no hay acciones: responda las preguntas, fije objetivos o cargue los datos que faltan.</p>';
     return `<p class="small muted">Cada acción viene de algo concreto: un dato que falta, una respuesta, un objetivo, un hallazgo o un riesgo. Cambie el estado, el responsable o la fecha y se guarda.</p>
       ${HOR.map((h, hi) => { const L = P.filter((x) => x.h === hi); return L.length ? `<h5>${h}</h5><div class="c3-acts">${L.map((x) => `<div class="c3-act p-${x.prio.toLowerCase()} ${x.estado === 'Hecha' ? 'done' : ''}"><div><b>${esc(x.accion)}</b><span class="small muted">${esc(x.origen)}${x.motivo ? ' · ' + esc(x.motivo) : ''}${x.impacto ? ' · ' + F.eur(x.impacto) + ' al año' : ''}${x.kpi ? ' · Se mide con: ' + esc(x.kpi) : ''}</span></div>
-        <div class="c3-ctl"><span class="c3-pri">${x.prio}</span><select data-pe="${esc(x.id)}">${['Pendiente', 'En curso', 'Hecha'].map((e) => `<option ${e === x.estado ? 'selected' : ''}>${e}</option>`).join('')}</select><input class="txt" data-pr="${esc(x.id)}" value="${esc(x.resp)}" aria-label="Responsable"><input type="date" data-pf="${esc(x.id)}" value="${esc(x.fecha || '')}" aria-label="Fecha"></div></div>`).join('')}</div>` : ''; }).join('')}
+        <div class="c3-ctl"><span class="c3-pri">${x.prio}</span><select data-pe="${esc(x.id)}">${['Pendiente', 'En curso', 'Hecha'].map((e) => `<option ${e === x.estado ? 'selected' : ''}>${e}</option>`).join('')}</select><input class="txt" data-pr="${esc(x.id)}" value="${esc(x.resp)}" aria-label="Responsable"><input type="date" data-pf="${esc(x.id)}" value="${esc(x.fecha || '')}" aria-label="Fecha"><small data-mesa-oid="${esc(A.mesa && A.mesa.oid ? oidDe(id, x) : '')}"></small></div></div>`).join('')}</div>` : ''; }).join('')}
       <div class="row mt"><button class="btn ghost" data-toplan>Enviar al plan de empresa</button><span data-mesa></span><span class="small" data-plmsg></span></div>`;
   }
   function refresh(box, id, tab) { if (tab) pest[id] = tab; abierto = id; const y = scrollY; panel(id); scrollTo({ top: y }); }
@@ -139,17 +143,28 @@
     $$('[data-man]', box).forEach((b) => b.onchange = () => { S.needMark(id, +b.dataset.man, b.checked); refresh(box, id); });
     $$('[data-q]', box).forEach((b) => b.onclick = () => { const v = /^\d$/.test(b.dataset.v) ? +b.dataset.v : b.dataset.v; c.r[b.dataset.q] = c.r[b.dataset.q] === v ? null : v; S.save(); refresh(box, id); });
     const nt = $('[data-notas]', box); if (nt) nt.onchange = () => { c.notas = nt.value; S.save(); };
-    $$('[data-sug]', box).forEach((b) => b.onclick = () => { const o = d.objetivos.find((x) => x.k === b.dataset.sug); c.obj.push({ k: o.k, u: o.u, dir: o.dir, actual: actual(id, o), meta: '', sug: o.sug, fecha: '', resp: '', kpi: o.kpi, fn: o.fn }); S.save(); refresh(box, id); });
-    const no = $('[data-newo]', box); if (no) no.onclick = () => { c.obj.push({ k: 'Nuevo objetivo', u: '', dir: 'subir', actual: '', meta: '', fecha: '', resp: '' }); S.save(); refresh(box, id); };
+    $$('[data-sug]', box).forEach((b) => b.onclick = () => { const o = d.objetivos.find((x) => x.k === b.dataset.sug); c.obj.push({ id: nuevoIdObj(), k: o.k, u: o.u, dir: o.dir, actual: actual(id, o), meta: '', sug: o.sug, fecha: '', resp: '', kpi: o.kpi, fn: o.fn }); S.save(); refresh(box, id); });
+    const no = $('[data-newo]', box); if (no) no.onclick = () => { c.obj.push({ id: nuevoIdObj(), k: 'Nuevo objetivo', u: '', dir: 'subir', actual: '', meta: '', fecha: '', resp: '' }); S.save(); refresh(box, id); };
     $$('[data-o]', box).forEach((inp) => inp.onchange = () => { const o = c.obj[+inp.dataset.o]; const k = inp.dataset.k; o[k] = (k === 'actual' || k === 'meta') ? (inp.value.trim() === '' ? '' : S.num(inp.value)) : inp.value; S.save(); if (k === 'meta' || k === 'fecha') refresh(box, id); });
     $$('[data-delo]', box).forEach((b) => b.onclick = () => { c.obj.splice(+b.dataset.delo, 1); S.save(); refresh(box, id); });
-    const setP = (k, f) => (inp) => inp.onchange = () => { const x = c.plan[inp.dataset[k]] || (c.plan[inp.dataset[k]] = {}); x[f] = inp.value; S.save(); if (f === 'estado') refresh(box, id); };
+    const setP = (k, f) => (inp) => inp.onchange = () => {
+      const xid = inp.dataset[k], x = c.plan[xid] || (c.plan[xid] = {}), antes = x.estado; x[f] = inp.value;
+      // La misma acción en el plan de empresa sigue el mismo estado
+      if (f === 'estado') ((S.state.plan && S.state.plan.acciones) || []).filter((a) => a.de === id + ':' + xid).forEach((a) => { a.estado = inp.value === 'En curso' ? 'En marcha' : inp.value; });
+      S.save();
+      if (f === 'estado') { if (A.mesa && A.mesa.cerrar && ((antes === 'Hecha') !== (inp.value === 'Hecha'))) { const it = plan(id).find((y) => y.id === xid); if (it) A.mesa.cerrar(oidDe(id, it), inp.value === 'Hecha' ? new Date().toISOString().slice(0, 10) : false); } refresh(box, id); }
+    };
     $$('[data-pe]', box).forEach(setP('pe', 'estado')); $$('[data-pr]', box).forEach(setP('pr', 'resp')); $$('[data-pf]', box).forEach(setP('pf', 'fecha'));
-    const ms = $('[data-mesa]', box); if (ms && A.mesa && A.mesa.boton) { const m = S.mod(id); ms.appendChild(A.mesa.boton(() => plan(id).filter((x) => x.estado !== 'Hecha').map((x) => ({ t: x.accion, resp: x.resp || '', area: 'Estrategia', fecha: x.fecha || new Date(Date.now() + (x.plazo || 90) * 864e5).toISOString().slice(0, 10), mundo: 'estrategia', origen: `${(m && m.nombre) || id} · ${x.origen}`, oid: 'est:360:' + id + ':' + x.id, impacto: x.prio === 'Alta' ? 5 : x.prio === 'Media' ? 3 : 2, clave: x.prio === 'Alta' })))); }
+    const ms = $('[data-mesa]', box); if (ms && A.mesa && A.mesa.boton) {
+      const m = S.mod(id), O = A.mesa.oid;
+      ms.appendChild(A.mesa.boton(() => plan(id).map((x) => ({ t: x.accion, resp: x.resp || '', area: 'Estrategia', fecha: x.fecha || '', fecha0: new Date(Date.now() + (x.plazo || 90) * 864e5).toISOString().slice(0, 10), mundo: 'estrategia', origen: `${(m && m.nombre) || id} · ${x.origen}`, oid: oidDe(id, x), aka: x.pos != null ? ['est:360:' + id + ':o:' + x.pos] : [], impacto: x.prio === 'Alta' ? 5 : x.prio === 'Media' ? 3 : 2, clave: x.prio === 'Alta', hechaEnOrigen: x.estado === 'Hecha' || undefined })), null, () => ({ origen: [O('estrategia', 'accion', id + ':'), O('estrategia', 'objetivo', id + ':')], completo: true })));
+      ms.addEventListener('mesa:enviado', () => A.mesa.marcar(box));
+    }
+    if (A.mesa && A.mesa.marcar) A.mesa.marcar(box);
     const tp = $('[data-toplan]', box); if (tp) tp.onclick = () => {
       const pl = S.state.plan; if (!pl || !Array.isArray(pl.acciones)) return;
       const area = S.mod(id).grupo === 'Visión' ? 'Dirección' : S.mod(id).grupo; let n = 0;
-      plan(id).forEach((x) => { if (pl.acciones.some((a) => a.accion === x.accion)) return; pl.acciones.push({ area, accion: x.accion, responsable: x.resp || '', inicio: new Date().toISOString().slice(0, 10), fin: x.fecha || new Date(Date.now() + x.plazo * 864e5).toISOString().slice(0, 10), estado: x.estado === 'Hecha' ? 'Hecha' : 'Pendiente' }); n++; });
+      plan(id).forEach((x) => { const de = id + ':' + x.id, ya = pl.acciones.find((a) => a.de === de || (!a.de && a.accion === x.accion)); if (ya) { ya.de = de; return; } pl.acciones.push({ id: 'pa' + Date.now().toString(36) + n, de, area, accion: x.accion, responsable: x.resp || '', inicio: new Date().toISOString().slice(0, 10), fin: x.fecha || new Date(Date.now() + x.plazo * 864e5).toISOString().slice(0, 10), estado: x.estado === 'Hecha' ? 'Hecha' : 'Pendiente' }); n++; });
       S.save(); $('[data-plmsg]', box).textContent = n ? `${n} acciones añadidas al plan de empresa.` : 'Ya estaban todas en el plan de empresa.';
     };
     const rp = $('[data-rep]', box); if (rp) rp.onclick = () => S.report360(S.mod(id));

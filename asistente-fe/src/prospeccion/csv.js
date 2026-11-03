@@ -39,3 +39,18 @@ export function leerCSVObjetos(texto, sep) {
     return o;
   });
 }
+
+/**
+ * CSV para abrir en Excel en español: separador «;», BOM UTF-8, saltos \r\n y celdas que empiezan por = + - @ o
+ * tabulador neutralizadas con un apóstrofo (para que nadie pueda colar una fórmula desde un dato recibido).
+ * @param {string[]} cabecera
+ * @param {Array<Array<any>>} filas
+ */
+export function escribirCSV(cabecera, filas) {
+  const celda = (v) => {
+    let t = v === null || v === undefined ? '' : String(v);
+    if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+    return /[;"\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  return '﻿' + [cabecera, ...filas].map((f) => f.map(celda).join(';')).join('\r\n') + '\r\n';
+}

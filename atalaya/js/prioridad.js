@@ -6,7 +6,8 @@
    · Prioridad = peso de la capa × gravedad (rojo 2, ámbar 1) × peso del punto, más un plus si sirve a un
      objetivo del empresario (de la auditoría o de las metas de la mesa).
    · Equilibrio viable: sin rojos en liquidez ni en rentabilidad (y con datos reales).
-   · Capa del consultor: el triaje de la auditoría integral (urgencias, preferente, programable por área) entra como
+   · Capa del consultor: el triaje de la auditoría integral (urgencias, preferente, programable por área; js/triaje.js con los
+     datos guardados de la auditoría) entra como
      comprobaciones más, en la capa de su principio (finanzas y legal en liquidez; clientes y operaciones en rentabilidad;
      el resto en estructura). Si el triaje y los datos no dicen lo mismo, se avisa (r.contraste).
    · Las cifras de la empresa (js/cifras.js) aportan sus semáforos de caja, deuda y EBITDA cuando el simulador aún no
@@ -37,29 +38,65 @@
   };
   const W = Object.fromEntries(CAPAS.map((c) => [c.id, c]));
 
-  // Objetivos del empresario: los de la auditoría (primera sesión) y las metas activas de la mesa
+  /* Objetivos del empresario: los de la auditoría (primera sesión) y las metas de la mesa, una vez cada uno.
+     Un objetivo es el mismo si comparte identificador (el oid del objetivo, que la meta lleva en «objetivoId»: ver
+     js/mesa-comun.js) o, si no lo tiene, el mismo indicador con los mismos valores (de 86 a 65 días). Una meta cumplida
+     da su objetivo por cumplido: no suma a las prioridades. */
+  const oidObj = (o) => (o && o.id ? (A.mesa && A.mesa.oid ? A.mesa.oid('intervencion', 'objetivo', o.id) : 'intervencion:objetivo:' + o.id) : '');
+  const nums = (t) => (String(t == null ? '' : t).match(/\d+(?:[.,]\d+)?/g) || []).map((x) => String(+x.replace(',', '.')));
+  const claveObj = (o) => {
+    const ind = norm(o.indicador).replace(/[^a-z0-9]+/g, ' ').replace(/\b(medios?|de|del|la|el|los|las)\b/g, '').replace(/\s+/g, ' ').trim();
+    const v = [o.actual, o.valor].filter((x) => x !== '' && x != null).map((x) => String(+String(x).replace(',', '.')));
+    if (ind && v.length) return 'i:' + ind + '|' + v.join('>');
+    const t = o.especifica || o.dice || o.objetivo || '';
+    return ind ? 'i:' + ind + '|' + nums(t).join('>') : 't:' + norm(t).replace(/[^a-z0-9]+/g, ' ').trim();
+  };
   const objetivos = async () => {
     const out = [], ld = async (k) => { try { return P() && P().loadData ? await P().loadData(k) : null; } catch (e) { return null; } };
     const iv = await ld('intervencion'), ag = await ld('agenda');
-    ((iv && iv.objetivos) || []).filter((o) => o.dice || o.especifica).forEach((o) => out.push({ t: o.especifica || o.dice, fuente: 'Auditoría', fecha: o.fecha || '', texto: [o.dice, o.especifica, o.indicador, o.beneficio].join(' ') }));
-    ((ag && ag.metas) || []).filter((m) => m.estado !== 'cumplida' && (m.especifica || m.objetivo)).forEach((m) => { if (out.some((x) => norm(x.t) === norm(m.especifica || m.objetivo))) return; out.push({ t: m.especifica || m.objetivo, fuente: 'Mesa', fecha: m.fecha || '', texto: [m.objetivo, m.especifica, m.indicador, m.beneficio].join(' ') }); });
+    const buscar = (id, clave) => out.find((x) => (id && x.ids.includes(id)) || x.clave === clave);
+    ((iv && iv.objetivos) || []).filter((o) => o.dice || o.especifica).forEach((o) => {
+      const id = oidObj(o), clave = claveObj(o), ya = buscar(id, clave);
+      if (ya) { if (id) ya.ids.push(id); return; }
+      out.push({ t: o.especifica || o.dice, fuente: 'Auditoría', fecha: o.fecha || '', texto: [o.dice, o.especifica, o.indicador, o.beneficio].join(' '), ids: id ? [id] : [], clave, oid: id || null });
+    });
+    ((ag && ag.metas) || []).filter((m) => m.especifica || m.objetivo).forEach((m) => {
+      const id = m.objetivoId || m.oid || '', clave = claveObj(m), ya = buscar(id, clave), cumplida = m.estado === 'cumplida';
+      if (ya) {
+        if (id && !ya.ids.includes(id)) ya.ids.push(id);
+        if (!ya.fuente.includes('Mesa')) ya.fuente += ' y mesa';
+        if (cumplida) { ya.cumplido = true; ya.cumplidoFecha = m.cumplida || m.fechaCumplida || ''; }
+        return;
+      }
+      if (cumplida) return; // una meta cumplida que no viene de ningún objetivo ya no es un objetivo abierto
+      out.push({ t: m.especifica || m.objetivo, fuente: 'Mesa', fecha: m.fecha || '', texto: [m.objetivo, m.especifica, m.indicador, m.beneficio].join(' '), ids: id ? [id] : [], clave, oid: id || null });
+    });
     out.forEach((o) => { o.capa = capaDe({ t: o.texto }, ''); });
     return out;
   };
 
-  // Triaje del consultor: el nivel de cada área de la auditoría integral (guardado por core.js en «triajeAreas», en el orden de sus áreas)
+  /* Triaje del consultor: el nivel de cada área de la auditoría integral, calculado con sus datos guardados (js/triaje.js,
+     el mismo cálculo que la auditoría) o el que haya fijado el consultor: no hace falta abrir la auditoría */
   const AREAS_IV = [['gob', 'Dirección y gobierno', 'estructura'], ['fin', 'Finanzas y caja', 'liquidez'], ['com', 'Clientes y ventas', 'rentabilidad'], ['ope', 'Operaciones y procesos', 'rentabilidad'], ['per', 'Personas y equipos', 'estructura'], ['inf', 'Información y datos', 'estructura'], ['tie', 'Proyectos y tiempo', 'estructura'], ['leg', 'Legal y societario', 'liquidez']];
   const NIVEL = { stop: 'urgencias', warn: 'preferente', ok: 'programable' };
+  const modTriaje = () => (A.triaje ? Promise.resolve(A.triaje) : new Promise((ok) => {
+    const s = document.createElement('script'); s.src = 'js/triaje.js'; s.onload = () => ok(A.triaje || null); s.onerror = () => ok(null); (document.head || document.documentElement).appendChild(s);
+  }));
   const triaje = async () => {
     if (P() && P().puede && !P().puede('intervencion')) return null;
     let iv = null; try { iv = P() && P().loadData ? await P().loadData('intervencion') : null; } catch (e) { iv = null; }
     if (!iv) return null;
-    const ids = (A.interv && A.interv.int && A.interv.int.D && A.interv.int.D.AREAS ? A.interv.int.D.AREAS.map((a) => a.id) : AREAS_IV.map((a) => a[0]));
-    const t = Array.isArray(iv.triajeAreas) ? iv.triajeAreas : [];
-    const areas = AREAS_IV.map(([id, n, capa]) => { const i = ids.indexOf(id), st = (iv.areas && iv.areas[id] && iv.areas[id].nivel) || (i >= 0 ? t[i] : '') || ''; return { id, n, capa, st }; }).filter((a) => SEV[a.st] != null);
-    if (!areas.length) return { areas: [], fecha: null, vacio: true };
+    const T = await modTriaje();
+    let areas;
+    if (T) areas = T.areas(iv).map((a) => ({ id: a.id, n: a.n, capa: a.capa, st: a.st }));
+    else { // sin el módulo común: lo último que guardó la auditoría
+      const ids = AREAS_IV.map((a) => a[0]), t = Array.isArray(iv.triajeAreas) ? iv.triajeAreas : [];
+      areas = AREAS_IV.map(([id, n, capa]) => { const i = ids.indexOf(id), st = (iv.areas && iv.areas[id] && iv.areas[id].nivel) || (i >= 0 ? t[i] : '') || ''; return { id, n, capa, st }; });
+    }
+    areas = areas.filter((a) => SEV[a.st] != null);
     const u = iv.recorrido && iv.recorrido.ultimo;
-    return { areas, fecha: (u && u.fecha) || (iv.sesion && iv.sesion.fecha) || null, vacio: false };
+    if (!areas.length) return { areas: [], fecha: null, vacio: true, calculado: !!T };
+    return { areas, fecha: (u && u.fecha) || (iv.sesion && iv.sesion.fecha) || null, vacio: false, calculado: !!T };
   };
 
   const calcular = async () => {
@@ -68,7 +105,7 @@
     const objs = await objetivos();
     const puntos = [], real = !!(P() && P().modoReal && P().modoReal());
     const meter = (x, k, n) => {
-      const capa = x.capa || capaDe(x, k), obj = objs.find((o) => o.capa === capa) || null;
+      const capa = x.capa || capaDe(x, k), obj = objs.find((o) => o.capa === capa && !o.cumplido) || null;
       const score = x.st === 'ok' ? 0 : W[capa].w * SEV[x.st] * (x.peso || 1) + (obj ? 3 : 0);
       puntos.push(Object.assign({}, x, { mundo: k, mundoN: n, capa, capaN: W[capa].n, obj, score }));
     };

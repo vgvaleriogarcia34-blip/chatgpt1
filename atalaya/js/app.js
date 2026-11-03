@@ -840,11 +840,14 @@
     sum = `<p class="small muted" style="margin:0 0 8px">El plan se calcula sobre el escenario ${sc.nombre.toLowerCase()} y el vehículo actual (${esc(A.STRUCTURES[state.estructura].nombre.toLowerCase())}). No cambia de vehículo: eso se compara en «Estructuras». Si adoptas otro, el plan se recalcula.</p>` + sum;
     $('#planSummary').innerHTML = sum;
     INFO['plan-help'] = { t: 'Cómo se calcula el plan', d: 'En cada ronda Atalaya prueba todas las palancas y elige la que más acerca a la meta por unidad de esfuerzo (negociar con el banco cuesta menos que aportar capital). Después repasa el plan hacia atrás y devuelve cada palanca al mínimo imprescindible.' };
-    $('#planSteps').innerHTML = Pl.acciones.map((a) => `<div class="step"><div><div class="what">${a.lv.nombre}</div><div class="how">${lvTxt(a.lv, a.desde, a.hasta)} · ${a.lv.resp}</div></div><div class="eff">${F.eur(a.antes.cajaRef)} → ${F.eur(a.despues.cajaRef)}<small>liquidez mínima</small></div></div>`).join('');
+    const oidLv = (lv) => (A.mesa && A.mesa.oid ? A.mesa.oid('simulador', 'palanca', lv.key) : '');
+    $('#planSteps').innerHTML = Pl.acciones.map((a) => `<div class="step"><div><div class="what">${a.lv.nombre}${A.mesa && A.mesa.casilla ? `<small data-mesa-oid="${oidLv(a.lv)}"></small>${A.mesa.casilla(oidLv(a.lv))}` : ''}</div><div class="how">${lvTxt(a.lv, a.desde, a.hasta)} · ${a.lv.resp}</div></div><div class="eff">${F.eur(a.antes.cajaRef)} → ${F.eur(a.despues.cajaRef)}<small>liquidez mínima</small></div></div>`).join('');
     const ap = $('#applyPlan');
     if (ap) ap.onclick = applyPlan;
     // El plan de palancas, a la mesa de trabajo: cada palanca es una tarea con su responsable
-    if (ap && A.mesa && A.mesa.boton) ap.parentNode.appendChild(A.mesa.boton(() => Pl.acciones.map((a) => ({ t: `${a.lv.nombre}: ${lvTxt(a.lv, a.desde, a.hasta)}`, resp: a.lv.resp, area: 'Inversión', mundo: 'simulador', origen: 'Plan de corrección del simulador', oid: 'sim:plan:' + a.lv.nombre, impacto: 5, esfuerzo: 3, clave: true }))));
+    // Id propio de cada palanca (lv.key); el plan enviado es la lista completa: la palanca que sale del plan queda «ya no aplica»
+    if (ap && A.mesa && A.mesa.boton) { const mb = A.mesa.boton(() => Pl.acciones.map((a) => ({ t: `${a.lv.nombre}: ${lvTxt(a.lv, a.desde, a.hasta)}`, resp: a.lv.resp, area: 'Inversión', mundo: 'simulador', origen: 'Plan de corrección del simulador', oid: oidLv(a.lv), aka: ['sim:plan:' + a.lv.nombre], impacto: 5, esfuerzo: 3, clave: true })), null, { origen: A.mesa.oid('simulador', 'palanca', ''), completo: true }); ap.parentNode.appendChild(mb); ap.parentNode.addEventListener('mesa:enviado', () => A.mesa.marcar($('#planSteps'))); }
+    if (A.mesa && A.mesa.marcar) A.mesa.marcar($('#planSteps'));
     $('#leverTable').innerHTML = Pl.ok ? '<p class="small muted">Sin metas que corregir.</p>' : `<p class="small muted" style="margin:0">Moviendo una sola palanca, ¿cuánto haría falta para cumplir todas las metas? «Sí» significa que esa palanca sola basta; «No», que llegaría hasta ahí y aún faltaría.</p><table><thead><tr><th style="text-align:left">Palanca</th><th>Hoy</th><th>Hasta</th><th style="text-align:left">Qué significa</th><th>¿Basta sola?</th></tr></thead><tbody>` +
       Pl.individuales.map((x) => `<tr><td style="text-align:left">${x.lv.nombre}</td><td>${A.report.lv(x.lv, x.desde)}</td><td>${A.report.lv(x.lv, x.hasta)}</td><td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:200px" class="small">${lvTxt(x.lv, x.desde, x.hasta)}</td><td><span class="state ${stCls(x.basta ? 'ok' : 'warn')}">${x.basta ? 'Sí' : 'No'}</span></td></tr>`).join('') + '</tbody></table>';
   }
@@ -1283,7 +1286,8 @@
       $('#qzSem', el).onclick = () => { closeModal(); document.getElementById('riesgos').scrollIntoView({ behavior: 'smooth' }); };
       $('#qzClose', el).onclick = closeModal;
     };
-    const aplicar = () => { state.ejemplo = false; normalizeInv(); rapido = null; pendiente = true; store.set(STORE, state); };
+    // Fecha de introducción de las cifras de la empresa (la enseñan las cifras clave: js/cifras.js)
+    const aplicar = () => { state.ejemplo = false; if (key === 'empresa') state.fechaCifras = new Date().toISOString(); normalizeInv(); rapido = null; pendiente = true; store.set(STORE, state); };
     const responde = (q) => { resp.add(q.id); est.delete(q.id); if (key === 'empresa') marcarDado(PREG_DATO[q.id], 'pregunta'); };
     const terminar = () => { recalcular(); fin(); alCerrar = null; };
     const draw = () => {
@@ -1817,7 +1821,7 @@
       const id = decodeURIComponent(location.hash.slice(1)); const el = id && document.getElementById(id); if (!el) return;
       let moved = false; const stop = () => { moved = true; };
       ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach((ev) => addEventListener(ev, stop, { once: true, passive: true }));
-      [0, 150, 500, 1000, 1800, 3000].forEach((t) => setTimeout(() => { if (!moved) el.scrollIntoView({ behavior: 'auto', block: 'start' }); }, t));
+      [0, 150, 500, 1000, 1800, 3000].forEach((t) => setTimeout(() => { if (!moved && decodeURIComponent(location.hash.slice(1)) === id) el.scrollIntoView({ behavior: 'auto', block: 'start' }); }, t));
     };
     go();
     addEventListener('hashchange', go);

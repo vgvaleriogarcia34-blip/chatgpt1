@@ -207,7 +207,7 @@
         { cruce: 'FA', tipo: 'Mantener', accion: 'Acuerdo anual de precio y volumen con dos acerías', area: 'Compras', impacto: 4, encaje: {} }
       ],
       objetivos: [
-        { id: 'om1', nombre: 'Caja sin tensiones', indicador: 'Días medios de cobro', actual: 86, meta: 65, fecha: dia(270) },
+        { id: 'om1', objetivoId: 'intervencion:objetivo:oim2', nombre: 'Caja sin tensiones', indicador: 'Días medios de cobro', actual: 86, meta: 65, fecha: dia(270) },
         { id: 'om2', nombre: 'Crecer con ingresos recurrentes', indicador: 'Ventas de mantenimiento sobre el total (%)', actual: 4, meta: 15, fecha: dia(450) },
         { id: 'om3', nombre: 'Dirección que no dependa de una persona', indicador: 'Decisiones delegadas con criterio escrito', actual: 1, meta: 8, fecha: dia(360) }
       ],
@@ -344,7 +344,7 @@
 
   /* ---------- Mesa de trabajo ---------- */
   function agenda() {
-    const T = (t, o) => Object.assign({ id: id('t'), t, entrada: dia(-7), tipo: 'importante', estado: 'pendiente', impacto: 3, esfuerzo: 2, clave: false, fecha: '', hora: '', dur: 60, area: '', resp: 'Ramón Valdés', mundo: '', origen: 'modelo' }, o);
+    const T = (t, o) => Object.assign({ id: id('t'), t, entrada: dia(-7), tipo: 'importante', estado: 'pendiente', impacto: 3, esfuerzo: 2, clave: false, fecha: '', hora: '', dur: 60, area: '', resp: 'Ramón Valdés', mundo: 'manual', origen: 'Tarea de ejemplo de la empresa modelo' }, o);
     const tareas = [
       T('Llamar a Agroindustrial Valle Verde por la certificación vencida de 186.000 €', { tipo: 'imperativa', impacto: 5, esfuerzo: 1, clave: true, fecha: dia(0), hora: '09:00', dur: 30, area: 'Finanzas', resp: 'Lucía Valdés' }),
       T('Decidir quién es el suplente del jefe de taller', { impacto: 5, esfuerzo: 2, clave: true, fecha: dia(2), hora: '12:00', dur: 60, area: 'Dirección' }),
@@ -360,7 +360,7 @@
     tareas[8].estado = 'pendiente';
     const meta = (o) => Object.assign({ id: id('m'), creada: dia(-20), estado: 'activa', prioridad: 'alta', plazo: 'medio', tangible: true, solo: true, obstaculos: [], acciones: [], seguimiento: 'semanal', valores: '', afirmacion: '', medios: '', pros: '', contras: '', beneficios: '', perdidas: '', merece: 'si' }, o);
     const metas = [
-      meta({ area: 'Finanzas', objetivo: 'Cobrar antes', especifica: 'Bajar los días medios de cobro de 86 a 65 cobrando por certificaciones mensuales', indicador: 'Días medios de cobro', actual: 86, valor: 65, unidad: 'días', fecha: dia(270), responsable: 'Lucía Valdés', beneficio: 'Liberar unos 265.000 € de caja y dejar de usar la póliza', contras: 'Negociar con los clientes grandes', obstaculos: [{ o: 'El primer cliente no acepta certificaciones', s: 'Ofrecer descuento del 0,5 % por pago a 30 días' }], acciones: [{ t: 'Cláusula de certificación en todos los presupuestos de más de 60.000 €', fecha: dia(10), revisada: false, hecha: false }, { t: 'Reclamar cada viernes lo vencido', fecha: dia(4), revisada: false, hecha: true }] }),
+      meta({ oid: 'intervencion:objetivo:oim2', objetivoId: 'intervencion:objetivo:oim2', area: 'Finanzas', objetivo: 'Cobrar antes', especifica: 'Bajar los días medios de cobro de 86 a 65 cobrando por certificaciones mensuales', indicador: 'Días medios de cobro', actual: 86, valor: 65, unidad: 'días', fecha: dia(270), responsable: 'Lucía Valdés', beneficio: 'Liberar unos 265.000 € de caja y dejar de usar la póliza', contras: 'Negociar con los clientes grandes', obstaculos: [{ o: 'El primer cliente no acepta certificaciones', s: 'Ofrecer descuento del 0,5 % por pago a 30 días' }], acciones: [{ t: 'Cláusula de certificación en todos los presupuestos de más de 60.000 €', fecha: dia(10), revisada: false, hecha: false }, { t: 'Reclamar cada viernes lo vencido', fecha: dia(4), revisada: false, hecha: true }] }),
       meta({ area: 'Comercial', objetivo: 'Ingresos recurrentes', especifica: 'Firmar 15 contratos anuales de mantenimiento industrial', indicador: 'Contratos firmados', actual: 3, valor: 15, unidad: 'contratos', fecha: dia(450), responsable: 'Diego Álvarez', beneficio: 'Unos 600.000 € al año con un 50 % de margen y menos dependencia de obra nueva', acciones: [{ t: 'Catálogo de servicios de mantenimiento', fecha: dia(15), revisada: false, hecha: false }] }),
       meta({ area: 'Dirección', objetivo: 'Que el taller no dependa de una persona', especifica: 'Nombrar y formar un suplente del jefe de taller que planifique solo la semana', indicador: 'Semanas planificadas por el suplente', actual: 0, valor: 8, unidad: 'semanas', fecha: dia(180), responsable: 'Ramón Valdés', beneficio: 'Ramón libera unas 9 horas a la semana para vender y dirigir', acciones: [{ t: 'Elegir suplente entre los encargados', fecha: dia(2), revisada: false, hecha: false }] })
     ];

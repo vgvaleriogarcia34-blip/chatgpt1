@@ -22,7 +22,8 @@ Este documento resume las normas que afectan al asistente y cómo las aplica el 
 
 Cómo lo aplica el sistema (`src/prospeccion/cumplimiento.js`, función `puedeLlamar`):
 
-- Sin base legal → no llama (motivo «primer contacto por correo o LinkedIn»). Esos contactos quedan en la campaña con estado `sin_base_legal`, para escribirles por otros medios.
+- Sin base legal → no llama (motivo «primer contacto por correo o LinkedIn»). Esos contactos quedan en la campaña con estado `sin_base_legal`, para escribirles por otros medios; el panel los exporta en CSV (sin los que han pedido la baja).
+- Al importar, el sistema avisa de los contactos que no se llamarán nunca en esa campaña (consentimiento sin fecha, interés legítimo no admitido, base no admitida, móvil personal con interés legítimo) y los deja como excluidos con el motivo. Si se reimportan corregidos antes de llamarles, se vuelven a evaluar.
 - Cada campaña indica qué bases admite. El interés legítimo B2B nunca va por defecto: hay que marcarlo y escribir el resumen de la evaluación.
 - Con interés legítimo, los números móviles (+34 6… / +34 7…) se tratan como personales salvo que se marquen como `movil_corporativo` en la importación.
 
@@ -48,20 +49,23 @@ El artículo 66.1.b) reconoce a los usuarios el derecho a **no recibir llamadas 
   - Nunca empieza una llamada antes de las 9:00 ni en los últimos 10 minutos antes de las 21:00, aunque el horario configurado diga otra cosa.
   - Dentro de eso, solo llama en `HORARIO_LLAMADAS` (por defecto L-V 10:00-14:00 y 16:30-20:00).
   - Máximo `PROSPECCION_MAX_INTENTOS` intentos por contacto y campaña (3) y al menos `PROSPECCION_SEPARACION_H` horas entre intentos (48).
+  - Si la persona pide que le llamen otro día a una hora concreta, se le llama a esa hora (aunque falten horas para la separación mínima o se haya llegado al máximo de intentos), siempre dentro del horario legal y sin saltarse bajas ni lista Robinson.
   - Si salta un contestador, cuelga sin dejar mensaje comercial.
 
 ## 5. Reglamento europeo de Inteligencia Artificial (Reglamento (UE) 2024/1689), artículo 50
 
 - Obliga a que los sistemas de IA que interactúan con personas estén diseñados para que estas **sepan que hablan con una IA**, salvo que sea evidente. Las obligaciones del artículo 50 son aplicables desde el **2 de agosto de 2026** (**a confirmar** si alguna modificación posterior del calendario de aplicación afecta a este artículo).
 - Si se usa una voz sintética que imita a una persona real (la voz clonada de Valerio), además de su consentimiento por escrito, conviene que el aviso de IA sea explícito al inicio.
-- Cómo lo aplica el sistema: las instrucciones obligan al asistente a presentarse como «el asistente de inteligencia artificial de Familias Empresarias» al empezar cada conversación y a responder con claridad que no es una persona si se lo preguntan. Las pruebas del apartado 5 de `PUESTA-EN-MARCHA.md` lo comprueban.
+- Cómo lo aplica el sistema: las instrucciones obligan a la asistente a presentarse como «Lucía, la asistente de inteligencia artificial de Familias Empresarias, de Business Avance» al empezar cada conversación y a responder con claridad que no es una persona si se lo preguntan. Las pruebas del apartado 5 de `PUESTA-EN-MARCHA.md` lo comprueban.
 
 ## 6. RGPD y LOPDGDD
 
 ### 6.1 Información
 
 - En cada punto de recogida (formularios, inscripción a ponencias, tarjetas) debe constar la información del artículo 13 del RGPD: responsable, finalidad (incluido el contacto comercial por teléfono y WhatsApp), base legal, destinatarios y encargados (proveedores de abajo), transferencias internacionales, plazos y derechos.
-- En la llamada, el asistente dice quién es, de qué empresa y por qué llama. La **información completa** puede darse por capas: en la llamada, lo básico y dónde consultar el resto (por ejemplo, la política de privacidad en la web o enviada por WhatsApp o correo) (**a confirmar** la fórmula con el abogado).
+- **Responsable:** AKOMPANO GROUP, S.L. (NIF B05544713), nombre comercial Business Avance International Consulting; el mismo en la web de Atalaya, sus textos legales y la asistente. Domicilio, registro y delegado de protección de datos: **[PENDIENTE]**.
+- En la llamada, la asistente dice quién es, de qué empresa y por qué llama; si se lo preguntan, nombra al responsable y ofrece enviar por WhatsApp el enlace a la política de privacidad (`URL_PRIVACIDAD`). La **información completa** va por capas (**a confirmar** la fórmula con el abogado).
+- Texto propuesto del apartado «Asistente telefónico y WhatsApp» de la política de privacidad (finalidades, bases, proveedores, plazos y cómo oponerse): `datos/interno/privacidad-asistente.md`, **pendiente de revisión del abogado**. Lo incorpora a la web de Atalaya el equipo legal.
 
 ### 6.2 Grabación y transcripción
 
@@ -69,29 +73,31 @@ El artículo 66.1.b) reconoce a los usuarios el derecho a **no recibir llamadas 
 - Si se activa la grabación, hay que avisar al inicio de la llamada de que se graba, con qué finalidad y cómo ejercer los derechos, y ofrecer una alternativa a quien no quiera ser grabado (**a confirmar** base legal y texto del aviso).
 - Que la transcripción se guarde también conviene mencionarlo en la información de privacidad.
 
-### 6.3 Plazos de conservación (propuesta)
+### 6.3 Plazos de conservación (propuesta, a confirmar con el abogado)
 
-| Dato | Plazo propuesto | Motivo |
-|---|---|---|
-| Transcripciones y mensajes de contactos que no llegan a ser clientes | 12 meses desde la última interacción | Seguimiento comercial razonable |
-| Grabaciones de audio (si se activan) | 3 meses | Calidad y resolución de incidencias; minimizar |
-| Resúmenes en HubSpot de clientes | Mientras dure la relación y después el plazo de prescripción de acciones (hasta 6 años por obligaciones mercantiles y fiscales para documentos contables) | Obligaciones legales |
-| Prueba del consentimiento y de la base legal | Mientras se use el dato y 3 años más | Poder demostrarlo ante la AEPD (plazo de prescripción de infracciones graves; a confirmar) |
-| Bajas y oposiciones | Indefinido, solo el teléfono o correo y la fecha | Para no volver a contactar |
-| Lista Robinson | Se sustituye con cada descarga | No es un dato propio |
-| Métricas técnicas (latencia, eventos) | 12 meses | Operación |
+| Dato | Plazo | Qué hace la purga diaria | Variable | Motivo |
+|---|---|---|---|---|
+| Transcripciones y mensajes de contactos que no llegan a ser clientes | 12 meses desde la última interacción del contacto | Borra los mensajes y el resumen; la conversación queda anónima (sin contacto ni número) solo para las cifras | `CONSERVAR_MENSAJES_MESES` | Seguimiento comercial razonable |
+| Transcripciones y mensajes de clientes (`base_legal = cliente`) | 72 meses desde la última interacción (**a confirmar**) | Igual que la fila anterior | `CONSERVAR_MENSAJES_CLIENTES_MESES` | Relación contractual y prescripción |
+| Grabaciones de audio (si se activan) | 3 meses desde la llamada | Borra el audio en Twilio y la dirección en la base | `CONSERVAR_GRABACIONES_MESES` | Calidad y resolución de incidencias; minimizar |
+| Resúmenes en HubSpot de clientes | Mientras dure la relación y después el plazo de prescripción de acciones (hasta 6 años por obligaciones mercantiles y fiscales para documentos contables) | No los toca la purga: se gestionan en HubSpot | — | Obligaciones legales |
+| Prueba del consentimiento y de la base legal (ficha del contacto) | Mientras se use el dato y 3 años más | Borra la ficha (y su paso por las campañas) cuando lleva el plazo de los mensajes más 36 meses sin actividad, sin conversaciones vivas ni campaña en curso | `CONSERVAR_PRUEBA_BASE_LEGAL_MESES` | Poder demostrarlo ante la AEPD (plazo de prescripción de infracciones graves; a confirmar) |
+| Bajas y oposiciones | Indefinido, solo el teléfono o correo, el canal y la fecha | No se borran nunca | — | Para no volver a contactar |
+| Lista Robinson | Se sustituye con cada descarga | — | — | No es un dato propio |
+| Métricas técnicas (latencia, eventos) | 12 meses | Borra los eventos (salvo los avisos de la bandeja «requiere acción» sin resolver) | `CONSERVAR_EVENTOS_MESES` | Operación |
 
-Pendiente técnico: una tarea periódica que borre o anonimice lo que supere estos plazos (hoy no existe; se puede hacer con una consulta SQL mensual).
+La purga (`src/conservacion.js`) se ejecuta un minuto después de arrancar el servidor y después cada 24 horas; deja un evento `purga` con lo que ha borrado. `PURGA_ACTIVA=no` la desactiva (por ejemplo, si hay una reclamación en curso y hay que conservar las pruebas).
 
 ### 6.4 Derechos
 
 - Acceso, rectificación, supresión, oposición (incluida la oposición a la mercadotecnia, que es absoluta), limitación y portabilidad. Plazo de respuesta: un mes.
-- Si alguien pide la baja por teléfono o WhatsApp, el asistente la registra en el momento (`dar_de_baja`), en SQLite y en HubSpot. Desde el panel se pueden añadir bajas a mano (por correo, en persona…).
+- Si alguien pide la baja por teléfono o WhatsApp, la asistente la registra en el momento (`dar_de_baja`), en SQLite y en HubSpot, y avisa al equipo para que la extienda a lo que la asistente no controla (correo, LinkedIn). Desde el panel se pueden añadir bajas a mano (por correo, en persona…) con el teléfono, el correo o los dos; también llegan a HubSpot (`fe_baja` y una nota).
+- Una baja vale para todos los canales del contacto: la dada con el correo bloquea también las llamadas y los WhatsApp a los teléfonos de los contactos con ese correo, y la dada con el teléfono guarda también el correo del contacto.
 - Para supresión completa hay que borrar en SQLite (contacto, conversaciones y mensajes) y en HubSpot, conservando solo el teléfono en la lista de bajas.
 
 ### 6.5 Proveedores (encargados del tratamiento)
 
-Firme o acepte el contrato de encargado (DPA) de cada uno y revise dónde tratan los datos: Anthropic, Twilio, Deepgram, ElevenLabs, Meta (WhatsApp), HubSpot, Google y el proveedor del servidor. Varios están en EE. UU.: compruebe que están adheridos al Marco de Privacidad de Datos UE-EE. UU. o que ofrecen cláusulas contractuales tipo (**a confirmar** para cada uno). Inclúyalos en el registro de actividades del tratamiento.
+Firme o acepte el contrato de encargado (DPA) de cada uno y revise dónde tratan los datos: Anthropic, Twilio, Deepgram, ElevenLabs, Meta (WhatsApp), HubSpot, Google, el proveedor del servidor y el del correo de los avisos internos (SMTP). Varios están en EE. UU.: compruebe que están adheridos al Marco de Privacidad de Datos UE-EE. UU. o que ofrecen cláusulas contractuales tipo (**a confirmar** para cada uno). Inclúyalos en el registro de actividades del tratamiento.
 
 Valore una **evaluación de impacto** (EIPD): llamadas automatizadas con IA, perfilado comercial y uso de tecnología nueva pueden hacerla obligatoria (**a confirmar**).
 
@@ -110,7 +116,10 @@ Valore una **evaluación de impacto** (EIPD): llamadas automatizadas con IA, per
 |---|---|
 | Base legal obligatoria y admitida por la campaña | `puedeLlamar` (cumplimiento.js) |
 | Interés legítimo solo con evaluación, aviso «revisar con abogado» y sin móviles personales | `puedeLlamar`, `crearCampana` |
-| Bajas propias | `db.estaDeBaja`, herramienta `dar_de_baja`, panel |
+| Bajas propias, compartidas entre teléfono y correo | `db.darDeBaja` / `db.estaDeBaja`, herramienta `dar_de_baja`, panel (también a HubSpot) |
+| Aviso de los contactos que no se llamarán nunca, al importar | `reglasPermanentes` (cumplimiento.js), `importarFilas` |
+| «Volver a llamar» a la hora pedida (sin saltarse horario, bajas ni Robinson) | `finalizar` (volver_a_llamar), `alEstado`, `comunes` |
+| Plazos de conservación | Purga diaria (`src/conservacion.js`) |
 | Lista Robinson (en claro o resumida) | `enRobinson`, `importarRobinsonCSV` |
 | Horario legal + horario propio + festivos | `comprobarHorario` |
 | Máximo de intentos y separación | `puedeLlamar`, planificador |

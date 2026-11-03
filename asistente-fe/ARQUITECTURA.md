@@ -9,9 +9,12 @@ Es un único servidor Node.js (versión 22, sin TypeScript) que hace de centrali
 - **Canales**: llamadas de teléfono entrantes y salientes (Twilio) y WhatsApp (API Cloud de Meta).
 - **Cerebro**: Claude Opus 5.5 (`claude-opus-5-5`), el mismo modelo en todos los canales. En voz trabaja con esfuerzo bajo para responder sin pausas; en WhatsApp, con esfuerzo medio.
 - **Herramientas**: lo que el asistente puede hacer durante la conversación (buscar en el conocimiento, leer y actualizar la ficha del CRM, consultar huecos y agendar reuniones, enviar un WhatsApp, pasar la llamada a una persona, registrar una baja y cerrar la conversación con su resultado).
-- **Integraciones**: HubSpot (CRM), Google Calendar (agenda), Google Drive (documentos del conocimiento), Deepgram (voz a texto) y ElevenLabs (texto a voz).
+- **Integraciones**: HubSpot (CRM), Google Calendar (agenda), Google Drive (documentos del conocimiento), Deepgram (voz a texto), ElevenLabs (texto a voz), Atalaya 360° (sesiones en la mesa de trabajo e invitaciones de alta) y un servidor SMTP para los avisos al equipo.
+- **Fuentes de verdad**: HubSpot para la relación comercial, Atalaya para los datos de la empresa cliente y la asistente (SQLite) para la operación y el cumplimiento (bajas, bases legales, plazos).
 - **Datos**: una base SQLite local (`datos/asistente.db`) con conversaciones, mensajes, campañas, bajas, lista Robinson y métricas. HubSpot es la ficha comercial; SQLite es el registro operativo y de cumplimiento.
-- **Panel**: una web protegida en `/panel` para ver la actividad, gestionar campañas, bajas y lista Robinson, recargar el conocimiento y probar el asistente por texto.
+- **Avisos**: lo que no puede esperar (transferencia sin respuesta, urgencia, fallo técnico, sesión por confirmar, baja) llega en el momento a Valerio por correo y, con plantilla aprobada, por WhatsApp; y queda en la bandeja «Requiere acción» del panel.
+- **Panel**: una web protegida en `/panel` para el día a día: resumen, bandeja «Requiere acción», conversaciones con búsqueda, filtros y CSV, ficha de cada contacto con su cronología, campañas, bajas y lista Robinson, estado de las integraciones, recarga del conocimiento y prueba del asistente por texto.
+- **Conservación**: una purga diaria borra o anonimiza lo que supera los plazos de `CUMPLIMIENTO.md` §6.3.
 
 ```mermaid
 flowchart LR
@@ -71,7 +74,10 @@ flowchart LR
 | `crm/` | HubSpot: ficha, notas, tareas, reuniones, llamadas y bajas. `preparar-hubspot.js` crea las propiedades propias. |
 | `agenda/` | Google Calendar: huecos libres y reservas. |
 | `prospeccion/` | Campañas, importación de contactos, reglas de cumplimiento y planificador de llamadas. |
-| `panel/` | Panel web y su API. |
+| `panel/` | Panel web y su API (`textos.js`: textos legibles de cada código). |
+| `avisos.js`, `correo.js` | Avisos inmediatos al equipo (correo SMTP sin dependencias y WhatsApp con plantilla). |
+| `integraciones/` | Atalaya 360° (`atalaya.js`, contrato común) y estado de todas las integraciones para el panel (`estado.js`). |
+| `conservacion.js` | Purga diaria de mensajes, grabaciones, eventos y fichas al vencer los plazos. |
 
 ## 2. Flujos
 
@@ -109,8 +115,14 @@ sequenceDiagram
 2. Se abre el flujo de audio. El servidor identifica al contacto por su número (SQLite y HubSpot) y prepara a Claude con su historial.
 3. El asistente saluda y se presenta **siempre como inteligencia artificial**.
 4. Cada turno: Deepgram transcribe, Claude responde por frases, ElevenLabs las convierte en voz y Twilio las reproduce.
-5. Si la persona lo pide o hay una urgencia, `transferir_llamada` la pasa al móvil del responsable.
-6. Al despedirse, Claude usa `finalizar`; la llamada se cuelga y el resumen, el resultado y la transcripción quedan en SQLite y en HubSpot.
+5. Si la persona lo pide o hay una urgencia, `transferir_llamada` la pasa al móvil del responsable con un `<Dial timeout="25" action="/voz/transferencia-fin">`. Si nadie contesta (`DialCallStatus` no-answer, busy o failed), Twilio vuelve a `/voz/transferencia-fin`: se le dice que le devolverán la llamada, se crea una tarea de prioridad alta en HubSpot, se avisa al equipo y la conversación queda con «Transferencia: sin respuesta». Si contesta, queda «atendida».
+   Si Claude falla a mitad de llamada, la disculpa queda en la transcripción, se avisa al equipo y la tarea de volver a llamar es de prioridad alta.
+6. Al despedirse, Claude usa `finalizar`; la llamada se cuelga y el resumen, el resultado y la transcripción quedan en SQLite y en HubSpot. Si pidió que le llamaran en otro momento, `finalizar` lleva la fecha y hora (`volver_a_llamar`): la tarea de HubSpot vence entonces y, en campaña, la siguiente llamada se hace a esa hora.
+7. Con `GRABAR_LLAMADAS`, Twilio avisa en `/voz/grabacion` al terminar la grabación; el panel la sirve desde Twilio (con las credenciales de la cuenta) en la conversación.
+
+### 2.1 bis Sesión estratégica
+
+La primera reunión es siempre la **sesión estratégica**: 60 minutos (`REUNION_MINUTOS`), con Valerio García, sin coste. El mismo nombre en las instrucciones, el evento de Google Calendar («Sesión estratégica · empresa»), la reunión de HubSpot y el negocio («empresa · sesión estratégica»). Al reservarla, `agendar_reunion` avisa a Atalaya (`POST {ATALAYA_URL}/api/integracion/reunion`, cabecera `Authorization: Bearer INTEGRACION_TOKEN`, cuerpo `{ id, inicio, fin, titulo, enlace, nombre, email, telefono, empresa, hubspotContactId, hubspotCompanyId, origen: 'asistente' }`) para que aparezca en la mesa de esa empresa. Sin agenda conectada, la petición queda «por confirmar»: no cuenta como agendada, avisa al equipo y aparece en la bandeja del panel hasta que alguien la resuelve.
 
 ### 2.2 Llamada saliente (prospección)
 
@@ -120,7 +132,25 @@ sequenceDiagram
 4. Llama a `llamar()` de `voz/rutas.js`, que pide a Twilio la llamada con detección de contestador.
 5. Cuando la persona contesta, el asistente se presenta como IA, dice por qué llama (relacionándolo con cómo se conocieron) y pregunta si es buen momento. Abre con el «dolor» de la campaña (por ejemplo, «incrementar ventas rentables»).
 6. Si salta un contestador, cuelga sin dejar mensaje (resultado `buzon`).
-7. Al acabar, el resultado (`reunion_agendada`, `no_interesado`, `buzon`, `volver_a_llamar`…) se guarda en la campaña. No contesta, comunica o buzón → se reintenta pasadas 48 horas, hasta el máximo de intentos.
+7. Al acabar, el resultado (`reunion_agendada`, `no_interesado`, `buzon`, `volver_a_llamar`…) se guarda en la campaña. No contesta, comunica o buzón → se reintenta pasadas 48 horas, hasta el máximo de intentos. «Volver a llamar» con hora pedida → se llama a esa hora. La campaña de origen queda en HubSpot (`fe_campana` y el título de la llamada).
+8. Al importar contactos, el panel avisa de los que no se llamarán nunca en esa campaña por su base legal.
+
+### 2.2 bis Panel y avisos
+
+```mermaid
+flowchart LR
+  T[Transferencia sin respuesta] --> AV[avisos.js]
+  F[Fallo de voz o de WhatsApp] --> AV
+  R[Sesión por confirmar] --> AV
+  U[registrar_nota urgente] --> AV
+  B[Baja] --> AV
+  AV -->|SMTP| MAIL[Correo a RESPONSABLE_EMAIL]
+  AV -->|plantilla aviso_equipo| WAV[WhatsApp a RESPONSABLE_MOVIL]
+  T & F & R & U --> EV[(eventos)]
+  EV --> BANDEJA[Panel: Requiere acción]
+```
+
+La bandeja lee de `eventos` los tipos `reunion_pendiente`, `transferencia_sin_respuesta`, `urgencia`, `voz_error`, `whatsapp_error` y `whatsapp_fallo` sin resolver; «Marcar como resuelto» rellena `eventos.resuelto`. Las exportaciones CSV usan «;», BOM UTF-8 y neutralizan las celdas que empiezan por `=`, `+`, `-` o `@`.
 
 ### 2.3 WhatsApp
 
@@ -185,3 +215,5 @@ Costes fijos aproximados (a verificar): número español en Twilio (unos pocos d
 - Lo que dicen los interlocutores y lo que devuelven las APIs se trata como datos, nunca como instrucciones.
 - Las claves solo están en variables de entorno o en `.env` (fuera de git); no se escriben en los registros.
 - La base de datos se guarda en `datos/` con permisos restringidos; haga copias de seguridad cifradas.
+- La integración con Atalaya usa un token compartido (`INTEGRACION_TOKEN`) en la cabecera `Authorization`; sin él no se envía nada. El correo de avisos no manda la contraseña SMTP sin cifrar (TLS directo o STARTTLS).
+- Las bajas del panel llegan también a HubSpot, y una baja por correo bloquea el teléfono del mismo contacto (y al revés).

@@ -27,8 +27,13 @@ export const C = {
     nombre: e('EMPRESA_NOMBRE', 'Familias Empresarias'),
     marcaComercial: e('EMPRESA_MARCA', 'Business Avance'),
     web: e('EMPRESA_WEB', 'https://businessavance.es'),
-    asistente: e('ASISTENTE_NOMBRE', 'Lucía'), // nombre con el que se presenta (siempre dice que es un asistente de IA)
-    responsable: e('RESPONSABLE_NOMBRE', 'Valerio'),
+    asistente: e('ASISTENTE_NOMBRE', 'Lucía'), // nombre con el que se presenta (siempre dice que es una asistente de IA)
+    responsable: e('RESPONSABLE_NOMBRE', 'Valerio García'), // con quien es la sesión estratégica y a quien se transfiere
+    // Responsable del tratamiento de los datos (lo dice el asistente si se lo preguntan)
+    responsableDatos: e('RESPONSABLE_DATOS', 'AKOMPANO GROUP, S.L.'),
+    responsableDatosNif: e('RESPONSABLE_DATOS_NIF', 'B05544713'),
+    responsableDatosMarca: e('RESPONSABLE_DATOS_MARCA', 'Business Avance International Consulting'),
+    urlPrivacidad: e('URL_PRIVACIDAD'), // política de privacidad (apartado «Asistente telefónico y WhatsApp»)
     movilResponsable: e('RESPONSABLE_MOVIL'), // E.164: +346XXXXXXXX, para transferir llamadas
     emailResponsable: e('RESPONSABLE_EMAIL'),
     zonaHoraria: e('ZONA_HORARIA', 'Europe/Madrid'),
@@ -65,7 +70,7 @@ export const C = {
     appSecret: e('WHATSAPP_APP_SECRET'), // para comprobar la firma X-Hub-Signature-256
     version: e('WHATSAPP_API_VERSION', 'v23.0'),
   },
-  hubspot: { token: e('HUBSPOT_TOKEN'), propietarioId: e('HUBSPOT_OWNER_ID'), pipeline: e('HUBSPOT_PIPELINE', 'default'), etapaInicial: e('HUBSPOT_ETAPA', 'appointmentscheduled') },
+  hubspot: { token: e('HUBSPOT_TOKEN'), propietarioId: e('HUBSPOT_OWNER_ID'), pipeline: e('HUBSPOT_PIPELINE', 'default'), etapaInicial: e('HUBSPOT_ETAPA', 'appointmentscheduled'), portalId: e('HUBSPOT_PORTAL_ID') },
   google: {
     credenciales: e('GOOGLE_CREDENCIALES'), // ruta al JSON de la cuenta de servicio
     calendarId: e('GOOGLE_CALENDAR_ID', 'primary'),
@@ -73,7 +78,7 @@ export const C = {
     driveCarpetas: e('GOOGLE_DRIVE_CARPETAS').split(',').map((x) => x.trim()).filter(Boolean),
   },
   agenda: {
-    duracionMin: n('REUNION_MINUTOS', 30),
+    duracionMin: n('REUNION_MINUTOS', 60), // sesión estratégica: 60 minutos, sin coste
     horario: e('HORARIO_REUNIONES', 'L-V 09:30-14:00,16:00-19:00'),
     antelacionHoras: n('REUNION_ANTELACION_H', 24),
   },
@@ -85,6 +90,23 @@ export const C = {
     festivos: e('FESTIVOS').split(',').map((x) => x.trim()).filter(Boolean), // AAAA-MM-DD
   },
   panel: { usuario: e('PANEL_USUARIO', 'admin'), clave: e('PANEL_CLAVE') },
+  // Avisos inmediatos al equipo: correo (SMTP) a RESPONSABLE_EMAIL y, con plantilla aprobada, WhatsApp a RESPONSABLE_MOVIL
+  smtp: {
+    host: e('SMTP_HOST'), puerto: n('SMTP_PORT', 587), usuario: e('SMTP_USER'), clave: e('SMTP_PASS'),
+    de: e('SMTP_FROM'), // remitente: «Asistente <asistente@su-dominio.es>»
+  },
+  avisos: { plantillaWhatsApp: e('WHATSAPP_PLANTILLA_AVISO_EQUIPO'), idiomaPlantilla: e('WHATSAPP_PLANTILLA_IDIOMA', 'es') },
+  // Integración con Atalaya 360° (reuniones en la mesa de trabajo e invitaciones de alta). Sin las dos, no se hace nada.
+  atalaya: { url: e('ATALAYA_URL').replace(/\/$/, ''), token: e('INTEGRACION_TOKEN') },
+  // Plazos de conservación (CUMPLIMIENTO.md §6.3); la purga se ejecuta a diario
+  conservacion: {
+    mensajesMeses: n('CONSERVAR_MENSAJES_MESES', 12),
+    mensajesClientesMeses: n('CONSERVAR_MENSAJES_CLIENTES_MESES', 72),
+    grabacionesMeses: n('CONSERVAR_GRABACIONES_MESES', 3),
+    eventosMeses: n('CONSERVAR_EVENTOS_MESES', 12),
+    pruebaBaseLegalMeses: n('CONSERVAR_PRUEBA_BASE_LEGAL_MESES', 36),
+    activa: b('PURGA_ACTIVA', true),
+  },
 };
 
 export function faltan(...claves) {

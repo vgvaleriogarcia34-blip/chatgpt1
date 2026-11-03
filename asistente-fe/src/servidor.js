@@ -55,7 +55,7 @@ export function crearServidor() {
 
 // Carga de módulos: cada uno registra sus rutas y sus herramientas al importarse
 export async function cargarModulos() {
-  const mods = ['./voz/rutas.js', './whatsapp/rutas.js', './crm/hubspot.js', './agenda/google-calendar.js', './conocimiento/buscar.js', './prospeccion/rutas.js', './panel/rutas.js'];
+  const mods = ['./voz/rutas.js', './whatsapp/rutas.js', './crm/hubspot.js', './agenda/google-calendar.js', './conocimiento/buscar.js', './prospeccion/rutas.js', './panel/rutas.js', './conservacion.js'];
   for (const m of mods) {
     try { await import(m); } catch (err) { if (err.code === 'ERR_MODULE_NOT_FOUND' && err.message.includes(m.slice(2))) console.warn(`  módulo ${m} no presente`); else throw err; }
   }

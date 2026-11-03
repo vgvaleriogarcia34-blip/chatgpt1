@@ -9,18 +9,19 @@
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const P = () => A.platform;
-  const MUNDO_N = { intervencion: 'Auditoría integral', simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Mesa de trabajo' };
-  const URL = { intervencion: 'intervencion.html', simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html' };
+  const MUNDO_N = { intervencion: 'Auditoría integral', simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Mesa de trabajo', tablero: 'Tablero general', cartera: 'Cartera de clientes' };
+  const URL = { intervencion: 'intervencion.html', simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html', tablero: 'tablero.html', cartera: 'grupo.html' };
   const fCorta = (s) => (s ? new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
   let lib = null, sel = null, empresa = 'Mi empresa', firmas = {};
   /* Estado de un capítulo: desactualizado si los datos de su mundo han cambiado desde que se generó (firma distinta);
      antiguo si tiene más de 30 días o no tiene fecha válida */
   const fechaOk = (c) => c.fecha && isFinite(new Date(c.fecha).getTime());
   const viejo = (c) => !fechaOk(c) || Date.now() - new Date(c.fecha).getTime() > 30 * 864e5;
-  const cambiado = (c) => !!(c.firma && firmas[c.mundo] && c.firma !== firmas[c.mundo]);
+  // Lo que usa el capítulo (los datos de su mundo y las cifras del simulador que toma) ha cambiado: js/libro-comun.js
+  const cambiado = (c) => (L.cambiado ? L.cambiado(c, firmas[c.mundo]) : !!(c.firma && firmas[c.mundo] && c.firma !== firmas[c.mundo]));
   const estadoCap = (c) => (cambiado(c) ? 'cambiado' : viejo(c) ? (fechaOk(c) ? 'viejo' : 'sinfecha') : 'ok');
-  const EST_T = { cambiado: 'desactualizado: los datos de su mundo han cambiado', viejo: 'de hace más de un mes', sinfecha: 'sin fecha', ok: 'al día' };
-  const calcFirmas = async () => { const ms = [...new Set(lib.caps.map((c) => c.mundo).filter(Boolean))]; const out = {}; for (const m of ms) out[m] = L.firma ? await L.firma(m) : null; firmas = out; };
+  const EST_T = { cambiado: 'desactualizado: han cambiado los datos de su mundo o las cifras del simulador que usa', viejo: 'de hace más de un mes', sinfecha: 'sin fecha', ok: 'al día' };
+  const calcFirmas = async () => { const ms = [...new Set(lib.caps.map((c) => c.mundo).filter(Boolean))]; const out = {}; for (const m of ms) out[m] = { v2: L.firma ? await L.firma(m) : null, v1: lib.caps.some((c) => c.mundo === m && c.firma && !/^v2\./.test(c.firma)) && L.firmaV1 ? await L.firmaV1(m) : null }; firmas = out; };
   const guardar = (() => { let t; return () => { clearTimeout(t); t = setTimeout(async () => { try { await L.guardar(lib); } catch (e) { toast(e.message); } }, 400); }; })();
   const toast = (t) => { $$('.ms-toast').forEach((x) => x.remove()); const d = document.createElement('div'); d.className = 'alert ok ms-toast lb-toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 6000); };
   const capsDe = (sid) => lib.caps.filter((c) => c.sec === sid);
@@ -83,6 +84,7 @@
           ${cs.length ? `<ol class="lb-caps">${cs.map((x) => `<li class="lb-c ${x.id === sel ? 'on' : ''} ${x.incl ? '' : 'fuera'}" data-c="${x.id}"><input type="checkbox" data-in ${x.incl ? 'checked' : ''} aria-label="Incluir en el libro"><button class="lb-ct" data-ver><span>${num[x.id] || '—'}</span>${esc(x.t)}<small>${esc(MUNDO_N[x.mundo] || '')} · ${fCorta(x.fecha)}${estadoCap(x) !== 'ok' ? ` · <b class="lb-st ${estadoCap(x)}">${esc(estadoCap(x) === 'cambiado' ? 'desactualizado' : EST_T[estadoCap(x)])}</b>` : ''}</small></button><span class="lb-acc"><button class="icon-btn" data-cu aria-label="Subir">↑</button><button class="icon-btn" data-cd aria-label="Bajar">↓</button></span></li>`).join('')}</ol>` : '<p class="small muted lb-vacia">Sin capítulos. Mueva aquí capítulos de otra sección o añada informes desde los mundos.</p>'}
         </li>`; }).join('')}</ol>
         <p class="small muted" style="margin:0">Marque los capítulos que van al libro. ↑ ↓ ordenan; ⤓ abre solo esa sección para verla o descargarla.</p>
+        <div class="stack lb-extra"><div class="eyebrow">Al recoger, incluir también</div>${extrasPosibles().map((k) => `<label class="small row" style="gap:8px"><input type="checkbox" data-extra="${k}" ${(lib.recogerExtra || {})[k] ? 'checked' : ''}> ${esc(MUNDO_N[k])}</label>`).join('')}</div>
       </aside>
       <section class="lb-read" aria-live="polite">${c ? `<div class="glass pad row lb-rbar"><div><div class="eyebrow">${num[c.id] ? 'Capítulo ' + num[c.id] : 'No incluido en el libro'} · ${esc(MUNDO_N[c.mundo] || '')}</div><h2 class="lb-rt">${esc(c.t)}</h2><small class="muted">Actualizado el ${fCorta(c.fecha)}</small>${cambiado(c) ? `<p class="small lb-aviso" style="margin:4px 0 0">Los datos de ${esc(MUNDO_N[c.mundo] || 'su mundo')} han cambiado desde que se generó este capítulo. Vuelva a abrir el informe en su mundo y pulse «Añadir al libro», o use «Recoger todos los informes».</p>` : ''}</div><span class="spacer"></span>
           <label class="small">Sección<select class="input" id="lbMover">${lib.secciones.map((s) => `<option value="${s.id}" ${s.id === c.sec ? 'selected' : ''}>${esc(s.t)}</option>`).join('')}</select></label>
@@ -92,6 +94,7 @@
     // Libro
     $('#lbTit', host).oninput = (e) => { lib.titulo = e.target.value; guardar(); };
     $('#lbIntro', host).oninput = (e) => { lib.intro = e.target.value; guardar(); };
+    host.querySelectorAll('[data-extra]').forEach((x) => (x.onchange = () => { lib.recogerExtra = Object.assign({}, lib.recogerExtra || {}, { [x.dataset.extra]: x.checked }); guardar(); }));
     $('#lbSecN', host).onclick = () => { lib.secciones.push({ id: 's' + Date.now().toString(36), t: 'Nueva sección' }); guardar(); pintar(); };
     const r2 = $('#lbRecoger2', host); if (r2) r2.onclick = recoger;
     // Secciones
@@ -122,8 +125,11 @@
   /* Las hojas A4 (794 px) de los informes paginados se escalan al ancho del lector, sin recortes */
   const ajustarLector = () => { const w = $('.lb-paperwrap'), a = w && $('.lb-paper.pp-doc', w); if (!a) return; a.style.width = '794px'; a.style.zoom = Math.min(1, (w.clientWidth - 2) / 794); };
   addEventListener('resize', ajustarLector);
+  // Capítulos opcionales de la recogida: el tablero general y, con Consultora o Grupos, la cartera
+  const extrasPosibles = () => ['tablero'].concat(P() && P().esGrupo && P().user && P().esGrupo(P().user) ? ['cartera'] : []);
+  const extras = () => { const o = lib.recogerExtra || {}; return extrasPosibles().filter((k) => o[k]); };
   const recoger = () => {
-    const m = mundosPlan();
+    const m = mundosPlan().concat(extras());
 
     L.recogerTodo(m);
   };

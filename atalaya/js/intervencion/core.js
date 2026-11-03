@@ -44,31 +44,14 @@
   const toast = (t) => { $$('.iv-toast').forEach((x) => x.remove()); const d = document.createElement('div'); d.className = 'alert ok iv-toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 6000); };
 
   /* ---------- Cálculos ---------- */
-  const sintomasDe = (aid) => ST.sintomas.filter((s) => s.area === aid);
-  const desvDe = (aid) => Object.values(ST.verifica[aid] || {}).filter((x) => x && x.e === 'desv').length;
-  /* Prioridad de un área: no por el número de síntomas, sino por los principios de la empresa.
-     Primero la liquidez (poder pagar), después la rentabilidad (ganar con lo que se hace: precios, margen,
-     operaciones) y después el crecimiento; la organización (gobierno, personas, información, tiempo) sostiene
-     las tres. Dentro de cada principio pesan la gravedad, lo verificado y lo que dicen las constantes. */
-  const PRINCIPIO = { fin: { p: 'liquidez', o: 0, w: 1.5, c: 'pulso' }, leg: { p: 'liquidez', o: 0, w: 1.1, c: 'temperatura' }, ope: { p: 'rentabilidad', o: 1, w: 1.2, c: 'respiracion' }, com: { p: 'rentabilidad', o: 1, w: 1.2, c: '' }, gob: { p: 'organizacion', o: 3, w: 1, c: 'reflejos' }, per: { p: 'organizacion', o: 3, w: 1, c: 'dependencia' }, tie: { p: 'organizacion', o: 3, w: 0.9, c: 'tension' }, inf: { p: 'organizacion', o: 3, w: 0.9, c: '' } };
-  const PRIN_N = { liquidez: 'Liquidez: que la empresa pueda pagar', rentabilidad: 'Rentabilidad: que gane dinero con lo que hace', crecimiento: 'Crecimiento', organizacion: 'Organización: lo que sostiene la liquidez, la rentabilidad y el crecimiento' };
-  const prioArea = (aid) => {
-    const P0 = PRINCIPIO[aid] || { p: 'organizacion', o: 3, w: 1, c: '' }, ss = sintomasDe(aid), gs = ss.map((s) => +s.gravedad || 3).sort((a, b) => b - a), hs = ST.hallazgos.filter((h) => h.area === aid), dv = desvDe(aid);
-    const motivo = [];
-    if (!gs.length && !hs.length && !dv) return { p: P0.p, o: P0.o, score: 0, n: '', motivo };
-    const media = gs.length ? gs.reduce((a, b) => a + b, 0) / gs.length : 0;
-    const ev = (gs[0] || 0) * 1.5 + media + Math.min(gs.length, 4) * 0.5 + dv * 3 + hs.reduce((a, h) => a + (+h.gravedad || 3), 0);
-    const cv = P0.c ? +ST.constantes[P0.c] || 0 : 0, boost = cv >= 4 ? 4 : cv === 3 ? 1.5 : 0;
-    const score = Math.round((ev * P0.w + boost) * 10) / 10;
-    motivo.push(PRIN_N[P0.p]);
-    if (gs.length) motivo.push(`${gs.length} ${gs.length === 1 ? 'síntoma' : 'síntomas'}, el más grave de ${gs[0]}/5 (media ${media.toLocaleString('es-ES', { maximumFractionDigits: 1 })})`);
-    if (dv) motivo.push(`${dv} ${dv === 1 ? 'desviación verificada' : 'desviaciones verificadas'}`);
-    if (cv) motivo.push(`${(D.CONSTANTES.find((c) => c.id === P0.c) || {}).n} ${cv}/5`);
-    const n = gs.some((g) => g >= 5) || (aid === 'fin' && cv >= 4) || score >= 11 ? 'stop' : score >= 6 ? 'warn' : 'ok';
-    return { p: P0.p, o: P0.o, score, n, motivo };
-  };
-  const nivelAuto = (aid) => prioArea(aid).n;
-  const nivel = (aid) => (ST.areas[aid] && ST.areas[aid].nivel) || nivelAuto(aid);
+  // Triaje: un solo cálculo, el de js/triaje.js (lo usan también el tablero y la cartera con los datos guardados)
+  const T = A.triaje;
+  const sintomasDe = (aid) => T.sintomasDe(ST, aid);
+  const desvDe = (aid) => T.desvDe(ST, aid);
+  const PRIN_N = T.PRIN_N;
+  const prioArea = (aid) => T.prioArea(ST, aid);
+  const nivelAuto = (aid) => T.nivelAuto(ST, aid);
+  const nivel = (aid) => T.nivel(ST, aid);
   const global = () => { const n = D.AREAS.map((a) => nivel(a.id)); return n.includes('stop') ? 'stop' : n.includes('warn') ? 'warn' : n.includes('ok') ? 'ok' : ''; };
   const cte = (id) => +ST.constantes[id] || 0;
   // Causas: peso = suma de gravedades de los síntomas que explica (las de áreas en urgencias pesan más) ÷ esfuerzo
@@ -128,7 +111,7 @@
     $$('#ivTabs [data-t], #ivRuta [data-t]').forEach((b) => (b.onclick = () => ir(b.dataset.t)));
   }
   // ver: lleva la vista hasta la pantalla del paso (desde la portada o desde Anterior/Siguiente)
-  const ir = (k, o) => { tab = k; if (ST && ST.recorrido && VISTAS[k]) ST.recorrido.ultimo = { tab: k, fecha: hoy() }; try { history.replaceState(null, '', '#' + k); } catch (e) { /* nada */ } render(); const t = $('#ivRuta'); if (t && ((o && o.ver) || scrollY > t.offsetTop)) scrollTo({ top: t.offsetTop - 80, behavior: 'smooth' }); };
+  const ir = (k, o) => { tab = k; if (ST && ST.recorrido && VISTAS[k]) ST.recorrido.ultimo = { tab: k, fecha: hoy() }; if (location.hash !== '#' + k) { try { if (o && o.volver) history.replaceState(null, '', '#' + k); else history.pushState(null, '', '#' + k); } catch (e) { /* nada */ } } render(); const t = $('#ivRuta'); if (t && ((o && o.ver) || scrollY > t.offsetTop)) scrollTo({ top: t.offsetTop - 80, behavior: 'smooth' }); };
   const PASO_TXT = {
     guion: 'Durante la sesión: siga el guion, recoja sus objetivos y apunte frases literales. Queda hecho al marcar la mitad de las preguntas.',
     constantes: 'Al terminar la sesión: puntúe del 1 al 5 las seis constantes con lo que ha visto y oído.',
@@ -258,7 +241,7 @@
       <div class="iv-g3"><label class="small">3 · Qué gana (beneficio, con cifra)<input class="input" data-ok="beneficio" value="${esc(o.beneficio)}" placeholder="25 horas a la semana para vender y dirigir"></label><label class="small">Qué le cuesta (tiempo, dinero, renuncias)<input class="input" data-ok="contras" value="${esc(o.contras)}" placeholder="Formar a un encargado: 3 meses"></label><label class="small">¿Merece la pena?<select class="input" data-ok="merece"><option value="">Sin decidir</option><option value="si" ${o.merece === 'si' ? 'selected' : ''}>Sí, compensa</option><option value="no" ${o.merece === 'no' ? 'selected' : ''}>No compensa</option></select></label></div>
       <label class="small">4 · Cómo lo va a alcanzar (una acción por línea, con lo que hará cada semana)<textarea class="input" rows="3" data-ok="como" placeholder="Escribir la lista de tareas que hoy hace y debería delegar&#10;Nombrar encargado de almacén y traspasarle tareas&#10;Bloquear en la agenda los lunes de 9 a 13">${esc(o.como)}</textarea></label>
       <p class="iv-ofr small"><span class="muted">El objetivo en una frase:</span> <b data-ofr>${esc(fraseObj(o) || '—')}</b></p>
-      <div class="row"><button class="btn ghost small" data-omej>Mejorar la redacción</button><button class="btn small" data-omesa>${o.enviada ? 'Actualizar en la mesa' : 'Llevar a la mesa como meta SMART'}</button>${o.enviada ? '<small class="muted">En la mesa de trabajo</small>' : ''}</div><div data-oprop></div></div>`; }).join('') || '<p class="small muted" style="margin:0">Aún no hay objetivos. Pregunte qué quiere conseguir y apúntelo con sus palabras.</p>'}</div>`;
+      <div class="row"><button class="btn ghost small" data-omej>Mejorar la redacción</button><button class="btn small" data-omesa>${o.enviada ? 'Actualizar en la mesa' : 'Llevar a la mesa como meta SMART'}</button><small data-mesa-meta="${esc(A.mesa && A.mesa.oid ? A.mesa.oid('intervencion', 'objetivo', o.id) : '')}"></small>${o.cumplido ? `<small class="muted">Cumplido el ${esc(fCorta(o.cumplido))}</small>` : ''}</div><div data-oprop></div></div>`; }).join('') || '<p class="small muted" style="margin:0">Aún no hay objetivos. Pregunte qué quiere conseguir y apúntelo con sus palabras.</p>'}</div>`;
   const mejorarObj = async (box, o) => {
     box.innerHTML = '<p class="small muted" style="margin:0">Analizando el objetivo…</p>';
     const reglas = [];
@@ -283,9 +266,12 @@
   };
   const objAMesa = async (o, i) => {
     if (!A.mesa || !A.mesa.cargar) return toast('La mesa de trabajo no está disponible aquí.');
-    const st = await A.mesa.cargar(), oid = 'iv-obj:' + o.id; let m = st.metas.find((x) => x.oid === oid);
-    const datos = { objetivo: o.dice || o.especifica, especifica: o.especifica, indicador: o.indicador, actual: o.actual, valor: o.valor, unidad: o.unidad, fecha: o.fecha, responsable: o.responsable, solo: !!o.solo, beneficio: o.beneficio, contras: o.contras, merece: o.merece, acciones: (o.hitos || []).filter((h) => h.t).map((h) => ({ t: h.t + (h.resp ? ' · ' + h.resp : ''), fecha: h.fecha || '', revisada: '', hecha: h.hecho || '' })).concat((o.como || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, fecha: '', revisada: '', hecha: '' }))) };
-    if (m) Object.assign(m, datos);
+    // Un objetivo, una meta: su identificador (intervencion:objetivo:<id>) viaja con él a la mesa y al plan de empresa
+    if (A.mesa.idsIntervencion && A.mesa.idsIntervencion(ST)) guardar();
+    const st = await A.mesa.cargar(), oid = A.mesa.oid('intervencion', 'objetivo', o.id); let m = st.metas.find((x) => x.objetivoId === oid || x.oid === oid);
+    const datos = { objetivoId: oid, objetivo: o.dice || o.especifica, especifica: o.especifica, indicador: o.indicador, actual: o.actual, valor: o.valor, unidad: o.unidad, fecha: o.fecha, responsable: o.responsable, solo: !!o.solo, beneficio: o.beneficio, contras: o.contras, merece: o.merece, acciones: (o.hitos || []).filter((h) => h.t).map((h) => ({ t: h.t + (h.resp ? ' · ' + h.resp : ''), fecha: h.fecha || '', revisada: '', hecha: h.hecho || '', oid: A.mesa.oid('intervencion', 'hito', o.id + ':' + h.id) })).concat((o.como || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, fecha: '', revisada: '', hecha: '' }))) };
+    // Las acciones que ya estaban en la meta conservan su tarea en la bandeja
+    if (m) { datos.acciones.forEach((a) => { const y = (m.acciones || []).find((x) => (a.oid && x.oid === a.oid) || x.t === a.t); if (y && y.tareaId) a.tareaId = y.tareaId; }); Object.assign(m, datos); }
     else { m = Object.assign({ id: 'm' + Date.now().toString(36), oid, creada: hoy(), area: 'Dirección', medios: false, beneficios: '', perdidas: '', pros: '', obstaculos: [{ o: '', s: '' }], seguimiento: 'En las sesiones de la intervención con el consultor', valores: '', afirmacion: '', prioridad: i + 1, plazo: 'corto', tangible: true, estado: 'activa' }, datos); st.metas.push(m); }
     await A.mesa.guardarYa(st); o.enviada = true; guardar(); render();
     toast('Objetivo en la mesa de trabajo como meta SMART, con su plan de acción.');
@@ -326,6 +312,7 @@
       $('[data-omej]', d).onclick = () => mejorarObj($('[data-oprop]', d), o);
       $('[data-omesa]', d).onclick = () => objAMesa(o, i);
     });
+    if (A.mesa && A.mesa.marcar) A.mesa.marcar(host);
   };
 
   /* ================= CAPA 1 · PRIMERA SESIÓN ================= */
@@ -487,8 +474,7 @@
       if (A.assistant) A.assistant.init({ page: 'intervencion' });
       if (Pl.puede && !Pl.puede('intervencion')) {
         $('#ivTabs').innerHTML = ''; $('#ivRuta').innerHTML = '';
-        $('#ivPanel').innerHTML = `<div class="glass pad stack" style="max-width:740px;margin:40px auto"><div class="eyebrow">Auditoría integral</div><h2>Incluida en el plan <em>Consultora</em></h2><p>La auditoría integral es la herramienta del consultor para entrar en una empresa: la primera sesión como un triaje (constantes, escucha y síntomas), la hoja de ruta de la auditoría integral y el plan de intervención completo con sus sesiones.</p><div class="row"><button class="btn solid" id="ivPlanes">Ver el plan Consultora</button></div></div>`;
-        $('#ivPlanes').onclick = () => Pl.panelPlanes({ destacar: 'consultora' });
+        Pl.bloqueo('iv', $('#ivPanel'));
         return;
       }
       if (Pl.empresas) await Pl.empresas.cargar();
@@ -496,7 +482,11 @@
     ST = await cargar();
     const h = location.hash.replace('#', ''); if (VISTAS[h]) tab = h;
     else if (ST.recorrido && ST.recorrido.ultimo && VISTAS[ST.recorrido.ultimo.tab]) tab = ST.recorrido.ultimo.tab; // vuelve donde se quedó
+    try { if (location.hash !== '#' + tab) history.replaceState(null, '', '#' + tab); } catch (e) { /* nada */ }
     render();
+    // Atrás y adelante del navegador: cada paso visitado es una entrada del historial
+    const alVolver = () => { const k = location.hash.replace('#', ''); if (VISTAS[k] && k !== tab) ir(k, { volver: true }); };
+    addEventListener('popstate', alVolver); addEventListener('hashchange', alVolver);
     // Al cambiar los datos de la empresa activa (nombre, ficha) se repinta con ellos
     addEventListener('atalaya:empresa', () => { if (ST) render(); });
     V.listo = true;

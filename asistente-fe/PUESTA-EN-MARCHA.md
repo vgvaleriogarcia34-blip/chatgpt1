@@ -60,6 +60,7 @@ Orden recomendado: 1) cuentas y claves, 2) servidor con HTTPS, 3) variables de e
 | `seguimiento_conversacion` (la que usa el asistente: `WHATSAPP_PLANTILLA_SEGUIMIENTO`) | Utilidad | «Hola. Le escribe el asistente de inteligencia artificial de Familias Empresarias sobre la conversación que tuvimos: {{1}} Si no desea recibir más mensajes, responda BAJA.» |
 | `confirmacion_reunion` | Utilidad | «Su reunión con {{1}} queda confirmada para el {{2}}. Enlace o lugar: {{3}}. Si necesita cambiarla, responda a este mensaje.» |
 | `recordatorio_reunion` | Utilidad | «Le recordamos su reunión con {{1}} mañana a las {{2}}. Si no puede asistir, responda a este mensaje y buscamos otro momento.» |
+| `aviso_equipo` (avisos internos a Valerio: `WHATSAPP_PLANTILLA_AVISO_EQUIPO`) | Utilidad | «Aviso del asistente: {{1}} Revise el panel.» (una sola variable; solo se envía al móvil de `RESPONSABLE_MOVIL`) |
 | `seguimiento_ponencia` | Marketing (solo a quien haya dado su consentimiento para WhatsApp) | «Hola, {{1}}. Soy el asistente de inteligencia artificial de Familias Empresarias. Gracias por asistir a «{{2}}». ¿Le enviamos el resumen y vemos cómo aplicarlo en su empresa? Si no desea más mensajes, responda BAJA.» (añada el botón de respuesta rápida «Dejar de recibir») |
 
    Meta decide la categoría al revisarla; si una plantilla de «Utilidad» tiene tono comercial, la pasará a «Marketing» (con otro precio).
@@ -88,7 +89,8 @@ Orden recomendado: 1) cuentas y claves, 2) servidor con HTTPS, 3) variables de e
 node src/crm/preparar-hubspot.js
 ```
 
-   Crea el grupo «Familias Empresarias» con: base legal del contacto (`fe_base_legal`), preocupación principal, origen, último resultado del asistente y baja de comunicaciones comerciales (`fe_baja`). Al importar una lista de HubSpot a una campaña se leen `fe_base_legal`, `fe_origen`, `fe_baja` y la base legal nativa `hs_legal_basis`.
+   Crea el grupo «Familias Empresarias» con: base legal del contacto (`fe_base_legal`), preocupación principal, origen, campaña de la asistente (`fe_campana`), último resultado del asistente y baja de comunicaciones comerciales (`fe_baja`). Si ya lo ejecutó antes, vuelva a ejecutarlo: crea solo lo que falte (`fe_campana`).
+7. Para los enlaces del panel a cada ficha, la asistente lee el identificador de la cuenta (`/account-info/v3/details`); si el token no tiene ese permiso, ponga el número de su cuenta (Hub ID, arriba a la derecha en HubSpot) en `HUBSPOT_PORTAL_ID`. Al importar una lista de HubSpot a una campaña se leen `fe_base_legal`, `fe_origen`, `fe_baja` y la base legal nativa `hs_legal_basis`.
 
 ### 1.7 Google (Calendar y Drive)
 
@@ -98,6 +100,25 @@ node src/crm/preparar-hubspot.js
    - **Compartir (cuenta de Gmail o Workspace)**: en Google Calendar → configuración del calendario de Valerio → Compartir con personas → añada el correo de la cuenta de servicio (`…@….iam.gserviceaccount.com`) con «Hacer cambios en los eventos». Ponga el correo o el ID del calendario en `GOOGLE_CALENDAR_ID`. En Drive, comparta cada carpeta del conocimiento con ese mismo correo como **Lector** y ponga los ID de las carpetas (lo que va tras `/folders/` en la dirección) en `GOOGLE_DRIVE_CARPETAS`, separados por comas.
      - Limitación conocida de Google: sin delegación de dominio, una cuenta de servicio no puede añadir invitados a los eventos. El evento se crea en el calendario y la confirmación al cliente sale por WhatsApp o correo.
    - **Delegación de dominio (solo Google Workspace)**: en la consola de administración → Seguridad → Controles de API → Delegación de todo el dominio → añada el ID de cliente de la cuenta de servicio con los ámbitos `https://www.googleapis.com/auth/calendar` y `https://www.googleapis.com/auth/drive.readonly`. Ponga en `GOOGLE_SUPLANTAR` el correo de Valerio. Así las invitaciones salen a su nombre.
+
+### 1.8 Correo para los avisos al equipo (SMTP)
+
+La asistente avisa en el momento a `RESPONSABLE_EMAIL` cuando una transferencia no se atiende, hay una urgencia, falla algo (llamada o WhatsApp), queda una sesión estratégica pendiente de confirmar o alguien pide la baja. Sirve cualquier servidor SMTP con TLS (el del dominio, Google Workspace con contraseña de aplicación, Microsoft 365, Brevo, Amazon SES…):
+
+1. Cree un buzón o un usuario de envío (por ejemplo `asistente@su-dominio.es`).
+2. Rellene `SMTP_HOST`, `SMTP_PORT` (587 con STARTTLS o 465 con TLS directo), `SMTP_USER`, `SMTP_PASS` y `SMTP_FROM` («Asistente FE <asistente@su-dominio.es>»).
+3. Si además quiere el aviso por WhatsApp en su móvil, apruebe la plantilla `aviso_equipo` (tabla del apartado 1.5) y ponga su nombre en `WHATSAPP_PLANTILLA_AVISO_EQUIPO`.
+4. En el panel → **Integraciones**, «Avisos por correo» debe decir «Sí» en configurada y en responde.
+
+Sin SMTP ni plantilla, los avisos quedan igualmente en el panel (bandeja **Requiere acción**).
+
+### 1.9 Atalaya 360°
+
+Con la integración, cada sesión estratégica que agenda la asistente aparece en la mesa de trabajo de esa empresa en Atalaya, y desde la ficha de un contacto del panel se le puede enviar la invitación de alta en Atalaya con su nombre y empresa ya rellenos.
+
+1. Genere un texto aleatorio largo (`openssl rand -hex 32`) y póngalo igual en `INTEGRACION_TOKEN` en los dos servidores (asistente y Atalaya).
+2. Ponga en `ATALAYA_URL` la dirección de Atalaya (por ejemplo `https://atalaya.su-dominio.es`, sin barra final).
+3. Atalaya encuentra la empresa por el id de la empresa en HubSpot (la asistente lo guarda al sincronizar el contacto) o la cuenta por el correo.
 
 ---
 
@@ -187,9 +208,11 @@ Todas están comentadas en `.env.ejemplo`. «Sí» en «Obligatoria» significa 
 | `EMPRESA_MARCA` | No | `Business Avance` | Marca comercial |
 | `EMPRESA_WEB` | No | `https://businessavance.es` | Web |
 | `ASISTENTE_NOMBRE` | No | `Lucía` | Nombre del asistente (siempre se presenta como IA) |
-| `RESPONSABLE_NOMBRE` | No | `Valerio` | Con quién se agenda |
-| `RESPONSABLE_MOVIL` | Para transferir | — | Móvil `+34…` al que se pasan las llamadas |
-| `RESPONSABLE_EMAIL` | No | — | Correo del responsable |
+| `RESPONSABLE_NOMBRE` | No | `Valerio García` | Con quién es la sesión estratégica y a quién se transfiere |
+| `RESPONSABLE_MOVIL` | Para transferir | — | Móvil `+34…` al que se pasan las llamadas (y los avisos por WhatsApp) |
+| `RESPONSABLE_EMAIL` | Para los avisos | — | Correo al que llegan los avisos al equipo |
+| `RESPONSABLE_DATOS` / `RESPONSABLE_DATOS_NIF` / `RESPONSABLE_DATOS_MARCA` | No | `AKOMPANO GROUP, S.L.` / `B05544713` / `Business Avance International Consulting` | Responsable del tratamiento, que la asistente nombra si se lo preguntan |
+| `URL_PRIVACIDAD` | Recomendada | — | Política de privacidad (apartado «Asistente telefónico y WhatsApp»); la asistente ofrece enviarla por WhatsApp |
 | `ZONA_HORARIA` | No | `Europe/Madrid` | Zona horaria de horarios y agenda |
 | `ANTHROPIC_API_KEY` | Sí | — | Clave de Claude |
 | `MODELO_VOZ` / `MODELO_TEXTO` | No | `claude-opus-5-5` | Modelo (no cambiar) |
@@ -211,15 +234,21 @@ Todas están comentadas en `.env.ejemplo`. «Sí» en «Obligatoria» significa 
 | `WHATSAPP_APP_SECRET` | WhatsApp | — | Comprueba la firma de Meta |
 | `WHATSAPP_API_VERSION` | No | `v23.0` | Versión de la API de Meta |
 | `WHATSAPP_PLANTILLA_SEGUIMIENTO` | No | — | Plantilla para escribir fuera de las 24 horas |
-| `WHATSAPP_PLANTILLA_IDIOMA` | No | `es` | Idioma de la plantilla |
+| `WHATSAPP_PLANTILLA_IDIOMA` | No | `es` | Idioma de las plantillas |
+| `WHATSAPP_PLANTILLA_AVISO_EQUIPO` | No | — | Plantilla aprobada para avisar al responsable por WhatsApp |
+| `SMTP_HOST` / `SMTP_PORT` | Para los avisos | — / `587` | Servidor de correo (465: TLS directo; otro: STARTTLS) |
+| `SMTP_USER` / `SMTP_PASS` | Según el servidor | — | Usuario y contraseña de envío (nunca se mandan sin cifrar) |
+| `SMTP_FROM` | Para los avisos | — | Remitente: `Asistente FE <asistente@su-dominio.es>` |
 | `HUBSPOT_TOKEN` | CRM | — | Token de la app privada |
 | `HUBSPOT_OWNER_ID` | No | — | Propietario de contactos y tareas |
 | `HUBSPOT_PIPELINE` / `HUBSPOT_ETAPA` | No | `default` / `appointmentscheduled` | Pipeline y etapa de los negocios |
+| `HUBSPOT_PORTAL_ID` | No | (se lee de la cuenta) | Hub ID, para los enlaces del panel a HubSpot |
+| `ATALAYA_URL` / `INTEGRACION_TOKEN` | Para Atalaya | — | Integración con Atalaya 360° (sin las dos, no se hace nada) |
 | `GOOGLE_CREDENCIALES` | Agenda y Drive | — | Ruta al JSON de la cuenta de servicio |
 | `GOOGLE_CALENDAR_ID` | No | `primary` | Calendario de reuniones |
 | `GOOGLE_SUPLANTAR` | No | — | Correo a suplantar con delegación de dominio |
 | `GOOGLE_DRIVE_CARPETAS` | No | — | ID de carpetas de Drive del conocimiento, separados por comas |
-| `REUNION_MINUTOS` | No | `30` | Duración de la reunión |
+| `REUNION_MINUTOS` | No | `60` | Duración de la sesión estratégica |
 | `HORARIO_REUNIONES` | No | `L-V 09:30-14:00,16:00-19:00` | Cuándo se pueden agendar reuniones |
 | `REUNION_ANTELACION_H` | No | `24` | Antelación mínima |
 | `CONOCIMIENTO_DIR` | No | `datos/conocimiento` | Carpeta del conocimiento |
@@ -234,6 +263,11 @@ Todas están comentadas en `.env.ejemplo`. «Sí» en «Obligatoria» significa 
 | `PANEL_USUARIO` | No | `admin` | Usuario del panel |
 | `PANEL_CLAVE` | Para el panel | — | Sin ella, el panel está desactivado |
 | `PANEL_SECRETO` | Recomendada | aleatoria | Firma de la sesión del panel (`openssl rand -hex 32`) |
+| `PURGA_ACTIVA` | No | `sí` | Purga diaria de lo que supera los plazos de conservación |
+| `CONSERVAR_MENSAJES_MESES` / `CONSERVAR_MENSAJES_CLIENTES_MESES` | No | `12` / `72` | Plazo de transcripciones y mensajes (no clientes / clientes) |
+| `CONSERVAR_GRABACIONES_MESES` | No | `3` | Plazo de las grabaciones |
+| `CONSERVAR_EVENTOS_MESES` | No | `12` | Plazo de las métricas técnicas |
+| `CONSERVAR_PRUEBA_BASE_LEGAL_MESES` | No | `36` | Meses que se guarda la ficha (prueba de la base legal) tras vencer los mensajes |
 
 ---
 
@@ -256,6 +290,8 @@ Haga estas pruebas con el equipo antes de publicar el número o activar la prosp
 
 **Panel**
 - [ ] `https://SU-DOMINIO/panel` pide usuario y contraseña; con una contraseña errónea no entra.
+- [ ] Pestaña **Integraciones**: todo lo que va a usar dice «Sí» en configurada y en responde.
+- [ ] Abra una conversación y, desde ella, la ficha del contacto: se ve su cronología y el enlace a HubSpot. Exporte las conversaciones en CSV y ábralo en Excel.
 - [ ] Pestaña **Probar**: escriba como un cliente («Hola, tengo una empresa familiar de 40 personas y no sé si crecer o consolidar»). El asistente se presenta como IA, pregunta con sentido, consulta huecos y propone reunión.
 - [ ] Pulse «Volver a cargar el conocimiento»: muestra la confirmación.
 
@@ -264,10 +300,12 @@ Haga estas pruebas con el equipo antes de publicar el número o activar la prosp
 - [ ] Interrúmpale mientras habla: se calla y escucha.
 - [ ] Pregunte «¿Es usted una persona?»: responde que no.
 - [ ] Pida una reunión: ofrece huecos reales del calendario, confirma el correo y la reserva aparece en Google Calendar.
-- [ ] Pida hablar con una persona: transfiere al móvil del responsable.
+- [ ] Pida hablar con una persona: transfiere al móvil del responsable. Repítalo sin contestar en el móvil: a los 25 segundos oye que le devolverán la llamada, llega el aviso por correo y aparece en **Requiere acción** y como tarea de prioridad alta en HubSpot.
+- [ ] Pregunte «¿quién trata mis datos?»: nombra a AKOMPANO GROUP, S.L. y ofrece enviar la política de privacidad por WhatsApp.
 - [ ] Diga «no me llamen más»: confirma la baja; aparece en el panel (Bajas) y en HubSpot.
 - [ ] En el panel aparecen la conversación, su transcripción, el resultado y la latencia media (objetivo: menos de 1.000 ms).
-- [ ] En HubSpot aparecen el contacto, la llamada con su resumen y, si procede, la reunión y el negocio.
+- [ ] En HubSpot aparecen el contacto, la llamada con su resumen y, si procede, la reunión («Sesión estratégica · empresa») y el negocio («empresa · sesión estratégica»).
+- [ ] Con Atalaya configurada, la sesión agendada aparece en la mesa de trabajo de esa empresa.
 
 **WhatsApp**
 - [ ] Escriba al número de WhatsApp: responde en pocos segundos, de usted y presentándose como IA.

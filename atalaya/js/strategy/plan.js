@@ -52,8 +52,13 @@
     if (!p.dafoItems) { p.dafoItems = {}; ['d', 'a', 'f', 'o'].forEach((k) => { p.dafoItems[k] = String((p.dafo || {})[k] || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, i: 3 })); }); }
     if (!p.valores) p.valores = A.clone(S.defaults.plan.valores);
     if (!p.came) p.came = [];
+    // Cada acción y cada objetivo con su id (las antiguas lo reciben una vez y se guarda): así la mesa no depende del texto
+    if (A.mesa && A.mesa.idsEstrategia && ((p.acciones || []).some((a) => a && !a.id) || (p.objetivos || []).some((o) => o && !o.id)) && A.mesa.idsEstrategia(S.state)) setTimeout(S.save, 0);
     return p;
   };
+  const idAcc = () => 'pa' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const oidAcc = (a) => (A.mesa && A.mesa.oidPlanEst ? A.mesa.oidPlanEst(a) : '');
+  const oidObj = (o) => (A.mesa && A.mesa.oid ? o.objetivoId || A.mesa.oid('estrategia', 'objetivo-plan', o.id) : '');
 
   /* Sugerencias para el DAFO a partir de los datos de todos los módulos y del mercado */
   function sugerencias() {
@@ -134,9 +139,9 @@
           ${RV.length ? `<div class="table-wrap"><table><thead><tr><th style="text-align:left">Riesgo</th><th>Área</th><th>Nivel</th><th>Con sus valores</th><th style="text-align:left">Valor afectado</th></tr></thead><tbody>${RV.slice(0, 10).map((r) => `<tr><td style="text-align:left;white-space:normal;font-family:var(--font-body)">${esc(r.nombre)}</td><td>${esc(r.fuente || '')}</td><td>${r.nivel}</td><td><b>${String(r.ajustado).replace('.', ',')}</b></td><td style="text-align:left">${esc(r.valores.join(', ') || '—')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Sin riesgos identificados.</p>'}</div>
 
         <div class="glass pad mt stack"><div class="row"><h4>Cascada de objetivos</h4><span class="spacer"></span><button class="btn" id="plFind">Crear acciones desde los hallazgos</button></div>
-          <div class="cascade">${p.objetivos.map((o) => `<div class="cobj"><div class="row"><b>${esc(o.nombre)}</b><span class="spacer"></span><span class="small muted">${esc(o.indicador)}: ${o.actual} → ${o.meta}${o.fecha ? ' · ' + esc(o.fecha) : ''}</span></div>
+          <div class="cascade">${p.objetivos.map((o) => `<div class="cobj"><div class="row"><b>${esc(o.nombre)}</b><small data-mesa-meta="${esc(oidObj(o))}"></small>${o.cumplido ? '<small class="muted"> · cumplido</small>' : ''}<span class="spacer"></span><span class="small muted">${esc(o.indicador)}: ${o.actual} → ${o.meta}${o.fecha ? ' · ' + esc(o.fecha) : ''}</span></div>
             ${p.areas.filter((a) => a.macro === o.id).map((a) => `<div class="carea"><div class="row"><span>${esc(a.area)} · ${esc(a.objetivo)}</span><span class="spacer"></span><span class="small muted">${esc(a.kpi)}: ${a.actual} → ${a.meta}</span><span class="state st-${prog(a.area) >= 60 ? 'ok' : prog(a.area) >= 25 ? 'warn' : 'stop'}">${prog(a.area)} %</span></div>
-              <ul class="small">${p.acciones.filter((x) => x.area === a.area).map((x) => `<li>${esc(x.accion)} <span class="muted">· ${esc(x.responsable)} · ${esc(x.estado)}</span></li>`).join('')}</ul></div>`).join('')}</div>`).join('')}</div><p class="small" id="plMsg"></p></div>
+              <ul class="small">${p.acciones.filter((x) => x.area === a.area).map((x) => `<li>${esc(x.accion)} <span class="muted">· ${esc(x.responsable)} · ${esc(x.estado)}</span><small data-mesa-oid="${esc(oidAcc(x))}"></small></li>`).join('')}</ul></div>`).join('')}</div>`).join('')}</div><p class="small" id="plMsg"></p></div>
         <div class="glass pad mt" id="plO"></div><div class="glass pad mt" id="plA"></div><div class="glass pad mt" id="plX"></div>`;
 
       const bind = (id, fn) => { $(id, host).onchange = (e) => { fn(e.target.value); S.save(); }; };
@@ -159,18 +164,22 @@
       $$('[data-enc]', host).forEach((sel) => sel.onchange = () => { const [i, j] = sel.dataset.enc.split(':').map(Number); const x = p.came[i]; x.encaje = x.encaje || {}; x.encaje[j] = +sel.value; S.save(); S.rerender(); });
       $$('[data-toplan]', host).forEach((b) => b.onclick = () => {
         const x = p.came[+b.dataset.toplan]; const area = x.area || 'Dirección';
-        p.acciones.push({ area, accion: x.accion, responsable: '', inicio: '', fin: '', estado: 'Pendiente' }); x.enPlan = true;
+        p.acciones.push({ id: idAcc(), area, accion: x.accion, responsable: '', inicio: '', fin: '', estado: 'Pendiente' }); x.enPlan = true;
         if (!p.areas.some((a) => a.area === area)) p.areas.push({ macro: p.objetivos[0] ? p.objetivos[0].id : '', area, objetivo: `Estrategia ${x.tipo.toLowerCase()}`, kpi: '', actual: 0, meta: 0 });
         S.save(); S.rerender();
       });
       $('#plFind', host).onclick = () => {
         const Fi = S.allFindings(); let n = 0;
-        Fi.forEach((f) => { if (!p.acciones.some((a) => a.accion === f.accion)) { p.acciones.push({ area: f.area, accion: f.accion, responsable: '', inicio: '', fin: new Date(Date.now() + (f.plazo || 90) * 864e5).toISOString().slice(0, 10), estado: 'Pendiente' }); n++; } if (!p.areas.some((a) => a.area === f.area)) p.areas.push({ macro: p.objetivos[0] ? p.objetivos[0].id : '', area: f.area, objetivo: 'Capturar las mejoras identificadas', kpi: 'Impacto anual (€)', actual: 0, meta: Math.round(f.impactoEUR || 0) }); });
+        Fi.forEach((f) => { if (!p.acciones.some((a) => a.accion === f.accion)) { p.acciones.push({ id: idAcc(), area: f.area, accion: f.accion, responsable: '', inicio: '', fin: new Date(Date.now() + (f.plazo || 90) * 864e5).toISOString().slice(0, 10), estado: 'Pendiente' }); n++; } if (!p.areas.some((a) => a.area === f.area)) p.areas.push({ macro: p.objetivos[0] ? p.objetivos[0].id : '', area: f.area, objetivo: 'Capturar las mejoras identificadas', kpi: 'Impacto anual (€)', actual: 0, meta: Math.round(f.impactoEUR || 0) }); });
         S.save(); S.rerender(); $('#plMsg').textContent = n + ' acciones añadidas desde los hallazgos.';
       };
       S.etable($('#plO', host), { titulo: 'Objetivos generales (macro)', rows: p.objetivos, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ id: 'o' + Date.now().toString(36), nombre: '', indicador: '', actual: 0, meta: 0, fecha: '' }), cols: [{ k: 'nombre', l: 'Objetivo', type: 'text' }, { k: 'indicador', l: 'Indicador', type: 'text' }, { k: 'actual', l: 'Actual', type: 'num' }, { k: 'meta', l: 'Meta', type: 'num' }, { k: 'fecha', l: 'Fecha', type: 'date' }] });
       S.etable($('#plA', host), { titulo: 'Objetivos de área', rows: p.areas, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ macro: p.objetivos[0] ? p.objetivos[0].id : '', area: '', objetivo: '', kpi: '', actual: 0, meta: 0 }), cols: [{ k: 'macro', l: 'Contribuye a', type: 'select', opts: p.objetivos.map((o) => ({ v: o.id, l: o.nombre })) }, { k: 'area', l: 'Área', type: 'text' }, { k: 'objetivo', l: 'Objetivo', type: 'text' }, { k: 'kpi', l: 'Indicador', type: 'text' }, { k: 'actual', l: 'Actual', type: 'num' }, { k: 'meta', l: 'Meta', type: 'num' }] });
-      S.etable($('#plX', host), { titulo: 'Acciones', rows: p.acciones, onChange: () => { S.save(); S.rerender(); }, nuevo: () => ({ area: p.areas[0] ? p.areas[0].area : '', accion: '', responsable: '', inicio: '', fin: '', estado: 'Pendiente' }), cols: [{ k: 'area', l: 'Área', type: 'text' }, { k: 'accion', l: 'Acción', type: 'text' }, { k: 'responsable', l: 'Responsable', type: 'text' }, { k: 'inicio', l: 'Inicio', type: 'date' }, { k: 'fin', l: 'Fin', type: 'date' }, { k: 'estado', l: 'Estado', type: 'select', opts: ['Pendiente', 'En marcha', 'Hecha', 'Bloqueada'] }] });
+      // Cerrar (o reabrir) una acción aquí cierra (o reabre) su tarea en la mesa
+      const estAntes = new Map(p.acciones.map((a) => [a, a.estado]));
+      const alCambiarAcc = () => { p.acciones.forEach((a) => { const e0 = estAntes.get(a); if (e0 != null && (e0 === 'Hecha') !== (a.estado === 'Hecha') && A.mesa && A.mesa.cerrar) A.mesa.cerrar(oidAcc(a), a.estado === 'Hecha' ? new Date().toISOString().slice(0, 10) : false); }); };
+      S.etable($('#plX', host), { titulo: 'Acciones', rows: p.acciones, onChange: () => { alCambiarAcc(); S.save(); S.rerender(); }, nuevo: () => ({ id: idAcc(), area: p.areas[0] ? p.areas[0].area : '', accion: '', responsable: '', inicio: '', fin: '', estado: 'Pendiente' }), cols: [{ k: 'area', l: 'Área', type: 'text' }, { k: 'accion', l: 'Acción', type: 'text' }, { k: 'responsable', l: 'Responsable', type: 'text' }, { k: 'inicio', l: 'Inicio', type: 'date' }, { k: 'fin', l: 'Fin', type: 'date' }, { k: 'estado', l: 'Estado', type: 'select', opts: ['Pendiente', 'En marcha', 'Hecha', 'Bloqueada'] }] });
+      if (A.mesa && A.mesa.marcar) A.mesa.marcar(host);
     },
     kpis() {
       const p = PL(), a = p.acciones, out = [];

@@ -5,7 +5,13 @@ import { randomUUID } from 'node:crypto';
 import { C } from '../config.js';
 import * as db from '../almacen/db.js';
 import { registrar } from '../cerebro/herramientas.js';
-import { hubspotActivo, sincronizarContacto, contactoDe, crearReunion, crearTarea, asegurarNegocio } from '../crm/hubspot.js';
+import { hubspotActivo, sincronizarContacto, contactoDe, crearReunion, crearTarea, asegurarNegocio, NOMBRE_NEGOCIO } from '../crm/hubspot.js';
+import { avisar } from '../avisos.js';
+import { reunionAAtalaya } from '../integraciones/atalaya.js';
+
+/** Nombre de la primera reunión, igual en la web, Atalaya, la asistente, Google Calendar y HubSpot. */
+export const NOMBRE_REUNION = 'Sesión estratégica';
+export const tituloReunion = ({ empresa, nombre }) => `${NOMBRE_REUNION} · ${empresa || nombre}`;
 
 const cfg = {
   calendario: null, // cliente inyectado (forma de googleapis calendar v3: freebusy.query, events.insert)
@@ -224,23 +230,24 @@ registrar('agendar_reunion', async (e, ctx) => {
   const cuando = textoFecha(ini);
   const tel = contacto?.telefono;
   const descripcion = [
-    `Reunión de diagnóstico con ${C.empresa.responsable} (${C.empresa.nombre}).`, `Motivo: ${e.motivo}`, '',
+    `${NOMBRE_REUNION} con ${C.empresa.responsable} (${C.empresa.nombre}, de ${C.empresa.marcaComercial}): ${cfg.duracionMin} minutos, sin coste y sin compromiso.`, `Motivo: ${e.motivo}`, '',
     `Contacto: ${e.nombre}${contacto?.empresa ? ' · ' + contacto.empresa : ''}${contacto?.cargo ? ' · ' + contacto.cargo : ''}`,
     tel ? `Teléfono: ${tel}` : '', email ? `Correo: ${email}` : '', `Modalidad: ${modalidad}`,
     contacto?.notas ? `\nLo que ha contado:\n${contacto.notas}` : '', '', `Reservada por ${C.empresa.asistente}, asistente de IA, por ${ctx.canal === 'voz' ? 'teléfono' : 'WhatsApp'}.`,
   ].filter((x) => x !== '').join('\n');
   const hsId = contacto && hubspotActivo() ? (contacto.hubspot_id || (await sincronizarContacto(contacto))) : null;
-  const titulo = `Diagnóstico ${C.empresa.nombre} · ${e.nombre}${contacto?.empresa ? ' (' + contacto.empresa + ')' : ''}`;
+  const titulo = tituloReunion({ empresa: contacto?.empresa, nombre: e.nombre });
 
   const cal = await cliente();
   if (!cal) {
     if (ctx.conversacionId) db.anotar(ctx.conversacionId, 'reunion', `Petición de reunión: ${cuando} (${modalidad})`, { inicio: isoLocal(ini), email, motivo: e.motivo, confirmada: false });
-    db.evento('reunion_pendiente', { inicio: isoLocal(ini), contacto: contacto?.id ?? null, email, modalidad });
+    db.evento('reunion_pendiente', { inicio: isoLocal(ini), cuando, contacto: contacto?.id ?? null, conversacionId: ctx.conversacionId ?? null, email, modalidad });
+    avisar({ tipo: 'reunion_pendiente', contacto, conversacionId: ctx.conversacionId, detalle: `Pide una ${NOMBRE_REUNION.toLowerCase()} el ${cuando} (${modalidad})${email ? `; invitación a ${email}` : ''}. La agenda no está conectada: confírmela y envíe la invitación. Motivo: ${e.motivo}` });
     let crm = 'HubSpot no configurado: queda en la base local.';
     if (hsId) {
       try {
         await crearTarea({ contactoId: hsId, asunto: `Confirmar reunión con ${e.nombre}: ${cuando}`, cuerpo: descripcion, vence: new Date(Math.min(ini.getTime(), cfg.ahora().getTime() + 4 * 3600e3)).toISOString(), prioridad: 'HIGH' });
-        await asegurarNegocio(ctx.conversacionId, { contactoId: hsId, nombre: `${contacto?.empresa || e.nombre} · diagnóstico` });
+        await asegurarNegocio(ctx.conversacionId, { contactoId: hsId, nombre: NOMBRE_NEGOCIO(contacto?.empresa || e.nombre) });
         crm = 'Tarea creada en HubSpot para confirmarla.';
       } catch (err) { crm = `HubSpot ha fallado (${err.message}).`; }
     }
@@ -273,11 +280,15 @@ registrar('agendar_reunion', async (e, ctx) => {
     const fallos = [];
     for (const t of [
       () => crearReunion({ contactoId: hsId, titulo, cuerpo: descripcion + (enlace ? `\nEnlace: ${enlace}` : ''), inicio: ini, fin, lugar: enlace || cuerpo.location }),
-      () => asegurarNegocio(ctx.conversacionId, { contactoId: hsId, nombre: `${contacto?.empresa || e.nombre} · diagnóstico` }),
+      () => asegurarNegocio(ctx.conversacionId, { contactoId: hsId, nombre: NOMBRE_NEGOCIO(contacto?.empresa || e.nombre) }),
       ...(sinInvitacion && email ? [() => crearTarea({ contactoId: hsId, asunto: `Enviar invitación a ${email} (${cuando})`, cuerpo: descripcion, prioridad: 'HIGH' })] : []),
     ]) { try { await t(); } catch (err) { fallos.push(err.message); } }
     crm = fallos.length ? `HubSpot ha fallado en parte (${fallos[0]}).` : 'Registrada en HubSpot.';
   }
+  // La sesión aparece en la mesa de trabajo de la empresa en Atalaya (si la integración está configurada); en segundo plano
+  const ficha = contacto?.id ? db.contactoPorId(contacto.id) : contacto;
+  reunionAAtalaya({ id: evento.id, inicio: ini, fin, titulo, enlace: enlace || cuerpo.location, nombre: e.nombre, email, telefono: tel, empresa: ficha?.empresa,
+    hubspotContactId: hsId, hubspotCompanyId: ficha?.hubspot_company_id }).catch((err) => console.warn('[atalaya]', err.message));
   return {
     reservado: true, cuando, modalidad, enlace,
     invitacion: email ? (sinInvitacion ? `no se ha podido enviar desde la agenda; el equipo la enviará a ${email}` : `enviada a ${email}`) : 'sin correo: no se ha enviado invitación',
@@ -285,3 +296,14 @@ registrar('agendar_reunion', async (e, ctx) => {
     crm,
   };
 });
+
+// ---------- Estado (panel → Integraciones) ----------
+export const agendaConfigurada = () => !!(cfg.calendario || cfg.credenciales);
+/** Lee una hora de la agenda para comprobar que las credenciales y el calendario responden. */
+export async function comprobarAgenda() {
+  const cal = await cliente();
+  if (!cal) throw new Error('Sin credenciales de Google');
+  const ahora = cfg.ahora();
+  await ocupadosEn(cal, ahora, new Date(ahora.getTime() + 3600e3));
+  return true;
+}

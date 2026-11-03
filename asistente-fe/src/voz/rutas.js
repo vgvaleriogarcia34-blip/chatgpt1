@@ -4,6 +4,8 @@ import { C } from '../config.js';
 import * as db from '../almacen/db.js';
 import { SesionVoz, sesiones, amdPendientes } from './sesion.js';
 import { firmaValida, formulario, twimlStream, twimlDecirYColgar, firmaStream, llamadaSaliente, vozConfigurada } from './twilio.js';
+import { avisar } from '../avisos.js';
+import { hubspotActivo, sincronizarContacto, crearTarea } from '../crm/hubspot.js';
 
 export { ganchos } from './sesion.js';
 export const alEstadoLlamada = []; // fn({ callSid, estado, duracion, telefono, contactoId, campanaId, answeredBy }) al acabar cada llamada
@@ -68,6 +70,45 @@ ruta('POST', '/voz/amd', async (req, res) => {
   enviar(res, 204, '');
 });
 
+// Fin del <Dial> de una transferencia: si nadie contesta, se le dice que le devolverán la llamada, se crea una tarea
+// de prioridad alta y se avisa al equipo. Queda registrado si la transferencia se atendió.
+export const DEVOLVER = `Disculpe, en este momento ${C.empresa.responsable.split(' ')[0]} no puede atenderle. Le devolverá la llamada lo antes posible. Gracias por llamar.`;
+ruta('POST', '/voz/transferencia-fin', async (req, res, { url }) => {
+  const p = await webhook(req, res); if (!p) return;
+  const estado = String(p.DialCallStatus || '').toLowerCase();
+  const convId = Number(url.searchParams.get('conversacionId')) || db.conversacionPorExterno(p.CallSid)?.id || null;
+  const conv = convId ? db.conversacionPorId(convId) : null;
+  const contacto = (url.searchParams.get('contactoId') && db.contactoPorId(Number(url.searchParams.get('contactoId'))))
+    || (conv?.contacto_id && db.contactoPorId(conv.contacto_id)) || null;
+  const atendida = estado === 'completed' || estado === 'answered';
+  db.marcarConversacion(convId, { transferencia: atendida ? 'atendida' : 'sin_respuesta' });
+  if (atendida) {
+    db.evento('transferencia_atendida', { conversacionId: convId, callSid: p.CallSid, duracion: Number(p.DialCallDuration) || 0 });
+    return enviar(res, 200, '<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>', XML);
+  }
+  db.evento('transferencia_sin_respuesta', { conversacionId: convId, contacto: contacto?.id ?? null, callSid: p.CallSid, estado });
+  enviar(res, 200, twimlDecirYColgar(DEVOLVER), XML);
+  const quien = contacto?.nombre || contacto?.telefono || 'contacto';
+  avisar({ tipo: 'transferencia_sin_respuesta', contacto, conversacionId: convId, detalle: `Pidió hablar con una persona y nadie contestó (${estado || 'sin estado'}). ${conv?.resumen || ''}`.trim() });
+  if (hubspotActivo() && contacto) {
+    Promise.resolve().then(async () => {
+      const id = contacto.hubspot_id || (await sincronizarContacto(contacto));
+      if (id) await crearTarea({ contactoId: id, asunto: `Devolver la llamada a ${quien} (transferencia sin respuesta)`, cuerpo: conv?.resumen || 'La llamada se transfirió y nadie contestó.', prioridad: 'HIGH', vence: new Date(Date.now() + 2 * 3600e3).toISOString() });
+    }).catch((err) => log('tarea de transferencia:', err.message));
+  }
+});
+
+// Grabación terminada (solo con GRABAR_LLAMADAS): se guarda la dirección del audio en la conversación
+ruta('POST', '/voz/grabacion', async (req, res, { url }) => {
+  const p = await webhook(req, res); if (!p) return;
+  if (p.RecordingUrl && (!p.RecordingStatus || p.RecordingStatus === 'completed')) {
+    const convId = Number(url.searchParams.get('conversacionId')) || db.conversacionPorExterno(p.CallSid)?.id || null;
+    db.marcarConversacion(convId, { grabacion_url: p.RecordingUrl, grabacion_sid: p.RecordingSid || null });
+    db.evento('grabacion', { conversacionId: convId, sid: p.RecordingSid || null, duracion: Number(p.RecordingDuration) || 0 });
+  }
+  enviar(res, 204, '');
+});
+
 rutaWs('/voz/stream', (ws) => new SesionVoz(ws));
 
 /**
@@ -78,7 +119,7 @@ rutaWs('/voz/stream', (ws) => new SesionVoz(ws));
 export async function llamar({ telefono, contactoId = null, campanaId = null }) {
   const to = db.normTel(telefono);
   if (!to) return { ok: false, motivo: 'telefono_no_valido' };
-  if (db.estaDeBaja(to)) return { ok: false, motivo: 'baja' };
+  if (db.estaDeBaja(to, contactoId ? db.contactoPorId(Number(contactoId))?.email : null)) return { ok: false, motivo: 'baja' };
   if (!vozConfigurada() || !C.twilio.numero) return { ok: false, motivo: 'voz_no_configurada' };
   try {
     const c = await llamadaSaliente({ to, parametros: { contactoId, campanaId } });

@@ -3,9 +3,9 @@
    que incluye el plan. Cada mundo se puntúa con sus comprobaciones (semáforos, datos que faltan, datos de
    ejemplo, objetivos mal planteados o vencidos, agenda que no se cumple, plantilla sin evaluar…). Al pulsarla
    se despliegan los puntos a tratar, primero los rojos, y cada uno lleva a su zona.
-   Los mundos con motor propio (simulador y sistema estratégico) se calculan cuando se abren y se guardan;
-   personas y equipos y la mesa de trabajo se calculan siempre con sus datos.
-   A.nota.calcular() → { global, mundos } · A.nota.abrir() · A.nota.refrescar() */
+   Todos los mundos se calculan con sus datos guardados en cualquier página, sin abrir la suya (js/calculo-mundos.js carga
+   el motor del simulador o del sistema estratégico cuando sus datos han cambiado); cada nota lleva su fecha de cálculo.
+   A.nota.calcular() → { global, mundos } · A.nota.calcularDe(idEmpresa) · A.nota.abrir() · A.nota.refrescar() */
 (function () {
   const A = (window.Atalaya = window.Atalaya || {});
   const P = () => A.platform;
@@ -52,16 +52,20 @@
     if (o.veredicto && o.inversion) out.push({ st: o.veredicto.key === 'stop' ? 'stop' : o.veredicto.key === 'warn' ? 'warn' : 'ok', peso: 3, t: 'Veredicto de la inversión: ' + o.veredicto.titulo, zona: 'puente' });
     if (!o.inversion) out.push({ st: 'nd', peso: 1, t: 'Inversión sin definir: sin veredicto', d: 'Defina la inversión para obtener el veredicto.', zona: 'inversion' });
     if (o.humano === false) out.push({ st: 'nd', peso: 1, t: 'Equipo sin evaluar: preguntas del sistema humano sin responder', zona: 'humano' });
-    (o.luces || []).filter((l) => (o.inversion || !LUZ_INV.has(l.key)) && !(o.humano === false && l.key === 'humano')).forEach((l) => out.push({ st: l.st, peso: l.key === 'liquidez' ? 2 : 1, t: (l.st === 'stop' ? 'En rojo: ' : l.st === 'warn' ? 'En ámbar: ' : '') + l.nombre + (l.valor ? ' (' + l.valor + ')' : ''), d: l.st !== 'ok' ? 'Toque para ver qué lo mueve y cómo ponerlo en verde.' : '', zona: 'riesgos' }));
-    if (o.deudaEbitda != null && isFinite(o.deudaEbitda)) out.push({ st: o.deudaEbitda > 4 ? 'stop' : o.deudaEbitda > 3 ? 'warn' : 'ok', peso: 2, t: o.deudaEbitda > 3 ? `Carga financiera alta: deuda de ${o.deudaEbitda.toFixed(1).replace('.', ',')} veces el beneficio del negocio (EBITDA)` : 'Carga financiera asumible', d: o.deudaEbitda > 3 ? 'Alinee la financiación con lo que genera el negocio: plazo, carencia o aportación.' : '', zona: 'inversion' });
+    // La deuda sobre EBITDA del motor es la de los dos primeros años de la proyección: tras la inversión si la hay (no la de hoy, que dan las cifras clave)
+    const cuando = o.inversion ? 'tras la inversión' : 'en los dos próximos años';
+    (o.luces || []).filter((l) => (o.inversion || !LUZ_INV.has(l.key)) && !(o.humano === false && l.key === 'humano')).forEach((l) => out.push({ st: l.st, peso: l.key === 'liquidez' ? 2 : 1, t: (l.st === 'stop' ? 'En rojo: ' : l.st === 'warn' ? 'En ámbar: ' : '') + l.nombre + (l.valor ? ' (' + l.valor + (l.key === 'endeudamiento' ? ', ' + cuando : '') + ')' : ''), d: l.st !== 'ok' ? 'Toque para ver qué lo mueve y cómo ponerlo en verde.' : '', zona: 'riesgos' }));
+    if (o.deudaEbitda != null && isFinite(o.deudaEbitda)) out.push({ st: o.deudaEbitda > 4 ? 'stop' : o.deudaEbitda > 3 ? 'warn' : 'ok', peso: 2, t: o.deudaEbitda > 3 ? `Carga financiera alta ${cuando}: deuda de ${o.deudaEbitda.toFixed(1).replace('.', ',')} veces el beneficio del negocio (EBITDA)` : `Carga financiera asumible ${cuando}`, d: o.deudaEbitda > 3 ? 'Alinee la financiación con lo que genera el negocio: plazo, carencia o aportación.' : '', zona: 'inversion' });
     if (!o.historico) out.push({ st: 'warn', peso: 1, t: 'Sin cuentas de años anteriores', d: 'Con dos o tres ejercicios la proyección es más fiable.', zona: 'historia' });
     return out;
   };
-  // El mismo motor en cualquier página (simulador o sistema estratégico): así la nota no depende de dónde se calcule
-  const simDesdeMotor = () => {
-    const st = pagina() === 'app.html' && A.appApi && A.appApi.getState ? A.appApi.getState() : A.strat && A.strat.sim ? A.strat.sim : null;
+  // El mismo motor en cualquier página: el estado del simulador (vivo en su página, o el guardado) → comprobaciones.
+  // real: la empresa trabaja con datos reales (sin él, el de la empresa activa)
+  const realActiva = () => !!(P() && P().modoReal && P().modoReal());
+  const simDe = (st, real) => {
     if (!st || !st.empresa || !A.analyze) return null;
-    const real = P() && P().modoReal && P().modoReal(), d0 = A.defaultState ? A.defaultState() : null;
+    real = real == null ? realActiva() : real;
+    const d0 = A.defaultState ? A.defaultState() : null;
     // De ejemplo: marcada como tal, o con las cifras y el proyecto de la empresa de ejemplo aunque se haya cambiado el nombre
     const ej = (A.simEsEjemplo ? A.simEsEjemplo(st) : st.ejemplo !== false) || !!(d0 && +st.empresa.ventas === d0.empresa.ventas && +st.empresa.fijos === d0.empresa.fijos && st.proyecto === d0.proyecto);
     const sinDatos = !(+st.empresa.ventas > 0), inv = st.inversion || {}, inversion = +inv.importe > 0 || (inv.lineas || []).some((l) => +l.importe > 0);
@@ -72,11 +76,11 @@
     return evalSimulador({ historico: !!(st.historico && st.historico.anios && st.historico.anios.length && !st.historico.ejemplo), inversion, humano: hum, veredicto: r.verdict, luces: r.lights.map((l) => ({ key: l.key, nombre: l.nombre, valor: l.valor, st: l.estado === 'go' ? 'ok' : l.estado })), deudaEbitda: r.deudaEbitda });
   };
   // Sistema estratégico: indicadores, datos que faltan, ejemplo, ABC, plan de empresa, objetivos y riesgos
-  const estDesdeMotor = () => {
+  const estDesdeMotor = (realX) => {
     const S = A.strat; if (!S || !S.state || !S.allKpis) return null;
     const out = [], h = hoy(), mod = (id) => S.mod(id);
     // ¿Tiene datos el módulo? Los de resumen (cuadro de mando, auditoría, evolución) los tienen si los tiene algún módulo
-    const real = P() && P().modoReal && P().modoReal(), alguno = S.modules.some((m) => m.datos && S.conDatos && S.conDatos(m));
+    const real = realX == null ? realActiva() : realX, alguno = S.modules.some((m) => m.datos && S.conDatos && S.conDatos(m));
     const conD = (id) => { const m = typeof id === 'string' ? mod(id) : id; return !S.conDatos || !m ? true : m.datos ? S.conDatos(m) : alguno; };
     S.allKpis().forEach((k) => { if (k.sinDato) { out.push({ st: 'nd', peso: 1, t: k.k + ' (' + k.area + '): sin datos', zona: k.mod }); return; } if (!k.st) return; out.push({ st: k.st, peso: 1, t: (k.st === 'stop' ? 'En rojo: ' : k.st === 'warn' ? 'En ámbar: ' : '') + k.k + ' (' + k.area + ')', d: k.st !== 'ok' ? String(k.v || '') : '', zona: k.mod }); });
     // Datos pendientes: en un módulo con datos es un aviso; en uno sin datos es solo «sin datos» (no puntúa)
@@ -146,22 +150,90 @@
     return out;
   };
 
-  /* ---------- Cálculo y caché por empresa ---------- */
-  let cache = null, ultima = null;
-  const cargarCache = async () => {
-    if (cache) return cache;
-    cache = lsGet(LSK()) || {};
-    if (P() && P().loadData) { try { const r = await P().loadData('nota'); if (r && typeof r === 'object') { Object.keys(r).forEach((k) => { if (!cache[k] || (r[k] && r[k].fecha > cache[k].fecha)) cache[k] = r[k]; }); } } catch (e) { /* local */ } }
-    return cache;
+  /* ---------- Cálculo y caché por empresa ----------
+     Cada mundo se calcula con sus datos guardados, se esté en la página que se esté (js/calculo-mundos.js carga solo el motor
+     que haga falta). El simulador y el sistema estratégico guardan su resultado en la clave «nota» con la firma de los datos
+     con que se calcularon y la fecha: mientras la firma no cambia, se usa ese resultado sin volver a cargar el motor. */
+  const VER = 'n2'; // cambia si cambia la forma de calcular: las notas guardadas antes se recalculan
+  const memoCache = {};
+  const actId = () => (P() && P().empresaId ? P().empresaId() : 'principal');
+  const lsDe = (base, id) => (P() && P().k ? P().k(base, id) : base);
+  const cargarCache = async (id) => {
+    id = id || actId();
+    if (memoCache[id]) return memoCache[id];
+    let c = lsGet(lsDe('atalaya.nota.v1', id)) || {};
+    const Pl = P();
+    if (Pl && (Pl.loadDataOf || Pl.loadData)) { try { const r = id === actId() ? await Pl.loadData('nota') : await Pl.loadDataOf('nota', id); if (r && typeof r === 'object') { Object.keys(r).forEach((k) => { if (!c[k] || (r[k] && r[k].fecha > c[k].fecha)) c[k] = r[k]; }); } } catch (e) { /* local */ } }
+    memoCache[id] = c; return c;
   };
-  const guardarCache = () => { lsSet(LSK(), cache); if (P() && P().saveData) P().saveData('nota', cache).catch(() => {}); };
-  const datos = async (k, lsBase) => { let st = lsGet(P() && P().k ? P().k(lsBase) : lsBase); if (P() && P().loadData) { try { const r = await P().loadData(k); if (r) st = r; } catch (e) { /* local */ } } return st; };
+  const guardarCache = (id, c) => {
+    lsSet(lsDe('atalaya.nota.v1', id), c);
+    const Pl = P(); if (!Pl) return;
+    const pr = id === actId() ? (Pl.saveData && Pl.saveData('nota', c)) : (Pl.saveDataOf && Pl.saveDataOf('nota', id, c));
+    if (pr && pr.catch) pr.catch(() => {});
+  };
+  // Datos guardados de un mundo, de la empresa activa o de otra de la cuenta (cartera)
+  const datos = async (k, lsBase, id) => {
+    id = id || actId();
+    let st = lsGet(lsDe(lsBase, id));
+    const Pl = P();
+    if (Pl && Pl.loadData) { try { const r = id === actId() ? await Pl.loadData(k) : await Pl.loadDataOf(k, id); if (r) st = r; } catch (e) { /* local */ } }
+    return st;
+  };
+  const calculo = () => (A.calculo && A.calculo.cargar ? Promise.resolve(A.calculo) : new Promise((ok, ko) => {
+    const s = document.createElement('script'); s.src = 'js/calculo-mundos.js'; s.onload = () => ok(A.calculo); s.onerror = () => ko(new Error('Sin js/calculo-mundos.js')); (document.head || document.documentElement).appendChild(s);
+  }));
+  /* Nota de una empresa: la activa (por defecto) o cualquier otra de la cuenta (la cartera las calcula todas).
+     Devuelve { global, mundos, fecha } y deja guardado el resumen en la clave «nota» (_global) de esa empresa. */
+  const calcularDe = async (id) => {
+    const Pl = P(); const act = actId(); id = id || act; const activa = id === act;
+    const ficha = (Pl && Pl.empresas && Pl.empresas.lista ? Pl.empresas.lista().find((e) => e.id === id) : null) || (activa && Pl && Pl.empresas && Pl.empresas.activa ? Pl.empresas.activa() : null) || {};
+    const real = activa ? realActiva() : !!ficha.datosReales, modelo = !!(ficha.modelo || (Pl && Pl.modelo && Pl.modelo.ID === id));
+    const cache = await cargarCache(id), C = await calculo();
+    const enApp = activa && pagina() === 'app.html' && A.appApi && A.appApi.getState;
+    const enEst = activa && pagina() === 'estrategia.html';
+    const [sim, est] = await Promise.all([datos('simulador', 'atalaya.v1', id), MUNDOS.estrategia.puede() ? datos('estrategia', 'atalaya.estrategia.v1', id) : null]);
+    const h = hoy();
+    const firma = { simulador: C.firma([VER, h, real, enApp ? A.appApi.getState() : sim]), estrategia: C.firma([VER, h, real, modelo, sim, est]) };
+    const mundos = {};
+    for (const k of Object.keys(MUNDOS)) {
+      if (!MUNDOS[k].puede()) continue;
+      let puntos = null, motivo = '', fecha = null, vivo = false;
+      try {
+        if (k === 'simulador' || k === 'estrategia') {
+          const c0 = cache[k], vale = c0 && c0.firma === firma[k] && Array.isArray(c0.puntos);
+          if (k === 'simulador' && enApp) { puntos = simDe(A.appApi.getState(), real); vivo = true; }
+          else if (k === 'estrategia' && enEst && A.strat && A.strat.state && A.strat.allKpis) { puntos = estDesdeMotor(real); vivo = true; if (A.strat.datosPropios && !A.strat.datosPropios()) motivo = real ? 'faltan los datos de la empresa' : 'datos de ejemplo'; }
+          else if (k === 'estrategia' && enEst) { if (c0) { puntos = c0.puntos; motivo = c0.motivo || ''; fecha = c0.fecha; } } // su página aún está cargando
+          else if (vale) { puntos = c0.puntos; motivo = c0.motivo || ''; fecha = c0.fecha; }
+          else if (k === 'simulador') { await C.cargar('simulador'); puntos = simDe(C.estadoSim(sim), real); }
+          else { const r = await C.estrategia(sim, est, { ficha, real, modelo }, (S) => ({ puntos: estDesdeMotor(real), propios: S.datosPropios ? S.datosPropios() : true })); puntos = r.puntos; if (!r.propios) motivo = real ? 'faltan los datos de la empresa' : 'datos de ejemplo'; }
+          if (puntos && !fecha) { fecha = new Date().toISOString(); cache[k] = { puntos, fecha, motivo, firma: firma[k] }; }
+        }
+        if (k === 'personas') { puntos = evalPersonas((activa && A.personas && A.personas.state) || (await datos('personas', 'atalaya.personas.v1', id))); vivo = true; }
+        if (k === 'mesa') { puntos = evalMesa(await datos('agenda', 'atalaya.agenda.v1', id)); vivo = true; }
+      } catch (e) { console.error(e); puntos = null; }
+      if (!puntos && cache[k] && cache[k].puntos) { puntos = cache[k].puntos; motivo = cache[k].motivo || ''; fecha = cache[k].fecha; }
+      if (vivo || (puntos && !fecha)) fecha = new Date().toISOString();
+      const nd = (puntos || []).find((x) => x.st === 'nd' && x.peso >= 2);
+      let nota = motivo ? null : notaDe(puntos);
+      if (nota == null && !motivo && puntos) motivo = nd ? nd.t.charAt(0).toLowerCase() + nd.t.slice(1) : puntos.length ? 'sin comprobaciones con datos' : '';
+      mundos[k] = { n: MUNDOS[k].n, nota, puntos: puntos || [], vivo, fecha: puntos ? fecha : null, motivo: nota == null ? motivo : '' };
+    }
+    const ns = Object.values(mundos).map((m) => m.nota).filter((n) => n != null);
+    const r = { global: ns.length ? Math.round((ns.reduce((a, b) => a + b, 0) / ns.length) * 10) / 10 : null, mundos, actual: activa ? mundoDePagina() : null, fecha: new Date().toISOString(), id };
+    // Resumen con fecha para quien solo lee la clave «nota»: la nota de la empresa y la de cada mundo
+    cache._global = { nota: r.global, fecha: r.fecha, mundos: Object.fromEntries(Object.entries(mundos).map(([k, m]) => [k, { nota: m.nota, fecha: m.fecha, rojos: m.puntos.filter((x) => x.st === 'stop').length }])) };
+    guardarCache(id, cache);
+    return r;
+  };
+  let ultima = null;
   A.nota = A.nota || {};
   A.nota.REGLA = 'Mismo criterio en toda Atalaya: cada comprobación (indicadores con semáforo, datos pendientes, objetivos, plan, riesgos altos y madurez de la gestión) vale verde 1, ámbar 0,5 y rojo 0 según su peso; la nota es esa proporción sobre 100, o sobre 10 con la misma cifra. Lo que no tiene datos no puntúa. La nota de la empresa es la media de los mundos de su plan que tienen nota.';
   // La regla con la nota real del caso (en lugar de una cifra de ejemplo)
   A.nota.regla = (n100) => (n100 == null ? A.nota.REGLA : A.nota.REGLA.replace('con la misma cifra.', `con la misma cifra (aquí ${n100}/100 = ${String(n100 / 10).replace('.', ',')}/10).`));
   // Fecha en que se calculó la nota de un mundo
-  A.nota.fechaTxt = (m) => { if (!m || !m.fecha) return 'Sin calcular: ábralo'; const d = new Date(m.fecha); return (m.vivo ? 'Ahora · ' : 'Calculada el ') + d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); };
+  A.nota.fechaTxt = (m) => { if (!m || !m.fecha) return 'Sin datos con los que calcularla'; const d = new Date(m.fecha); return (m.vivo ? 'Ahora · ' : 'Calculada el ') + d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); };
   A.nota.puntuar = puntuar;
   A.nota.estrategia = () => estDesdeMotor();
   A.nota.personas = (st) => evalPersonas(st);
@@ -169,38 +241,10 @@
   A.nota.modulos = (ids) => { if (!ids && A.strat && A.strat.datosPropios && A.strat.state && !A.strat.datosPropios()) return null; const p = estDesdeMotor(); if (!p) return null; const set = ids ? new Set([].concat(ids)) : null; return puntuar(set ? p.filter((x) => set.has(x.zona)) : p); };
   // Un único recuento en toda Atalaya: «N comprobaciones: x verdes / y ámbar / z rojas / w sin datos»
   A.nota.desglose = (r) => (r && r.total ? `${pl(r.total, 'comprobación', 'comprobaciones')}: ${r.verdes} ${r.verdes === 1 ? 'verde' : 'verdes'} / ${r.ambar} ámbar / ${r.rojos} ${r.rojos === 1 ? 'roja' : 'rojas'} / ${r.sinDatos || 0} sin datos` : 'sin comprobaciones');
-  A.nota.calcular = async () => {
-    await cargarCache();
-    const mundos = {};
-    for (const k of Object.keys(MUNDOS)) {
-      if (!MUNDOS[k].puede()) continue;
-      let puntos = null, vivo = false;
-      try {
-        if (k === 'simulador') { puntos = simDesdeMotor(); vivo = !!puntos; }
-        if (k === 'estrategia') { puntos = estDesdeMotor(); vivo = !!puntos; }
-        if (k === 'personas') { puntos = evalPersonas((A.personas && A.personas.state) || (await datos('personas', 'atalaya.personas.v1'))); vivo = true; }
-        if (k === 'mesa') { puntos = evalMesa(await datos('agenda', 'atalaya.agenda.v1')); vivo = true; }
-      } catch (e) { console.error(e); puntos = null; }
-      // Mundo sin datos propios (vacío o con datos de ejemplo): sin nota y fuera de la media
-      let motivo = '';
-      if (k === 'estrategia' && vivo && A.strat.datosPropios && !A.strat.datosPropios()) motivo = P() && P().modoReal && P().modoReal() ? 'faltan los datos de la empresa' : 'datos de ejemplo';
-      if (puntos && (k === 'simulador' || k === 'estrategia')) { cache[k] = { puntos, fecha: new Date().toISOString(), motivo }; }
-      // Con datos reales, una nota guardada antes de pasar a datos reales es del ejemplo: no se usa
-      const ea = P() && P().modoReal && P().modoReal() ? P().empresas.activa() : null, desde = ea && (ea.datosRealesTs || ea.datosRealesDesde);
-      if (desde && cache[k] && String(cache[k].fecha || '') < desde) delete cache[k];
-      if (!puntos && cache[k]) { puntos = cache[k].puntos; motivo = cache[k].motivo || ''; }
-      const nd = (puntos || []).find((x) => x.st === 'nd' && x.peso >= 2);
-      let nota = motivo ? null : notaDe(puntos);
-      if (nota == null && !motivo && puntos) motivo = nd ? nd.t.charAt(0).toLowerCase() + nd.t.slice(1) : puntos.length ? 'sin comprobaciones con datos' : '';
-      mundos[k] = { n: MUNDOS[k].n, nota, puntos: puntos || [], vivo, fecha: vivo ? new Date().toISOString() : (cache[k] && cache[k].fecha) || null, motivo: nota == null ? motivo : '' };
-    }
-    const ns = Object.values(mundos).map((m) => m.nota).filter((n) => n != null);
-    ultima = { global: ns.length ? Math.round((ns.reduce((a, b) => a + b, 0) / ns.length) * 10) / 10 : null, mundos, actual: mundoDePagina(), fecha: new Date().toISOString() };
-    // Resumen con fecha para quien no calcula los mundos (cartera, grupo, tablero): la última nota de la empresa y la de cada mundo
-    cache._global = { nota: ultima.global, fecha: ultima.fecha, mundos: Object.fromEntries(Object.entries(mundos).map(([k, m]) => [k, { nota: m.nota, fecha: m.fecha, rojos: m.puntos.filter((x) => x.st === 'stop').length }])) };
-    guardarCache();
-    return ultima;
-  };
+  // Un cálculo cada vez por empresa: las llamadas que llegan mientras tanto reciben el mismo resultado
+  const enCurso = {};
+  A.nota.calcularDe = (id) => { id = id || actId(); if (!enCurso[id]) enCurso[id] = calcularDe(id).finally(() => { delete enCurso[id]; }); return enCurso[id]; };
+  A.nota.calcular = async () => { const r = await A.nota.calcularDe(actId()); ultima = r; return r; };
 
   /* ---------- Interfaz: indicador en la cabecera y desplegable de puntos a tratar ---------- */
   let chip = null, panel = null, filtro = null;
@@ -230,7 +274,7 @@
     const rojos = ptos.filter((x) => x.st === 'stop').length, nds = ptos.filter((x) => x.st === 'nd').length;
     panel.innerHTML = `<div class="nt-head"><div><div class="nt-k">Nota de la empresa</div><div class="nt-big ${stDeNota(ultima.global)}">${ultima.global == null ? 'Sin nota' : fmt(ultima.global)}${ultima.global == null ? '' : '<small>/10</small>'}</div></div><span class="ml-sp"></span><button class="icon-btn" data-x aria-label="Cerrar">×</button></div>
       <p class="nt-exp">Media de los mundos de su plan que tienen nota. Cada mundo puntúa sus comprobaciones: verde suma, ámbar suma la mitad y rojo no suma; lo que no tiene datos no puntúa, y un mundo sin datos propios no tiene nota.</p>
-      <div class="nt-mundos">${ks.map((k) => { const m = ultima.mundos[k]; return `<button class="nt-m ${filtro === k ? 'on' : ''} ${k === ultima.actual ? 'aqui' : ''}" data-f="${k}"><b class="${stDeNota(m.nota)}">${m.nota == null ? '—' : fmt(m.nota)}</b><span>${esc(m.n)}</span><small>${m.nota == null ? (m.fecha ? 'Sin nota' + (m.motivo ? ': ' + esc(m.motivo) : '') + ' · ' + esc(A.nota.fechaTxt(m)) : 'Sin nota: ábralo para calcularla') : esc(A.nota.desglose(puntuar(m.puntos))) + ' · ' + esc(A.nota.fechaTxt(m))}</small></button>`; }).join('')}</div>
+      <div class="nt-mundos">${ks.map((k) => { const m = ultima.mundos[k]; return `<button class="nt-m ${filtro === k ? 'on' : ''} ${k === ultima.actual ? 'aqui' : ''}" data-f="${k}"><b class="${stDeNota(m.nota)}">${m.nota == null ? '—' : fmt(m.nota)}</b><span>${esc(m.n)}</span><small>${m.nota == null ? (m.fecha ? 'Sin nota' + (m.motivo ? ': ' + esc(m.motivo) : '') + ' · ' + esc(A.nota.fechaTxt(m)) : 'Sin nota: sin datos con los que calcularla') : esc(A.nota.desglose(puntuar(m.puntos))) + ' · ' + esc(A.nota.fechaTxt(m))}</small></button>`; }).join('')}</div>
       <div class="nt-k">${filtro ? 'Puntos a tratar en ' + esc(ultima.mundos[filtro].n) : 'Puntos a tratar'} · ${pl(rojos, 'en rojo', 'en rojo')}, ${ptos.length - rojos - nds} en ámbar, ${nds} sin datos</div>
       <ol class="nt-list">${ptos.slice(0, 40).map((x, i) => `<li><button data-i="${i}" class="nt-p ${x.st}"><i${x.st === 'nd' ? ' style="background:var(--muted);opacity:.6"' : ''}></i><span><b>${esc(x.t)}</b>${x.d ? `<small>${esc(x.d)}</small>` : ''}<em>${esc(MUNDOS[x.mundo].n)}</em></span><span class="nt-go">→</span></button></li>`).join('') || '<li class="nt-vacio">Nada en rojo ni en ámbar.</li>'}</ol>
       ${ptos.length > 40 ? `<p class="nt-exp">Y ${ptos.length - 40} más.</p>` : ''}`;

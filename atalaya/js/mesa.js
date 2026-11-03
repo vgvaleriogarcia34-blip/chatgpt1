@@ -33,8 +33,13 @@
 
   const AREAS = ['Finanzas', 'Comercial', 'Operaciones', 'Personas', 'Inversión', 'Estrategia', 'Dirección', 'Personal'];
   const TIPOS = { imperativa: 'Imperativa', importante: 'Importante', seguimiento: 'Llamada o seguimiento', delegada: 'Delegada' };
-  const MUNDOS = { manual: 'Apuntada aquí', simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', meta: 'Meta SMART', reunion: 'Reunión', delegacion: 'Delegación', intervencion: 'Auditoría integral' };
-  const pend = () => ST.tareas.filter((t) => t.estado !== 'hecha');
+  const MUNDOS = { manual: 'Apuntada aquí', simulador: 'Simulador de inversión', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', intervencion: 'Auditoría integral', meta: 'Meta SMART', reunion: 'Reunión', delegacion: 'Delegación', asistente: 'Asistente telefónico' };
+  const pend = () => ST.tareas.filter(M.abierta);
+  // Enlace a la pantalla de la que viene la tarea (construido desde su oid) y estado de vuelta al origen
+  const irOrigen = (t, cls) => { const u = t.oid && M.urlOrigen(t.oid); return u ? `<a class="${cls || 'icon-btn'} ms-ir" href="${esc(u)}" title="Ir a la pantalla de origen" aria-label="Ir al origen">${cls ? 'Ir al origen' : '↗'}</a>` : t.metaId && ST.metas.some((m) => m.id === t.metaId) ? `<button class="${cls || 'icon-btn'} ms-ir" data-irmeta="${esc(t.metaId)}" title="Abrir la meta" aria-label="Ir a la meta">${cls ? 'Ir a la meta' : '↗'}</button>` : ''; };
+  const alOrigen = (t) => { if (t.oid) M.aOrigen(t.oid, t.estado === 'hecha' ? t.hecha || M.hoy() : false); };
+  const marcarHecha = (t, si) => { t.estado = si ? 'hecha' : 'pendiente'; t.hecha = si ? M.hoy() : null; if (si) delete t.noAplica; if (t.metaId) syncMeta(t); alOrigen(t); };
+  const wireIr = (host) => $$('[data-irmeta]', host).forEach((b) => (b.onclick = (e) => { e.preventDefault(); $$('.ef-back').forEach((x) => x.remove()); A.mesa.abrirMeta(b.dataset.irmeta); }));
   const tarea = (id) => ST.tareas.find((t) => t.id === id);
   const score = (t) => (+t.impacto || 3) * 2 - (+t.esfuerzo || 3) + (t.clave ? 3 : 0);
 
@@ -54,20 +59,21 @@
   const chip = (t, cls) => `<span class="ms-chip ${cls || ''}">${esc(t)}</span>`;
   const filaTarea = (t, opts) => {
     opts = opts || {};
-    const tarde = t.estado !== 'hecha' && t.fecha && t.fecha < M.hoy();
-    return `<li class="ms-t ${t.estado === 'hecha' ? 'hecha' : ''} ${t.clave ? 'clave' : ''}" data-id="${t.id}">
+    const tarde = M.abierta(t) && t.fecha && t.fecha < M.hoy();
+    return `<li class="ms-t ${t.estado === 'hecha' ? 'hecha' : ''} ${t.estado === 'noaplica' ? 'noaplica' : ''} ${t.clave ? 'clave' : ''}" data-id="${t.id}">
       <input type="checkbox" class="ms-ok" ${t.estado === 'hecha' ? 'checked' : ''} aria-label="Hecha">
-      <div class="ms-tx"><b>${t.clave ? '★ ' : ''}${esc(t.t)}</b><small>${[t.area, t.mundo && t.mundo !== 'manual' ? MUNDOS[t.mundo] : null, t.contacto, t.delegadoA ? 'delegada en ' + t.delegadoA : null, t.resp].filter(Boolean).map(esc).join(' · ')}${tarde ? ' · <em class="tarde">atrasada desde el ' + fCorta(t.fecha) + '</em>' : ''}</small></div>
+      <div class="ms-tx"><b>${t.clave ? '★ ' : ''}${esc(t.t)}</b><small>${[t.area, t.mundo && t.mundo !== 'manual' ? MUNDOS[t.mundo] : null, t.contacto, t.delegadoA ? 'delegada en ' + t.delegadoA : null, t.resp].filter(Boolean).map(esc).join(' · ')}${tarde ? ' · <em class="tarde">atrasada desde el ' + fCorta(t.fecha) + '</em>' : ''}${t.estado === 'noaplica' ? ' · <em class="tarde">ya no aplica: el origen la ha retirado</em>' : ''}</small></div>
       <span class="ms-dur">${t.hora ? esc(t.hora) + ' · ' : ''}${t.dur ? t.dur + ' min' : ''}</span>
-      <span class="ms-acc">${opts.manana ? '<button class="icon-btn" data-man title="Pasar al siguiente día laborable" aria-label="Al siguiente día">→</button>' : ''}<button class="icon-btn" data-ed title="Editar, reservar hora o convertir en meta" aria-label="Editar">✎</button></span></li>`;
+      <span class="ms-acc">${irOrigen(t)}${opts.manana ? '<button class="icon-btn" data-man title="Pasar al siguiente día laborable" aria-label="Al siguiente día">→</button>' : ''}<button class="icon-btn" data-ed title="Editar, reservar hora o convertir en meta" aria-label="Editar">✎</button></span></li>`;
   };
   const wireTareas = (host) => {
     $$('.ms-t', host).forEach((li) => {
       const t = tarea(li.dataset.id); if (!t) return;
-      $('.ms-ok', li).onchange = (e) => { t.estado = e.target.checked ? 'hecha' : 'pendiente'; t.hecha = e.target.checked ? M.hoy() : null; if (t.metaId) syncMeta(t); guardar(); render(); };
+      $('.ms-ok', li).onchange = (e) => { marcarHecha(t, e.target.checked); guardar(); render(); };
       const mn = $('[data-man]', li); if (mn) mn.onclick = () => { t.fecha = laborable(t.fecha || dia); t.hora = ''; guardar(); render(); };
       $('[data-ed]', li).onclick = () => editar(t);
     });
+    wireIr(host);
   };
   const syncMeta = (t) => { const m = ST.metas.find((x) => x.id === t.metaId); if (!m) return; const a = (m.acciones || []).find((x) => x.tareaId === t.id); if (a) a.hecha = t.estado === 'hecha' ? M.hoy() : ''; };
 
@@ -80,12 +86,13 @@
       <div class="ms-g3"><label class="small">Fecha de acción<input class="input" type="date" data-f="fecha" value="${esc(t.fecha || '')}"></label><label class="small">Hora reservada<input class="input" type="time" data-f="hora" value="${esc(t.hora || '')}" step="900"></label><label class="small">Duración (min)<input class="input" type="number" min="5" step="5" data-f="dur" value="${esc(t.dur || 30)}"></label></div>
       <div class="ms-g3"><label class="small">Tipo<select class="input" data-f="tipo">${Object.keys(TIPOS).map((k) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${TIPOS[k]}</option>`).join('')}</select></label><label class="small">Área<select class="input" data-f="area"><option value="">—</option>${AREAS.map((a) => `<option ${t.area === a ? 'selected' : ''}>${a}</option>`).join('')}</select></label><label class="small">Contacto o grupo<input class="input" data-f="contacto" value="${esc(t.contacto || '')}" placeholder="Cliente, proveedor, equipo…"></label></div>
       <div class="ms-g3"><label class="small">Impacto en resultados<select class="input" data-f="impacto">${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${+t.impacto === v ? 'selected' : ''}>${v} · ${['muy bajo', 'bajo', 'medio', 'alto', 'muy alto'][v - 1]}</option>`).join('')}</select></label><label class="small">Esfuerzo<select class="input" data-f="esfuerzo">${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${+t.esfuerzo === v ? 'selected' : ''}>${v} · ${['muy bajo', 'bajo', 'medio', 'alto', 'muy alto'][v - 1]}</option>`).join('')}</select></label><label class="small ms-inl"><input type="checkbox" data-f="clave" ${t.clave ? 'checked' : ''}> Actividad clave (de las del 20 % que dan el 80 % del resultado)</label></div>
-      ${t.origen ? `<p class="small muted" style="margin:0">Origen: ${esc(t.origen)}</p>` : ''}
+      ${t.origen || irOrigen(t) ? `<div class="row"><p class="small muted" style="margin:0">${t.origen ? 'Origen: ' + esc(t.origen) : ''}${t.estado === 'noaplica' ? ' · ya no aplica: el origen la ha retirado' + (t.noAplica ? ' el ' + fCorta(t.noAplica) : '') : ''}</p><span class="spacer"></span>${irOrigen(t, 'btn ghost small')}</div>` : ''}
       <div class="row"><button class="btn solid" data-ok>Guardar</button><button class="btn" data-meta>Convertir en meta SMART</button>${t.fecha && t.hora ? `<a class="btn ghost" target="_blank" rel="noopener" href="${gcal(t)}">Añadir a Google Calendar</a>` : ''}<span class="spacer"></span><button class="btn ghost" data-del>Borrar</button></div></div>`;
     document.body.appendChild(back);
     const close = () => back.remove();
     back.onclick = (e) => { if (e.target === back) close(); };
     $('[data-x]', back).onclick = close;
+    wireIr(back);
     const leer = () => { $$('[data-f]', back).forEach((i) => { const k = i.dataset.f; t[k] = i.type === 'checkbox' ? i.checked : ['impacto', 'esfuerzo', 'dur'].includes(k) ? +i.value || 0 : i.value; }); };
     $('[data-ok]', back).onclick = () => { leer(); guardar(); close(); render(); };
     $('[data-meta]', back).onclick = () => { leer(); const m = nuevaMeta({ objetivo: t.t, area: t.area, desde: t.id }); t.metaId = m.id; guardar(); close(); tab = 'metas'; metaSel = m.id; render(); };
@@ -104,9 +111,9 @@
 
   /* ---------- HOY ---------- */
   const vHoy = (host) => {
-    const del = ST.tareas.filter((t) => t.fecha === dia);
+    const del = ST.tareas.filter((t) => t.fecha === dia && t.estado !== 'noaplica');
     const imp = del.filter((t) => t.tipo === 'imperativa'), im2 = del.filter((t) => t.tipo === 'importante' || !t.tipo), seg = del.filter((t) => t.tipo === 'seguimiento'), dl = del.filter((t) => t.tipo === 'delegada');
-    const minImp = imp.filter((t) => t.estado !== 'hecha').reduce((a, t) => a + (+t.dur || 30), 0);
+    const minImp = imp.filter(M.abierta).reduce((a, t) => a + (+t.dur || 30), 0);
     const largas = imp.filter((t) => (+t.dur || 30) > 60);
     const reps = repDe(dia), hechasRep = (r) => !!(r.hechas && r.hechas[dia]);
     const atras = pend().filter((t) => t.fecha && t.fecha < dia);
@@ -133,7 +140,7 @@
     $$('[data-rep]', host).forEach((c) => (c.onchange = () => { const r = ST.repetitivas.find((x) => x.id === c.dataset.rep); r.hechas = r.hechas || {}; if (c.checked) r.hechas[dia] = true; else delete r.hechas[dia]; guardar(); render(); }));
     $('#msLogros', host).oninput = (e) => { ST.logros[dia] = e.target.value; guardar(); };
     $('#msCerrar', host).onclick = () => {
-      const quedan = del.filter((t) => t.estado !== 'hecha'), sig = laborable(dia);
+      const quedan = del.filter(M.abierta), sig = laborable(dia);
       quedan.forEach((t) => { t.fecha = sig; t.hora = ''; t.aplazada = (t.aplazada || 0) + 1; });
       guardar(); render();
       const n = quedan.length, rep = quedan.filter((t) => t.aplazada >= 2).length;
@@ -156,7 +163,7 @@
   };
   const estBlk = (x, ini, fin, px, minH) => `top:${(x.a - ini) * px}px;height:${Math.max(minH, Math.min(x.d, fin - x.a) * px - 2)}px${x.n > 1 ? `;left:calc(${((x.lane / x.n) * 100).toFixed(2)}% + 2px);right:auto;width:calc(${(100 / x.n).toFixed(2)}% - 4px)` : ''}`;
   const bloquesDia = (s) => {
-    const res = ST.tareas.filter((t) => t.fecha === s && t.hora).map((t) => ({ id: t.id, a: aMin(t.hora), d: +t.dur || 30, t: t.t, cls: (t.clave ? 'clave ' : '') + (t.estado === 'hecha' ? 'hecha' : '') }));
+    const res = ST.tareas.filter((t) => t.fecha === s && t.hora && t.estado !== 'noaplica').map((t) => ({ id: t.id, a: aMin(t.hora), d: +t.dur || 30, t: t.t, cls: (t.clave ? 'clave ' : '') + (t.estado === 'hecha' ? 'hecha' : '') }));
     const ideal = ST.semana.filter((b) => +b.dia === dow(s)).map((b) => ({ a: aMin(b.desde), d: Math.max(15, aMin(b.hasta) - aMin(b.desde)), t: b.t, cls: 'ideal ' + (b.tipo || '') }));
     const reps = repDe(s).filter((r) => r.hora).map((r) => ({ a: aMin(r.hora), d: +r.dur || 30, t: r.t, cls: 'rep' }));
     return carriles(ideal.concat(reps, res).filter((x) => isFinite(x.a)));
@@ -169,22 +176,23 @@
 
   /* ---------- BANDEJA ---------- */
   const vBandeja = (host) => {
-    const l = ST.tareas.filter((t) => (filtro.estado === 'todas' || (filtro.estado === 'hecha' ? t.estado === 'hecha' : t.estado !== 'hecha')) && (filtro.mundo === 'todos' || (t.mundo || 'manual') === filtro.mundo)).sort((a, b) => (a.fecha || '9999').localeCompare(b.fecha || '9999') || score(b) - score(a));
+    const l = ST.tareas.filter((t) => (filtro.estado === 'todas' || (filtro.estado === 'hecha' ? t.estado === 'hecha' : filtro.estado === 'noaplica' ? t.estado === 'noaplica' : M.abierta(t))) && (filtro.mundo === 'todos' || (MUNDOS[t.mundo] ? t.mundo : 'manual') === filtro.mundo)).sort((a, b) => (a.fecha || '9999').localeCompare(b.fecha || '9999') || score(b) - score(a));
     host.innerHTML = `<div class="glass pad stack"><p style="margin:0">Todo lo que hay que hacer, en un solo sitio: lo que apunte aquí y lo que sale del simulador, del sistema estratégico y de personas y equipos. Ponga a cada tarea una <b>fecha de acción</b>: cada día elegirá entre las que tocan, sin releer toda la lista.</p>
         <div class="row ms-add"><input class="input" id="msNueva" placeholder="Nueva tarea…" autocomplete="off"><select class="input" id="msArea"><option value="">Área</option>${AREAS.map((a) => `<option>${a}</option>`).join('')}</select><input class="input" type="date" id="msF"><button class="btn solid" id="msAdd">Apuntar</button><span class="spacer"></span><button class="btn" id="msImp">Traer el trabajo del ecosistema</button></div><p class="small muted" id="msImpMsg" style="margin:0"></p></div>
-      <div class="glass pad stack"><div class="row ms-fil"><span class="small muted">Ver</span>${[['pendiente', 'Pendientes'], ['hecha', 'Hechas'], ['todas', 'Todas']].map(([k, n]) => `<button class="chip" aria-pressed="${filtro.estado === k}" data-fe="${k}">${n}</button>`).join('')}<span class="ms-sep"></span>${[['todos', 'Todos los orígenes']].concat(Object.entries(MUNDOS).slice(0, 5)).map(([k, n]) => `<button class="chip" aria-pressed="${filtro.mundo === k}" data-fm="${k}">${n}</button>`).join('')}</div>
-        ${l.length ? `<div class="table-wrap"><table class="ms-tab"><thead><tr><th>Entrada</th><th style="text-align:left">Tarea</th><th>Fecha de acción</th><th>Tipo</th><th title="Actividad clave">★</th><th>Impacto</th><th>Esfuerzo</th><th></th></tr></thead><tbody>${l.map((t) => `<tr data-id="${t.id}" class="${t.estado === 'hecha' ? 'hecha' : ''}"><td class="small">${fCorta(t.entrada)}</td><td style="text-align:left"><b>${esc(t.t)}</b><br><small class="muted">${[t.area, t.mundo && t.mundo !== 'manual' ? MUNDOS[t.mundo] : '', t.origen].filter(Boolean).map(esc).join(' · ')}</small></td><td><input class="input" type="date" data-k="fecha" value="${esc(t.fecha || '')}"></td><td><select class="input" data-k="tipo">${Object.keys(TIPOS).map((k) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${TIPOS[k]}</option>`).join('')}</select></td><td><input type="checkbox" data-k="clave" ${t.clave ? 'checked' : ''} aria-label="Actividad clave"></td><td><select class="input ms-n" data-k="impacto">${[1, 2, 3, 4, 5].map((v) => `<option ${+t.impacto === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td><td><select class="input ms-n" data-k="esfuerzo">${[1, 2, 3, 4, 5].map((v) => `<option ${+t.esfuerzo === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td><td class="ms-act"><button class="btn ghost small" data-ed>Editar</button><button class="btn ghost small" data-ok>${t.estado === 'hecha' ? 'Reabrir' : 'Hecha'}</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small">No hay tareas con este filtro.</p>'}</div>`;
+      <div class="glass pad stack"><div class="row ms-fil"><span class="small muted">Ver</span>${[['pendiente', 'Pendientes'], ['hecha', 'Hechas'], ['noaplica', 'Ya no aplican'], ['todas', 'Todas']].map(([k, n]) => `<button class="chip" aria-pressed="${filtro.estado === k}" data-fe="${k}">${n}</button>`).join('')}<span class="ms-sep"></span>${[['todos', 'Todos los orígenes']].concat(Object.entries(MUNDOS)).map(([k, n]) => `<button class="chip" aria-pressed="${filtro.mundo === k}" data-fm="${k}">${n}</button>`).join('')}</div>
+        ${l.length ? `<div class="table-wrap"><table class="ms-tab"><thead><tr><th>Entrada</th><th style="text-align:left">Tarea</th><th>Fecha de acción</th><th>Tipo</th><th title="Actividad clave">★</th><th>Impacto</th><th>Esfuerzo</th><th></th></tr></thead><tbody>${l.map((t) => `<tr data-id="${t.id}" class="${t.estado === 'hecha' ? 'hecha' : ''} ${t.estado === 'noaplica' ? 'noaplica' : ''}"><td class="small">${fCorta(t.entrada)}</td><td style="text-align:left"><b>${esc(t.t)}</b>${t.estado === 'noaplica' ? ' ' + chip('Ya no aplica', 'warn') : ''}<br><small class="muted">${[t.area, t.mundo && t.mundo !== 'manual' ? MUNDOS[t.mundo] : '', t.origen].filter(Boolean).map(esc).join(' · ')}</small> ${irOrigen(t, 'ms-irl small')}</td><td><input class="input" type="date" data-k="fecha" value="${esc(t.fecha || '')}"></td><td><select class="input" data-k="tipo">${Object.keys(TIPOS).map((k) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${TIPOS[k]}</option>`).join('')}</select></td><td><input type="checkbox" data-k="clave" ${t.clave ? 'checked' : ''} aria-label="Actividad clave"></td><td><select class="input ms-n" data-k="impacto">${[1, 2, 3, 4, 5].map((v) => `<option ${+t.impacto === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td><td><select class="input ms-n" data-k="esfuerzo">${[1, 2, 3, 4, 5].map((v) => `<option ${+t.esfuerzo === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td><td class="ms-act"><button class="btn ghost small" data-ed>Editar</button><button class="btn ghost small" data-ok>${t.estado === 'hecha' ? 'Reabrir' : 'Hecha'}</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small">No hay tareas con este filtro.</p>'}</div>`;
     const add = () => { const v = $('#msNueva', host).value.trim(); if (!v) return; ST.tareas.push({ id: M.uid(), t: v, entrada: M.hoy(), fecha: $('#msF', host).value || '', area: $('#msArea', host).value, tipo: 'importante', estado: 'pendiente', impacto: 3, esfuerzo: 3, mundo: 'manual' }); guardar(); render(); setTimeout(() => { const i = $('#msNueva'); if (i) i.focus(); }, 20); };
     $('#msAdd', host).onclick = add; $('#msNueva', host).onkeydown = (e) => { if (e.key === 'Enter') add(); };
-    $('#msImp', host).onclick = async () => { const n = await importar(); $('#msImpMsg').textContent = resumenImp(n); if (n) setTimeout(render, 900); };
+    $('#msImp', host).onclick = async () => { const n = await importar(); $('#msImpMsg').textContent = resumenImp(n); const r = importar.r || {}; if (n || r.actualizadas || r.cerradas) setTimeout(render, 900); };
     $$('[data-fe]', host).forEach((b) => (b.onclick = () => { filtro.estado = b.dataset.fe; render(); }));
     $$('[data-fm]', host).forEach((b) => (b.onclick = () => { filtro.mundo = b.dataset.fm; render(); }));
     $$('tr[data-id]', host).forEach((tr) => {
       const t = tarea(tr.dataset.id);
       $$('[data-k]', tr).forEach((i) => (i.onchange = () => { const k = i.dataset.k; t[k] = i.type === 'checkbox' ? i.checked : ['impacto', 'esfuerzo'].includes(k) ? +i.value : i.value; guardar(); if (A.mesa.pintaHero) A.mesa.pintaHero(); }));
       $('[data-ed]', tr).onclick = () => editar(t);
-      $('[data-ok]', tr).onclick = () => { t.estado = t.estado === 'hecha' ? 'pendiente' : 'hecha'; t.hecha = t.estado === 'hecha' ? M.hoy() : null; if (t.metaId) syncMeta(t); guardar(); render(); };
+      $('[data-ok]', tr).onclick = () => { marcarHecha(t, t.estado !== 'hecha'); guardar(); render(); };
     });
+    wireIr(host);
   };
   /* Trae el trabajo guardado en los otros mundos de la empresa activa */
   /* ---------- Datos reales: nada de ejemplo en la mesa ---------- */
@@ -196,12 +204,15 @@
   const planEjemplo = (pl) => !!(pl && (pl.__vacio || PLAN_EJ.some((x) => String(pl.mision || '').includes(x))));
   const limpiarEjemplos = async () => {
     // Las acciones del plan de ejemplo no son trabajo real en ningún caso
-    const e0 = ST.tareas.length; ST.tareas = ST.tareas.filter((t) => !(t.oid && /^est:plan:/.test(t.oid) && accEjemplo(t.oid.slice(9))));
+    const esPlanEst = (t) => t.oid && /^estrategia:plan:/.test(t.oid);
+    const e0 = ST.tareas.length; ST.tareas = ST.tareas.filter((t) => !(esPlanEst(t) && accEjemplo(t.t)));
     const quitadasEj = e0 - ST.tareas.length; if (quitadasEj) guardar();
     if (!real()) return quitadasEj;
     const loc = (k) => { try { return JSON.parse(localStorage.getItem(P() && P().k ? P().k(k) : k)); } catch (e) { return null; } };
     const est = (P() && (await P().loadData('estrategia').catch(() => null))) || loc('atalaya.estrategia.v1');
-    const fuera = (t) => t.ejemplo || (t.oid && /^est:plan:/.test(t.oid) && (!est || planEjemplo(est.plan) || !((est.plan && est.plan.acciones) || []).some((a) => 'est:plan:' + a.accion === t.oid)));
+    if (est) M.idsEstrategia(est);
+    const vivas = new Set(((est && est.plan && est.plan.acciones) || []).map((a) => M.oidPlanEst(a)));
+    const fuera = (t) => t.ejemplo || (esPlanEst(t) && (!est || planEjemplo(est.plan) || !vivas.has(t.oid)) && M.abierta(t));
     const n0 = ST.tareas.length; ST.tareas = ST.tareas.filter((t) => !fuera(t));
     const m0 = ST.metas.length; ST.metas = ST.metas.filter((m) => !m.ejemplo);
     const n = n0 - ST.tareas.length + m0 - ST.metas.length + quitadasEj; if (n) guardar(); return n;
@@ -214,10 +225,11 @@
      · Personas y equipos: revisiones de acuerdos de liderazgo.
      Lo que se borra de la mesa queda descartado y no vuelve a traerse. */
   const LINEA_AREA = { gobierno: 'Dirección', organizacion: 'Dirección', finanzas: 'Finanzas', comercial: 'Comercial', procesos: 'Operaciones', equipos: 'Personas', informacion: 'Dirección', protocolos: 'Dirección' };
-  const resumenImp = (n) => { const f = importar.ultimo || {}, ks = Object.keys(f); return n ? `${n} tarea${n > 1 ? 's' : ''} nueva${n > 1 ? 's' : ''} desde ${ks.map((k) => `${k} (${f[k]})`).join(', ')}.` : ks.length ? 'No hay trabajo nuevo: lo que se está trabajando ya está en la mesa o se descartó.' : 'No hay trabajo real en los otros mundos todavía: llega de la auditoría integral (plan, acuerdos, hitos y sesiones) y del sistema estratégico (plan de empresa y objetivos).'; };
+  const resumenImp = (n) => { const f = importar.ultimo || {}, ks = Object.keys(f), r = importar.r || {}, mas = [r.actualizadas ? `${r.actualizadas} actualizada${r.actualizadas > 1 ? 's' : ''}` : '', r.cerradas ? `${r.cerradas} cerrada${r.cerradas > 1 ? 's' : ''} porque ya están hechas en su origen` : ''].filter(Boolean).join(' y '); return n ? `${n} tarea${n > 1 ? 's' : ''} nueva${n > 1 ? 's' : ''} desde ${ks.map((k) => `${k} (${f[k]})`).join(', ')}.${mas ? ' Además, ' + mas + '.' : ''}` : mas ? `No hay trabajo nuevo; ${mas}.` : ks.length ? 'No hay trabajo nuevo: lo que se está trabajando ya está en la mesa o se descartó.' : 'No hay trabajo real en los otros mundos todavía: llega de la auditoría integral (plan, acuerdos, hitos y sesiones) y del sistema estratégico (plan de empresa y objetivos).'; };
   const importar = async () => {
-    const items = [], porFuente = {};
-    const add = (x, f) => { items.push(x); porFuente[f] = (porFuente[f] || 0) + 1; };
+    const items = [], porFuente = {}, O = M.oid;
+    // Lo hecho en el origen no entra, pero cierra la tarea que ya estuviera en la mesa
+    const add = (x, f, hecha) => { if (hecha) { items.push(Object.assign(x, { hechaEnOrigen: typeof hecha === 'string' ? hecha : h })); return; } items.push(x); porFuente[f] = (porFuente[f] || 0) + 1; };
     const loc = (k) => { try { return JSON.parse(localStorage.getItem(P() && P().k ? P().k(k) : k)); } catch (e) { return null; } };
     const ld = async (k, l) => { let r = null; try { r = P() && (await P().loadData(k)); } catch (e) { r = null; } return r || loc(l); };
     const h = M.hoy();
@@ -225,26 +237,27 @@
     if (!P() || !P().puede || P().puede('intervencion')) {
       const iv = await ld('intervencion', 'atalaya.intervencion.v1');
       if (iv) {
-        ((iv.plan && iv.plan.acciones) || []).filter((a) => a.t && a.estado !== 'hecha').forEach((a) => add({ t: a.t, area: LINEA_AREA[a.linea] || 'Dirección', resp: a.responsable || (a.quien === 'consultor' ? 'Consultor' : ''), fecha: a.fecha || '', mundo: 'intervencion', origen: 'Plan de intervención' + (a.ent && a.ent !== '—' ? ' · entregable: ' + a.ent : ''), oid: 'iv-acc:' + a.id, impacto: a.clave ? 5 : 4, clave: !!a.clave }, 'plan de intervención'));
-        (iv.sesiones || []).forEach((se) => (se.acuerdos || []).filter((x) => x.t && !x.hecho).forEach((x, k) => add({ t: x.t, resp: x.resp || '', fecha: x.fecha || '', area: 'Dirección', mundo: 'intervencion', origen: `Acuerdo de la sesión del ${fCorta(se.fecha)}`, oid: 'iv-acu:' + se.id + ':' + (x.id || k), impacto: 4 }, 'acuerdos de sesión')));
-        (iv.objetivos || []).forEach((o, i) => (o.hitos || []).filter((x) => x.t && !x.hecho).forEach((x) => add({ t: x.t, resp: x.resp || '', fecha: x.fecha || '', area: 'Dirección', mundo: 'intervencion', origen: `Hito del objetivo O${i + 1}: ${o.especifica || o.dice || ''}`.slice(0, 160), oid: 'iv-hito:' + o.id + ':' + x.id, impacto: 5, clave: true }, 'hitos de objetivos')));
-        (iv.sesiones || []).filter((se) => se.fecha && se.fecha >= h && se.tipo !== 'contacto').slice(0, 4).forEach((se) => add({ t: `Sesión de la auditoría: ${se.obj || se.tipo}`.slice(0, 160), fecha: se.fecha, hora: se.hora || '', dur: se.dur || 60, tipo: 'imperativa', area: 'Dirección', mundo: 'intervencion', origen: 'Calendario de sesiones', oid: 'iv-ses:' + se.id, impacto: 4 }, 'sesiones'));
+        M.idsIntervencion(iv);
+        ((iv.plan && iv.plan.acciones) || []).filter((a) => a.t && a.id).forEach((a) => add({ t: a.t, area: LINEA_AREA[a.linea] || 'Dirección', resp: a.responsable || (a.quien === 'consultor' ? 'Consultor' : ''), fecha: a.fecha || '', mundo: 'intervencion', origen: 'Plan de intervención' + (a.ent && a.ent !== '—' ? ' · entregable: ' + a.ent : ''), oid: O('intervencion', 'accion', a.id), impacto: a.clave ? 5 : 4, clave: !!a.clave }, 'plan de intervención', a.estado === 'hecha' && (a.hechaEl || true)));
+        (iv.sesiones || []).forEach((se) => (se.acuerdos || []).filter((x) => x.t).forEach((x, k) => add({ t: x.t, resp: x.resp || '', fecha: x.fecha || '', area: 'Dirección', mundo: 'intervencion', origen: `Acuerdo de la sesión del ${fCorta(se.fecha)}`, oid: O('intervencion', 'acuerdo', se.id + ':' + x.id), aka: ['iv-acu:' + se.id + ':' + k], impacto: 4 }, 'acuerdos de sesión', x.hecho)));
+        (iv.objetivos || []).forEach((o, i) => (o.hitos || []).filter((x) => x.t).forEach((x) => add({ t: x.t, resp: x.resp || '', fecha: x.fecha || '', area: 'Dirección', mundo: 'intervencion', origen: `Hito del objetivo O${i + 1}: ${o.especifica || o.dice || ''}`.slice(0, 160), oid: O('intervencion', 'hito', o.id + ':' + x.id), objetivoId: O('intervencion', 'objetivo', o.id), impacto: 5, clave: true }, 'hitos de objetivos', x.hecho)));
+        (iv.sesiones || []).filter((se) => se.fecha && se.fecha >= h && se.tipo !== 'contacto').slice(0, 4).forEach((se) => add({ t: `Sesión de la auditoría: ${se.obj || se.tipo}`.slice(0, 160), fecha: se.fecha, hora: se.hora || '', dur: se.dur || 60, tipo: 'imperativa', area: 'Dirección', mundo: 'intervencion', origen: 'Calendario de sesiones', oid: O('intervencion', 'sesion', se.id), impacto: 4 }, 'sesiones'));
         const sinR = ((iv.sesion && iv.sesion.sinRespuesta) || []).length;
-        if (sinR) add({ t: `Preguntar en la próxima sesión: ${sinR} preguntas del guion sin respuesta en la transcripción`, area: 'Dirección', mundo: 'intervencion', origen: 'Guion de la primera sesión', oid: 'iv-sinr:' + ((iv.sesion && iv.sesion.fecha) || ''), impacto: 3 }, 'preguntas pendientes');
+        if (sinR) add({ t: `Preguntar en la próxima sesión: ${sinR} preguntas del guion sin respuesta en la transcripción`, area: 'Dirección', mundo: 'intervencion', origen: 'Guion de la primera sesión', oid: O('intervencion', 'preguntas', (iv.sesion && iv.sesion.fecha) || ''), impacto: 3 }, 'preguntas pendientes');
       }
     }
-    // Sistema estratégico (plan de empresa real y objetivos con meta)
+    // Sistema estratégico (plan de empresa real y objetivos con meta). Una acción que pasó del módulo al plan es la misma tarea.
     const est = await ld('estrategia', 'atalaya.estrategia.v1');
-    if (est && est.plan && Array.isArray(est.plan.acciones) && !planEjemplo(est.plan)) est.plan.acciones.filter((a) => a.accion && a.estado !== 'Hecha' && !accEjemplo(a.accion)).forEach((a) => add({ t: a.accion, area: a.area, resp: a.responsable, fecha: a.fin || '', mundo: 'estrategia', origen: 'Plan de empresa', oid: 'est:plan:' + a.accion, impacto: 4 }, 'plan de empresa'));
-    if (est && est.c360) Object.keys(est.c360).forEach((mod) => (est.c360[mod].obj || []).filter((o) => o.meta !== '' && o.meta != null).forEach((o) => add({ t: `Objetivo: ${o.dir === 'bajar' ? 'bajar' : 'subir'} «${o.k}» de ${o.actual} a ${o.meta}${o.u ? ' ' + o.u : ''}`, area: 'Estrategia', fecha: o.fecha || '', resp: o.resp || '', mundo: 'estrategia', origen: 'Objetivos del sistema estratégico', oid: 'est:obj:' + mod + ':' + o.k, impacto: 4 }, 'objetivos estratégicos')));
+    if (est) M.idsEstrategia(est);
+    if (est && est.plan && Array.isArray(est.plan.acciones) && !planEjemplo(est.plan)) est.plan.acciones.filter((a) => a.accion && !accEjemplo(a.accion)).forEach((a) => add({ t: a.accion, area: a.area, resp: a.responsable, fecha: a.fin || '', mundo: 'estrategia', origen: 'Plan de empresa', oid: M.oidPlanEst(a), aka: [O('estrategia', 'plan', a.id)], impacto: 4 }, 'plan de empresa', a.estado === 'Hecha'));
+    if (est && est.c360) Object.keys(est.c360).forEach((mod) => (est.c360[mod].obj || []).filter((o) => o.meta !== '' && o.meta != null && o.id).forEach((o) => { const ov = (est.c360[mod].plan || {})['o:' + o.id] || {}; add({ t: `Objetivo: ${o.dir === 'bajar' ? 'bajar' : 'subir'} «${o.k}» de ${o.actual} a ${o.meta}${o.u ? ' ' + o.u : ''}`, area: 'Estrategia', fecha: o.fecha || '', resp: o.resp || '', mundo: 'estrategia', origen: 'Objetivos del sistema estratégico', oid: O('estrategia', 'objetivo', mod + ':' + o.id), objetivoId: o.objetivoId || O('estrategia', 'objetivo', mod + ':' + o.id), impacto: 4 }, 'objetivos estratégicos', ov.estado === 'Hecha' || o.cumplido); }));
     // Personas y equipos
     const per = P() && P().puede && P().puede('personas') && (await ld('personas', 'atalaya.personas.v1'));
-    if (per && Array.isArray(per.personas)) per.personas.forEach((c) => (c.tareas || []).filter((t) => t.acuerdo && t.acuerdo.revision).forEach((t) => add({ t: `Revisar el acuerdo de liderazgo con ${c.nombre} en «${t.nombre}»`, area: 'Personas', fecha: t.acuerdo.revision, mundo: 'personas', origen: 'Liderazgo a medida', oid: 'per:lid:' + c.id + ':' + t.nombre, impacto: 3 }, 'personas y equipos')));
-    const desc = new Set(ST.descartadas || []), n0 = ST.tareas.length, nuevas = {};
-    items.forEach((x) => { if (desc.has(x.oid) || ST.tareas.some((y) => y.oid === x.oid)) return; ST.tareas.push(Object.assign({ id: M.uid(), entrada: h, tipo: 'importante', estado: 'pendiente', esfuerzo: 3, clave: false }, x)); });
+    if (per && Array.isArray(per.personas)) per.personas.forEach((c) => (c.tareas || []).filter((t) => t.acuerdo && t.acuerdo.revision && t.id).forEach((t) => add({ t: `Revisar el acuerdo de liderazgo con ${c.nombre} en «${t.nombre}»`, area: 'Personas', fecha: t.acuerdo.revision, mundo: 'personas', origen: 'Liderazgo a medida', oid: O('personas', 'acuerdo', c.id + ':' + t.id), aka: ['per:lid:' + c.id + ':' + t.nombre], impacto: 3 }, 'personas y equipos', t.acuerdo.revisado)));
+    const r = M.fusionar(ST, items);
     guardar();
-    importar.ultimo = porFuente;
-    return ST.tareas.length - n0;
+    importar.ultimo = porFuente; importar.r = r;
+    return r.nuevas;
   };
 
   /* ---------- PRIORIDADES 20/80 ---------- */
@@ -438,7 +451,7 @@
     $$('tr[data-a]', host).forEach((tr) => $$('[data-ak]', tr).forEach((i) => (i.oninput = i.onchange = () => { const a = m.acciones[+tr.dataset.a]; a[i.dataset.ak] = i.type === 'checkbox' ? (i.checked ? M.hoy() : '') : i.value; const t = a.tareaId && tarea(a.tareaId); if (t) { t.t = a.t; t.fecha = a.revisada || a.fecha; t.estado = a.hecha ? 'hecha' : 'pendiente'; } guardar(); refrescarVal(host, m); })));
     $('#msAc', host).onclick = () => { m.acciones.push({ t: '', fecha: '', revisada: '', hecha: '' }); guardar(); render(); };
     $('#msBajar', host).onclick = () => { let n = 0; (m.acciones || []).filter((a) => a.t).forEach((a) => { if (a.tareaId && tarea(a.tareaId)) return; const t = { id: M.uid(), t: a.t, entrada: M.hoy(), fecha: a.revisada || a.fecha || '', tipo: 'importante', estado: a.hecha ? 'hecha' : 'pendiente', impacto: 5, esfuerzo: 3, clave: true, area: m.area, resp: m.responsable, mundo: 'meta', metaId: m.id, origen: 'Meta: ' + (m.especifica || m.objetivo) }; ST.tareas.push(t); a.tareaId = t.id; n++; }); guardar(); toast(n ? `${n} acción${n > 1 ? 'es pasan' : ' pasa'} a la bandeja como actividad clave.` : 'Las acciones ya estaban en la bandeja (o están vacías).'); };
-    $('#msCumplida', host).onclick = () => { m.estado = m.estado === 'cumplida' ? 'activa' : 'cumplida'; m.cumplida = m.estado === 'cumplida' ? M.hoy() : ''; guardar(); render(); };
+    $('#msCumplida', host).onclick = () => { m.estado = m.estado === 'cumplida' ? 'activa' : 'cumplida'; m.cumplida = m.estado === 'cumplida' ? M.hoy() : ''; if (m.objetivoId) M.aOrigen(m.objetivoId, m.cumplida || false); guardar(); render(); };
     $('#msBorrar', host).onclick = (e) => { if (!e.target.dataset.ok) { e.target.dataset.ok = 1; e.target.textContent = '¿Seguro? Toque otra vez'; return; } ST.metas = ST.metas.filter((x) => x !== m); metaSel = null; guardar(); render(); };
   };
   const refrescarVal = (host, m) => {
@@ -544,44 +557,54 @@
   const AREA_P = { liquidez: 'Finanzas', rentabilidad: 'Operaciones', crecimiento: 'Comercial', organizacion: 'Dirección' };
   const CONTRATO = /(componente variable|parte variable|honorari|contrato|cl[aá]usula|propuesta (comercial|econ[oó]mica)|pago (condicionado|variable|fijo))/i;
   let cands = null;
+  /* Cada objetivo lleva su identificador (oid = objetivoId) desde donde nace: la auditoría (intervencion:objetivo:<id>,
+     intervencion:causa:<id>), el sistema estratégico (estrategia:objetivo:<módulo>:<id>) o el plan de empresa
+     (estrategia:objetivo-plan:<id>, o el objetivoId del objetivo de la auditoría del que sale). Con el mismo
+     identificador es un solo objetivo, aunque venga de varias fuentes. */
+  const metaDe = (c) => ST.metas.find((m) => m.objetivoId === c.oid || m.oid === c.oid || (c.aka || []).some((a) => M.normOid(a) === m.oid));
   const leerReales = async () => {
-    const out = [], ld = async (k) => { try { return await P().loadData(k); } catch (e) { return null; } };
+    const out = [], O = M.oid, ld = async (k) => { try { return await P().loadData(k); } catch (e) { return null; } };
     const iv = await ld('intervencion'), est = await ld('estrategia');
+    if (iv) M.idsIntervencion(iv); if (est) M.idsEstrategia(est);
     // 1. Objetivos del empresario en la auditoría (con sus hitos)
     ((iv && iv.objetivos) || []).filter((o) => (o.especifica || o.dice) && !CONTRATO.test((o.dice || '') + ' ' + (o.especifica || ''))).forEach((o, i) => {
       const smartN = [(o.especifica || '').split(/\s+/).length >= 4, !!(o.indicador && String(o.valor || '').trim()), !!o.solo, !!(o.beneficio && o.merece === 'si'), !!o.fecha].filter(Boolean).length;
       const pr = prinTema[o.tema] || 'organizacion';
-      out.push({ oid: 'iv-obj:' + o.id, fuente: 'Auditoría integral · objetivo O' + (i + 1), pr, peso: 3, smartN, area: AREA_P[pr], m: { objetivo: o.dice || o.especifica, especifica: o.especifica || '', indicador: o.indicador || '', actual: o.actual || '', valor: o.valor || '', unidad: o.unidad || '', fecha: o.fecha || '', responsable: o.responsable || '', solo: !!o.solo, beneficio: o.beneficio || '', contras: o.contras || '', merece: o.merece || '' }, acciones: (o.hitos || []).filter((h) => h.t).map((h) => ({ t: h.t + (h.resp ? ' · ' + h.resp : ''), fecha: h.fecha || '', revisada: '', hecha: h.hecho || '' })).concat((o.como || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, fecha: '', revisada: '', hecha: '' }))) });
+      out.push({ oid: O('intervencion', 'objetivo', o.id), fuente: 'Auditoría integral · objetivo O' + (i + 1), pr, peso: 3, smartN, area: AREA_P[pr], m: { objetivo: o.dice || o.especifica, especifica: o.especifica || '', indicador: o.indicador || '', actual: o.actual || '', valor: o.valor || '', unidad: o.unidad || '', fecha: o.fecha || '', responsable: o.responsable || '', solo: !!o.solo, beneficio: o.beneficio || '', contras: o.contras || '', merece: o.merece || '' }, acciones: (o.hitos || []).filter((h) => h.t).map((h) => ({ t: h.t + (h.resp ? ' · ' + h.resp : ''), fecha: h.fecha || '', revisada: '', hecha: h.hecho || '', oid: O('intervencion', 'hito', o.id + ':' + h.id) })).concat((o.como || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, fecha: '', revisada: '', hecha: '' }))) });
     });
-    // 2. Causas confirmadas en la auditoría: cerrarlas es un objetivo de la empresa
-    ((iv && iv.causas) || []).filter((c) => c.estado === 'confirmada').forEach((c) => { const pr = prinArea[c.area] || 'organizacion'; out.push({ oid: 'iv-causa:' + c.id, fuente: 'Auditoría integral · causa confirmada', pr, peso: 2, smartN: 1, area: AREA_P[pr], m: { objetivo: 'Resolver: ' + c.t, especifica: '', indicador: '', fecha: '' }, acciones: ((iv.plan && iv.plan.acciones) || []).filter((a) => (a.causas || []).includes(c.id) || (a.causas || []).includes(c.ref)).slice(0, 6).map((a) => ({ t: a.t, fecha: a.fecha || '', revisada: '', hecha: a.estado === 'hecha' ? M.hoy() : '' })) }); });
+    // 2. Causas confirmadas en la auditoría: cerrarlas es un objetivo de la empresa (las que ya tienen meta no se vuelven a ofrecer)
+    ((iv && iv.causas) || []).filter((c) => c.estado === 'confirmada').forEach((c) => { const pr = prinArea[c.area] || 'organizacion', oid = O('intervencion', 'causa', c.id); if (ST.metas.some((m) => m.objetivoId === oid || m.oid === oid)) return; out.push({ oid, fuente: 'Auditoría integral · causa confirmada', pr, peso: 2, smartN: 1, area: AREA_P[pr], m: { objetivo: 'Resolver: ' + c.t, especifica: '', indicador: '', fecha: '' }, acciones: ((iv.plan && iv.plan.acciones) || []).filter((a) => (a.causas || []).includes(c.id) || (a.causas || []).includes(c.ref)).slice(0, 6).map((a) => ({ t: a.t, fecha: a.fecha || '', revisada: '', hecha: a.estado === 'hecha' ? M.hoy() : '', oid: O('intervencion', 'accion', a.id) })) }); });
     // 3. Objetivos del sistema estratégico con meta (los pone la empresa)
-    if (est && est.c360) Object.keys(est.c360).forEach((mod) => (est.c360[mod].obj || []).filter((o) => o.meta !== '' && o.meta != null).forEach((o, i) => { const pr = prinMod(mod); out.push({ oid: 'est-obj:' + mod + ':' + i, fuente: 'Sistema estratégico · ' + mod, pr, peso: 2, smartN: [o.k, o.meta !== '', o.fecha, o.resp].filter(Boolean).length, area: AREA_P[pr], m: { objetivo: `${o.dir === 'bajar' ? 'Bajar' : 'Subir'} «${o.k}»`, especifica: '', indicador: o.k, actual: o.actual != null ? String(o.actual) : '', valor: String(o.meta), unidad: o.u || '', fecha: o.fecha || '', responsable: o.resp || '' }, acciones: [] }); }));
-    if (est && est.plan && !planEjemplo(est.plan)) (est.plan.objetivos || []).filter((o) => o.nombre).forEach((o) => { out.push({ oid: 'est-plan:' + (o.id || o.nombre), fuente: 'Plan de empresa', pr: /caja|tesorer|liquidez|deuda/i.test(o.nombre + o.indicador) ? 'liquidez' : /margen|ebitda|rentab|beneficio/i.test(o.nombre + o.indicador) ? 'rentabilidad' : /venta|crec|cliente|mercado/i.test(o.nombre + o.indicador) ? 'crecimiento' : 'organizacion', peso: 2, smartN: [o.indicador, o.meta, o.fecha].filter(Boolean).length, m: { objetivo: o.nombre, indicador: o.indicador || '', actual: o.actual != null ? String(o.actual) : '', valor: o.meta != null ? String(o.meta) : '', fecha: o.fecha || '' }, acciones: (est.plan.acciones || []).filter((a) => a.accion && a.estado !== 'Hecha').slice(0, 0) }); });
+    if (est && est.c360) Object.keys(est.c360).forEach((mod) => (est.c360[mod].obj || []).filter((o) => o.meta !== '' && o.meta != null).forEach((o, i) => { const pr = prinMod(mod); out.push({ oid: o.objetivoId || O('estrategia', 'objetivo', mod + ':' + o.id), aka: ['est-obj:' + mod + ':' + i, O('estrategia', 'objetivo', mod + ':' + o.id)], fuente: 'Sistema estratégico · ' + mod, pr, peso: 2, smartN: [o.k, o.meta !== '', o.fecha, o.resp].filter(Boolean).length, area: AREA_P[pr], m: { objetivo: `${o.dir === 'bajar' ? 'Bajar' : 'Subir'} «${o.k}»`, especifica: '', indicador: o.k, actual: o.actual != null ? String(o.actual) : '', valor: String(o.meta), unidad: o.u || '', fecha: o.fecha || '', responsable: o.resp || '' }, acciones: [] }); }));
+    if (est && est.plan && !planEjemplo(est.plan)) (est.plan.objetivos || []).filter((o) => o.nombre).forEach((o) => { out.push({ oid: o.objetivoId || O('estrategia', 'objetivo-plan', o.id), aka: ['est-plan:' + o.id, 'est-plan:' + o.nombre, O('estrategia', 'objetivo-plan', o.id)], fuente: 'Plan de empresa', pr: /caja|tesorer|liquidez|deuda/i.test(o.nombre + o.indicador) ? 'liquidez' : /margen|ebitda|rentab|beneficio/i.test(o.nombre + o.indicador) ? 'rentabilidad' : /venta|crec|cliente|mercado/i.test(o.nombre + o.indicador) ? 'crecimiento' : 'organizacion', peso: 2, smartN: [o.indicador, o.meta, o.fecha].filter(Boolean).length, m: { objetivo: o.nombre, indicador: o.indicador || '', actual: o.actual != null ? String(o.actual) : '', valor: o.meta != null ? String(o.meta) : '', fecha: o.fecha || '' }, acciones: [] }); });
     // 4. Puntos en rojo de los mundos (sin los que solo piden quitar datos de ejemplo)
     if (A.nota && A.nota.calcular) { try { const u = await A.nota.calcular(); Object.keys(u.mundos).forEach((k) => { if (k === 'mesa') return; u.mundos[k].puntos.filter((x) => x.st === 'stop' && !/ejemplo/i.test(x.t)).slice(0, 4).forEach((x) => { const pr = k === 'simulador' ? 'liquidez' : k === 'personas' ? 'organizacion' : prinMod(x.zona || ''); out.push({ oid: 'nota:' + k + ':' + x.t, fuente: (u.mundos[k].n || k) + ' · en rojo', pr, peso: 1, smartN: 0, area: AREA_P[pr], m: { objetivo: 'Corregir: ' + x.t.replace(/^En rojo: /, ''), especifica: '', fecha: '' }, acciones: [] }); }); }); } catch (e) { /* sin nota */ } }
-    out.forEach((c) => { c.area = c.area || AREA_P[c.pr]; c.score = (3 - PRIN[c.pr][0]) * 10 + c.peso * 3 + c.smartN; });
+    // Un objetivo, una fila: lo que llega con el mismo identificador desde varias fuentes se une (gana la fuente de más peso)
+    const uno = [];
+    out.forEach((c) => { const y = uno.find((x) => x.oid === c.oid); if (!y) { uno.push(c); return; } const [a, b] = y.peso >= c.peso ? [y, c] : [c, y]; a.fuente = a.fuente + ' · ' + b.fuente; a.aka = (a.aka || []).concat(b.aka || []); Object.keys(b.m).forEach((k) => { if ((a.m[k] === '' || a.m[k] == null) && b.m[k]) a.m[k] = b.m[k]; }); if (!a.acciones.length) a.acciones = b.acciones; if (a !== y) uno[uno.indexOf(y)] = a; });
+    uno.forEach((c) => { c.area = c.area || AREA_P[c.pr]; c.score = (3 - PRIN[c.pr][0]) * 10 + c.peso * 3 + c.smartN; });
     // Primero los objetivos de la empresa (los del empresario, después los del sistema estratégico y las causas confirmadas) y al final las correcciones; dentro de cada grupo, por principio y por definición
-    out.sort((a, b) => b.peso - a.peso || PRIN[a.pr][0] - PRIN[b.pr][0] || b.smartN - a.smartN);
-    return out;
+    uno.sort((a, b) => b.peso - a.peso || PRIN[a.pr][0] - PRIN[b.pr][0] || b.smartN - a.smartN);
+    return uno;
   };
   // Aterrizar un objetivo: meta SMART (plantilla de meta) + acciones en la bandeja + semana ideal + revisión semanal
   const aterrizar = (c, rank) => {
-    let m = ST.metas.find((x) => x.oid === c.oid);
-    const base = Object.assign({ area: c.area, origen: c.fuente, oid: c.oid, prioridad: rank, seguimiento: 'Cada viernes, en la revisión semanal de metas' }, c.m);
-    if (m) { Object.keys(base).forEach((k) => { if (base[k] !== '' && base[k] != null && (!m[k] || k === 'prioridad')) m[k] = base[k]; }); } else m = nuevaMeta(Object.assign(base, { acciones: c.acciones.length ? c.acciones.map((a) => Object.assign({}, a)) : [{ t: '', fecha: '', revisada: '', hecha: '' }] }));
+    let m = metaDe(c);
+    const base = Object.assign({ area: c.area, origen: c.fuente, oid: c.oid, objetivoId: /^nota:/.test(c.oid) ? '' : c.oid, prioridad: rank, seguimiento: 'Cada viernes, en la revisión semanal de metas' }, c.m);
+    if (m) { m.oid = m.oid || c.oid; if (!m.objetivoId && base.objetivoId) m.objetivoId = base.objetivoId; Object.keys(base).forEach((k) => { if (base[k] !== '' && base[k] != null && (!m[k] || k === 'prioridad')) m[k] = base[k]; }); (c.acciones || []).forEach((a) => { if (a.oid && !(m.acciones || []).some((x) => x.oid === a.oid)) { const x = (m.acciones || []).find((y) => !y.oid && M.texto(y.t) === M.texto(a.t)); if (x) x.oid = a.oid; } }); } else m = nuevaMeta(Object.assign(base, { acciones: c.acciones.length ? c.acciones.map((a) => Object.assign({}, a)) : [{ t: '', fecha: '', revisada: '', hecha: '' }] }));
     let n = 0;
-    (m.acciones || []).filter((a) => a.t).forEach((a) => { if (a.tareaId && tarea(a.tareaId)) return; const t = { id: M.uid(), t: a.t, entrada: M.hoy(), fecha: a.revisada || a.fecha || '', tipo: 'importante', estado: a.hecha ? 'hecha' : 'pendiente', impacto: 5, esfuerzo: 3, clave: true, area: m.area, resp: m.responsable, mundo: 'meta', metaId: m.id, origen: 'Meta: ' + (m.especifica || m.objetivo) }; ST.tareas.push(t); a.tareaId = t.id; n++; });
+    // Una acción que ya está en la bandeja por su origen (el mismo oid) es la misma tarea: se enlaza con la meta, no se repite
+    (m.acciones || []).filter((a) => a.t).forEach((a) => { if (a.tareaId && tarea(a.tareaId)) return; const ya = a.oid && ST.tareas.find((t) => t.oid === M.normOid(a.oid)); if (ya) { a.tareaId = ya.id; ya.metaId = ya.metaId || m.id; ya.clave = true; return; } const t = { id: M.uid(), t: a.t, entrada: M.hoy(), fecha: a.revisada || a.fecha || '', tipo: 'importante', estado: a.hecha ? 'hecha' : 'pendiente', impacto: 5, esfuerzo: 3, clave: true, area: m.area, resp: m.responsable, mundo: 'meta', metaId: m.id, origen: 'Meta: ' + (m.especifica || m.objetivo) }; if (a.oid) { t.oid = M.normOid(a.oid); t.mundo = M.partes(t.oid).mundo; } ST.tareas.push(t); a.tareaId = t.id; n++; });
     if (!ST.repetitivas.some((r) => r.metaId === m.id)) ST.repetitivas.push({ id: M.uid(), t: `Revisar el avance de la meta ${numMeta(m)}: ${m.indicador || m.objetivo}`, freq: 'semanal', hora: '12:00', dias: [5], dia: 1, mes: 1, clave: true, dur: 15, hechas: {}, metaId: m.id });
     return n;
   };
   const protegerTiempo = () => { if (ST.semana.some((b) => b.tipo === 'metas')) return false; [2, 4].forEach((d) => ST.semana.push({ id: M.uid(), dia: d, desde: '09:00', hasta: '11:00', t: 'Metas prioritarias', tipo: 'metas' })); return true; };
   const vObjetivos = (host) => {
     if (!cands) { host.innerHTML = '<div class="glass pad"><p class="small muted" style="margin:0">Leyendo los datos de la empresa…</p></div>'; leerReales().then((l) => { cands = l; if (tab === 'objetivos') render(); }).catch((e) => { host.innerHTML = `<div class="alert stop">${esc(e.message)}</div>`; }); return; }
-    const ya = new Set(ST.metas.map((m) => m.oid).filter(Boolean)), w0 = lunes(M.hoy()), w6 = sumar(w0, 6);
-    const semanaL = ST.tareas.filter((t) => t.mundo === 'meta' && t.estado !== 'hecha' && t.fecha && t.fecha <= w6).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const ya = { has: (oid) => !!metaDe(cands.find((c) => c.oid === oid) || { oid }) }, w0 = lunes(M.hoy()), w6 = sumar(w0, 6);
+    const semanaL = ST.tareas.filter((t) => (t.mundo === 'meta' || t.metaId) && M.abierta(t) && t.fecha && t.fecha <= w6).sort((a, b) => a.fecha.localeCompare(b.fecha));
     host.innerHTML = `<div class="glass pad stack"><div class="row"><div><div class="eyebrow">Objetivos por prioridad · desde los datos reales</div><small class="muted">${real() ? 'Esta empresa trabaja con datos reales: aquí solo entra lo que viene de sus transcripciones, documentos y datos subidos; nada de ejemplo.' : 'Esta empresa admite datos de ejemplo; para trabajar solo con lo adjuntado, pase a datos reales en la ficha de la empresa.'} Orden: primero la liquidez, después la rentabilidad, el crecimiento y la organización; dentro de cada uno, lo que viene del empresario y lo que está mejor definido.</small></div><span class="spacer"></span><button class="btn ghost small" id="obRe">Volver a leer</button></div>
-      ${cands.length ? `<div class="table-wrap"><table class="ms-tab"><thead><tr><th></th><th>#</th><th style="text-align:left">Objetivo</th><th>Principio</th><th style="text-align:left">Fuente</th><th>Definición SMART</th><th>Plan</th><th>En la mesa</th></tr></thead><tbody>${cands.map((c, i) => `<tr data-c="${i}"><td><input type="checkbox" data-sel ${ya.has(c.oid) ? 'checked disabled' : c.peso >= 2 ? 'checked' : ''}></td><td>${i + 1}</td><td style="text-align:left"><b>${esc(c.m.especifica || c.m.objetivo)}</b>${c.m.indicador ? `<br><small class="muted">${esc(c.m.indicador)}: ${esc(c.m.actual || '?')} → ${esc(c.m.valor || '?')} ${esc(c.m.unidad || '')}${c.m.fecha ? ' · ' + fCorta(c.m.fecha) : ''}</small>` : ''}</td><td>${PRIN[c.pr][1]}</td><td style="text-align:left"><small>${esc(c.fuente)}</small></td><td>${c.smartN}/5</td><td>${c.acciones.length ? c.acciones.length + ' hitos' : '—'}</td><td>${ya.has(c.oid) ? chip('Meta ' + numMeta(ST.metas.find((m) => m.oid === c.oid)), 'ok') : '—'}</td></tr>`).join('')}</tbody></table></div>
+      ${cands.length ? `<div class="table-wrap"><table class="ms-tab"><thead><tr><th></th><th>#</th><th style="text-align:left">Objetivo</th><th>Principio</th><th style="text-align:left">Fuente</th><th>Definición SMART</th><th>Plan</th><th>En la mesa</th></tr></thead><tbody>${cands.map((c, i) => `<tr data-c="${i}"><td><input type="checkbox" data-sel ${ya.has(c.oid) ? 'checked disabled' : c.peso >= 2 ? 'checked' : ''}></td><td>${i + 1}</td><td style="text-align:left"><b>${esc(c.m.especifica || c.m.objetivo)}</b>${c.m.indicador ? `<br><small class="muted">${esc(c.m.indicador)}: ${esc(c.m.actual || '?')} → ${esc(c.m.valor || '?')} ${esc(c.m.unidad || '')}${c.m.fecha ? ' · ' + fCorta(c.m.fecha) : ''}</small>` : ''}</td><td>${PRIN[c.pr][1]}</td><td style="text-align:left"><small>${esc(c.fuente)}</small></td><td>${c.smartN}/5</td><td>${c.acciones.length ? c.acciones.length + ' hitos' : '—'}</td><td>${ya.has(c.oid) ? chip('Meta ' + numMeta(metaDe(c)) + (metaDe(c).estado === 'cumplida' ? ' · cumplida' : ''), 'ok') : '—'}</td></tr>`).join('')}</tbody></table></div>
         <div class="row"><button class="btn solid" id="obAt">Crear las metas SMART y aterrizarlas</button><small class="muted">Cada objetivo marcado pasa a una meta SMART con su plan (los hitos), sus acciones a la bandeja como actividad clave, una revisión semanal en las repetitivas y, si no lo hay, tiempo protegido para metas en la semana ideal (martes y jueves de 9 a 11).</small></div>`
       : `<p class="small" style="margin:0">Todavía no hay datos reales de los que sacar objetivos. Llegan de la auditoría integral (objetivos del empresario y sus hitos, causas confirmadas), del sistema estratégico (objetivos con meta y plan de empresa) y de los puntos en rojo de los mundos.</p>`}</div>
       <div class="glass pad stack"><div class="eyebrow">Objetivos de la semana</div>${semanaL.length ? `<ul class="ms-list">${semanaL.map((t) => filaTarea(t)).join('')}</ul>` : '<p class="small muted" style="margin:0">Sin acciones de metas para esta semana.</p>'}</div>`;

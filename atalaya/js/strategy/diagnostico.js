@@ -112,8 +112,10 @@
     return { dueno: r('personas', 'e1') === 'no' || r('plan', 'p5') === 'no' || (r('personas', 'e6') != null && r('personas', 'e6') <= 2), concentracion: top1 > 20, cuentas: !(S.sim.historico && !S.sim.historico.ejemplo), recurrencia: false };
   }
   S.valoracionCalc = function () {
-    const v = V(); const aj = Object.assign(ajustesAuto(), v.ajustes || {});
-    const R = A.valorar(S.sim, { multiplo: v.multiplo, wacc: v.wacc, g: v.g, pesoMult: v.pesoMult, ajustes: aj, noOperativos: v.noOperativos, contingencias: v.contingencias });
+    // Los mismos parámetros que la cartera (js/valoracion-core.js, A.valoracionParametros): un solo valor de la empresa
+    const v = V(), prm = A.valoracionParametros ? A.valoracionParametros(S.sim, S.state, { real: S.real() }) : null;
+    const aj = prm ? prm.ajustes : Object.assign(ajustesAuto(), v.ajustes || {});
+    const R = A.valorar(S.sim, prm || { multiplo: v.multiplo, wacc: v.wacc, g: v.g, pesoMult: v.pesoMult, ajustes: aj, noOperativos: v.noOperativos, contingencias: v.contingencias });
     // Puente: hoy → mejoras de margen → menos riesgo → inversión → con el plan
     const Fi = S.allFindings ? S.allFindings() : [];
     const mejora = Fi.reduce((a, f) => a + (f.impactoEUR || 0), 0) * (S.num(v.realizacion) / 100);

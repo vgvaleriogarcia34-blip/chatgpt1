@@ -832,6 +832,9 @@ span.pdf-campo { display: inline-block; min-width: 60px; }
 /* Enlace a la mesa de trabajo en las cabeceras: en pantallas estrechas queda en el menú de la cuenta */
 @media (max-width: 900px) { .topbar .mesa-link { display: none; } }
 .mesa-btn { white-space: nowrap; }
+.mesa-marca { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; color: var(--muted); border: 1px solid var(--line, rgba(127,127,127,.3)); white-space: nowrap; }
+.mesa-marca:empty { display: none; }
+.mesa-casilla { margin-left: 6px; white-space: nowrap; }
 
 /* ---------- Manual en el lateral (js/manual-lateral.js) ---------- */
 .ml-tab { position: fixed; right: 0; top: 50%; transform: translateY(-50%); z-index: 60; padding: 14px 7px; border: 1px solid var(--line-strong); border-right: 0; border-radius: 10px 0 0 10px; background: rgba(14, 17, 24, 0.92); color: var(--gold); font: 700 0.72rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; backdrop-filter: blur(8px); box-shadow: -8px 0 24px -12px rgba(0, 0, 0, 0.8); transition: padding 0.15s, background 0.15s; }
@@ -1165,3 +1168,8 @@ html body.portal.no3d .pt-labels { bottom: calc(var(--pt-dock-h, 56px) + 76px + 
 /* Con una ventana abierta, nada de lo que queda debajo se desenfoca: el desenfoque se recalcula al cambiar la ventana */
 body:has(> .modal-back, > .ef-back) :is(.glass, .topbar, .dock, .ruta-bar, .assistant *, .kpi, .ml-tab) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 body:has(> .modal-back, > .ef-back) :is(.modal-back, .ef-back) { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(6, 7, 9, 0.86); }
+/* Aviso común de bloqueo por plan (platform.js · P.bloqueo): en la página y en ventana */
+.bq-card { max-width: 740px; margin: 40px auto; }
+.ef-card.bq-card { width: min(620px, 100%); margin: 0; }
+.bq-card h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); }
+.bq-card .row { flex-wrap: wrap; }

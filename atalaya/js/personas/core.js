@@ -376,8 +376,7 @@
       // Personas y equipos es del plan Consultora: el resto lo ve explicado y puede cambiar de plan; sus datos se conservan
       if (Pl.puede && !Pl.puede('personas')) {
         $('#peTabs').innerHTML = '';
-        $('#pePanel').innerHTML = `<div class="glass pad stack" style="max-width:740px;margin:40px auto"><div class="eyebrow">Personas y equipos</div><h2>Incluido en el plan <em>Consultora</em></h2><p>Perfiles de comportamiento (DISC), mapa de aportaciones al equipo y eneagrama; puestos y encaje persona-puesto; organigrama, relevos y mapa de talento; equipos equilibrados, liderazgo a medida y tablillas de entrenamiento, con informes para presentar a la empresa.</p><p class="small muted">Si ya tenías datos aquí, se conservan: vuelven a estar disponibles al pasar a Consultora.</p><div class="row"><button class="btn solid" id="pePlanes">Ver el plan Consultora</button><a class="btn" href="portal.html">Volver al puesto de mando</a></div></div>`;
-        $('#pePlanes').onclick = () => Pl.panelPlanes({ destacar: 'consultora' });
+        Pl.bloqueo('per', $('#pePanel'));
         return;
       }
       if (Pl.empresas) await Pl.empresas.cargar();

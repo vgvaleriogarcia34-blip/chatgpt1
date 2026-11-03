@@ -5,6 +5,7 @@ import * as db from '../almacen/db.js';
 import { registrar } from '../cerebro/herramientas.js';
 import * as meta from './meta.js';
 import { hubspotActivo, sincronizarContacto, registrarWhatsApp, bajaComercial, crearTarea } from '../crm/hubspot.js';
+import { avisar } from '../avisos.js';
 
 const cfg = {
   agruparMs: 2000,
@@ -212,7 +213,11 @@ export function procesarWebhook(cuerpo) {
       for (const s of v.statuses || []) {
         if (s.status === 'failed') {
           console.warn('[whatsapp] envío fallido:', (s.errors || []).map((e) => `${e.code} ${e.title}`).join('; '));
-          db.evento('whatsapp_fallo', { id: s.id, errores: (s.errors || []).map((e) => e.code) });
+          const tel = s.recipient_id ? db.normTel('+' + String(s.recipient_id).replace(/\D/g, '')) : null;
+          const contacto = tel ? db.contactoPorTelefono(tel) : null;
+          const errores = (s.errors || []).map((e) => `${e.code} ${e.title || ''}`.trim());
+          db.evento('whatsapp_fallo', { id: s.id, telefono: tel, contacto: contacto?.id ?? null, errores: (s.errors || []).map((e) => e.code) });
+          avisar({ tipo: 'fallo_whatsapp', contacto: contacto || (tel ? { telefono: tel } : null), detalle: `Meta no ha entregado un mensaje (${errores.join('; ') || 'sin detalle'}). Escríbale o llámele por otro medio.` });
         }
       }
     }
@@ -295,13 +300,17 @@ async function turno(tel, q) {
     }
   } catch (err) {
     console.error('[whatsapp] error en el turno:', err.message || err);
-    db.evento('whatsapp_error', { telefono: tel, error: String(err.message || err).slice(0, 300) });
+    const c = db.contactoPorTelefono(tel);
+    db.evento('whatsapp_error', { telefono: tel, contacto: c?.id ?? null, conversacionId: convId, error: String(err.message || err).slice(0, 300) });
+    let enviada = false;
+    try { enviada = (await enviarLargo(tel, DISCULPA)).length > 0; } catch (e2) { console.error('[whatsapp] tampoco se ha podido enviar la disculpa:', e2.message); }
+    // La disculpa solo queda en la conversación si de verdad se ha enviado
+    if (convId && enviada) db.anotar(convId, 'asistente', DISCULPA);
+    else if (convId) db.anotar(convId, 'sistema', 'No se ha podido responder ni enviar la disculpa.', { fallo: true });
+    avisar({ tipo: 'fallo_whatsapp', contacto: c || { telefono: tel }, conversacionId: convId, detalle: `La asistente no ha podido responder un WhatsApp (${String(err.message || err).slice(0, 200)}). ${enviada ? 'Se le ha dicho que una persona del equipo le escribirá en breve.' : 'Tampoco se ha podido enviar la disculpa: escríbale usted.'}` });
     try {
-      await enviarLargo(tel, DISCULPA);
-      if (convId) db.anotar(convId, 'asistente', DISCULPA);
-      const c = db.contactoPorTelefono(tel);
-      if (hubspotActivo() && c?.hubspot_id) await crearTarea({ contactoId: c.hubspot_id, asunto: `Responder WhatsApp de ${c.nombre || tel}`, cuerpo: 'El asistente no ha podido responder; revisar la conversación.', prioridad: 'HIGH' });
-    } catch (e2) { console.error('[whatsapp] tampoco se ha podido avisar:', e2.message); }
+      if (hubspotActivo() && c?.hubspot_id) await crearTarea({ contactoId: c.hubspot_id, asunto: `Responder WhatsApp de ${c.nombre || tel}`, cuerpo: 'La asistente no ha podido responder; revisar la conversación.', prioridad: 'HIGH' });
+    } catch (e2) { console.error('[whatsapp] tarea en HubSpot:', e2.message); }
   } finally {
     q.ocupado = false;
     if (!q.pendientes.length && !q.timer && colas.get(tel) === q) colas.delete(tel);
@@ -347,7 +356,7 @@ export async function enviarProactivo(tel, plantilla, variables = [], { idioma =
   if (!t) return { enviado: false, motivo: 'teléfono no válido' };
   if (!plantilla) return { enviado: false, motivo: 'falta la plantilla' };
   if (!meta.metaActivo()) return { enviado: false, motivo: 'WhatsApp no configurado' };
-  if (db.estaDeBaja(t)) return { enviado: false, motivo: 'de baja' };
+  if (db.estaDeBaja(t, db.contactoPorTelefono(t)?.email)) return { enviado: false, motivo: 'de baja' };
   let contacto = db.contactoPorTelefono(t);
   const base = baseLegal || contacto?.base_legal;
   if (!base) return { enviado: false, motivo: 'sin base legal registrada' };

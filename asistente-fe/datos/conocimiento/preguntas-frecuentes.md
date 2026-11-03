@@ -6,7 +6,7 @@ Ordenamos la estructura, el margen y la familia de empresas familiares y pymes p
 ## ¿Cómo se empieza?
 Por lo pequeño, y decidiendo con datos si se sigue:
 1. Mapa de Gobierno del Equipo: ocho preguntas sobre una persona y una tarea que dicen si conviene dirigir, acompañar o delegar. Unos 3 minutos, gratis, en la web.
-2. Sesión estratégica: evaluación inicial de la empresa y una hoja de ruta preliminar. 30 minutos, sin coste ni compromiso.
+2. Sesión estratégica con Valerio García: evaluación inicial de la empresa y una hoja de ruta preliminar. 60 minutos, sin coste ni compromiso. Es la primera reunión que se agenda (no es el diagnóstico, que es un servicio de pago).
 3. Diagnóstico de claridad: 21 días; qué le bloquea y un plan ejecutable, con garantía de claridad.
 4. Programa de transformación: unos 6 a 9 meses con una sesión semanal, solo si los pasos anteriores le convencen.
 Cada paso tiene sentido por sí solo y se sabe lo que cuesta en tiempo y en dinero antes de darlo.
@@ -57,7 +57,7 @@ Sede en Murcia; trabajamos en toda España, en presencial u online según la fas
 Con pymes y empresas familiares; los casos van de empresas de menos de diez personas a industrias de varios millones de facturación.
 
 ## ¿Quién me atendería?
-El equipo de dirección de la firma (ver «Equipo»). La primera sesión estratégica se agenda con el consultor.
+El equipo de dirección de la firma (ver «Equipo»). La primera reunión es la sesión estratégica, de 60 minutos y sin coste, con Valerio García.
 
 ## ¿Es usted una persona?
 Soy un asistente de inteligencia artificial de la firma; si lo prefiere, le paso con una persona del equipo.

@@ -55,4 +55,27 @@
     const eqInv = pm * eqInvM + (1 - pm) * (evDInv - deudaNeta + extra);
     return { sector: s.sector, ventas, ebitda, ebitdaPct: an.ebitdaPct, base, ajustes: aj, mult, deudaNeta, extra, evM, evD, eqM, eqD, central, min: Math.min(eqM, eqD), max: Math.max(eqM, eqD), patrimonio: em.fondosPropios || 0, wacc: wacc * 100, g: g * 100, pesoMult: pm * 100, flHoy, flPlan, inv, eqInv, deltaInv: inv ? eqInv - central : 0, ebitdaCrucero: r.tamano.despues.ebitda, deudaNueva, r };
   };
+
+  /* ---------- Una sola valoración en toda Atalaya ----------
+     Los parámetros salen de los datos guardados del sistema estratégico (est.valoracion) y los factores de descuento que se
+     detectan solos (dependencia de la propiedad, primer cliente por encima del 20 %, cuentas sin histórico), corregidos por
+     lo que haya marcado el empresario. La usan el módulo de valoración y la cartera: mismo valor con los mismos datos. */
+  const num = (v) => { if (typeof v === 'number') return isFinite(v) ? v : 0; const n = parseFloat(String(v == null ? '' : v).replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : 0; };
+  A.valoracionAjustesAuto = function (sim, est, opts) {
+    opts = opts || {}; est = est || {};
+    const c = est.c360 || {}, r = (id, q) => (c[id] && c[id].r ? c[id].r[q] : null);
+    // Peso del primer cliente, como el indicador del módulo de ventas (con un decimal); sin ventas por cliente no cuenta
+    const com = est.comercial || {}, L = (opts.real && com.ejemplo === true ? [] : com.clientes || []).filter((x) => x);
+    const tot = L.reduce((a, x) => a + num(x.ventas), 0);
+    const top = L.slice().sort((a, b) => b.ventas - a.ventas)[0];
+    const top1 = tot > 0 && L.some((x) => num(x.ventas) > 0) ? Math.round((top ? num(top.ventas) : 0) / tot * 1000) / 10 : 0;
+    return { dueno: r('personas', 'e1') === 'no' || r('plan', 'p5') === 'no' || (r('personas', 'e6') != null && r('personas', 'e6') <= 2), concentracion: top1 > 20, cuentas: !(sim && sim.historico && !sim.historico.ejemplo), recurrencia: false };
+  };
+  A.valoracionParametros = function (sim, est, opts) {
+    const v = Object.assign({ multiplo: '', wacc: 12, g: 2, pesoMult: 50 }, (est && est.valoracion) || {});
+    const aj = Object.assign(A.valoracionAjustesAuto(sim, est, opts), v.ajustes || {});
+    return { multiplo: v.multiplo, wacc: v.wacc, g: v.g, pesoMult: v.pesoMult, ajustes: aj, noOperativos: v.noOperativos, contingencias: v.contingencias };
+  };
+  // Valoración de una empresa con sus datos guardados (simulador y sistema estratégico)
+  A.valoracionDe = (sim, est, opts) => A.valorar(sim, A.valoracionParametros(sim, est, opts));
 })();

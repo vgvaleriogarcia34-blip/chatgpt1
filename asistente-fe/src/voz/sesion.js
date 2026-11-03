@@ -27,6 +27,7 @@ import { registrar } from '../cerebro/herramientas.js';
 import { DeepgramSTT } from './stt-deepgram.js';
 import { ElevenLabsTTS } from './tts-elevenlabs.js';
 import { firmaStreamValida, colgarLlamada, transferirLlamada, grabarLlamada } from './twilio.js';
+import { avisar } from '../avisos.js';
 
 export const ganchos = { alTerminar: [] }; // fn(conversacionId, datos) al cerrar cada llamada
 export const sesiones = new Map(); // callSid → SesionVoz activa
@@ -102,7 +103,7 @@ export class SesionVoz {
     this.stt.on('fallo', (err) => log('STT:', err.message));
     this.stt.conectar();
 
-    if (C.twilio.grabar) grabarLlamada(this.callSid).catch((err) => log('no se pudo grabar:', err.message));
+    if (C.twilio.grabar) grabarLlamada(this.callSid, { conversacionId: this.conversacionId }).catch((err) => log('no se pudo grabar:', err.message));
     if (amdPendientes.delete(this.callSid)) return this.buzon();
     if (this.direccion === 'entrante') this.saludar();
     else this.tSaludo = setTimeout(() => this.saludar(), TIEMPOS.saludoSaliente);
@@ -140,7 +141,13 @@ export class SesionVoz {
       if (!ac.signal.aborted) {
         log('error al responder:', err.message);
         db.evento('voz_error', { conversacionId: this.conversacionId, error: String(err.message || err) });
-        if (turno === this.turno && this.estado === 'activa') { this.tts.decir(FRASES.fallo); this.dichoTurno = true; this.colgarAlAcabar = true; this.resultadoForzado ??= { resultado: 'volver_a_llamar', resumen: 'La llamada se cortó por un fallo técnico del asistente.' }; }
+        if (turno === this.turno && this.estado === 'activa') {
+          // La disculpa queda en la transcripción, el equipo recibe un aviso y la tarea de volver a llamar es de prioridad alta
+          this.tts.decir(FRASES.fallo); db.anotar(this.conversacionId, 'asistente', FRASES.fallo, { fija: true, fallo: true });
+          this.dichoTurno = true; this.colgarAlAcabar = true;
+          this.resultadoForzado ??= { resultado: 'volver_a_llamar', resumen: 'La llamada se cortó por un fallo técnico del asistente: hay que devolverla.', prioridad: 'HIGH' };
+          avisar({ tipo: 'fallo_voz', contacto: this.contacto, conversacionId: this.conversacionId, detalle: `La asistente no pudo responder (${String(err.message || err).slice(0, 200)}). Se le dijo que una persona del equipo le llamará lo antes posible.` });
+        }
       }
     }
     if (r?.texto) db.anotar(this.conversacionId, 'asistente', r.texto, r.interrumpida ? { interrumpida: true } : null);
@@ -271,13 +278,14 @@ export class SesionVoz {
   async ejecutarTransferencia() {
     const t = this.transferencia; this.transferencia = null;
     try {
-      await transferirLlamada(this.callSid, { aviso: `Le paso con ${C.empresa.responsable}. Un momento, por favor.` });
+      await transferirLlamada(this.callSid, { aviso: `Le paso con ${C.empresa.responsable}. Un momento, por favor.`, conversacionId: this.conversacionId, contactoId: this.contacto?.id });
       this.transferida = t;
       log(`llamada ${this.callSid} transferida`);
       // Twilio corta el flujo de audio al aplicar el nuevo TwiML: llegará stop y se cierra la sesión
     } catch (err) {
       log('no se pudo transferir:', err.message);
       db.evento('voz_error', { conversacionId: this.conversacionId, error: 'transferencia: ' + err.message });
+      avisar({ tipo: 'transferencia_imposible', contacto: this.contacto, conversacionId: this.conversacionId, detalle: `Motivo: ${t?.motivo || '—'}. No se pudo pasar la llamada (${err.message}).` });
       this.decirFijo(FRASES.sinTransferencia);
     }
   }
@@ -303,10 +311,12 @@ export class SesionVoz {
     const fin = this.resultadoForzado
       || (this.transferida && { resultado: 'transferido', resumen: this.conv?.terminada?.resumen || `Transferida a ${C.empresa.responsable}: ${this.transferida.motivo}` })
       || this.conv?.terminada || { resultado: 'colgada', resumen: null };
-    db.cerrarConversacion(this.conversacionId, { resumen: fin.resumen, resultado: fin.resultado, duracion });
+    const volverLlamar = fin.volver_a_llamar || this.conv?.terminada?.volver_a_llamar || null;
+    db.cerrarConversacion(this.conversacionId, { resumen: fin.resumen, resultado: fin.resultado, duracion, volverLlamar });
     log(`llamada ${this.callSid} cerrada · ${duracion} s · ${fin.resultado}`);
     const transcripcion = db.mensajes(this.conversacionId).filter((x) => x.rol === 'usuario' || x.rol === 'asistente').map((x) => ({ rol: x.rol, texto: x.texto }));
-    const datos = { callSid: this.callSid, canal: 'voz', direccion: this.direccion, contacto: this.contacto, campana: this.campana, resultado: fin.resultado, resumen: fin.resumen, duracion, transcripcion };
+    const datos = { callSid: this.callSid, canal: 'voz', direccion: this.direccion, contacto: this.contacto, campana: this.campana, resultado: fin.resultado, resumen: fin.resumen, duracion, transcripcion,
+      volverLlamar: db.conversacionPorId(this.conversacionId)?.volver_llamar || null, prioridad: fin.prioridad || null };
     for (const fn of ganchos.alTerminar) Promise.resolve().then(() => fn(this.conversacionId, datos)).catch((err) => log('gancho alTerminar:', err.message));
   }
 }
@@ -315,7 +325,10 @@ export class SesionVoz {
 registrar('transferir_llamada', async ({ motivo }, ctx) => {
   const s = ctx.sesion;
   if (!s) return 'No hay una llamada activa que transferir.';
-  if (!C.empresa.movilResponsable) return `Ahora no es posible pasar la llamada. Dígale que se registrará una tarea para que ${C.empresa.responsable} le llame lo antes posible, y regístrela con registrar_nota (tipo tarea).`;
+  if (!C.empresa.movilResponsable) {
+    avisar({ tipo: 'transferencia_imposible', contacto: s.contacto, conversacionId: s.conversacionId, detalle: `Motivo: ${motivo}. No hay móvil configurado para transferir (RESPONSABLE_MOVIL).` });
+    return `Ahora no es posible pasar la llamada; el equipo ya está avisado. Dígale que ${C.empresa.responsable} le llamará lo antes posible y registre una tarea con registrar_nota (tipo tarea, urgente si lo es).`;
+  }
   s.pedirTransferencia(motivo);
   return `Transferencia preparada: la llamada pasará a ${C.empresa.responsable} en cuanto termine de hablar. Diga solo una frase breve (por ejemplo, «Le paso ahora mismo») y no use finalizar.`;
 });

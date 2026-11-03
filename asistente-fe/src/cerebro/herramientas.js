@@ -16,13 +16,14 @@ const S = {
     inicio: z.string(), nombre: z.string(), email: z.string().optional(), motivo: z.string(),
     modalidad: z.enum(['videollamada', 'telefono', 'presencial']).optional(),
   }),
-  registrar_nota: z.object({ texto: z.string().min(2), tipo: z.enum(['nota', 'tarea', 'oportunidad']).optional(), fecha: z.string().optional() }),
+  registrar_nota: z.object({ texto: z.string().min(2), tipo: z.enum(['nota', 'tarea', 'oportunidad']).optional(), fecha: z.string().optional(), urgente: z.boolean().optional() }),
   enviar_whatsapp: z.object({ texto: z.string().min(2) }),
   transferir_llamada: z.object({ motivo: z.string() }),
   dar_de_baja: z.object({ motivo: z.string().optional() }),
   finalizar: z.object({
     resultado: z.enum(['reunion_agendada', 'interesado', 'enviar_informacion', 'volver_a_llamar', 'no_interesado', 'baja', 'atendido', 'transferido', 'buzon', 'equivocado']),
     resumen: z.string(),
+    volver_a_llamar: z.string().optional(),
   }),
 };
 
@@ -48,8 +49,9 @@ export const DEFINICIONES = [
     nombre: { type: 'string' }, email: { type: 'string', description: 'Para la invitación; pídalo y repítalo para confirmarlo' },
     motivo: { type: 'string', description: 'Tema de la reunión en una frase' }, modalidad: { type: 'string', enum: ['videollamada', 'telefono', 'presencial'] },
   }, ['inicio', 'nombre', 'motivo']),
-  def('registrar_nota', 'Deja una nota, una tarea para el equipo o una oportunidad en el CRM.', {
+  def('registrar_nota', 'Deja una nota, una tarea para el equipo o una oportunidad en el CRM. Con urgente, además se avisa al equipo en el momento.', {
     texto: { type: 'string' }, tipo: { type: 'string', enum: ['nota', 'tarea', 'oportunidad'] }, fecha: { type: 'string', description: 'Fecha ISO de vencimiento de la tarea, si la hay' },
+    urgente: { type: 'boolean', description: 'Cliente con una urgencia o algo que no puede esperar: aviso inmediato al equipo y tarea de prioridad alta' },
   }, ['texto']),
   def('enviar_whatsapp', 'Envía un WhatsApp al interlocutor (por ejemplo, el enlace de la reunión o información que ha pedido). En una llamada, pídale permiso antes.',
     { texto: { type: 'string' } }, ['texto']),
@@ -60,6 +62,7 @@ export const DEFINICIONES = [
   def('finalizar', 'Cierra la conversación con su resultado y un resumen para el CRM. En una llamada, úsela después de despedirse: la llamada se cuelga al terminar de hablar.', {
     resultado: { type: 'string', enum: ['reunion_agendada', 'interesado', 'enviar_informacion', 'volver_a_llamar', 'no_interesado', 'baja', 'atendido', 'transferido', 'buzon', 'equivocado'] },
     resumen: { type: 'string', description: 'Tres a cinco frases: quién es, qué necesita, qué se acordó y siguiente paso' },
+    volver_a_llamar: { type: 'string', description: 'Solo con resultado volver_a_llamar: fecha y hora ISO 8601 que ha pedido para que le llamen, si la ha dicho' },
   }, ['resultado', 'resumen']),
 ];
 
