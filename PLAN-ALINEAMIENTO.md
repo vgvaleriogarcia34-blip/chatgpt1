@@ -50,10 +50,11 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 
 ## Fase 2 · Que todo diga lo mismo
 
-### 7. ◐ La primera reunión, igual en todas partes
+### 7. ☑ La primera reunión, igual en todas partes
 - **Decisión de Valerio:** nombre (propuesta: «sesión estratégica»), duración (30 o 60 minutos) y con quién.
 - **Qué se hace:** el mismo nombre, duración y persona en la web, Atalaya, el asistente, el evento de Google Calendar y el negocio de HubSpot.
 - **Resultado (asistente, 3 nov 2026):** «sesión estratégica», 60 minutos (`REUNION_MINUTOS`), con Valerio García, sin coste, en las instrucciones, el conocimiento, el evento de Google Calendar («Sesión estratégica · empresa»), la reunión y el negocio de HubSpot («empresa · sesión estratégica»). Sin «diagnóstico» para la reunión gratuita y sin instrucciones en inglés.
+- **Resultado (Atalaya, 3 nov 2026):** la landing («O una sesión estratégica de 60 minutos con Valerio García, de Business Avance: sin coste y sin compromiso», botón «Concertar la sesión estratégica»), el formulario de solicitud de `platform.js` (título, texto, botón y confirmación; ahora envía `tipo: 'sesion'` y llega como plan «sesion») y el manual dicen lo mismo.
 
 ### 8. ☐ Nota, triaje y valoración calculados desde los datos guardados
 - **Qué se hace:** la nota de cada mundo, el triaje y la valoración se calculan a partir de lo guardado, sin esperar a que se abra su página, y muestran su fecha. Una sola valoración con los mismos parámetros en todos los mundos. «Deuda sobre EBITDA» dice si es hoy o tras invertir.
@@ -67,20 +68,25 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 - **Hecho cuando:** «Bajar los días de cobro de 86 a 65» aparece una sola vez en el tablero y en la mesa.
 - **Resultado (3 nov 2026):** cada objetivo lleva `objetivoId` (el de la auditoría, `intervencion:objetivo:<id>`, viaja al plan de empresa y a la meta de la mesa); «Objetivos por prioridad» une lo que comparte identificador, rellena «En la mesa» y ya no ofrece las causas que tienen meta. En la mesa aparece una vez. Falta que el tablero (equipo «cifras», `js/prioridad.js`) deduplique por `objetivoId` y descarte los objetivos con `cumplido`.
 
-### 11. ☐ Manual lateral en su sitio y un nombre por mundo
+### 11. ☑ Manual lateral en su sitio y un nombre por mundo
 - **Qué se hace:** el manual abre en el apartado de la zona visible (simulador, tablero, libro, cartera); el selector del manual coincide con lo que muestra; la cartera se llama igual en título, barra y botón (sale de la lista común de mundos).
+- **Resultado (3 nov 2026):** el manual abre en el capítulo abierto del simulador (o el visible con «Ver todo seguido»), en «Tablero general» en el tablero, en «Libro corporativo» en el libro y en «Varias empresas: cartera de clientes y vista de grupo» en la cartera; el menú de arriba marca siempre el apartado mostrado (también los que no tienen entrada propia) y ya no se queda en «Qué es Atalaya». La cartera se llama igual en título, marca y botón «Mundos» en Consultora; en planes de una empresa, la página muestra el aviso común. El asistente usa la misma regla para saber en qué capítulo está.
 
-### 12. ☐ Botón atrás coherente
+### 12. ☑ Botón atrás coherente
 - **Qué se hace:** una entrada de historial por capítulo, módulo o paso en el simulador, el sistema estratégico y la auditoría; atrás y adelante recorren lo visitado dentro del mundo.
+- **Resultado (3 nov 2026):** una entrada de historial por capítulo (simulador), módulo (sistema estratégico) y paso (auditoría integral); la entrada al llegar se sustituye y atrás/adelante restauran la vista sin crear entradas nuevas. Corregido el salto que devolvía al capítulo anterior al pulsar atrás (los reintentos de desplazamiento de `app.js` comprueban que el capítulo sigue siendo el de la dirección). Probado: horizonte → atrás inversión → atrás empresa → adelante inversión; cobros → ventas → tablero → ventas; s1cierre → constantes → guion → constantes.
 
-### 13. ☐ Un solo componente de bloqueo por plan
+### 13. ☑ Un solo componente de bloqueo por plan
 - **Qué se hace:** el mismo aviso, de usted, con «Volver» y «Ver planes», en todas las páginas y en los planetas; la auditoría integral aparece en lo que incluye Consultora (panel y landing); fuera el enlace a la cartera en planes de una empresa.
+- **Resultado (3 nov 2026):** `P.bloqueo(mundo, zona)` en `platform.js`: el mismo aviso, de usted, con «Ver planes» y «Volver» (y «Contactar con nuestro equipo» en la cartera), en el sistema estratégico (Esencial), personas, auditoría integral y cartera, y en ventana al tocar un mundo bloqueado en los planetas, la lista de abajo o el botón «Mundos». Las etiquetas 3D bloqueadas dicen «Ver planes →». La auditoría integral figura en lo que incluye Consultora (panel de planes, resumen y landing). En planes de una empresa el selector dice «Su empresa», sin «Holding», sin «Ha llegado al máximo» y sin enlace a la cartera.
 
-### 14. ☐ Primera visita del consultor
+### 14. ☑ Primera visita del consultor
 - **Qué se hace:** en Consultora, una sola tarjeta: «Dar de alta su primer cliente»; la empresa elegida se recuerda y el paso 1 no vuelve a tapar los planetas; «Cómo empezar» en el menú de la cuenta.
+- **Resultado (3 nov 2026):** en Consultora sale una sola tarjeta («Dar de alta su primer cliente», «Ver el ejemplo», «Decidir más tarde») y no el mapa a la vez; dar de alta abre la ficha (con datos reales por defecto) y entra con ese cliente sin tocar la empresa principal. La empresa elegida se recuerda en el navegador para la cuenta y el paso 1 no vuelve en cada sesión. El paseo virtual desde el mapa cierra el mapa y entra con la empresa modelo. «Cómo empezar» en el menú de la cuenta vuelve a abrir la tarjeta.
 
-### 15. ☐ Nombres y cifras coherentes en textos
+### 15. ☑ Nombres y cifras coherentes en textos
 - **Qué se hace:** «tres mundos» y «21 módulos» de la landing, «Inicio» frente a «Puesto de mando», teclas del puesto de mando, botón «Probar 14 días» en el manual, dónde están mesa, tablero y libro según el manual.
+- **Resultado (3 nov 2026):** landing con «Los mundos», cuatro mundos principales más mesa, tablero, libro y cartera, «22 módulos en cinco áreas» y una tarjeta de la auditoría integral; «Puesto de mando» en título, marca y asistente; la pista de teclas cuenta los mundos de la lista (7 u 8); manual con «Probar 14 días», mesa, tablero y libro en «Mundos» y la primera visita de Consultora; todos los títulos «Atalaya 360° · …»; marca del simulador «Simulador de inversión»; la principal de Consultora ya no figura como «Holding» en el selector; los clientes nuevos empiezan con datos reales (sin los 4,2 M€ de ejemplo).
 
 ---
 
@@ -95,6 +101,7 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 - **Fuentes de verdad:** HubSpot para la relación comercial, Atalaya para los datos de la empresa cliente, el asistente para la operación y el cumplimiento.
 - **Resultado (asistente, 3 nov 2026):** el asistente guarda el id de la empresa en HubSpot (`hubspot_company_id`) y la ficha del panel tiene «Invitar a Atalaya» (`POST /api/integracion/invitar` con `INTEGRACION_TOKEN`). Falta la parte de Atalaya y la de HubSpot.
 - **Resultado, parte del servidor (3 nov 2026):** el registro `empresas` acepta `cif` y `hubspotId`; `POST /api/integracion/invitar` (Bearer `INTEGRACION_TOKEN`, tiempo constante, 404 sin configurar, límite por IP) crea la cuenta en prueba con nombre, empresa, teléfono y la ficha principal con `hubspotId`, y envía el enlace de alta (lo devuelve solo si no hay correo). La cuenta guarda `hubspotContactId` y `hubspotCompanyId`. Falta: el campo en la ficha (equipo «navegacion») y el botón en HubSpot o el panel del asistente.
+- **Resultado, ficha (3 nov 2026):** la ficha de empresa tiene «CIF o NIF» e «ID de empresa en HubSpot» (opcional, con ayuda breve); se guardan en el registro `empresas` como `cif` (en mayúsculas) y `hubspotId` (sin espacios).
 
 ### 18. ◐ Las reuniones del asistente en la mesa de trabajo
 - **Qué se hace:** la mesa de Atalaya muestra las reuniones agendadas por el asistente para esa empresa (desde el calendario o a través del puente del punto 17).
@@ -109,8 +116,9 @@ Leyenda de estado: ☐ pendiente · ◐ en curso · ☑ hecho · ⏸ espera una 
 - **Qué se hace:** las bajas del panel llegan a HubSpot; una oposición por correo bloquea también por teléfono; purga de datos al vencer los plazos de `CUMPLIMIENTO.md`; la importación avisa de los contactos que nunca se llamarán y la campaña avisa si la prospección está apagada; «volver a llamar» respeta la hora pedida.
 - **Resultado (3 nov 2026):** bajas del panel a HubSpot; una baja por correo bloquea el teléfono del contacto y al revés; purga diaria (`src/conservacion.js`) con los plazos documentados en `CUMPLIMIENTO.md` §6.3; la importación avisa de los que no se llamarán nunca; la campaña avisa si la prospección está apagada; «volver a llamar» usa la fecha pedida en `finalizar`; la campaña de origen queda en HubSpot (`fe_campana`). Pruebas en `test/prospeccion.test.js`, `test/conservacion.test.js` y `test/crm.test.js`.
 
-### 21. ☐ Asistente guía y manual en todas las páginas
+### 21. ☑ Asistente guía y manual en todas las páginas
 - **Qué se hace:** asistente en el puesto de mando, tablero, libro y cartera (y que sepa ir al tablero); manual lateral en el puesto de mando; barra común en el manual a página completa.
+- **Resultado (3 nov 2026):** el asistente arranca solo en el puesto de mando, el tablero, el libro y la cartera (con sus sugerencias y saludo), conoce el tablero («llévame al tablero») y llama «cartera de clientes» a la vista de grupo en Consultora; el manual lateral está en el puesto de mando (también el «Manual» del espacio); `manual.html` a página completa lleva la barra común (botón «Mundos», en el móvil «Menú», empresa y cuenta). Probado a 1440 y 390 px.
 
 ### 22. ☐ Prueba conjunta y nueva auditoría
 - **Qué se hace:** repetir las tres auditorías y comparar las notas con las de partida (navegación 5,7 · trazabilidad 5,1 · asistente 4,6 · alineamiento 4,0).

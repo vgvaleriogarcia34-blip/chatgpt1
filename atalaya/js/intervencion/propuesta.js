@@ -629,5 +629,5 @@
       b.disabled = false; b.textContent = 'Redactar los textos con Claude';
     };
   };
-  V.propuesta = { valorInversion, preparar, dossier, retorno, cuotas, precio, neto, firma, PALANCAS, dimDe, traerSimulador, proponerPalancas, num, eur, xx, redondea };
+  V.propuesta = { valorInversion, preparar, dossier, retorno, cuotas, precio, neto, firma, PALANCAS, dimDe, traerSimulador, fotoCambiada, releerSim, proponerPalancas, num, eur, xx, redondea };
 })();
