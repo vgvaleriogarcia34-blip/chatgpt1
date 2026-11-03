@@ -58,7 +58,9 @@
     ((iv && iv.objetivos) || []).filter((o) => o.dice || o.especifica).forEach((o) => {
       const id = oidObj(o), clave = claveObj(o), ya = buscar(id, clave);
       if (ya) { if (id) ya.ids.push(id); return; }
-      out.push({ t: o.especifica || o.dice, fuente: 'Auditoría', fecha: o.fecha || '', texto: [o.dice, o.especifica, o.indicador, o.beneficio].join(' '), ids: id ? [id] : [], clave, oid: id || null });
+      out.push({ t: o.especifica || o.dice, fuente: 'Auditoría', fecha: o.fecha || '', texto: [o.dice, o.especifica, o.indicador, o.beneficio].join(' '), ids: id ? [id] : [], clave, oid: id || null,
+        // Cumplido en su origen (lo escribe la mesa al cumplir la meta: A.mesa.aOrigen)
+        cumplido: !!o.cumplido, cumplidoFecha: typeof o.cumplido === 'string' ? o.cumplido : o.cumplidoFecha || '' });
     });
     ((ag && ag.metas) || []).filter((m) => m.especifica || m.objetivo).forEach((m) => {
       const id = m.objetivoId || m.oid || '', clave = claveObj(m), ya = buscar(id, clave), cumplida = m.estado === 'cumplida';
