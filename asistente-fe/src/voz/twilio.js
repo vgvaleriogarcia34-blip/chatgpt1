@@ -93,7 +93,13 @@ export async function grabarLlamada(callSid, { conversacionId = null } = {}) {
   if (c && callSid) await c.calls(callSid).recordings.create({ recordingChannels: 'dual', recordingStatusCallback: urlPublica('/voz/grabacion') + consulta({ conversacionId }), recordingStatusCallbackMethod: 'POST', recordingStatusCallbackEvent: ['completed'] });
 }
 
-/** Borra una grabación en Twilio (purga de conservación). */
+/** Detiene la grabación en curso de la llamada (la persona ha pedido que no se grabe). */
+export async function pararGrabacion(callSid) {
+  const c = clienteTwilio();
+  if (c && callSid) await c.calls(callSid).recordings('Twilio.CURRENT').update({ status: 'stopped' });
+}
+
+/** Borra una grabación en Twilio (purga de conservación, o porque la persona pidió que no se grabara). */
 export async function borrarGrabacion(sid) {
   const c = clienteTwilio();
   if (c && sid) await c.recordings(sid).remove();

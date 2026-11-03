@@ -247,3 +247,27 @@ test('base real: cubre los temas clave y respeta las normas', () => {
   assert.match(top('ponencias para asociaciones').titulo, /Ponencias|talleres/i);
   assert.match(top('qué es Atalaya').titulo, /Atalaya/);
 });
+
+test('oferta vigente: la ingesta corrige lo que la web dice de la primera reunión (30 minutos, diagnóstico gratuito, una hora con un socio)', async () => {
+  const { corregirObsoleto, tieneObsoleto } = await import('../src/conocimiento/comun.js');
+  assert.equal(corregirObsoleto('Sesión estratégica\nEvaluación inicial.\n\n30 minutos Sin coste ni compromiso'), 'Sesión estratégica\nEvaluación inicial.\n\n60 minutos Sin coste ni compromiso');
+  assert.equal(corregirObsoleto('3 minutos Gratis · sesiones de 90 minutos'), '3 minutos Gratis · sesiones de 90 minutos', 'lo que es correcto no se toca');
+  assert.match(corregirObsoleto('Abrir el diagnóstico gratuito'), /Mapa de Gobierno del Equipo/);
+  assert.equal(corregirObsoleto('Una hora con un socio, sin coste y sin propuesta comercial.'), 'Sesión estratégica de 60 minutos con Valerio García, sin coste ni compromiso.');
+  assert.match(corregirObsoleto('Treinta minutos para saber si tiene sentido seguir.'), /^Sesenta minutos con Valerio García/);
+  const d = carpeta({
+    'oferta.md': '# Oferta\n\n## Sesión estratégica\nSesión estratégica de 60 minutos con Valerio García, sin coste.\n',
+    'fuentes/web-v.txt': '# Web\nFuente: https://ejemplo.es\n\nSesión estratégica\n30 minutos Sin coste ni compromiso\n\nAbrir el diagnóstico gratuito\n\nUna hora con un socio, sin coste y sin propuesta comercial.\n',
+  });
+  const indice = construirIndice(d);
+  assert.ok(!indice.docs.some((x) => tieneObsoleto(x.texto)), 'nada obsoleto en el índice');
+  assert.ok(!buscar('diagnóstico gratuito', { dir: d }).some((x) => /30 minutos|diagn[oó]stico gratuito/i.test(x.texto)));
+  // Un índice antiguo (ingestado antes de la corrección) también se corrige al cargarlo
+  const viejo = JSON.parse(fs.readFileSync(path.join(d, 'indice.json'), 'utf8'));
+  viejo.docs.push({ fuente: 'fuentes/vieja.txt', titulo: 'Vieja', texto: 'Diagnóstico gratuito de 30 minutos sin coste', tipo: 'fuente', len: 1, tf: {} });
+  fs.writeFileSync(path.join(d, 'indice.json'), JSON.stringify(viejo));
+  assert.ok(!buscar('diagnóstico gratuito 30 minutos', { dir: d }).some((x) => tieneObsoleto(x.texto)));
+  // Y en la base real
+  assert.ok(!buscar('diagnóstico gratuito', { dir: REAL, k: 10 }).some((x) => /30 minutos|treinta minutos/i.test(x.texto)));
+  assert.ok(!JSON.parse(fs.readFileSync(path.join(REAL, 'indice.json'), 'utf8')).docs.some((x) => tieneObsoleto(x.texto)));
+});

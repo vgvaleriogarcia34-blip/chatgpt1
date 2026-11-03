@@ -87,28 +87,68 @@ export function enRobinson(tel) {
   return variantes(tel).some((v) => v && (st.get('sha256:' + hash('sha256', v)) || st.get('md5:' + hash('md5', v))));
 }
 
+export const robinsonMaxDias = () => Number(C.prospeccion.robinsonMaxDias ?? process.env.ROBINSON_MAX_DIAS ?? 30);
+const fechaES = (f) => (/^\d{4}-\d\d-\d\d$/.test(f || '') ? f.split('-').reverse().join('/') : f);
+
 /**
- * Importa el fichero de la lista Robinson que la empresa descarga del servicio de Adigital.
- * Toma de cada fila la primera celda que parezca un teléfono o un resumen SHA-256/MD5. Devuelve { cargados, descartados }.
+ * ¿Está la lista Robinson cargada y al día? Vale la fecha de la lista de la última importación (si no consta, la más
+ * reciente de la tabla); con más de ROBINSON_MAX_DIAS días (30) o sin lista, no se llama ni se activa una campaña.
+ * @returns {{vigente:boolean, codigo?:string, motivo?:string, fecha:string|null, dias:number|null, maxDias:number, numeros:number}}
  */
-export function importarRobinsonCSV(texto, fechaLista = new Date().toISOString().slice(0, 10)) {
+export function estadoRobinson(ahora = new Date()) {
+  const d = db.abrir(), maxDias = robinsonMaxDias();
+  // Sin contar la tabla entera (puede tener millones de filas): la última importación guarda cuántos números trajo
+  const carga = d.prepare('SELECT fecha_lista f, numeros n FROM robinson_cargas ORDER BY id DESC LIMIT 1').get();
+  const hay = !!d.prepare('SELECT 1 FROM robinson LIMIT 1').get();
+  const numeros = hay ? (carga?.n ?? d.prepare('SELECT COUNT(*) n FROM robinson').get().n) : 0;
+  const fecha = (hay && (carga?.f || d.prepare('SELECT MAX(fecha_lista) f FROM robinson').get().f)) || null;
+  if (!numeros || !fecha) return { vigente: false, codigo: 'robinson_sin_cargar', motivo: 'La lista Robinson no está cargada: impórtela (Bajas y Robinson) antes de activar una campaña o llamar.', fecha: null, dias: null, maxDias, numeros };
+  const dias = Math.round((Date.parse(horaLocal(ahora).fecha) - Date.parse(String(fecha).slice(0, 10))) / 86400e3);
+  if (!(dias <= maxDias)) return { vigente: false, codigo: 'robinson_caducada', motivo: `La lista Robinson cargada es del ${fechaES(fecha)} (hace ${dias} días): descargue la actual de Adigital e impórtela. Con más de ${maxDias} días no se activa ninguna campaña ni se llama.`, fecha, dias, maxDias, numeros };
+  return { vigente: true, fecha, dias, maxDias, numeros };
+}
+
+/** Las celdas de cada fila que parecen un teléfono o un resumen SHA-256/MD5 (la primera de cada fila). */
+function clavesRobinson(texto) {
+  const claves = new Set();
+  let descartados = 0;
+  for (const fila of leerCSV(texto)) {
+    let clave = null;
+    for (const celda of fila.map((x) => x.trim())) {
+      if (/^[a-f0-9]{64}$/i.test(celda)) { clave = 'sha256:' + celda.toLowerCase(); break; }
+      if (/^[a-f0-9]{32}$/i.test(celda)) { clave = 'md5:' + celda.toLowerCase(); break; }
+      const t = db.normTel(celda);
+      if (t && /^\+?\d{9,15}$/.test(t)) { clave = t; break; }
+    }
+    if (clave) claves.add(clave); else descartados++;
+  }
+  return { claves, descartados };
+}
+
+/**
+ * Importa el fichero de la lista Robinson que la empresa descarga del servicio de Adigital. La lista nueva SUSTITUYE a la
+ * anterior, de una vez (en una transacción): si el fichero no trae ningún número, no se toca la lista que había.
+ * Toma de cada fila la primera celda que parezca un teléfono o un resumen SHA-256/MD5.
+ * @returns {{cargados:number, descartados:number, anteriores:number}}
+ */
+export function importarRobinsonCSV(texto, fechaLista = horaLocal(new Date()).fecha) {
+  const error = (m) => Object.assign(new Error(m), { codigo: 400 });
+  if (!/^\d{4}-\d\d-\d\d$/.test(String(fechaLista || '')) || isNaN(Date.parse(fechaLista))) throw error('Fecha de la lista no válida (AAAA-MM-DD).');
+  if (Date.parse(fechaLista) > Date.parse(horaLocal(new Date()).fecha) + 86400e3) throw error('La fecha de la lista no puede ser posterior a hoy.');
+  const { claves, descartados } = clavesRobinson(texto);
+  if (!claves.size) throw error('El fichero no trae ningún teléfono reconocible: la lista Robinson actual se mantiene.');
   const d = db.abrir(), st = d.prepare('INSERT OR REPLACE INTO robinson (telefono, fecha_lista) VALUES (?, ?)');
-  let cargados = 0, descartados = 0;
+  let anteriores = 0;
   d.exec('BEGIN');
   try {
-    for (const fila of leerCSV(texto)) {
-      let clave = null;
-      for (const celda of fila.map((x) => x.trim())) {
-        if (/^[a-f0-9]{64}$/i.test(celda)) { clave = 'sha256:' + celda.toLowerCase(); break; }
-        if (/^[a-f0-9]{32}$/i.test(celda)) { clave = 'md5:' + celda.toLowerCase(); break; }
-        const t = db.normTel(celda);
-        if (t && /^\+?\d{9,15}$/.test(t)) { clave = t; break; }
-      }
-      if (clave) { st.run(clave, fechaLista); cargados++; } else descartados++;
-    }
+    anteriores = d.prepare('SELECT COUNT(*) n FROM robinson').get().n;
+    d.exec('DELETE FROM robinson');
+    for (const c of claves) st.run(c, fechaLista);
+    d.prepare('INSERT INTO robinson_cargas (fecha_lista, numeros, descartados, anteriores) VALUES (?, ?, ?, ?)').run(fechaLista, claves.size, descartados, anteriores);
     d.exec('COMMIT');
   } catch (err) { d.exec('ROLLBACK'); throw err; }
-  return { cargados, descartados };
+  db.evento('robinson_importada', { fecha: fechaLista, numeros: claves.size, descartados, anteriores });
+  return { cargados: claves.size, descartados, anteriores };
 }
 
 // ---------- Reglas ----------
@@ -133,6 +173,8 @@ function comunes(contacto, ahora) {
   const tel = db.normTel(contacto?.telefono);
   if (!tel || !/^\+\d{9,15}$/.test(tel)) return no('sin_telefono', 'Sin teléfono válido.');
   if (db.estaDeBaja(tel, contacto.email)) return no('baja', 'Pidió no recibir más comunicaciones comerciales (baja propia).');
+  const rb = estadoRobinson(ahora);
+  if (!rb.vigente) return no(rb.codigo, rb.motivo); // sin lista al día no se puede saber si está inscrito
   if (enRobinson(tel)) return no('robinson', 'Está inscrito en la lista Robinson.');
   // Si pidió que le llamaran a una hora concreta, esa llamada no cuenta contra el máximo ni espera la separación mínima
   const pedido = contacto.pedido ? new Date(String(contacto.pedido).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(contacto.pedido) ? '' : 'Z')) : null;

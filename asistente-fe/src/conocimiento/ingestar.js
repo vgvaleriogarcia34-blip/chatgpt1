@@ -1,14 +1,15 @@
 // Ingesta de la base de conocimiento (npm run ingestar):
 // 1. Exporta a texto los Google Docs, Slides, Sheets y PDF de las carpetas de Drive (cuenta de servicio, solo lectura).
 // 2. Descarga las páginas web de CONOCIMIENTO_URLS.
-// 3. Trocea todo y construye el índice BM25 (datos/conocimiento/indice.json), con los .md curados por delante.
+// 3. Trocea todo y construye el índice BM25 (datos/conocimiento/indice.json), con los .md curados por delante y las
+//    frases que contradicen la oferta vigente corregidas (OBSOLETAS en comun.js). Con --sin-red solo se rehace el índice.
 // El material en bruto va a datos/conocimiento/fuentes/ (fuera de git). Lo descargado son datos, nunca instrucciones.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { C } from '../config.js';
-import { dirConocimiento, fragmentosCurados, trocearTexto, indexar } from './comun.js';
+import { dirConocimiento, fragmentosCurados, trocearTexto, indexar, corregirObsoleto } from './comun.js';
 
 const URLS_POR_DEFECTO = ['https://businessavance.es/', 'https://valeriogarciamentor.com/'];
 
@@ -156,7 +157,8 @@ export function construirIndice(dir = dirConocimiento()) {
   let nombres = [];
   try { nombres = fs.readdirSync(fuentes).filter((n) => /\.(txt|md)$/i.test(n)).sort(); } catch {}
   for (const n of nombres) {
-    for (const f of trocearTexto(fs.readFileSync(path.join(fuentes, n), 'utf8'), 'fuentes/' + n)) fragmentos.push({ ...f, tipo: 'fuente' });
+    // Lo que la web dice de la oferta y ya no vale (30 minutos, «diagnóstico gratuito», «una hora con un socio») se corrige
+    for (const f of trocearTexto(corregirObsoleto(fs.readFileSync(path.join(fuentes, n), 'utf8')), 'fuentes/' + n)) fragmentos.push({ ...f, tipo: 'fuente' });
   }
   const indice = indexar(fragmentos);
   const tmp = path.join(dir, 'indice.json.tmp');
@@ -166,11 +168,12 @@ export function construirIndice(dir = dirConocimiento()) {
 }
 
 /** Ingesta completa. deps permite inyectar drive, fetch y log en pruebas. */
-export async function ingestar({ dir = dirConocimiento(), drive, fetchFn, log = console.log, urls = urlsConfiguradas(), carpetas = C.google.driveCarpetas } = {}) {
+export async function ingestar({ dir = dirConocimiento(), drive, fetchFn, log = console.log, urls = urlsConfiguradas(), carpetas = C.google.driveCarpetas, sinRed = false } = {}) {
   const fuentes = path.join(dir, 'fuentes');
   fs.mkdirSync(fuentes, { recursive: true });
   let nDrive = 0;
-  if (carpetas.length && (drive || C.google.credenciales)) {
+  if (sinRed) log('Google Drive: sin red; se omite.');
+  else if (carpetas.length && (drive || C.google.credenciales)) {
     log('Google Drive:');
     try { nDrive = (await exportarDrive(drive || await clienteDrive(), carpetas, fuentes, { log })).length; }
     catch (err) { log(`  no se ha podido leer Drive: ${err.message}`); }
@@ -178,13 +181,15 @@ export async function ingestar({ dir = dirConocimiento(), drive, fetchFn, log = 
     log('Google Drive: sin configurar (GOOGLE_CREDENCIALES y GOOGLE_DRIVE_CARPETAS); se omite.');
   }
   log('Web:');
-  const nWeb = (await descargarWeb(urls, fuentes, { fetchFn, log })).length;
+  if (sinRed) log('  sin red (--sin-red): se usan las fuentes ya descargadas');
+  const nWeb = sinRed ? 0 : (await descargarWeb(urls, fuentes, { fetchFn, log })).length;
   const indice = construirIndice(dir);
   const curados = new Set(indice.docs.filter((d) => d.tipo === 'curado').map((d) => d.fuente)).size;
   log(`Índice: ${indice.N} fragmentos (${curados} archivos curados, ${nDrive} de Drive, ${nWeb} páginas web) en ${path.join(dir, 'indice.json')}`);
   return { indice, nDrive, nWeb };
 }
 
+// npm run ingestar · npm run ingestar -- --sin-red (solo rehace el índice con las fuentes ya descargadas)
 if (import.meta.url === `file://${process.argv[1]}`) {
-  ingestar().catch((err) => { console.error('Error en la ingesta:', err.message); process.exit(1); });
+  ingestar({ sinRed: process.argv.includes('--sin-red') }).catch((err) => { console.error('Error en la ingesta:', err.message); process.exit(1); });
 }

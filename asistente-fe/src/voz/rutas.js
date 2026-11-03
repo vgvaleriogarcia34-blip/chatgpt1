@@ -3,7 +3,7 @@ import { ruta, rutaWs, leerCuerpo, enviar } from '../servidor.js';
 import { C } from '../config.js';
 import * as db from '../almacen/db.js';
 import { SesionVoz, sesiones, amdPendientes } from './sesion.js';
-import { firmaValida, formulario, twimlStream, twimlDecirYColgar, firmaStream, llamadaSaliente, vozConfigurada } from './twilio.js';
+import { firmaValida, formulario, twimlStream, twimlDecirYColgar, firmaStream, llamadaSaliente, vozConfigurada, borrarGrabacion } from './twilio.js';
 import { avisar } from '../avisos.js';
 import { hubspotActivo, sincronizarContacto, crearTarea } from '../crm/hubspot.js';
 
@@ -98,13 +98,20 @@ ruta('POST', '/voz/transferencia-fin', async (req, res, { url }) => {
   }
 });
 
-// Grabación terminada (solo con GRABAR_LLAMADAS): se guarda la dirección del audio en la conversación
+// Grabación terminada (solo con GRABAR_LLAMADAS): se guarda la dirección del audio en la conversación. Si la persona pidió
+// que no se grabara, lo que llegara a grabarse se borra en Twilio y no se guarda.
 ruta('POST', '/voz/grabacion', async (req, res, { url }) => {
   const p = await webhook(req, res); if (!p) return;
   if (p.RecordingUrl && (!p.RecordingStatus || p.RecordingStatus === 'completed')) {
     const convId = Number(url.searchParams.get('conversacionId')) || db.conversacionPorExterno(p.CallSid)?.id || null;
-    db.marcarConversacion(convId, { grabacion_url: p.RecordingUrl, grabacion_sid: p.RecordingSid || null });
-    db.evento('grabacion', { conversacionId: convId, sid: p.RecordingSid || null, duracion: Number(p.RecordingDuration) || 0 });
+    const rechazada = convId && db.abrir().prepare(`SELECT 1 FROM eventos WHERE tipo = 'grabacion_rechazada' AND json_extract(datos, '$.conversacionId') = ?`).get(convId);
+    if (rechazada) {
+      if (p.RecordingSid) borrarGrabacion(p.RecordingSid).catch((err) => log('no se pudo borrar la grabación rechazada:', err.message));
+      db.evento('grabacion_borrada', { conversacionId: convId, sid: p.RecordingSid || null, motivo: 'pidió que no se grabara' });
+    } else {
+      db.marcarConversacion(convId, { grabacion_url: p.RecordingUrl, grabacion_sid: p.RecordingSid || null });
+      db.evento('grabacion', { conversacionId: convId, sid: p.RecordingSid || null, duracion: Number(p.RecordingDuration) || 0 });
+    }
   }
   enviar(res, 204, '');
 });

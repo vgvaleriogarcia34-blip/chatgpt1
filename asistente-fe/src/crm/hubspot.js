@@ -6,9 +6,9 @@ import * as db from '../almacen/db.js';
 import { registrar } from '../cerebro/herramientas.js';
 import { avisar } from '../avisos.js';
 
-const cfg = { base: 'https://api.hubapi.com', token: C.hubspot.token, propietarioId: C.hubspot.propietarioId, pipeline: C.hubspot.pipeline, etapa: C.hubspot.etapaInicial, portalId: C.hubspot.portalId, esperaMaxMs: 30000 };
+const cfg = { base: 'https://api.hubapi.com', token: C.hubspot.token, propietarioId: C.hubspot.propietarioId, pipeline: C.hubspot.pipeline, etapa: C.hubspot.etapaInicial, portalId: C.hubspot.portalId, esperaMaxMs: 30000, cacheBajasMs: 5 * 60e3, timeoutBajasMs: 4000 };
 /** Para tests o reconfiguración: { base, token, propietarioId, pipeline, etapa, esperaMaxMs } */
-export function configurarHubspot(o = {}) { Object.assign(cfg, o); propsCache = null; portal = cfg.portalId ? { portalId: cfg.portalId, uiDomain: 'app.hubspot.com' } : null; }
+export function configurarHubspot(o = {}) { Object.assign(cfg, o); propsCache = null; bajasCache.clear(); portal = cfg.portalId ? { portalId: cfg.portalId, uiDomain: 'app.hubspot.com' } : null; }
 export const hubspotActivo = () => !!cfg.token;
 const SIN_CRM = 'HubSpot no está configurado: queda guardado solo en la base local.';
 
@@ -18,17 +18,20 @@ const asociar = (contactoId, tipo) => (contactoId ? [{ to: { id: String(contacto
 
 const espera = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
-/** Petición a HubSpot con reintentos ante 429 (respeta Retry-After) y, salvo en altas, ante 5xx. Devuelve el JSON o null (204). */
-export async function hs(metodo, ruta, cuerpo) {
+/**
+ * Petición a HubSpot con reintentos ante 429 (respeta Retry-After) y, salvo en altas, ante 5xx. Devuelve el JSON o null (204).
+ * op: { timeoutMs (20 s), reintentos (4) } — las comprobaciones que no pueden esperar usan menos.
+ */
+export async function hs(metodo, ruta, cuerpo, { timeoutMs = 20000, reintentos = 4 } = {}) {
   if (!cfg.token) throw new Error('HubSpot no configurado');
   for (let intento = 0; ; intento++) {
     const r = await fetch(cfg.base + ruta, {
       method: metodo,
       headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: cuerpo ? JSON.stringify(cuerpo) : undefined,
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    if ((r.status === 429 || (r.status >= 500 && metodo !== 'POST')) && intento < 4) {
+    if ((r.status === 429 || (r.status >= 500 && metodo !== 'POST')) && intento < reintentos) {
       const ra = Number(r.headers.get('retry-after'));
       const ms = Math.min(cfg.esperaMaxMs, Number.isFinite(ra) && ra > 0 ? ra * 1000 : 500 * 2 ** intento);
       await r.arrayBuffer().catch(() => {});
@@ -74,10 +77,10 @@ export function variantesTelefono(tel) {
   return [...v];
 }
 
-const PROPS_CONTACTO = ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company', 'jobtitle', 'hs_lead_status', 'lifecyclestage', 'hubspot_owner_id', 'fe_base_legal', 'fe_dolor', 'fe_origen', 'fe_campana', 'fe_asistente_resultado', 'fe_baja'];
+const PROPS_CONTACTO = ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company', 'jobtitle', 'hs_lead_status', 'lifecyclestage', 'hubspot_owner_id', 'fe_base_legal', 'fe_dolor', 'fe_origen', 'fe_campana', 'fe_asistente_resultado', 'fe_baja', 'hs_email_optout'];
 
 /** Busca un contacto por teléfono (phone y mobilephone, con variantes) o por email. Devuelve el objeto de HubSpot o null. */
-export async function buscarContacto({ telefono, email } = {}) {
+export async function buscarContacto({ telefono, email } = {}, op = {}) {
   const grupos = [];
   const vars = variantesTelefono(telefono);
   if (vars.length) {
@@ -86,8 +89,46 @@ export async function buscarContacto({ telefono, email } = {}) {
   }
   if (email) grupos.push({ filters: [{ propertyName: 'email', operator: 'EQ', value: String(email).toLowerCase() }] });
   if (!grupos.length) return null;
-  const r = await hs('POST', '/crm/v3/objects/contacts/search', { filterGroups: grupos, properties: PROPS_CONTACTO, limit: 5 });
+  const r = await hs('POST', '/crm/v3/objects/contacts/search', { filterGroups: grupos, properties: PROPS_CONTACTO, limit: 5 }, op);
   return r?.results?.[0] || null;
+}
+
+// ---------- Bajas registradas en HubSpot (antes de cada llamada o WhatsApp de campaña) ----------
+const bajasCache = new Map(); // clave del contacto → { ts, r }
+const verdad = (v) => /^(true|1|s[ií]|yes)$/i.test(String(v ?? '').trim());
+/**
+ * ¿Consta en HubSpot que el contacto no quiere comunicaciones comerciales (fe_baja o hs_email_optout)? Se consulta justo
+ * antes de llamar o escribir, con caché corta (5 min) y un tiempo límite de 4 s sin reintentos. Si consta, se registra
+ * también la baja local (que ya no caduca). Si HubSpot no responde devuelve { error }: quien llama no debe contactar.
+ * Sin HubSpot configurado: { baja: false }.
+ * @returns {Promise<{ baja: boolean, motivo?: string } | { error: string }>}
+ */
+export async function bajaEnHubspot(contacto, { cacheMs = cfg.cacheBajasMs, timeoutMs = cfg.timeoutBajasMs } = {}) {
+  if (!hubspotActivo() || !contacto) return { baja: false };
+  const tel = db.normTel(contacto.telefono), email = contacto.email ? String(contacto.email).toLowerCase() : null;
+  const clave = contacto.hubspot_id ? 'id:' + contacto.hubspot_id : `tel:${tel || ''}|${email || ''}`;
+  const c = bajasCache.get(clave);
+  if (c && Date.now() - c.ts < cacheMs) return c.r;
+  let props = null;
+  try {
+    if (contacto.hubspot_id) {
+      try { props = (await hs('GET', `/crm/v3/objects/contacts/${encodeURIComponent(contacto.hubspot_id)}?properties=fe_baja,hs_email_optout`, null, { timeoutMs, reintentos: 0 }))?.properties || {}; }
+      catch (err) { if (err.status !== 404) throw err; }
+    }
+    if (!props && (tel || email)) props = (await buscarContacto({ telefono: tel, email }, { timeoutMs, reintentos: 0 }))?.properties || null;
+  } catch (err) {
+    return { error: String(err.name === 'TimeoutError' ? 'no responde en ' + Math.round(timeoutMs / 1000) + ' s' : err.message) }; // los fallos no se guardan en la caché
+  }
+  const r = !props ? { baja: false }
+    : verdad(props.fe_baja) ? { baja: true, motivo: 'Baja registrada en HubSpot (fe_baja).' }
+      : verdad(props.hs_email_optout) ? { baja: true, motivo: 'En HubSpot consta que no quiere recibir comunicaciones (hs_email_optout).' }
+        : { baja: false };
+  if (r.baja && tel && !db.estaDeBaja(tel, email)) {
+    db.darDeBaja(tel, { email, motivo: r.motivo, canal: 'hubspot' });
+    db.evento('baja', { telefono: tel, email, canal: 'hubspot', motivo: r.motivo, contacto: contacto.id ?? null });
+  }
+  bajasCache.set(clave, { ts: Date.now(), r });
+  return r;
 }
 
 const partirNombre = (n) => {

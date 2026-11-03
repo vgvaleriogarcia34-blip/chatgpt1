@@ -16,10 +16,11 @@ before(async () => {
 });
 after(() => db.cerrar());
 beforeEach(() => {
-  Object.assign(C.prospeccion, { activa: true, horario: 'L-V 10:00-14:00,16:30-20:00', maxIntentos: 3, llamadasSimultaneas: 2, festivos: ['2026-12-08', '01-06'], separacionHoras: 48 });
+  Object.assign(C.prospeccion, { activa: true, horario: 'L-V 10:00-14:00,16:30-20:00', maxIntentos: 3, llamadasSimultaneas: 2, festivos: ['2026-12-08', '01-06'], separacionHoras: 48, robinsonMaxDias: 30 });
   C.empresa.zonaHoraria = 'Europe/Madrid';
   const d = db.abrir();
-  d.exec('DELETE FROM campana_contactos; DELETE FROM campanas; DELETE FROM bajas; DELETE FROM robinson; DELETE FROM contactos; DELETE FROM conversaciones;');
+  d.exec('DELETE FROM campana_contactos; DELETE FROM campanas; DELETE FROM bajas; DELETE FROM robinson; DELETE FROM robinson_cargas; DELETE FROM contactos; DELETE FROM conversaciones;');
+  db.cargarRobinson(['+34999999999'], '2026-10-30'); // lista Robinson al día para LUNES_11
 });
 
 const campana = { nombre: 'Prueba', datos: JSON.stringify({ basesPermitidas: ['consentimiento', 'cliente', 'relacion_previa'] }) };
@@ -53,7 +54,8 @@ test('cumplimiento: llamada permitida y cada motivo de rechazo', () => {
   assert.equal(motivo(ct({ intentos: 3 })), 'max_intentos');
   assert.equal(motivo(ct({ intentos: 1, ultimo_intento: '2026-11-01 10:00:00' })), 'demasiado_pronto');
   assert.equal(cu.puedeLlamar(ct({ intentos: 1, ultimo_intento: '2026-10-30 10:00:00' }), campana, LUNES_11).ok, true);
-  // Horario
+  // Horario (con fechas lejanas: que la vigencia de la lista Robinson no tape el motivo)
+  C.prospeccion.robinsonMaxDias = 400;
   assert.equal(motivo(ct(), campana, new Date('2026-11-07T10:00:00Z')), 'fin_de_semana'); // sábado
   assert.equal(motivo(ct(), campana, new Date('2026-11-08T10:00:00Z')), 'fin_de_semana'); // domingo
   assert.equal(motivo(ct(), campana, new Date('2026-12-08T10:00:00Z')), 'festivo');
@@ -86,11 +88,100 @@ test('cumplimiento: WhatsApp proactivo solo con plantilla y consentimiento expre
 test('lista Robinson: importación en claro y con resúmenes SHA-256', () => {
   const sha = crypto.createHash('sha256').update('34600999888').digest('hex');
   const r = cu.importarRobinsonCSV(`telefono\n600 111 333\n+34 911 222 333\n${sha}\nsin dato\n`, '2026-10-15');
-  assert.deepEqual(r, { cargados: 3, descartados: 2 }); // la cabecera y «sin dato» se descartan
+  assert.deepEqual(r, { cargados: 3, descartados: 2, anteriores: 1 }); // la cabecera y «sin dato» se descartan
   assert.equal(cu.enRobinson('+34600111333'), true);
   assert.equal(cu.enRobinson('911222333'), true);
   assert.equal(cu.enRobinson('+34600999888'), true);
   assert.equal(cu.enRobinson('+34600999887'), false);
+  assert.equal(cu.enRobinson('+34999999999'), false, 'la lista nueva sustituye a la anterior');
+});
+
+test('lista Robinson: la importación sustituye la lista de una vez y un fichero sin números no la borra', () => {
+  cu.importarRobinsonCSV('600111001\n600111002\n', '2026-10-20');
+  const r = cu.importarRobinsonCSV('600111003\n', '2026-10-28');
+  assert.deepEqual(r, { cargados: 1, descartados: 0, anteriores: 2 });
+  assert.equal(cu.enRobinson('600111001'), false); assert.equal(cu.enRobinson('600111003'), true);
+  assert.throws(() => cu.importarRobinsonCSV('sin teléfonos\n', '2026-10-30'), /ningún teléfono/);
+  assert.equal(cu.enRobinson('600111003'), true, 'la lista anterior se mantiene');
+  assert.equal(cu.estadoRobinson(LUNES_11).fecha, '2026-10-28');
+  assert.throws(() => cu.importarRobinsonCSV('600111004\n', '30/10/2026'), /Fecha/);
+  assert.throws(() => cu.importarRobinsonCSV('600111004\n', '2099-01-01'), /posterior/);
+});
+
+test('lista Robinson: sin cargar o con más de ROBINSON_MAX_DIAS no se activa la campaña ni se llama', async () => {
+  const k = ca.crearCampana({ nombre: 'Robinson' });
+  ca.importarFilas(k.id, [{ telefono: '910000100', base_legal: 'cliente' }]);
+  const c = db.contactoPorTelefono('910000100');
+  // Sin lista
+  db.abrir().exec('DELETE FROM robinson; DELETE FROM robinson_cargas;');
+  assert.equal(cu.estadoRobinson(LUNES_11).codigo, 'robinson_sin_cargar');
+  assert.equal(cu.puedeLlamar({ ...c, intentos: 0 }, campana, LUNES_11).codigo, 'robinson_sin_cargar');
+  assert.throws(() => ca.reanudarCampana(k.id, LUNES_11), (e) => e.codigo === 409 && /no está cargada/.test(e.message));
+  // Lista de hace 34 días
+  cu.importarRobinsonCSV('600000001\n', '2026-09-29');
+  const rb = cu.estadoRobinson(LUNES_11);
+  assert.equal(rb.vigente, false); assert.equal(rb.dias, 34); assert.match(rb.motivo, /29\/09\/2026/);
+  assert.throws(() => ca.reanudarCampana(k.id, LUNES_11), /hace 34 días/);
+  // Activa de antes: el planificador no llama y lo dice
+  db.abrir().prepare(`UPDATE campanas SET estado = 'activa' WHERE id = ?`).run(k.id);
+  const llamadas = [];
+  const v = await ca.vuelta(LUNES_11, { llamar: async (o) => { llamadas.push(o); return { ok: true, callSid: 'CA1' }; } });
+  assert.equal(v.lanzadas, 0); assert.match(v.motivo, /Robinson/); assert.equal(llamadas.length, 0);
+  // También vale para el WhatsApp proactivo
+  assert.equal(cu.puedeEnviarWhatsApp({ ...c, consentimiento_whatsapp: '2026-09-01' }, { plantilla: 'x' }, LUNES_11).codigo, 'robinson_caducada');
+  // Con la lista al día (30 días justos todavía vale), sí
+  C.prospeccion.robinsonMaxDias = 30;
+  cu.importarRobinsonCSV('600000001\n', '2026-10-03');
+  assert.equal(cu.estadoRobinson(LUNES_11).vigente, true);
+  assert.equal(ca.reanudarCampana(k.id, LUNES_11).estado, 'activa');
+  assert.equal((await ca.vuelta(LUNES_11, { llamar: async (o) => { llamadas.push(o); return { ok: true, callSid: 'CA1' }; } })).lanzadas, 1);
+});
+
+test('planificador: justo antes de llamar comprueba la baja en HubSpot; si no responde, no llama y lo reintenta', async () => {
+  const k = campanaConContactos(3);
+  const tels = ['+34910000000', '+34910000001', '+34910000002'];
+  const comprobarBaja = async (c) => (c.telefono === tels[0] ? { baja: true, motivo: 'Baja registrada en HubSpot (fe_baja).' } : c.telefono === tels[1] ? { error: 'no responde en 4 s' } : { baja: false });
+  const llamadas = [];
+  C.prospeccion.llamadasSimultaneas = 5;
+  const r = await ca.vuelta(LUNES_11, { llamar: async (o) => { llamadas.push(o.telefono); return { ok: true, callSid: 'CA' + llamadas.length }; }, comprobarBaja });
+  assert.equal(r.lanzadas, 1); assert.deepEqual(llamadas, [tels[2]]);
+  const res = Object.fromEntries(ca.resultadosCampana(k.id).contactos.map((x) => [x.telefono, x]));
+  assert.equal(res[tels[0]].estado, 'baja'); assert.match(res[tels[0]].motivo, /HubSpot/);
+  assert.equal(res[tels[1]].estado, 'pendiente'); assert.match(res[tels[1]].motivo, /HubSpot no responde/); assert.equal(res[tels[1]].intentos, 0);
+  assert.equal(res[tels[1]].proximo, '2026-11-02 10:15:00');
+  // Antes de los 15 minutos no se vuelve a probar; después, sí (y ya responde)
+  assert.equal((await ca.vuelta(h(LUNES_11, 0.1), { llamar: async () => ({ ok: true }), comprobarBaja: async () => ({ baja: false }) })).lanzadas, 0);
+  assert.equal((await ca.vuelta(h(LUNES_11, 0.3), { llamar: async () => ({ ok: true }), comprobarBaja: async () => ({ baja: false }) })).lanzadas, 1);
+});
+
+test('bajaEnHubspot: fe_baja o hs_email_optout, caché corta, baja local y error si HubSpot no responde', async () => {
+  const http = await import('node:http');
+  const hubspot = await import('../src/crm/hubspot.js');
+  const peticiones = []; let estado = 200; let props = { fe_baja: null, hs_email_optout: 'true' };
+  const fake = http.createServer((req, res) => { req.resume(); req.on('end', () => { peticiones.push(req.method + ' ' + req.url.split('?')[0]); res.writeHead(estado, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(req.url.includes('/search') ? { results: [{ id: '9', properties: props }] } : { id: '7', properties: props })); }); });
+  await new Promise((ok) => fake.listen(0, '127.0.0.1', ok));
+  hubspot.configurarHubspot({ base: `http://127.0.0.1:${fake.address().port}`, token: 'hs', esperaMaxMs: 10 });
+  try {
+    const a = db.guardarContacto({ telefono: '+34910000201', hubspot_id: '7', email: 'a@x.es' });
+    let r = await hubspot.bajaEnHubspot(a);
+    assert.equal(r.baja, true); assert.match(r.motivo, /hs_email_optout/);
+    assert.equal(db.estaDeBaja(a.telefono), true);
+    assert.deepEqual(peticiones, ['GET /crm/v3/objects/contacts/7']);
+    await hubspot.bajaEnHubspot(a); assert.equal(peticiones.length, 1, 'caché');
+    // Sin id de HubSpot: busca por teléfono o correo
+    props = { fe_baja: 'false', hs_email_optout: null };
+    const b = db.guardarContacto({ telefono: '+34910000202' });
+    assert.deepEqual(await hubspot.bajaEnHubspot(b), { baja: false });
+    assert.equal(peticiones.at(-1), 'POST /crm/v3/objects/contacts/search');
+    // HubSpot caído: error, sin reintentos y sin guardarlo en la caché
+    estado = 500;
+    const c = db.guardarContacto({ telefono: '+34910000203', hubspot_id: '8' });
+    const n = peticiones.length;
+    r = await hubspot.bajaEnHubspot(c);
+    assert.ok(r.error); assert.equal(peticiones.length, n + 1);
+    estado = 200; props = { fe_baja: 'true' };
+    assert.equal((await hubspot.bajaEnHubspot(c)).baja, true);
+  } finally { fake.close(); hubspot.configurarHubspot({ token: '' }); }
 });
 
 test('importación CSV: separador «;», base legal, rechazos y sin base legal', () => {

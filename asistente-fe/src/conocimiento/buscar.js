@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { registrar } from '../cerebro/herramientas.js';
-import { dirConocimiento, archivosCurados, fragmentosCurados, indexar, terminos, frase, sinMarcas, PESO_CURADO, PESO_PENDIENTE } from './comun.js';
+import { dirConocimiento, archivosCurados, fragmentosCurados, indexar, terminos, frase, sinMarcas, corregirObsoleto, PESO_CURADO, PESO_PENDIENTE } from './comun.js';
 
 const K1 = 1.2;
 const B = 0.5; // fragmentos de tamaño parecido: penaliza poco la longitud
@@ -31,7 +31,8 @@ export function cargarIndice(dir = dirConocimiento()) {
   } catch {}
   if (indice) {
     // Los .md curados mandan: si se han editado después de ingestar, se usan los actuales
-    indice = indexar([...fragmentosCurados(dir), ...indice.docs.filter((d) => d.tipo === 'fuente')]);
+    // (y lo que la web dice de la oferta y ya no vale se corrige también en un índice antiguo)
+    indice = indexar([...fragmentosCurados(dir), ...indice.docs.filter((d) => d.tipo === 'fuente').map((d) => ({ ...d, texto: corregirObsoleto(d.texto) }))]);
   } else {
     indice = indexar(fragmentosCurados(dir));
   }

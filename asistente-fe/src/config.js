@@ -33,7 +33,9 @@ export const C = {
     responsableDatos: e('RESPONSABLE_DATOS', 'AKOMPANO GROUP, S.L.'),
     responsableDatosNif: e('RESPONSABLE_DATOS_NIF', 'B05544713'),
     responsableDatosMarca: e('RESPONSABLE_DATOS_MARCA', 'Business Avance International Consulting'),
-    urlPrivacidad: e('URL_PRIVACIDAD'), // política de privacidad (apartado «Asistente telefónico y WhatsApp»)
+    // Política de privacidad (apartado «Asistente telefónico y WhatsApp»). Por defecto, la de la web de Atalaya si está
+    // configurada; sin ninguna de las dos, el asistente no ofrece el enlace (dice que el equipo se la hará llegar)
+    urlPrivacidad: e('URL_PRIVACIDAD') || (e('ATALAYA_URL') ? `${e('ATALAYA_URL').replace(/\/$/, '')}/privacidad.html#asistente` : ''),
     movilResponsable: e('RESPONSABLE_MOVIL'), // E.164: +346XXXXXXXX, para transferir llamadas
     emailResponsable: e('RESPONSABLE_EMAIL'),
     zonaHoraria: e('ZONA_HORARIA', 'Europe/Madrid'),
@@ -88,6 +90,7 @@ export const C = {
     maxIntentos: n('PROSPECCION_MAX_INTENTOS', 3),
     llamadasSimultaneas: n('PROSPECCION_SIMULTANEAS', 2),
     festivos: e('FESTIVOS').split(',').map((x) => x.trim()).filter(Boolean), // AAAA-MM-DD
+    robinsonMaxDias: n('ROBINSON_MAX_DIAS', 30), // con la lista Robinson más antigua (o sin cargar) no se llama ni se activa una campaña
   },
   panel: { usuario: e('PANEL_USUARIO', 'admin'), clave: e('PANEL_CLAVE') },
   // Avisos inmediatos al equipo: correo (SMTP) a RESPONSABLE_EMAIL y, con plantilla aprobada, WhatsApp a RESPONSABLE_MOVIL

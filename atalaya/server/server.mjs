@@ -538,15 +538,36 @@ const hsBuscar = async (objeto, prop, valor) => {
   const r = await hsApi('POST', `/crm/v3/objects/${objeto}/search`, { filterGroups: [{ filters: [{ propertyName: prop, operator: 'EQ', value: valor }] }], properties: [prop], limit: 1 });
   return (r.results && r.results[0] && String(r.results[0].id)) || null;
 };
+// Teléfono en E.164 (+34 por defecto), igual que lo guarda el asistente: «600 111 222», «0034600111222» y «+34600111222»
+// son el mismo contacto. Si no parece un teléfono, se deja como venía.
+function telE164(t) {
+  if (!t) return null;
+  let s = String(t).trim().replace(/[^\d+]/g, '');
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (/^[6789]\d{8}$/.test(s)) s = '+34' + s;
+  else if (/^34[6789]\d{8}$/.test(s)) s = '+' + s;
+  return /^\+\d{8,15}$/.test(s) ? s : String(t).trim();
+}
+// Contacto de HubSpot por teléfono: en phone o mobilephone, en E.164 o con las formas españolas habituales
+async function hsBuscarTelefono(tel) {
+  const e = telE164(tel); if (!e) return null;
+  const vars = [e];
+  if (/^\+34\d{9}$/.test(e)) { const n = e.slice(3); vars.push(n, `+34 ${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`); }
+  const grupos = [{ filters: [{ propertyName: 'phone', operator: 'EQ', value: e }] }, { filters: [{ propertyName: 'mobilephone', operator: 'EQ', value: e }] }]
+    .concat(vars.slice(1).map((v) => ({ filters: [{ propertyName: 'phone', operator: 'EQ', value: v }] })));
+  const r = await hsApi('POST', '/crm/v3/objects/contacts/search', { filterGroups: grupos.slice(0, 5), properties: ['phone', 'mobilephone'], limit: 1 });
+  return (r.results && r.results[0] && String(r.results[0].id)) || null;
+}
 // Contacto por correo (o teléfono): lo crea o le completa los datos. Devuelve su id.
 async function hsContacto(d) {
   const props = {};
+  const tel = telE164(d.telefono);
   if (d.email) props.email = d.email;
   if (d.nombre) { const [nom, ...ap] = d.nombre.trim().split(/\s+/); props.firstname = nom; if (ap.length) props.lastname = ap.join(' '); }
-  if (d.telefono) props.phone = d.telefono;
+  if (tel) props.phone = tel;
   if (d.empresa) props.company = d.empresa;
   if (d.cuenta && env.HUBSPOT_PROP_CUENTA) props[env.HUBSPOT_PROP_CUENTA] = d.cuenta;
-  let id = d.hubspotContactId || (d.email && (await hsBuscar('contacts', 'email', d.email))) || (d.telefono && (await hsBuscar('contacts', 'phone', d.telefono))) || null;
+  let id = d.hubspotContactId || (d.email && (await hsBuscar('contacts', 'email', d.email))) || (tel && (await hsBuscarTelefono(tel))) || null;
   if (id) { await hsApi('PATCH', `/crm/v3/objects/contacts/${id}`, { properties: props }); return id; }
   try { return String((await hsApi('POST', '/crm/v3/objects/contacts', { properties: props })).id); }
   catch (e) { const m = e.status === 409 && /Existing ID:\s*(\d+)/.exec((e.cuerpo && e.cuerpo.message) || ''); if (m) return m[1]; throw e; }

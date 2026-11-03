@@ -9,10 +9,11 @@ import { C } from '../config.js';
 import * as db from '../almacen/db.js';
 import { panelActivo, comprobarCredenciales, crearCookie, cabeceraCookie, sesion, bloqueado, anotarFallo, limpiarFallos } from './sesion.js';
 import * as campanas from '../prospeccion/campanas.js';
-import { importarRobinsonCSV, horaLocal, BASES } from '../prospeccion/cumplimiento.js';
+import { importarRobinsonCSV, horaLocal, estadoRobinson, BASES } from '../prospeccion/cumplimiento.js';
 import { escribirCSV } from '../prospeccion/csv.js';
 import { bajaComercial, hubspotActivo, cuentaHubspot, enlaceContactoHubspot } from '../crm/hubspot.js';
-import { atalayaActiva, invitarAAtalaya } from '../integraciones/atalaya.js';
+import { atalayaActiva, invitarAAtalaya, reintentarReunionAtalaya } from '../integraciones/atalaya.js';
+import { confirmarReunionPendiente } from '../agenda/google-calendar.js';
 import { estadoIntegraciones } from '../integraciones/estado.js';
 import { TEXTOS, texto } from './textos.js';
 
@@ -31,7 +32,7 @@ const CABECERAS_HTML = {
 function html(res, codigo, cuerpo, extra = {}) { res.writeHead(codigo, { ...CABECERAS_HTML, ...extra }); res.end(cuerpo); }
 
 const pagina = (titulo, cuerpo, conScript = false) => `<!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="es-ES"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapar(titulo)}</title><link rel="stylesheet" href="/panel/panel.css">${conScript ? '<script src="/panel/panel.js" defer></script>' : ''}</head>
 <body>${cuerpo}</body></html>`;
 
@@ -132,10 +133,12 @@ export function resumen(ahora = new Date()) {
     campanasActivas: n(`SELECT COUNT(*) n FROM campanas WHERE estado = 'activa'`),
     bajas: n('SELECT COUNT(*) n FROM bajas'),
     robinson: n('SELECT COUNT(*) n FROM robinson'),
+    robinsonEstado: estadoRobinson(ahora),
   };
 }
 
 // ---------- Bandeja «requiere acción» ----------
+const fechaHora = (v) => { const f = new Date(v); return isNaN(f) ? String(v) : new Intl.DateTimeFormat('es-ES', { timeZone: C.empresa.zonaHoraria, dateStyle: 'short', timeStyle: 'short' }).format(f); };
 const TIPOS_ACCION = Object.keys(TEXTOS.accion);
 const jsonSeguro = (t) => { try { return JSON.parse(t); } catch { return null; } };
 export function acciones({ limite = 200 } = {}) {
@@ -144,10 +147,12 @@ export function acciones({ limite = 200 } = {}) {
     const x = jsonSeguro(e.datos) || {};
     const conv = x.conversacionId ? db.conversacionPorId(x.conversacionId) : null;
     const contacto = (x.contacto && db.contactoPorId(x.contacto)) || (conv?.contacto_id && db.contactoPorId(conv.contacto_id)) || (x.telefono && db.contactoPorTelefono(x.telefono)) || null;
-    const detalle = e.tipo === 'reunion_pendiente' ? `Pide la sesión el ${x.cuando || x.inicio || '—'} (${x.modalidad || 'videollamada'})${x.email ? ' · invitación a ' + x.email : ''}`
+    const detalle = e.tipo === 'reunion_pendiente' ? `Pide la sesión el ${x.cuando || x.inicio || '—'} (${x.modalidad || 'videollamada'})${x.email ? ' · invitación a ' + x.email : ''}. Confírmela con la fecha y la hora acordadas: quedará registrada en HubSpot y se enviará a Atalaya.`
       : e.tipo === 'transferencia_sin_respuesta' ? `Nadie contestó (${texto('resultado', x.estado) || '—'}): devuélvale la llamada.`
-        : e.tipo === 'urgencia' ? (x.texto || '') : (x.error || (x.errores ? 'Códigos de Meta: ' + x.errores.join(', ') : ''));
+        : e.tipo === 'atalaya_reunion_fallo' ? `No se ha podido enviar a Atalaya la sesión del ${x.cuerpo?.inicio ? fechaHora(x.cuerpo.inicio) : '—'}${x.intentos ? ` (${x.intentos} ${x.intentos === 1 ? 'intento' : 'intentos'})` : ''}: ${x.motivo || 'sin detalle'}.`
+          : e.tipo === 'urgencia' ? (x.texto || '') : (x.error || (x.errores ? 'Códigos de Meta: ' + x.errores.join(', ') : ''));
     return { id: e.id, ts: e.ts, tipo: e.tipo, titulo: texto('accion', e.tipo), detalle, conversacionId: conv?.id ?? x.conversacionId ?? null,
+      ...(e.tipo === 'reunion_pendiente' ? { inicio: x.inicio || null } : {}),
       contacto: contacto ? { id: contacto.id, nombre: contacto.nombre, empresa: contacto.empresa, telefono: contacto.telefono } : (x.telefono ? { telefono: x.telefono } : null) };
   });
 }
@@ -198,6 +203,16 @@ async function grabacion(id) {
 }
 
 // ---------- Contactos ----------
+/** Estado que se enseña de un contacto en una campaña: si está de baja y aún no se ha decidido, «Excluido (baja)». */
+export const estadoVisible = (estado, deBaja) => (deBaja && ['pendiente', 'reintentar'].includes(estado) ? 'excluido_baja' : estado);
+/** Motivo legible de un contacto en una campaña (los códigos se traducen; «baja» → «Dado de baja»). */
+export function motivoVisible(motivo, estado) {
+  if (estado === 'excluido_baja') return TEXTOS.motivo.baja;
+  if (!motivo) return null;
+  if (TEXTOS.motivo[motivo]) return TEXTOS.motivo[motivo];
+  return TEXTOS.resultado[motivo] ? null : motivo;
+}
+
 const ULTIMA = `(SELECT MAX(COALESCE(v.fin, v.inicio)) FROM conversaciones v WHERE v.contacto_id = c.id)`;
 export function listaContactos({ q, base, limite = 200 } = {}) {
   const w = [], a = [];
@@ -225,16 +240,18 @@ export async function fichaContacto(id) {
     const n = d.prepare(`SELECT COUNT(*) n FROM mensajes WHERE conversacion_id = ? AND rol IN ('usuario', 'asistente')`).get(v.id).n;
     const pendiente = !!d.prepare(`SELECT ${PENDIENTE_DE('v')} AS p FROM conversaciones v WHERE v.id = ?`).get(v.id).p;
     cron.push({ ts: v.inicio, tipo: 'conversacion', conversacionId: v.id, titulo: `${texto('canal', v.canal)} ${texto('direccion', v.direccion)}${v.resultado || pendiente ? ' · ' + texto('resultado', pendiente ? 'reunion_pendiente' : v.resultado) : ''}`,
-      detalle: [v.resumen, `${n} mensajes${v.duracion_s ? ` · ${v.duracion_s} s` : ''}`, v.transferencia && `Transferencia: ${texto('transferencia', v.transferencia)}`, v.volver_llamar && `Pidió que le llamen el ${v.volver_llamar} (UTC)`].filter(Boolean).join(' · '),
+      detalle: [v.resumen, `${n} ${n === 1 ? 'mensaje' : 'mensajes'}${v.duracion_s ? ` · ${v.duracion_s} s` : ''}`, v.transferencia && `Transferencia: ${texto('transferencia', v.transferencia)}`, v.volver_llamar && `Pidió que le llamen el ${v.volver_llamar} (UTC)`].filter(Boolean).join(' · '),
       grabada: !!v.grabacion_url });
     for (const m of d.prepare(`SELECT * FROM mensajes WHERE conversacion_id = ? AND rol IN ('nota', 'reunion', 'whatsapp_enviado') ORDER BY id`).all(v.id)) {
       const x = jsonSeguro(m.datos) || {};
       cron.push({ ts: m.ts, tipo: m.rol, conversacionId: v.id, titulo: m.rol === 'nota' ? (x.urgente ? 'Urgencia' : x.tipo === 'tarea' ? 'Tarea para el equipo' : x.tipo === 'oportunidad' ? 'Oportunidad' : 'Nota') : texto('rol', m.rol), detalle: m.texto });
     }
   }
+  const deBajaC = db.estaDeBaja(c.telefono, c.email);
   for (const k of d.prepare(`SELECT cc.*, k.nombre AS campana, k.creada FROM campana_contactos cc JOIN campanas k ON k.id = cc.campana_id WHERE cc.contacto_id = ?`).all(id)) {
-    cron.push({ ts: k.ultimo_intento || k.creada, tipo: 'campana', titulo: `Campaña «${k.campana}»: ${texto('estadoContacto', k.estado)}`,
-      detalle: [k.intentos ? `${k.intentos} intento${k.intentos === 1 ? '' : 's'}` : 'sin intentos', k.resultado && texto('resultado', k.resultado), k.motivo && !TEXTOS.resultado[k.motivo] ? k.motivo : null, k.pedido && `próxima llamada pedida: ${k.pedido} (UTC)`].filter(Boolean).join(' · ') });
+    const estadoK = estadoVisible(k.estado, deBajaC);
+    cron.push({ ts: k.ultimo_intento || k.creada, tipo: 'campana', titulo: `Campaña «${k.campana}»: ${texto('estadoContacto', estadoK)}`,
+      detalle: [k.intentos ? `${k.intentos} intento${k.intentos === 1 ? '' : 's'}` : 'sin intentos', k.resultado && texto('resultado', k.resultado), motivoVisible(k.motivo, estadoK), k.pedido && `próxima llamada pedida: ${k.pedido} (UTC)`].filter(Boolean).join(' · ') });
   }
   const baja = db.bajaDe({ telefono: c.telefono, email: c.email });
   if (baja) cron.push({ ts: baja.ts, tipo: 'baja', titulo: 'Baja de comunicaciones comerciales', detalle: `Por ${texto('canal', baja.canal) || '—'}${baja.motivo ? ': ' + baja.motivo : ''}` });
@@ -328,6 +345,8 @@ async function api(req, res, partes, s) {
   if (M === 'GET' && a === 'textos') return TEXTOS;
   if (M === 'GET' && a === 'acciones') return acciones();
   if (M === 'POST' && a === 'acciones' && id && c === 'resolver') return { ok: db.resolverEvento(id, s.u || 'panel') };
+  if (M === 'POST' && a === 'acciones' && id && c === 'confirmar') { const j = await cuerpoJSON(req); return confirmarReunionPendiente(id, { inicio: j.inicio, enlace: j.enlace || null }, s.u || 'panel'); }
+  if (M === 'POST' && a === 'acciones' && id && c === 'reintentar') return reintentarReunionAtalaya(id, s.u || 'panel');
   if (M === 'GET' && a === 'conversaciones' && !b) return listaConversaciones({ q: qp('q'), canal: qp('canal'), resultado: qp('resultado'), desde: qp('desde'), hasta: qp('hasta'), limite: qp('limite'), saltar: qp('saltar') });
   if (M === 'GET' && a === 'conversaciones' && id && c === 'grabacion') return grabacion(id);
   if (M === 'GET' && a === 'conversaciones' && id) return detalleConversacion(id) || Promise.reject(error(404, 'No encontrada'));
@@ -339,17 +358,24 @@ async function api(req, res, partes, s) {
     if (!ct) throw error(404, 'Contacto no encontrado');
     if (M === 'POST' && c === 'invitar') {
       const j = await cuerpoJSON(req);
-      return invitarAAtalaya({ email: ct.email, nombre: ct.nombre, empresa: ct.empresa, telefono: ct.telefono, hubspotCompanyId: ct.hubspot_company_id, plan: j.plan || undefined });
+      // A quien pidió la baja no se le invita (es una comunicación comercial)
+      if (db.estaDeBaja(ct.telefono, ct.email)) throw error(409, 'Este contacto pidió la baja de comunicaciones comerciales: no se le invita a Atalaya.');
+      return invitarAAtalaya({ email: ct.email, nombre: ct.nombre, empresa: ct.empresa, telefono: ct.telefono, hubspotCompanyId: ct.hubspot_company_id, hubspotContactId: ct.hubspot_id, plan: j.plan || undefined });
     }
     if (M === 'POST' && c === 'baja') { const j = await cuerpoJSON(req); return bajaPanel({ telefono: ct.telefono, email: ct.email, motivo: j.motivo, contacto: ct }); }
   }
   if (M === 'GET' && a === 'exportar' && b) return exportar(b, u);
   if (M === 'GET' && a === 'integraciones') return { integraciones: await estadoIntegraciones({ comprobar: qp('comprobar') !== '0' }) };
   if (a === 'campanas') {
-    if (M === 'GET' && !b) return { campanas: campanas.listarCampanas(), bases: BASES, prospeccionActiva: C.prospeccion.activa };
+    if (M === 'GET' && !b) return { campanas: campanas.listarCampanas(), bases: BASES, prospeccionActiva: C.prospeccion.activa, robinson: estadoRobinson() };
     if (M === 'POST' && !b) return campanas.crearCampana(await cuerpoJSON(req));
     if (!id) return null;
-    if (M === 'GET' && !c) return { ...campanas.resultadosCampana(id, { estado: qp('estado') || null }), prospeccionActiva: C.prospeccion.activa };
+    if (M === 'GET' && !c) {
+      const r = campanas.resultadosCampana(id, { estado: qp('estado') || null });
+      if (!r.campana) throw error(404, 'Campaña no encontrada');
+      const contactos = r.contactos.map((x) => { const deBaja = db.estaDeBaja(x.telefono, x.email); const estado = estadoVisible(x.estado, deBaja); return { ...x, de_baja: deBaja, estado_visible: estado, motivo_visible: motivoVisible(x.motivo, estado) }; });
+      return { ...r, contactos, prospeccionActiva: C.prospeccion.activa, robinson: estadoRobinson() };
+    }
     if (M === 'POST' && c === 'importar') { const j = await cuerpoJSON(req); return campanas.importarCSV(id, j.csv || ''); }
     if (M === 'POST' && c === 'hubspot') { const j = await cuerpoJSON(req); return await campanas.importarDesdeHubSpot(id, j.listaId); }
     if (M === 'POST' && c === 'pausar') return campanas.pausarCampana(id);
@@ -359,7 +385,7 @@ async function api(req, res, partes, s) {
     }
   }
   if (a === 'bajas') {
-    if (M === 'GET') return { bajas: db.abrir().prepare('SELECT * FROM bajas ORDER BY ts DESC LIMIT 500').all(), robinson: db.abrir().prepare('SELECT COUNT(*) n, MAX(fecha_lista) fecha FROM robinson').get() };
+    if (M === 'GET') return { bajas: db.abrir().prepare('SELECT * FROM bajas ORDER BY ts DESC LIMIT 500').all(), robinson: { ...db.abrir().prepare('SELECT COUNT(*) n, MAX(fecha_lista) fecha FROM robinson').get(), estado: estadoRobinson() } };
     if (M === 'POST') { const j = await cuerpoJSON(req); return bajaPanel({ telefono: j.telefono, email: j.email, motivo: j.motivo }); }
   }
   if (M === 'POST' && a === 'robinson') { const j = await cuerpoJSON(req); return importarRobinsonCSV(j.csv || '', j.fecha || undefined); }

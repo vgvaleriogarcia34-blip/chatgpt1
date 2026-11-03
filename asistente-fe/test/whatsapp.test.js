@@ -237,12 +237,27 @@ test('enviar_whatsapp: texto libre dentro de la ventana; fuera, plantilla o rech
   db.anotar(viejo, 'usuario', 'Hola');
   db.abrir().prepare(`UPDATE mensajes SET ts = datetime('now', '-2 days') WHERE conversacion_id = ?`).run(viejo);
   assert.equal(canal.dentroDeVentana('+34611111111'), false);
+  // Sin consentimiento para WhatsApp no se envía nada por iniciativa propia
   r = await herramientas.ejecutar('enviar_whatsapp', { texto: 'Información' }, { canal: 'voz', contacto: c });
+  assert.match(r.contenido, /No consta que haya aceptado recibir WhatsApp/);
+  // Lo acepta en la llamada: queda registrado, pero sin plantilla no se puede enviar
+  r = await herramientas.ejecutar('enviar_whatsapp', { texto: 'Información', acepta_whatsapp: true }, { canal: 'voz', contacto: c });
   assert.match(r.contenido, /plantillas aprobadas/);
+  assert.match(db.contactoPorId(c.id).consentimiento_whatsapp, /^\d{4}-\d\d-\d\d$/);
   const n = enviados.length;
 
   canal.configurarCanal({ plantillaSeguimiento: 'seguimiento_fe' });
   try {
+    // Por WhatsApp (no en una llamada) acepta_whatsapp no vale como consentimiento
+    const sin = db.guardarContacto({ telefono: '+34611111199', nombre: 'Sin permiso' });
+    r = await herramientas.ejecutar('enviar_whatsapp', { texto: 'Hola', acepta_whatsapp: true }, { canal: 'whatsapp', contacto: sin });
+    assert.match(r.contenido, /No consta/); assert.equal(enviados.length, n);
+    // De baja: nunca fuera de la ventana, aunque conste el consentimiento
+    const baja = db.guardarContacto({ telefono: '+34611111198', nombre: 'De baja', consentimiento_whatsapp: '2026-09-01' });
+    db.darDeBaja(baja.telefono);
+    r = await herramientas.ejecutar('enviar_whatsapp', { texto: 'Hola' }, { canal: 'voz', contacto: baja });
+    assert.match(r.contenido, /pidió no recibir comunicaciones comerciales/); assert.equal(enviados.length, n);
+
     r = await herramientas.ejecutar('enviar_whatsapp', { texto: 'Le dejo el enlace:\nhttps://businessavance.es' }, { canal: 'voz', contacto: c });
     assert.match(r.contenido, /plantilla/);
     const p = enviados.at(-1);
@@ -255,6 +270,7 @@ test('enviar_whatsapp: texto libre dentro de la ventana; fuera, plantilla o rech
 });
 
 test('enviarProactivo: solo plantillas, respeta bajas y exige base legal', async () => {
+  (await import('../src/prospeccion/cumplimiento.js')).importarRobinsonCSV('+34999999999\n'); // lista Robinson al día
   assert.deepEqual(await canal.enviarProactivo('+34600000008', 'presentacion', ['Ana']), { enviado: false, motivo: 'de baja' });
   assert.equal((await canal.enviarProactivo('+34622222222', 'presentacion', ['Pedro'])).motivo, 'sin base legal registrada');
   db.guardarContacto({ telefono: '+34644444444', nombre: 'Luis', base_legal: 'cliente' });
@@ -272,4 +288,34 @@ test('enviarProactivo: solo plantillas, respeta bajas y exige base legal', async
   const conv = turnos.at(-1).conv;
   assert.equal(conv.conversacionId, r.conversacionId);
   assert.match(conv.messages[1].content[0].text, /le escribimos por el relevo/);
+});
+
+test('enviarProactivo: comprueba la baja en HubSpot justo antes; si HubSpot no responde, no envía', async () => {
+  const http = await import('node:http');
+  const hubspot = await import('../src/crm/hubspot.js');
+  let modo = 'baja';
+  const fake = http.createServer((req, res) => {
+    req.resume(); req.on('end', () => {
+      if (modo === 'caido') { res.writeHead(503); return res.end('{}'); }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      const tel = req.url.includes('hs-baja') ? 'baja' : 'ok';
+      res.end(JSON.stringify({ id: 'x', properties: { fe_baja: tel === 'baja' ? 'true' : null, hs_email_optout: 'false' } }));
+    });
+  });
+  await new Promise((ok) => fake.listen(0, '127.0.0.1', ok));
+  hubspot.configurarHubspot({ base: `http://127.0.0.1:${fake.address().port}`, token: 'hs', esperaMaxMs: 10 });
+  try {
+    db.guardarContacto({ telefono: '+34633333301', nombre: 'Eva', base_legal: 'cliente', consentimiento_whatsapp: '2026-10-01', hubspot_id: 'hs-baja' });
+    db.guardarContacto({ telefono: '+34633333302', nombre: 'Juan', base_legal: 'cliente', consentimiento_whatsapp: '2026-10-01', hubspot_id: 'hs-ok' });
+    const n = enviados.length;
+    const r1 = await canal.enviarProactivo('+34633333301', 'presentacion', ['Eva']);
+    assert.equal(r1.enviado, false); assert.equal(r1.codigo, 'baja');
+    assert.equal(db.estaDeBaja('+34633333301'), true, 'la baja de HubSpot queda también en local');
+    modo = 'caido';
+    const r2 = await canal.enviarProactivo('+34633333302', 'presentacion', ['Juan']);
+    assert.equal(r2.enviado, false); assert.equal(r2.codigo, 'hubspot_no_responde'); assert.equal(r2.reintentar, true);
+    assert.equal(enviados.length, n, 'no se ha enviado nada');
+    modo = 'ok';
+    assert.equal((await canal.enviarProactivo('+34633333302', 'presentacion', ['Juan'])).enviado, true);
+  } finally { fake.close(); hubspot.configurarHubspot({ token: '' }); }
 });

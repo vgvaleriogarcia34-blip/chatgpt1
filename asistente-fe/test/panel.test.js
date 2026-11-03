@@ -74,6 +74,11 @@ test('API: resumen, campañas, bajas y protección de las peticiones POST', asyn
   r = await post(`campanas/${k.id}/importar`, { csv: 'telefono,nombre,base_legal\n600123123,Marta,cliente\n600123124,Pedro,\n' });
   const imp = await r.json();
   assert.equal(imp.importados, 2); assert.equal(imp.sinBaseLegal, 1);
+  // Sin lista Robinson cargada, la campaña no se activa
+  r = await post(`campanas/${k.id}/reanudar`, {});
+  assert.equal(r.status, 409); assert.match((await r.json()).error, /Robinson/);
+  r = await post('robinson', { csv: '600777888\n600777889\n' });
+  assert.deepEqual(await r.json(), { cargados: 2, descartados: 0, anteriores: 0 });
   assert.equal((await (await post(`campanas/${k.id}/reanudar`, {})).json()).estado, 'activa');
   assert.equal((await (await post(`campanas/${k.id}/pausar`, {})).json()).estado, 'pausada');
   r = await pedir(`/panel/api/campanas/${k.id}`, { headers: { cookie } });
@@ -83,7 +88,7 @@ test('API: resumen, campañas, bajas y protección de las peticiones POST', asyn
   assert.equal((await post('bajas', { telefono: '600 555 444', motivo: 'lo pidió por correo' })).status, 200);
   assert.equal(db.estaDeBaja('+34600555444'), true);
   r = await post('robinson', { csv: '600777888\n600777889\n', fecha: '2026-10-30' });
-  assert.deepEqual(await r.json(), { cargados: 2, descartados: 0 });
+  assert.deepEqual(await r.json(), { cargados: 2, descartados: 0, anteriores: 2 }); // sustituye la lista anterior
 
   db.evento('latencia', { ms: 700 }); db.evento('latencia', 900);
   const conv = db.abrirConversacion({ canal: 'voz', direccion: 'entrante' });

@@ -68,9 +68,10 @@ before(async () => {
   S.fabricas.stt = () => new DeepgramSTT({ urlBase: `ws://127.0.0.1:${dgPuerto}` });
   S.fabricas.tts = () => new ElevenLabsTTS({ urlBase: `ws://127.0.0.1:${elPuerto}`, silencioFinMs: 60 });
   // Falso cliente REST de Twilio
-  const calls = (sid) => ({ update: async (o) => { restTwilio.push({ sid, ...o }); }, recordings: { create: async (o) => restTwilio.push({ sid, grabar: true, ...o }) } });
+  const calls = (sid) => ({ update: async (o) => { restTwilio.push({ sid, ...o }); },
+    recordings: Object.assign((rsid) => ({ update: async (o) => restTwilio.push({ sid, grabacion: rsid, ...o }) }), { create: async (o) => restTwilio.push({ sid, grabar: true, ...o }) }) });
   calls.create = async (o) => { restTwilio.push({ crear: o }); return { sid: 'CAsaliente1' }; };
-  T.ponerClienteTwilio({ calls });
+  T.ponerClienteTwilio({ calls, recordings: (rsid) => ({ remove: async () => restTwilio.push({ borrar: rsid }) }) });
 
   srv = crearServidor();
   puerto = await escuchar(srv);
@@ -425,4 +426,56 @@ test('grabación: la dirección del audio llega por el aviso firmado de Twilio y
   await T.grabarLlamada('CAgrab', { conversacionId: conv });
   const g = restTwilio.find((x) => x.grabar && x.sid === 'CAgrab');
   assert.equal(g.recordingStatusCallback, `https://asistente.test/voz/grabacion?conversacionId=${conv}`);
+});
+
+test('grabación: se avisa antes de grabar, empieza cuando la persona habla sin oponerse y se detiene (y se borra) si lo pide', async () => {
+  assert.equal(S.pideNoGrabar('Prefiero que no se grabe, por favor'), true);
+  assert.equal(S.pideNoGrabar('No me grabe'), true);
+  assert.equal(S.pideNoGrabar('No quiero que me graben'), true);
+  assert.equal(S.pideNoGrabar('Mejor sin grabación'), true);
+  assert.equal(S.pideNoGrabar('Pare la grabación'), true);
+  assert.equal(S.pideNoGrabar('No, no tengo tiempo ahora'), false);
+  assert.equal(S.pideNoGrabar('Quería información sobre la sesión'), false);
+  const { C } = await import('../src/config.js');
+  C.twilio.grabar = true;
+  try {
+    // 1) Habla sin oponerse: se graba desde ese momento; luego pide que no se grabe: se detiene y lo grabado se borra
+    let llamadas = conversacionSimulada([{ frases: ['Soy Lucía, asistente de inteligencia artificial.'] }, { frases: ['Claro.'] }, { frases: ['Entendido, ya no se graba.'] }]);
+    let f = await abrirFlujo({ callSid: 'CAgr1', parametros: { direccion: 'entrante', desde: '+34655000011' } });
+    await hasta(() => f.audios().includes('si no se opone, esta llamada se grabará'), 3000, 'aviso de grabación');
+    assert.ok(f.audios().indexOf('se grabará') < f.audios().indexOf('Soy Lucía'), 'el aviso va antes que el saludo');
+    assert.ok(!restTwilio.some((r) => r.sid === 'CAgr1' && r.grabar), 'no se graba antes de avisar');
+    const ses = S.sesiones.get('CAgr1');
+    await hasta(() => !ses.hablando, 2000, 'fin del saludo');
+    let dgWs = dgConexiones.at(-1);
+    dgDice(dgWs, 'Hola, quería información.');
+    await hasta(() => restTwilio.some((r) => r.sid === 'CAgr1' && r.grabar), 2000, 'empieza a grabar');
+    await hasta(() => !ses.hablando && llamadas.length === 2, 2000, 'turno');
+    dgDice(dgWs, 'Prefiero que no se grabe la llamada, por favor.');
+    await hasta(() => restTwilio.some((r) => r.sid === 'CAgr1' && r.grabacion === 'Twilio.CURRENT' && r.status === 'stopped'), 2000, 'detiene la grabación');
+    await hasta(() => llamadas.length === 3, 2000, 'turno con la nota');
+    assert.match(llamadas[2].texto, /^\[Contexto interno: la persona ha pedido que no se grabe/);
+    const conv = db.conversacionPorExterno('CAgr1');
+    f.ws.send(JSON.stringify({ event: 'stop', streamSid: 'MZ1' }));
+    await hasta(() => db.conversacionPorId(conv.id).estado === 'cerrada', 2000);
+    // Llega el audio de lo grabado: se borra y no se guarda
+    const r = await firmado(`/voz/grabacion?conversacionId=${conv.id}`, { CallSid: 'CAgr1', RecordingSid: 'REno', RecordingUrl: 'https://api.twilio.com/2010-04-01/Accounts/ACprueba/Recordings/REno', RecordingStatus: 'completed' });
+    assert.equal(r.status, 204);
+    assert.equal(db.conversacionPorId(conv.id).grabacion_url, null);
+    await hasta(() => restTwilio.some((x) => x.borrar === 'REno'), 2000, 'borra la grabación');
+
+    // 2) Lo pide nada más oír el aviso: no se llega a grabar
+    llamadas = conversacionSimulada([{ frases: ['Soy Lucía.'] }, { frases: ['De acuerdo, no se graba.'] }]);
+    f = await abrirFlujo({ callSid: 'CAgr2', parametros: { direccion: 'entrante', desde: '+34655000012' } });
+    await hasta(() => f.audios().includes('Soy Lucía.'), 3000, 'saludo');
+    const ses2 = S.sesiones.get('CAgr2');
+    await hasta(() => !ses2.hablando, 2000, 'fin del saludo');
+    dgWs = dgConexiones.at(-1);
+    dgDice(dgWs, 'No me grabe, por favor.');
+    await hasta(() => llamadas.length === 2, 2000, 'turno');
+    dgDice(dgWs, 'Quería información sobre el relevo.');
+    await espera(100);
+    assert.ok(!restTwilio.some((x) => x.sid === 'CAgr2' && x.grabar), 'no se graba');
+    f.ws.send(JSON.stringify({ event: 'stop', streamSid: 'MZ1' }));
+  } finally { C.twilio.grabar = false; }
 });

@@ -26,7 +26,7 @@ import { Conversacion } from '../cerebro/agente.js';
 import { registrar } from '../cerebro/herramientas.js';
 import { DeepgramSTT } from './stt-deepgram.js';
 import { ElevenLabsTTS } from './tts-elevenlabs.js';
-import { firmaStreamValida, colgarLlamada, transferirLlamada, grabarLlamada } from './twilio.js';
+import { firmaStreamValida, colgarLlamada, transferirLlamada, grabarLlamada, pararGrabacion } from './twilio.js';
 import { avisar } from '../avisos.js';
 
 export const ganchos = { alTerminar: [] }; // fn(conversacionId, datos) al cerrar cada llamada
@@ -38,16 +38,30 @@ export const fabricas = {
   conversacion: (o) => new Conversacion(o),
   stt: () => new DeepgramSTT(),
   tts: () => new ElevenLabsTTS(),
+  grabar: (callSid, o) => grabarLlamada(callSid, o),
+  pararGrabacion: (callSid) => pararGrabacion(callSid),
 };
 
 const FRASES = {
   sigue: '¿Sigue ahí?',
   despedida: 'Parece que se ha cortado la comunicación. Le llamaremos en otro momento. Que tenga un buen día.',
-  grabacion: 'Le informo de que esta llamada se graba para mejorar la atención.',
+  // Solo con GRABAR_LLAMADAS. Se dice antes de empezar a grabar; la grabación empieza cuando la persona habla sin oponerse
+  grabacion: 'Antes de empezar: si no se opone, esta llamada se grabará para revisar la calidad de la atención y resolver posibles incidencias. Si prefiere que no se grabe, dígamelo y seguimos sin grabar.',
   fallo: 'Disculpe, he tenido un problema técnico. Una persona del equipo le llamará lo antes posible.',
   sinTransferencia: 'Disculpe, no he podido pasarle la llamada. Dejo anotado que le llamen lo antes posible.',
 };
 const ASENTIMIENTO = /^(s[ií]|aj[aá]|vale|ya|m+|mhm|ok|okay|claro|eh|ah|bien|venga|exacto|perfecto|de acuerdo)$/i;
+// «No me grabe», «prefiero que no se grabe», «sin grabar», «no quiero que me graben»…
+const NO_GRABAR = [
+  /\bno\s+(me|nos|la|lo)?\s*grab(e|en|es|éis|eis|ar)\b/iu,
+  /\b(sin|que no)\s+(se\s+)?(grab(e|en|ar|aci[oó]n)|la grabaci[oó]n)\b/iu,
+  /\bno\s+(quiero|deseo|acepto|consiento|me gusta)\s+(que\s+)?(se\s+|me\s+|nos\s+)?(la\s+)?(grab|ser grabad)/iu,
+  /\b(prefiero|preferir[ií]a|mejor)\s+que no\s+(se\s+|me\s+)?grab/iu,
+  /\b(pare|paren|detenga|quite|corte)\s+(la\s+)?grabaci[oó]n\b/iu,
+  /\bno\s+(a|con)\s+la grabaci[oó]n\b|\bme opongo a (que se grabe|la grabaci[oó]n)/iu,
+];
+/** ¿Pide que no se grabe la llamada? */
+export const pideNoGrabar = (t) => !!t && NO_GRABAR.some((r) => r.test(String(t)));
 const palabras = (t) => (String(t).match(/[\p{L}\p{N}]+/gu) || []).length;
 const log = (...a) => console.log('[voz]', ...a);
 const campanaPorId = (id) => db.abrir().prepare('SELECT * FROM campanas WHERE id = ?').get(Number(id)) || null;
@@ -103,7 +117,8 @@ export class SesionVoz {
     this.stt.on('fallo', (err) => log('STT:', err.message));
     this.stt.conectar();
 
-    if (C.twilio.grabar) grabarLlamada(this.callSid, { conversacionId: this.conversacionId }).catch((err) => log('no se pudo grabar:', err.message));
+    // Con GRABAR_LLAMADAS la grabación no empieza aquí: primero se avisa (saludar) y empieza cuando la persona habla sin oponerse
+    this.grabacion = C.twilio.grabar ? 'por_avisar' : 'no';
     if (amdPendientes.delete(this.callSid)) return this.buzon();
     if (this.direccion === 'entrante') this.saludar();
     else this.tSaludo = setTimeout(() => this.saludar(), TIEMPOS.saludoSaliente);
@@ -112,7 +127,10 @@ export class SesionVoz {
   saludar(dicho = null) {
     if (this.saludado || this.estado !== 'activa') return;
     this.saludado = true; clearTimeout(this.tSaludo);
-    if (C.twilio.grabar) this.tts.decir(FRASES.grabacion); // suena mientras Claude prepara el saludo
+    if (this.grabacion === 'por_avisar') { // suena mientras Claude prepara el saludo
+      this.tts.decir(FRASES.grabacion); db.anotar(this.conversacionId, 'asistente', FRASES.grabacion, { fija: true, avisoGrabacion: true });
+      this.grabacion = 'avisada';
+    }
     let texto;
     if (this.direccion === 'entrante') texto = '[La llamada acaba de conectarse. Salude.]';
     else if (dicho) { db.anotar(this.conversacionId, 'usuario', dicho); texto = `[La persona ha descolgado y ha dicho: «${dicho}»]`; }
@@ -229,8 +247,31 @@ export class SesionVoz {
       this.interrumpir();
     }
     db.anotar(this.conversacionId, 'usuario', texto);
-    const total = (this.pendienteUsuario + ' ' + texto).trim(); this.pendienteUsuario = '';
+    let total = (this.pendienteUsuario + ' ' + texto).trim(); this.pendienteUsuario = '';
+    const nota = this.decidirGrabacion(texto);
+    if (nota) total = `${nota}\n${total}`;
     this.responder(total, { tFinHabla: ts });
+  }
+
+  // ---------- Grabación (solo con GRABAR_LLAMADAS) ----------
+  /**
+   * Tras el aviso, la grabación empieza cuando la persona habla sin oponerse. Si pide que no se grabe (antes o después),
+   * no se graba o se detiene, y lo grabado se borra al llegar. Devuelve una nota para Claude si hay que confirmárselo.
+   */
+  decidirGrabacion(texto) {
+    if (this.grabacion === 'no' || this.grabacion === 'por_avisar' || this.grabacion === 'rechazada') return null;
+    if (pideNoGrabar(texto)) {
+      const grabando = this.grabacion === 'grabando';
+      this.grabacion = 'rechazada';
+      db.evento('grabacion_rechazada', { conversacionId: this.conversacionId, callSid: this.callSid, habiaEmpezado: grabando });
+      if (grabando) fabricas.pararGrabacion(this.callSid).catch((err) => log('no se pudo detener la grabación:', err.message));
+      return '[Contexto interno: la persona ha pedido que no se grabe la llamada. La llamada ya no se graba (y lo grabado se borra). Confírmeselo en una frase y siga con normalidad.]';
+    }
+    if (this.grabacion === 'avisada') {
+      this.grabacion = 'grabando';
+      fabricas.grabar(this.callSid, { conversacionId: this.conversacionId }).catch((err) => { log('no se pudo grabar:', err.message); if (this.grabacion === 'grabando') this.grabacion = 'no'; });
+    }
+    return null;
   }
 
   interrumpir() {

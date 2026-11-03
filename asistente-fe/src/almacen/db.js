@@ -51,6 +51,8 @@ const MIGRACIONES = [
    CREATE INDEX evt_tipo ON eventos(tipo, resuelto);
    CREATE INDEX contactos_email ON contactos(email);
    CREATE INDEX bajas_email ON bajas(email);`,
+  // Lista Robinson: cada importación sustituye a la anterior y deja constancia de la fecha de la lista (vigencia)
+  `CREATE TABLE robinson_cargas (id INTEGER PRIMARY KEY, fecha_lista TEXT, importada TEXT DEFAULT (datetime('now')), numeros INTEGER, descartados INTEGER, anteriores INTEGER);`,
 ];
 
 let db;
@@ -160,6 +162,7 @@ export function bajaDe({ telefono = null, email = null } = {}) {
   return (tel && d.prepare('SELECT * FROM bajas WHERE telefono = ?').get(tel)) || (m && d.prepare('SELECT * FROM bajas WHERE email = ? ORDER BY ts LIMIT 1').get(m)) || null;
 }
 export function enRobinson(telefono) { return !!abrir().prepare('SELECT 1 FROM robinson WHERE telefono = ?').get(normTel(telefono)); }
+/** Añade números a la lista Robinson (uso interno y pruebas). La importación del fichero de Adigital la sustituye entera: importarRobinsonCSV. */
 export function cargarRobinson(telefonos, fechaLista) {
   const d = abrir(), st = d.prepare('INSERT OR REPLACE INTO robinson (telefono, fecha_lista) VALUES (?, ?)');
   d.exec('BEGIN'); for (const t of telefonos) { const x = normTel(t); if (x) st.run(x, fechaLista); } d.exec('COMMIT');

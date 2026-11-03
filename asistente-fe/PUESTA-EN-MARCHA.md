@@ -212,7 +212,8 @@ Todas están comentadas en `.env.ejemplo`. «Sí» en «Obligatoria» significa 
 | `RESPONSABLE_MOVIL` | Para transferir | — | Móvil `+34…` al que se pasan las llamadas (y los avisos por WhatsApp) |
 | `RESPONSABLE_EMAIL` | Para los avisos | — | Correo al que llegan los avisos al equipo |
 | `RESPONSABLE_DATOS` / `RESPONSABLE_DATOS_NIF` / `RESPONSABLE_DATOS_MARCA` | No | `AKOMPANO GROUP, S.L.` / `B05544713` / `Business Avance International Consulting` | Responsable del tratamiento, que la asistente nombra si se lo preguntan |
-| `URL_PRIVACIDAD` | Recomendada | — | Política de privacidad (apartado «Asistente telefónico y WhatsApp»); la asistente ofrece enviarla por WhatsApp |
+| `URL_PRIVACIDAD` | Recomendada | `ATALAYA_URL` + `/privacidad.html#asistente` si hay `ATALAYA_URL`; si no, vacía | Política de privacidad (apartado «Asistente telefónico y WhatsApp»); la asistente ofrece enviarla por WhatsApp. Vacía: la asistente no ofrece el enlace y deja anotado que el equipo se la haga llegar |
+| `ROBINSON_MAX_DIAS` | No | 30 | Días que vale la lista Robinson importada: con una más antigua (o sin lista) no se activa ninguna campaña ni se llama |
 | `ZONA_HORARIA` | No | `Europe/Madrid` | Zona horaria de horarios y agenda |
 | `ANTHROPIC_API_KEY` | Sí | — | Clave de Claude |
 | `MODELO_VOZ` / `MODELO_TEXTO` | No | `claude-opus-5-5` | Modelo (no cambiar) |

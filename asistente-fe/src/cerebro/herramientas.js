@@ -17,7 +17,7 @@ const S = {
     modalidad: z.enum(['videollamada', 'telefono', 'presencial']).optional(),
   }),
   registrar_nota: z.object({ texto: z.string().min(2), tipo: z.enum(['nota', 'tarea', 'oportunidad']).optional(), fecha: z.string().optional(), urgente: z.boolean().optional() }),
-  enviar_whatsapp: z.object({ texto: z.string().min(2) }),
+  enviar_whatsapp: z.object({ texto: z.string().min(2), acepta_whatsapp: z.boolean().optional() }),
   transferir_llamada: z.object({ motivo: z.string() }),
   dar_de_baja: z.object({ motivo: z.string().optional() }),
   finalizar: z.object({
@@ -53,8 +53,10 @@ export const DEFINICIONES = [
     texto: { type: 'string' }, tipo: { type: 'string', enum: ['nota', 'tarea', 'oportunidad'] }, fecha: { type: 'string', description: 'Fecha ISO de vencimiento de la tarea, si la hay' },
     urgente: { type: 'boolean', description: 'Cliente con una urgencia o algo que no puede esperar: aviso inmediato al equipo y tarea de prioridad alta' },
   }, ['texto']),
-  def('enviar_whatsapp', 'Envía un WhatsApp al interlocutor (por ejemplo, el enlace de la reunión o información que ha pedido). En una llamada, pídale permiso antes.',
-    { texto: { type: 'string' } }, ['texto']),
+  def('enviar_whatsapp', 'Envía un WhatsApp al interlocutor (por ejemplo, el enlace de la reunión o información que ha pedido). En una llamada, pídale permiso antes.', {
+    texto: { type: 'string' },
+    acepta_whatsapp: { type: 'boolean', description: 'Solo en una llamada: true si la persona acaba de aceptar expresamente recibir mensajes de WhatsApp de la firma (queda registrado como su consentimiento)' },
+  }, ['texto']),
   def('transferir_llamada', 'Pasa la llamada a una persona del equipo. Úsela si lo pide, si es un cliente con una urgencia o si la conversación necesita a una persona.',
     { motivo: { type: 'string' } }, ['motivo']),
   def('dar_de_baja', 'Registra que el interlocutor no quiere recibir más llamadas ni mensajes comerciales. Úsela en cuanto lo pida, sin insistir.',

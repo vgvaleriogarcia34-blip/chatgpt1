@@ -15,7 +15,7 @@
 
 Lucía es una asistente de **inteligencia artificial**. Atiende las llamadas al número de Familias Empresarias y los mensajes de WhatsApp, responde a preguntas sobre nuestros servicios, propone y agenda la sesión estratégica (60 minutos, sin coste) con Valerio García y deja constancia de la conversación para que el equipo pueda darle seguimiento. Siempre dice al empezar que es una inteligencia artificial y, si usted pide hablar con una persona, le pasamos la llamada o le escribe alguien del equipo.
 
-También puede llamarle por teléfono, solo si usted nos dio su consentimiento, es cliente o tiene una relación previa con nosotros (por ejemplo, asistió a una ponencia y se le informó de que podríamos contactarle), nunca si figura en la Lista Robinson o nos ha pedido que no le contactemos, y en días laborables entre las 9:00 y las 21:00.
+También puede llamarle por teléfono, solo si usted nos dio su consentimiento, es cliente o tiene una relación previa con nosotros (por ejemplo, asistió a una ponencia y se le informó de que podríamos contactarle) o, solo en las campañas que lo admiten, si es un profesional de empresa al que se puede llamar por interés legítimo (nunca a su móvil personal; en la primera llamada se le dice quién llama, por qué y cómo oponerse) [A CONFIRMAR con el abogado], nunca si figura en la Lista Robinson o nos ha pedido que no le contactemos, y en días laborables entre las 9:00 y las 21:00.
 
 ## Qué datos tratamos
 
@@ -23,7 +23,7 @@ También puede llamarle por teléfono, solo si usted nos dio su consentimiento, 
 - Lo que usted cuente en la conversación sobre su empresa y lo que necesita.
 - La **transcripción** de la llamada o los mensajes de WhatsApp (incluidas las notas de voz, que se convierten en texto), y un resumen.
 - Datos de la llamada: número, fecha, hora y duración.
-- La **grabación de audio** de la llamada, solo si está activada; en ese caso se le avisa al empezar la llamada. [A CONFIRMAR: hoy la grabación está desactivada].
+- La **grabación de audio** de la llamada, solo si está activada; en ese caso se le avisa al empezar, antes de grabar, de que se grabará y para qué, y solo se graba si no se opone. [A CONFIRMAR: hoy la grabación está desactivada].
 - La reunión que agende (fecha, hora, modalidad y enlace).
 - Su preferencia de no recibir comunicaciones comerciales, si la expresa.
 
@@ -81,7 +81,7 @@ El borrado se hace de forma automática cada día.
 
 - **Para no recibir más llamadas ni mensajes comerciales** basta con decirlo: dígaselo a la asistente durante la llamada («no me llamen más»), escriba **BAJA** por WhatsApp o escríbanos a [PENDIENTE: correo]. La baja vale para todos los canales (teléfono, WhatsApp y correo) desde ese momento.
 - Puede ejercer los derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y portabilidad escribiendo a [PENDIENTE: correo], indicando qué derecho ejerce. Le responderemos en el plazo de un mes.
-- Si no quiere que la llamada se grabe, dígalo al empezar y se le atenderá sin grabación o le llamará una persona del equipo [A CONFIRMAR].
+- Si no quiere que la llamada se grabe, dígalo en cualquier momento: la llamada sigue sin grabación y, si ya había empezado, se detiene y lo grabado se borra [A CONFIRMAR].
 - Si considera que no hemos tratado bien sus datos, puede reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).
 
 ## Información en la propia llamada (primera capa)

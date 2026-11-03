@@ -38,8 +38,10 @@ El artículo 66.1.b) reconoce a los usuarios el derecho a **no recibir llamadas 
 
 - La Ley Orgánica 3/2018 de Protección de Datos (LOPDGDD), artículo 23, obliga a quien vaya a hacer mercadotecnia directa a **consultar previamente los sistemas de exclusión publicitaria** (la Lista Robinson que gestiona Adigital). Según esa norma, la consulta no sería necesaria si la persona ha dado su consentimiento para recibir comunicaciones de esa empresa en concreto (**a confirmar**); aun así, la empresa ha decidido filtrarla siempre.
 - La empresa debe darse de alta como entidad adherida en el servicio de Adigital y **descargar la lista del canal teléfono** antes de cada campaña y, como mínimo, cada mes (la periodicidad de consulta exigible es **a confirmar**).
-- Importación: panel → «Bajas y Robinson», o en el servidor `node src/prospeccion/importar-robinson.js fichero.csv AAAA-MM-DD`. El importador acepta teléfonos en claro o resumidos (SHA-256 o MD5). **El formato exacto del fichero de Adigital y cómo normaliza los teléfonos antes de resumirlos está por confirmar** con el primer fichero real: compruebe tras importarlo que un número inscrito conocido aparece como excluido.
+- Importación: panel → «Bajas y Robinson», o en el servidor `node src/prospeccion/importar-robinson.js fichero.csv AAAA-MM-DD`. Cada importación **sustituye** a la lista anterior de una vez (en una transacción); si el fichero no trae ningún número reconocible, la lista que había se mantiene. El importador acepta teléfonos en claro o resumidos (SHA-256 o MD5). **El formato exacto del fichero de Adigital y cómo normaliza los teléfonos antes de resumirlos está por confirmar** con el primer fichero real: compruebe tras importarlo que un número inscrito conocido aparece como excluido.
+- **Vigencia**: con la lista sin cargar o con una lista de más de `ROBINSON_MAX_DIAS` días (30 por defecto, contados desde la fecha de la lista de la última importación) no se activa ninguna campaña, el planificador no llama y no se envían WhatsApp proactivos. El panel lo avisa en el resumen, en las campañas y en «Bajas y Robinson».
 - Las **bajas propias** (quien dijo «no me llamen» o «BAJA») se respetan siempre, en todos los canales, y no caducan.
+- **Bajas en HubSpot**: justo antes de cada llamada o WhatsApp de campaña, si HubSpot está configurado, se consulta `fe_baja` y `hs_email_optout` del contacto (caché de 5 minutos, 4 segundos como máximo). Si consta la baja, se registra también en local y no se contacta; si HubSpot no responde, no se contacta y se vuelve a probar a los 15 minutos.
 
 ## 4. Horario e intentos
 
@@ -71,6 +73,7 @@ El artículo 66.1.b) reconoce a los usuarios el derecho a **no recibir llamadas 
 
 - El sistema **transcribe** todas las conversaciones (para funcionar y para el CRM). La **grabación de audio** está desactivada por defecto (`GRABAR_LLAMADAS=no`).
 - Si se activa la grabación, hay que avisar al inicio de la llamada de que se graba, con qué finalidad y cómo ejercer los derechos, y ofrecer una alternativa a quien no quiera ser grabado (**a confirmar** base legal y texto del aviso).
+- Cómo lo aplica el sistema (`src/voz/sesion.js`): con `GRABAR_LLAMADAS=sí`, la llamada empieza con el aviso («si no se opone, esta llamada se grabará para revisar la calidad de la atención y resolver posibles incidencias; si prefiere que no se grabe, dígamelo y seguimos sin grabar») y la grabación **no empieza hasta que la persona habla sin oponerse**. Si en cualquier momento pide que no se grabe, no se graba o se detiene, la asistente se lo confirma y lo que se hubiera grabado se borra en Twilio al recibirlo.
 - Que la transcripción se guarde también conviene mencionarlo en la información de privacidad.
 
 ### 6.3 Plazos de conservación (propuesta, a confirmar con el abogado)
@@ -103,7 +106,7 @@ Valore una **evaluación de impacto** (EIPD): llamadas automatizadas con IA, per
 
 ## 7. WhatsApp
 
-- **Opt-in**: Meta exige que la persona haya aceptado recibir mensajes de la empresa por WhatsApp antes de escribirle por iniciativa propia. El sistema solo permite WhatsApp proactivo con `consentimiento_whatsapp` (fecha) registrado (`puedeEnviarWhatsApp` en `cumplimiento.js`).
+- **Opt-in**: Meta exige que la persona haya aceptado recibir mensajes de la empresa por WhatsApp antes de escribirle por iniciativa propia. El sistema solo permite WhatsApp proactivo con `consentimiento_whatsapp` (fecha) registrado (`puedeEnviarWhatsApp` en `cumplimiento.js`). Lo mismo vale para la herramienta `enviar_whatsapp` fuera de la ventana de 24 horas: no se envía a quien está de baja ni a quien no consta que lo haya aceptado; si lo acepta de viva voz en la llamada, la asistente lo registra con la fecha (la transcripción es la prueba; **a confirmar** que basta).
 - **Ventana de 24 horas**: si la persona escribe, se le puede responder libremente durante 24 horas. Fuera de esa ventana solo se pueden enviar **plantillas aprobadas** por Meta.
 - **Plantillas**: categoría utilidad (confirmaciones, recordatorios) o marketing (seguimiento comercial). Las de marketing deben ofrecer una forma sencilla de dejar de recibirlas.
 - **Política comercial y de mensajería de Meta**: prohíbe ciertos productos y exige respetar las solicitudes de baja; la calidad del número baja si los usuarios bloquean o denuncian, y Meta puede limitar el envío. Revísela en la documentación vigente de Meta.
@@ -120,7 +123,10 @@ Valore una **evaluación de impacto** (EIPD): llamadas automatizadas con IA, per
 | Aviso de los contactos que no se llamarán nunca, al importar | `reglasPermanentes` (cumplimiento.js), `importarFilas` |
 | «Volver a llamar» a la hora pedida (sin saltarse horario, bajas ni Robinson) | `finalizar` (volver_a_llamar), `alEstado`, `comunes` |
 | Plazos de conservación | Purga diaria (`src/conservacion.js`) |
-| Lista Robinson (en claro o resumida) | `enRobinson`, `importarRobinsonCSV` |
+| Lista Robinson (en claro o resumida), que se sustituye en cada importación | `enRobinson`, `importarRobinsonCSV` |
+| Lista Robinson al día (`ROBINSON_MAX_DIAS`): sin ella no se activa ni se llama | `estadoRobinson`, `comunes`, `reanudarCampana`, `vuelta` |
+| Baja registrada en HubSpot, justo antes de llamar o escribir | `bajaEnHubspot` (hubspot.js), `vuelta`, `enviarProactivo` |
+| Aviso de grabación antes de grabar y grabación solo si no se opone | `SesionVoz.decidirGrabacion`, `/voz/grabacion` |
 | Horario legal + horario propio + festivos | `comprobarHorario` |
 | Máximo de intentos y separación | `puedeLlamar`, planificador |
 | Interruptor general | `PROSPECCION_ACTIVA` |

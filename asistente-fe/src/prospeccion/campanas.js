@@ -3,7 +3,7 @@
 import { C } from '../config.js';
 import * as db from '../almacen/db.js';
 import { leerCSVObjetos } from './csv.js';
-import { puedeLlamar, reglasPermanentes, normalizarBase, comprobarHorario, enRobinson, separacionHoras, BASES_POR_DEFECTO } from './cumplimiento.js';
+import { puedeLlamar, reglasPermanentes, normalizarBase, comprobarHorario, enRobinson, estadoRobinson, separacionHoras, BASES_POR_DEFECTO } from './cumplimiento.js';
 
 const sql = (d) => d.toISOString().slice(0, 19).replace('T', ' '); // mismo formato que datetime('now') de SQLite (UTC)
 const q = () => db.abrir();
@@ -51,7 +51,24 @@ function cambiarEstado(id, estado) {
   return obtenerCampana(id);
 }
 export const pausarCampana = (id) => cambiarEstado(id, 'pausada');
-export const reanudarCampana = (id) => cambiarEstado(id, 'activa'); // también la activa la primera vez
+/** Activa (o reanuda) una campaña. Sin lista Robinson al día (ROBINSON_MAX_DIAS) no se activa. */
+export function reanudarCampana(id, ahora = new Date()) {
+  if (!obtenerCampana(id)) throw Object.assign(new Error('Campaña no encontrada'), { codigo: 404 });
+  const rb = estadoRobinson(ahora);
+  if (!rb.vigente) throw Object.assign(new Error(rb.motivo), { codigo: 409 });
+  return cambiarEstado(id, 'activa');
+}
+
+// ---------- Bajas registradas en HubSpot ----------
+let bajaHubspotCache;
+/** Comprobación por defecto justo antes de contactar: fe_baja y hs_email_optout en HubSpot (si está configurado). */
+async function bajaHubspotPorDefecto(contacto) {
+  if (bajaHubspotCache === undefined) {
+    try { bajaHubspotCache = (await import('../crm/hubspot.js')).bajaEnHubspot; } catch { bajaHubspotCache = null; }
+  }
+  return bajaHubspotCache ? bajaHubspotCache(contacto) : { baja: false };
+}
+const HUBSPOT_REINTENTO_MIN = 15; // si HubSpot no responde, no se llama: se vuelve a probar en 15 minutos
 
 /** Resultados de una campaña: totales por estado y por resultado, y la lista de contactos. */
 export function resultadosCampana(id, { estado = null, limite = 500 } = {}) {
@@ -199,7 +216,7 @@ function liberarAtascadas(ahora) {
  * Una vuelta del planificador: lanza las siguientes llamadas elegibles sin pasar de C.prospeccion.llamadasSimultaneas.
  * @returns {Promise<{lanzadas:number, motivo?:string}>}
  */
-export async function vuelta(ahora = new Date(), { llamar } = {}) {
+export async function vuelta(ahora = new Date(), { llamar, comprobarBaja = bajaHubspotPorDefecto } = {}) {
   if (!C.prospeccion.activa) return { lanzadas: 0, motivo: 'prospección desactivada' };
   const d = q();
   liberarAtascadas(ahora);
@@ -207,6 +224,8 @@ export async function vuelta(ahora = new Date(), { llamar } = {}) {
   if (hueco <= 0) return { lanzadas: 0, motivo: 'llamadas simultáneas al máximo' };
   const h = comprobarHorario(ahora);
   if (!h.ok) return { lanzadas: 0, motivo: h.motivo };
+  const rb = estadoRobinson(ahora);
+  if (!rb.vigente) return { lanzadas: 0, motivo: rb.motivo };
   llamar ??= await cargarLlamar();
   if (!llamar) return { lanzadas: 0, motivo: 'módulo de voz no disponible' };
 
@@ -215,6 +234,7 @@ export async function vuelta(ahora = new Date(), { llamar } = {}) {
     WHERE cc.campana_id = ? AND cc.estado IN ('pendiente', 'reintentar') AND (cc.proximo IS NULL OR cc.proximo <= ?) ORDER BY cc.pedido IS NULL, cc.intentos, cc.proximo, cc.contacto_id LIMIT 100`);
   const excluir = d.prepare('UPDATE campana_contactos SET estado = ?, motivo = ? WHERE campana_id = ? AND contacto_id = ?');
   const aplazar = d.prepare('UPDATE campana_contactos SET proximo = ? WHERE campana_id = ? AND contacto_id = ?');
+  const aplazarConMotivo = d.prepare('UPDATE campana_contactos SET proximo = ?, motivo = ? WHERE campana_id = ? AND contacto_id = ?');
   const marcar = d.prepare(`UPDATE campana_contactos SET estado = 'llamando', intentos = intentos + 1, ultimo_intento = ?, proximo = NULL, motivo = NULL, pedido = NULL WHERE campana_id = ? AND contacto_id = ? AND estado IN ('pendiente', 'reintentar')`);
   const anotarLlamada = d.prepare('UPDATE campana_contactos SET llamada_id = ?, conversacion_id = ? WHERE campana_id = ? AND contacto_id = ?');
   const fallo = d.prepare(`UPDATE campana_contactos SET estado = 'reintentar', intentos = intentos - 1, proximo = ?, motivo = ? WHERE campana_id = ? AND contacto_id = ?`);
@@ -230,6 +250,14 @@ export async function vuelta(ahora = new Date(), { llamar } = {}) {
         if (DEFINITIVOS.has(r.codigo)) excluir.run(r.codigo === 'max_intentos' ? 'agotado' : r.codigo === 'baja' ? 'baja' : 'excluido', r.motivo, campana.id, ct.id);
         else if (r.codigo === 'demasiado_pronto') aplazar.run(sql(new Date(new Date(ct.ultimo_intento.replace(' ', 'T') + 'Z').getTime() + separacionHoras() * 3600e3)), campana.id, ct.id);
         continue; // horario: se queda como está
+      }
+      // Justo antes de llamar: ¿consta la baja en HubSpot? Si HubSpot no responde, no se llama y se reintenta luego
+      let hb;
+      try { hb = await comprobarBaja(db.contactoPorId(ct.id) || ct); } catch (err) { hb = { error: err.message }; }
+      if (hb?.baja) { excluir.run('baja', hb.motivo || 'Baja registrada en HubSpot.', campana.id, ct.id); continue; }
+      if (hb?.error) {
+        aplazarConMotivo.run(sql(new Date(+ahora + HUBSPOT_REINTENTO_MIN * 60e3)), `HubSpot no responde (${String(hb.error).slice(0, 120)}): no se llama hasta poder comprobar la baja`, campana.id, ct.id);
+        continue;
       }
       if (!marcar.run(ahoraSql, campana.id, ct.id).changes) continue;
       hueco--; lanzadas++;

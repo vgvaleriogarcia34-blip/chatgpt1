@@ -11,8 +11,10 @@ export const TEXTOS = {
   estadoConversacion: { abierta: 'En curso', cerrada: 'Cerrada' },
   estadoContacto: {
     pendiente: 'Pendiente', reintentar: 'Por reintentar', llamando: 'Llamando', completado: 'Completado', agotado: 'Intentos agotados',
-    baja: 'Baja', excluido: 'Excluido', sin_base_legal: 'Sin base legal (correo o LinkedIn)', error: 'Error',
+    baja: 'Baja', excluido: 'Excluido', excluido_baja: 'Excluido (baja)', sin_base_legal: 'Sin base legal (correo o LinkedIn)', error: 'Error',
   },
+  // Motivos guardados como código en campana_contactos
+  motivo: { baja: 'Dado de baja', robinson: 'En la lista Robinson' },
   estadoCampana: { borrador: 'Borrador (sin activar)', activa: 'Activa', pausada: 'Pausada' },
   canal: { voz: 'Llamada', whatsapp: 'WhatsApp', prueba: 'Prueba del panel', panel: 'Panel', hubspot: 'HubSpot', email: 'Correo' },
   direccion: { entrante: 'entrante', saliente: 'saliente' },
@@ -21,9 +23,11 @@ export const TEXTOS = {
   accion: {
     reunion_pendiente: 'Sesión por confirmar', transferencia_sin_respuesta: 'Transferencia sin respuesta', urgencia: 'Urgencia',
     voz_error: 'Fallo en una llamada', whatsapp_error: 'Fallo al responder un WhatsApp', whatsapp_fallo: 'WhatsApp no entregado',
+    atalaya_reunion_fallo: 'Sesión no enviada a Atalaya',
   },
   transferencia: { atendida: 'Atendida', sin_respuesta: 'Sin respuesta' },
   linea: { fijo: 'Fijo', movil_corporativo: 'Móvil de empresa', movil_personal: 'Móvil personal' },
+  origen: { importacion: 'Importación de una lista', prospeccion: 'Campaña de prospección', whatsapp: 'WhatsApp', voz: 'Llamada', asistente: 'Asistente', panel: 'Alta desde el panel', hubspot: 'HubSpot' },
 };
 
 /** Texto de un código en un grupo; si no se conoce, el código con espacios y en mayúscula inicial. */

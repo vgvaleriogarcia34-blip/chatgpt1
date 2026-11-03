@@ -43,14 +43,22 @@ function lista() {
     { clave: 'transferencia', nombre: 'Transferencia de llamadas', configurada: !!C.empresa.movilResponsable, falta: 'RESPONSABLE_MOVIL' },
     { clave: 'atalaya', nombre: 'Atalaya 360°', configurada: atalayaActiva(), falta: 'ATALAYA_URL e INTEGRACION_TOKEN', detalle: urlAtalaya() || null, comprobar: comprobarAtalaya },
     { clave: 'privacidad', nombre: 'Enlace a la política de privacidad', configurada: !!C.empresa.urlPrivacidad, falta: 'URL_PRIVACIDAD', detalle: C.empresa.urlPrivacidad || null },
-    { clave: 'prospeccion', nombre: 'Prospección (llamadas salientes)', configurada: C.prospeccion.activa, falta: 'PROSPECCION_ACTIVA=sí (apagada)' },
+    { clave: 'prospeccion', nombre: 'Prospección (llamadas salientes)', configurada: C.prospeccion.activa, falta: 'PROSPECCION_ACTIVA' },
   ];
+}
+
+/** «Falta HUBSPOT_TOKEN», pero «Faltan TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN y TWILIO_NUMERO» o «Faltan las variables…». */
+export function textoFalta(falta) {
+  const t = String(falta || '').trim();
+  if (/^PROSPECCION_ACTIVA/.test(t)) return 'Apagada: para encenderla, PROSPECCION_ACTIVA=sí';
+  const varias = /^(las|los)\s/i.test(t) || /,|\sy\s|\se\s/.test(t.replace(/\([^)]*\)/g, ''));
+  return `${varias ? 'Faltan' : 'Falta'} ${t}`;
 }
 
 /** @returns {Promise<Array<{ clave, nombre, configurada, responde: boolean|null, detalle: string|null }>>} */
 export async function estadoIntegraciones({ comprobar = true } = {}) {
   return Promise.all(lista().map(async (x) => {
-    const base = { clave: x.clave, nombre: x.nombre, configurada: x.configurada, responde: null, detalle: x.configurada ? (x.detalle || null) : `Falta ${x.falta}` };
+    const base = { clave: x.clave, nombre: x.nombre, configurada: x.configurada, responde: null, detalle: x.configurada ? (x.detalle || null) : textoFalta(x.falta) };
     if (!comprobar || !x.configurada || !x.comprobar) return base;
     try { await Promise.race([x.comprobar(), new Promise((_, ko) => setTimeout(() => ko(new Error('no responde en 5 s')), cfg.timeoutMs + 500).unref?.())]); return { ...base, responde: true }; }
     catch (err) { return { ...base, responde: false, detalle: String(err.message || err).slice(0, 200) }; }

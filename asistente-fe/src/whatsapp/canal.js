@@ -4,7 +4,7 @@ import { C } from '../config.js';
 import * as db from '../almacen/db.js';
 import { registrar } from '../cerebro/herramientas.js';
 import * as meta from './meta.js';
-import { hubspotActivo, sincronizarContacto, registrarWhatsApp, bajaComercial, crearTarea } from '../crm/hubspot.js';
+import { hubspotActivo, sincronizarContacto, registrarWhatsApp, bajaComercial, crearTarea, bajaEnHubspot } from '../crm/hubspot.js';
 import { avisar } from '../avisos.js';
 
 const cfg = {
@@ -339,6 +339,21 @@ registrar('enviar_whatsapp', async (e, ctx) => {
     await anotarEnviado(contacto, e.texto, { wa_enviado: id }, ctx);
     return 'Enviado por WhatsApp.';
   }
+  // Fuera de la ventana es un mensaje por iniciativa propia: solo sin baja y con consentimiento para WhatsApp
+  if (db.estaDeBaja(tel, contacto.email)) {
+    return { enviado: false, motivo: 'Este contacto pidió no recibir comunicaciones comerciales y no ha escrito en las últimas 24 horas: no se le envía WhatsApp. Ofrezca que una persona del equipo le haga llegar lo que pide por el medio que prefiera.' };
+  }
+  if (!contacto.consentimiento_whatsapp) {
+    if (e.acepta_whatsapp && ctx.canal === 'voz') {
+      // Lo acaba de aceptar de viva voz en la llamada: queda registrado con su fecha (la transcripción es la prueba)
+      const hoy = new Date().toISOString().slice(0, 10);
+      db.guardarContacto({ id: contacto.id, telefono: contacto.telefono, consentimiento_whatsapp: hoy });
+      contacto.consentimiento_whatsapp = hoy;
+      if (ctx.conversacionId) db.anotar(ctx.conversacionId, 'nota', 'Aceptó en la llamada recibir mensajes de WhatsApp de la firma.', { tipo: 'nota', consentimiento_whatsapp: hoy });
+    } else {
+      return { enviado: false, motivo: 'No consta que haya aceptado recibir WhatsApp de la firma y no ha escrito en las últimas 24 horas. En una llamada, pregúntele si acepta recibirlo por WhatsApp y, si dice que sí, vuelva a usar enviar_whatsapp con acepta_whatsapp. Si no, ofrezca que una persona del equipo se lo haga llegar.' };
+    }
+  }
   if (!cfg.plantillaSeguimiento) {
     return { enviado: false, motivo: 'Fuera de la ventana de 24 horas WhatsApp solo admite plantillas aprobadas y no hay ninguna configurada. Ofrezca enviarlo por correo o que una persona del equipo se lo haga llegar.' };
   }
@@ -364,6 +379,10 @@ export async function enviarProactivo(tel, plantilla, variables = [], { idioma =
   const { puedeEnviarWhatsApp } = await import('../prospeccion/cumplimiento.js');
   const ok = puedeEnviarWhatsApp(contacto ? { ...contacto, base_legal: base } : { telefono: t, base_legal: base }, { plantilla });
   if (!ok.ok) return { enviado: false, motivo: ok.motivo, codigo: ok.codigo };
+  // Justo antes de escribir: ¿consta la baja en HubSpot? Si HubSpot no responde, no se envía (se reintenta más tarde)
+  const hb = await bajaEnHubspot(contacto || { telefono: t });
+  if (hb.baja) return { enviado: false, motivo: 'de baja (HubSpot)', codigo: 'baja' };
+  if (hb.error) return { enviado: false, motivo: `HubSpot no responde (${hb.error}): no se envía hasta poder comprobar la baja`, codigo: 'hubspot_no_responde', reintentar: true };
   const vars = (variables || []).map(meta.variablePlantilla);
   const id = await meta.enviarPlantilla(t, plantilla, idioma, vars.length ? [{ type: 'body', parameters: vars.map((v) => ({ type: 'text', text: v })) }] : []);
   contacto ||= db.guardarContacto({ telefono: t, base_legal: base, origen: 'prospeccion' });

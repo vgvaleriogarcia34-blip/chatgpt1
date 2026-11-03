@@ -238,3 +238,56 @@ test('sesión pendiente de confirmar (sin agenda): aviso inmediato al equipo y e
   assert.match(correos[0].texto, /jueves 5 de noviembre a las 17:00/);
   assert.match(hsPeticiones.find((x) => x.ruta === '/crm/v3/objects/deals').cuerpo.properties.dealname, /Jaime · sesión estratégica/);
 });
+
+test('sesión por confirmar: al confirmarla en el panel con fecha y hora se registra en HubSpot, se envía a Atalaya (con reintentos) y se resuelve', async () => {
+  const atalaya = await import('../src/integraciones/atalaya.js');
+  let fallar = 2; const at = [];
+  const fakeAt = http.createServer((req, res) => {
+    let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => {
+      at.push(JSON.parse(b));
+      if (fallar-- > 0) { res.writeHead(503, { 'Content-Type': 'application/json' }); return res.end('{"error":"en mantenimiento"}'); }
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, empresa: 'emp-9' }));
+    });
+  });
+  await new Promise((ok) => fakeAt.listen(0, '127.0.0.1', ok));
+  try {
+    atalaya.configurarAtalaya({ url: `http://127.0.0.1:${fakeAt.address().port}`, token: 'tok', intentos: 3, esperasMs: [5, 5] });
+    agenda.configurarAgenda({ calendario: null, credenciales: '', duracionMin: 60 });
+    const c = db.guardarContacto({ telefono: '+34600123140', nombre: 'Nuria Pons', empresa: 'Pons e Hijos', email: 'nuria@pons.es' });
+    const conv = db.abrirConversacion({ canal: 'voz', direccion: 'entrante', contactoId: c.id });
+    const r0 = JSON.parse((await herramientas.ejecutar('agendar_reunion', { inicio: '2026-11-05T10:00:00+01:00', nombre: 'Nuria Pons', email: 'nuria@pons.es', motivo: 'Relevo', modalidad: 'telefono' }, { canal: 'voz', contacto: c, conversacionId: conv })).contenido);
+    assert.equal(r0.pendiente_de_confirmar, true);
+    const ev = db.abrir().prepare(`SELECT id FROM eventos WHERE tipo = 'reunion_pendiente' ORDER BY id DESC`).get().id;
+    await assert.rejects(agenda.confirmarReunionPendiente(ev, { inicio: 'mañana' }), /fecha y la hora/);
+    hsPeticiones.length = 0;
+    // Se acordó otra hora: el viernes a las 12:30 (hora de Madrid)
+    const r = await agenda.confirmarReunionPendiente(ev, { inicio: '2026-11-06T12:30' }, 'admin', { esperaAtalayaMs: 2000 });
+    assert.equal(r.ok, true); assert.equal(r.cuando, 'viernes 6 de noviembre a las 12:30');
+    assert.match(r.crm, /HubSpot/); assert.equal(r.atalaya, 'Enviada a Atalaya.');
+    const m = hsPeticiones.find((x) => x.ruta === '/crm/v3/objects/meetings').cuerpo.properties;
+    assert.equal(m.hs_meeting_title, 'Sesión estratégica · Pons e Hijos'); assert.equal(m.hs_meeting_start_time, '2026-11-06T11:30:00.000Z');
+    assert.equal(at.length, 3, 'dos fallos pasajeros y el tercer intento llega');
+    assert.equal(at[2].id, `pendiente-${ev}`); assert.equal(at[2].inicio, '2026-11-06T11:30:00.000Z'); assert.equal(at[2].fin, '2026-11-06T12:30:00.000Z');
+    assert.equal(at[2].email, 'nuria@pons.es'); assert.equal(at[2].enlace, 'Llamada al +34600123140');
+    assert.ok(db.abrir().prepare('SELECT resuelto FROM eventos WHERE id = ?').get(ev).resuelto, 'aviso resuelto');
+    assert.ok(db.mensajes(conv).some((x) => x.rol === 'reunion' && /confirmada desde el panel/.test(x.texto)));
+    await assert.rejects(agenda.confirmarReunionPendiente(ev, { inicio: '2026-11-06T12:30' }), /ya está resuelta/);
+
+    // Atalaya no responde nunca: tras 3 intentos, el fallo queda en la bandeja y se puede reintentar
+    fallar = 99; at.length = 0;
+    const x = await atalaya.reunionAAtalaya({ id: 'ev-x', inicio: '2026-11-09T09:00:00Z', fin: '2026-11-09T10:00:00Z', titulo: 'Sesión estratégica · X', nombre: 'X', contacto: c.id });
+    assert.equal(x.ok, false); assert.equal(at.length, 3);
+    const fallo = db.abrir().prepare(`SELECT * FROM eventos WHERE tipo = 'atalaya_reunion_fallo' AND resuelto IS NULL ORDER BY id DESC`).get();
+    assert.ok(fallo); assert.equal(JSON.parse(fallo.datos).cuerpo.id, 'ev-x');
+    fallar = 0;
+    assert.equal((await atalaya.reintentarReunionAtalaya(fallo.id)).ok, true);
+    assert.ok(db.abrir().prepare('SELECT resuelto FROM eventos WHERE id = ?').get(fallo.id).resuelto);
+    // Un error definitivo (4xx) no se reintenta
+    at.length = 0;
+    const fake4 = http.createServer((req, res) => { req.resume(); req.on('end', () => { at.push(1); res.writeHead(404, { 'Content-Type': 'application/json' }); res.end('{"error":"Empresa no encontrada"}'); }); });
+    await new Promise((ok) => fake4.listen(0, '127.0.0.1', ok));
+    atalaya.configurarAtalaya({ url: `http://127.0.0.1:${fake4.address().port}` });
+    assert.equal((await atalaya.reunionAAtalaya({ id: 'ev-y', inicio: new Date(), fin: new Date() })).motivo, 'Empresa no encontrada');
+    assert.equal(at.length, 1); fake4.close();
+  } finally { fakeAt.close(); atalaya.configurarAtalaya({ url: '', token: '', intentos: 3, esperasMs: [5000, 30000] }); }
+});

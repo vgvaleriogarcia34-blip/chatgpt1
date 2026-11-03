@@ -207,6 +207,35 @@ export function fragmentosCurados(dir = dirConocimiento()) {
   return out;
 }
 
+// --- Oferta vigente frente al material en bruto ---
+
+/**
+ * Frases de las webs (o de documentos) que contradicen la oferta vigente: la primera reunión es la sesión estratégica de
+ * 60 minutos con Valerio García, sin coste ni compromiso, y el diagnóstico es otro servicio, de pago. Al ingestar (y al
+ * cargar un índice antiguo) se corrigen en los fragmentos de fuentes/; los .md curados ya dicen lo correcto.
+ * Cada entrada: [expresión, sustitución]. Añada aquí lo que la web vuelva a decir mal.
+ */
+export const OBSOLETAS = [
+  // «Sesión estratégica … 30 minutos Sin coste ni compromiso» (tarjeta de pasos de la web)
+  [/\b30\s*minutos(?=[^\n]{0,40}(sin coste|sin compromiso|gratis))/gi, '60 minutos'],
+  [/\btreinta minutos para saber si tiene sentido seguir\b/gi, 'Sesenta minutos con Valerio García para saber si tiene sentido seguir'],
+  [/\bsesi[oó]n estrat[eé]gica de 30 minutos\b/gi, 'sesión estratégica de 60 minutos'],
+  // El cuestionario de 3 minutos no es un diagnóstico: el diagnóstico es de pago
+  [/\babrir el diagn[oó]stico gratuito\b/gi, 'Abrir el Mapa de Gobierno del Equipo (gratis, unos 3 minutos)'],
+  [/\bdiagn[oó]stico gratuito\b/gi, 'Mapa de Gobierno del Equipo (gratis)'],
+  // «Una hora con un socio, sin coste…»: la primera conversación es la sesión estratégica con Valerio García
+  [/\buna hora con un socio,?\s*sin coste y sin propuesta comercial\.?/gi, 'Sesión estratégica de 60 minutos con Valerio García, sin coste ni compromiso.'],
+  [/\buna hora con un socio\b/gi, 'la sesión estratégica de 60 minutos con Valerio García'],
+];
+/** Corrige en un texto en bruto las frases que contradicen la oferta vigente (OBSOLETAS). */
+export function corregirObsoleto(texto) {
+  let t = String(texto);
+  for (const [re, por] of OBSOLETAS) t = t.replace(re, por);
+  return t;
+}
+/** ¿Queda en el texto alguna frase obsoleta? (para las pruebas y la ingesta) */
+export const tieneObsoleto = (texto) => OBSOLETAS.some(([re]) => { re.lastIndex = 0; const r = re.test(String(texto)); re.lastIndex = 0; return r; });
+
 // Por norma de la firma, al cliente no se le nombran estas marcas internas: se describe el método
 const MARCAS = [
   [/(?:el\s+|la\s+)?(?:diagn[oó]stico\s+|m[eé]todo\s+|metodolog[ií]a\s+)?(?:the\s+)?clarity[\s_-]*code(?:\s*(?:®|™|360))*/gi, 'el diagnóstico de claridad'],

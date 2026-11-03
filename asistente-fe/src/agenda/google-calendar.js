@@ -7,7 +7,7 @@ import * as db from '../almacen/db.js';
 import { registrar } from '../cerebro/herramientas.js';
 import { hubspotActivo, sincronizarContacto, contactoDe, crearReunion, crearTarea, asegurarNegocio, NOMBRE_NEGOCIO } from '../crm/hubspot.js';
 import { avisar } from '../avisos.js';
-import { reunionAAtalaya } from '../integraciones/atalaya.js';
+import { reunionAAtalaya, atalayaActiva } from '../integraciones/atalaya.js';
 
 /** Nombre de la primera reunión, igual en la web, Atalaya, la asistente, Google Calendar y HubSpot. */
 export const NOMBRE_REUNION = 'Sesión estratégica';
@@ -241,7 +241,7 @@ registrar('agendar_reunion', async (e, ctx) => {
   const cal = await cliente();
   if (!cal) {
     if (ctx.conversacionId) db.anotar(ctx.conversacionId, 'reunion', `Petición de reunión: ${cuando} (${modalidad})`, { inicio: isoLocal(ini), email, motivo: e.motivo, confirmada: false });
-    db.evento('reunion_pendiente', { inicio: isoLocal(ini), cuando, contacto: contacto?.id ?? null, conversacionId: ctx.conversacionId ?? null, email, modalidad });
+    db.evento('reunion_pendiente', { inicio: isoLocal(ini), cuando, contacto: contacto?.id ?? null, conversacionId: ctx.conversacionId ?? null, email, modalidad, nombre: e.nombre, motivo: e.motivo });
     avisar({ tipo: 'reunion_pendiente', contacto, conversacionId: ctx.conversacionId, detalle: `Pide una ${NOMBRE_REUNION.toLowerCase()} el ${cuando} (${modalidad})${email ? `; invitación a ${email}` : ''}. La agenda no está conectada: confírmela y envíe la invitación. Motivo: ${e.motivo}` });
     let crm = 'HubSpot no configurado: queda en la base local.';
     if (hsId) {
@@ -288,7 +288,7 @@ registrar('agendar_reunion', async (e, ctx) => {
   // La sesión aparece en la mesa de trabajo de la empresa en Atalaya (si la integración está configurada); en segundo plano
   const ficha = contacto?.id ? db.contactoPorId(contacto.id) : contacto;
   reunionAAtalaya({ id: evento.id, inicio: ini, fin, titulo, enlace: enlace || cuerpo.location, nombre: e.nombre, email, telefono: tel, empresa: ficha?.empresa,
-    hubspotContactId: hsId, hubspotCompanyId: ficha?.hubspot_company_id }).catch((err) => console.warn('[atalaya]', err.message));
+    hubspotContactId: hsId, hubspotCompanyId: ficha?.hubspot_company_id, contacto: contacto?.id ?? null, conversacionId: ctx.conversacionId ?? null }).catch((err) => console.warn('[atalaya]', err.message));
   return {
     reservado: true, cuando, modalidad, enlace,
     invitacion: email ? (sinInvitacion ? `no se ha podido enviar desde la agenda; el equipo la enviará a ${email}` : `enviada a ${email}`) : 'sin correo: no se ha enviado invitación',
@@ -296,6 +296,63 @@ registrar('agendar_reunion', async (e, ctx) => {
     crm,
   };
 });
+
+// ---------- Sesiones por confirmar (sin Google Calendar) ----------
+/** «2026-11-10T10:30» o «2026-11-10 10:30» (hora de la empresa) o ISO con zona → Date, o null. */
+export function interpretarInicio(v) {
+  const m = String(v || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})$/);
+  if (m) return localAFecha(+m[1], +m[2], +m[3], +m[4], +m[5]);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(String(v || '').trim())) return null;
+  const f = new Date(v);
+  return isNaN(f) ? null : f;
+}
+
+/**
+ * Confirma desde el panel una sesión que quedó por confirmar (la agenda no estaba conectada): con la fecha y la hora
+ * acordadas, la registra en HubSpot (si está configurado), la envía a Atalaya (con reintentos; si falla, queda en la
+ * bandeja) y resuelve el aviso. Devuelve { ok, cuando, crm, atalaya }.
+ */
+export async function confirmarReunionPendiente(eventoId, { inicio, enlace = null } = {}, quien = 'panel', { esperaAtalayaMs = 3000 } = {}) {
+  const fallo = (codigo, m) => Object.assign(new Error(m), { codigo });
+  const ev = db.abrir().prepare(`SELECT * FROM eventos WHERE id = ? AND tipo = 'reunion_pendiente'`).get(eventoId);
+  if (!ev) throw fallo(404, 'Sesión por confirmar no encontrada');
+  if (ev.resuelto) throw fallo(409, 'Esta sesión ya está resuelta');
+  let x = {}; try { x = JSON.parse(ev.datos) || {}; } catch {}
+  const ini = interpretarInicio(inicio || x.inicio);
+  if (!ini) throw fallo(400, 'Indique la fecha y la hora de la sesión');
+  if (ini.getTime() < cfg.ahora().getTime() - 3600e3) throw fallo(400, 'La fecha y la hora ya han pasado');
+  const fin = new Date(ini.getTime() + cfg.duracionMin * 60000);
+  const contacto = x.contacto ? db.contactoPorId(x.contacto) : null;
+  const nombre = x.nombre || contacto?.nombre || contacto?.telefono || 'Contacto';
+  const cuando = textoFecha(ini), modalidad = x.modalidad || 'videollamada';
+  const titulo = tituloReunion({ empresa: contacto?.empresa, nombre });
+  const lugar = enlace || (modalidad === 'telefono' ? (contacto?.telefono ? `Llamada al ${contacto.telefono}` : 'Llamada telefónica') : modalidad === 'presencial' ? 'Presencial (lugar por confirmar)' : 'Videollamada (enlace por enviar)');
+  const descripcion = [`${NOMBRE_REUNION} con ${C.empresa.responsable} (${C.empresa.nombre}, de ${C.empresa.marcaComercial}): ${cfg.duracionMin} minutos, sin coste y sin compromiso.`,
+    x.motivo ? `Motivo: ${x.motivo}` : '', `Contacto: ${nombre}${contacto?.empresa ? ' · ' + contacto.empresa : ''}`, contacto?.telefono ? `Teléfono: ${contacto.telefono}` : '',
+    x.email ? `Correo: ${x.email}` : '', `Modalidad: ${modalidad}`, `Pedida a ${C.empresa.asistente} y confirmada desde el panel.`].filter(Boolean).join('\n');
+
+  let crm = 'HubSpot no configurado: queda en la base local.', hsId = null;
+  if (contacto && hubspotActivo()) {
+    hsId = contacto.hubspot_id || (await sincronizarContacto(contacto));
+    if (hsId) {
+      try { await crearReunion({ contactoId: hsId, titulo, cuerpo: descripcion, inicio: ini, fin, lugar }); crm = 'Registrada en HubSpot.'; }
+      catch (err) { crm = `HubSpot ha fallado (${err.message}).`; }
+    } else crm = 'HubSpot no ha respondido: no se ha podido registrar allí.';
+  }
+  if (x.conversacionId) db.anotar(x.conversacionId, 'reunion', `Sesión confirmada desde el panel: ${cuando} (${modalidad})`, { inicio: isoLocal(ini), email: x.email || null, confirmada: true, pendiente: eventoId });
+  db.evento('reunion', { eventoId: `pendiente-${eventoId}`, inicio: isoLocal(ini), contacto: contacto?.id ?? null, modalidad, confirmadaDesde: quien });
+  db.resolverEvento(eventoId, quien);
+
+  // A Atalaya, en segundo plano (con reintentos); si no llega, el fallo queda en la bandeja «Requiere acción»
+  let atalaya = 'Atalaya no está configurada.';
+  if (atalayaActiva()) {
+    const envio = reunionAAtalaya({ id: `pendiente-${eventoId}`, inicio: ini, fin, titulo, enlace: lugar, nombre, email: x.email, telefono: contacto?.telefono, empresa: contacto?.empresa,
+      hubspotContactId: hsId, hubspotCompanyId: contacto?.hubspot_company_id, contacto: contacto?.id ?? null, conversacionId: x.conversacionId ?? null }).catch((err) => ({ ok: false, motivo: err.message }));
+    const r = await Promise.race([envio, new Promise((ok) => setTimeout(() => ok(null), esperaAtalayaMs).unref?.())]);
+    atalaya = r === null ? 'Se está enviando a Atalaya; si no llega, aparecerá en «Requiere acción».' : r.ok ? 'Enviada a Atalaya.' : `No se ha podido enviar a Atalaya (${r.motivo || 'sin detalle'}): queda en «Requiere acción» para reintentarlo.`;
+  }
+  return { ok: true, cuando, crm, atalaya };
+}
 
 // ---------- Estado (panel → Integraciones) ----------
 export const agendaConfigurada = () => !!(cfg.calendario || cfg.credenciales);

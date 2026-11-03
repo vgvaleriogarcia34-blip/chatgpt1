@@ -127,7 +127,7 @@ test('ficha de contacto: cronología completa, enlace a HubSpot e invitación a 
   const r = await (await post(`contactos/${c.id}/invitar`)).json();
   assert.deepEqual(r, { ok: true, enlace: 'https://atalaya.test/acceso.html#alta=abc' });
   assert.equal(at[0].ruta, '/api/integracion/invitar'); assert.equal(at[0].auth, 'Bearer tok-int');
-  assert.deepEqual(at[0].cuerpo, { email: 'elena@mora.es', nombre: 'Elena Mora', empresa: 'Mora Logística', telefono: '+34600111003', hubspotCompanyId: '7001' });
+  assert.deepEqual(at[0].cuerpo, { email: 'elena@mora.es', nombre: 'Elena Mora', empresa: 'Mora Logística', telefono: '+34600111003', hubspotCompanyId: '7001', hubspotContactId: '901' });
   assert.ok((await getJ('contactos/' + c.id)).cronologia.some((x) => x.tipo === 'atalaya_invitacion'));
   // Sin correo no se invita
   const sin = db.guardarContacto({ telefono: '+34600111004', nombre: 'Sin correo' });
@@ -200,6 +200,7 @@ test('integraciones: qué está configurado y si responde; campañas avisan si l
   assert.equal(x.prospeccion.configurada, false);
   C.prospeccion.activa = false;
   const k = (await import('../src/prospeccion/campanas.js')).crearCampana({ nombre: 'Apagada' });
+  (await import('../src/prospeccion/cumplimiento.js')).importarRobinsonCSV('+34999999999\n');
   const r = await (await post(`campanas/${k.id}/reanudar`)).json();
   assert.equal(r.estado, 'activa'); assert.match(r.aviso, /PROSPECCION_ACTIVA=no/);
   assert.equal((await getJ('campanas')).prospeccionActiva, false);
@@ -213,4 +214,79 @@ test('panel.js: navegación por pestañas sin ocultar, tablas con rótulos para 
   assert.match(js, /'data-rotulo'/);
   assert.match(css, /nav \{[^}]*flex-wrap: wrap/);
   assert.doesNotMatch(css, /opcional \{ display: none/);
+});
+
+test('invitar a Atalaya: el servidor lo rechaza para un contacto dado de baja', async () => {
+  const c = db.guardarContacto({ telefono: '+34600111020', nombre: 'Baja Atalaya', email: 'baja@atalaya.es' });
+  db.darDeBaja(c.telefono);
+  const n = at.length;
+  const r = await post(`contactos/${c.id}/invitar`);
+  assert.equal(r.status, 409); assert.match((await r.json()).error, /baja/);
+  assert.equal(at.length, n, 'no llega a Atalaya');
+  assert.equal((await getJ('contactos/' + c.id)).deBaja, true);
+});
+
+test('bandeja: confirmar una sesión por confirmar con fecha y hora, y reintentar un envío fallido a Atalaya', async () => {
+  const c = db.guardarContacto({ telefono: '+34600111021', nombre: 'Olga Ruiz', empresa: 'Ruiz S.L.', email: 'olga@ruiz.es' });
+  const conv = db.abrirConversacion({ canal: 'voz', direccion: 'entrante', contactoId: c.id });
+  db.cerrarConversacion(conv, { resultado: 'reunion_agendada', resumen: 'Pide sesión' });
+  const ev = db.evento('reunion_pendiente', { inicio: '2026-12-10T10:00:00+01:00', cuando: 'jueves 10 de diciembre a las 10:00', contacto: c.id, conversacionId: conv, modalidad: 'videollamada', email: 'olga@ruiz.es', nombre: 'Olga Ruiz' });
+  const p = (await getJ('acciones')).find((x) => x.id === ev);
+  assert.equal(p.inicio, '2026-12-10T10:00:00+01:00'); assert.match(p.detalle, /HubSpot/);
+  assert.equal((await post(`acciones/${ev}/confirmar`, { inicio: 'no' })).status, 400);
+  const n = at.length; hs.length = 0;
+  const r = await (await post(`acciones/${ev}/confirmar`, { inicio: '2026-12-11T16:30' })).json();
+  assert.equal(r.ok, true); assert.equal(r.cuando, 'viernes 11 de diciembre a las 16:30'); assert.equal(r.atalaya, 'Enviada a Atalaya.');
+  assert.ok(hs.some((x) => x.ruta === '/crm/v3/objects/meetings'), 'reunión en HubSpot');
+  assert.equal(at.length, n + 1); assert.equal(at.at(-1).ruta, '/api/integracion/reunion'); assert.equal(at.at(-1).cuerpo.inicio, '2026-12-11T15:30:00.000Z');
+  assert.ok(!(await getJ('acciones')).some((x) => x.id === ev), 'ya no está en la bandeja');
+  // Fallo de envío a Atalaya: aparece en la bandeja y se reintenta desde el panel
+  const f = db.evento('atalaya_reunion_fallo', { cuerpo: { id: 'ev-z', inicio: '2026-12-14T09:00:00.000Z', fin: '2026-12-14T10:00:00.000Z', titulo: 'Sesión estratégica · Z', origen: 'asistente' }, motivo: 'Atalaya no responde (fetch failed)', intentos: 3, contacto: c.id });
+  const x = (await getJ('acciones')).find((y) => y.id === f);
+  assert.equal(x.titulo, 'Sesión no enviada a Atalaya'); assert.match(x.detalle, /14\/12\/26, 10:00 \(3 intentos\): Atalaya no responde/); assert.equal(x.contacto.id, c.id);
+  assert.equal((await (await post(`acciones/${f}/reintentar`)).json()).ok, true);
+  assert.equal(at.at(-1).cuerpo.id, 'ev-z');
+  assert.ok(!(await getJ('acciones')).some((y) => y.id === f));
+});
+
+test('panel: textos legibles de campañas e integraciones, plurales y aviso de la lista Robinson', async () => {
+  const est = await import('../src/integraciones/estado.js');
+  assert.equal(est.textoFalta('HUBSPOT_TOKEN'), 'Falta HUBSPOT_TOKEN');
+  assert.equal(est.textoFalta('las variables de Twilio, Deepgram, ElevenLabs y URL_PUBLICA'), 'Faltan las variables de Twilio, Deepgram, ElevenLabs y URL_PUBLICA');
+  assert.equal(est.textoFalta('TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN y TWILIO_NUMERO'), 'Faltan TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN y TWILIO_NUMERO');
+  assert.equal(est.textoFalta('ATALAYA_URL e INTEGRACION_TOKEN'), 'Faltan ATALAYA_URL e INTEGRACION_TOKEN');
+  const { integraciones } = await getJ('integraciones?comprobar=0');
+  assert.ok(!integraciones.some((i) => /^Falta (las|los) |^Falta [A-Z_]+(,| y | e )/.test(i.detalle || '')), 'sin «Falta las variables»');
+  // Campaña: quien está de baja y seguía «Pendiente» sale «Excluido (baja)»; el motivo «baja» se lee «Dado de baja»
+  const ca = await import('../src/prospeccion/campanas.js');
+  const k = ca.crearCampana({ nombre: 'Textos' });
+  ca.importarCSV(k.id, 'telefono,nombre,base_legal\n600111030,Pendiente de baja,cliente\n600111031,Excluida,cliente\n');
+  db.darDeBaja('+34600111030');
+  db.abrir().prepare(`UPDATE campana_contactos SET estado = 'excluido', motivo = 'baja' WHERE campana_id = ? AND contacto_id = ?`).run(k.id, db.contactoPorTelefono('600111031').id);
+  const r = await getJ('campanas/' + k.id);
+  const porTel = Object.fromEntries(r.contactos.map((x) => [x.telefono, x]));
+  assert.equal(porTel['+34600111030'].estado_visible, 'excluido_baja'); assert.equal(porTel['+34600111030'].motivo_visible, 'Dado de baja');
+  assert.equal(porTel['+34600111031'].motivo_visible, 'Dado de baja');
+  assert.equal((await getJ('textos')).estadoContacto.excluido_baja, 'Excluido (baja)');
+  const f = await getJ('contactos/' + db.contactoPorTelefono('600111030').id);
+  assert.match(f.cronologia.find((x) => x.tipo === 'campana').titulo, /Excluido \(baja\)/);
+  // Una conversación con un mensaje: «1 mensaje»
+  const v = db.abrirConversacion({ canal: 'whatsapp', direccion: 'entrante', contactoId: db.contactoPorTelefono('600111030').id });
+  db.anotar(v, 'usuario', 'Hola');
+  assert.match((await getJ('contactos/' + db.contactoPorTelefono('600111030').id)).cronologia.find((x) => x.tipo === 'conversacion').detalle, /(^|· )1 mensaje($| ·)/);
+  // Resumen y campañas llevan el estado de la lista Robinson para el aviso
+  const res = await getJ('resumen');
+  assert.equal(typeof res.robinsonEstado.vigente, 'boolean'); assert.equal(res.robinsonEstado.maxDias, 30);
+  assert.ok('robinson' in (await getJ('campanas')));
+});
+
+test('panel.js: pintado sin carreras, fechas dd/mm/aaaa y sin «null»', async () => {
+  const fs = await import('node:fs');
+  const js = fs.readFileSync(new URL('../src/panel/publico/panel.js', import.meta.url), 'utf8');
+  assert.match(js, /pintado/, 'contador de pintado');
+  assert.match(js, /dd\/mm\/aaaa/);
+  assert.doesNotMatch(js, /type: 'date'/);
+  assert.doesNotMatch(js, /\bc\.append\(/, 'append nativo pinta «null»: se usa meter()');
+  const r = await fetch(base + '/panel', { headers: { cookie } });
+  assert.match(await r.text(), /<html lang="es-ES">/);
 });
