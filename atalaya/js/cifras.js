@@ -6,7 +6,9 @@
    · Ficha de la empresa (registro de empresas): la plantilla, si el simulador no la tiene.
    · Personas y equipos: solo para avisar si la plantilla dada de alta no coincide con la del simulador.
    EBITDA = ventas × margen − personal − gastos fijos (el mismo cálculo que el motor del simulador, «ebitdaActual»).
-   Deuda neta = deuda viva − caja. Lo que no tiene dato es null («sin dato»), nunca 0.
+   Deuda neta = deuda viva − caja; deuda neta / EBITDA es la de hoy (la del simulador con la inversión es otra: «tras la inversión»).
+   Las cifras respondidas con las preguntas llevan la fecha en que se introdujeron (sim.fechaCifras).
+   Lo que no tiene dato es null («sin dato»), nunca 0.
    A.cifras.desdeSim(sim, ficha) · A.cifras.leer(id) · A.cifras.actual() · A.cifras.semaforos(c) · A.cifras.html(c) */
 (function () {
   const A = (window.Atalaya = window.Atalaya || {});

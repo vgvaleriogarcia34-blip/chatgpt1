@@ -230,7 +230,7 @@
       [['propuesta', 'Propuesta integral'], ['propS2', 'Propuesta de la auditoría 360'], ['propS3', 'Propuesta de acompañamiento']].forEach(([k, n]) => { if ((R[k] || {}).estado === 'presentada') pend.push({ t: n + ' sin respuesta', f: (R[k] || {}).fecha || '' }); });
       const docs = Object.values(R.docs || {}).filter((d) => d && d.e === 'pedido').length; if (docs) pend.push({ t: plu(docs, 'documento pedido sin recibir', 'documentos pedidos sin recibir'), f: '' });
     }
-    const atr = ((x.agenda && x.agenda.tareas) || []).filter((t) => t.estado !== 'hecha' && t.fecha && t.fecha < h).length;
+    const atr = ((x.agenda && x.agenda.tareas) || []).filter((t) => t.estado !== 'hecha' && t.estado !== 'noaplica' && t.fecha && t.fecha < h).length;
     if (atr) pend.push({ t: 'Mesa de trabajo: ' + plu(atr, 'tarea atrasada', 'tareas atrasadas'), f: '' });
     // Triaje calculado con los datos guardados de la auditoría (js/triaje.js), sin esperar a que se abra su página
     const tri = iv && A.triaje ? A.triaje.global(iv) : iv && Array.isArray(iv.triajeAreas) ? (iv.triajeAreas.includes('stop') ? 'stop' : iv.triajeAreas.includes('warn') ? 'warn' : iv.triajeAreas.includes('ok') ? 'ok' : '') : '';
@@ -250,7 +250,7 @@
         <td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:240px" data-pend>${o.pend.length ? `<b>${o.pend.length}</b><ul class="small" style="margin:2px 0 0;padding-left:16px">${o.pend.slice(0, 3).map((p) => `<li>${esc(p.t)}</li>`).join('')}${o.pend.length > 3 ? `<li class="muted">y ${o.pend.length - 3} más</li>` : ''}</ul>` : '<span class="muted small">Nada pendiente</span>'}</td>
         <td>${o.tri ? `<span class="state st-${o.tri}">${TRI[o.tri]}</span>` : '<span class="muted small">—</span>'}</td><td>${nt(o)}</td>
         <td style="white-space:nowrap"><button class="btn ghost small" data-go="${esc(o.x.e.id)}" data-pag="intervencion.html">Auditoría</button><button class="btn ghost small" data-go="${esc(o.x.e.id)}" data-pag="intervencion.html#sesiones">Sesiones</button></td></tr>`).join('')}
-      </tbody></table></div><p class="small muted" style="margin:0">Ordenada por la próxima sesión. La etapa es la del recorrido de la auditoría integral; la nota, la última calculada al guardar en sus mundos.</p></section>`;
+      </tbody></table></div><p class="small muted" style="margin:0">Ordenada por la próxima sesión. La etapa es la del recorrido de la auditoría integral; la nota, calculada con los datos guardados de cada mundo (la misma que en sus páginas y en el tablero).</p></section>`;
   }
 
   /* ---------- Nueva empresa desde plantilla ----------

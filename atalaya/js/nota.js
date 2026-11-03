@@ -131,7 +131,7 @@
     const out = [], h = hoy(), tareas = (st && st.tareas) || [], metas = ((st && st.metas) || []).filter((m) => m.estado !== 'cumplida');
     // Mesa vacía: sin tareas ni metas no hay nada que puntuar (no es «agenda al día»)
     if (!tareas.length && !((st && st.metas) || []).length) return [{ st: 'nd', peso: 2, t: 'Mesa de trabajo sin tareas ni metas', d: 'Añada tareas o metas para calcular su nota.', zona: 'hoy' }];
-    const pend = tareas.filter((t) => t.estado !== 'hecha'), atras = pend.filter((t) => t.fecha && t.fecha < h), apl = pend.filter((t) => (t.aplazada || 0) >= 2);
+    const pend = tareas.filter((t) => t.estado !== 'hecha' && t.estado !== 'noaplica'), atras = pend.filter((t) => t.fecha && t.fecha < h), apl = pend.filter((t) => (t.aplazada || 0) >= 2);
     out.push({ st: atras.length > 3 ? 'stop' : atras.length ? 'warn' : 'ok', peso: 2, t: atras.length ? `La agenda no se cumple: ${pl(atras.length, 'tarea atrasada', 'tareas atrasadas')}` : 'Agenda al día', zona: 'hoy' });
     if (apl.length) out.push({ st: 'warn', peso: 1, t: `${pl(apl.length, 'tarea aplazada', 'tareas aplazadas')} dos veces o más`, d: 'Divídalas, deléguelas o quítelas.', zona: 'bandeja' });
     if (pend.filter((t) => !t.fecha).length > 10) out.push({ st: 'warn', peso: 1, t: `${pend.filter((t) => !t.fecha).length} tareas sin fecha de acción`, zona: 'bandeja' });

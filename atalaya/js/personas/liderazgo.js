@@ -348,6 +348,8 @@
         const O = A.mesa.oid;
         fila.appendChild(A.mesa.boton(() => prop.slice(0, 6).map((x) => ({ t: `Entrenar como líder: ${x.t.titulo}`, area: 'Personas', mundo: 'personas', resp: p.nombre, origen: 'Plan de desarrollo de ' + p.nombre, oid: O('personas', 'plan', p.id + ':' + x.t.id), aka: ['per:plan:' + p.id + ':' + x.t.titulo], impacto: 4 }))
           .concat(pasos.map((x) => ({ t: `${x.f.c.nombre} · ${x.f.t.nombre}: ${x.t.titulo}`, area: 'Personas', mundo: 'personas', resp: p.nombre, tipo: 'seguimiento', contacto: 'Equipo de ' + p.nombre, origen: 'Plan de desarrollo · ' + ((x.f.t.acuerdo && x.f.t.acuerdo.lider) || x.t.pasos[0] || ''), oid: oidPaso(x), fecha: (x.f.t.acuerdo && x.f.t.acuerdo.revision) || '', impacto: 3 }))), 'Llevar el plan a mi mesa de trabajo', () => ({ origen: [O('personas', 'plan', p.id + ':')].concat(pasos.map((x) => O('personas', 'paso', x.f.c.id + ':'))), completo: true })));
+        // Lo que se entrena como líder: su estado en la mesa, y «Hecha» desde aquí
+        if (prop.length && A.mesa.casilla) fila.insertAdjacentHTML('beforeend', `<ul class="small lid-mesa" style="margin:0;padding-left:18px;flex-basis:100%">${prop.slice(0, 6).map((x) => { const o = O('personas', 'plan', p.id + ':' + x.t.id); return `<li>${esc(x.t.titulo)}<small data-mesa-oid="${esc(o)}"></small>${A.mesa.casilla(o)}</li>`; }).join('')}</ul>`);
         host.appendChild(fila);
         fila.addEventListener('mesa:enviado', () => A.mesa.marcar(host));
       }

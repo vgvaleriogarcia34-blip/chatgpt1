@@ -1173,3 +1173,5 @@ body:has(> .modal-back, > .ef-back) :is(.modal-back, .ef-back) { backdrop-filter
 .ef-card.bq-card { width: min(620px, 100%); margin: 0; }
 .bq-card h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); }
 .bq-card .row { flex-wrap: wrap; }
+/* Asistente en el puesto de mando: en pantallas estrechas, encima de la lista de mundos y a la altura del paseo virtual */
+@media (max-width: 899px) { body.portal .assistant { bottom: calc(24px + var(--pt-dock-h, 130px) + env(safe-area-inset-bottom, 0px)); } }

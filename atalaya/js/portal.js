@@ -66,7 +66,7 @@
     const act = P.empresas.activa(), multi = P.limiteEmpresas() > 1 || P.empresas.reales().length > 1;
     const cerrarPaso = () => { document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; PA.recordar(P.empresaId()); pintarBarra(); };
     // Paseo virtual desde el mapa: primero se cierra el mapa y se pasa a la empresa modelo, que es la que se enseña
-    const paseo = () => { if (!A.paseo) return; document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; const antes = P.empresaId(); A.paseo.iniciar(); if (A.paseo.activo() && P.empresaId() !== antes) location.reload(); };
+    const paseo = () => { if (!A.paseo) return; document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; const antes = P.empresaId(); A.paseo.iniciar(); if (A.paseo.activo() && P.empresaId() !== antes) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } location.reload(); } };
     const abrirPaso = () => {
       document.body.classList.add('paso-emp'); $('#empPaso').hidden = false; $('#empBar').hidden = true;
       P.mapaEmpresas($('#empMapa'), { paso: multi, cerrar: true, onCerrar: cerrarPaso, onPaseo: paseo, onEnter: (id) => { PA.recordar(id); if (id !== P.empresaId()) P.empresas.cambiar(id); else cerrarPaso(); } });
@@ -106,7 +106,7 @@
     const enPaseo = !!(A.paseo && A.paseo.activo());
     const pendiente = !hp && !enPaseo && location.hash !== '#empresas' ? await PA.pendiente().catch(() => false) : false;
     if (pendiente) { pintarBarra(); PA.tarjeta(); }
-    else if (location.hash === '#empresas' || (multi && !enPaseo && !PA.elegida())) abrirPaso(); else pintarBarra();
+    else if (!enPaseo && (location.hash === '#empresas' || (multi && !PA.elegida()))) abrirPaso(); else pintarBarra();
     const n = (P.user && (P.user.nombre || '').split(/\s+/)[0]) || '';
     if (n) $('#hello').textContent = 'Hola, ' + n;
     const u = LS.get('atalaya.ultimo');

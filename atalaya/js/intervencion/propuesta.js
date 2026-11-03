@@ -181,10 +181,20 @@
   // Completa pr.dim SIN sustituirlo: quien guarda la referencia (editor, conversión) sigue escribiendo en el mismo objeto
   const dimDe = (pr) => { const v = dimVacia(); if (!pr.dim || typeof pr.dim !== 'object') pr.dim = {}; const d = pr.dim; Object.keys(v).forEach((k) => { if (d[k] === undefined) d[k] = v[k]; }); if (!d.palancas || typeof d.palancas !== 'object') d.palancas = {}; Object.keys(v.palancas).forEach((k) => { if (!d.palancas[k]) d.palancas[k] = v.palancas[k]; }); return d; };
   // Datos del simulador de la empresa (si no son de ejemplo)
-  const traerSimulador = async (d) => {
+  const leerSim = async () => {
     let st = null; const Pl = P();
     try { if (Pl && Pl.loadData) st = await Pl.loadData('simulador'); } catch (e) { st = null; }
     if (!st) { try { st = JSON.parse(localStorage.getItem(Pl && Pl.k ? Pl.k('atalaya.v1') : 'atalaya.v1')); } catch (e) { st = null; } }
+    return st;
+  };
+  /* Foto de las cifras: la propuesta guarda cuándo las tomó y con qué cifras (d.fotoSim = { fecha, firma }); si el
+     simulador cambia después, lo avisa y ofrece «Actualizar cifras» */
+  const firmaSim = (e) => ['ventas', 'margen', 'personal', 'fijos', 'plantilla', 'crecimiento'].map((k) => num(e && e[k])).join('|');
+  let simAhora = null, simLeyendo = false; // firma de las cifras del simulador ahora ('' si no tiene datos reales)
+  const releerSim = async () => { const st = await leerSim(); simAhora = st && st.empresa && !st.ejemplo ? firmaSim(st.empresa) : ''; return simAhora; };
+  const fotoCambiada = (d) => !!(d && d.origen === 'simulador' && simAhora != null && (!d.fotoSim || (simAhora && d.fotoSim.firma !== simAhora)));
+  const traerSimulador = async (d) => {
+    const st = await leerSim();
     const e = st && st.empresa; if (!e || st.ejemplo) return false;
     if (num(e.ventas)) d.ventas = String(Math.round(num(e.ventas)));
     if (num(e.margen)) d.margen = String(num(e.margen));
@@ -192,7 +202,7 @@
     if (num(e.plantilla)) d.plantilla = String(num(e.plantilla));
     if (num(e.crecimiento)) d.crecimiento = String(num(e.crecimiento));
     if (num(e.ventas) && num(e.margen)) d.ebitda = String(Math.round(num(e.ventas) * num(e.margen) / 100 - num(e.personal) - num(e.fijos)));
-    d.origen = 'simulador'; return true;
+    d.origen = 'simulador'; d.fotoSim = { fecha: new Date().toISOString(), firma: firmaSim(e) }; simAhora = d.fotoSim.firma; return true;
   };
   // Palancas propuestas a partir de los objetivos del empresario y de las causas que más pesan
   const proponerPalancas = (d) => {
@@ -271,7 +281,8 @@
     const vi = valorInversion(pr), d = vi.d, e = vi.base, c = vi.cons;
     const q = (k, l, ph, t) => `<label class="small">${l}<input class="input" ${t ? `type="${t}"` : ''} data-dm="${k}" value="${esc(d[k])}" placeholder="${esc(ph || '')}"></label>`;
     return `<section class="glass pad stack pc-dim"><div class="row"><div><div class="eyebrow">Dimensión de la empresa y valor de la inversión</div><small class="muted">Lo que aporta el proyecto según el tamaño de la empresa y sus objetivos: plazo de recuperación y rentabilidad a cinco años.</small></div><span class="spacer"></span>${vi.st ? `<span class="iv-st ${vi.st}">${vi.st === 'ok' ? 'Alto valor' : vi.st === 'warn' ? 'Valor justo' : 'No compensa'}</span>` : ''}</div>
-      <div class="eyebrow">Preguntas para dimensionar ${d.origen === 'simulador' ? '<span class="muted">· datos del simulador</span>' : ''}</div>
+      <div class="eyebrow">Preguntas para dimensionar ${d.origen === 'simulador' ? `<span class="muted">· datos del simulador${d.fotoSim && d.fotoSim.fecha ? ' tomados el ' + esc(new Date(d.fotoSim.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })) : ', sin fecha de la foto'}</span>` : ''}</div>
+      ${fotoCambiada(d) ? `<div class="alert warn small row" style="gap:10px;align-items:center"><span>${d.fotoSim ? 'Las cifras del simulador han cambiado desde que se tomaron para esta propuesta.' : 'Estas cifras se tomaron del simulador sin fecha: puede que ya no sean las de hoy.'} Revíselas antes de enviarla.</span><button class="btn small" id="pcSimAct">Actualizar cifras</button></div>` : ''}
       <div class="iv-g3">${q('ventas', '¿Cuánto factura al año? (€)', '1.500.000')}${q('margen', '¿Qué margen bruto deja? (%)', '35')}${q('ebitda', '¿Qué beneficio operativo (EBITDA) hace al año? (€)', '120.000')}${q('plantilla', '¿Cuántas personas trabajan?', '18')}${q('costePersona', '¿Coste medio por persona al año? (€)', '32.000')}${q('personal', 'O el coste total de personal (€)', '')}${q('horasEmp', '¿Horas a la semana del empresario en operativa?', '45')}${q('valorHora', '¿Cuánto vale una hora suya dirigiendo o vendiendo? (€)', '60')}${q('financiero', '¿Cuánto paga al año en intereses y comisiones? (€)', '18.000')}${q('crecimiento', '¿Cuánto quiere crecer al año? (%)', '10')}${q('multiplo', '¿A cuántas veces el EBITDA se valoraría la empresa?', '5')}</div>
       <div class="row"><button class="btn ghost small" id="pcSim">Traer los datos del simulador</button><button class="btn small" id="pcPal">Proponer las palancas desde sus objetivos y causas</button></div>
       <div class="eyebrow">Palancas de valor (al año, en régimen)</div>
@@ -291,6 +302,9 @@
     $$('[data-dm]', sec).forEach((i) => { const k = i.dataset.dm; i.onchange = () => { const d = D(); if (k === 'rampa') { const r = i.value.split(/[\/,;\s]+/).map(num).filter((x) => x >= 0).slice(0, 5); while (r.length < 5) r.push(r[r.length - 1] || 100); d.rampa = r; } else if (k === 'enDossier') d.enDossier = i.checked; else d[k] = i.value; guardar(); render(); }; });
     $$('[data-pon]', sec).forEach((c) => (c.onchange = () => { const d = D(); d.palancas[c.dataset.pon] = Object.assign({}, d.palancas[c.dataset.pon], { on: c.checked }); guardar(); render(); }));
     $$('[data-pv]', sec).forEach((i) => (i.onchange = () => { const d = D(), [id, k] = i.dataset.pv.split('.'); d.palancas[id] = d.palancas[id] || { on: true }; d.palancas[id][k] = i.value; guardar(); render(); }));
+    // ¿Ha cambiado el simulador desde la foto? Se lee una vez al pintar y se vuelve a pintar si hay que avisar
+    if (D().origen === 'simulador' && simAhora == null && !simLeyendo) { simLeyendo = true; releerSim().then(() => { simLeyendo = false; if (fotoCambiada(D())) render(); }).catch(() => { simLeyendo = false; }); }
+    const act = $('#pcSimAct', sec); if (act) act.onclick = async () => { const ok = await traerSimulador(D()); guardar(); render(); toast(ok ? 'Cifras actualizadas con las del simulador de hoy: revise el valor y el precio.' : 'El simulador no tiene datos reales de esta empresa todavía.'); };
     $('#pcSim', sec).onclick = async () => { const ok = await traerSimulador(D()); guardar(); render(); toast(ok ? 'Datos traídos del simulador: revíselos.' : 'El simulador no tiene datos reales de esta empresa todavía.'); };
     $('#pcPal', sec).onclick = () => { const u = proponerPalancas(D()); guardar(); render(); toast(u.length ? 'Palancas propuestas por: ' + u.join('; ') + '. Ajuste las cifras con el empresario.' : 'No hay objetivos ni causas suficientes: active las palancas a mano.'); };
     const uv = $('#pcDimV', sec); if (uv) uv.onclick = () => { const vi = valorInversion(pr); Object.assign(pr.coste, { modo: 'beneficio', vMin: String(Math.round(vi.cons.suma)), vMax: String(Math.round(vi.base.suma)), pMin: '100', pMax: '100', supuestos: `Valor a cinco años según el tamaño de la empresa y sus objetivos: ${vi.lista.filter((l) => l.v).map((l) => l.x.n.toLowerCase() + ' ' + eur(l.v) + '/año').join('; ')}; rampa ${vi.d.rampa.join('/')} %; escenario conservador al ${vi.prud} %.` }); guardar(); render(); toast('Valor a cinco años llevado a «Valor y precio».'); };

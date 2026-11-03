@@ -152,7 +152,7 @@
       // La misma acción en el plan de empresa sigue el mismo estado
       if (f === 'estado') ((S.state.plan && S.state.plan.acciones) || []).filter((a) => a.de === id + ':' + xid).forEach((a) => { a.estado = inp.value === 'En curso' ? 'En marcha' : inp.value; });
       S.save();
-      if (f === 'estado') { if (A.mesa && A.mesa.cerrar && ((antes === 'Hecha') !== (inp.value === 'Hecha'))) { const it = plan(id).find((y) => y.id === xid); if (it) A.mesa.cerrar(oidDe(id, it), inp.value === 'Hecha' ? new Date().toISOString().slice(0, 10) : false); } refresh(box, id); }
+      if (f === 'estado') { const it = A.mesa && A.mesa.cerrar && ((antes === 'Hecha') !== (inp.value === 'Hecha')) && plan(id).find((y) => y.id === xid); refresh(box, id); if (it) A.mesa.cerrar(oidDe(id, it), inp.value === 'Hecha' ? new Date().toISOString().slice(0, 10) : false).then(() => { const bx = document.querySelector('.c360'); if (bx) A.mesa.marcar(bx); }); }
     };
     $$('[data-pe]', box).forEach(setP('pe', 'estado')); $$('[data-pr]', box).forEach(setP('pr', 'resp')); $$('[data-pf]', box).forEach(setP('pf', 'fecha'));
     const ms = $('[data-mesa]', box); if (ms && A.mesa && A.mesa.boton) {

@@ -108,7 +108,9 @@ td { font-family: inherit; font-variant-numeric: normal; }
 ol.steps { display: block; }
 .top.topbar { position: sticky; top: env(safe-area-inset-top, 0px); left: auto; transform: none; width: auto; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 10px 16px; gap: 12px; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--bg) 88%, transparent); }
 .top .account { display: flex; align-items: center; gap: 8px; }
-.top .acc-menu, .top .emp-menu, .top .bm-lista { text-align: left; line-height: 1.4; }
+.top .acc-menu, .top .emp-menu, .top .bm-lista { text-align: left; line-height: 1.4; background: var(--panel); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28); backdrop-filter: none; }
+.top .acc-menu a, .top .acc-menu button, .top .bm-it, .top .emp-it > button[data-emp] { color: var(--fg); }
+.top .acc-btn, .top .bm-btn, .top .emp-btn { color: var(--fg); background: var(--raise); }
 @media (max-width: 560px) {
   .top.topbar { flex-wrap: wrap; }
   .top input { order: 9; flex: 1 1 100%; margin-left: 0; }
