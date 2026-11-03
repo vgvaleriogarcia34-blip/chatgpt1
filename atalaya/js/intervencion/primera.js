@@ -254,13 +254,18 @@
   VISTAS.guion = (host) => {
     revisar();
     guion0(host);
+    V.hitosEn(host);
+  };
+  // Hitos de cada objetivo con su casilla (en el guion y en «Objetivos SMART»); cada hito lleva su oid para «Ir al origen»
+  V.hitosEn = (host) => {
     $$('.iv-obj', host).forEach((d) => {
+      if (d.querySelector('.iv-hitos')) return;
       const o = (S().objetivos || []).find((x) => x.id === d.dataset.o); if (!o) return;
       const box = document.createElement('div'); box.className = 'iv-hitos stack';
       const pinta = () => {
         const hs = o.hitos || [];
         box.innerHTML = `<div class="row"><b class="small">5 · Hitos (lo que se comprueba en cada sesión)</b><span class="spacer"></span><button class="btn ghost small" data-hp>${hs.length ? 'Volver a proponer' : 'Proponer hitos'}</button><button class="btn ghost small" data-ha>Añadir hito</button></div>
-          ${hs.map((x, i) => `<div class="row iv-hito ${estadoHito(x)}"><input type="checkbox" data-hh="${i}" ${x.hecho ? 'checked' : ''} aria-label="Hito cumplido"><input class="input" data-ht="${i}" value="${esc(x.t)}" style="flex:1 1 220px"><input class="input" type="date" data-hf="${i}" value="${esc(x.fecha || '')}"><input class="input" data-hr="${i}" value="${esc(x.resp || '')}" placeholder="Responsable" style="width:130px"><small class="muted">${EST_H[estadoHito(x)]}${x.hecho ? ' · ' + fCorta(x.hecho) : ''}</small><button class="icon-btn" data-hd="${i}" aria-label="Quitar el hito">×</button></div>`).join('') || '<small class="muted">Sin hitos: propóngalos y ajústelos con él.</small>'}`;
+          ${hs.map((x, i) => `<div class="row iv-hito ${estadoHito(x)}" data-ir="${esc(A.mesa && A.mesa.oid && x.id ? A.mesa.oid('intervencion', 'hito', o.id + ':' + x.id) : '')}"><input type="checkbox" data-hh="${i}" ${x.hecho ? 'checked' : ''} aria-label="Hito cumplido"><input class="input" data-ht="${i}" value="${esc(x.t)}" style="flex:1 1 220px"><input class="input" type="date" data-hf="${i}" value="${esc(x.fecha || '')}"><input class="input" data-hr="${i}" value="${esc(x.resp || '')}" placeholder="Responsable" style="width:130px"><small class="muted">${EST_H[estadoHito(x)]}${x.hecho ? ' · ' + fCorta(x.hecho) : ''}</small><button class="icon-btn" data-hd="${i}" aria-label="Quitar el hito">×</button></div>`).join('') || '<small class="muted">Sin hitos: propóngalos y ajústelos con él.</small>'}`;
         $('[data-hp]', box).onclick = () => { o.hitos = proponerHitos(o); guardar(); pinta(); };
         $('[data-ha]', box).onclick = () => { (o.hitos = o.hitos || []).push({ id: uid(), t: '', fecha: '', resp: o.responsable || '', hecho: '' }); guardar(); pinta(); };
         $$('[data-hh]', box).forEach((c) => (c.onchange = () => { const x = o.hitos[+c.dataset.hh]; x.hecho = c.checked ? V.int.hoy() : ''; guardar(); pinta(); if (A.mesa && A.mesa.cerrar && x.id) A.mesa.cerrar(A.mesa.oid('intervencion', 'hito', o.id + ':' + x.id), x.hecho || false); }));

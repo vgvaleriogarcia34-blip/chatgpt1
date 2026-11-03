@@ -177,6 +177,7 @@
     host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Objetivos SMART del empresario</div><p class="small" style="margin:0">Cada objetivo depende exclusivamente de quien lo ejecuta. Arriba, la catedral (lo que quiere); abajo, la <b>piedra diaria</b>: la acción concreta, con número y hora, que pone cada día o cada semana. Se miden las piedras, no la catedral.</p></div>
       <div class="glass pad stack">${I.objetivosHTML()}</div>`;
     I.wireObjetivos(host);
+    if (V.hitosEn) V.hitosEn(host);
     // Piedra diaria de cada objetivo
     $$('.iv-obj', host).forEach((d) => {
       const o = S().objetivos.find((x) => x.id === d.dataset.o); if (!o) return;

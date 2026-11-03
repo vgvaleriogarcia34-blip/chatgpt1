@@ -209,7 +209,7 @@
       objetivos: [
         { id: 'om1', objetivoId: 'intervencion:objetivo:oim2', nombre: 'Caja sin tensiones', indicador: 'Días medios de cobro', actual: 86, meta: 65, fecha: dia(270) },
         { id: 'om2', nombre: 'Crecer con ingresos recurrentes', indicador: 'Ventas de mantenimiento sobre el total (%)', actual: 4, meta: 15, fecha: dia(450) },
-        { id: 'om3', nombre: 'Dirección que no dependa de una persona', indicador: 'Decisiones delegadas con criterio escrito', actual: 1, meta: 8, fecha: dia(360) }
+        { id: 'om3', objetivoId: 'intervencion:objetivo:oim1', nombre: 'Dirección que no dependa de una persona', indicador: 'Decisiones delegadas con criterio escrito', actual: 1, meta: 8, fecha: dia(360) }
       ],
       areas: [
         { macro: 'om1', area: 'Finanzas', objetivo: 'Cobrar por certificaciones', kpi: 'Obras con certificación mensual (%)', actual: 20, meta: 90 },

@@ -102,6 +102,8 @@
       if (t.oid) { const o = M.normOid(t.oid, t); if (o !== t.oid) { t.oid = o; n++; } }
       if (/<[a-z/][^>]*>/i.test(t.t || '')) { t.t = M.texto(t.t); n++; }
       if (t.origen === 'modelo') { t.origen = 'Tarea de ejemplo de la empresa modelo'; t.mundo = t.mundo || 'manual'; n++; }
+      // Reuniones que agenda el asistente telefónico (oid asistente:reunion:<id>): su origen es el asistente
+      if (/^asistente:/.test(t.oid || '') && (t.mundo !== 'asistente' || t.origen === 'asistente' || !t.origen)) { t.mundo = 'asistente'; if (!t.origen || t.origen === 'asistente') t.origen = 'Asistente telefónico · reunión agendada'; n++; }
     });
     const desc = (st.descartadas || []).map((o) => M.normOid(o)); if (desc.join('|') !== (st.descartadas || []).join('|')) { st.descartadas = Array.from(new Set(desc)); n++; }
     const grupos = {}; st.tareas.forEach((t) => { if (t.oid) (grupos[t.oid] = grupos[t.oid] || []).push(t); });
@@ -146,7 +148,7 @@
   const CAMPOS = ['t', 'fecha', 'resp', 'area', 'origen', 'mundo', 'objetivoId'];
   M.fusionar = (st, items, op) => {
     op = op || {};
-    const r = { nuevas: 0, actualizadas: 0, retiradas: 0, cerradas: 0 }, vistos = new Set((op.vigentes || []).map((o) => M.normOid(o)));
+    const r = { nuevas: 0, actualizadas: 0, retiradas: 0, cerradas: 0, difieren: 0, descartadas: 0, desc: [] }, vistos = new Set((op.vigentes || []).map((o) => M.normOid(o)));
     const desc = new Set((st.descartadas || []).map((o) => M.normOid(o)));
     (items || []).forEach((x0) => {
       if (!x0 || !x0.t) return;
@@ -160,13 +162,19 @@
       let l = st.tareas.filter((t) => t.oid === x.oid || aka.indexOf(t.oid) >= 0);
       const t = l.length > 1 ? fusionTareas(st, l) : l[0];
       if (!t) {
-        if (hechaO || desc.has(x.oid) || aka.some((a) => desc.has(a))) return;
+        if (hechaO) return;
+        // Borrada en la mesa: no vuelve sola, pero el resumen lo dice y se puede volver a crear (M.recrear)
+        if (desc.has(x.oid) || aka.some((a) => desc.has(a))) { r.descartadas++; r.desc.push(x0); return; }
         st.tareas.push(Object.assign({ id: M.uid(), entrada: M.hoy(), tipo: 'importante', estado: 'pendiente', impacto: 3, esfuerzo: 3, clave: false }, x, { fecha: x.fecha || f0 || '' }));
         r.nuevas++; return;
       }
       t.oid = x.oid;
       if (hechaO) { if (t.estado !== 'hecha') { t.estado = 'hecha'; t.hecha = typeof hechaO === 'string' ? hechaO : M.hoy(); r.cerradas++; } return; }
-      if (t.estado === 'hecha') return;
+      if (t.estado === 'hecha') {
+        // Hecha, pero el origen ha cambiado lo que pide (otro importe, otra cifra): se anota en la tarea y se avisa
+        if (x.t && M.texto(x.t) !== M.texto(t.t) && t.difVale !== x.t) { if (!t.difiere || t.difiere.t !== x.t) t.difiere = { t: x.t, el: M.hoy() }; r.difieren++; } else if (t.difiere) delete t.difiere;
+        return;
+      }
       let cambio = false;
       if (t.estado === 'noaplica') { t.estado = 'pendiente'; delete t.noAplica; cambio = true; }
       CAMPOS.forEach((k) => { if (x[k] != null && x[k] !== '' && x[k] !== t[k]) { t[k] = x[k]; cambio = true; } });
@@ -186,17 +194,37 @@
     M.enviar.ultimo = r;
     return r.nuevas;
   };
-  M.resumen = (r) => { r = r || M.enviar.ultimo || {}; const p = (n, a, b) => `${n} ${n === 1 ? a : b}`; const l = [r.nuevas ? p(r.nuevas, 'nueva', 'nuevas') : '', r.actualizadas ? p(r.actualizadas, 'actualizada', 'actualizadas') : '', r.retiradas ? p(r.retiradas, 'ya no aplica', 'ya no aplican') : '', r.cerradas ? p(r.cerradas, 'cerrada', 'cerradas') : ''].filter(Boolean); return l.length ? 'En la mesa: ' + l.join(', ') + '.' : 'Ya estaba todo en la mesa, al día.'; };
+  M.resumen = (r) => { r = r || M.enviar.ultimo || {}; const p = (n, a, b) => `${n} ${n === 1 ? a : b}`; const l = [r.nuevas ? p(r.nuevas, 'nueva', 'nuevas') : '', r.actualizadas ? p(r.actualizadas, 'actualizada', 'actualizadas') : '', r.retiradas ? p(r.retiradas, 'ya no aplica', 'ya no aplican') : '', r.cerradas ? p(r.cerradas, 'cerrada', 'cerradas') : '', r.difieren ? p(r.difieren, 'hecha con datos distintos en el origen', 'hechas con datos distintos en el origen') : '', r.descartadas ? p(r.descartadas, 'que se borró de la mesa y no se ha vuelto a crear', 'que se borraron de la mesa y no se han vuelto a crear') : ''].filter(Boolean); return l.length ? 'En la mesa: ' + l.join(', ') + '.' : 'Ya estaba todo en la mesa, al día.'; };
   /* Botón estándar «A mi mesa de trabajo»: devuelve el elemento ya conectado. op: opciones de envío (u objeto devuelto por una función) */
   M.boton = (fn, txt, op) => {
     const b = document.createElement('button'); b.className = 'btn ghost small mesa-btn'; b.type = 'button'; b.textContent = txt || 'A mi mesa de trabajo';
-    b.onclick = async () => { b.disabled = true; try { await M.enviar(fn(), typeof op === 'function' ? op() : op); b.textContent = M.resumen(); b.dispatchEvent(new CustomEvent('mesa:enviado', { bubbles: true })); } catch (e) { b.textContent = 'No se pudo enviar'; } setTimeout(() => { b.disabled = false; b.textContent = txt || 'A mi mesa de trabajo'; }, 3500); };
+    b.onclick = async () => { b.disabled = true; try { await M.enviar(fn(), typeof op === 'function' ? op() : op); b.textContent = M.resumen(); M.ofrecerRecrear(b); b.dispatchEvent(new CustomEvent('mesa:enviado', { bubbles: true })); } catch (e) { b.textContent = 'No se pudo enviar'; } setTimeout(() => { b.disabled = false; b.textContent = txt || 'A mi mesa de trabajo'; }, 3500); };
+    return b;
+  };
+  /* Volver a crear en la mesa lo que se borró allí (deja de estar descartado) */
+  M.recrear = async (items) => {
+    const st = await M.cargar(), ks = new Set();
+    (items || []).forEach((x) => { if (x && x.oid) ks.add(M.normOid(x.oid, x)); ((x && x.aka) || []).forEach((a) => ks.add(M.normOid(a, x))); });
+    st.descartadas = (st.descartadas || []).filter((o) => !ks.has(M.normOid(o)));
+    const r = M.fusionar(st, items); await M.guardarYa(st); M.enviar.ultimo = r; return r;
+  };
+  /* Tras un envío con tareas borradas en la mesa: botón «Volver a crearlas» junto al elemento indicado */
+  M.ofrecerRecrear = (el, r, fn) => {
+    r = r || M.enviar.ultimo || {}; if (!el || !el.parentNode) return null;
+    const prev = el.parentNode.querySelector('.mesa-recrear'); if (prev) prev.remove();
+    const l = (r.desc || []).slice(); if (!l.length) return null;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost small mesa-recrear';
+    b.textContent = l.length === 1 ? 'Volver a crear en la mesa la tarea borrada' : `Volver a crear en la mesa las ${l.length} tareas borradas`;
+    b.onclick = async () => { b.disabled = true; try { const x = fn ? await fn(l) : await M.recrear(l); b.textContent = x.nuevas === 1 ? 'Vuelve a estar en la mesa.' : `${x.nuevas} vuelven a estar en la mesa.`; } catch (e) { b.textContent = 'No se pudo volver a crear'; } setTimeout(() => b.remove(), 4000); };
+    el.after(b); setTimeout(() => { if (!b.disabled) b.remove(); }, 30000);
     return b;
   };
 
   /* ---------- Ir al origen ---------- */
   const MOD_ID = /^[a-z0-9-]+$/i;
-  M.urlOrigen = (oid) => {
+  // La pantalla de origen con «?ir=<oid>»: al abrirla se desplaza hasta la acción y la resalta (M.irA)
+  M.urlOrigen = (oid) => { const u = M.pantallaOrigen(oid); return u ? u.replace('#', '?ir=' + encodeURIComponent(M.normOid(oid)) + '#') : ''; };
+  M.pantallaOrigen = (oid) => {
     const p = M.partes(oid); if (!p) return '';
     const mod = p.id.split(':')[0];
     if (p.mundo === 'intervencion') return 'intervencion.html#' + ({ accion: 'plan', acuerdo: 'sesiones', sesion: 'sesiones', hito: 'objetivos', objetivo: 'objetivos', causa: 'sintomas', preguntas: 'guion' }[p.tipo] || 'plan');
@@ -205,6 +233,37 @@
     if (p.mundo === 'simulador') return 'app.html#plan';
     return '';
   };
+  /* Al llegar desde la mesa («?ir=<oid>»): espera a que la pantalla pinte la acción, la centra y la resalta.
+     Cada origen marca sus elementos con data-ir, data-mesa-oid, data-mesa-ok o data-mesa-meta; M.alIr['mundo:tipo']
+     prepara la pantalla si hace falta (elegir la sesión de un acuerdo, por ejemplo). */
+  M.alIr = M.alIr || {};
+  const estiloIr = () => { if (document.getElementById('mesaIrCss')) return; const st = document.createElement('style'); st.id = 'mesaIrCss'; st.textContent = '.mesa-foco{outline:3px solid var(--gold,#d8b24a);outline-offset:4px;border-radius:8px;box-shadow:0 0 0 8px rgba(216,178,74,.18);transition:outline-color 1s,box-shadow 1s}.mesa-foco-fin{outline-color:transparent;box-shadow:none}'; document.head.appendChild(st); };
+  M.buscarIr = (oid) => {
+    const q = (a) => `[${a}="${String(oid).replace(/["\\]/g, '\\$&')}"]`;
+    const el = document.querySelector(['data-ir', 'data-mesa-oid', 'data-mesa-ok', 'data-mesa-meta'].map(q).join(','));
+    if (!el) return null;
+    return el.matches('[data-ir]') ? el : el.closest('[data-ir-bloque], li, tr, .step, .c3-act, .iv-hito, .iv-acu, .iv-obj, .cobj, .card') || el;
+  };
+  M.irA = (oid, max) => {
+    if (!oid) return;
+    const p = M.partes(oid), prep = p && M.alIr[p.mundo + ':' + p.tipo];
+    let n = 0, hecho = null, prepN = 0;
+    const paso = () => {
+      n++;
+      if (prep && prepN < 3 && !M.buscarIr(oid)) { try { if (prep(p, oid) !== false) prepN++; } catch (e) { prepN = 3; } }
+      const el = M.buscarIr(oid);
+      if (el && el.getClientRects().length) {
+        if (el !== hecho) { estiloIr(); el.classList.add('mesa-foco'); el.classList.remove('mesa-foco-fin'); el.scrollIntoView({ block: 'center' }); if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1'); try { el.focus({ preventScroll: true }); } catch (e) { /* nada */ } hecho = el; }
+        // La pantalla puede repintarse justo después de cargar: se vuelve a comprobar unos segundos
+        if (n < (max || 60) && n < 40) setTimeout(paso, 250); else setTimeout(() => el.classList.add('mesa-foco-fin'), 4000);
+        return;
+      }
+      if (n < (max || 60)) setTimeout(paso, 250);
+    };
+    setTimeout(paso, 300);
+  };
+  const irPedido = () => { let o = ''; try { o = new URLSearchParams(location.search).get('ir') || ''; } catch (e) { o = ''; } if (!o) return; M.irA(o); try { const q = new URLSearchParams(location.search); q.delete('ir'); history.replaceState(history.state, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) { /* nada */ } };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', irPedido); else irPedido();
 
   /* ---------- Estado en el origen ----------
      Cada origen guarda el estado donde lo lee su página; donde no hay un campo propio, en «mesaEstado» { oid: { estado, fecha } }. */
@@ -254,9 +313,64 @@
     let n = 0;
     l.forEach((t) => { if (h && t.estado !== 'hecha') { t.estado = 'hecha'; t.hecha = fechaDe(h); n++; } else if (!h && t.estado === 'hecha') { t.estado = 'pendiente'; t.hecha = null; n++; } });
     lm.forEach((m) => { if (h && m.estado !== 'cumplida') { m.estado = 'cumplida'; m.cumplida = fechaDe(h); n++; } else if (!h && m.estado === 'cumplida') { m.estado = 'activa'; m.cumplida = ''; n++; } });
+    // Las acciones de las metas que vienen de ese origen (un hito, una acción del plan) también se cierran o reabren
+    let na = 0;
+    (st.metas || []).forEach((m) => (m.acciones || []).forEach((a) => { if (!a.oid || ks.indexOf(M.normOid(a.oid)) < 0) return; if (h && !a.hecha) { a.hecha = fechaDe(h); n++; na++; } else if (!h && a.hecha) { a.hecha = ''; n++; na++; } }));
     if (n) await M.guardarYa(st);
-    return l.length + lm.length > 0;
+    return l.length + lm.length + na > 0;
   };
+
+  /* ---------- Una meta que vuelve a llegar de su objetivo («Actualizar en la mesa») ----------
+     Combina en lugar de pisar: lo que se cambió en la mesa desde el último envío se conserva; lo que solo cambió en el
+     origen se actualiza; si cambió en los dos sitios, se queda lo de la mesa y se avisa (conflictos). En las acciones,
+     el estado más avanzado gana: hecha en cualquiera de los dos sitios es hecha. Las acciones que se añadieron en la
+     mesa se quedan. m.origen0 guarda lo último que llegó del origen para saber quién cambió qué.
+     Devuelve { conflictos: [{ k, n, mesa, origen }], hechasEnMesa: [oid de acciones hechas en la mesa y no en el origen] } */
+  M.CAMPOS_META = { objetivo: 'objetivo', especifica: 'qué se hará', indicador: 'indicador', actual: 'valor actual', valor: 'valor meta', unidad: 'unidad', fecha: 'fecha límite', responsable: 'responsable', solo: 'depende solo de quien la ejecuta', beneficio: 'beneficio', contras: 'contras', merece: 'si merece la pena' };
+  M.combinarMeta = (st, m, datos) => {
+    const igual = (a, b) => String(a == null || a === false ? '' : a).trim() === String(b == null || b === false ? '' : b).trim();
+    const vacio = (v) => v == null || v === '' || v === false;
+    const base = m.origen0 || null, out = { conflictos: [], hechasEnMesa: [] };
+    Object.keys(M.CAMPOS_META).forEach((k) => {
+      if (!(k in datos)) return;
+      const vO = datos[k], vM = m[k];
+      if (igual(vO, vM)) return;
+      const enMesa = base ? !igual(vM, base[k]) : !vacio(vM), enOrigen = base ? !igual(vO, base[k]) : true;
+      if (!enMesa) { m[k] = vO; return; }
+      if (enOrigen && !vacio(vO)) out.conflictos.push({ k, n: M.CAMPOS_META[k], mesa: vM, origen: vO });
+    });
+    const accs = (m.acciones = Array.isArray(m.acciones) ? m.acciones : []);
+    (datos.acciones || []).forEach((d) => {
+      const y = accs.find((x) => (d.oid && x.oid && M.normOid(x.oid) === M.normOid(d.oid))) || accs.find((x) => !x.oid && (M.texto(x.t) === M.texto(d.t) || (x.t0 && M.texto(x.t0) === M.texto(d.t))));
+      if (!y) { accs.push(Object.assign({ revisada: '' }, d, { t0: d.t, fecha0: d.fecha || '' })); return; }
+      if (d.oid && !y.oid) y.oid = d.oid;
+      [['t', 't0'], ['fecha', 'fecha0']].forEach(([k, k0]) => {
+        if (igual(d[k], y[k])) { y[k0] = d[k] || ''; return; }
+        const enMesa = y[k0] != null ? !igual(y[k], y[k0]) : !vacio(y[k]);
+        if (!enMesa) y[k] = d[k] || ''; else if (y[k0] == null || !igual(d[k], y[k0])) out.conflictos.push({ k: 'accion', n: (k === 't' ? 'texto' : 'fecha') + ' de la acción «' + M.texto(y.t).slice(0, 60) + '»', mesa: y[k], origen: d[k] });
+        y[k0] = d[k] || '';
+      });
+      // El estado más avanzado gana
+      if (d.hecha && !y.hecha) { y.hecha = d.hecha === true ? M.hoy() : d.hecha; const t = y.tareaId && (st.tareas || []).find((x) => x.id === y.tareaId); if (t && t.estado !== 'hecha') { t.estado = 'hecha'; t.hecha = typeof y.hecha === 'string' ? y.hecha : M.hoy(); } }
+      else if (y.hecha && !d.hecha && y.oid) out.hechasEnMesa.push({ oid: y.oid, fecha: typeof y.hecha === 'string' ? y.hecha : M.hoy() });
+    });
+    m.origen0 = {}; Object.keys(M.CAMPOS_META).forEach((k) => { if (k in datos) m.origen0[k] = datos[k] == null ? '' : datos[k]; });
+    ['objetivoId', 'oid'].forEach((k) => { if (datos[k] && !m[k]) m[k] = datos[k]; });
+    return out;
+  };
+  // Texto del aviso de conflictos de una meta combinada
+  M.textoConflictos = (c) => !c || !c.length ? '' : 'Se ha conservado lo que se cambió en la mesa: ' + c.slice(0, 3).map((x) => `${x.n} («${M.texto(x.mesa)}» en la mesa; aquí «${M.texto(x.origen)}»)`).join('; ') + (c.length > 3 ? ` y ${c.length - 3} más` : '') + '.';
+
+  /* Un mismo objetivo sin identificador común: el mismo indicador con los mismos valores (de 1 a 8 decisiones) */
+  M.claveObj = (o) => {
+    const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const ind = norm(o.indicador).replace(/[^a-z0-9]+/g, ' ').replace(/\b(medios?|de|del|la|el|los|las)\b/g, '').replace(/\s+/g, ' ').trim();
+    const ac = o.actual != null ? o.actual : '', va = o.valor != null && o.valor !== '' ? o.valor : o.meta != null ? o.meta : '';
+    const v = [ac, va].filter((x) => x !== '' && x != null).map((x) => String(+String(x).replace(',', '.')));
+    return ind && v.length === 2 ? 'i:' + ind + '|' + v.join('>') : '';
+  };
+  /* Las acciones del plan de intervención que van a la mesa de la empresa: las que hace la empresa (no las que lidera el consultor) */
+  M.accionEmpresa = (a) => !!a && a.quien === 'empresa';
 
   /* ---------- Marca «En la mesa · …» en los orígenes ---------- */
   let cache = null;

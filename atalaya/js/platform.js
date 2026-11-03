@@ -471,7 +471,8 @@
     let nueva; try { nueva = JSON.parse(e.newValue); } catch (x) { return; }
     if (nueva === actTab) return;
     const nom = (id) => { const x = REG && REG.lista ? REG.lista.find((y) => y.id === id) : null; return (x && x.nombre) || (id === MID ? 'la empresa modelo' : 'otra empresa'); };
-    banda(`En otra pestaña ha pasado a ${escH(nom(nueva))}. Esta pestaña sigue trabajando con ${escH(nom(actTab))}.`, { tipo: 'warn', clave: 'empresa:' + nueva, accion: { texto: 'Cambiar aquí también', fn: () => { ponerAct(nueva); location.reload(); } } });
+    const fin = (t) => String(t).replace(/\.+$/, '');
+    banda(`En otra pestaña ha pasado a ${escH(fin(nom(nueva)))}. Esta pestaña sigue trabajando con ${escH(fin(nom(actTab)))}.`, { tipo: 'warn', clave: 'empresa:' + nueva, accion: { texto: 'Cambiar aquí también', fn: () => { ponerAct(nueva); location.reload(); } } });
   });
 
   /* Datos de otra empresa de la cuenta (vista de grupo) */

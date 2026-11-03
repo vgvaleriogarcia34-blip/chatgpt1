@@ -41,7 +41,7 @@
   }
   V.estado = () => ST;
   const empresa = () => { const e = P() && P().empresas && P().empresas.activa(); return (e && e.nombre) || 'Mi empresa'; };
-  const toast = (t) => { $$('.iv-toast').forEach((x) => x.remove()); const d = document.createElement('div'); d.className = 'alert ok iv-toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 6000); };
+  const toast = (t, cls) => { $$('.iv-toast').forEach((x) => x.remove()); const d = document.createElement('div'); d.className = 'alert ' + (cls || 'ok') + ' iv-toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), cls === 'warn' ? 12000 : 6000); };
 
   /* ---------- Cálculos ---------- */
   // Triaje: un solo cálculo, el de js/triaje.js (lo usan también el tablero y la cartera con los datos guardados)
@@ -232,7 +232,7 @@
   const fraseObj = (o) => { const q = (o.especifica || o.dice || '').trim().replace(/[.\s]+$/, ''); if (!q) return ''; const fn = (v) => (/^\d+(\.\d+)?$/.test(String(v)) && +v >= 10000 ? (+v).toLocaleString('es-ES') : v), yaDice = /\b(a cero|a la mitad|el doble|duplicar)\b/i.test(q) || o.valor && new RegExp('(^|\\D)' + String(o.valor).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\D|$)').test(V.objSmart && V.objSmart.cifrasF ? V.objSmart.cifrasF(q) : q.replace(/(\d)\.(?=\d{3})/g, '$1')); return `${q}${o.valor && o.unidad !== 'hito' && !yaDice ? `, ${o.actual ? 'pasando de ' + fn(o.actual) + ' a ' : 'hasta '}${fn(o.valor)} ${o.unidad || ''}`.replace(/\s+$/, '') : ''}${o.fecha ? ', antes del ' + fLarga(o.fecha) : ''}${o.beneficio ? ', para ' + o.beneficio.charAt(0).toLowerCase() + o.beneficio.slice(1).replace(/[.\s]+$/, '') : ''}.`; };
   const objNuevo = () => ({ id: uid(), dice: '', especifica: '', indicador: '', actual: '', valor: '', unidad: '', fecha: '', responsable: '', solo: false, beneficio: '', contras: '', merece: '', como: '' });
   const objetivosHTML = () => `<div class="iv-objs" id="ivObjs"><div class="row"><div><div class="eyebrow">Objetivos del empresario</div><small class="muted">Que los ponga él. Usted le ayuda a que sean SMART (concretos, medibles, alcanzables, relevantes y con fecha) y a decir cómo los va a alcanzar.</small></div><span class="spacer"></span><button class="btn small" id="ivObjN">Añadir un objetivo</button></div>
-    ${(ST.objetivos || []).map((o, i) => { const sm = smartObj(o), ev = evalObj(o); return `<div class="iv-obj" data-o="${o.id}"><div class="row"><b class="iv-oid">O${i + 1}</b><span class="iv-smart">${sm.map((y) => `<i class="${y.ok ? 'ok' : ''}" title="${esc(y.n + ': ' + y.h)}">${y.k}</i>`).join('')}</span><span class="ms-luz ${o.borrada ? '' : ev.st}" title="${esc(o.borrada ? 'Sin frase' : ev.t)}"></span><small class="muted iv-oev">${esc(o.borrada ? 'Sin frase: escriba lo que quiere con sus palabras.' : ev.t)}</small><span class="spacer"></span><button class="icon-btn" data-odel aria-label="Quitar el objetivo">×</button></div>
+    ${(ST.objetivos || []).map((o, i) => { const sm = smartObj(o), ev = evalObj(o); return `<div class="iv-obj" data-o="${o.id}" data-ir="intervencion:objetivo:${esc(o.id)}"><div class="row"><b class="iv-oid">O${i + 1}</b><span class="iv-smart">${sm.map((y) => `<i class="${y.ok ? 'ok' : ''}" title="${esc(y.n + ': ' + y.h)}">${y.k}</i>`).join('')}</span><span class="ms-luz ${o.borrada ? '' : ev.st}" title="${esc(o.borrada ? 'Sin frase' : ev.t)}"></span><small class="muted iv-oev">${esc(o.borrada ? 'Sin frase: escriba lo que quiere con sus palabras.' : ev.t)}</small><span class="spacer"></span><button class="icon-btn" data-odel aria-label="Quitar el objetivo">×</button></div>
       <label class="small">1 · Lo que quiere, con sus palabras <span class="muted">(al salir del cuadro o con Intro se revisa el SMART)</span><textarea class="input" rows="2" data-ok="dice" placeholder="«Quiero dejar de apagar fuegos y que la empresa gane dinero de verdad»">${esc(o.dice)}</textarea></label>
       <p class="iv-oaviso small" data-oaviso></p>
       <label class="small">2 · Qué hará él (con un verbo al principio y que dependa de él)<input class="input" data-ok="especifica" value="${esc(o.especifica)}" placeholder="Dedicar las mañanas del lunes a dirigir y delegar la operativa del almacén"></label>
@@ -270,11 +270,23 @@
     if (A.mesa.idsIntervencion && A.mesa.idsIntervencion(ST)) guardar();
     const st = await A.mesa.cargar(), oid = A.mesa.oid('intervencion', 'objetivo', o.id); let m = st.metas.find((x) => x.objetivoId === oid || x.oid === oid);
     const datos = { objetivoId: oid, objetivo: o.dice || o.especifica, especifica: o.especifica, indicador: o.indicador, actual: o.actual, valor: o.valor, unidad: o.unidad, fecha: o.fecha, responsable: o.responsable, solo: !!o.solo, beneficio: o.beneficio, contras: o.contras, merece: o.merece, acciones: (o.hitos || []).filter((h) => h.t).map((h) => ({ t: h.t + (h.resp ? ' · ' + h.resp : ''), fecha: h.fecha || '', revisada: '', hecha: h.hecho || '', oid: A.mesa.oid('intervencion', 'hito', o.id + ':' + h.id) })).concat((o.como || '').split('\n').map((t) => t.trim()).filter(Boolean).map((t) => ({ t, fecha: '', revisada: '', hecha: '' }))) };
-    // Las acciones que ya estaban en la meta conservan su tarea en la bandeja
-    if (m) { datos.acciones.forEach((a) => { const y = (m.acciones || []).find((x) => (a.oid && x.oid === a.oid) || x.t === a.t); if (y && y.tareaId) a.tareaId = y.tareaId; }); Object.assign(m, datos); }
-    else { m = Object.assign({ id: 'm' + Date.now().toString(36), oid, creada: hoy(), area: 'Dirección', medios: false, beneficios: '', perdidas: '', pros: '', obstaculos: [{ o: '', s: '' }], seguimiento: 'En las sesiones de la intervención con el consultor', valores: '', afirmacion: '', prioridad: i + 1, plazo: 'corto', tangible: true, estado: 'activa' }, datos); st.metas.push(m); }
-    await A.mesa.guardarYa(st); o.enviada = true; guardar(); render();
-    toast('Objetivo en la mesa de trabajo como meta SMART, con su plan de acción.');
+    // Ya en la mesa: se combina, no se pisa (lo cambiado en la mesa se conserva, la acción hecha en cualquier sitio queda hecha)
+    let c = null;
+    if (m && A.mesa.combinarMeta) c = A.mesa.combinarMeta(st, m, datos);
+    else if (m) { datos.acciones.forEach((a) => { const y = (m.acciones || []).find((x) => (a.oid && x.oid === a.oid) || x.t === a.t); if (y && y.tareaId) a.tareaId = y.tareaId; }); Object.assign(m, datos); }
+    else {
+      m = Object.assign({ id: 'm' + Date.now().toString(36), oid, creada: hoy(), area: 'Dirección', medios: false, beneficios: '', perdidas: '', pros: '', obstaculos: [{ o: '', s: '' }], seguimiento: 'En las sesiones de la intervención con el consultor', valores: '', afirmacion: '', prioridad: i + 1, plazo: 'corto', tangible: true, estado: 'activa' }, datos);
+      m.acciones = m.acciones.map((a) => Object.assign({}, a, { t0: a.t, fecha0: a.fecha || '' }));
+      if (A.mesa.CAMPOS_META) { m.origen0 = {}; Object.keys(A.mesa.CAMPOS_META).forEach((k) => { m.origen0[k] = datos[k] == null ? '' : datos[k]; }); }
+      st.metas.push(m);
+    }
+    await A.mesa.guardarYa(st);
+    // Lo que se marcó hecho en la mesa (un hito) queda hecho también aquí
+    let nh = 0;
+    ((c && c.hechasEnMesa) || []).forEach((x) => { const p = A.mesa.partes(x.oid); if (!p || p.mundo !== 'intervencion' || p.tipo !== 'hito') return; const [oi, hi] = p.id.split(':'); if (oi !== o.id) return; const h = (o.hitos || []).find((y) => y.id === hi); if (h && !h.hecho) { h.hecho = x.fecha; nh++; } });
+    o.enviada = true; guardar(); render();
+    const avisos = [nh ? `${nh === 1 ? 'Un hito marcado' : nh + ' hitos marcados'} como hecho${nh === 1 ? '' : 's'} en la mesa queda${nh === 1 ? '' : 'n'} hecho${nh === 1 ? '' : 's'} también aquí.` : '', c && c.conflictos.length ? A.mesa.textoConflictos(c.conflictos) : ''].filter(Boolean).join(' ');
+    toast(c ? 'Meta actualizada en la mesa de trabajo.' + (avisos ? ' ' + avisos : '') : 'Objetivo en la mesa de trabajo como meta SMART, con su plan de acción.', c && c.conflictos.length ? 'warn' : '');
   };
   const wireObjetivos = (host) => {
     const n = $('#ivObjN', host); if (n) n.onclick = () => { ST.objetivos.push(objNuevo()); render(); const l = $$('.iv-obj', host); const u = l[l.length - 1]; if (u) { u.scrollIntoView({ block: 'center' }); $('[data-ok=dice]', u).focus(); } };

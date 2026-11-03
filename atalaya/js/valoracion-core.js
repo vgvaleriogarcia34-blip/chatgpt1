@@ -1,6 +1,6 @@
 /* Atalaya · Valoración orientativa de una empresa (la usan el sistema estratégico y la vista de grupo)
    Dos métodos sobre los datos del simulador, con el escenario sin la inversión como «hoy»:
-   · Múltiplo de EBITDA del sector, corregido por tamaño y por los factores que un comprador descuenta.
+   · Múltiplo de EBITDA del sector (el EBITDA de hoy de las cifras clave), corregido por tamaño y por los factores que un comprador descuenta.
    · Descuento de los flujos de caja libre de los cinco años proyectados, con valor residual.
    El valor de las acciones es el valor de la empresa menos la deuda neta. Es una estimación para decidir y
    conversar (sucesión, socios, grupo); no sustituye a una valoración profesional. */
@@ -24,7 +24,10 @@
     const s = Object.assign(A.defaultState(), sim);
     const r = A.analyze(s, A.scenarioMods(s, s.escenario || 'base'));
     const em = s.empresa, an = r.tamano.antes;
-    const ebitda = an.ebitda, ventas = an.ventas;
+    // El EBITDA de hoy es el de las cifras clave de la empresa (ventas × margen − personal − fijos, js/cifras.js), no el del
+    // primer año proyectado por el motor: la valoración y el tablero hablan del mismo beneficio
+    const ebitda = isFinite(r.ebitdaActual) ? r.ebitdaActual : an.ebitda, ventas = em.ventas > 0 ? em.ventas : an.ventas;
+    const ebitdaPct = ventas > 0 ? ebitda / ventas * 100 : an.ebitdaPct;
     const base = o.multiplo != null && o.multiplo !== '' ? +o.multiplo : (A.MULTIPLOS[s.sector] || 5);
     // Ajustes del múltiplo: lo que un comprador o un socio descuenta (o premia)
     const aj = [];
@@ -53,7 +56,7 @@
     const eqInvM = evInv - (deudaNeta + deudaNueva) + extra;
     const evDInv = Math.max(0, dcf(flPlan, wacc, g));
     const eqInv = pm * eqInvM + (1 - pm) * (evDInv - deudaNeta + extra);
-    return { sector: s.sector, ventas, ebitda, ebitdaPct: an.ebitdaPct, base, ajustes: aj, mult, deudaNeta, extra, evM, evD, eqM, eqD, central, min: Math.min(eqM, eqD), max: Math.max(eqM, eqD), patrimonio: em.fondosPropios || 0, wacc: wacc * 100, g: g * 100, pesoMult: pm * 100, flHoy, flPlan, inv, eqInv, deltaInv: inv ? eqInv - central : 0, ebitdaCrucero: r.tamano.despues.ebitda, deudaNueva, r };
+    return { sector: s.sector, ventas, ebitda, ebitdaPct, base, ajustes: aj, mult, deudaNeta, extra, evM, evD, eqM, eqD, central, min: Math.min(eqM, eqD), max: Math.max(eqM, eqD), patrimonio: em.fondosPropios || 0, wacc: wacc * 100, g: g * 100, pesoMult: pm * 100, flHoy, flPlan, inv, eqInv, deltaInv: inv ? eqInv - central : 0, ebitdaCrucero: r.tamano.despues.ebitda, deudaNueva, r };
   };
 
   /* ---------- Una sola valoración en toda Atalaya ----------

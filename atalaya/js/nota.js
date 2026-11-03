@@ -139,10 +139,13 @@
     metas.forEach((m) => {
       const nombre = m.especifica || m.objetivo || 'sin definir', num = (v) => v !== '' && v != null && isFinite(+String(v).replace(',', '.'));
       const falta = [!(m.especifica || '').trim() && 'qué se hará', !(m.indicador && num(m.valor)) && 'indicador y valor', !m.fecha && 'fecha', !(m.responsable || '').trim() && 'responsable', !(m.beneficio || '').trim() && 'beneficio', !m.solo && 'que dependa solo de quien la ejecuta'].filter(Boolean);
-      if (m.fecha && m.fecha < h) out.push({ st: 'stop', peso: 2, t: `Meta vencida sin cumplir: «${nombre}»`, zona: 'metas', meta: m.id });
+      // Creada por Atalaya con lo que se pudo heredar del objetivo («por completar»): no puntúa hasta que se complete
+      const pc = Array.isArray(m.porCompletar) && m.porCompletar.length && [!(m.indicador && num(m.valor)) && 'indicador y valor', !(m.responsable || '').trim() && 'responsable', !(m.beneficio || '').trim() && 'beneficio'].filter(Boolean);
+      if (pc && pc.length) out.push({ st: 'nd', peso: 1, t: `Meta por completar: «${nombre}»`, d: 'Falta: ' + pc.join(', ') + '. Hasta completarla no cuenta en la nota.', zona: 'metas', meta: m.id });
+      else if (m.fecha && m.fecha < h) out.push({ st: 'stop', peso: 2, t: `Meta vencida sin cumplir: «${nombre}»`, zona: 'metas', meta: m.id });
       else out.push({ st: falta.length > 2 ? 'stop' : falta.length ? 'warn' : 'ok', peso: 1, t: falta.length ? `Meta mal planteada: «${nombre}»` : `Meta SMART: «${nombre}»`, d: falta.length ? 'Falta: ' + falta.join(', ') + '.' : '', zona: 'metas', meta: m.id });
       const accV = (m.acciones || []).filter((a) => a.t && !a.hecha && (a.revisada || a.fecha) && (a.revisada || a.fecha) < h).length;
-      if (accV) out.push({ st: 'stop', peso: 1, t: `${pl(accV, 'acción vencida', 'acciones vencidas')} en la meta «${nombre}»`, zona: 'metas', meta: m.id });
+      if (accV && !(pc && pc.length)) out.push({ st: 'stop', peso: 1, t: `${pl(accV, 'acción vencida', 'acciones vencidas')} en la meta «${nombre}»`, zona: 'metas', meta: m.id });
     });
     const d = new Date(h + 'T12:00:00'), w0 = new Date(d); w0.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const a0 = w0.toISOString().slice(0, 10); const w6 = new Date(w0); w6.setDate(w0.getDate() + 6); const a6 = w6.toISOString().slice(0, 10);
     const sem = tareas.filter((t) => t.hora && t.fecha >= a0 && t.fecha <= a6), mT = sem.reduce((a, t) => a + (+t.dur || 30), 0), mC = sem.filter((t) => t.clave).reduce((a, t) => a + (+t.dur || 30), 0);
