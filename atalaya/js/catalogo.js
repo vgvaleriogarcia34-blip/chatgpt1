@@ -9,7 +9,8 @@
   const A = (window.Atalaya = window.Atalaya || {});
   // [clave, nombre en pantalla, pregunta que responde (opcional)]
   const M = {
-    sim: { href: 'app.html', secuencial: true, areas: [
+    // Fases y capítulos de js/ruta.js (FASES y CAP); el diccionario queda fuera del recorrido («aparte»)
+    sim: { href: 'app.html', secuencial: true, aparte: [['diccionario', 'Diccionario', 'Los conceptos, explicados en llano.']], areas: [
       ['vista', 'Visión general', [['puente', 'Puente de mando', '¿Cómo está todo de un vistazo?']]],
       ['empresa', 'Su empresa', [['empresa', 'La empresa hoy', '¿Cómo es su empresa ahora mismo?'], ['historia', 'Historia y cuentas', '¿De dónde viene? Sus cuentas de otros años.']]],
       ['mov', 'El movimiento', [['inversion', 'La inversión', '¿Qué quiere hacer y cómo lo paga?']]],
@@ -61,7 +62,7 @@
 
   const P = () => A.platform;
   const mundoP = (k) => ((P() && P().mundos ? P().mundos() : (P() && P().MUNDOS) || []).find((m) => m.k === k)) || ((P() && P().MUNDOS) || []).find((m) => m.k === k) || { k, n: k, c: '#9ba4ba' };
-  /* Mundo completo con sus áreas y módulos: [{ k, n, c, d, href, lock, secuencial, unico, areas: [{ k, n, modulos: [{ k, n, pregunta, href }] }] }]
+  /* Mundo completo con sus áreas y módulos: [{ k, n, c, d, href, lock, secuencial, unico, areas: [{ k, n, modulos: [{ k, n, pregunta, href }] }], aparte: [módulos fuera del recorrido] }]
      Un área con bloques trae además bloques: [{ k, n, modulos }]; sus «modulos» son los de todos sus bloques y cada uno lleva su «bloque». */
   function mundo(k) {
     const d = M[k]; if (!d) return null;
@@ -75,7 +76,10 @@
         bls.forEach((x, i) => { bloques[i].modulos = x[2].map(mod(bloques[i])); });
         return { k: ak, n: an, bloques, modulos: bloques.flatMap((b) => b.modulos) };
       });
-    return { k, n: p.n, c: p.c, d: p.d || '', href: d.href, lock: !!p.lock, plan: p.plan, secuencial: !!d.secuencial, unico: !!d.unico, areas };
+    // Módulos fuera del recorrido: no cuentan como paso; para el buscador son de un área «Fuera del recorrido»
+    const ap = { k: 'aparte', n: 'Fuera del recorrido', aparte: true, modulos: [] };
+    ap.modulos = (d.aparte || []).map(([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk, aparte: true }));
+    return { k, n: p.n, c: p.c, d: p.d || '', href: d.href, lock: !!p.lock, plan: p.plan, secuencial: !!d.secuencial, unico: !!d.unico, areas, aparte: ap.modulos, areaAparte: ap };
   }
   // Mundos de la cuenta, en el orden de la barra común (la vista de grupo, solo si el plan la tiene)
   function mundos() {
@@ -84,7 +88,7 @@
   }
   // Todos los módulos en una lista plana, con su mundo y su área
   function modulos() {
-    return mundos().flatMap((m) => m.areas.flatMap((a) => a.modulos.map((x) => Object.assign({ mundo: m, area: a }, x))));
+    return mundos().flatMap((m) => m.areas.concat(m.aparte.length ? [m.areaAparte] : []).flatMap((a) => a.modulos.map((x) => Object.assign({ mundo: m, area: a }, x))));
   }
   A.catalogo = { DATOS: M, mundo, mundos, modulos };
 })();

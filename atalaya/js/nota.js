@@ -265,7 +265,7 @@
   const pintarChip = () => {
     if (!chip || !ultima) return;
     const m = ultima.actual && ultima.mundos[ultima.actual];
-    chip.innerHTML = `<span class="nt-n ${stDeNota(ultima.global)}">${ultima.global == null ? 'Sin nota' : fmt(ultima.global)}</span><small>Empresa</small>${m ? `<span class="nt-sep"></span><span class="nt-n ${stDeNota(m.nota)}">${m.nota == null ? 'Sin nota' : fmt(m.nota)}</span><small>Este mundo</small>` : ''}`;
+    chip.innerHTML = `<span class="nt-n ${stDeNota(ultima.global)}${ultima.global == null ? ' nt-vacia' : ''}">${ultima.global == null ? 'Sin nota' : fmt(ultima.global)}</span><small>Empresa</small>${m ? `<span class="nt-sep"></span><span class="nt-n ${stDeNota(m.nota)}${m.nota == null ? ' nt-vacia' : ''}">${m.nota == null ? 'Sin nota' : fmt(m.nota)}</span><small>Este mundo</small>` : ''}`;
     chip.title = 'Nota de la empresa de 0 a 10 (media de los mundos) y nota de este mundo, con el mismo criterio que el cuadro de mando y los informes. Se recalcula al guardar' + (ultima.fecha ? ' (última: ' + new Date(ultima.fecha).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ')' : '') + ': toque para ver los puntos a tratar';
   };
   const pintarPanel = () => {

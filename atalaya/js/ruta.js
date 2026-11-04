@@ -1,17 +1,23 @@
 /* Atalaya · Recorrido del simulador
-   1) Mapa de capas: cada capítulo es una ventana flotante en 3D que deja ver un fragmento real de su contenido.
-      Se ordenan en pila, abanico, círculo o línea; al pasar por encima se elevan y al pulsarlas se abren.
-      Se abre solo la primera vez por empresa (P.mapa); después, con su botón o con app.html#mapa.
-   2) Hoja de ruta: seis fases siempre visibles y un capítulo cada vez (anterior / siguiente), en lugar de un
-      desplazamiento infinito. «Ver todo seguido» devuelve la página completa. */
+   1) Menú: el archivador común (js/archivador.js), por fases: Mundo → Fase → Módulo (cada capítulo es un paso).
+      Seis fases numeradas con sus capítulos, la ruta «Empresa › Simulador de inversión › N. Fase › Capítulo» con
+      hermanos, «Abiertos», los capítulos de la fase como pestañas y, al pie, el recorrido completo y
+      «← anterior · Paso N de 12 · Siguiente →». Un capítulo cada vez, en lugar de un desplazamiento infinito.
+      El estado de cada paso es «visitado» (el simulador no tiene otro criterio de hecho); el estado en vivo de cada
+      capítulo (veredicto, liquidez, semáforos…) se lee al pasar por encima de su nombre.
+      El diccionario queda fuera del recorrido: entrada aparte al final del archivador y en el buscador.
+   2) Mapa de capas: cada capítulo es una ventana flotante en 3D que deja ver un fragmento real de su contenido.
+      Ya no es el menú ni se abre solo: solo con app.html#mapa (lo enlaza el tablero general; lo abre js/prioridad.js).
+      Desde el mapa, «Ver todo seguido» devuelve la página completa; al elegir un capítulo se vuelve a uno cada vez. */
 (function () {
   const A = window.Atalaya, F = A.fmt;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Se ha llegado a un capítulo concreto con su ancla (app.html#empresa): el mapa que iba a abrirse solo ya no lo tapa
+  // Se ha llegado a un capítulo concreto con su ancla (app.html#empresa): una apertura del mapa que llegue tarde no lo tapa
   let anclaPedida = false;
+  let arch = null; // archivador común: el menú del simulador
   const LS = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } } };
 
   const FASES = [
@@ -37,7 +43,8 @@
     informe: ['Informe', 'El dossier para decidir.'],
     diccionario: ['Diccionario', 'Los conceptos, explicados en llano.']
   };
-  const ORDEN = FASES.flatMap((f) => f.ids).concat(['diccionario']);
+  const APARTE = ['diccionario']; // fuera del recorrido: no cuenta como paso
+  const ORDEN = FASES.flatMap((f) => f.ids).concat(APARTE);
   const faseDe = (id) => FASES.findIndex((f) => f.ids.includes(id));
   const visit = new Set(LS.get('atalaya.ruta.visto') || []);
 
@@ -65,8 +72,9 @@
     } catch (e) { return null; }
   }
 
-  /* ---------- Modo capítulo ---------- */
-  let modo = LS.get('atalaya.ruta.modo') || 'capitulo';
+  /* ---------- Modo capítulo ----------
+     Siempre se entra capítulo a capítulo; «Ver todo seguido» (desde el mapa) dura hasta elegir otro capítulo. */
+  let modo = 'capitulo';
   let actual = null;
   const sections = () => ORDEN.map((id) => document.getElementById(id)).filter(Boolean);
   // Cualquier salto a un elemento (semáforo, dato, asistente, barra lateral) abre antes su capítulo
@@ -92,39 +100,45 @@
     document.body.classList.add('ch-mode');
     sections().forEach((s) => s.classList.toggle('ch-on', s.id === id));
     marcar(id, sustituir); arrancado = true;
-    drawBar(); drawNext();
+    closeMap();
+    // Un solo pie (recorrido completo y anterior · siguiente): el del capítulo abierto
+    $$('main > section.chapter > :is(.ar-pie, .ar-recorrido)').forEach((x) => { if (x.parentNode.id !== id) x.remove(); });
+    if (arch) arch.refrescar();
     if (A.cosmos) { const fi = faseDe(id); A.cosmos.go(id, [0xecd6a6, 0x3987e5, 0xd4ae64, 0xd55181, 0x199e70, 0xd95926][fi] || 0x9ba4ba); }
     if (!quiet) scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
     // Los gráficos y el 3D se recalculan al hacerse visibles
     setTimeout(() => dispatchEvent(new Event('resize')), 60);
   }
+  // Ver todo seguido: todos los capítulos en una página; sin pie de paso (el archivador sigue abriendo capítulos)
   function seguido() {
-    modo = 'seguido'; LS.set('atalaya.ruta.modo', modo);
+    modo = 'seguido';
     document.body.classList.remove('ch-mode'); sections().forEach((s) => s.classList.remove('ch-on'));
-    $('#rutaBar').hidden = true; $$('.ch-next').forEach((x) => x.remove());
+    $$('main .ar-pie, main .ar-recorrido, .ch-next').forEach((x) => x.remove());
     closeMap(); setTimeout(() => dispatchEvent(new Event('resize')), 60);
   }
-  function capitulos(id) { modo = 'capitulo'; LS.set('atalaya.ruta.modo', modo); $('#rutaBar').hidden = false; show(id || actual || 'puente'); }
+  function capitulos(id) { modo = 'capitulo'; show(id || actual || 'puente'); }
 
-  /* Hoja de ruta superior */
-  function drawBar() {
-    const bar = $('#rutaBar'); if (!bar) return;
-    const i = ORDEN.indexOf(actual), prev = ORDEN[i - 1], next = ORDEN[i + 1];
-    bar.innerHTML = `<button class="rb-map" id="rbMap" title="Ver todas las capas"><i></i><i></i><i></i><span>Mapa</span></button>
-      <ol class="rb-fases">${FASES.map((f, fi) => { const done = f.ids.every((x) => visit.has(x)); const on = f.ids.includes(actual); return `<li class="${on ? 'on' : ''} ${done ? 'done' : ''}"><span class="rb-fn">${fi + 1}</span><span class="rb-name">${f.n}</span><span class="rb-steps">${f.ids.map((x) => `<button data-go="${x}" class="${x === actual ? 'on' : ''} ${visit.has(x) ? 'seen' : ''}" title="${esc(CAP[x][0])}" aria-label="${esc(CAP[x][0])}"></button>`).join('')}</span></li>`; }).join('')}</ol>
-      <div class="rb-nav">${prev ? `<button data-go="${prev}" class="rb-prev" title="${esc(CAP[prev][0])}">←</button>` : ''}<span class="rb-cur"><small>${faseDe(actual) >= 0 ? esc(FASES[faseDe(actual)].n) : 'Herramienta'}</small><b>${esc(CAP[actual][0])}</b></span>${next ? `<button data-go="${next}" class="rb-next" title="${esc(CAP[next][0])}">→</button>` : ''}</div>`;
-    $('#rbMap', bar).onclick = () => openMap();
-    $$('[data-go]', bar).forEach((b) => b.onclick = () => show(b.dataset.go));
-  }
-  /* Botón grande al final de cada capítulo hacia el siguiente */
-  function drawNext() {
-    $$('.ch-next').forEach((x) => x.remove());
-    const sec = document.getElementById(actual); const i = ORDEN.indexOf(actual), next = ORDEN[i + 1]; if (!sec) return;
-    const d = document.createElement('div'); d.className = 'ch-next';
-    d.innerHTML = `${ORDEN[i - 1] ? `<button class="btn ghost" data-go="${ORDEN[i - 1]}">← ${esc(CAP[ORDEN[i - 1]][0])}</button>` : '<span></span>'}<button class="btn ghost" data-map>Ver el mapa</button>${next ? `<button class="btn solid" data-go="${next}">Siguiente: ${esc(CAP[next][0])} →</button>` : '<span></span>'}`;
-    sec.appendChild(d);
-    $$('[data-go]', d).forEach((b) => b.onclick = () => show(b.dataset.go));
-    $('[data-map]', d).onclick = () => openMap();
+  /* ---------- Archivador: fases y capítulos ---------- */
+  // El estado en vivo acompaña a la pregunta de cada capítulo (se ve al pasar por encima de su nombre)
+  const pregunta = (id) => { const e = estado(id); return CAP[id][1] + (e && e.t ? ' · Ahora: ' + e.t : ''); };
+  const areasArch = () => FASES.map((f) => ({ k: f.k, n: f.n, modulos: f.ids.map((id) => ({ k: id, n: CAP[id][0], pregunta: pregunta(id) })) }));
+  // Sin criterio de «hecho» en el simulador: verde = capítulo ya visitado, ámbar = el abierto
+  const estadoArch = (k) => (k === actual ? 'curso' : visit.has(k) ? 'hecho' : '');
+  function montarArch() {
+    if (!A.archivador || arch) return;
+    document.body.classList.add('sim-arch');
+    arch = A.archivador.montar({
+      mundo: 'sim', secuencial: true, recorrido: true, hechoN: 'visitado',
+      areas: areasArch, aparte: APARTE.map((id) => ({ k: id, n: CAP[id][0], pregunta: CAP[id][1] })),
+      actual: () => actual, ir: (k) => capitulos(k), estado: estadoArch,
+      antes: document.getElementById('puente'),
+      panel: () => (document.body.classList.contains('ch-mode') ? document.getElementById(actual) : null)
+    });
+    // El botón de las áreas (carpeta) va junto al de los mundos: la barra del simulador ya lleva escenarios, veredicto y nota
+    const bar = $('.topbar'), cp = bar && $('.ar-carp', bar);
+    const colocar = () => { const ref = $('.bm-wrap', bar) || $('.brand', bar); if (cp && ref && ref.nextElementSibling !== cp) ref.after(cp); };
+    colocar(); setTimeout(colocar, 1500); setTimeout(colocar, 4000);
+    if (A.buscador) A.buscador.acciones.push({ n: 'Ver todo el simulador seguido', d: 'Simulador de inversión · todos los capítulos en una página', c: '#d4ae64', ir: seguido });
   }
 
   /* ---------- Mapa de capas en 3D ---------- */
@@ -142,6 +156,7 @@
     const ov = $('#rutaMap'); ov.hidden = false; document.body.style.overflow = 'hidden';
     foco = Math.max(0, ORDEN.indexOf(actual));
     const vacia = sinDatos();
+    if (!actual) show('puente', true);
     ov.innerHTML = `<div class="rm-head">
         <div><div class="rm-kicker">Simulador de inversión · su recorrido</div><h2>Todo el camino, <em>capa a capa</em></h2>
         <p>Seis fases, de cómo es su empresa hoy a la decisión. ${tactil() ? 'Toque una capa para entrar.' : 'Pase por encima de una capa para ver qué hay dentro y púlsela para entrar.'}</p>
@@ -162,7 +177,7 @@
       const sec = document.getElementById(p.dataset.prev); if (!sec) return;
       const c = sec.cloneNode(true);
       c.querySelectorAll('[id]').forEach((x) => x.removeAttribute('id')); c.removeAttribute('id');
-      c.querySelectorAll('canvas, script, .ch-next, input[type="file"]').forEach((x) => x.remove());
+      c.querySelectorAll('canvas, script, .ch-next, .ar-pie, .ar-recorrido, input[type="file"]').forEach((x) => x.remove());
       c.classList.remove('ch-on'); c.classList.add('rm-clone');
       p.appendChild(c);
     });
@@ -259,32 +274,20 @@
   /* ---------- Arranque ---------- */
   function init() {
     if (!document.getElementById('puente')) return;
-    const bar = document.createElement('nav'); bar.id = 'rutaBar'; bar.className = 'ruta-bar'; bar.setAttribute('aria-label', 'Hoja de ruta del simulador'); document.body.appendChild(bar);
+    montarArch();
     const ov = document.createElement('div'); ov.id = 'rutaMap'; ov.className = 'ruta-map'; ov.hidden = true; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Mapa de capas del simulador'); document.body.appendChild(ov);
-    const rb = document.getElementById('rutaBtn'); if (rb) rb.onclick = () => openMap();
     // Atrás y adelante del navegador dentro del simulador: se vuelve al capítulo de esa entrada
     const alVolver = () => { if (!document.body.classList.contains('ch-mode')) return; const k = location.hash.replace('#', ''); anclaPedida = k !== 'mapa' && ORDEN.includes(k); if (k === 'mapa') { openMap(); return; } closeMap(); const d = ORDEN.includes(k) ? k : !k ? 'puente' : null; if (d && d !== actual) show(d, false, true); };
     addEventListener('popstate', alVolver); addEventListener('hashchange', alVolver);
     const h = location.hash.replace('#', '');
     // app.html#preguntas: entrada desde la primera visita
     if (h === 'preguntas') { preguntas(); return; }
-    if (modo === 'seguido') { bar.hidden = true; if (h === 'mapa') setTimeout(openMap, 700); return; }
     if (ORDEN.includes(h)) { anclaPedida = true; show(h, true); return; }
     show('puente', true);
-    // Al entrar se ve primero todo el recorrido, solo la primera vez por empresa (o con #mapa).
-    // Una empresa sin cifras no lo ve: el puente de mando ya le pide cargarlas
-    const P = A.platform;
-    if (!P) { let first = true; try { first = !sessionStorage.getItem('atalaya.ruta.intro'); sessionStorage.setItem('atalaya.ruta.intro', '1'); } catch (e) { /* sin almacenamiento */ } if (first) setTimeout(openMap, 700); return; }
-    let n = 0;
-    const decidir = () => {
-      // Se espera a que la cuenta, la empresa y la simulación estén cargadas
-      if (!(P.empresas.lista().length && document.querySelector('#account .acc-btn'))) { if (++n < 60) setTimeout(decidir, 250); return; }
-      // La simulación guardada llega justo después de la cuenta
-      setTimeout(() => { if (anclaPedida || (h !== 'mapa' && sinDatos())) return; if (P.mapa.alEntrar('sim') && $('#rutaMap').hidden) openMap(); }, 600);
-    };
-    setTimeout(decidir, 700);
+    // El mapa ya no se abre solo al entrar: solo con app.html#mapa (lo abre js/prioridad.js; si no, aquí)
+    if (h === 'mapa') setTimeout(() => { if (!anclaPedida && $('#rutaMap').hidden) openMap(); }, 2500);
   }
   // La apertura desde fuera (app.html#mapa, js/prioridad.js) llega con retraso: no tapa un capítulo pedido después
-  A.ruta = { openMap: () => { if (!anclaPedida) openMap(); }, show, seguido, capitulos, actual: () => (document.body.classList.contains('ch-mode') ? actual : null) };
+  A.ruta = { openMap: () => { if (!anclaPedida) openMap(); }, closeMap, show, seguido, capitulos, FASES, CAP, APARTE, actual: () => (document.body.classList.contains('ch-mode') ? actual : null) };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

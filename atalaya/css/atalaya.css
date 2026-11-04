@@ -1087,6 +1087,9 @@ body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(56px + var(--pt-dock-h
   .topbar .nt-chip { flex: none; padding: 4px 8px; font-size: 0.8rem; }
   .topbar .nt-chip .nt-sep, .topbar .nt-chip .nt-sep ~ .nt-n { display: none; }
   .topbar .nt-chip .nt-n { font-size: 0.78rem; }
+  /* Sin nota todavía: en la barra estrecha basta un guion (el texto sigue para el lector de pantalla y en el panel) */
+  .topbar .nt-chip .nt-vacia { font-size: 0; }
+  .topbar .nt-chip .nt-vacia::after { content: '—'; font-size: 0.78rem; }
   .topbar .account { flex: 0 1 auto; min-width: 72px; gap: 6px; }
   .topbar .emp { flex: 0 1 auto; min-width: 30px; }
   .topbar .emp-btn { max-width: 165px; width: 100%; min-width: 0; padding: 0 8px; }
@@ -1247,6 +1250,10 @@ body.arch-on :is(#stTabs, #peTabs, #ivTabs, #ivRuta) { display: none !important;
 .ar-hojas a { display: block; padding: 4px 8px; border-radius: 4px; color: var(--muted); font-size: 0.82rem; text-decoration: none; line-height: 1.35; }
 .ar-hojas a:hover { color: var(--fg); background: var(--raise); }
 .ar-hojas a[aria-current="page"] { color: var(--fg); background: color-mix(in srgb, var(--wc) 18%, transparent); box-shadow: inset 2px 0 0 var(--wc); }
+/* Módulos fuera del recorrido (por ejemplo, el diccionario del simulador): al final, con su título y sin número */
+.ar-aparte { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.ar-aph { display: block; padding: 2px 8px 2px; font-family: var(--font-data); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+.ar-aparte .ar-hojas { padding-left: 6px; }
 /* Plegado (escritorio): solo las solapas */
 body.arch-plegado .ar-arch { padding-inline: 6px; }
 body.arch-plegado .ar-h, body.arch-plegado .ar-nom, body.arch-plegado .ar-flecha, body.arch-plegado .ar-dentro { display: none; }

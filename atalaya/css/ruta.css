@@ -1,34 +1,11 @@
 /* Atalaya · Recorrido del simulador: mapa de capas en 3D y hoja de ruta por fases */
 
-/* Modo capítulo: solo se ve el capítulo activo */
+/* Modo capítulo: solo se ve el capítulo activo (el menú es el archivador común: ver «Simulador con el archivador») */
 body.ch-mode main > section.chapter:not(.ch-on) { display: none; }
 body.ch-mode main { padding-top: 70px; }
 body.ch-mode main > section.chapter.ch-on { animation: chIn 0.45s ease-out; min-height: 60vh; }
 @keyframes chIn { from { transform: translateY(14px); } to { transform: none; } }
 .ch-next { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); }
-
-/* Hoja de ruta */
-.ruta-bar { position: fixed; z-index: 35; top: calc(78px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(1180px, calc(100% - 32px)); display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 16px; border: 1px solid var(--line); background: rgba(12, 14, 19, 0.82); backdrop-filter: blur(16px); box-shadow: var(--shadow); }
-.rb-map { display: flex; align-items: center; gap: 2px; padding: 6px 12px 6px 10px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(201, 242, 77, 0.08); color: var(--gold-soft); font: inherit; font-size: var(--t-s); cursor: pointer; perspective: 60px; }
-.rb-map i { width: 12px; height: 9px; border: 1.5px solid var(--gold); border-radius: 2px; margin-right: -7px; background: rgba(12, 14, 19, 0.9); transform: rotateY(-25deg); }
-.rb-map i:nth-child(2) { transform: rotateY(-25deg) translateY(-2px); } .rb-map i:nth-child(3) { transform: rotateY(-25deg) translateY(-4px); margin-right: 8px; }
-.rb-map:hover { border-color: var(--gold); }
-.rb-fases { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.rb-fases li:not(.on) .rb-name { display: none; }
-.rb-fases li { display: flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 10px; color: var(--faint); font-size: var(--t-xs); white-space: nowrap; flex: 0 0 auto; }
-.rb-fases li.on { background: var(--raise); color: var(--fg); box-shadow: 0 0 0 1px var(--line-strong) inset; }
-.rb-fases li.done .rb-fn { background: var(--gold); color: var(--abyss); border-color: var(--gold); }
-.rb-fn { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--line-strong); font-family: var(--font-data); font-size: 0.65rem; }
-.rb-steps { display: flex; gap: 4px; }
-.rb-steps button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 1px solid var(--line-strong); background: transparent; cursor: pointer; }
-.rb-steps button.seen { background: rgba(201, 242, 77, 0.45); }
-.rb-steps button.on { background: var(--gold); box-shadow: 0 0 10px var(--gold); width: 22px; border-radius: 6px; }
-.rb-nav { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-.rb-nav button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; font-size: 1rem; }
-.rb-nav button:hover { border-color: var(--gold); color: var(--gold-soft); }
-.rb-cur { display: grid; text-align: center; min-width: 120px; }
-.rb-cur small { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
-.rb-cur b { font-family: var(--font-display); letter-spacing: -0.02em; font-weight: 700; font-size: 1rem; }
 
 /* Mapa de capas */
 .ruta-map { position: fixed; inset: 0; z-index: 85; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; background: radial-gradient(ellipse at 50% 60%, rgba(29, 35, 48, 0.55), rgba(4, 5, 7, 0.94) 70%); backdrop-filter: blur(10px); padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(12px + env(safe-area-inset-bottom, 0px)); overflow: hidden; animation: rmIn 0.4s ease-out; }
@@ -81,20 +58,9 @@ body.ch-mode main > section.chapter.ch-on { animation: chIn 0.45s ease-out; min-
 .rm-card.f0 { --fc: #e1f7a1; } .rm-card.f1 { --fc: #3987e5; } .rm-card.f2 { --fc: #c9f24d; } .rm-card.f3 { --fc: #d55181; } .rm-card.f4 { --fc: #199e70; } .rm-card.f5 { --fc: #d95926; } .rm-card.fx { --fc: #9ba4ba; }
 .rm-hint { margin: 0; text-align: center; font-size: var(--t-xs); color: var(--faint); }
 
-/* Botón del recorrido en la cabecera */
-.topbar .ruta-btn { display: flex; align-items: center; gap: 6px; }
-
 @media (max-width: 760px) {
-  .ruta-bar { top: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); padding: 6px; gap: 6px; }
-  /* Con la barra de iconos abajo, la de ruta va justo encima y no por detrás */
-  body:has(> .dock) .ruta-bar { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
-  body.ch-mode:has(> .dock) main { padding-bottom: 150px; }
-  body:has(> .dock):has(> .ruta-bar:not([hidden])) .assistant { bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
-  .rb-fases .rb-name { display: none; }
-  .rb-fases li { padding: 4px 6px; }
-  .rb-cur { min-width: 0; } .rb-cur small { display: none; } .rb-cur b { font-size: 0.85rem; }
-  .rb-map span { display: none; }
   body.ch-mode main { padding-top: 0; padding-bottom: 80px; }
+  body.ch-mode:has(> .dock) main { padding-bottom: 150px; }
   .rm-fases { grid-template-columns: repeat(6, minmax(44px, 1fr)); overflow-x: auto; }
   .rm-fases li span { display: none; }
   .rm-card { left: -125px; top: -110px; width: 250px; height: 220px; }
@@ -102,7 +68,6 @@ body.ch-mode main > section.chapter.ch-on { animation: chIn 0.45s ease-out; min-
   .rm-head p { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .rm-float { animation: none; } .rm-card, .rm-world { transition: none; } .ruta-map { animation: none; } }
-@media (max-width: 1000px) { .topbar .ruta-btn { display: none; } }
 @media (max-width: 760px) { .rm-open { display: none; } }
 
 /* ---------- Sistema estratégico: cinco áreas como fases, dieciocho módulos como capas ---------- */
@@ -168,3 +133,32 @@ body.est-ruta .ruta-bar.est { display: flex; }
 /* Mapa sin las cifras de la empresa: la acción clave, delante */
 .rm-clave { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid rgba(201, 242, 77, 0.45); border-radius: 12px; background: rgba(201, 242, 77, 0.06); }
 .rm-clave b { flex-basis: 100%; font-size: var(--t-s); }
+
+/* ---------- Simulador con el archivador común (js/ruta.js · js/archivador.js) ----------
+   Encima del capítulo, la ruta, «Abiertos» y los capítulos de la fase en pestañas; al pie, el recorrido completo y
+   anterior · siguiente. En escritorio el archivador ocupa la izquierda: la barra de iconos deja allí los capítulos (ya
+   están en el archivador) y queda debajo con sus atajos (sistema estratégico, manual, caja de herramientas).
+   En el móvil la barra de iconos inferior sigue igual y el archivador se abre con el botón de la carpeta. */
+body.sim-arch.ch-mode main > section.chapter.ch-on { padding-top: 26px; }
+/* Con su ancla (app.html#empresa) el capítulo se abre desde arriba, con la ruta y las pestañas a la vista */
+body.sim-arch.ch-mode main > section.chapter.ch-on { scroll-margin-top: 100vh; }
+@media (min-width: 861px) {
+  body.sim-arch main { width: auto; max-width: 1220px; margin-left: calc(var(--ar-w) + 32px); margin-right: auto; padding-inline: 0 24px; }
+  body.sim-arch.ch-mode main { padding-top: var(--ar-top); padding-bottom: 120px; }
+  body.sim-arch .dock { left: 16px; top: auto; bottom: 16px; transform: none; width: var(--ar-w); max-width: none; flex-direction: row; justify-content: center; gap: 6px; padding: 6px; border-radius: 10px; overflow: visible; }
+  body.sim-arch .dock [data-nav], body.sim-arch .dock hr { display: none; }
+  body.sim-arch .dock :is(button, .dbtn) { width: 40px; height: 40px; }
+  body.sim-arch .dock :is(button, .dbtn) .tip { display: block; left: 50%; top: auto; bottom: calc(100% + 8px); transform: translate(-50%, 4px); }
+  body.sim-arch .dock :is(button, .dbtn):is(:hover, :focus-visible) .tip { transform: translate(-50%, 0); }
+  body.sim-arch .ar-arch { bottom: 74px; }
+  body.sim-arch.arch-plegado .dock { flex-direction: column; padding: 6px 7px; }
+  body.sim-arch.arch-plegado .dock :is(button, .dbtn) .tip { left: 54px; bottom: auto; top: 50%; transform: translate(-6px, -50%); }
+  body.sim-arch.arch-plegado .dock :is(button, .dbtn):is(:hover, :focus-visible) .tip { transform: translate(0, -50%); }
+  body.sim-arch.arch-plegado .ar-arch { bottom: 166px; }
+  body.sim-arch .toolbox { left: calc(var(--ar-w) + 32px); top: auto; bottom: 16px; transform: none; }
+}
+@media (max-width: 860px) {
+  body.sim-arch.ch-mode main { padding-top: calc(70px + env(safe-area-inset-top, 0px)); }
+}
+@media print { body.sim-arch main { margin: 0 auto; } }
+

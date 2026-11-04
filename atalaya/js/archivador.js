@@ -18,6 +18,9 @@
        secuencial: false,                  // true: las áreas son fases (numeradas) y el pie cuenta pasos de todo el mundo
        estado: (k) => 'hecho',             // opcional: 'hecho' | 'curso' | '' de cada módulo; pinta su punto y el «h/n» de cada fase
        recorrido: false,                   // opcional (por fases): al pie, el recorrido completo con sus fases y bloques
+       aparte: [{ k, n, pregunta }],       // opcional: módulos fuera del recorrido (no cuentan en «Paso N de M»); van al final
+                                           //   del archivador con su propio título y, abiertos, su pie lleva de vuelta al recorrido
+       hechoN: 'hecho',                    // opcional: cómo se llama el estado verde ('visitado' si el mundo no tiene otro criterio)
        antes: elemento,                    // la ruta, «Abiertos» y las pestañas se colocan justo antes
        panel: () => elemento               // contenedor del módulo: el pie se añade al final
      });
@@ -38,6 +41,9 @@
   let menu = null; // tramo de la ruta con los hermanos abiertos
   let AR = []; // áreas de este mundo, ya normalizadas (los bloques, aplanados en «modulos»)
   const abiertasF = new Set(); // fases desplegadas en el recorrido completo del pie
+  const APN = 'Fuera del recorrido';
+  let AP = null; // módulos aparte de este mundo (fuera del recorrido), como un área sin número
+  let ultimoRec = null; // último módulo del recorrido abierto: el pie de un módulo aparte lleva de vuelta a él
 
   /* ---------- Datos ---------- */
   const mundoCat = (k) => (A.catalogo && A.catalogo.mundo(k)) || Object.assign({ areas: [] }, Pm().find((m) => m.k === k) || { k, n: k, c: '#9ba4ba' });
@@ -51,16 +57,23 @@
     bloques.forEach((b) => { b.modulos = (b.modulos || []).map((m) => Object.assign({}, m, { bloque: b })); });
     return Object.assign({}, a, { bloques, modulos: bloques.flatMap((b) => b.modulos) });
   });
-  const leerAreas = () => { AR = normalizar(typeof cfg.areas === 'function' ? cfg.areas() : cfg.areas); };
+  const leerAreas = () => {
+    AR = normalizar(typeof cfg.areas === 'function' ? cfg.areas() : cfg.areas);
+    const ap = typeof cfg.aparte === 'function' ? cfg.aparte() : cfg.aparte;
+    AP = ap && ap.length ? { k: 'aparte', n: APN, aparte: true, modulos: [] } : null;
+    if (AP) AP.modulos = ap.map((m) => Object.assign({}, m, { aparte: true }));
+  };
   const orden = () => AR.flatMap((a) => a.modulos.map((m) => Object.assign({ area: a }, m)));
-  const areaDe = (k) => AR.find((a) => a.modulos.some((m) => m.k === k)) || AR[0];
-  const modDe = (k) => orden().find((m) => m.k === k);
-  const nArea = (a) => (cfg.secuencial ? `${AR.indexOf(a) + 1}. ` : '') + a.n;
+  const apDe = (k) => (AP ? AP.modulos.find((m) => m.k === k) : null);
+  const areaDe = (k) => AR.find((a) => a.modulos.some((m) => m.k === k)) || (apDe(k) ? AP : AR[0]);
+  const modDe = (k) => orden().find((m) => m.k === k) || (apDe(k) ? Object.assign({ area: AP }, apDe(k)) : undefined);
+  const nArea = (a) => (cfg.secuencial && !a.aparte ? `${AR.indexOf(a) + 1}. ` : '') + a.n;
   // Estado de cada módulo (solo si el mundo lo da): punto verde hecho, ámbar en curso
   const estDe = (k) => { if (!cfg.estado) return ''; try { const e = cfg.estado(k); return e === 'hecho' || e === 'curso' ? e : ''; } catch (e) { return ''; } };
-  const ESTN = { hecho: 'hecho', curso: 'en curso' };
-  const punto = (k) => (cfg.estado ? `<span class="ar-est ${estDe(k)}" aria-hidden="true"></span>` : '');
-  const srEst = (k) => (estDe(k) ? `<span class="ar-sr"> (${ESTN[estDe(k)]})</span>` : '');
+  const ESTN = { get hecho() { return (cfg && cfg.hechoN) || 'hecho'; }, curso: 'en curso' };
+  const hechosN = () => ESTN.hecho + 's';
+  const punto = (k) => (cfg.estado && !apDe(k) ? `<span class="ar-est ${estDe(k)}" aria-hidden="true"></span>` : '');
+  const srEst = (k) => (estDe(k) && !apDe(k) ? `<span class="ar-sr"> (${ESTN[estDe(k)]})</span>` : '');
   const avance = (a) => { const h = a.modulos.filter((x) => estDe(x.k) === 'hecho').length; return { h, n: a.modulos.length, todo: !!a.modulos.length && h === a.modulos.length }; };
   const tipoN = (m) => (m.unico ? '' : m.secuencial ? 'Por fases' : 'Por áreas');
   const empresa = () => { const p = P(); const e = p && p.empresas && p.empresas.activa && p.empresas.activa(); return e ? e.nombre : ''; };
@@ -104,9 +117,9 @@
           ${open ? `<div class="ar-dentro">${areas.map((a) => {
             const ak = m.k + '|' + a.k, ao = abiertasA.has(ak), av = cur && cfg.estado ? avance(a) : null;
             const num = m.secuencial ? (av && av.todo ? '✓' : areas.indexOf(a) + 1) : '';
-            const cnt = av ? `<span class="ar-cnt" aria-label="${av.h} de ${av.n} hechos">${av.h}/${av.n}</span>` : `<span class="ar-cnt">${a.modulos.length}</span>`;
+            const cnt = av ? `<span class="ar-cnt" aria-label="${av.h} de ${av.n} ${hechosN()}">${av.h}/${av.n}</span>` : `<span class="ar-cnt">${a.modulos.length}</span>`;
             return `<div class="ar-area${ao ? ' abierta' : ''}${av && av.todo ? ' hecha' : ''}"><button type="button" class="ar-abtn" data-area="${esc(ak)}" aria-expanded="${ao}"><span class="ar-num" aria-hidden="true">${num}</span><span class="ar-an">${m.secuencial ? `<span class="ar-sr">Fase ${areas.indexOf(a) + 1}${av && av.todo ? ', completa' : ''}: </span>` : ''}${esc(a.n)}</span>${cnt}</button>${ao ? hojas(m, a) : ''}</div>`;
-          }).join('')}</div>` : ''}
+          }).join('')}${(cur ? (AP ? AP.modulos : []) : m.aparte || []).length ? `<div class="ar-aparte"><span class="ar-aph">${APN}</span><ul class="ar-hojas">${mods(m, cur ? AP.modulos : m.aparte)}</ul></div>` : ''}</div>` : ''}
         </div>`;
       }).join('')}</nav>`;
     aside.querySelector('.ar-plegar').onclick = () => { if (esMovil()) cerrarCajon(true); else plegar(!document.body.classList.contains('arch-plegado')); };
@@ -148,7 +161,7 @@
     const T = [
       { t: empresa() || 'Empresa', cls: 'emp', accion: abrirEmpresas, et: 'Empresa' },
       { t: w.n, color: w.c, et: 'Mundo', herm: mundosCat().map((x) => ({ t: x.n, color: x.c, cur: x.k === cfg.mundo, lock: x.lock, ir: () => navegar(x.k, x.href) })) },
-      { t: a ? nArea(a) : '', et: cfg.secuencial ? 'Fase' : 'Área', herm: AR.map((x) => ({ t: nArea(x), cur: x === a, ir: () => cfg.ir(x.modulos[0].k) })) }
+      { t: a ? nArea(a) : '', et: a && a.aparte ? 'Apartado' : cfg.secuencial ? 'Fase' : 'Área', herm: AR.concat(AP && a && a.aparte ? [AP] : []).map((x) => ({ t: nArea(x), cur: x === a, ir: () => cfg.ir(x.modulos[0].k) })) }
     ];
     // Un área con bloques: el bloque es un tramo más, con los otros bloques del área como hermanos
     if (b) T.push({ t: b.n, et: 'Bloque', herm: a.bloques.map((x) => ({ t: x.n + (x.estado ? ' · ' + x.estado : ''), cur: x === b, ir: () => cfg.ir(x.modulos[0].k) })) });
@@ -212,7 +225,8 @@
   function pintarPie() {
     const p = cfg.panel && cfg.panel(); if (!p) return;
     p.querySelectorAll(':scope > .ar-pie, :scope > .ar-recorrido, :scope > .ch-next').forEach((x) => x.remove());
-    const O = orden(), act = cfg.actual(), i = O.findIndex((x) => x.k === act); if (i < 0) return;
+    const O = orden(), act = cfg.actual(), i = O.findIndex((x) => x.k === act);
+    if (i < 0) { if (apDe(act)) pintarPieAparte(p, O); return; }
     const a = O[i].area, b = O[i].bloque, enA = a.modulos.findIndex((x) => x.k === act), prev = O[i - 1], next = O[i + 1];
     // Si el anterior o el siguiente está en otra fase (o en otro bloque), se dice cuál
     const otra = (x) => (!x ? '' : x.area !== a ? ` <small>(${esc(nArea(x.area))}${x.bloque ? ' › ' + esc(x.bloque.n) : ''})</small>` : x.bloque && x.bloque !== b ? ` <small>(${esc(x.bloque.n)})</small>` : '');
@@ -224,6 +238,16 @@
     d.querySelectorAll('[data-k]').forEach((x) => x.onclick = () => cfg.ir(x.dataset.k));
   }
 
+  // Un módulo aparte: no es un paso; su pie lleva de vuelta al recorrido (al último paso abierto)
+  function pintarPieAparte(p, O) {
+    const v = O.find((x) => x.k === ultimoRec) || O[0]; if (!v) return;
+    if (cfg.recorrido && cfg.secuencial) pintarRecorrido(p, null);
+    const d = document.createElement('nav'); d.className = 'ar-pie'; d.setAttribute('aria-label', 'Volver al recorrido');
+    d.innerHTML = `<span class="ar-hueco"></span><span class="ar-pos">${APN} · no cuenta como paso</span><button type="button" class="btn solid ar-sig" data-k="${esc(v.k)}">Volver al recorrido: ${esc(v.n)} <small>(${esc(nArea(v.area))})</small> →</button>`;
+    p.appendChild(d);
+    d.querySelector('[data-k]').onclick = () => cfg.ir(v.k);
+  }
+
   /* ---------- f) Recorrido completo (mundos por fases): cada fase con su avance; la actual, abierta con sus pasos ---------- */
   function pintarRecorrido(p, aAct) {
     p.querySelectorAll(':scope > .ar-recorrido').forEach((x) => x.remove());
@@ -232,7 +256,7 @@
     const s = document.createElement('section'); s.className = 'ar-recorrido'; s.setAttribute('aria-label', 'Recorrido completo');
     s.innerHTML = `<h4 class="ar-rt">Recorrido completo</h4><div class="ar-fases">${AR.map((a, i) => {
       const av = avance(a), ab = a === aAct || abiertasF.has(a.k), id = 'arF-' + i;
-      return `<div class="ar-fase${av.todo ? ' hecha' : ''}${a === aAct ? ' actual' : ''}"><button type="button" class="ar-fbtn" data-f="${esc(a.k)}" aria-expanded="${ab}" aria-controls="${id}"><span class="ar-fn" aria-hidden="true">${av.todo ? '✓' : i + 1}</span><span class="ar-ft"><b><span class="ar-sr">Fase ${i + 1}${av.todo ? ', completa' : ''}: </span>${esc(a.n)}</b>${a.d ? `<small>${esc(a.d)}</small>` : ''}</span><span class="ar-fp"><span aria-label="${av.h} de ${av.n} hechos">${av.h}/${av.n}</span> <span aria-hidden="true">${ab ? '▾' : '▸'}</span></span></button>${ab ? `<div class="ar-fcuerpo" id="${id}">${a.bloques ? a.bloques.map((b) => `<div class="ar-fbloque"><h5>${esc(b.n)}${b.estado ? ` <small class="ar-bst ${esc(b.tono || '')}">${esc(b.estado)}</small>` : ''}</h5>${chips(b.modulos)}</div>`).join('') : chips(a.modulos)}</div>` : ''}</div>`;
+      return `<div class="ar-fase${av.todo ? ' hecha' : ''}${a === aAct ? ' actual' : ''}"><button type="button" class="ar-fbtn" data-f="${esc(a.k)}" aria-expanded="${ab}" aria-controls="${id}"><span class="ar-fn" aria-hidden="true">${av.todo ? '✓' : i + 1}</span><span class="ar-ft"><b><span class="ar-sr">Fase ${i + 1}${av.todo ? ', completa' : ''}: </span>${esc(a.n)}</b>${a.d ? `<small>${esc(a.d)}</small>` : ''}</span><span class="ar-fp"><span aria-label="${av.h} de ${av.n} ${hechosN()}">${av.h}/${av.n}</span> <span aria-hidden="true">${ab ? '▾' : '▸'}</span></span></button>${ab ? `<div class="ar-fcuerpo" id="${id}">${a.bloques ? a.bloques.map((b) => `<div class="ar-fbloque"><h5>${esc(b.n)}${b.estado ? ` <small class="ar-bst ${esc(b.tono || '')}">${esc(b.estado)}</small>` : ''}</h5>${chips(b.modulos)}</div>`).join('') : chips(a.modulos)}</div>` : ''}</div>`;
     }).join('')}</div>`;
     p.appendChild(s);
     s.querySelectorAll('[data-f]').forEach((x) => x.onclick = () => {
@@ -250,7 +274,8 @@
     leerAreas();
     const act = cfg.actual(), a = areaDe(act);
     if (!modDe(act)) return;
-    abiertosM.add(cfg.mundo); if (a) abiertasA.add(cfg.mundo + '|' + a.k);
+    abiertosM.add(cfg.mundo); if (a && !a.aparte) abiertasA.add(cfg.mundo + '|' + a.k);
+    if (!apDe(act)) ultimoRec = act;
     apuntar(act);
     menu = null;
     pintarArch(); pintarRuta(); pintarAbiertos(); pintarPest(); pintarPie();
