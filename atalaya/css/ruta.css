@@ -86,6 +86,10 @@ body.ch-mode main > section.chapter.ch-on { animation: chIn 0.45s ease-out; min-
 
 @media (max-width: 760px) {
   .ruta-bar { top: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); padding: 6px; gap: 6px; }
+  /* Con la barra de iconos abajo, la de ruta va justo encima y no por detrás */
+  body:has(> .dock) .ruta-bar { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  body.ch-mode:has(> .dock) main { padding-bottom: 150px; }
+  body:has(> .dock):has(> .ruta-bar:not([hidden])) .assistant { bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
   .rb-fases .rb-name { display: none; }
   .rb-fases li { padding: 4px 6px; }
   .rb-cur { min-width: 0; } .rb-cur small { display: none; } .rb-cur b { font-size: 0.85rem; }

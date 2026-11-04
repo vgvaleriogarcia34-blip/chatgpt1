@@ -247,12 +247,17 @@
   M.irA = (oid, max) => {
     if (!oid) return;
     const p = M.partes(oid), prep = p && M.alIr[p.mundo + ':' + p.tipo];
-    let n = 0, hecho = null, prepN = 0;
+    let n = 0, hecho = null, prepN = 0, tocado = false;
+    const toca = () => { tocado = true; };
+    ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach((ev) => addEventListener(ev, toca, { once: true, passive: true }));
     const paso = () => {
       n++;
       if (prep && prepN < 3 && !M.buscarIr(oid)) { try { if (prep(p, oid) !== false) prepN++; } catch (e) { prepN = 3; } }
       const el = M.buscarIr(oid);
       if (el && el.getClientRects().length) {
+        // La pantalla puede moverse sola al arrancar (ir a su sección): mientras el usuario no toque nada, se recoloca
+        const r = el.getBoundingClientRect(), fuera = r.bottom < 0 || r.top > innerHeight;
+        if (el === hecho && fuera && !tocado) el.scrollIntoView({ block: 'center' });
         if (el !== hecho) { estiloIr(); el.classList.add('mesa-foco'); el.classList.remove('mesa-foco-fin'); el.scrollIntoView({ block: 'center' }); if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1'); try { el.focus({ preventScroll: true }); } catch (e) { /* nada */ } hecho = el; }
         // La pantalla puede repintarse justo después de cargar: se vuelve a comprobar unos segundos
         if (n < (max || 60) && n < 40) setTimeout(paso, 250); else setTimeout(() => el.classList.add('mesa-foco-fin'), 4000);
@@ -371,6 +376,10 @@
   };
   /* Las acciones del plan de intervención que van a la mesa de la empresa: las que hace la empresa (no las que lidera el consultor) */
   M.accionEmpresa = (a) => !!a && a.quien === 'empresa';
+  /* La tarea de una acción del plan de intervención: la misma desde «Enviar las tareas de la empresa» y desde «Traer el
+     trabajo del ecosistema» (así un envío seguido de un «Traer» no cambia nada) */
+  M.AREA_LINEA = { gobierno: 'Dirección', organizacion: 'Dirección', finanzas: 'Finanzas', comercial: 'Comercial', procesos: 'Operaciones', equipos: 'Personas', informacion: 'Dirección', protocolos: 'Dirección' };
+  M.tareaAccionIv = (a) => ({ t: a.t, area: M.AREA_LINEA[a.linea] || 'Dirección', resp: a.responsable || '', fecha: a.fecha || '', mundo: 'intervencion', origen: 'Plan de intervención' + (a.ent && a.ent !== '—' ? ' · entregable: ' + a.ent : ''), oid: M.oid('intervencion', 'accion', a.id), impacto: a.clave ? 5 : 4, clave: !!a.clave, hechaEnOrigen: a.estado === 'hecha' ? a.hechaEl || true : undefined });
 
   /* ---------- Marca «En la mesa · …» en los orígenes ---------- */
   let cache = null;

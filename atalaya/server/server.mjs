@@ -1760,7 +1760,7 @@ route('POST', /^\/api\/integracion\/reunion$/, async (req, res, body) => {
   const datos = { t, fecha, hora, dur, enlace, contacto: [nombre, txt(body.telefono, 40), txt(body.email)].filter(Boolean).join(' · '), inicio: new Date(body.inicio).toISOString() };
   let x = st.tareas.find((y) => y.oid === oid), accion = 'sin-cambios';
   if (!x) {
-    x = Object.assign({ id: 't' + crypto.randomBytes(5).toString('hex'), oid, entrada: today(), tipo: 'imperativa', estado: 'pendiente', impacto: 4, esfuerzo: 2, clave: true, area: 'Dirección', mundo: 'reunion', origen: 'asistente', resp: 'Valerio García (Business Avance)' }, datos);
+    x = Object.assign({ id: 't' + crypto.randomBytes(5).toString('hex'), oid, entrada: today(), tipo: 'imperativa', estado: 'pendiente', impacto: 4, esfuerzo: 2, clave: true, area: 'Dirección', mundo: 'asistente', origen: 'Asistente telefónico · reunión agendada', resp: 'Valerio García (Business Avance)' }, datos);
     st.tareas.push(x); accion = 'creada';
   } else if (Object.keys(datos).some((k) => String(x[k] || '') !== String(datos[k] || ''))) {
     // Cambio de hora o de datos: se actualiza la misma tarea (y vuelve a pendiente si se había movido de día)

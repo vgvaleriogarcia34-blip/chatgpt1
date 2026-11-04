@@ -134,6 +134,11 @@
         <div class="c3-ctl"><span class="c3-pri">${x.prio}</span><select data-pe="${esc(x.id)}">${['Pendiente', 'En curso', 'Hecha'].map((e) => `<option ${e === x.estado ? 'selected' : ''}>${e}</option>`).join('')}</select><input class="txt" data-pr="${esc(x.id)}" value="${esc(x.resp)}" aria-label="Responsable"><input type="date" data-pf="${esc(x.id)}" value="${esc(x.fecha || '')}" aria-label="Fecha"><small data-mesa-oid="${esc(A.mesa && A.mesa.oid ? oidDe(id, x) : '')}"></small></div></div>`).join('')}</div>` : ''; }).join('')}
       <div class="row mt"><button class="btn ghost" data-toplan>Enviar al plan de empresa</button><span data-mesa></span><span class="small" data-plmsg></span></div>`;
   }
+  // «Ir al origen» desde la mesa: abre el diagnóstico 360 del módulo en su plan de acción, donde está la acción
+  if (A.mesa) {
+    const abrirPlan = (p) => { const mod = p.id.split(':')[0]; if (!document.querySelector(`.c360[data-mod="${mod}"]`)) return false; pest[mod] = 'plan'; abierto = mod; panel(mod); return true; };
+    A.mesa.alIr = Object.assign(A.mesa.alIr || {}, { 'estrategia:accion': abrirPlan, 'estrategia:objetivo': abrirPlan });
+  }
   function refresh(box, id, tab) { if (tab) pest[id] = tab; abierto = id; const y = scrollY; panel(id); scrollTo({ top: y }); }
   function wire(box, id) {
     const c = st360(id), d = D(id);

@@ -55,7 +55,7 @@
   const aMesa = async (acc) => {
     if (!A.mesa || !A.mesa.enviar) return toast('La mesa de trabajo no está disponible aquí.');
     // Lo que ya no está en el plan (regenerado o quitado) queda en la mesa como «ya no aplica»
-    const O = A.mesa.oid, n = await A.mesa.enviar(acc.map((a) => ({ t: a.t, area: (D.linea(a.linea) || {}).n, mundo: 'intervencion', origen: 'Plan de intervención · ' + (D.linea(a.linea) || {}).n + ' · ' + a.ent, oid: O('intervencion', 'accion', a.id), fecha: a.fecha, resp: a.responsable, impacto: a.clave ? 5 : 3, esfuerzo: 3, clave: !!a.clave, hechaEnOrigen: a.estado === 'hecha' ? a.hechaEl || true : undefined })), { origen: O('intervencion', 'accion', ''), completo: true, vigentes: S().plan.acciones.map((a) => O('intervencion', 'accion', a.id)) });
+    const O = A.mesa.oid, n = await A.mesa.enviar(acc.map((a) => A.mesa.tareaAccionIv(a)), { origen: O('intervencion', 'accion', ''), completo: true, vigentes: S().plan.acciones.map((a) => O('intervencion', 'accion', a.id)) });
     acc.forEach((a) => (a.enviada = true)); guardar(); return n;
   };
   // Cerrar o reabrir en el plan cierra o reabre la tarea de la mesa
@@ -164,7 +164,7 @@
     $$('[data-ks]', det).forEach((b) => (b.onclick = () => { a.kpis.push({ n: b.dataset.ks, actual: '', meta: '' }); render(); }));
     $('[data-kn]', det).onclick = () => { a.kpis.push({ n: '', actual: '', meta: '' }); render(); };
     $$('.iv-det > label [data-k], .iv-dg [data-k]', det).forEach((i) => (i.onchange = i.oninput = () => { a[i.dataset.k] = i.dataset.k === 'f' ? +i.value : i.value; if (i.tagName === 'SELECT') render(); else guardar(); }));
-    $('[data-amesa]', det).onclick = async () => { const O = A.mesa.oid; await A.mesa.enviar([{ t: a.t, area: (D.linea(a.linea) || {}).n, mundo: 'intervencion', origen: 'Plan de intervención · ' + (D.linea(a.linea) || {}).n + ' · ' + a.ent, oid: O('intervencion', 'accion', a.id), fecha: a.fecha, resp: a.responsable, impacto: a.clave ? 5 : 3, esfuerzo: 3, clave: !!a.clave }]); a.enviada = true; guardar(); render(); toast(A.mesa.resumen()); };
+    $('[data-amesa]', det).onclick = async () => { await A.mesa.enviar([A.mesa.tareaAccionIv(a)]); a.enviada = true; guardar(); render(); toast(A.mesa.resumen()); };
   };
 
   /* ---------- Hoja de ruta visual: del punto A (hoy) al punto B (destino) ---------- */

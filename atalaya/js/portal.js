@@ -77,7 +77,7 @@
       b.hidden = false;
       // Con una sola empresa la ficha es opcional: se ofrece completarla, sin cortar el paso a los mundos
       const pc = P.fichaCompleta ? P.fichaCompleta(e) : 100;
-      b.innerHTML = `<span class="small muted">Trabajando en</span><b>${e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : !e.modelo && pc < 40 ? 'Completar la ficha (opcional)' : 'Ver la ficha'}</button>`;
+      b.innerHTML = `<span class="small muted">Trabajando en</span><b class="nc" title="${e.nombre.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}">${P.nombreCortado ? P.nombreCortado(e.nombre) : e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : !e.modelo && pc < 40 ? 'Completar la ficha (opcional)' : 'Ver la ficha'}</button>`;
       b.querySelector('[data-cambiar]').onclick = abrirPaso;
     }
     // Balizas del mundo de la auditoría integral: si la empresa tiene triaje, cada baliza toma el color de su área
@@ -425,10 +425,29 @@
     else if (narrow) { lx = x > innerWidth / 2 ? x - o.label.offsetWidth - 30 : x + 30; ly = y - o.label.offsetHeight / 2; }
     else { lx = x + offX * (Math.min(220, 2600 / d) + (offX < 0 ? o.label.offsetWidth : 0)); ly = y - o.label.offsetHeight / 2; }
     // Sin tapar la barra de mundos de abajo (una o dos filas)
-    lx = Math.max(12, Math.min(innerWidth - o.label.offsetWidth - 12, lx)); ly = Math.max(narrow ? 200 : 140, Math.min(innerHeight - o.label.offsetHeight - Math.max(narrow ? 150 : 130, dock.offsetHeight + 70), ly));
-    o.label.style.transform = `translate(${lx}px, ${ly}px)`;
+    const minY = narrow ? 200 : 140, maxY = innerHeight - Math.max(narrow ? 150 : 130, dock.offsetHeight + 70);
+    lx = Math.max(12, Math.min(innerWidth - o.label.offsetWidth - 12, lx)); ly = Math.max(minY, Math.min(maxY - o.label.offsetHeight, ly));
+    // La posición se aplica después de separar las etiquetas entre sí (separarEtiquetas)
+    o.pos = { x: lx, y: ly, w: o.label.offsetWidth, h: o.label.offsetHeight, behind, minY, maxY, my: y, man: w === 'man' };
     o.label.style.visibility = behind ? 'hidden' : 'visible';
     o.label.classList.toggle('far', d > (portrait ? 64 : 46));
+  }
+  /* Separación mínima entre etiquetas: si dos se pisan, la de más abajo baja lo que falte (y, sin sitio abajo, suben las
+     dos); la del manual, pequeña, prueba antes a ponerse encima de su luna */
+  const SEP_ETQ = 8;
+  const pisa = (a, b) => a.x < b.x + b.w + SEP_ETQ && b.x < a.x + a.w + SEP_ETQ && a.y < b.y + b.h + SEP_ETQ && b.y < a.y + a.h + SEP_ETQ;
+  function separarEtiquetas(ws) {
+    const ps = ws.map((w) => W[w].pos).filter((p) => p && !p.behind && p.w > 0);
+    ps.filter((p) => p.man).forEach((m) => { if (ps.some((q) => q !== m && pisa(m, q))) { const y0 = m.y; m.y = Math.max(m.minY, m.my - m.h - 18); if (ps.some((q) => q !== m && pisa(m, q))) m.y = y0; } });
+    for (let n = 0; n < 3; n++) {
+      ps.sort((a, b) => a.y - b.y);
+      for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+        const a = ps[i], b = ps[j]; if (!pisa(a, b)) continue;
+        b.y = a.y + a.h + SEP_ETQ;
+        const sobra = b.y + b.h - b.maxY; if (sobra > 0) { b.y -= sobra; a.y = Math.max(a.minY, a.y - sobra); }
+      }
+    }
+    ws.forEach((w) => { const p = W[w].pos; if (p) W[w].label.style.transform = `translate(${p.x}px, ${p.y}px)`; });
   }
 
   function frame() {
@@ -496,6 +515,7 @@
         W[w].label.classList.toggle('on', on);
       });
       placeLabel('sim', -1); placeLabel('est', 1); placeLabel('per', 1); placeLabel('iv', -1); placeLabel('man', 0);
+      separarEtiquetas(['sim', 'est', 'per', 'iv', 'man']);
     }
     renderer.render(scene, camera);
     requestAnimationFrame(frame);

@@ -148,6 +148,7 @@ a.icon-btn.ms-ir { text-decoration: none; }
   .ms-bandeja td.ms-tt, .ms-bandeja td.ms-act { grid-column: 1 / -1; }
   .ms-bandeja td.ms-tt { order: -1; }
   .ms-bandeja td .input { min-width: 0; }
-  .ms-bandeja .ms-irl { float: none; display: inline-block; margin: 0 0 6px; }
+  .ms-bandeja td.ms-tt, .ms-bandeja td.ms-tt b, .ms-bandeja td.ms-tt small { white-space: normal; overflow-wrap: anywhere; }
+  .ms-bandeja .ms-irl { float: none; display: table; margin: 0 0 6px; }
   .ms-bandeja td.ms-act { white-space: normal; display: flex; gap: 8px; flex-wrap: wrap; }
 }

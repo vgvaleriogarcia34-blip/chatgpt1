@@ -490,7 +490,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
     grupo: 'Hola. Soy su guía en la cartera de clientes y la vista de grupo: puedo llevarle a cualquier mundo o abrir el manual.'
   };
   // En Consultora la vista de grupo se llama cartera de clientes
-  const nombreGrupo = () => { const P = A.platform, pl = P && P.user && P.PLANES && P.PLANES[P.user.plan]; if (pl && !pl.grupo) MUNDOS.grupo.n = 'la cartera de clientes'; };
+  const nombreGrupo = () => { const P = A.platform, pl = P && P.user && P.PLANES && P.PLANES[P.user.plan]; if (pl && !pl.grupo) { MUNDOS.grupo.n = 'la cartera de clientes'; MUNDOS.grupo.d = 'Las empresas cliente de la cuenta juntas: las cifras de cada una y su comparativa, en qué etapa del recorrido está cada cliente, sus próximas sesiones y lo que tiene pendiente.'; } };
   A.assistant = {
     init(opts) {
       opts = opts || {};

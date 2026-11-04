@@ -10,6 +10,8 @@
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Se ha llegado a un capítulo concreto con su ancla (app.html#empresa): el mapa que iba a abrirse solo ya no lo tapa
+  let anclaPedida = false;
   const LS = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } } };
 
   const FASES = [
@@ -261,13 +263,13 @@
     const ov = document.createElement('div'); ov.id = 'rutaMap'; ov.className = 'ruta-map'; ov.hidden = true; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Mapa de capas del simulador'); document.body.appendChild(ov);
     const rb = document.getElementById('rutaBtn'); if (rb) rb.onclick = () => openMap();
     // Atrás y adelante del navegador dentro del simulador: se vuelve al capítulo de esa entrada
-    const alVolver = () => { if (!document.body.classList.contains('ch-mode')) return; const k = location.hash.replace('#', ''); if (k === 'mapa') { openMap(); return; } closeMap(); const d = ORDEN.includes(k) ? k : !k ? 'puente' : null; if (d && d !== actual) show(d, false, true); };
+    const alVolver = () => { if (!document.body.classList.contains('ch-mode')) return; const k = location.hash.replace('#', ''); anclaPedida = k !== 'mapa' && ORDEN.includes(k); if (k === 'mapa') { openMap(); return; } closeMap(); const d = ORDEN.includes(k) ? k : !k ? 'puente' : null; if (d && d !== actual) show(d, false, true); };
     addEventListener('popstate', alVolver); addEventListener('hashchange', alVolver);
     const h = location.hash.replace('#', '');
     // app.html#preguntas: entrada desde la primera visita
     if (h === 'preguntas') { preguntas(); return; }
     if (modo === 'seguido') { bar.hidden = true; if (h === 'mapa') setTimeout(openMap, 700); return; }
-    if (ORDEN.includes(h)) { show(h, true); return; }
+    if (ORDEN.includes(h)) { anclaPedida = true; show(h, true); return; }
     show('puente', true);
     // Al entrar se ve primero todo el recorrido, solo la primera vez por empresa (o con #mapa).
     // Una empresa sin cifras no lo ve: el puente de mando ya le pide cargarlas
@@ -278,10 +280,11 @@
       // Se espera a que la cuenta, la empresa y la simulación estén cargadas
       if (!(P.empresas.lista().length && document.querySelector('#account .acc-btn'))) { if (++n < 60) setTimeout(decidir, 250); return; }
       // La simulación guardada llega justo después de la cuenta
-      setTimeout(() => { if (h !== 'mapa' && sinDatos()) return; if (P.mapa.alEntrar('sim') && $('#rutaMap').hidden) openMap(); }, 600);
+      setTimeout(() => { if (anclaPedida || (h !== 'mapa' && sinDatos())) return; if (P.mapa.alEntrar('sim') && $('#rutaMap').hidden) openMap(); }, 600);
     };
     setTimeout(decidir, 700);
   }
-  A.ruta = { openMap, show, seguido, capitulos, actual: () => (document.body.classList.contains('ch-mode') ? actual : null) };
+  // La apertura desde fuera (app.html#mapa, js/prioridad.js) llega con retraso: no tapa un capítulo pedido después
+  A.ruta = { openMap: () => { if (!anclaPedida) openMap(); }, show, seguido, capitulos, actual: () => (document.body.classList.contains('ch-mode') ? actual : null) };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

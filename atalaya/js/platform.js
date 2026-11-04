@@ -948,6 +948,8 @@
       await P.empresas.cargar(); REG.inicio = { eleccion, fecha: new Date().toISOString() };
       const real = eleccion === 'datos' || eleccion === 'preguntas';
       if (real) { ponerAct('principal'); try { await P.activarModoReal('inicio'); } catch (e) { /* se guarda abajo */ } }
+      // Consultora o Grupos con clientes o sociedades reales: la principal tampoco muestra datos de ejemplo
+      if (eleccion === 'cliente') { const pr = REG.lista.find((e) => e.id === 'principal'); if (pr && !pr.datosReales) Object.assign(pr, { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesTs: new Date().toISOString(), datosRealesOrigen: 'inicio' }); }
       try { await P.empresas.guardar(); } catch (e) { /* se volverá a preguntar */ }
       P.primerAcceso.recordar();
       if (eleccion === 'datos') location.href = 'app.html#empresa';
@@ -1594,6 +1596,8 @@
     if (host) {
       host.innerHTML = `<div class="glass pad stack bq-card" role="region" aria-labelledby="bqT">${html}</div>`;
       caja = host.firstElementChild;
+      // Página bloqueada: fuera lo que no tiene uso aquí (botón «Mapa», nota y pestañas vacías); ver css/atalaya.css
+      document.body.classList.add('bq-pagina');
       // Volver: a la página anterior de Atalaya o, si se entró directamente, al puesto de mando
       cerrar = () => { let mismo = false; try { mismo = !!document.referrer && new URL(document.referrer).origin === location.origin && history.length > 1; } catch (e) { /* sin referencia */ } if (mismo) history.back(); else location.href = 'portal.html'; };
     } else {
@@ -1667,6 +1671,15 @@
     }
   }
 
+  /* Nombre de empresa que, si no cabe, se corta por el medio y deja ver el final («Cliente B… Norte SA»): en el móvil
+     se distinguen así las empresas que empiezan igual. Devuelve HTML (dos trozos; el primero lleva los puntos) */
+  P.nombreCortado = (n) => {
+    n = String(n == null ? '' : n);
+    // El final son las últimas palabras que quepan en unas diez letras («Beta SA», «Norte SA»); si no, las últimas letras
+    let k = 0; if (n.length > 10) { const i = n.lastIndexOf(' ', n.length - 2); k = i > 0 && n.length - i <= 11 ? n.length - i : Math.min(9, Math.ceil(n.length * 0.4)); const j = n.lastIndexOf(' ', n.length - k - 1); if (j > 0 && n.length - j <= 11) k = n.length - j; }
+    return k ? `<span class="nc-a">${escH(n.slice(0, n.length - k))}</span><span class="nc-z">${escH(n.slice(n.length - k))}</span>` : escH(n);
+  };
+
   P.mountAccount = function (el) {
     if (!el) return;
     const u = P.user; if (!u) { el.innerHTML = ''; return; }
@@ -1687,14 +1700,14 @@
     const plan = PLANES[u.plan] || PLANES.profesional, grupo = !!plan.grupo;
     if (act && lim === 1 && lista.length <= 1) {
       const sel = document.createElement('div'); sel.className = 'emp';
-      sel.innerHTML = `<button class="emp-btn" title="Ficha de la empresa"><i style="background:#c9f24d"></i><span>${esc(act.nombre === 'Mi empresa' ? 'Ficha de mi empresa' : act.nombre)}</span><b>✎</b></button>`;
+      sel.innerHTML = `<button class="emp-btn" title="Ficha de la empresa"><i style="background:#c9f24d"></i><span class="nc">${P.nombreCortado(act.nombre === 'Mi empresa' ? 'Ficha de mi empresa' : act.nombre)}</span><b>✎</b></button>`;
       el.prepend(sel);
       sel.querySelector('.emp-btn').onclick = async (e) => { e.stopPropagation(); const r = await P.fichaEmpresa(act); if (r) P.mountAccount(el); };
     }
     if (act && (lim > 1 || lista.length > 1)) {
       const sel = document.createElement('div'); sel.className = 'emp';
       const pal = ['#c9f24d', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
-      sel.innerHTML = `<button class="emp-btn" aria-haspopup="true" title="Cambiar de ${grupo ? 'sociedad' : 'empresa'}"><i style="background:${pal[lista.indexOf(act) % pal.length]}"></i><span>${esc(act.nombre)}</span><b>▾</b></button>
+      sel.innerHTML = `<button class="emp-btn" aria-haspopup="true" title="${esc(act.nombre)} · cambiar de ${grupo ? 'sociedad' : 'empresa'}" aria-label="${esc(act.nombre)} · cambiar de ${grupo ? 'sociedad' : 'empresa'}"><i style="background:${pal[lista.indexOf(act) % pal.length]}"></i><span class="nc">${P.nombreCortado(act.nombre)}</span><b>▾</b></button>
         <div class="emp-menu glass" hidden>
           <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : lim > 1 ? 'Empresas cliente' : 'Su empresa'}</b><small>${lim > 1 ? `${P.empresas.reales().length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ' · plan a medida' : ''} · más la empresa modelo` : 'Y la empresa modelo, para probar sin tocar la suya'}</small></div>
           <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${esc(e.id)}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.modelo ? 'Empresa modelo · datos ficticios' : grupo && e.rol === 'holding' ? 'Holding · sociedad dominante' : grupo && e.rol === 'filial' ? `Filial · ${esc(e.participacion != null ? e.participacion : 100)} %` : lim === 1 ? 'Su empresa' : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' && !e.modelo ? `<button class="icon-btn" data-empdel="${esc(e.id)}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${esc(e.id)}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
@@ -1711,7 +1724,7 @@
       sel.querySelectorAll('[data-empren]').forEach((x) => x.onclick = async () => { em.hidden = true; const e = lista.find((y) => y.id === x.dataset.empren); const r = await P.fichaEmpresa(e); if (r) P.mountAccount(el); });
       sel.querySelectorAll('[data-empdel]').forEach((x) => x.onclick = async () => { const e = lista.find((y) => y.id === x.dataset.empdel); em.hidden = true; if (!(await P.borrarEmpresaSeguro(e))) return; if (e.id === act.id) location.reload(); else P.mountAccount(el); });
       const nf = sel.querySelector('[data-empnew]');
-      if (nf) nf.onsubmit = async (e) => { e.preventDefault(); try { const ne = await P.empresas.crear({ nombre: nf.nombre.value, rol: nf.rol ? nf.rol.value : undefined, participacion: nf.participacion ? nf.participacion.value : undefined }); P.empresas.cambiar(ne.id); } catch (x) { nf.querySelector('[data-empmsg]').textContent = x.message; } };
+      if (nf) nf.onsubmit = async (e) => { e.preventDefault(); try { const ne = await P.empresas.crear(Object.assign({ nombre: nf.nombre.value, rol: nf.rol ? nf.rol.value : undefined, participacion: nf.participacion ? nf.participacion.value : undefined }, lim > 1 ? { datosReales: true, datosRealesDesde: new Date().toISOString().slice(0, 10), datosRealesTs: new Date().toISOString(), datosRealesOrigen: 'ficha' } : {})); P.empresas.cambiar(ne.id); } catch (x) { nf.querySelector('[data-empmsg]').textContent = x.message; } };
     }
     const b = el.querySelector('.acc-btn'), m = el.querySelector('.acc-menu');
     const bmb = () => { const bar = el.closest('.barra-comun'); return bar && bar.querySelector('.bm-btn'); };

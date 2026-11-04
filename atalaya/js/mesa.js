@@ -238,11 +238,11 @@
      · Personas y equipos: revisiones de acuerdos de liderazgo.
      Lo que se borra de la mesa queda descartado y no vuelve a traerse. */
   const LINEA_AREA = { gobierno: 'Dirección', organizacion: 'Dirección', finanzas: 'Finanzas', comercial: 'Comercial', procesos: 'Operaciones', equipos: 'Personas', informacion: 'Dirección', protocolos: 'Dirección' };
-  const resumenImp = (n) => { const f = importar.ultimo || {}, ks = Object.keys(f), r = importar.r || {}, mas = [r.actualizadas ? `${r.actualizadas} actualizada${r.actualizadas > 1 ? 's' : ''}` : '', r.cerradas ? `${r.cerradas} cerrada${r.cerradas > 1 ? 's' : ''} porque ya están hechas en su origen` : '', r.difieren ? `${r.difieren} hecha${r.difieren > 1 ? 's' : ''} con datos distintos en el origen (vea la nota en la tarea)` : '', r.descartadas ? `${r.descartadas} que se borr${r.descartadas > 1 ? 'aron' : 'ó'} de la mesa no se ha${r.descartadas > 1 ? 'n' : ''} vuelto a crear` : ''].filter(Boolean).join(r.difieren || r.descartadas ? '; ' : ' y '); return n ? `${n} tarea${n > 1 ? 's' : ''} nueva${n > 1 ? 's' : ''} desde ${ks.map((k) => `${k} (${f[k]})`).join(', ')}.${mas ? ' Además, ' + mas + '.' : ''}` : mas ? `No hay trabajo nuevo; ${mas}.` : ks.length ? 'No hay trabajo nuevo: lo que se está trabajando ya está en la mesa.' : 'No hay trabajo real en los otros mundos todavía: llega de la auditoría integral (plan, acuerdos, hitos y sesiones) y del sistema estratégico (plan de empresa y objetivos).'; };
+  const resumenImp = (n) => { const f = importar.ultimo || {}, ks = Object.keys(f), r = importar.r || {}, mas = [r.actualizadas ? `${r.actualizadas} actualizada${r.actualizadas > 1 ? 's' : ''}` : '', r.cerradas ? `${r.cerradas} cerrada${r.cerradas > 1 ? 's' : ''} porque ya están hechas en su origen` : '', r.difieren ? `${r.difieren} hecha${r.difieren > 1 ? 's' : ''} con datos distintos en el origen (vea la nota en la tarea)` : '', r.descartadas ? `${r.descartadas} que se borr${r.descartadas > 1 ? 'aron' : 'ó'} de la mesa no se ha${r.descartadas > 1 ? 'n' : ''} vuelto a crear` : ''].filter(Boolean).join(r.difieren || r.descartadas ? '; ' : ' y '); return n ? `${n} tarea${n > 1 ? 's' : ''} nueva${n > 1 ? 's' : ''} desde ${ks.map((k) => `${k} (${f[k]})`).join(', ')}.${mas ? ' Además, ' + mas + '.' : ''}` : mas ? `No hay trabajo nuevo; ${mas}.` : importar.hay ? 'No hay trabajo nuevo: lo que se está trabajando ya está en la mesa.' : 'No hay trabajo real en los otros mundos todavía: llega de la auditoría integral (plan, acuerdos, hitos y sesiones) y del sistema estratégico (plan de empresa y objetivos).'; };
   const importar = async () => {
-    const items = [], porFuente = {}, O = M.oid;
+    const items = [], porFuente = {}, fuentes = new Map(), O = M.oid;
     // Lo hecho en el origen no entra, pero cierra la tarea que ya estuviera en la mesa
-    const add = (x, f, hecha) => { if (hecha) { items.push(Object.assign(x, { hechaEnOrigen: typeof hecha === 'string' ? hecha : h })); return; } items.push(x); porFuente[f] = (porFuente[f] || 0) + 1; };
+    const add = (x, f, hecha) => { if (hecha) { items.push(Object.assign(x, { hechaEnOrigen: typeof hecha === 'string' ? hecha : h })); return; } items.push(x); fuentes.set(x, f); };
     const loc = (k) => { try { return JSON.parse(localStorage.getItem(P() && P().k ? P().k(k) : k)); } catch (e) { return null; } };
     const ld = async (k, l) => { let r = null; try { r = P() && (await P().loadData(k)); } catch (e) { r = null; } return r || loc(l); };
     const h = M.hoy();
@@ -251,7 +251,7 @@
       const iv = await ld('intervencion', 'atalaya.intervencion.v1');
       if (iv) {
         M.idsIntervencion(iv);
-        ((iv.plan && iv.plan.acciones) || []).filter((a) => a.t && a.id && M.accionEmpresa(a)).forEach((a) => add({ t: a.t, area: LINEA_AREA[a.linea] || 'Dirección', resp: a.responsable || (a.quien === 'consultor' ? 'Consultor' : ''), fecha: a.fecha || '', mundo: 'intervencion', origen: 'Plan de intervención' + (a.ent && a.ent !== '—' ? ' · entregable: ' + a.ent : ''), oid: O('intervencion', 'accion', a.id), impacto: a.clave ? 5 : 4, clave: !!a.clave }, 'plan de intervención', a.estado === 'hecha' && (a.hechaEl || true)));
+        ((iv.plan && iv.plan.acciones) || []).filter((a) => a.t && a.id && M.accionEmpresa(a)).forEach((a) => { const x = M.tareaAccionIv(a), hecha = x.hechaEnOrigen; delete x.hechaEnOrigen; add(x, 'plan de intervención', hecha); });
         (iv.sesiones || []).forEach((se) => (se.acuerdos || []).filter((x) => x.t).forEach((x, k) => add({ t: x.t, resp: x.resp || '', fecha: x.fecha || '', area: 'Dirección', mundo: 'intervencion', origen: `Acuerdo de la sesión del ${fCorta(se.fecha)}`, oid: O('intervencion', 'acuerdo', se.id + ':' + x.id), aka: ['iv-acu:' + se.id + ':' + k], impacto: 4 }, 'acuerdos de sesión', x.hecho)));
         (iv.objetivos || []).forEach((o, i) => (o.hitos || []).filter((x) => x.t).forEach((x) => add({ t: x.t, resp: x.resp || '', fecha: x.fecha || '', area: 'Dirección', mundo: 'intervencion', origen: `Hito del objetivo O${i + 1}: ${o.especifica || o.dice || ''}`.slice(0, 160), oid: O('intervencion', 'hito', o.id + ':' + x.id), objetivoId: O('intervencion', 'objetivo', o.id), impacto: 5, clave: true }, 'hitos de objetivos', x.hecho)));
         (iv.sesiones || []).filter((se) => se.fecha && se.fecha >= h && se.tipo !== 'contacto').slice(0, 4).forEach((se) => add({ t: `Sesión de la auditoría: ${se.obj || se.tipo}`.slice(0, 160), fecha: se.fecha, hora: se.hora || '', dur: se.dur || 60, tipo: 'imperativa', area: 'Dirección', mundo: 'intervencion', origen: 'Calendario de sesiones', oid: O('intervencion', 'sesion', se.id), impacto: 4 }, 'sesiones'));
@@ -267,9 +267,13 @@
     // Personas y equipos
     const per = P() && P().puede && P().puede('personas') && (await ld('personas', 'atalaya.personas.v1'));
     if (per && Array.isArray(per.personas)) per.personas.forEach((c) => (c.tareas || []).filter((t) => t.acuerdo && t.acuerdo.revision && t.id).forEach((t) => add({ t: `Revisar el acuerdo de liderazgo con ${c.nombre} en «${t.nombre}»`, area: 'Personas', fecha: t.acuerdo.revision, mundo: 'personas', origen: 'Liderazgo a medida', oid: O('personas', 'acuerdo', c.id + ':' + t.id), aka: ['per:lid:' + c.id + ':' + t.nombre], impacto: 3 }, 'personas y equipos', t.acuerdo.revisado)));
+    // Por fuente se cuentan solo las que entran nuevas (no las que ya estaban en la mesa)
+    const antes = new Set(ST.tareas.map((t) => t.oid).filter(Boolean));
     const r = M.fusionar(ST, items);
+    const ahora = new Set(ST.tareas.map((t) => t.oid).filter(Boolean));
+    fuentes.forEach((f, x) => { const k = x.oid && M.normOid(x.oid, x); if (k && !antes.has(k) && ahora.has(k)) porFuente[f] = (porFuente[f] || 0) + 1; });
     guardar();
-    importar.ultimo = porFuente; importar.r = r;
+    importar.ultimo = porFuente; importar.r = r; importar.hay = fuentes.size + items.filter((x) => x.hechaEnOrigen).length;
     return r.nuevas;
   };
 

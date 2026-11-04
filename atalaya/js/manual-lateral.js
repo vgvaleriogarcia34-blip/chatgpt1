@@ -77,7 +77,8 @@
     d.querySelectorAll('main section[id]').forEach((s) => {
       const h = s.querySelector('h2'); if (!h) return;
       const n = (h.querySelector('.num') || {}).textContent || '', g = { id: s.id, t: h.textContent.trim().slice(n.length).trim(), n, sub: [] };
-      s.querySelectorAll('h3[id]').forEach((x) => g.sub.push({ id: x.id, t: x.textContent.trim() }));
+      // También los puntos de lista con su propio ancla (el tablero general, dentro de «Moverse por la aplicación»)
+      s.querySelectorAll('h3[id], li[id]').forEach((x) => g.sub.push({ id: x.id, t: (x.tagName === 'LI' ? (x.querySelector('b') || x).textContent : x.textContent).trim() }));
       temas.push(g);
     });
     $('#mlIr', wrap).innerHTML = temas.map((g) => `<optgroup label="${esc((g.n ? g.n + '. ' : '') + g.t)}"><option value="${g.id}">${esc(g.t)} · inicio</option>${g.sub.map((x) => `<option value="${x.id}">${esc(x.t)}</option>`).join('')}</optgroup>`).join('');

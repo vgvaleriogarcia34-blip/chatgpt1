@@ -600,6 +600,8 @@ table.guide td:nth-child(n+3):not(:last-child) { font-size: 0.8rem; }
 .emp-btn { display: flex; align-items: center; gap: 8px; max-width: 230px; height: 36px; padding: 0 12px 0 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(201, 242, 77, 0.06); color: var(--fg); font-size: var(--t-s); }
 .emp-btn i, .emp-it i { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 8px currentColor; }
 .emp-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Nombre cortado por el medio (P.nombreCortado): el principio lleva los puntos y el final se ve siempre */
+.nc { display: flex; min-width: 0; } .nc .nc-a { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; } .nc .nc-z { flex: none; overflow: visible; white-space: pre; }
 .emp-btn b { color: var(--gold); font-weight: 400; font-size: 0.7rem; }
 .emp-btn:hover { border-color: var(--gold); }
 .emp-menu { position: absolute; right: 0; top: calc(100% + 8px); width: min(330px, calc(100vw - 24px)); z-index: 90; padding: 6px 0; background: var(--panel-solid, #0b0d13); border-radius: 14px; box-shadow: var(--shadow); }
@@ -608,13 +610,13 @@ table.guide td:nth-child(n+3):not(:last-child) { font-size: 0.8rem; }
 .emp-it > button[data-emp] { flex: 1; display: flex; gap: 10px; align-items: center; text-align: left; padding: 8px; border: 0; background: none; color: var(--fg); border-radius: 10px; min-width: 0; }
 .emp-it > button[data-emp]:hover { background: var(--raise); }
 .emp-it.on > button[data-emp] { background: rgba(201, 242, 77, 0.1); }
-.emp-it span { display: grid; min-width: 0; } .emp-it span b { font-weight: 600; font-size: var(--t-s); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .emp-it span small { color: var(--muted); font-size: var(--t-xs); }
+.emp-it span { display: grid; min-width: 0; } .emp-it span b { font-weight: 600; font-size: var(--t-s); overflow-wrap: anywhere; } .emp-it span small { color: var(--muted); font-size: var(--t-xs); }
 .emp-it .icon-btn { width: 26px; height: 26px; font-size: 0.8rem; }
 .emp-new { padding: 10px 12px; border-top: 1px solid var(--line); gap: 6px; }
 .emp-new .row { gap: 6px; flex-wrap: nowrap; } .emp-new select { flex: 1; }
 .emp-group { display: block; padding: 10px 14px; border-top: 1px solid var(--line); color: var(--gold-soft); text-decoration: none; font-size: var(--t-s); }
 .emp-group:hover { background: var(--raise); }
-@media (max-width: 760px) { .emp-btn { max-width: 120px; padding: 0 10px; } .emp-btn b { display: none; } }
+@media (max-width: 760px) { .emp-btn { max-width: 170px; padding: 0 10px; } .emp-btn b { display: none; } }
 
 /* Ficha de la empresa en el puente de mando */
 .id-card { margin-top: 18px; padding: 16px 18px; display: grid; gap: 12px; border: 1px solid var(--line-strong); }
@@ -1087,12 +1089,12 @@ body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(56px + var(--pt-dock-h
   .topbar .nt-chip .nt-n { font-size: 0.78rem; }
   .topbar .account { flex: 0 1 auto; min-width: 72px; gap: 6px; }
   .topbar .emp { flex: 0 1 auto; min-width: 30px; }
-  .topbar .emp-btn { max-width: 100px; width: 100%; min-width: 0; padding: 0 8px; }
+  .topbar .emp-btn { max-width: 165px; width: 100%; min-width: 0; padding: 0 8px; }
   .topbar .emp-btn span { min-width: 0; }
   .topbar .acc-btn { flex: none; }
   .topbar .acc-menu, .topbar .emp-menu { max-width: calc(100vw - 20px); }
 }
-@media (max-width: 380px) { .topbar .emp-btn { max-width: 78px; } }
+@media (max-width: 380px) { .topbar .emp-btn { max-width: 120px; } }
 /* Menú de la cuenta: si no cabe en la pantalla, se desplaza por dentro */
 .acc-menu { max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px); overflow-y: auto; overscroll-behavior: contain; }
 .acc-menu button[data-exp], .acc-menu button[data-activar] { color: var(--gold-soft); }
@@ -1150,7 +1152,11 @@ body.portal .pt-dock .pt-sec small { display: none; }
 /* La marca deja el nombre del mundo al botón «Mundos»; la nota, sin rótulos cuando falta sitio */
 .barra-comun .brand span { display: none; }
 .bm-car { color: var(--gold); font-size: 0.7rem; }
-@media (max-width: 1560px) { .barra-comun .nt-chip small { display: none; } }
+/* A 1440 px hay sitio para los rótulos «Empresa» y «Este mundo» salvo en el simulador, que lleva más botones */
+@media (max-width: 1560px) { body:has(> .dock) .barra-comun .nt-chip small { display: none; } }
+@media (max-width: 1280px) { .barra-comun .nt-chip small { display: none; } }
+/* Sin nota de la empresa tampoco la hay del mundo: un solo «Sin nota», no «Sin nota | Sin nota» */
+.nt-chip > .nt-n:first-child:not(.ok, .warn, .stop) ~ :is(.nt-sep, .nt-n, small:last-child) { display: none; }
 .barra-comun .verdict-pill { max-width: 220px; min-width: 0; } .barra-comun .verdict-pill .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 560px) { .bm-car { display: none; } }
 /* Con un menú de la barra abierto, la barra queda por encima del asistente, la pestaña del manual y las barras de abajo */
@@ -1173,5 +1179,7 @@ body:has(> .modal-back, > .ef-back) :is(.modal-back, .ef-back) { backdrop-filter
 .ef-card.bq-card { width: min(620px, 100%); margin: 0; }
 .bq-card h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); }
 .bq-card .row { flex-wrap: wrap; }
+/* Página entera bloqueada por el plan (P.bloqueo con zona): sin «Mapa», sin nota y sin la fila de pestañas vacía */
+body.bq-pagina :is(.ruta-btn, .rm-open, .nt-chip, .ruta-bar, .st-tabs:empty, #peTabs, #ivTabs) { display: none !important; }
 /* Asistente en el puesto de mando: en pantallas estrechas, encima de la lista de mundos y a la altura del paseo virtual */
 @media (max-width: 899px) { body.portal .assistant { bottom: calc(24px + var(--pt-dock-h, 130px) + env(safe-area-inset-bottom, 0px)); } }
