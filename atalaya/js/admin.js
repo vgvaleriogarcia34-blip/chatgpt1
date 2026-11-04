@@ -456,6 +456,30 @@
       };
     }
   }
+  // Revisión del sistema: comprobaciones del servidor y, si se pide, lectura de la IA con los pasos para corregir
+  const NIVEL = { grave: ['stop', 'Corregir'], aviso: ['warn', 'Revisar'], ok: ['ok', 'Correcto'] };
+  function pintarRevision(r) {
+    const s = r.resumen, sv = r.servidor;
+    $('#revRes').innerHTML = `<p style="margin:6px 0"><b>${s.graves}</b> por corregir · <b>${s.avisos}</b> por revisar · <b>${s.correctas}</b> correctas · ${fhora(r.fecha)}</p>`
+      + `<div class="table-wrap"><table class="rev-tabla"><thead><tr><th>Estado</th><th>Área</th><th>Qué pasa</th><th>Qué hacer</th></tr></thead><tbody>`
+      + r.comprobaciones.map((c) => `<tr><td><span class="state st-${NIVEL[c.nivel][0]}">${NIVEL[c.nivel][1]}</span></td><td>${esc(c.area)}</td><td>${esc(c.texto)}</td><td>${esc(c.como || '')}</td></tr>`).join('')
+      + `</tbody></table></div>`
+      + `<p class="muted" style="margin:6px 0">Servidor ${esc(sv.version)} · Node ${esc(sv.node)} · en marcha ${sv.enMarchaHoras} h · memoria ${sv.memoriaMB} MB · base ${sv.baseMB == null ? '—' : sv.baseMB + ' MB'} · ${r.cuentas.total} cuentas</p>`
+      + (r.errores.length ? `<details><summary>Últimos errores del registro (${r.errores.length})</summary><ul>${r.errores.map((e) => `<li><span class="mono">${fhora(e.fecha)}</span> ${esc(e.t)}</li>`).join('')}</ul></details>` : '');
+  }
+  async function revisar() {
+    $('#revRes').innerHTML = '<p class="muted">Revisando…</p>';
+    try { pintarRevision(await api('/admin/revision')); } catch (e) { $('#revRes').innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; }
+  }
+  async function revisarIa() {
+    const b = $('#revIa'); b.disabled = true; $('#revInf').innerHTML = '<p class="muted">La IA está leyendo la revisión. Tarda unos segundos…</p>';
+    try {
+      const r = await api('/admin/revision/ia', 'POST', { pregunta: $('#revQ').value.trim() });
+      pintarRevision(r.revision);
+      $('#revInf').innerHTML = `<div class="glass pad" style="white-space:pre-wrap">${esc(r.informe)}</div>`;
+    } catch (e) { $('#revInf').innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; }
+    b.disabled = false;
+  }
   let wired = false;
   function openPanel() {
     $('#gate').hidden = true; $('#panel').hidden = false; $('#admBar').hidden = false;
@@ -467,6 +491,7 @@
       $('#modeNote').innerHTML = avisos.map((t) => `<div class="alert warn" style="margin-bottom:8px">${esc(t)}</div>`).join('') + `<p class="small muted" style="margin:0">${estado.nombre ? `Ha entrado como <b>${esc(estado.nombre)}</b>. ` : ''}Cobro: ${estado.stripe ? `Stripe (${estado.stripe.precios.length} precios)` : 'manual (enlaces de pago y «Registrar pago»)'} · Avisos al equipo por correo: ${estado.avisos ? 'sí' : 'no (AVISOS_EMAIL y SMTP)'}.</p>`;
     }
     $('#actBox').hidden = !SRV(); $('#nuevo').hidden = !SRV(); $('#admSeg').hidden = !SRV();
+    $('#revBox').hidden = !SRV(); if (SRV()) revisar();
     if (!wired) {
       wired = true;
       $('#q').addEventListener('input', render); $('#fEstado').addEventListener('change', render); $('#csv').onclick = csv;
@@ -478,6 +503,7 @@
       $('#aq').addEventListener('input', recargar); ['#aAcc', '#aDesde', '#aHasta'].forEach((s) => $(s).addEventListener('change', cargarActividad));
       $('#aAcc').innerHTML = '<option value="">Todas las acciones</option>' + Object.entries(ACCIONES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
       $('#aCsv').onclick = csvActividad;
+      $('#revOk').onclick = revisar; $('#revIa').onclick = revisarIa;
     }
     load();
   }

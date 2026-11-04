@@ -2,6 +2,8 @@
 
 Lo que hay que revisar el día que Atalaya pase de la demostración en el navegador a su propio servidor (`server/server.mjs`). Marca cada punto al comprobarlo.
 
+> **Instalación en un servidor propio:** ver [`despliegue/DESPLIEGUE.md`](../despliegue/DESPLIEGUE.md) (Hetzner Cloud, Docker, Caddy con HTTPS, copias externas cifradas y revisión del sistema en la administración).
+
 ## 1. Arranque y seguridad
 
 - [ ] Node 22.13 o superior (trae `node:sqlite` sin opciones; con 22.5–22.12 el servidor sigue con `db.json`); `cd server && npm install` (instala `nodemailer` para el correo).

@@ -1,0 +1,5 @@
+# Secretos y configuración de cada servidor: nunca al repositorio
+.env
+atalaya.env
+asistente.env
+sitios/*.caddy

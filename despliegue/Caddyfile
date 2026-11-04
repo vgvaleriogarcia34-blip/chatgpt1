@@ -1,0 +1,11 @@
+# HTTPS automático (Let's Encrypt). instalar.sh crea sitios/asistente.caddy si se publica el asistente.
+{
+	email {$CORREO_CERTIFICADOS}
+}
+
+{$DOMINIO_APP} {
+	encode zstd gzip
+	reverse_proxy atalaya:8080
+}
+
+import /etc/caddy/sitios/*.caddy

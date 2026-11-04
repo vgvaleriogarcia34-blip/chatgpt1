@@ -1,0 +1,44 @@
+# Atalaya 360° en un servidor propio: aplicación, asistente (opcional) y Caddy con HTTPS.
+# Lo prepara instalar.sh. A mano:  cd /srv/atalaya/despliegue && docker compose up -d --build
+# Con el asistente:                docker compose --profile asistente up -d --build
+services:
+  atalaya:
+    build: ../atalaya
+    restart: unless-stopped
+    env_file: atalaya.env
+    volumes:
+      - /srv/atalaya-datos/atalaya:/datos
+    expose: ["8080"]
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+
+  asistente:
+    profiles: ["asistente"]
+    build: ../asistente-fe
+    restart: unless-stopped
+    env_file: asistente.env
+    environment:
+      PORT: "8090"
+      GOOGLE_CREDENCIALES: /app/secretos/google-cuenta-servicio.json
+    volumes:
+      - /srv/atalaya-datos/asistente:/app/datos
+      - /srv/atalaya-datos/secretos:/app/secretos:ro
+    expose: ["8090"]
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    depends_on: [atalaya]
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMINIO_APP: ${DOMINIO_APP:?Falta DOMINIO_APP en .env}
+      CORREO_CERTIFICADOS: ${CORREO_CERTIFICADOS:?Falta CORREO_CERTIFICADOS en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sitios:/etc/caddy/sitios:ro
+      - caddy_datos:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_datos:
+  caddy_config:

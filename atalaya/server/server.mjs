@@ -45,6 +45,19 @@ const nid = (p, n) => p + crypto.randomBytes(n || 6).toString('hex');
 /* ---------- Errores que no deben tumbar el servidor ---------- */
 process.on('unhandledRejection', (e) => console.error('Promesa rechazada sin controlar:', e));
 process.on('uncaughtException', (e) => console.error('Excepción sin controlar (el servidor sigue en marcha):', e));
+// Últimos errores del registro (para la revisión del sistema en la administración). Solo el texto, recortado y sin correos.
+const ERRORES = [];
+{
+  const original = console.error.bind(console);
+  console.error = (...args) => {
+    try {
+      const t = args.map((x) => (x instanceof Error ? x.message : typeof x === 'string' ? x : JSON.stringify(x))).join(' ')
+        .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[correo]').replace(/\s+/g, ' ').trim().slice(0, 300);
+      if (t) { ERRORES.push({ fecha: new Date().toISOString(), t }); if (ERRORES.length > 50) ERRORES.shift(); }
+    } catch { /* el registro nunca debe fallar */ }
+    original(...args);
+  };
+}
 
 /* ---------- Carpeta de datos: fuera de la web y solo para este usuario ---------- */
 {
@@ -1173,6 +1186,122 @@ route('GET', /^\/api\/admin\/estado$/, async (req) => {
   const s = adminSesion(req), t = db.adminTotp;
   return { configurado: !!db.admin, sesion: !!s, correo: !!env.SMTP_HOST, dosPasos: !!(t && t.activo), ...(s ? { nombre: s.nombre || null, recuperacion: t && t.activo ? (t.codigos || []).length : null, stripe: STRIPE ? { precios: Object.keys(STRIPE_PRECIOS), webhook: !!env.STRIPE_WEBHOOK_SECRET } : false, almacen: ALMACEN, avisos: !!(env.AVISOS_EMAIL && env.SMTP_HOST) } : {}) };
 }, { public: true });
+/* ---------- Revisión del sistema (administración) ----------
+   GET  /api/admin/revision     comprobaciones automáticas del servidor, la base, las copias, la configuración y las cuentas.
+   POST /api/admin/revision/ia  la misma revisión, leída por la IA: qué corregir primero y cómo.
+   A la IA solo se le envían recuentos y estados, nunca correos, nombres ni datos de las empresas. */
+const ARCHIVOS_WEB = ['index.html', 'acceso.html', 'portal.html', 'app.html', 'estrategia.html', 'mesa.html', 'tablero.html', 'libro.html', 'admin.html', 'manual.html', 'privacidad.html', 'js/platform.js', 'css/atalaya.css'];
+const diasDesde = (f) => (f ? Math.floor((Date.now() - Date.parse(f)) / 864e5) : null);
+function revisionSistema() {
+  const c = []; // { nivel: 'grave' | 'aviso' | 'ok', area, texto, como }
+  const pon = (nivel, area, texto, como) => c.push({ nivel, area, texto, ...(como ? { como } : {}) });
+  const prod = env.NODE_ENV === 'production';
+
+  // Servidor y seguridad
+  if (!prod) pon('aviso', 'Servidor', 'El servidor no está en modo producción.', 'Arranque con NODE_ENV=production.');
+  if (!/^https:\/\//.test(APP_URL)) pon(prod ? 'grave' : 'aviso', 'Servidor', `La dirección pública (${APP_URL}) no usa HTTPS.`, 'Ponga APP_URL=https://su-dominio y un proxy con certificado (Caddy).');
+  if (!SECURE) pon(prod ? 'grave' : 'aviso', 'Servidor', 'Las cookies no van marcadas como seguras.', 'Ponga COOKIE_SECURE=1 cuando haya HTTPS.');
+  if (prod && !TRUST_PROXY) pon('aviso', 'Servidor', 'No se indica el proxy de confianza: los límites de intentos ven la IP del proxy, no la del cliente.', 'Con Caddy en la misma máquina, TRUST_PROXY=1.');
+  const totp = db.adminTotp;
+  if (!(totp && totp.activo)) pon('grave', 'Seguridad', 'La administración no tiene segundo factor.', 'Actívelo en «Seguridad» y guarde los códigos de recuperación fuera del servidor.');
+  else if ((totp.codigos || []).length < 3) pon('aviso', 'Seguridad', `Quedan ${(totp.codigos || []).length} códigos de recuperación.`, 'Genere códigos nuevos en «Seguridad».');
+  if (!env.ATALAYA_SECRETO && !fs.existsSync(path.join(DATA_DIR, 'secreto.key'))) pon('grave', 'Seguridad', 'No hay secreto del servidor.', 'Revise los permisos de la carpeta de datos.');
+
+  // Base de datos
+  let tam = null;
+  if (ALMACEN === 'sqlite' && sql) {
+    try { const r = sql.prepare('PRAGMA quick_check').get(); const v = r && Object.values(r)[0]; v === 'ok' ? pon('ok', 'Base de datos', 'La base pasa la comprobación de integridad.') : pon('grave', 'Base de datos', `La comprobación de integridad da: ${String(v).slice(0, 120)}`, 'Pare el servidor y recupere la última copia (ATALAYA_RECUPERAR=1).'); }
+    catch (e) { pon('grave', 'Base de datos', 'No se pudo comprobar la integridad de la base.', e.message.slice(0, 120)); }
+    try { tam = fs.statSync(DB_SQL).size + (fs.existsSync(DB_SQL + '-wal') ? fs.statSync(DB_SQL + '-wal').size : 0); } catch { /* sin base todavía */ }
+  } else pon('aviso', 'Base de datos', 'La base está en un fichero JSON, no en SQLite.', 'Use Node 22.13 o superior y quite ALMACEN=json.');
+
+  // Copias
+  const copias = [];
+  for (let i = 1; i <= COPIAS; i++) { try { copias.push({ n: i, fecha: fs.statSync(copia(i)).mtime.toISOString() }); } catch { /* no existe */ } }
+  const ultima = copias[0] && copias[0].fecha;
+  if (!copias.length) pon(db.users.length ? 'aviso' : 'ok', 'Copias', db.users.length ? 'Todavía no hay copias diarias en el disco.' : 'Sin copias todavía (no hay cuentas).', 'Se crean solas antes de la primera escritura de cada día.');
+  else if (diasDesde(ultima) > 2) pon('aviso', 'Copias', `La copia diaria más reciente es de hace ${diasDesde(ultima)} días.`, 'Es normal si no ha habido cambios; si los hubo, revise los errores del registro.');
+  else pon('ok', 'Copias', `${copias.length} ${copias.length === 1 ? 'copia diaria' : 'copias diarias'} en el disco; la última, ${diasDesde(ultima) === 0 ? 'de hoy' : `de hace ${diasDesde(ultima)} ${diasDesde(ultima) === 1 ? 'día' : 'días'}`}.`);
+  let externa = null;
+  try { externa = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'copia-externa.json'), 'utf8')); } catch { /* sin registro */ }
+  if (!externa) pon('grave', 'Copias', 'No consta ninguna copia fuera de este servidor.', 'Configure despliegue/copia-seguridad.sh (se instala con instalar.sh) y su destino externo.');
+  else if (!externa.ok) pon('grave', 'Copias', `La última copia externa falló (${String(externa.error || 'sin detalle').slice(0, 120)}).`, 'Revise el destino y la contraseña de la copia en el servidor.');
+  else if (diasDesde(externa.fecha) > 1) pon('grave', 'Copias', `La última copia externa es de hace ${diasDesde(externa.fecha)} días.`, 'Revise la tarea programada de copia (systemctl status atalaya-copia.timer).');
+  else pon('ok', 'Copias', `Copia externa al día (${externa.destino || 'destino configurado'}).`);
+
+  // Disco
+  try {
+    const st = fs.statfsSync(DATA_DIR), libre = st.bavail * st.bsize, total = st.blocks * st.bsize, pct = total ? Math.round((libre / total) * 100) : null;
+    if (pct != null && pct < 10) pon('grave', 'Disco', `Queda un ${pct} % del disco libre.`, 'Amplíe el disco o borre copias antiguas.');
+    else if (pct != null && pct < 25) pon('aviso', 'Disco', `Queda un ${pct} % del disco libre.`);
+    else pon('ok', 'Disco', `Disco libre: ${pct} %.`);
+  } catch { /* statfs no disponible */ }
+
+  // Web
+  const faltan = ARCHIVOS_WEB.filter((f) => !fs.existsSync(path.join(ROOT, f)));
+  faltan.length ? pon('grave', 'Web', `Faltan archivos de la aplicación: ${faltan.join(', ')}.`, 'Vuelva a desplegar con despliegue/actualizar.sh.') : pon('ok', 'Web', 'Están todos los archivos principales de la aplicación.');
+
+  // Servicios conectados
+  if (!env.ANTHROPIC_API_KEY && !env.ANTHROPIC_AUTH_TOKEN) pon('aviso', 'Servicios', 'La IA no está configurada: el asistente funciona en modo básico.', 'Ponga ANTHROPIC_API_KEY.');
+  if (!env.SMTP_HOST) pon('aviso', 'Servicios', 'No hay correo de salida: las invitaciones y contraseñas olvidadas se atienden a mano.', 'Configure SMTP_HOST, SMTP_USER, SMTP_PASS y SMTP_FROM.');
+  if (STRIPE && !env.STRIPE_WEBHOOK_SECRET) pon('grave', 'Servicios', 'Stripe está activo sin secreto del webhook: los cobros no se confirman.', 'Ponga STRIPE_WEBHOOK_SECRET.');
+  if (!STRIPE) pon('aviso', 'Servicios', 'El cobro con tarjeta (Stripe) no está activo: los pagos se registran a mano.');
+  if (!env.HUBSPOT_TOKEN) pon('aviso', 'Servicios', 'HubSpot no está conectado: las solicitudes no llegan al CRM.', 'Ponga HUBSPOT_TOKEN y HUBSPOT_OWNER_ID.');
+  if (!env.INTEGRACION_TOKEN) pon('aviso', 'Servicios', 'La integración con el asistente telefónico está apagada.', 'Ponga el mismo INTEGRACION_TOKEN aquí y en el asistente.');
+
+  // Cuentas y tareas pendientes (solo recuentos)
+  const us = db.users, porPlan = {}, est = { pagando: 0, prueba: 0, sinAcceso: 0, bloqueadas: 0 };
+  us.forEach((u) => {
+    porPlan[u.plan] = (porPlan[u.plan] || 0) + 1;
+    const a = access(u);
+    if (u.estado === 'bloqueado') est.bloqueadas++; else if (a.motivo === 'pagado') est.pagando++; else if (a.motivo === 'prueba') est.prueba++; else est.sinAcceso++;
+  });
+  const fallidos = us.filter((u) => u.pagoFallido).length;
+  const venceSemana = us.filter((u) => u.pagado && u.venceAcceso && Date.parse(u.venceAcceso) > Date.now() && Date.parse(u.venceAcceso) - Date.now() < 7 * 864e5).length;
+  const pendientes = {
+    contactos: (db.contactos || []).filter((x) => !x.atendido).length,
+    contactosAntiguos: (db.contactos || []).filter((x) => !x.atendido && diasDesde(x.fecha) > 2).length,
+    activacion: us.filter((u) => u.solicitudPago).length,
+    cambioPlan: us.filter((u) => u.planPendiente).length,
+    contrasena: us.filter((u) => u.solicitudReset).length,
+  };
+  if (fallidos) pon('grave', 'Cobros', `${fallidos} ${fallidos === 1 ? 'cuenta tiene' : 'cuentas tienen'} un cobro fallido.`, 'Revise la tabla de usuarios (estado «cobro fallido») y contacte con el cliente.');
+  if (venceSemana) pon('aviso', 'Cobros', `${venceSemana} ${venceSemana === 1 ? 'acceso pagado vence' : 'accesos pagados vencen'} en los próximos 7 días.`);
+  if (pendientes.contactosAntiguos) pon('aviso', 'Atención', `${pendientes.contactosAntiguos} solicitudes llevan más de 2 días sin atender.`, 'Ábralas en «Pendiente de atender».');
+  if (pendientes.activacion + pendientes.cambioPlan + pendientes.contrasena) pon('aviso', 'Atención', `Solicitudes abiertas: ${pendientes.activacion} de activación, ${pendientes.cambioPlan} de cambio de plan y ${pendientes.contrasena} de contraseña.`);
+
+  // Errores recientes
+  const err24 = ERRORES.filter((e) => Date.now() - Date.parse(e.fecha) < 864e5);
+  if (err24.length) pon(err24.length > 10 ? 'grave' : 'aviso', 'Errores', `${err24.length} errores en el registro en las últimas 24 horas.`, 'Véalos abajo o en «docker compose logs atalaya».');
+  else pon('ok', 'Errores', 'Sin errores en el registro en las últimas 24 horas.');
+
+  const orden = { grave: 0, aviso: 1, ok: 2 };
+  c.sort((a, b) => orden[a.nivel] - orden[b.nivel]);
+  return {
+    fecha: now(),
+    resumen: { graves: c.filter((x) => x.nivel === 'grave').length, avisos: c.filter((x) => x.nivel === 'aviso').length, correctas: c.filter((x) => x.nivel === 'ok').length },
+    comprobaciones: c,
+    servidor: { version: '2.2', node: process.version, enMarchaHoras: Math.round(process.uptime() / 360) / 10, memoriaMB: Math.round(process.memoryUsage().rss / 1048576), almacen: ALMACEN, baseMB: tam != null ? Math.round(tam / 104857.6) / 10 : null, produccion: prod },
+    copias, copiaExterna: externa ? { fecha: externa.fecha, ok: !!externa.ok, destino: externa.destino || null } : null,
+    cuentas: { total: us.length, porPlan, ...est, cobrosFallidos: fallidos, vencenEstaSemana: venceSemana },
+    pendientes,
+    errores: ERRORES.slice(-20).reverse(),
+  };
+}
+route('GET', /^\/api\/admin\/revision$/, async () => revisionSistema(), { admin: true });
+route('POST', /^\/api\/admin\/revision\/ia$/, async (req, res, body) => {
+  const r = revisionSistema();
+  const pregunta = String((body && body.pregunta) || '').slice(0, 1500);
+  const msg = await ask({
+    max_tokens: 4000,
+    output_config: { effort: 'medium' },
+    system: `Es el técnico de guardia de Atalaya 360°, una aplicación web de Business Avance para pymes (Node 22, SQLite, Docker, Caddy, copias externas).
+Recibe la revisión automática del servidor en JSON (solo recuentos y estados, sin datos personales). Escriba para el administrador, que no es informático: de usted, en castellano de España, frases cortas, sin superlativos y sin tablas.
+Estructura: 1) Estado general en una o dos frases. 2) Qué corregir, de lo más urgente a lo menos, con el paso exacto (variable, orden o pantalla) y por qué importa. 3) Qué vigilar esta semana. No invente datos que no estén en la revisión; si algo no se puede saber con ella, dígalo y diga cómo comprobarlo.`,
+    messages: [{ role: 'user', content: `Revisión del ${r.fecha}:\n${JSON.stringify(r).slice(0, 30000)}${pregunta ? `\n\nPregunta del administrador: ${pregunta}` : ''}` }],
+  });
+  return { revision: r, informe: textOf(msg) };
+}, { admin: true });
 route('POST', /^\/api\/admin\/configurar$/, async (req, res, body) => {
   if (db.admin) throw fallo(409, 'La administración ya está configurada');
   const ip = ipDe(req);
