@@ -47,20 +47,33 @@
       ['acompanamiento', 'Acompañamiento', [['arranque', 'Arranque: reglas y método'], ['objetivos', 'Objetivos SMART'], ['plan', 'Plan por prioridades'], ['sesiones', 'Sesiones quincenales']]],
       ['cierre', 'Cierre y documentos', [['informes', 'Informes y documentos'], ['autoeval', 'Autoevaluación']]]
     ] },
-    // Pestañas de js/mesa.js (TABS), agrupadas en las tres áreas aprobadas
+    // Pestañas de js/mesa.js (TABS y AREAS_ARCH), agrupadas en las tres áreas aprobadas
     mesa: { href: 'mesa.html', areas: [
       ['hoy', 'Hoy', [['hoy', 'Hoy', '¿Qué toca hacer hoy?'], ['bandeja', 'Bandeja', 'Todo lo que llega de los mundos, en una lista.']]],
-      ['planificar', 'Planificar', [['objetivos', 'Objetivos por prioridad'], ['metas', 'Metas SMART'], ['prioridades', 'Prioridades 20/80']]],
-      ['agenda', 'Agenda', [['agenda', 'Agenda semanal'], ['repetitivas', 'Repetitivas y semana ideal'], ['reuniones', 'Reuniones y delegación']]]
+      ['planificar', 'Planificar', [['objetivos', 'Objetivos por prioridad', '¿Qué objetivos salen de los datos reales y en qué orden?'], ['metas', 'Metas SMART', '¿Cómo paso de un objetivo a una meta con su plan de acción?'], ['prioridades', 'Prioridades 20/80', '¿Qué 20 % de las tareas da el resultado?']]],
+      ['agenda', 'Agenda', [['agenda', 'Agenda semanal', '¿En qué se va el tiempo de esta semana?'], ['repetitivas', 'Repetitivas y semana ideal', '¿Qué se repite y qué tiempo queda protegido?'], ['reuniones', 'Reuniones y delegación', '¿Qué se decidió en cada reunión y qué he delegado?']]]
     ] },
-    // Sin módulos todavía: una entrada cada uno
-    portal: { href: 'portal.html', unico: true },
-    tablero: { href: 'tablero.html', unico: true },
-    libro: { href: 'libro.html', unico: true },
-    grupo: { href: 'grupo.html', unico: true }
+    // Módulos de js/tablero.js (MODS): la página larga del tablero, en cuatro módulos
+    tablero: { href: 'tablero.html', areas: [
+      ['tablero', 'Tablero', [['vistazo', 'La empresa, de un vistazo', '¿Cómo está la empresa: nota, equilibrio, cifras clave y capas?'], ['prioridades', 'Prioridades', '¿Qué toca tratar primero en toda la empresa?'], ['objetivos', 'Objetivos', '¿Cómo van los objetivos del empresario?'], ['mundos', 'Mundos', '¿Qué nota tiene cada mundo y qué toca primero en él?']]]
+    ] },
+    // Módulos de js/grupo.js (MODS): cuarto dato «G» = solo en el plan Grupos (vista de grupo); «C» = solo en la cartera
+    grupo: { href: 'grupo.html', areas: [
+      ['cartera', 'Cartera', [['empresas', 'Empresas', '¿Cómo están todas las empresas, una a una?'], ['consolidado', 'Consolidado', '¿Cómo está el grupo en conjunto, con las eliminaciones?', 'G'], ['operativa', 'Cartera operativa', '¿En qué etapa está cada cliente y qué tiene pendiente?', 'C'], ['operaciones', 'Operaciones dentro del grupo', '¿Qué se venden o se prestan las sociedades entre sí?', 'G'], ['tesoreria', 'Tesorería del grupo', '¿Quién financia a quién dentro del grupo?', 'G'], ['comparativa', 'Comparativa', '¿Cómo se comparan entre sí?'], ['riesgos', 'Riesgos en conjunto', '¿Qué riesgos solo se ven al mirarlas juntas?'], ['objetivos', 'Objetivos del grupo', '¿Cómo bajan los objetivos de la holding a cada sociedad?', 'G']]]
+    ] },
+    // Secciones por defecto del libro (js/libro-comun.js, SECCION). En la página, el archivador lee las secciones reales
+    // del libro (con las que haya creado o renombrado el usuario, y el tablero y la cartera si se recogieron)
+    libro: { href: 'libro.html', areas: [
+      ['secciones', 'Secciones', [['intervencion', 'Auditoría integral'], ['simulador', 'Inversión y crecimiento'], ['estrategia', 'Sistema estratégico'], ['personas', 'Personas y equipos'], ['mesa', 'Plan de trabajo']]]
+    ] },
+    // Sin módulos: una entrada
+    portal: { href: 'portal.html', unico: true }
   };
 
   const P = () => A.platform;
+  // ¿La cuenta es del plan Grupos (vista de grupo) o de varias empresas sin grupo (cartera de clientes)?
+  const planGrupo = () => { const p = P(), u = p && p.user, pl = u && p.PLANES && p.PLANES[u.plan]; return !!(pl && pl.grupo); };
+  const enPlan = (marca) => (!marca ? true : marca === 'G' ? planGrupo() : marca === 'C' ? !planGrupo() : true);
   const mundoP = (k) => ((P() && P().mundos ? P().mundos() : (P() && P().MUNDOS) || []).find((m) => m.k === k)) || ((P() && P().MUNDOS) || []).find((m) => m.k === k) || { k, n: k, c: '#9ba4ba' };
   /* Mundo completo con sus áreas y módulos: [{ k, n, c, d, href, lock, secuencial, unico, areas: [{ k, n, modulos: [{ k, n, pregunta, href }] }], aparte: [módulos fuera del recorrido] }]
      Un área con bloques trae además bloques: [{ k, n, modulos }]; sus «modulos» son los de todos sus bloques y cada uno lleva su «bloque». */
@@ -71,7 +84,7 @@
       ? [{ k: k, n: p.n, modulos: [{ k: '', n: p.n, pregunta: p.d || '', href: d.href }] }]
       : d.areas.map(([ak, an, mods, bls]) => {
         const mod = (b) => ([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk, bloque: b });
-        if (!bls) return { k: ak, n: an, modulos: mods.map(mod(null)) };
+        if (!bls) return { k: ak, n: an, modulos: mods.filter((x) => enPlan(x[3])).map(mod(null)) };
         const bloques = bls.map(([bk, bn]) => ({ k: bk, n: bn, modulos: [] }));
         bls.forEach((x, i) => { bloques[i].modulos = x[2].map(mod(bloques[i])); });
         return { k: ak, n: an, bloques, modulos: bloques.flatMap((b) => b.modulos) };

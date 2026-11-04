@@ -2,6 +2,11 @@
 .lb-main { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 @media (min-width: 1100px) { .lb-main { grid-template-columns: 360px minmax(0, 1fr); } .lb-idx { position: sticky; top: 96px; max-height: calc(100vh - 116px); overflow: auto; } }
 .lb-idx label { display: grid; gap: 4px; }
+/* Ajustes del libro (título, introducción, nueva sección, qué recoger), plegados al pie de la ficha de la sección */
+.lb-ajustes { border-top: 1px solid var(--line); padding-top: 10px; }
+.lb-ajustes > summary { cursor: pointer; font-family: var(--font-data); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.lb-ajustes > summary:hover { color: var(--fg); }
+.lb-ajustes[open] > summary { margin-bottom: 10px; }
 .lb-secs, .lb-caps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .lb-caps { gap: 4px; margin-top: 6px; }
 .lb-sech { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }

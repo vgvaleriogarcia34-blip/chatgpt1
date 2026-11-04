@@ -12,7 +12,7 @@
   const P = () => A.platform;
   const pagina = () => (location.pathname.split('/').pop() || 'index.html').toLowerCase();
   // Páginas que abren su módulo al cambiar el #: en las demás se recarga
-  const OYEN_HASH = ['estrategia.html', 'personas.html', 'intervencion.html', 'app.html'];
+  const OYEN_HASH = ['estrategia.html', 'personas.html', 'intervencion.html', 'app.html', 'mesa.html', 'tablero.html', 'grupo.html', 'libro.html'];
   const acciones = [];
   let velo = null, input = null, lista = null, res = [], sel = 0, previo = null;
 

@@ -7,7 +7,10 @@
    · Agenda: semana con horas reservadas, semana ideal protegida y exportación al calendario.
    · Metas SMART: de objetivo a meta que depende solo de quien la ejecuta, con beneficio, pros y contras,
      obstáculos y plan de acción que baja a la bandeja.
-   · Repetitivas y semana ideal · Reuniones y delegación. */
+   · Repetitivas y semana ideal · Reuniones y delegación.
+   Menú: el archivador común (js/archivador.js) con tres áreas: Hoy (Hoy, Bandeja), Planificar (Objetivos por prioridad,
+   Metas SMART, Prioridades 20/80) y Agenda (Agenda semanal, Repetitivas y semana ideal, Reuniones y delegación).
+   Cada pestaña tiene su # (mesa.html#bandeja) y es una entrada del historial; la Bandeja y Metas llevan su contador. */
 (function () {
   const A = window.Atalaya, M = A.mesa;
   const $ = (s, r) => (r || document).querySelector(s);
@@ -185,7 +188,7 @@
     const l = ST.tareas.filter((t) => (filtro.estado === 'todas' || (filtro.estado === 'hecha' ? t.estado === 'hecha' : filtro.estado === 'noaplica' ? t.estado === 'noaplica' : M.abierta(t))) && (filtro.mundo === 'todos' || (MUNDOS[t.mundo] ? t.mundo : 'manual') === filtro.mundo)).sort((a, b) => (a.fecha || '9999').localeCompare(b.fecha || '9999') || score(b) - score(a));
     host.innerHTML = `<div class="glass pad stack"><p style="margin:0">Todo lo que hay que hacer, en un solo sitio: lo que apunte aquí y lo que sale del simulador, del sistema estratégico y de personas y equipos. Ponga a cada tarea una <b>fecha de acción</b>: cada día elegirá entre las que tocan, sin releer toda la lista.</p>
         <div class="row ms-add"><input class="input" id="msNueva" placeholder="Nueva tarea…" autocomplete="off"><select class="input" id="msArea"><option value="">Área</option>${AREAS.map((a) => `<option>${a}</option>`).join('')}</select><input class="input" type="date" id="msF"><button class="btn solid" id="msAdd">Apuntar</button><span class="spacer"></span><button class="btn" id="msImp">Traer el trabajo del ecosistema</button></div><p class="small muted" id="msImpMsg" style="margin:0"></p></div>
-      <div class="glass pad stack"><div class="row ms-fil"><span class="small muted">Ver</span>${[['pendiente', 'Pendientes'], ['hecha', 'Hechas'], ['noaplica', 'Ya no aplican'], ['todas', 'Todas']].map(([k, n]) => `<button class="chip" aria-pressed="${filtro.estado === k}" data-fe="${k}">${n}</button>`).join('')}<span class="ms-sep"></span>${[['todos', 'Todos los orígenes']].concat(Object.entries(MUNDOS)).map(([k, n]) => `<button class="chip" aria-pressed="${filtro.mundo === k}" data-fm="${k}">${n}</button>`).join('')}</div>
+      <div class="glass pad stack"><div class="tabs ms-vistas" role="tablist" aria-label="Vistas de la bandeja">${[['pendiente', 'Pendientes'], ['hecha', 'Hechas'], ['noaplica', 'Ya no aplican'], ['todas', 'Todas']].map(([k, n]) => `<button type="button" role="tab" aria-selected="${filtro.estado === k}" data-fe="${k}">${n}</button>`).join('')}</div><div class="row ms-fil"><span class="small muted">Origen</span>${[['todos', 'Todos los orígenes']].concat(Object.entries(MUNDOS)).map(([k, n]) => `<button class="chip" aria-pressed="${filtro.mundo === k}" data-fm="${k}">${n}</button>`).join('')}</div>
         ${l.length ? `<div class="table-wrap"><table class="ms-tab ms-bandeja"><thead><tr><th>Entrada</th><th style="text-align:left">Tarea</th><th>Fecha de acción</th><th>Tipo</th><th title="Actividad clave">★</th><th>Impacto</th><th>Esfuerzo</th><th></th></tr></thead><tbody>${l.map((t) => `<tr data-id="${t.id}" class="${t.estado === 'hecha' ? 'hecha' : ''} ${t.estado === 'noaplica' ? 'noaplica' : ''}"><td class="small" data-l="Entrada">${fCorta(t.entrada)}</td><td class="ms-tt" style="text-align:left">${irOrigen(t, 'ms-irl small')}<b>${esc(t.t)}</b>${t.estado === 'noaplica' ? ' ' + chip('Ya no aplica', 'warn') : ''}${t.difiere && t.estado === 'hecha' ? ' ' + chip('Hecha con datos distintos', 'warn') : ''}<br><small class="muted">${[t.area, t.mundo && t.mundo !== 'manual' ? MUNDOS[t.mundo] : '', t.mundo === 'asistente' ? '' : t.origen].filter(Boolean).map(esc).join(' · ')}${difiere(t)}</small></td><td data-l="Fecha de acción"><input class="input" type="date" data-k="fecha" value="${esc(t.fecha || '')}"></td><td data-l="Tipo"><select class="input" data-k="tipo">${Object.keys(TIPOS).map((k) => `<option value="${k}" ${t.tipo === k ? 'selected' : ''}>${TIPOS[k]}</option>`).join('')}</select></td><td data-l="Clave ★"><input type="checkbox" data-k="clave" ${t.clave ? 'checked' : ''} aria-label="Actividad clave"></td><td data-l="Impacto"><select class="input ms-n" data-k="impacto">${[1, 2, 3, 4, 5].map((v) => `<option ${+t.impacto === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td><td data-l="Esfuerzo"><select class="input ms-n" data-k="esfuerzo">${[1, 2, 3, 4, 5].map((v) => `<option ${+t.esfuerzo === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td><td class="ms-act"><button class="btn ghost small" data-ed>Editar</button><button class="btn ghost small" data-ok>${t.estado === 'hecha' ? 'Reabrir' : 'Hecha'}</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small">No hay tareas con este filtro.</p>'}</div>`;
     const add = () => { const v = $('#msNueva', host).value.trim(); if (!v) return; ST.tareas.push({ id: M.uid(), t: v, entrada: M.hoy(), fecha: $('#msF', host).value || '', area: $('#msArea', host).value, tipo: 'importante', estado: 'pendiente', impacto: 3, esfuerzo: 3, mundo: 'manual' }); guardar(); render(); setTimeout(() => { const i = $('#msNueva'); if (i) i.focus(); }, 20); };
     $('#msAdd', host).onclick = add; $('#msNueva', host).onkeydown = (e) => { if (e.key === 'Enter') add(); };
@@ -638,14 +641,35 @@
     const b = $('#obAt', host); if (b) b.onclick = () => { const sel = $$('tr[data-c]', host).filter((tr) => { const x = $('[data-sel]', tr); return x.checked && !x.disabled; }).map((tr) => cands[+tr.dataset.c]); if (!sel.length) return toast('Marque al menos un objetivo.'); let n = 0; sel.forEach((c) => { n += aterrizar(c, cands.indexOf(c) + 1); }); const pt = protegerTiempo(); guardar(); render(); toast(`${sel.length} meta${sel.length > 1 ? 's' : ''} SMART creada${sel.length > 1 ? 's' : ''}, ${n} acci${n === 1 ? 'ón' : 'ones'} en la bandeja, revisión semanal${pt ? ' y tiempo protegido en la semana ideal' : ''}.`); };
     wireTareas(host);
   };
-  const TABS = [['hoy', 'Hoy'], ['objetivos', 'Objetivos por prioridad'], ['bandeja', 'Bandeja'], ['prioridades', 'Prioridades 20/80'], ['agenda', 'Agenda semanal'], ['metas', 'Metas SMART'], ['repetitivas', 'Repetitivas y semana ideal'], ['reuniones', 'Reuniones y delegación']];
+  // En el orden de las tres áreas del archivador (js/catalogo.js): Hoy (hoy, bandeja), Planificar (objetivos, metas,
+  // prioridades) y Agenda (agenda, repetitivas, reuniones). La barra #msTabs queda oculta con el archivador (la usa el asistente).
+  const TABS = [['hoy', 'Hoy'], ['bandeja', 'Bandeja'], ['objetivos', 'Objetivos por prioridad'], ['metas', 'Metas SMART'], ['prioridades', 'Prioridades 20/80'], ['agenda', 'Agenda semanal'], ['repetitivas', 'Repetitivas y semana ideal'], ['reuniones', 'Reuniones y delegación']];
+  const AREAS_ARCH = [['hoy', 'Hoy', ['hoy', 'bandeja']], ['planificar', 'Planificar', ['objetivos', 'metas', 'prioridades']], ['agenda', 'Agenda', ['agenda', 'repetitivas', 'reuniones']]];
   const VISTAS = { hoy: vHoy, objetivos: vObjetivos, bandeja: vBandeja, prioridades: vPrior, agenda: vAgenda, metas: vMetas, repetitivas: vRep, reuniones: vReu };
   const toast = (t) => { $$('.ms-toast').forEach((x) => x.remove()); const d = document.createElement('div'); d.className = 'alert ok ms-toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 6000); };
+  // Contador de cada pestaña: tareas pendientes de la bandeja y metas sin cumplir
+  const cuentaDe = (k) => (k === 'bandeja' ? pend().length : k === 'metas' && ST.metas.length ? ST.metas.filter((m) => m.estado !== 'cumplida').length : null);
+  const cuentaT = (k, n) => (n == null ? '' : k === 'bandeja' ? `${n} pendiente${n === 1 ? '' : 's'}` : `${n} meta${n === 1 ? '' : 's'} sin cumplir`);
+  /* Archivador común (js/archivador.js): tres áreas; las preguntas de cada pestaña salen del catálogo */
+  let arch = null, arrancada = false, volviendo = false;
+  const areasArch = () => {
+    const cat = A.catalogo && A.catalogo.mundo('mesa'), q = (k) => { const m = cat && cat.areas.flatMap((a) => a.modulos).find((x) => x.k === k); return m ? m.pregunta : ''; };
+    return AREAS_ARCH.map(([k, n, ids]) => ({ k, n, modulos: ids.map((id) => { const c = cuentaDe(id); return { k: id, n: (TABS.find((t) => t[0] === id) || [id, id])[1], pregunta: q(id), cuenta: c, cuentaT: cuentaT(id, c) }; }) }));
+  };
+  // Cada pestaña tiene su dirección (mesa.html#bandeja); cambiar de pestaña es una entrada del historial (atrás vuelve)
+  const marcarHash = () => { if (location.hash === '#' + tab) return; try { if (arrancada && !volviendo) history.pushState(null, '', '#' + tab); else history.replaceState(null, '', '#' + tab); } catch (e) { /* sin historial */ } };
+  const irTab = (k, o) => {
+    if (!VISTAS[k]) return;
+    tab = k; if (tab !== 'metas') metaSel = null; render();
+    const t = $('.ar-cab') || $('#msTabs'); if (t && o && o.ver) { const y = t.getBoundingClientRect().top + scrollY - 84; if (scrollY > y) scrollTo({ top: Math.max(0, y) }); }
+  };
   function render() {
-    $('#msTabs').innerHTML = TABS.map(([k, n]) => `<button role="tab" data-t="${k}" aria-selected="${k === tab}">${n}${k === 'bandeja' ? ` <small>${pend().length}</small>` : k === 'metas' && ST.metas.length ? ` <small>${ST.metas.filter((m) => m.estado !== 'cumplida').length}</small>` : ''}</button>`).join('');
-    $$('#msTabs [data-t]').forEach((b) => (b.onclick = () => { tab = b.dataset.t; if (tab !== 'metas') metaSel = null; try { history.replaceState(null, '', '#' + tab); } catch (e) { /* nada */ } render(); }));
+    $('#msTabs').innerHTML = TABS.map(([k, n]) => { const c = cuentaDe(k); return `<button role="tab" data-t="${k}" aria-selected="${k === tab}">${n}${c != null ? ` <small>${c}</small>` : ''}</button>`; }).join('');
+    $$('#msTabs [data-t]').forEach((b) => (b.onclick = () => irTab(b.dataset.t)));
+    marcarHash();
     const host = $('#msPanel'), y = scrollY;
     try { VISTAS[tab](host); } catch (e) { host.innerHTML = `<div class="alert stop">No se pudo mostrar: ${esc(e.message)}</div>`; console.error(e); }
+    if (arch) arch.refrescar();
     scrollTo({ top: y });
   }
   A.mesa.abrirMeta = (id) => { tab = 'metas'; metaSel = id; render(); scrollTo({ top: ($('#msTabs') || document.body).offsetTop - 90 }); };
@@ -682,8 +706,12 @@
     };
     pintaHero(); A.mesa.pintaHero = pintaHero;
     const r0 = render; render = function () { r0(); pintaHero(); }; // eslint-disable-line no-func-assign
-    render();
+    if (A.archivador) arch = A.archivador.montar({ mundo: 'mesa', areas: areasArch, actual: () => tab, ir: (k) => irTab(k, { ver: true }), antes: $('#msTabs'), panel: () => $('#msPanel') });
+    render(); arrancada = true;
+    // Atrás y adelante del navegador recorren las pestañas visitadas; un #pestaña en la misma página la abre
+    const alVolver = () => { const k = location.hash.replace('#', ''); if (VISTAS[k] && k !== tab) { volviendo = true; try { irTab(k); } finally { volviendo = false; } } };
+    addEventListener('popstate', alVolver); addEventListener('hashchange', alVolver);
     if (A.assistant) A.assistant.init({ page: 'mesa' });
-    A.mesa.informe = informe; A.mesa.listo = true;
+    A.mesa.informe = informe; A.mesa.areasArch = areasArch; A.mesa.listo = true;
   };
 })();

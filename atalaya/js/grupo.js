@@ -8,7 +8,10 @@
    · Ventas, EBITDA, deuda, caja y plantilla de cada empresa salen de la fuente única (js/cifras.js), las mismas que en sus mundos.
    · Cartera operativa (Consultora): etapa del recorrido de la auditoría, próxima sesión, pendientes, triaje y nota de cada cliente.
    · Nueva empresa desde plantilla: copia de otra empresa lo que no es suyo (ficha tipo, umbrales, puestos, propuesta y
-     honorarios, ritmo de sesiones), nunca sus cifras, personas, conversaciones ni diagnóstico. */
+     honorarios, ritmo de sesiones), nunca sus cifras, personas, conversaciones ni diagnóstico.
+   Menú: el archivador común (js/archivador.js) con un área «Cartera». Consultora: Empresas, Cartera operativa, Comparativa
+   y Riesgos en conjunto; Grupos: Empresas, Consolidado, Operaciones dentro del grupo, Tesorería del grupo, Comparativa,
+   Riesgos en conjunto y Objetivos del grupo. Cada módulo con su # (grupo.html#tesoreria). */
 (function () {
   const A = window.Atalaya, P = A.platform, F = A.fmt;
   const $ = (s, r) => (r || document).querySelector(s);
@@ -166,36 +169,71 @@
     const main = $('#gMain'), L = E.filter((x) => x.ok), c = consolidado(), cr = cruzados();
     const kind = grupo ? 'grupo' : 'cartera';
     const pr = P.precio(user.plan, user.periodo, lista.length); // lista: solo empresas reales (sin la empresa modelo)
-    main.innerHTML = `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${grupo ? 'Plan Grupos' : 'Plan Consultora'} · ${lista.length} ${grupo ? 'sociedades' : 'empresas'}${grupo ? ` · tramo ${pr.tramo ? pr.tramo.n.toLowerCase() : ''}: ${P.eur(pr.mes)}/mes${pr.periodo === 'anual' ? ' (anual)' : ''}` : ''}</span><h2 class="st-title">${grupo ? 'Vista de grupo' : 'Cartera de clientes'}</h2><p class="st-q">${grupo ? '¿Cómo está el grupo en conjunto y cada sociedad dentro de él?' : '¿Cómo están todas las empresas que acompaño?'}</p></div><span class="spacer"></span><button class="btn solid" id="gRep">${grupo ? 'Informe del grupo' : 'Informe de la cartera'}</button></div>
-      ${grupo && (tesoreria().sinResp.length || (!G.tes.prestamos.length && !G.tes.sinPrestamos)) && E.filter((x) => x.ok).length > 1 ? `<div class="gr-ask glass"><span class="c3-orb" aria-hidden="true"></span><div><b>Pregunta pendiente: ¿quién financia a quién dentro del grupo?</b><span class="small muted">${!G.tes.prestamos.length ? 'No hay préstamos entre sociedades apuntados. ' : ''}${tesoreria().sinResp.length ? `Faltan ${tesoreria().sinResp.length} respuesta${tesoreria().sinResp.length > 1 ? 's' : ''} sobre cómo se gobierna la caja del grupo.` : ''}</span></div><span class="spacer"></span><button class="btn solid" data-goto="#gTes">Responder</button>${!G.tes.prestamos.length ? '<button class="btn ghost" data-noloans>No hay préstamos entre sociedades</button>' : ''}</div>` : ''}
+    const ask = `${grupo && (tesoreria().sinResp.length || (!G.tes.prestamos.length && !G.tes.sinPrestamos)) && E.filter((x) => x.ok).length > 1 ? `<div class="gr-ask glass"><span class="c3-orb" aria-hidden="true"></span><div><b>Pregunta pendiente: ¿quién financia a quién dentro del grupo?</b><span class="small muted">${!G.tes.prestamos.length ? 'No hay préstamos entre sociedades apuntados. ' : ''}${tesoreria().sinResp.length ? `Faltan ${tesoreria().sinResp.length} respuesta${tesoreria().sinResp.length > 1 ? 's' : ''} sobre cómo se gobierna la caja del grupo.` : ''}</span></div><span class="spacer"></span><button class="btn solid" data-goto="#gTes">Responder</button>${!G.tes.prestamos.length ? '<button class="btn ghost" data-noloans>No hay préstamos entre sociedades</button>' : ''}</div>` : ''}`;
+    main.innerHTML = bloque('empresas', `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${grupo ? 'Plan Grupos' : 'Plan Consultora'} · ${lista.length} ${grupo ? 'sociedades' : 'empresas'}${grupo ? ` · tramo ${pr.tramo ? pr.tramo.n.toLowerCase() : ''}: ${P.eur(pr.mes)}/mes${pr.periodo === 'anual' ? ' (anual)' : ''}` : ''}</span><h2 class="st-title">${grupo ? 'Vista de grupo' : 'Cartera de clientes'}</h2><p class="st-q">${grupo ? '¿Cómo está el grupo en conjunto y cada sociedad dentro de él?' : '¿Cómo están todas las empresas que acompaño?'}</p></div><span class="spacer"></span><button class="btn solid" id="gRep">${grupo ? 'Informe del grupo' : 'Informe de la cartera'}</button></div>
       <section class="glass pad gr-const"><div class="gr-sky"></div>
         <div class="gr-legend small muted">El tamaño es la venta de cada ${grupo ? 'sociedad' : 'empresa'}; el anillo, su veredicto en el simulador (verde, ámbar o rojo; gris sin datos); el relleno la identifica, como en la tabla. Contorno discontinuo: ventas negativas. Pulse una para entrar en ella.</div></section>
-      ${grupo ? S_kpis(c) : ''}
       <section class="glass pad stack mt"><div class="row"><h4>${grupo ? 'Sociedades' : 'Empresas'}</h4><span class="spacer"></span><span class="small muted">Cifras del último año cargado y previsión del escenario activo de cada una</span></div>
         <div class="table-wrap"><table class="gr-tab"><thead><tr><th style="text-align:left">${grupo ? 'Sociedad' : 'Empresa'}</th>${grupo ? '<th>Rol</th><th>%</th>' : ''}<th>Ventas</th><th>Beneficio del negocio (EBITDA)</th><th>EBITDA %</th><th>Caja</th><th>Deuda neta</th><th title="Valor orientativo de las acciones (valor de la empresa menos la deuda neta), el mismo que el módulo de valoración del sistema estratégico">Valor de las acciones</th><th>Días de cobro</th><th>Personas</th><th>Liquidez mín.</th><th>Veredicto de la inversión</th><th></th></tr></thead><tbody>
         ${E.map((x, i) => x.ok ? `<tr><td style="text-align:left"><i class="gr-dot" style="background:${PAL[lista.indexOf(x.e) % PAL.length]}"></i><b>${esc(x.e.nombre)}</b>${fict(x)}<br><span class="muted small">${esc(x.m.sector)}${x.reales ? '' : ' · cifras sin cuentas cargadas'}</span></td>${grupo ? `<td>${x.e.rol === 'holding' ? 'Holding' : 'Filial'}</td><td>${x.e.participacion != null ? x.e.participacion : 100} %</td>` : ''}<td>${F.eur(x.m.ventas)}</td><td>${F.eur(x.m.ebitda)}</td><td>${fv(x.m.ebitdaPct, '%')}</td><td>${F.eur(x.m.caja)}</td><td>${F.eur(x.m.deudaNeta)}</td><td>${fv(x.m.valor, '€')}</td><td>${fv(x.m.dso, '')}</td><td>${fv(x.m.plantilla, '')}</td><td style="color:${x.m.liquidezMin < 0 ? 'var(--stop)' : 'inherit'}">${fv(x.m.liquidezMin, '€')}</td><td>${x.m.verdict ? `<span class="state st-${ST[x.m.verdict.key]}">${esc(x.m.verdict.titulo)}</span>` : '—'}</td><td><button class="btn ghost" data-go="${x.e.id}">Entrar</button></td></tr>`
           : `<tr><td style="text-align:left"><b>${esc(x.e.nombre)}</b>${fict(x)}<br><span class="muted small">Sin datos todavía</span></td>${grupo ? '<td></td><td></td>' : ''}<td colspan="9" class="muted small" style="text-align:left">Entre en ella y cargue sus cifras, o suba su documentación en la zona de origen.</td><td><button class="btn ghost" data-go="${x.e.id}">Entrar</button></td></tr>`).join('')}
         ${grupo && L.length ? `<tr class="gr-tot"><td style="text-align:left"><b>Consolidado</b><br><span class="muted small">integración global, con eliminaciones</span></td><td></td><td></td><td>${F.eur(c.ventas)}</td><td>${F.eur(c.ebitda)}</td><td>${fv(c.ebitdaPct, '%')}</td><td>${F.eur(c.caja)}</td><td>${F.eur(c.deudaNeta)}</td><td title="Valor atribuible a la holding según participaciones">${F.eur(c.valorAtr)}<br><span class="muted small">atribuible</span></td><td></td><td>${fv(c.plantilla, '')}</td><td title="${c.liqSumaMin ? 'Suma de los mínimos de cada sociedad, que pueden caer en meses distintos' : 'Mínimo de la suma mes a mes de las previsiones de todas las sociedades'}">${F.eur(c.liquidezMin)}<br><span class="muted small">${c.liqSumaMin ? 'suma de mínimos' : 'mes más bajo del grupo'}</span></td><td></td><td></td></tr>` : ''}
         </tbody></table></div>${E.some((x) => !x.e.datosReales) ? `<p class="small muted" style="margin:0">«Datos ficticios»: ${grupo ? 'la sociedad' : 'la empresa'} trabaja todavía con datos de ejemplo en los mundos que no tienen datos propios. ${grupo ? 'Sus cifras entran en el consolidado tal como estén cargadas: revíselas antes de usarlo.' : 'Revise sus cifras antes de compararlas con las demás.'}</p>` : ''}</section>
-      ${!grupo ? operativaHTML() : ''}
       ${clonarHTML()}
-      ${modeloHTML()}
-      ${grupo ? `<section class="glass pad stack mt"><h4>Operaciones dentro del grupo</h4><p class="small muted">Lo que unas sociedades venden o prestan a otras no es venta ni deuda del grupo: se elimina al consolidar. Escriba los importes anuales (los encontrará en la contabilidad de cada sociedad, cuentas de empresas del grupo).</p>
-        <div class="gr-elim">${[['ventas', 'Ventas entre sociedades del grupo', 'se restan de las ventas'], ['margen', 'Margen de esas ventas aún no vendido fuera', 'se resta del EBITDA'], ['prestamos', 'Préstamos entre sociedades del grupo', 'se restan de la deuda']].map(([k, l, d]) => `<label class="field"><span>${l}</span><input class="input" data-elim="${k}" value="${(G.elim || {})[k] ? F.num(G.elim[k]) : ''}" placeholder="0"><small class="muted">${d}</small></label>`).join('')}</div></section>` : ''}
-      ${grupo ? tesoreriaHTML() : ''}
-      <section class="glass pad stack mt"><h4>Comparativa</h4><div class="gr-cmp">${['ebitdaPct', 'ventasEmpleado', 'dso', 'liquidezMin'].map((k) => barras(k)).join('')}</div></section>
-      <section class="glass pad stack mt"><h4>Riesgos que solo se ven en conjunto</h4>${cr.length ? `<div class="risklist">${cr.map((r) => `<div class="risk"><span class="state st-${r.st}">${r.st === 'stop' ? 'Alto' : 'Medio'}</span><div><b>${esc(r.t)}</b><p>${esc(r.d)}</p></div><span></span></div>`).join('')}</div>` : '<p class="small muted">Sin riesgos cruzados con los datos actuales.</p>'}</section>
-      ${grupo ? objetivosHTML() : ''}`;
+      ${modeloHTML()}`)
+      + (grupo ? bloque('consolidado', `<section class="glass pad stack"><div class="row"><h4>Consolidado del grupo</h4><span class="spacer"></span><span class="small muted">Integración global, con las operaciones dentro del grupo eliminadas</span></div><p class="small muted" style="margin:0">${L.length ? `Suma de ${L.length === 1 ? 'la única sociedad' : `las ${L.length} sociedades`} con datos` : 'Todavía ninguna sociedad tiene datos: el consolidado se calcula con las que los tengan. Es la suma de las sociedades'}, menos lo que se venden o se prestan entre ellas (módulo «Operaciones dentro del grupo»). La fila «Consolidado» de la tabla de sociedades lleva las mismas cifras.</p></section>${ask}${S_kpis(c)}`) : '')
+      + (!grupo ? bloque('operativa', operativaHTML()) : '')
+      + (grupo ? bloque('operaciones', `<section class="glass pad stack mt"><h4>Operaciones dentro del grupo</h4><p class="small muted">Lo que unas sociedades venden o prestan a otras no es venta ni deuda del grupo: se elimina al consolidar. Escriba los importes anuales (los encontrará en la contabilidad de cada sociedad, cuentas de empresas del grupo).</p>
+        <div class="gr-elim">${[['ventas', 'Ventas entre sociedades del grupo', 'se restan de las ventas'], ['margen', 'Margen de esas ventas aún no vendido fuera', 'se resta del EBITDA'], ['prestamos', 'Préstamos entre sociedades del grupo', 'se restan de la deuda']].map(([k, l, d]) => `<label class="field"><span>${l}</span><input class="input" data-elim="${k}" value="${(G.elim || {})[k] ? F.num(G.elim[k]) : ''}" placeholder="0"><small class="muted">${d}</small></label>`).join('')}</div></section>`) : '')
+      + (grupo ? bloque('tesoreria', tesoreriaHTML()) : '')
+      + bloque('comparativa', `<section class="glass pad stack mt"><h4>Comparativa</h4><div class="gr-cmp">${['ebitdaPct', 'ventasEmpleado', 'dso', 'liquidezMin'].map((k) => barras(k)).join('')}</div></section>`)
+      + bloque('riesgos', `<section class="glass pad stack mt"><h4>Riesgos que solo se ven en conjunto</h4>${cr.length ? `<div class="risklist">${cr.map((r) => `<div class="risk"><span class="state st-${r.st}">${r.st === 'stop' ? 'Alto' : 'Medio'}</span><div><b>${esc(r.t)}</b><p>${esc(r.d)}</p></div><span></span></div>`).join('')}</div>` : '<p class="small muted">Sin riesgos cruzados con los datos actuales.</p>'}</section>`)
+      + (grupo ? bloque('objetivos', objetivosHTML()) : '');
     $$('[data-go]', main).forEach((b) => b.onclick = () => { P.ponerEmpresa(b.dataset.go); location.href = b.dataset.pag || 'estrategia.html'; });
     wireClonar(main);
     pintaSky();
     $$('[data-elim]', main).forEach((inp) => inp.onchange = () => { G.elim = G.elim || {}; G.elim[inp.dataset.elim] = A.fin ? A.fin.parseNum(inp.value) || 0 : +inp.value || 0; guardar(); render(true); });
     $('#gRep', main).onclick = informe;
     if (grupo) { wireObjetivos(main); wireTesoreria(main); }
-    $$('[data-goto]', main).forEach((b) => b.onclick = () => { const t = $(b.dataset.goto); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    // «Responder» (¿quién financia a quién?) abre el módulo de la tesorería del grupo
+    $$('[data-goto]', main).forEach((b) => b.onclick = () => { const t = $(b.dataset.goto); if (!t) return; const m = t.closest('[data-mod]'); if (m && m.hidden) mostrar(m.dataset.mod); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     const nl = $('[data-noloans]', main); if (nl) nl.onclick = () => { G.tes.sinPrestamos = true; guardar(); render(true); };
-    if (yKeep != null) scrollTo({ top: yKeep });
     if (A.cosmos) A.cosmos.type3d(main);
+    montarArch();
+    if (yKeep != null) scrollTo({ top: yKeep });
+  }
+
+  /* ---------- Módulos (archivador común, js/archivador.js) ----------
+     Un área «Cartera» y, en ella, los módulos de cada plan (cuarto dato: «G» solo en Grupos, «C» solo en la cartera de
+     Consultora). Todos se pintan de una vez y solo se ve el abierto; cada uno tiene su # (grupo.html#comparativa). */
+  const MODS = [['empresas', 'Empresas'], ['consolidado', 'Consolidado', 'G'], ['operativa', 'Cartera operativa', 'C'], ['operaciones', 'Operaciones dentro del grupo', 'G'], ['tesoreria', 'Tesorería del grupo', 'G'], ['comparativa', 'Comparativa'], ['riesgos', 'Riesgos en conjunto'], ['objetivos', 'Objetivos del grupo', 'G']];
+  const modsPlan = () => MODS.filter((m) => !m[2] || (m[2] === 'G') === !!grupo);
+  const esMod = (k) => modsPlan().some((m) => m[0] === k);
+  let mod = 'empresas', arch = null, arrancado = false, volviendo = false;
+  const bloque = (k, html) => `<div class="ar-mod gr-mod" data-mod="${k}"${k === mod ? '' : ' hidden'}>${html}</div>`;
+  const areasArch = () => {
+    const cat = A.catalogo && A.catalogo.mundo('grupo'), q = (k) => { const m = cat && cat.areas.flatMap((a) => a.modulos).find((x) => x.k === k); return m ? m.pregunta : ''; };
+    return [{ k: 'cartera', n: 'Cartera', modulos: modsPlan().map(([k, n]) => ({ k, n, pregunta: q(k) })) }];
+  };
+  const marcarHash = () => { if (location.hash === '#' + mod) return; try { if (arrancado && !volviendo) history.pushState(null, '', '#' + mod); else history.replaceState(null, '', '#' + mod); } catch (e) { /* sin historial */ } };
+  function mostrar(k, o) {
+    if (!esMod(k)) return;
+    mod = k;
+    $$('#gMain > [data-mod]').forEach((x) => { x.hidden = x.dataset.mod !== mod; });
+    marcarHash();
+    // La constelación se dibuja con el ancho que tiene a la vista
+    if (mod === 'empresas') { const sky = $('.gr-sky'); if (sky && Math.abs((sky.clientWidth || 0) - skyW) > 24) pintaSky(); }
+    if (arch) arch.refrescar();
+    const t = $('.ar-cab'); if (t && o && o.ver) { const y = t.getBoundingClientRect().top + scrollY - 84; if (scrollY > y) scrollTo({ top: Math.max(0, y) }); }
+  }
+  function montarArch() {
+    if (!A.archivador) return;
+    if (arch) { arch.refrescar(); return; }
+    arch = A.archivador.montar({ mundo: 'grupo', areas: areasArch, actual: () => mod, ir: (k) => mostrar(k, { ver: true }), antes: $('#gMain'), panel: () => $('#gMain') });
+    marcarHash(); arrancado = true;
+    // Atrás y adelante del navegador recorren los módulos visitados; un # en la misma página abre su módulo
+    const alVolver = () => { const k = location.hash.replace('#', ''); if (esMod(k) && k !== mod) { volviendo = true; try { mostrar(k); } finally { volviendo = false; } } };
+    addEventListener('popstate', alVolver); addEventListener('hashchange', alVolver);
   }
   /* Distintivo de las empresas que trabajan con datos ficticios (y si sus cifras del simulador son las de ejemplo) */
   const fict = (x) => (x.e.datosReales ? '' : ` <span class="gr-fict" title="Trabaja con datos ficticios: los mundos sin datos propios muestran una empresa de ejemplo">Datos ficticios${x.sim && A.simEsEjemplo && A.simEsEjemplo(x.sim) ? ' · cifras de ejemplo' : ''}</span>`);
@@ -426,6 +464,9 @@
     I.open({ titulo: (grupo ? 'Informe del grupo' : 'Informe de la cartera'), html });
   }
 
+  // Módulos de este plan, tal como los ve el archivador (los compara con el catálogo la prueba del catálogo)
+  A.grupoPagina = { areasArch, mostrar: (k) => mostrar(k), get actual() { return mod; } };
+
   /* ---------- Arranque ---------- */
   (async () => {
     A.sky();
@@ -441,6 +482,7 @@
       P.bloqueo('grupo', $('#gMain'));
       return;
     }
+    { const h = location.hash.replace('#', ''); if (esMod(h)) mod = h; }
     G = (await P.loadData('grupo')) || { elim: {}, objetivos: [] };
     G.tes = G.tes || { prestamos: [], resp: {} };
     E = await Promise.all(lista.map(cargarEmpresa));

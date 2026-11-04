@@ -989,6 +989,8 @@ body:has(.pt-dock:not([hidden])) .pt-flota { bottom: calc(56px + var(--pt-dock-h
 .pr-luz.ok { background: var(--go); } .pr-luz.warn { background: var(--warn); } .pr-luz.stop { background: var(--stop); }
 /* Tablero general de la empresa */
 .tb-main { display: grid; gap: 16px; padding-bottom: 40px; }
+.tb-mod { display: grid; gap: 16px; min-width: 0; }
+body.arch-on .ar-cab + .tb-main { margin-top: 18px; }
 .tb-hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; align-items: center; }
 .tb-h1 { font-family: var(--font-display); font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.4rem); margin: 6px 0; letter-spacing: -0.02em; } .tb-h1 em { color: var(--gold); font-style: normal; }
 .tb-kpis { display: grid; gap: 10px; }
@@ -1218,7 +1220,12 @@ body.bq-pagina :is(.ruta-btn, .rm-open, .nt-chip, .ruta-bar, .st-tabs:empty, #pe
    módulos del área como pestañas; al final, anterior · siguiente. --wc es el color del mundo abierto. */
 body.arch-on { --ar-w: 264px; --ar-top: calc(84px + env(safe-area-inset-top, 0px)); }
 body.arch-on.arch-plegado { --ar-w: 56px; }
-body.arch-on :is(#stTabs, #peTabs, #ivTabs, #ivRuta) { display: none !important; }
+body.arch-on :is(#stTabs, #peTabs, #ivTabs, #ivRuta, #msTabs) { display: none !important; }
+/* Contador de un módulo (pendientes de la bandeja, metas sin cumplir) */
+.ar-cuenta { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--wc, var(--gold)) 16%, transparent); color: var(--muted); font-family: var(--font-data); font-size: 0.68rem; line-height: 1.5; vertical-align: 1px; }
+.ar-pest [role="tab"][aria-selected="true"] .ar-cuenta { color: var(--fg); }
+/* Páginas de módulos sobre una sola carga (tablero, cartera, libro): solo se ve el módulo abierto */
+.ar-mod[hidden] { display: none !important; }
 .rm-clone .ar-pie { display: none; }
 .ar-carp { display: none; align-items: center; gap: 6px; height: 36px; padding: 0 12px; flex: none; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--wc, var(--gold)) 55%, var(--line-strong)); background: color-mix(in srgb, var(--wc, var(--gold)) 10%, transparent); color: var(--fg); font-size: var(--t-s); white-space: nowrap; }
 .ar-carp:hover, .ar-carp[aria-expanded="true"] { border-color: var(--wc, var(--gold)); }

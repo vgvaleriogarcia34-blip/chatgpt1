@@ -300,6 +300,9 @@ body.rj-window { margin: 0; padding: 14px; background: var(--abyss, #05060a); co
 
 /* ---------- Vista de grupo y cartera de clientes ---------- */
 .gr-main { display: grid; gap: 14px; }
+.gr-mod { display: grid; gap: 14px; min-width: 0; }
+.gr-mod > .mt { margin-top: 0; }
+body.arch-on .ar-cab + .gr-main { margin-top: 18px; }
 .gr-const { padding: 10px 14px 12px; background: radial-gradient(ellipse at 50% 45%, rgba(26, 30, 40, 0.55), rgba(9, 11, 15, 0.6) 70%); }
 .gr-svg { width: 100%; height: auto; display: block; max-height: 380px; }
 .gr-planet { cursor: pointer; } .gr-planet:hover circle:nth-child(2), .gr-planet:focus circle:nth-child(2) { stroke-width: 4; } .gr-planet:focus { outline: none; }

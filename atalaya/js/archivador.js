@@ -18,6 +18,8 @@
        secuencial: false,                  // true: las áreas son fases (numeradas) y el pie cuenta pasos de todo el mundo
        estado: (k) => 'hecho',             // opcional: 'hecho' | 'curso' | '' de cada módulo; pinta su punto y el «h/n» de cada fase
        recorrido: false,                   // opcional (por fases): al pie, el recorrido completo con sus fases y bloques
+                                           // un módulo puede llevar «cuenta» (y «cuentaT», su lectura: «12 pendientes»):
+                                           //   un número pequeño junto a su nombre en las pestañas y en el archivador
        aparte: [{ k, n, pregunta }],       // opcional: módulos fuera del recorrido (no cuentan en «Paso N de M»); van al final
                                            //   del archivador con su propio título y, abiertos, su pie lleva de vuelta al recorrido
        hechoN: 'hecho',                    // opcional: cómo se llama el estado verde ('visitado' si el mundo no tiene otro criterio)
@@ -74,6 +76,8 @@
   const hechosN = () => ESTN.hecho + 's';
   const punto = (k) => (cfg.estado && !apDe(k) ? `<span class="ar-est ${estDe(k)}" aria-hidden="true"></span>` : '');
   const srEst = (k) => (estDe(k) && !apDe(k) ? `<span class="ar-sr"> (${ESTN[estDe(k)]})</span>` : '');
+  // Contador de un módulo (por ejemplo, las tareas pendientes de la bandeja)
+  const cuenta = (x) => (x && x.cuenta != null && x.cuenta !== '' ? ` <small class="ar-cuenta"${x.cuentaT ? ` aria-label="${esc(x.cuentaT)}"` : ''}>${esc(x.cuenta)}</small>` : '');
   const avance = (a) => { const h = a.modulos.filter((x) => estDe(x.k) === 'hecho').length; return { h, n: a.modulos.length, todo: !!a.modulos.length && h === a.modulos.length }; };
   const tipoN = (m) => (m.unico ? '' : m.secuencial ? 'Por fases' : 'Por áreas');
   const empresa = () => { const p = P(); const e = p && p.empresas && p.empresas.activa && p.empresas.activa(); return e ? e.nombre : ''; };
@@ -101,7 +105,7 @@
     const act = cfg.actual(), plegado = document.body.classList.contains('arch-plegado') && !esMovil();
     const mods = (m, lista) => lista.map((x) => {
       const cur = m.k === cfg.mundo && x.k === act;
-      return `<li><a href="${esc(x.href || hrefDe(x.k))}" data-m="${esc(m.k)}" data-k="${esc(x.k)}"${cur ? ' aria-current="page"' : ''}${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${m.k === cfg.mundo ? punto(x.k) : ''}${esc(x.n)}${m.k === cfg.mundo ? srEst(x.k) : ''}</a></li>`;
+      return `<li><a href="${esc(x.href || hrefDe(x.k))}" data-m="${esc(m.k)}" data-k="${esc(x.k)}"${cur ? ' aria-current="page"' : ''}${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${m.k === cfg.mundo ? punto(x.k) : ''}${esc(x.n)}${m.k === cfg.mundo ? srEst(x.k) + cuenta(x) : ''}</a></li>`;
     }).join('');
     // Hojas de un área: sus módulos o, si tiene bloques, cada bloque con su nombre y su estado
     const hojas = (m, a) => (a.bloques
@@ -215,7 +219,7 @@
     if (!a) { host.innerHTML = ''; return; }
     const m = modDe(act), b = m && m.bloque, lista = b ? b.modulos : a.modulos;
     host.setAttribute('aria-label', `${cfg.secuencial ? 'Pasos' : 'Módulos'} de ${b ? b.n : a.n}`);
-    host.innerHTML = lista.map((x) => `<button type="button" role="tab" id="arTab-${esc(x.k)}" data-k="${esc(x.k)}" aria-selected="${x.k === act}" tabindex="${x.k === act ? 0 : -1}"${pid ? ` aria-controls="${esc(pid)}"` : ''}${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${punto(x.k)}${esc(x.n)}${srEst(x.k)}</button>`).join('');
+    host.innerHTML = lista.map((x) => `<button type="button" role="tab" id="arTab-${esc(x.k)}" data-k="${esc(x.k)}" aria-selected="${x.k === act}" tabindex="${x.k === act ? 0 : -1}"${pid ? ` aria-controls="${esc(pid)}"` : ''}${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${punto(x.k)}${esc(x.n)}${srEst(x.k)}${cuenta(x)}</button>`).join('');
     host.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => { if (b.dataset.k !== cfg.actual()) cfg.ir(b.dataset.k); });
     const sel = host.querySelector('[aria-selected="true"]'); if (sel && host.scrollWidth > host.clientWidth) host.scrollLeft = Math.max(0, sel.offsetLeft - host.clientWidth / 2 + sel.offsetWidth / 2);
   }
