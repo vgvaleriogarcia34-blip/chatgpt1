@@ -1,7 +1,8 @@
 /* Atalaya · Recorrido del sistema estratégico
    El mismo lenguaje que el simulador: las cinco áreas son las fases y los 21 módulos, las capas.
    1) Mapa de capas en 3D (pila, abanico, círculo o línea) con un fragmento real de cada módulo y su estado en vivo.
-   2) Hoja de ruta fija: áreas, módulo actual, anterior / siguiente. «Ver pestañas» vuelve a la barra clásica. */
+      Ya no es el menú: se abre solo con estrategia.html#mapa (enlace del tablero general).
+   2) El menú es el archivador común (js/archivador.js): ruta, áreas, pestañas de módulos y anterior / siguiente. */
 (function () {
   const A = window.Atalaya, S = A.strat;
   const $ = (s, r) => (r || document).querySelector(s);
@@ -18,15 +19,13 @@
     compras: '¿De quién dependo para comprar?', logistica: '¿Cuánto me cuesta mover y guardar?', tiempos: '¿En qué se va el tiempo del equipo?', lean: '¿Dónde se pierde valor en el proceso?', personas: '¿Está bien organizado el equipo?',
     expansion: '¿Dónde y cómo crecer?', mercado: '¿Qué pasa fuera que me afecta?'
   };
-  const AREA = { 'Visión': 'Dónde estamos y a dónde vamos', 'Finanzas': 'El dinero', 'Comercial': 'Los clientes', 'Operaciones': 'El día a día', 'Estrategia': 'El entorno y el crecimiento' };
   const FASES = () => S.GROUPS.map((g) => ({ n: g, ids: S.modules.filter((m) => m.grupo === g).map((m) => m.id) }));
   const ORDEN = () => FASES().flatMap((f) => f.ids);
   const faseDe = (id) => FASES().findIndex((f) => f.ids.includes(id));
   const nombre = (id) => (S.mod(id) || {}).nombre || id;
   const visit = new Set(LS.get('atalaya.rutaest.visto') || []);
-  let modo = LS.get('atalaya.rutaest.modo') || 'capitulo';
+  let arch = null; // archivador común (js/archivador.js): el menú del sistema estratégico
   const snap = new Map(); // última vista real de cada módulo
-  const hash0 = location.hash.replace('#', ''); // a dónde se quería llegar al entrar
 
   /* Estado en vivo: el indicador más comprometido del módulo y sus riesgos */
   function estado(id) {
@@ -42,46 +41,6 @@
     return null;
   }
 
-  /* ---------- Hoja de ruta ---------- */
-  function drawBar() {
-    const bar = $('#rutaBar'); if (!bar) return;
-    const O = ORDEN(), F = FASES(), actual = S.current();
-    const i = O.indexOf(actual), prev = O[i - 1], next = O[i + 1], fi = faseDe(actual);
-    bar.innerHTML = `<button class="rb-map" id="rbMap" title="Ver todas las capas"><i></i><i></i><i></i><span>Mapa</span></button>
-      <ol class="rb-fases">${F.map((f, k) => { const done = f.ids.every((x) => visit.has(x)); const on = f.ids.includes(actual); return `<li class="${on ? 'on' : ''} ${done ? 'done' : ''}"><span class="rb-fn">${k + 1}</span><span class="rb-name">${esc(f.n)}</span><span class="rb-steps">${f.ids.map((x) => `<button data-go="${x}" class="${x === actual ? 'on' : ''} ${visit.has(x) ? 'seen' : ''}" title="${esc(nombre(x))}" aria-label="${esc(nombre(x))}"></button>`).join('')}</span></li>`; }).join('')}</ol>
-      <div class="rb-nav">${prev ? `<button data-go="${prev}" class="rb-prev" title="${esc(nombre(prev))}">←</button>` : ''}<span class="rb-cur"><small>${fi >= 0 ? esc(F[fi].n) : ''}</small><b>${esc(nombre(actual))}</b></span>${next ? `<button data-go="${next}" class="rb-next" title="${esc(nombre(next))}">→</button>` : ''}</div>`;
-    $('#rbMap', bar).onclick = () => openMap();
-    $$('[data-go]', bar).forEach((b) => b.onclick = () => S.show(b.dataset.go));
-    // Debajo de la barra: los módulos del área activa, como pestañas cortas
-    const sub = $('#rutaSub');
-    if (sub && fi >= 0) {
-      sub.innerHTML = `<span class="rs-area">${esc(F[fi].n)} · ${esc(AREA[F[fi].n] || '')}</span>${F[fi].ids.map((x) => `<button data-go="${x}" aria-current="${x === actual}">${esc(nombre(x))}</button>`).join('')}<span class="spacer"></span><button class="rs-tabs" data-tabs>Ver pestañas</button>`;
-      $$('[data-go]', sub).forEach((b) => b.onclick = () => S.show(b.dataset.go));
-      $('[data-tabs]', sub).onclick = pestanas;
-    }
-  }
-  function drawNext() {
-    $$('#stPanel .ch-next').forEach((x) => x.remove());
-    const panel = $('#stPanel'); const O = ORDEN(), i = O.indexOf(S.current()); if (!panel || i < 0) return;
-    const prev = O[i - 1], next = O[i + 1];
-    const d = document.createElement('div'); d.className = 'ch-next';
-    d.innerHTML = `${prev ? `<button class="btn ghost" data-go="${prev}">← ${esc(nombre(prev))}</button>` : '<span></span>'}<button class="btn ghost" data-map>Ver el mapa</button>${next ? `<button class="btn solid" data-go="${next}">Siguiente: ${esc(nombre(next))} →</button>` : '<span></span>'}`;
-    panel.appendChild(d);
-    $$('[data-go]', d).forEach((b) => b.onclick = () => S.show(b.dataset.go));
-    $('[data-map]', d).onclick = () => openMap();
-  }
-  function pestanas() {
-    modo = 'pestanas'; LS.set('atalaya.rutaest.modo', modo);
-    document.body.classList.remove('est-ruta'); $$('#stPanel .ch-next').forEach((x) => x.remove()); closeMap(); tabMapa();
-  }
-  // En modo pestañas, la primera pestaña abre el mapa (en el móvil no hay botón en la cabecera)
-  function tabMapa() {
-    const t = $('#stTabs'); if (!t || $('.tab-mapa', t)) return;
-    t.insertAdjacentHTML('afterbegin', '<button class="tab-mapa" title="Mapa de capas y recorrido por áreas">▦ Mapa</button><span class="tabsep" aria-hidden="true"></span>');
-    $('.tab-mapa', t).onclick = () => openMap();
-  }
-  function recorrido() { modo = 'capitulo'; LS.set('atalaya.rutaest.modo', modo); document.body.classList.add('est-ruta'); drawBar(); drawNext(); }
-
   /* Cada vez que se muestra un módulo */
   const AREA_COL = { 'Visión': 0xd4ae64, 'Finanzas': 0x199e70, 'Comercial': 0x3987e5, 'Operaciones': 0xd95926, 'Estrategia': 0xd55181 };
   S.onShow = (id, keep) => {
@@ -91,8 +50,8 @@
     visit.add(id); LS.set('atalaya.rutaest.visto', Array.from(visit));
     // Se guarda su aspecto real para el mapa (cuando los gráficos ya están dibujados)
     setTimeout(() => { if (S.current() === id) snap.set(id, clonar($('#stPanel'))); }, keep ? 50 : 400);
-    if (modo !== 'capitulo') return;
-    drawBar(); drawNext();
+    // Archivador: ruta, pestañas del área, abiertos y pie anterior · siguiente (al final, sobre el módulo ya pintado)
+    if (arch) arch.refrescar();
   };
 
   function clonar(src) {
@@ -137,19 +96,18 @@
         <div><div class="rm-kicker">Sistema estratégico · su recorrido</div><h2>Toda la empresa, <em>capa a capa</em></h2>
         <p>Cinco áreas, veintiún módulos y la zona de origen de los datos. Cada ventana enseña lo que hay dentro y su estado con sus datos. Toque una ventana para entrar en ese módulo.</p></div>
         <div class="rm-tools"><div class="seg" id="rmLay">${LAYOUTS.map(([k, n]) => `<button data-l="${k}" aria-pressed="${k === layout}">${n}</button>`).join('')}</div>
-        <button class="btn ghost" id="rmAll">${modo === 'capitulo' ? 'Ver pestañas' : 'Recorrido por áreas'}</button><button class="icon-btn" id="rmX" aria-label="Cerrar el mapa">×</button></div></div>
-      <ol class="rm-fases n5">${F.map((f, k) => `<li data-f="${k}"><b>${k + 1}</b><span>${esc(f.n)}</span><small>${f.ids.filter((x) => visit.has(x)).length}/${f.ids.length}</small></li>`).join('')}</ol>
+        <button class="icon-btn" id="rmX" aria-label="Cerrar el mapa">×</button></div></div>
+      <ol class="rm-fases n5">${F.map((f, k) => `<li data-f="${k}"><b>${k + 1}</b><span>${esc(S.grupoN(f.n))}</span><small>${f.ids.filter((x) => visit.has(x)).length}/${f.ids.length}</small></li>`).join('')}</ol>
       <div class="rm-stage" id="rmStage"><div class="rm-world" id="rmWorld">${O.map((id, i) => {
         const e = estado(id), fi = faseDe(id);
         return `<button class="rm-card e${fi}" data-i="${i}" data-id="${id}" aria-label="${esc(nombre(id))}: ${esc(Q[id] || '')}">
           <span class="rm-float"><span class="rm-chrome"><i></i><i></i><i></i><b>${String(i + 1).padStart(2, '0')} · ${esc(nombre(id))}</b>${visit.has(id) ? '<em title="Visitado">✓</em>' : ''}</span>
           <span class="rm-prev" data-prev="${id}"></span>
-          <span class="rm-info"><small>${esc(F[fi].n)}</small><b>${esc(nombre(id))}</b><span>${esc(Q[id] || '')}</span>${e ? `<span class="rm-st ${e.st || ''}">${esc(e.t)}</span>` : ''}<span class="rm-open">Abrir →</span></span></span></button>`;
+          <span class="rm-info"><small>${esc(S.grupoN(F[fi].n))}</small><b>${esc(nombre(id))}</b><span>${esc(Q[id] || '')}</span>${e ? `<span class="rm-st ${e.st || ''}">${esc(e.t)}</span>` : ''}<span class="rm-open">Abrir →</span></span></span></button>`;
       }).join('')}</div></div>
       <p class="rm-hint">${hint()}</p>`;
     $$('[data-prev]', ov).forEach((p) => { const c = snap.get(p.dataset.prev); if (c) p.appendChild(c.cloneNode(true)); });
     $$('#rmLay button', ov).forEach((b) => b.onclick = () => { layout = b.dataset.l; LS.set('atalaya.rutaest.layout', layout); $$('#rmLay button', ov).forEach((x) => x.setAttribute('aria-pressed', x === b)); place(); $('.rm-hint', ov).textContent = hint(); });
-    $('#rmAll', ov).onclick = () => (modo === 'capitulo' ? pestanas() : (recorrido(), closeMap()));
     $('#rmX', ov).onclick = closeMap;
     const cards = $$('.rm-card', ov);
     cards.forEach((c) => {
@@ -181,7 +139,7 @@
     setTimeout(() => (cards[foco] || cards[0]).focus({ preventScroll: true }), 50);
   }
   addEventListener('pointerup', () => { drag = null; setTimeout(() => { dragged = false; }, 0); });
-  function closeMap() { const ov = $('#rutaMap'); if (!ov || ov.hidden) return; ov.hidden = true; ov.innerHTML = ''; document.body.style.overflow = ''; hot = null; faseHot = null; }
+  function closeMap() { const ov = $('#rutaMap'); if (!ov || ov.hidden) return; ov.hidden = true; ov.innerHTML = ''; document.body.style.overflow = ''; hot = null; faseHot = null; if (location.hash === '#mapa') { try { history.replaceState(null, '', '#' + S.current()); } catch (e) { /* sin historial */ } } }
 
   function place() {
     const cards = $$('#rutaMap .rm-card'); const n = cards.length; if (!n) return;
@@ -217,7 +175,7 @@
 
   function abrir(i) {
     const id = ORDEN()[i]; const card = $(`#rutaMap .rm-card[data-i="${i}"]`);
-    const go = () => { closeMap(); if (modo !== 'capitulo') recorrido(); S.show(id); };
+    const go = () => { closeMap(); S.show(id); };
     if (reduce || !card) { go(); return; }
     card.classList.add('opening');
     const r = card.getBoundingClientRect();
@@ -227,16 +185,18 @@
     setTimeout(() => { $('#rutaMap').classList.remove('leaving'); go(); }, 520);
   }
 
-  /* ---------- Arranque: lo llama el núcleo después de abrir el primer módulo ---------- */
+  /* ---------- Arranque: lo llama el núcleo después de abrir el primer módulo ----------
+     El menú es el archivador común. El mapa de capas ya no es el menú: queda para quien lo pide con #mapa
+     (el tablero general enlaza a estrategia.html#mapa; lo abre js/prioridad.js). */
+  const areas = () => FASES().map((f) => ({ k: f.n, n: S.grupoN(f.n), modulos: f.ids.map((id) => ({ k: id, n: nombre(id), pregunta: (A.C360 && A.C360[id] && A.C360[id].pregunta) || Q[id] || '' })) }));
   S.onStart = () => {
-    const bar = document.createElement('nav'); bar.id = 'rutaBar'; bar.className = 'ruta-bar est'; bar.setAttribute('aria-label', 'Hoja de ruta del sistema estratégico'); document.body.appendChild(bar);
-    const sub = document.createElement('div'); sub.id = 'rutaSub'; sub.className = 'ruta-sub'; $('#stPanel').before(sub);
     const ov = document.createElement('div'); ov.id = 'rutaMap'; ov.className = 'ruta-map'; ov.hidden = true; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Mapa de capas del sistema estratégico'); document.body.appendChild(ov);
-    const rb = $('#rutaBtn'); if (rb) rb.onclick = () => openMap();
-    if (modo === 'capitulo') recorrido(); else tabMapa();
-    // Al entrar se ve primero todo el recorrido (una vez por sesión), salvo si se llega a un módulo concreto
-    let first = true; try { first = !sessionStorage.getItem('atalaya.rutaest.intro'); sessionStorage.setItem('atalaya.rutaest.intro', '1'); } catch (e) { /* sin almacenamiento */ }
-    if (first && modo === 'capitulo' && !S.mod(hash0)) setTimeout(openMap, 800);
+    // #mapa dentro de la misma página también abre el mapa (al cargar lo abre js/prioridad.js)
+    addEventListener('hashchange', () => { if (location.hash === '#mapa') openMap(); });
+    if (A.archivador) {
+      arch = A.archivador.montar({ mundo: 'est', areas: areas(), actual: () => S.current(), ir: (k) => S.show(k), antes: $('#stTabs'), panel: () => $('#stPanel') });
+      if (A.buscador) A.buscador.acciones.push({ n: 'Generar el informe de este módulo', d: 'Sistema estratégico · el módulo abierto', c: '#3987e5', ir: () => { const b = $('#stReport'); if (b) b.click(); } });
+    }
   };
-  A.rutaEst = { openMap, closeMap, recorrido, pestanas };
+  A.rutaEst = { openMap, closeMap };
 })();

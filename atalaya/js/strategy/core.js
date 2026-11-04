@@ -230,6 +230,9 @@
 
   /* ---------- Navegación ---------- */
   const GROUPS = ['Visión', 'Finanzas', 'Comercial', 'Operaciones', 'Estrategia'];
+  // m.grupo es la clave interna del área; en pantalla, «Estrategia» se llama «Entorno y crecimiento»
+  const GRUPO_N = { Estrategia: 'Entorno y crecimiento' };
+  S.grupoN = (g) => GRUPO_N[g] || g;
   let current = 'tablero';
   function buildTabs() {
     const host = $('#stTabs');
@@ -254,7 +257,7 @@
     if (A.informe && !panel.querySelector('.alert.stop') && !(m.portada && panel.querySelector('.hm-hero'))) {
       const D = A.C360 && A.C360[id];
       const r360 = D && S.report360;
-      panel.insertAdjacentHTML('afterbegin', `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(m.grupo)}</span><h2 class="st-title">${A.tituloCalado ? A.tituloCalado(m.nombre) : esc(m.nombre)}</h2>${D && D.pregunta ? `<p class="st-q">${esc(D.pregunta)}</p>` : ''}</div><span class="spacer"></span>${id === 'auditoria' && S.auditReport ? '<button class="btn" id="stAudit">Informe de auditoría</button>' : ''}${id !== 'origen' ? `<button class="btn ${r360 ? 'solid' : ''}" id="stReport">${r360 ? 'Informe 360' : 'Generar informe'}</button>` : ''}</div>`);
+      panel.insertAdjacentHTML('afterbegin', `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(S.grupoN(m.grupo))}</span><h2 class="st-title">${A.tituloCalado ? A.tituloCalado(m.nombre) : esc(m.nombre)}</h2>${D && D.pregunta ? `<p class="st-q">${esc(D.pregunta)}</p>` : ''}</div><span class="spacer"></span>${id === 'auditoria' && S.auditReport ? '<button class="btn" id="stAudit">Informe de auditoría</button>' : ''}${id !== 'origen' ? `<button class="btn ${r360 ? 'solid' : ''}" id="stReport">${r360 ? 'Informe 360' : 'Generar informe'}</button>` : ''}</div>`);
       const rb = $('#stReport', panel); if (rb) rb.onclick = () => (r360 ? S.report360(m) : S.moduleReport(m));
       const ab = $('#stAudit', panel); if (ab) ab.onclick = () => S.auditReport();
     }
@@ -301,7 +304,7 @@
     const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360'));
     const detalle = blocks.map((g) => { const t = (g.querySelector('h4') || {}).textContent || ''; const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); const body = I.fromDom(c).trim(); return body.replace(/<[^>]+>/g, '').trim() ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
     const pasos = Fi.slice(0, 3).map((f) => `<li><b>${esc(f.accion)}</b> <span class="rp-muted">${esc(f.hallazgo)} · ${F.eur(f.impactoEUR || 0)} al año · ${f.plazo || 90} días</span></li>`).concat(R.slice(0, 3).map((r) => `<li><b>${esc(r.mitigacion || '')}</b> <span class="rp-muted">Riesgo: ${esc(r.nombre)}</span></li>`));
-    const html = I.cover({ tipo: 'Informe de área', kicker: 'Sistema estratégico · ' + m.grupo, titulo: m.nombre, subtitulo: lede, empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre })
+    const html = I.cover({ tipo: 'Informe de área', kicker: 'Sistema estratégico · ' + S.grupoN(m.grupo), titulo: m.nombre, subtitulo: lede, empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre })
       + I.summary('Resumen ejecutivo', resumen, st)
       + (tiles.length ? I.section('Indicadores', I.kpis(tiles)) : '')
       + (detalle ? I.section('Análisis detallado', detalle) : '')
@@ -389,7 +392,7 @@
         lede: 'Veintidós módulos sobre los mismos datos: finanzas, clientes, operaciones y entorno. Cada indicador con su semáforo, cada riesgo con su nivel y cada mejora con lo que vale al año.',
         empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
         datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]].concat((() => { const c = S.cifras(); return c && !c.sinDatos ? A.cifras.CAMPOS.map((x) => [x.n, A.cifras.fmt(x.k, c[x.k])]) : []; })()),
-        acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaEst && A.rutaEst.openMap() }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
+        acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
         veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes || A.nota.puntuar(compr, true)).replace(/^s/, 'S') + ' (indicadores, datos pendientes, plan, objetivos, madurez y riesgos). ' : ''}${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
           // Una franja por comprobación de la nota: el recuento de debajo es el mismo que el del texto
           luces: compr.length ? compr.map((x) => ({ n: x.t, v: String(x.d || '').replace(/<[^>]+>/g, ''), st: x.st === 'nd' ? null : x.st, fn: S.mod(x.zona) ? () => show(x.zona) : null })) : k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },

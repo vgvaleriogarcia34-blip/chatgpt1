@@ -1632,9 +1632,19 @@
   const esMovil = () => { try { return matchMedia(MOVIL).matches; } catch (e) { return false; } };
   /* Barra común: tras la marca, el botón «Mundos» con su lista. En el móvil (≤ 560 px) ese mismo botón es el menú:
      abre la lista de mundos y la cuenta en una hoja que ocupa el ancho de la pantalla. Esc o pulsar fuera la cierran. */
+  /* Buscador común (js/buscador.js con el catálogo de js/catalogo.js): botón «Buscar» en la barra, Ctrl K y «/».
+     Las páginas que no cargan esos archivos los reciben aquí la primera vez que se monta la barra. */
+  function cargarBuscador(bar) {
+    if (A.buscador) { A.buscador.montar(bar); return; }
+    if (bar._bs) return; bar._bs = true;
+    const poner = (src, cb) => { const s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = () => { /* sin buscador */ }; document.head.appendChild(s); };
+    const fin = () => { if (A.buscador) A.buscador.montar(bar); };
+    if (A.catalogo) poner('js/buscador.js', fin); else poner('js/catalogo.js', () => poner('js/buscador.js', fin));
+  }
   function montarBarra(el) {
     const bar = el.closest('.topbar, .pt-top'); if (!bar) return;
     bar.classList.add('barra-comun');
+    cargarBuscador(bar);
     let w = bar.querySelector('.bm-wrap');
     if (!w) {
       w = document.createElement('div'); w.className = 'bm-wrap';
