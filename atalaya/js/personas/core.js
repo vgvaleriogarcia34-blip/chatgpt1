@@ -279,6 +279,9 @@
   R.register = (m) => R.modules.push(m);
   R.mod = (id) => R.modules.find((m) => m.id === id);
   const GRUPOS = ['Visión', 'Herramientas', 'Estructura', 'Equipos', 'Liderazgo', 'Desarrollo'];
+  // m.grupo es la clave interna del área; en pantalla, «Visión» se llama «Panorama»
+  const GRUPO_N = { 'Visión': 'Panorama' };
+  R.grupoN = (g) => GRUPO_N[g] || g;
   let current = 'panorama';
   function buildTabs() {
     const host = $('#peTabs');
@@ -292,13 +295,15 @@
     const sel = $(`#peTabs button[data-t="${id}"]`); if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
     const panel = $('#pePanel'), m = R.mod(id);
     const y = scrollY;
-    panel.innerHTML = `${m.portada ? '' : `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(m.grupo)}</span><h2 class="st-title">${A.tituloCalado ? A.tituloCalado(m.nombre) : esc(m.nombre)}</h2>${m.pregunta ? `<p class="st-q">${esc(m.pregunta)}</p>` : ''}</div><span class="spacer"></span>${m.informe ? `<button class="btn" id="peRep">${esc(m.informeTxt || 'Generar informe')}</button>` : ''}</div>`}<div class="pe-body stack" id="peBody"></div>`;
+    panel.innerHTML = `${m.portada ? '' : `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${esc(R.grupoN(m.grupo))}</span><h2 class="st-title">${A.tituloCalado ? A.tituloCalado(m.nombre) : esc(m.nombre)}</h2>${m.pregunta ? `<p class="st-q">${esc(m.pregunta)}</p>` : ''}</div><span class="spacer"></span>${m.informe ? `<button class="btn" id="peRep">${esc(m.informeTxt || 'Generar informe')}</button>` : ''}</div>`}<div class="pe-body stack" id="peBody"></div>`;
     const body = $('#peBody', panel);
     try { m.render(body); } catch (e) { body.innerHTML = `<div class="alert stop">No se pudo mostrar este módulo: ${esc(e.message)}</div>`; console.error(e); }
     const rb = $('#peRep', panel); if (rb) rb.onclick = () => m.informe();
     $$('[data-go]', panel).forEach((b) => (b.onclick = () => show(b.dataset.go)));
     (R.onShowExtra || []).forEach((f) => { try { f(id, body); } catch (e) { console.error(e); } });
-    try { history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ }
+    // Historial: cada módulo abierto es una entrada (atrás y adelante recorren lo visitado); la primera se sustituye
+    if (location.hash !== '#' + id) { try { if (R._hist && !R._volviendo) history.pushState(null, '', '#' + id); else history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ } }
+    R._hist = true;
     if (keep) { scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
     if (R.onShow) try { R.onShow(id, !!keep); } catch (e) { console.error(e); }
   }
@@ -393,7 +398,9 @@
     const h = location.hash.replace('#', '');
     show(R.mod(h) ? h : 'panorama');
     if (R.onStart) try { R.onStart(); } catch (e) { console.error(e); }
-    addEventListener('hashchange', () => { const k = location.hash.replace('#', ''); if (R.mod(k) && k !== current) show(k); });
+    // Atrás y adelante del navegador: se vuelve al módulo de esa entrada sin añadir otra
+    const alVolver = () => { const k = location.hash.replace('#', '') || 'panorama'; if (R.mod(k) && k !== current) { R._volviendo = true; try { show(k); } finally { R._volviendo = false; } } };
+    addEventListener('hashchange', alVolver); addEventListener('popstate', alVolver);
     // Detalle de una persona al tocar su punto en la rueda
     document.addEventListener('click', (e) => { const g = e.target.closest('.pe-pt'); if (g && R.fichaPersona) R.fichaPersona(g.dataset.pid); });
     document.addEventListener('keydown', (e) => { if (e.key !== 'Enter' && e.key !== ' ') return; const g = e.target.closest && e.target.closest('.pe-pt'); if (g && R.fichaPersona) { e.preventDefault(); R.fichaPersona(g.dataset.pid); } });

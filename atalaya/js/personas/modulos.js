@@ -58,8 +58,8 @@
       lede: 'Comportamiento, aportaciones, motivación e identidad de cada persona; puestos, estructura y relevos; equipos equilibrados y un liderazgo a la medida de cada tarea.',
       empresa: R.empresa().nombre, sector: R.empresa().sector,
       datos: [['Personas', String(n)], ['Puestos', String(R.state.puestos.length)], ['Equipos', String(R.state.equipos.length)], ['Líderes', String(ls.length)]],
-      acciones: n ? [{ t: 'Enviar cuestionarios', cls: 'solid', fn: () => R.show('envios') }, { t: 'Ver el mapa', fn: () => A.rutaPer && A.rutaPer.openMap() }, { t: 'Informe de la organización', cls: 'ghost', fn: () => R.informeOrg() }]
-        : [{ t: 'Empezar por la plantilla', cls: 'solid', fn: () => R.show('personas') }, { t: 'Definir puestos', fn: () => R.show('puestos') }, { t: 'Ver el mapa', cls: 'ghost', fn: () => A.rutaPer && A.rutaPer.openMap() }],
+      acciones: n ? [{ t: 'Enviar cuestionarios', cls: 'solid', fn: () => R.show('envios') }, { t: 'Informe de la organización', cls: 'ghost', fn: () => R.informeOrg() }]
+        : [{ t: 'Empezar por la plantilla', cls: 'solid', fn: () => R.show('personas') }, { t: 'Definir puestos', fn: () => R.show('puestos') }],
       veredicto: { kicker: 'Nota de personas y equipos', st: stN,
         titulo: !n ? 'Sin plantilla todavía' : nota + '/100 · ' + (nota >= 70 ? 'equipo en orden' : nota >= 50 ? 'con puntos que trabajar' : 'con alertas que atender'),
         texto: n ? (nRes ? `Nota con el criterio común de Atalaya, la misma de «Este mundo» en la cabecera: ${A.nota.desglose(nRes)}. Cada franja es una de esas comprobaciones; los indicadores de debajo detallan herramientas, encaje, estructura y liderazgo. Tóquela para ir a su herramienta.` : 'Cada franja es un aspecto del equipo: herramientas completadas, encaje, estructura, talento, equipos y liderazgo. Tóquela para ir a su herramienta.') : 'Dé de alta a las personas y aquí aparecerá el estado de cada aspecto del equipo, con su semáforo.',

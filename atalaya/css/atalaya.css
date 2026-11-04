@@ -1215,7 +1215,8 @@ body.bq-pagina :is(.ruta-btn, .rm-open, .nt-chip, .ruta-bar, .st-tabs:empty, #pe
    módulos del área como pestañas; al final, anterior · siguiente. --wc es el color del mundo abierto. */
 body.arch-on { --ar-w: 264px; --ar-top: calc(84px + env(safe-area-inset-top, 0px)); }
 body.arch-on.arch-plegado { --ar-w: 56px; }
-body.arch-on #stTabs { display: none !important; }
+body.arch-on :is(#stTabs, #peTabs) { display: none !important; }
+.rm-clone .ar-pie { display: none; }
 .ar-carp { display: none; align-items: center; gap: 6px; height: 36px; padding: 0 12px; flex: none; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--wc, var(--gold)) 55%, var(--line-strong)); background: color-mix(in srgb, var(--wc, var(--gold)) 10%, transparent); color: var(--fg); font-size: var(--t-s); white-space: nowrap; }
 .ar-carp:hover, .ar-carp[aria-expanded="true"] { border-color: var(--wc, var(--gold)); }
 .ar-ci { width: 15px; height: 11px; border-radius: 2px 5px 2px 2px; background: var(--wc, var(--gold)); position: relative; margin-top: 3px; flex: none; }
