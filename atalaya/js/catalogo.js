@@ -34,14 +34,17 @@
       ['Liderazgo', 'Liderazgo', [['lid-modelo', 'Liderazgo a medida', '¿Qué estilo de liderazgo toca con cada persona en cada tarea?'], ['lid-estilo', 'Estilo del líder', '¿Cómo dirige este responsable y cuánto ajusta su estilo a cada situación?'], ['lid-360', 'Cómo le ve su equipo', '¿Coincide el estilo que el líder cree usar con el que vive su equipo?'], ['lid-prep', 'Preparación por tarea', '¿Lo preparada que está cada persona para cada una de sus tareas clave?'], ['lid-mapa', 'Mapa de mando', '¿Usa cada líder el estilo que toca con cada colaborador en cada tarea?'], ['lid-plan', 'Plan de desarrollo', '¿Qué tiene que entrenar el líder y qué necesita cada colaborador para subir de nivel?'], ['lid-informes', 'Informes de liderazgo', '¿Qué documento necesito: de un líder, de su equipo o de toda la organización?']]],
       ['Desarrollo', 'Desarrollo', [['tablillas', 'Tablillas de entrenamiento', '¿Qué conviene entrenar a cada persona y a cada equipo, y cómo?'], ['informes', 'Informes', '¿Qué documento necesito: de una persona, de un equipo o de toda la organización?']]]
     ] },
-    // Etapas y pasos de js/intervencion/core.js (ETAPAS y TABS)
+    // Fases, bloques y pasos de js/intervencion/core.js (FASES, BLOQUES y TABS). Un área con bloques lleva
+    // [clave, nombre, [], [[clave del bloque, nombre del bloque, pasos], …]]: la fase 3 tiene un bloque por producto
     iv: { href: 'intervencion.html', secuencial: true, areas: [
-      ['previa', 'Sesión previa', [['guion', 'Guion de la sesión'], ['constantes', 'Constantes vitales'], ['escucha', 'Escucha y transcripción'], ['sintomas', 'Síntomas y causas'], ['triaje', 'Triaje y prioridades'], ['foto', 'Foto inicial']]],
-      ['propuesta', 'Propuesta integral', [['propuesta', 'Propuesta integral'], ['aceptacion', 'Aceptación y servicios']]],
-      ['s1', 'Servicio 1 · El dinero', [['s1docs', 'Documentación solicitada'], ['s1dinero', '¿Dónde está el dinero?'], ['s1cierre', 'Informe y siguiente propuesta']]],
-      ['s2', 'Servicio 2 · Auditoría 360', [['documentacion', 'Documentación'], ['auditoria', 'Verificación por áreas'], ['ecosistema', 'Desviaciones del ecosistema'], ['foto360', 'Foto 360'], ['s2cierre', 'Informe y propuesta de acompañamiento']]],
-      ['s3', 'Servicio 3 · Acompañamiento', [['arranque', 'Arranque: reglas y método'], ['objetivos', 'Objetivos SMART'], ['plan', 'Plan por prioridades'], ['sesiones', 'Sesiones quincenales']]],
-      ['docs', 'Documentos', [['informes', 'Informes y documentos'], ['autoeval', 'Autoevaluación']]]
+      ['previa', 'Análisis previo al contrato', [['guion', 'Guion de la sesión'], ['constantes', 'Constantes vitales'], ['escucha', 'Escucha y transcripción'], ['sintomas', 'Síntomas y causas'], ['triaje', 'Triaje y prioridades'], ['foto', 'Foto inicial']]],
+      ['propuesta', 'Propuesta y contrato', [['propuesta', 'Propuesta integral'], ['aceptacion', 'Aceptación y servicios']]],
+      ['productos', 'Auditorías según el producto', [], [
+        ['dinero', 'El dinero', [['s1docs', 'Documentación solicitada'], ['s1dinero', '¿Dónde está el dinero?'], ['s1cierre', 'Informe y siguiente propuesta']]],
+        ['a360', 'Auditoría 360', [['documentacion', 'Documentación'], ['auditoria', 'Verificación por áreas'], ['ecosistema', 'Desviaciones del ecosistema'], ['foto360', 'Foto 360'], ['s2cierre', 'Informe y propuesta de acompañamiento']]]
+      ]],
+      ['acompanamiento', 'Acompañamiento', [['arranque', 'Arranque: reglas y método'], ['objetivos', 'Objetivos SMART'], ['plan', 'Plan por prioridades'], ['sesiones', 'Sesiones quincenales']]],
+      ['cierre', 'Cierre y documentos', [['informes', 'Informes y documentos'], ['autoeval', 'Autoevaluación']]]
     ] },
     // Pestañas de js/mesa.js (TABS), agrupadas en las tres áreas aprobadas
     mesa: { href: 'mesa.html', areas: [
@@ -58,13 +61,20 @@
 
   const P = () => A.platform;
   const mundoP = (k) => ((P() && P().mundos ? P().mundos() : (P() && P().MUNDOS) || []).find((m) => m.k === k)) || ((P() && P().MUNDOS) || []).find((m) => m.k === k) || { k, n: k, c: '#9ba4ba' };
-  /* Mundo completo con sus áreas y módulos: [{ k, n, c, d, href, lock, secuencial, unico, areas: [{ k, n, modulos: [{ k, n, pregunta, href }] }] }] */
+  /* Mundo completo con sus áreas y módulos: [{ k, n, c, d, href, lock, secuencial, unico, areas: [{ k, n, modulos: [{ k, n, pregunta, href }] }] }]
+     Un área con bloques trae además bloques: [{ k, n, modulos }]; sus «modulos» son los de todos sus bloques y cada uno lleva su «bloque». */
   function mundo(k) {
     const d = M[k]; if (!d) return null;
     const p = mundoP(k);
     const areas = d.unico
       ? [{ k: k, n: p.n, modulos: [{ k: '', n: p.n, pregunta: p.d || '', href: d.href }] }]
-      : d.areas.map(([ak, an, mods]) => ({ k: ak, n: an, modulos: mods.map(([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk })) }));
+      : d.areas.map(([ak, an, mods, bls]) => {
+        const mod = (b) => ([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk, bloque: b });
+        if (!bls) return { k: ak, n: an, modulos: mods.map(mod(null)) };
+        const bloques = bls.map(([bk, bn]) => ({ k: bk, n: bn, modulos: [] }));
+        bls.forEach((x, i) => { bloques[i].modulos = x[2].map(mod(bloques[i])); });
+        return { k: ak, n: an, bloques, modulos: bloques.flatMap((b) => b.modulos) };
+      });
     return { k, n: p.n, c: p.c, d: p.d || '', href: d.href, lock: !!p.lock, plan: p.plan, secuencial: !!d.secuencial, unico: !!d.unico, areas };
   }
   // Mundos de la cuenta, en el orden de la barra común (la vista de grupo, solo si el plan la tiene)

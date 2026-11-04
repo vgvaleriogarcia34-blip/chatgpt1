@@ -304,6 +304,10 @@ details.iv-fs summary.iv-fk { cursor: pointer; }
 .iv-decir { margin-top: 6px; padding: 6px 8px; border-left: 2px solid var(--gold); border-radius: 0 6px 6px 0; background: rgba(201, 242, 77, 0.05); font-size: var(--t-xs); line-height: 1.4; text-align: left; }
 .iv-decir b, .iv-decir summary { display: block; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); margin-bottom: 2px; cursor: pointer; }
 @media (min-width: 1180px) { body.iv-ficha-on .st-main { width: min(1240px, calc(100% - 360px)); margin-left: auto; margin-right: 360px; } }
+/* Con el archivador común: el contenido entre el archivador (izquierda) y la ficha de recorrido (derecha) */
+@media (min-width: 1180px) { body.arch-on.iv-ficha-on .st-main { width: auto; max-width: 1240px; margin-left: calc(var(--ar-w) + 32px); margin-right: 360px; } }
+body.arch-on #ivPanel { margin-top: 18px; }
+@media (min-width: 861px) and (max-width: 1179px) { body.arch-on .iv-fab { left: calc(var(--ar-w) + 32px); } body.arch-on .iv-ficha { left: calc(var(--ar-w) + 32px); } }
 @media (max-width: 1179px) { .iv-ficha { right: 12px; left: 12px; width: auto; top: auto; bottom: 84px; max-height: 60vh; } .iv-fab { right: auto; left: 16px; top: auto; bottom: 24px; } }
 @media print { .iv-ficha, .iv-fab { display: none !important; } }
 

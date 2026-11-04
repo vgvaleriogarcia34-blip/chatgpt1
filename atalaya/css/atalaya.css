@@ -1215,7 +1215,7 @@ body.bq-pagina :is(.ruta-btn, .rm-open, .nt-chip, .ruta-bar, .st-tabs:empty, #pe
    módulos del área como pestañas; al final, anterior · siguiente. --wc es el color del mundo abierto. */
 body.arch-on { --ar-w: 264px; --ar-top: calc(84px + env(safe-area-inset-top, 0px)); }
 body.arch-on.arch-plegado { --ar-w: 56px; }
-body.arch-on :is(#stTabs, #peTabs) { display: none !important; }
+body.arch-on :is(#stTabs, #peTabs, #ivTabs, #ivRuta) { display: none !important; }
 .rm-clone .ar-pie { display: none; }
 .ar-carp { display: none; align-items: center; gap: 6px; height: 36px; padding: 0 12px; flex: none; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--wc, var(--gold)) 55%, var(--line-strong)); background: color-mix(in srgb, var(--wc, var(--gold)) 10%, transparent); color: var(--fg); font-size: var(--t-s); white-space: nowrap; }
 .ar-carp:hover, .ar-carp[aria-expanded="true"] { border-color: var(--wc, var(--gold)); }
@@ -1324,4 +1324,38 @@ body.arch-on .ar-cab + .st-tabs + .st-panel, body.arch-on .ar-cab + .st-panel { 
 .ar-pos { font-family: var(--font-data); font-size: 0.75rem; color: var(--muted); text-align: center; }
 .ar-hueco { flex: 0 0 1px; }
 @media (max-width: 560px) { .ar-pie { flex-direction: column; align-items: stretch; } .ar-pie .btn { text-align: center; justify-content: center; } .ar-pos { order: -1; } .ar-hueco { display: none; } }
-@media print { .ar-arch, .ar-cab, .ar-pie, .ar-carp, .bs-btn, .bs-velo { display: none !important; } body.arch-on .st-main { margin: 0 auto; } }
+/* Estado de cada paso (mundos por fases): verde hecho, ámbar en curso, vacío pendiente */
+.ar-est { display: inline-block; width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--faint); flex: none; margin-right: 7px; vertical-align: 1px; }
+.ar-est.hecho { background: var(--go, #3fb27f); border-color: var(--go, #3fb27f); }
+.ar-est.curso { background: var(--warn, #e0a43a); border-color: var(--warn, #e0a43a); }
+.ar-area.hecha > .ar-abtn .ar-num { color: var(--go, #3fb27f); }
+/* Bloques dentro de una fase (un bloque por producto) */
+.ar-bloque { margin: 2px 0 4px 14px; border-left: 2px solid color-mix(in srgb, var(--wc) 45%, transparent); }
+.ar-bloque .ar-hojas { padding-left: 6px; }
+.ar-bcab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; padding: 4px 8px 2px; font-size: 0.8rem; font-weight: 600; color: var(--fg); }
+.ar-bst { font-family: var(--font-data); font-size: 0.62rem; font-weight: 400; letter-spacing: 0.04em; color: var(--faint); padding: 1px 6px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+.ar-bst.hecho { color: var(--go, #3fb27f); border-color: color-mix(in srgb, var(--go, #3fb27f) 50%, transparent); }
+.ar-bst.curso { color: var(--warn, #e0a43a); border-color: color-mix(in srgb, var(--warn, #e0a43a) 50%, transparent); }
+.ar-pest [role="tab"] .ar-est { margin-right: 8px; }
+/* Recorrido completo al pie (mundos por fases) */
+.ar-recorrido { margin-top: 40px; display: grid; gap: 8px; min-width: 0; }
+.ar-rt { margin: 0 0 2px; font-family: var(--font-data); font-size: 0.68rem; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+.ar-fases { display: grid; gap: 8px; }
+.ar-fase { border: 1px solid var(--line); border-radius: 8px; background: rgba(12, 14, 19, 0.6); overflow: hidden; min-width: 0; }
+.ar-fase.actual { border-color: color-mix(in srgb, var(--wc, var(--gold)) 45%, var(--line)); }
+.ar-fbtn { width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; background: none; border: 0; text-align: left; color: var(--fg); }
+.ar-fbtn:hover { background: var(--raise); }
+.ar-fn { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-data); font-size: 0.82rem; border: 1.5px solid var(--wc, var(--gold)); color: var(--wc, var(--gold)); }
+.ar-fase.hecha .ar-fn { background: var(--wc, var(--gold)); color: #0b0d12; }
+.ar-ft { display: grid; gap: 2px; min-width: 0; }
+.ar-ft b { font-family: var(--font-display); font-size: 0.95rem; font-weight: 600; }
+.ar-ft small { color: var(--muted); font-size: 0.8rem; }
+.ar-fp { font-family: var(--font-data); font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+.ar-fcuerpo { border-top: 1px solid var(--line); padding: 10px 14px 14px; display: grid; gap: 10px; }
+.ar-fbloque { border-left: 3px solid var(--wc, var(--gold)); padding-left: 12px; display: grid; gap: 8px; }
+.ar-fbloque h5 { margin: 0; font-family: var(--font-display); font-size: 0.88rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ar-chips { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.ar-chips button { display: inline-flex; align-items: center; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-solid, #111418); color: var(--fg); font-size: 0.82rem; text-align: left; }
+.ar-chips button:hover { border-color: var(--line-strong); }
+.ar-chips button[aria-current="true"] { border-color: var(--wc, var(--gold)); }
+@media print { .ar-arch, .ar-cab, .ar-pie, .ar-recorrido, .ar-carp, .bs-btn, .bs-velo { display: none !important; } body.arch-on .st-main { margin: 0 auto; } }

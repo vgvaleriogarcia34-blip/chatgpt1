@@ -40,6 +40,11 @@
 
   /* Puntuación de un texto: 0 empieza igual, 1 una palabra empieza igual, 2 lo contiene; -1 no está */
   function rango(texto, q) { const t = norm(texto); if (!q) return 3; if (t.startsWith(q)) return 0; if ((' ' + t).includes(' ' + q)) return 1; if (t.includes(q)) return 2; return -1; }
+  // Ruta de un módulo: «Mundo › 3. Fase › Bloque» (el número, solo en los mundos por fases)
+  function ruta(x) {
+    const i = x.mundo.areas ? x.mundo.areas.indexOf(x.area) : -1;
+    return [x.mundo.n, (x.mundo.secuencial && i >= 0 ? `${i + 1}. ` : '') + x.area.n, x.bloque && x.bloque.n].filter(Boolean).join(' › ');
+  }
   function buscar() {
     const q = norm(input.value), C = A.catalogo;
     const mundos = C ? C.mundos() : [];
@@ -51,12 +56,16 @@
     } else {
       // Módulos: primero por su nombre; después por área, mundo o la pregunta que responde
       const mods = (C ? C.modulos() : []).filter((x) => !x.mundo.unico).map((x) => {
-        const r = rango(x.n, q), r2 = r < 0 ? (norm(x.area.n + ' ' + x.mundo.n + ' ' + (x.pregunta || '')).includes(q) ? 5 : -1) : r;
+        const r = rango(x.n, q), r2 = r < 0 ? (norm(x.area.n + ' ' + (x.bloque ? x.bloque.n + ' ' : '') + x.mundo.n + ' ' + (x.pregunta || '')).includes(q) ? 5 : -1) : r;
         return { x, r: r2 };
       }).filter((o) => o.r >= 0).sort((a, b) => a.r - b.r || a.x.n.length - b.x.n.length).slice(0, 12);
-      mods.forEach(({ x }) => out.push({ g: 'Módulos', t: x.n, d: x.mundo.n + ' › ' + x.area.n, c: x.mundo.c, lock: x.mundo.lock, ir: () => irModulo(x) }));
+      mods.forEach(({ x }) => out.push({ g: 'Módulos', t: x.n, d: ruta(x), c: x.mundo.c, lock: x.mundo.lock, ir: () => irModulo(x) }));
       mundos.map((m) => ({ m, r: rango(m.n, q) })).filter((o) => o.r >= 0).sort((a, b) => a.r - b.r).forEach(({ m }) => out.push({ g: 'Mundos', t: m.n, d: m.d || '', c: m.c, lock: m.lock, ir: () => irMundo(m) }));
-      mundos.forEach((m) => { if (m.unico) return; m.areas.forEach((a) => { if (rango(a.n, q) >= 0) out.push({ g: 'Áreas y fases', t: a.n, d: m.n + ' · ' + a.modulos.length + ' módulos', c: m.c, lock: m.lock, ir: () => irModulo(Object.assign({ mundo: m }, a.modulos[0])) }); }); });
+      mundos.forEach((m) => { if (m.unico) return; m.areas.forEach((a, i) => {
+        const fase = m.secuencial ? `${i + 1}. ` : '';
+        if (rango(a.n, q) >= 0) out.push({ g: 'Áreas y fases', t: fase + a.n, d: m.n + ' · ' + a.modulos.length + (m.secuencial ? ' pasos' : ' módulos'), c: m.c, lock: m.lock, ir: () => irModulo(Object.assign({ mundo: m }, a.modulos[0])) });
+        (a.bloques || []).forEach((b) => { if (rango(b.n, q) >= 0) out.push({ g: 'Áreas y fases', t: b.n, d: m.n + ' › ' + fase + a.n + ' · ' + b.modulos.length + (m.secuencial ? ' pasos' : ' módulos'), c: m.c, lock: m.lock, ir: () => irModulo(Object.assign({ mundo: m }, b.modulos[0])) }); });
+      }); });
       const ems = P() && P().empresas && P().empresas.lista ? P().empresas.lista() : [], act = P() && P().empresas && P().empresas.activa ? P().empresas.activa() : null;
       ems.filter((e) => rango(e.nombre, q) >= 0).forEach((e) => out.push({ g: 'Empresas', t: e.nombre, d: act && e.id === act.id ? 'Empresa activa' : e.modelo ? 'Empresa modelo · cambiar a esta empresa' : 'Cambiar a esta empresa', c: '#c9f24d', ir: () => { if (!(act && e.id === act.id)) P().empresas.cambiar(e.id); } }));
       accionesBase().filter((a) => rango(a.n, q) >= 0 || norm(a.d || '').includes(q)).forEach((a) => out.push({ g: 'Acciones', t: a.n, d: a.d || 'Acción', c: a.c || '#69707c', ir: a.ir }));

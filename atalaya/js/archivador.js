@@ -6,14 +6,18 @@
      b) la ruta «Empresa › Mundo › Área › Módulo», cada tramo con sus hermanos;
      c) los módulos del área actual como pestañas;
      d) «Abiertos»: los cinco últimos módulos visitados de cualquier mundo;
-     e) el pie «← anterior · N de M en Área · Siguiente: X →».
+     e) el pie «← anterior · N de M en Área · Siguiente: X →» (en los mundos por fases, «Paso N de M» de todo el mundo).
    Uso:
      const arch = Atalaya.archivador.montar({
        mundo: 'est',                       // clave de Atalaya.platform.MUNDOS
-       areas: [{ k, n, modulos: [{ k, n, pregunta }] }],
+       areas: [{ k, n, modulos: [{ k, n, pregunta }] }],   // o una función que las devuelve (se relee al refrescar)
+                                           // un área puede agrupar sus módulos en bloques en lugar de «modulos»:
+                                           //   { k, n, bloques: [{ k, n, estado: 'Contratado', tono: 'hecho'|'curso'|'', modulos }] }
        actual: () => 'cobros',             // módulo abierto
        ir: (k) => abrirModulo(k),          // abrir otro módulo de este mundo (sin recargar)
-       secuencial: false,                  // true: las áreas son fases y el pie cuenta pasos de todo el mundo
+       secuencial: false,                  // true: las áreas son fases (numeradas) y el pie cuenta pasos de todo el mundo
+       estado: (k) => 'hecho',             // opcional: 'hecho' | 'curso' | '' de cada módulo; pinta su punto y el «h/n» de cada fase
+       recorrido: false,                   // opcional (por fases): al pie, el recorrido completo con sus fases y bloques
        antes: elemento,                    // la ruta, «Abiertos» y las pestañas se colocan justo antes
        panel: () => elemento               // contenedor del módulo: el pie se añade al final
      });
@@ -32,16 +36,32 @@
   let cfg = null, aside = null, velo = null, cab = null, carp = null;
   const abiertosM = new Set(), abiertasA = new Set();
   let menu = null; // tramo de la ruta con los hermanos abiertos
+  let AR = []; // áreas de este mundo, ya normalizadas (los bloques, aplanados en «modulos»)
+  const abiertasF = new Set(); // fases desplegadas en el recorrido completo del pie
 
   /* ---------- Datos ---------- */
   const mundoCat = (k) => (A.catalogo && A.catalogo.mundo(k)) || Object.assign({ areas: [] }, Pm().find((m) => m.k === k) || { k, n: k, c: '#9ba4ba' });
   const mundosCat = () => (A.catalogo ? A.catalogo.mundos() : (P() && P().mundos ? P().mundos() : Pm()).map((m) => mundoCat(m.k)));
   const este = () => mundoCat(cfg.mundo);
   const hrefDe = (k) => este().href + '#' + k;
-  const orden = () => cfg.areas.flatMap((a) => a.modulos.map((m) => Object.assign({ area: a }, m)));
-  const areaDe = (k) => cfg.areas.find((a) => a.modulos.some((m) => m.k === k)) || cfg.areas[0];
+  // Un área con bloques: sus módulos son los de todos sus bloques, en orden, y cada uno sabe su bloque
+  const normalizar = (areas) => (areas || []).map((a) => {
+    if (!a.bloques) return a;
+    const bloques = a.bloques.map((b) => Object.assign({}, b));
+    bloques.forEach((b) => { b.modulos = (b.modulos || []).map((m) => Object.assign({}, m, { bloque: b })); });
+    return Object.assign({}, a, { bloques, modulos: bloques.flatMap((b) => b.modulos) });
+  });
+  const leerAreas = () => { AR = normalizar(typeof cfg.areas === 'function' ? cfg.areas() : cfg.areas); };
+  const orden = () => AR.flatMap((a) => a.modulos.map((m) => Object.assign({ area: a }, m)));
+  const areaDe = (k) => AR.find((a) => a.modulos.some((m) => m.k === k)) || AR[0];
   const modDe = (k) => orden().find((m) => m.k === k);
-  const nArea = (a) => (cfg.secuencial ? `${cfg.areas.indexOf(a) + 1}. ` : '') + a.n;
+  const nArea = (a) => (cfg.secuencial ? `${AR.indexOf(a) + 1}. ` : '') + a.n;
+  // Estado de cada módulo (solo si el mundo lo da): punto verde hecho, ámbar en curso
+  const estDe = (k) => { if (!cfg.estado) return ''; try { const e = cfg.estado(k); return e === 'hecho' || e === 'curso' ? e : ''; } catch (e) { return ''; } };
+  const ESTN = { hecho: 'hecho', curso: 'en curso' };
+  const punto = (k) => (cfg.estado ? `<span class="ar-est ${estDe(k)}" aria-hidden="true"></span>` : '');
+  const srEst = (k) => (estDe(k) ? `<span class="ar-sr"> (${ESTN[estDe(k)]})</span>` : '');
+  const avance = (a) => { const h = a.modulos.filter((x) => estDe(x.k) === 'hecho').length; return { h, n: a.modulos.length, todo: !!a.modulos.length && h === a.modulos.length }; };
   const tipoN = (m) => (m.unico ? '' : m.secuencial ? 'Por fases' : 'Por áreas');
   const empresa = () => { const p = P(); const e = p && p.empresas && p.empresas.activa && p.empresas.activa(); return e ? e.nombre : ''; };
   const planN = (m) => { const p = P(); const pl = p && p.PLANES && m.plan && p.PLANES[m.plan]; return pl ? pl.nombre : ''; };
@@ -66,20 +86,26 @@
   /* ---------- a) Archivador lateral ---------- */
   function pintarArch() {
     const act = cfg.actual(), plegado = document.body.classList.contains('arch-plegado') && !esMovil();
-    const mods = (m, a) => a.modulos.map((x) => {
+    const mods = (m, lista) => lista.map((x) => {
       const cur = m.k === cfg.mundo && x.k === act;
-      return `<li><a href="${esc(x.href || hrefDe(x.k))}" data-m="${esc(m.k)}" data-k="${esc(x.k)}"${cur ? ' aria-current="page"' : ''}${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${esc(x.n)}</a></li>`;
+      return `<li><a href="${esc(x.href || hrefDe(x.k))}" data-m="${esc(m.k)}" data-k="${esc(x.k)}"${cur ? ' aria-current="page"' : ''}${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${m.k === cfg.mundo ? punto(x.k) : ''}${esc(x.n)}${m.k === cfg.mundo ? srEst(x.k) : ''}</a></li>`;
     }).join('');
+    // Hojas de un área: sus módulos o, si tiene bloques, cada bloque con su nombre y su estado
+    const hojas = (m, a) => (a.bloques
+      ? a.bloques.map((b) => `<div class="ar-bloque"><div class="ar-bcab">${esc(b.n)}${b.estado ? ` <small class="ar-bst ${esc(b.tono || '')}">${esc(b.estado)}</small>` : ''}</div><ul class="ar-hojas">${mods(m, b.modulos)}</ul></div>`).join('')
+      : `<ul class="ar-hojas">${mods(m, a.modulos)}</ul>`);
     aside.innerHTML = `<div class="ar-top"><span class="ar-h">Mundos</span><button type="button" class="ar-plegar" aria-expanded="${!plegado}" aria-label="${esMovil() ? 'Cerrar las áreas' : plegado ? 'Desplegar el archivador' : 'Plegar el archivador'}" title="${esMovil() ? 'Cerrar' : plegado ? 'Desplegar' : 'Plegar'}">${esMovil() ? '×' : plegado ? '»' : '«'}</button></div>
       <nav class="ar-lista" aria-label="Mundos, áreas y módulos">${mundosCat().map((m) => {
         const cur = m.k === cfg.mundo, open = !plegado && !m.unico && !m.lock && abiertosM.has(m.k);
-        const areas = cur ? cfg.areas : m.areas;
+        const areas = cur ? AR : m.areas;
         const sub = m.lock ? `Incluido en el plan ${planN(m)}` : tipoN(m);
         return `<div class="ar-carpeta${cur ? ' actual' : ''}${open ? ' abierta' : ''}" style="--wc:${esc(m.c)}">
           <button type="button" class="ar-mundo" data-mundo="${esc(m.k)}"${m.unico || m.lock ? '' : ` aria-expanded="${open}"`}${cur ? ' aria-current="true"' : ''} title="${esc(m.n)}"><span class="ar-solapa" aria-hidden="true"></span><span class="ar-nom">${esc(m.n)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="ar-flecha" aria-hidden="true">${m.lock ? '🔒' : m.unico ? '→' : open ? '▾' : '▸'}</span>${m.lock ? '<span class="ar-sr">(bloqueado por el plan)</span>' : ''}</button>
           ${open ? `<div class="ar-dentro">${areas.map((a) => {
-            const ak = m.k + '|' + a.k, ao = abiertasA.has(ak);
-            return `<div class="ar-area${ao ? ' abierta' : ''}"><button type="button" class="ar-abtn" data-area="${esc(ak)}" aria-expanded="${ao}"><span class="ar-num" aria-hidden="true">${m.secuencial ? areas.indexOf(a) + 1 : ''}</span><span class="ar-an">${esc(a.n)}</span><span class="ar-cnt">${a.modulos.length}</span></button>${ao ? `<ul class="ar-hojas">${mods(m, a)}</ul>` : ''}</div>`;
+            const ak = m.k + '|' + a.k, ao = abiertasA.has(ak), av = cur && cfg.estado ? avance(a) : null;
+            const num = m.secuencial ? (av && av.todo ? '✓' : areas.indexOf(a) + 1) : '';
+            const cnt = av ? `<span class="ar-cnt" aria-label="${av.h} de ${av.n} hechos">${av.h}/${av.n}</span>` : `<span class="ar-cnt">${a.modulos.length}</span>`;
+            return `<div class="ar-area${ao ? ' abierta' : ''}${av && av.todo ? ' hecha' : ''}"><button type="button" class="ar-abtn" data-area="${esc(ak)}" aria-expanded="${ao}"><span class="ar-num" aria-hidden="true">${num}</span><span class="ar-an">${m.secuencial ? `<span class="ar-sr">Fase ${areas.indexOf(a) + 1}${av && av.todo ? ', completa' : ''}: </span>` : ''}${esc(a.n)}</span>${cnt}</button>${ao ? hojas(m, a) : ''}</div>`;
           }).join('')}</div>` : ''}
         </div>`;
       }).join('')}</nav>`;
@@ -118,13 +144,16 @@
 
   /* ---------- b) Ruta con hermanos ---------- */
   function tramos() {
-    const act = cfg.actual(), a = areaDe(act), m = modDe(act), w = este();
-    return [
+    const act = cfg.actual(), a = areaDe(act), m = modDe(act), w = este(), b = m && m.bloque;
+    const T = [
       { t: empresa() || 'Empresa', cls: 'emp', accion: abrirEmpresas, et: 'Empresa' },
       { t: w.n, color: w.c, et: 'Mundo', herm: mundosCat().map((x) => ({ t: x.n, color: x.c, cur: x.k === cfg.mundo, lock: x.lock, ir: () => navegar(x.k, x.href) })) },
-      { t: a ? nArea(a) : '', et: cfg.secuencial ? 'Fase' : 'Área', herm: cfg.areas.map((x) => ({ t: nArea(x), cur: x === a, ir: () => cfg.ir(x.modulos[0].k) })) },
-      { t: m ? m.n : '', et: 'Módulo', ultimo: true, herm: (a ? a.modulos : []).map((x) => ({ t: x.n, cur: x.k === act, ir: () => cfg.ir(x.k) })) }
+      { t: a ? nArea(a) : '', et: cfg.secuencial ? 'Fase' : 'Área', herm: AR.map((x) => ({ t: nArea(x), cur: x === a, ir: () => cfg.ir(x.modulos[0].k) })) }
     ];
+    // Un área con bloques: el bloque es un tramo más, con los otros bloques del área como hermanos
+    if (b) T.push({ t: b.n, et: 'Bloque', herm: a.bloques.map((x) => ({ t: x.n + (x.estado ? ' · ' + x.estado : ''), cur: x === b, ir: () => cfg.ir(x.modulos[0].k) })) });
+    T.push({ t: m ? m.n : '', et: cfg.secuencial ? 'Paso' : 'Módulo', ultimo: true, herm: (b ? b.modulos : a ? a.modulos : []).map((x) => ({ t: x.n, cur: x.k === act, ir: () => cfg.ir(x.k) })) });
+    return T;
   }
   function abrirEmpresas() {
     // El selector de empresa de la barra superior (o la ficha, si la cuenta tiene una sola)
@@ -171,8 +200,9 @@
   function pintarPest() {
     const host = cab.querySelector('.ar-pest'), act = cfg.actual(), a = areaDe(act), pid = panelId();
     if (!a) { host.innerHTML = ''; return; }
-    host.setAttribute('aria-label', `Módulos de ${a.n}`);
-    host.innerHTML = a.modulos.map((x) => `<button type="button" role="tab" id="arTab-${esc(x.k)}" data-k="${esc(x.k)}" aria-selected="${x.k === act}" tabindex="${x.k === act ? 0 : -1}"${pid ? ` aria-controls="${esc(pid)}"` : ''}${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${esc(x.n)}</button>`).join('');
+    const m = modDe(act), b = m && m.bloque, lista = b ? b.modulos : a.modulos;
+    host.setAttribute('aria-label', `${cfg.secuencial ? 'Pasos' : 'Módulos'} de ${b ? b.n : a.n}`);
+    host.innerHTML = lista.map((x) => `<button type="button" role="tab" id="arTab-${esc(x.k)}" data-k="${esc(x.k)}" aria-selected="${x.k === act}" tabindex="${x.k === act ? 0 : -1}"${pid ? ` aria-controls="${esc(pid)}"` : ''}${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${punto(x.k)}${esc(x.n)}${srEst(x.k)}</button>`).join('');
     host.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => { if (b.dataset.k !== cfg.actual()) cfg.ir(b.dataset.k); });
     const sel = host.querySelector('[aria-selected="true"]'); if (sel && host.scrollWidth > host.clientWidth) host.scrollLeft = Math.max(0, sel.offsetLeft - host.clientWidth / 2 + sel.offsetWidth / 2);
   }
@@ -181,20 +211,43 @@
   /* ---------- e) Pie: anterior · posición · siguiente ---------- */
   function pintarPie() {
     const p = cfg.panel && cfg.panel(); if (!p) return;
-    p.querySelectorAll(':scope > .ar-pie, :scope > .ch-next').forEach((x) => x.remove());
+    p.querySelectorAll(':scope > .ar-pie, :scope > .ar-recorrido, :scope > .ch-next').forEach((x) => x.remove());
     const O = orden(), act = cfg.actual(), i = O.findIndex((x) => x.k === act); if (i < 0) return;
-    const a = O[i].area, enA = a.modulos.findIndex((x) => x.k === act), prev = O[i - 1], next = O[i + 1];
-    const otra = (x) => (x && x.area !== a ? ` <small>(${esc(nArea(x.area))})</small>` : '');
-    const pos = cfg.secuencial ? `Paso ${i + 1} de ${O.length} · ${esc(nArea(a))}` : `${enA + 1} de ${a.modulos.length} en ${esc(a.n)}`;
-    const d = document.createElement('nav'); d.className = 'ar-pie'; d.setAttribute('aria-label', 'Módulo anterior y siguiente');
+    const a = O[i].area, b = O[i].bloque, enA = a.modulos.findIndex((x) => x.k === act), prev = O[i - 1], next = O[i + 1];
+    // Si el anterior o el siguiente está en otra fase (o en otro bloque), se dice cuál
+    const otra = (x) => (!x ? '' : x.area !== a ? ` <small>(${esc(nArea(x.area))}${x.bloque ? ' › ' + esc(x.bloque.n) : ''})</small>` : x.bloque && x.bloque !== b ? ` <small>(${esc(x.bloque.n)})</small>` : '');
+    const pos = cfg.secuencial ? `Paso ${i + 1} de ${O.length} · ${esc(nArea(a))}${b ? ' › ' + esc(b.n) : ''}` : `${enA + 1} de ${a.modulos.length} en ${esc(a.n)}`;
+    if (cfg.recorrido && cfg.secuencial) pintarRecorrido(p, a);
+    const d = document.createElement('nav'); d.className = 'ar-pie'; d.setAttribute('aria-label', cfg.secuencial ? 'Paso anterior y siguiente' : 'Módulo anterior y siguiente');
     d.innerHTML = `${prev ? `<button type="button" class="btn ghost ar-ant" data-k="${esc(prev.k)}">← ${esc(prev.n)}${otra(prev)}</button>` : '<span class="ar-hueco"></span>'}<span class="ar-pos">${pos}</span>${next ? `<button type="button" class="btn solid ar-sig" data-k="${esc(next.k)}">Siguiente: ${esc(next.n)}${otra(next)} →</button>` : '<span class="ar-hueco"></span>'}`;
     p.appendChild(d);
-    d.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => cfg.ir(b.dataset.k));
+    d.querySelectorAll('[data-k]').forEach((x) => x.onclick = () => cfg.ir(x.dataset.k));
+  }
+
+  /* ---------- f) Recorrido completo (mundos por fases): cada fase con su avance; la actual, abierta con sus pasos ---------- */
+  function pintarRecorrido(p, aAct) {
+    p.querySelectorAll(':scope > .ar-recorrido').forEach((x) => x.remove());
+    const act = cfg.actual();
+    const chips = (lista) => `<div class="ar-chips">${lista.map((x) => `<button type="button" data-k="${esc(x.k)}"${x.k === act ? ' aria-current="true"' : ''}>${punto(x.k)}${esc(x.n)}${srEst(x.k)}</button>`).join('')}</div>`;
+    const s = document.createElement('section'); s.className = 'ar-recorrido'; s.setAttribute('aria-label', 'Recorrido completo');
+    s.innerHTML = `<h4 class="ar-rt">Recorrido completo</h4><div class="ar-fases">${AR.map((a, i) => {
+      const av = avance(a), ab = a === aAct || abiertasF.has(a.k), id = 'arF-' + i;
+      return `<div class="ar-fase${av.todo ? ' hecha' : ''}${a === aAct ? ' actual' : ''}"><button type="button" class="ar-fbtn" data-f="${esc(a.k)}" aria-expanded="${ab}" aria-controls="${id}"><span class="ar-fn" aria-hidden="true">${av.todo ? '✓' : i + 1}</span><span class="ar-ft"><b><span class="ar-sr">Fase ${i + 1}${av.todo ? ', completa' : ''}: </span>${esc(a.n)}</b>${a.d ? `<small>${esc(a.d)}</small>` : ''}</span><span class="ar-fp"><span aria-label="${av.h} de ${av.n} hechos">${av.h}/${av.n}</span> <span aria-hidden="true">${ab ? '▾' : '▸'}</span></span></button>${ab ? `<div class="ar-fcuerpo" id="${id}">${a.bloques ? a.bloques.map((b) => `<div class="ar-fbloque"><h5>${esc(b.n)}${b.estado ? ` <small class="ar-bst ${esc(b.tono || '')}">${esc(b.estado)}</small>` : ''}</h5>${chips(b.modulos)}</div>`).join('') : chips(a.modulos)}</div>` : ''}</div>`;
+    }).join('')}</div>`;
+    p.appendChild(s);
+    s.querySelectorAll('[data-f]').forEach((x) => x.onclick = () => {
+      const k = x.dataset.f, a = AR.find((y) => y.k === k); if (!a || a === aAct) return;
+      if (abiertasF.has(k)) abiertasF.delete(k); else abiertasF.add(k);
+      pintarRecorrido(p, aAct); const nb = p.querySelector(`.ar-recorrido [data-f="${k}"]`); if (nb) nb.focus({ preventScroll: true });
+      const pie = p.querySelector(':scope > .ar-pie'); if (pie) p.appendChild(pie);
+    });
+    s.querySelectorAll('.ar-chips [data-k]').forEach((x) => x.onclick = () => { if (x.dataset.k !== act) cfg.ir(x.dataset.k); });
   }
 
   /* ---------- Montaje ---------- */
   function refrescar() {
     if (!cfg) return;
+    leerAreas();
     const act = cfg.actual(), a = areaDe(act);
     if (!modDe(act)) return;
     abiertosM.add(cfg.mundo); if (a) abiertasA.add(cfg.mundo + '|' + a.k);
@@ -204,6 +257,7 @@
   }
   function montar(o) {
     cfg = Object.assign({ secuencial: false }, o);
+    leerAreas();
     if (aside) { refrescar(); return api; }
     const w = este();
     document.body.classList.add('arch-on');
@@ -242,7 +296,7 @@
     return api;
   }
   // ¿Puede abrir el archivador este módulo sin recargar? (lo usa el buscador)
-  function irA(mk, k) { if (!cfg || mk !== cfg.mundo || !modDe(k)) return false; cerrarCajon(false); cfg.ir(k); return true; }
+  function irA(mk, k) { if (!cfg) return false; leerAreas(); if (mk !== cfg.mundo || !modDe(k)) return false; cerrarCajon(false); cfg.ir(k); return true; }
   const api = { refrescar, irA, abrirCajon, cerrarCajon, plegar, abiertos, navegar: (mk, href, k) => navegar(mk, href, k), get mundo() { return cfg && cfg.mundo; } };
   A.archivador = Object.assign(api, { montar });
 })();

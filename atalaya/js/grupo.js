@@ -211,14 +211,16 @@
      Etapa y paso del recorrido de la auditoría (el resumen que guarda js/intervencion/core.js; si aún no lo hay, la etapa
      del último paso abierto), próxima sesión, pendientes (acciones vencidas, sesiones sin acta, propuestas sin respuesta,
      documentos pedidos y tareas atrasadas de la mesa), triaje del consultor y nota de la empresa con su fecha. */
-  const ETAPA_TAB = { guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, foto: 1, propuesta: 2, aceptacion: 2, s1docs: 3, s1dinero: 3, s1cierre: 3, documentacion: 4, auditoria: 4, ecosistema: 4, foto360: 4, s2cierre: 4, arranque: 5, objetivos: 5, plan: 5, sesiones: 5, informes: 6, autoeval: 6 };
-  const ETAPAS = ['Sesión previa', 'Propuesta integral', 'Servicio 1 · El dinero', 'Servicio 2 · Auditoría 360', 'Servicio 3 · Acompañamiento', 'Documentos'];
+  // Las cinco fases de la auditoría (js/intervencion/core.js, FASES); la fase sale siempre del paso, así un resumen
+  // guardado con las etapas antiguas se lee bien
+  const ETAPA_TAB = { guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, foto: 1, propuesta: 2, aceptacion: 2, s1docs: 3, s1dinero: 3, s1cierre: 3, documentacion: 3, auditoria: 3, ecosistema: 3, foto360: 3, s2cierre: 3, arranque: 4, objetivos: 4, plan: 4, sesiones: 4, informes: 5, autoeval: 5 };
+  const ETAPAS = ['Análisis previo al contrato', 'Propuesta y contrato', 'Auditorías según el producto', 'Acompañamiento', 'Cierre y documentos'];
   const TIPO_SES = { contacto: 'Primera sesión (triaje)', auditoria: 'Auditoría integral', arranque: 'Arranque', trabajo: 'Sesión de trabajo', seguimiento: 'Seguimiento', revision: 'Revisión de fase' };
   const TRI = { stop: 'Urgencias', warn: 'Preferente', ok: 'Programable' };
   function operativa(x) {
     const iv = x.iv, h = hoyISO(), r = iv && iv.resumen, u = iv && iv.recorrido && iv.recorrido.ultimo;
     const empezado = !!(iv && ((iv.transcripciones || []).length || (iv.sintomas || []).length || u || (iv.sesiones || []).length));
-    const etN = r ? r.etapaN : u && ETAPA_TAB[u.tab] ? ETAPA_TAB[u.tab] : empezado ? 1 : 0;
+    const etN = ETAPA_TAB[(r && r.tab) || (u && u.tab)] || (r ? Math.min(r.etapaN || 1, ETAPAS.length) : empezado ? 1 : 0);
     const etapa = etN ? ETAPAS[etN - 1] : 'Sin empezar';
     const det = r ? `Paso ${r.paso} de ${r.total}${r.pasoN ? ': ' + r.pasoN : ''} · ${r.hechos} hechos` : empezado ? 'Abra la auditoría para ver el paso' : 'Auditoría sin abrir';
     const ses = (iv && iv.sesiones) || [], prox = ses.filter((s) => s.fecha && s.fecha >= h).sort((a, b) => (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')))[0] || null;
@@ -243,14 +245,14 @@
     const estaSemana = L.filter((o) => o.prox && o.prox.fecha <= s7).length, tot = L.reduce((a, o) => a + o.pend.length, 0);
     const nt = (o) => (o.nota && o.nota.nota != null ? `<b class="${o.nota.nota >= 7 ? 'ok' : o.nota.nota >= 5 ? 'warn' : 'stop'}">${String(o.nota.nota.toFixed(1)).replace('.', ',')}</b><br><span class="muted small">${o.nota.fecha ? fCorta(o.nota.fecha.slice(0, 10)) : ''}</span>` : '<span class="muted small">Sin nota</span>');
     return `<section class="glass pad stack mt" id="gOper"><div class="row"><h4>Cartera operativa</h4><span class="spacer"></span><span class="small muted">${plu(estaSemana, 'sesión', 'sesiones')} en los próximos siete días · ${plu(tot, 'pendiente', 'pendientes')} en total</span></div>
-      <div class="table-wrap"><table class="gr-tab gr-oper"><thead><tr><th style="text-align:left">Empresa</th><th style="text-align:left">Etapa del recorrido</th><th style="text-align:left">Próxima sesión</th><th style="text-align:left">Pendientes</th><th>Triaje</th><th>Nota</th><th></th></tr></thead><tbody>
+      <div class="table-wrap"><table class="gr-tab gr-oper"><thead><tr><th style="text-align:left">Empresa</th><th style="text-align:left">Fase del recorrido</th><th style="text-align:left">Próxima sesión</th><th style="text-align:left">Pendientes</th><th>Triaje</th><th>Nota</th><th></th></tr></thead><tbody>
       ${L.map((o) => `<tr data-oper="${esc(o.x.e.id)}"><td style="text-align:left"><b>${esc(o.x.e.nombre)}</b></td>
         <td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:180px" data-etapa><b>${esc(o.etapa)}</b><br><span class="muted small">${esc(o.det)}</span></td>
         <td style="text-align:left;font-family:var(--font-body)" data-prox>${o.prox ? `<b>${fCorta(o.prox.fecha)}${o.prox.hora ? ' · ' + esc(o.prox.hora) : ''}</b><br><span class="muted small">${esc(TIPO_SES[o.prox.tipo] || 'Sesión')}</span>` : `<span class="muted small">${o.sesiones ? 'Sin sesiones futuras' : 'Sin calendario'}</span>`}</td>
         <td style="text-align:left;white-space:normal;font-family:var(--font-body);min-width:240px" data-pend>${o.pend.length ? `<b>${o.pend.length}</b><ul class="small" style="margin:2px 0 0;padding-left:16px">${o.pend.slice(0, 3).map((p) => `<li>${esc(p.t)}</li>`).join('')}${o.pend.length > 3 ? `<li class="muted">y ${o.pend.length - 3} más</li>` : ''}</ul>` : '<span class="muted small">Nada pendiente</span>'}</td>
         <td>${o.tri ? `<span class="state st-${o.tri}">${TRI[o.tri]}</span>` : '<span class="muted small">—</span>'}</td><td>${nt(o)}</td>
         <td style="white-space:nowrap"><button class="btn ghost small" data-go="${esc(o.x.e.id)}" data-pag="intervencion.html">Auditoría</button><button class="btn ghost small" data-go="${esc(o.x.e.id)}" data-pag="intervencion.html#sesiones">Sesiones</button></td></tr>`).join('')}
-      </tbody></table></div><p class="small muted" style="margin:0">Ordenada por la próxima sesión. La etapa es la del recorrido de la auditoría integral; la nota, calculada con los datos guardados de cada mundo (la misma que en sus páginas y en el tablero).</p></section>`;
+      </tbody></table></div><p class="small muted" style="margin:0">Ordenada por la próxima sesión. La fase es la del recorrido de la auditoría integral; la nota, calculada con los datos guardados de cada mundo (la misma que en sus páginas y en el tablero).</p></section>`;
   }
 
   /* ---------- Nueva empresa desde plantilla ----------
