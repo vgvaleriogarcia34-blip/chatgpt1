@@ -251,7 +251,7 @@
      documentos pedidos y tareas atrasadas de la mesa), triaje del consultor y nota de la empresa con su fecha. */
   // Las cinco fases de la auditoría (js/intervencion/core.js, FASES); la fase sale siempre del paso, así un resumen
   // guardado con las etapas antiguas se lee bien
-  const ETAPA_TAB = { guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, foto: 1, propuesta: 2, aceptacion: 2, s1docs: 3, s1dinero: 3, s1cierre: 3, documentacion: 3, auditoria: 3, ecosistema: 3, foto360: 3, s2cierre: 3, arranque: 4, objetivos: 4, plan: 4, sesiones: 4, informes: 5, autoeval: 5 };
+  const ETAPA_TAB = { guion: 1, constantes: 1, escucha: 1, sintomas: 1, triaje: 1, foto: 1, propuesta: 2, contrato: 2, aceptacion: 2, s1docs: 3, s1dinero: 3, s1cierre: 3, documentacion: 3, auditoria: 3, ecosistema: 3, foto360: 3, s2cierre: 3, arranque: 4, objetivos: 4, plan: 4, sesiones: 4, informes: 5, autoeval: 5 };
   const ETAPAS = ['Análisis previo al contrato', 'Propuesta y contrato', 'Auditorías según el producto', 'Acompañamiento', 'Cierre y documentos'];
   const TIPO_SES = { contacto: 'Primera sesión (triaje)', auditoria: 'Auditoría integral', arranque: 'Arranque', trabajo: 'Sesión de trabajo', seguimiento: 'Seguimiento', revision: 'Revisión de fase' };
   const TRI = { stop: 'Urgencias', warn: 'Preferente', ok: 'Programable' };

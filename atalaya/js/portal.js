@@ -263,31 +263,10 @@
     const p = new T.Points(g, pointsMat(size, op)); scene.add(p); starLayers.push(p);
   });
 
-  /* Galaxia espiral al fondo */
-  const galaxy = new T.Group();
-  {
-    const n = small ? 14000 : 32000, arms = 4, R = 150;
-    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
-    const core = new T.Color(0xffd79a), mid = new T.Color(0xc58cff), edge = new T.Color(0x4f7dff);
-    for (let i = 0; i < n; i++) {
-      const r = Math.pow(Math.random(), 1.7) * R, arm = i % arms;
-      const ang = (arm / arms) * Math.PI * 2 + r * 0.045 + (Math.random() - 0.5) * (0.5 + r / R);
-      const sp = (Math.random() - 0.5) * (6 + r * 0.12);
-      pos.set([Math.cos(ang) * r + sp, (Math.random() - 0.5) * (8 - r * 0.045) * (Math.random() < 0.5 ? 1 : 0.4), Math.sin(ang) * r + sp], i * 3);
-      const c = r < R * 0.35 ? core.clone().lerp(mid, r / (R * 0.35)) : mid.clone().lerp(edge, (r - R * 0.35) / (R * 0.65));
-      const b = 0.55 + Math.random() * 0.45; col.set([c.r * b, c.g * b, c.b * b], i * 3);
-    }
-    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('color', new T.BufferAttribute(col, 3));
-    galaxy.add(new T.Points(g, pointsMat(1.25, 0.85)));
-    galaxy.add(sprite(glow(255, 214, 150), 0xffffff, 70, 0.9));
-    galaxy.add(sprite(glow(255, 180, 110), 0xffffff, 160, 0.35));
-  }
-  galaxy.position.set(10, -45, -260); galaxy.rotation.set(1.05, 0.2, 0.35);
-  scene.add(galaxy);
-
-  /* Nebulosas: manchas de color que dan volumen al fondo */
+  /* Al fondo no hay galaxia espiral ni ninguna figura con brazos o aspas: solo el campo de estrellas uniforme de arriba y
+     nebulosas difusas, redondas y sin forma reconocible, manchas de color que dan volumen (la primera, un halo cálido) */
   const nebulas = [];
-  [[60, 90, 200, -40, 20, -320, 260, 0.3], [200, 70, 255, 120, -30, -380, 300, 0.22], [40, 160, 190, -180, -60, -300, 240, 0.2], [212, 150, 80, 160, 80, -260, 200, 0.14], [90, 60, 180, -60, -110, -420, 360, 0.25], [30, 70, 160, 0, 40, -520, 520, 0.3]].forEach(([r, g, b, x, y, z, s, o]) => {
+  [[255, 200, 140, 10, -45, -300, 240, 0.12], [60, 90, 200, -40, 20, -320, 260, 0.3], [200, 70, 255, 120, -30, -380, 300, 0.22], [40, 160, 190, -180, -60, -300, 240, 0.2], [212, 150, 80, 160, 80, -260, 200, 0.14], [90, 60, 180, -60, -110, -420, 360, 0.25], [30, 70, 160, 0, 40, -520, 520, 0.3]].forEach(([r, g, b, x, y, z, s, o]) => {
     const sp = sprite(glow(r, g, b), 0xffffff, s, o); sp.position.set(x, y, z); sp.material.rotation = Math.random() * Math.PI; scene.add(sp); nebulas.push(sp);
   });
 
@@ -298,13 +277,17 @@
 
   /* ---------- Mundo 1: simulador de inversión ---------- */
   const W = {};
-  // En pantallas verticales (móvil) los mundos se apilan; en horizontales quedan a izquierda y derecha
-  // Solo en una portada muy alta se apilan; en el móvil la portada se reduce y los mundos van a izquierda y derecha
+  // Solo en una portada muy alta (vertical) la elipse se pone de pie; en el móvil la portada se reduce y sigue tumbada
   const portrait = CJ.h > CJ.w * 1.45;
-  // En vertical los cuatro mundos van en zigzag; en horizontal la auditoría integral queda abajo a la izquierda
-  const SIM_POS = portrait ? new T.Vector3(-4, 12, 0) : new T.Vector3(-11, 2.5, 0), EST_POS = portrait ? new T.Vector3(-4, -5, 0) : new T.Vector3(11, 1.5, 0);
-  const PER_POS = portrait ? new T.Vector3(4, -14, 0) : new T.Vector3(0, -7.5, 3);
-  const IV_POS = portrait ? new T.Vector3(4.5, 3.5, -2) : new T.Vector3(-14, -8, 0);
+  /* Los cuatro mundos recorren una órbita elíptica común, vista en ligera perspectiva (la mitad de arriba se aleja y la de
+     abajo se acerca), repartidos a intervalos regulares y en el orden del recorrido, en el sentido de las agujas del reloj:
+     simulador (arriba a la izquierda), sistema estratégico (arriba a la derecha), personas y equipos (abajo a la derecha)
+     y auditoría integral (abajo a la izquierda). El manual queda en el centro de la órbita */
+  // y0 baja un poco la órbita para que los mundos de arriba no se metan bajo el saludo
+  const ELI = portrait ? { a: 7.5, b: 16, c: 4, y0: 0 } : { a: 13, b: 8.5, c: 6, y0: -1.2 };
+  const eli = (th, s = 1, v = new T.Vector3()) => v.set(Math.cos(th) * ELI.a * s, ELI.y0 + Math.sin(th) * ELI.b * s, -Math.sin(th) * ELI.c * s);
+  const ORDEN = ['sim', 'est', 'per', 'iv'], ANG = { sim: Math.PI * 0.75, est: Math.PI * 0.25, per: -Math.PI * 0.25, iv: -Math.PI * 0.75 };
+  const SIM_POS = eli(ANG.sim), EST_POS = eli(ANG.est), PER_POS = eli(ANG.per), IV_POS = eli(ANG.iv);
   {
     const g = new T.Group(); g.position.copy(SIM_POS);
     const map = tex(512, (x, s) => {
@@ -387,7 +370,8 @@
       const people = Array.from({ length: 5 }, (_, j) => { const m = new T.Mesh(new T.SphereGeometry(0.13, 12, 10), new T.MeshStandardMaterial({ color: 0xf1e7ff, emissive: c, emissiveIntensity: 0.6 })); const a = (j / 5) * Math.PI * 2; m.position.set(Math.cos(a) * 1.05, Math.sin(a * 2) * 0.3, Math.sin(a) * 1.05); cl.add(m); return m; });
       return { pivot, hub, cl, people, a0: (i / DISC.length) * Math.PI * 2 };
     });
-    const segs = teams.length * (1 + 5 + 1);
+    // Sin radios del núcleo a los equipos: cuatro radios en cruz girando dibujarían aspas; los equipos se unen en anillo
+    const segs = teams.length * (5 + 1);
     const lineGeo = new T.BufferGeometry(); const lp = new Float32Array(segs * 6); lineGeo.setAttribute('position', new T.BufferAttribute(lp, 3));
     const lines = new T.LineSegments(lineGeo, new T.LineBasicMaterial({ color: 0xc9a8ff, transparent: true, opacity: 0.25, blending: T.AdditiveBlending })); g.add(lines);
     const orbit = new T.Mesh(new T.TorusGeometry(4.3, 0.01, 6, 160), new T.MeshBasicMaterial({ color: 0xc9a8ff, transparent: true, opacity: 0.18 })); orbit.rotation.x = Math.PI / 2; g.add(orbit);
@@ -447,21 +431,34 @@
     W.man = { g, hit, label: $('.pt-moon'), r: 0.7 };
   }
 
-  /* Corriente de datos entre los dos mundos: comparten la misma información */
-  const curve = portrait ? new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(0, -3, 0)), SIM_POS.clone().lerp(EST_POS, 0.5).add(new T.Vector3(-4.5, 0, -3)), EST_POS.clone().add(new T.Vector3(0, 3, 0))]) : new T.CatmullRomCurve3([SIM_POS.clone().add(new T.Vector3(3, 0, 0)), new T.Vector3(0, 4.5, -3), EST_POS.clone().add(new T.Vector3(-3, 0, 0))]);
-  const flowN = 220, flowPos = new Float32Array(flowN * 3), flowCol = new Float32Array(flowN * 3), flowT = new Float32Array(flowN);
-  for (let i = 0; i < flowN; i++) { flowT[i] = Math.random(); const gold = Math.random() < 0.5; flowCol.set(gold ? [1, 0.85, 0.55] : [0.55, 0.72, 1], i * 3); }
+  /* La órbita común: un anillo elíptico tenue en el lima de la marca, con un velo de polvo a lo largo */
+  {
+    const pts = Array.from({ length: 241 }, (_, i) => eli((i / 240) * Math.PI * 2));
+    scene.add(new T.Line(new T.BufferGeometry().setFromPoints(pts), new T.LineBasicMaterial({ color: 0xc9f24d, transparent: true, opacity: 0.32, blending: T.AdditiveBlending, depthWrite: false })));
+    const n = small ? 700 : 1400, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), v = new T.Vector3();
+    for (let i = 0; i < n; i++) { eli(Math.random() * Math.PI * 2, 1 + (Math.random() - 0.5) * 0.05, v); pos.set([v.x, v.y + (Math.random() - 0.5) * 0.35, v.z], i * 3); const k = 0.35 + Math.random() * 0.4; col.set([0.79 * k, 0.95 * k, 0.3 * k], i * 3); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('color', new T.BufferAttribute(col, 3));
+    scene.add(new T.Points(g, pointsMat(0.14, 0.55)));
+  }
+
+  /* Corriente de datos que recorre la órbita de mundo en mundo, en el orden del recorrido: comparten la misma información.
+     Cada partícula toma el color del mundo del que sale y llega con el del siguiente */
+  const COLW = { sim: [1, 0.85, 0.55], est: [0.55, 0.72, 1], per: [0.78, 0.62, 1], iv: [1, 0.55, 0.48] };
+  const flowN = small ? 240 : 340, flowPos = new Float32Array(flowN * 3), flowCol = new Float32Array(flowN * 3), flowT = new Float32Array(flowN), flowV = new T.Vector3();
+  for (let i = 0; i < flowN; i++) flowT[i] = Math.random();
   const flowGeo = new T.BufferGeometry(); flowGeo.setAttribute('position', new T.BufferAttribute(flowPos, 3)); flowGeo.setAttribute('color', new T.BufferAttribute(flowCol, 3));
   scene.add(new T.Points(flowGeo, pointsMat(0.22, 0.9)));
-  scene.add(new T.Line(new T.BufferGeometry().setFromPoints(curve.getPoints(80)), new T.LineBasicMaterial({ color: 0xd4ae64, transparent: true, opacity: 0.12 })));
-
-  /* Corriente de la auditoría integral al sistema estratégico: el diagnóstico alimenta el plan */
-  const curve2 = portrait ? new T.CatmullRomCurve3([IV_POS.clone().add(new T.Vector3(-2, -2, 0.5)), IV_POS.clone().lerp(EST_POS, 0.5).add(new T.Vector3(1.5, 0, 2)), EST_POS.clone().add(new T.Vector3(2.4, 2, 0))]) : new T.CatmullRomCurve3([IV_POS.clone().add(new T.Vector3(2.2, 1.5, 0.5)), IV_POS.clone().lerp(EST_POS, 0.5).add(new T.Vector3(1.5, 3.5, 3)), EST_POS.clone().add(new T.Vector3(-2.4, -1.5, 0))]);
-  const flow2N = 120, flow2Pos = new Float32Array(flow2N * 3), flow2Col = new Float32Array(flow2N * 3), flow2T = new Float32Array(flow2N);
-  for (let i = 0; i < flow2N; i++) { flow2T[i] = Math.random(); const rojo = Math.random() < 0.55; flow2Col.set(rojo ? [1, 0.55, 0.48] : [0.55, 0.72, 1], i * 3); }
-  const flow2Geo = new T.BufferGeometry(); flow2Geo.setAttribute('position', new T.BufferAttribute(flow2Pos, 3)); flow2Geo.setAttribute('color', new T.BufferAttribute(flow2Col, 3));
-  scene.add(new T.Points(flow2Geo, pointsMat(0.2, 0.85)));
-  scene.add(new T.Line(new T.BufferGeometry().setFromPoints(curve2.getPoints(60)), new T.LineBasicMaterial({ color: 0xe86a5a, transparent: true, opacity: 0.12 })));
+  const moverFlujo = (dt) => {
+    for (let i = 0; i < flowN; i++) {
+      const u = (flowT[i] = (flowT[i] + dt * (0.6 + (i % 5) * 0.15)) % 1);
+      eli(ANG.sim - u * Math.PI * 2, 1 + Math.sin(i * 1.7) * 0.025, flowV);
+      flowPos.set([flowV.x, flowV.y + Math.cos(i * 1.3) * 0.22, flowV.z], i * 3);
+      const q = u * 4, k = Math.floor(q) % 4, f = q - Math.floor(q), c0 = COLW[ORDEN[k]], c1 = COLW[ORDEN[(k + 1) % 4]];
+      flowCol.set([c0[0] + (c1[0] - c0[0]) * f, c0[1] + (c1[1] - c0[1]) * f, c0[2] + (c1[2] - c0[2]) * f], i * 3);
+    }
+    flowGeo.attributes.position.needsUpdate = true; flowGeo.attributes.color.needsUpdate = true;
+  };
+  moverFlujo(0);
 
   /* Polvo cercano que pasa junto a la cámara */
   const dustN = small ? 300 : 700, dustPos = new Float32Array(dustN * 3), dustCol = new Float32Array(dustN * 3).fill(0.6);
@@ -479,7 +476,7 @@
     focus = w;
     $$('.pt-world').forEach((el) => el.classList.toggle('on', el.dataset.w === w));
     view.tTarget.copy(w ? W[w].g.position.clone().multiplyScalar(0.45) : new T.Vector3());
-    if (w && !portrait) view.tTheta = w === 'sim' ? -0.32 : w === 'est' ? 0.32 : w === 'per' || w === 'iv' ? 0 : view.tTheta;
+    if (w && !portrait) view.tTheta = w === 'sim' || w === 'iv' ? -0.28 : w === 'est' || w === 'per' ? 0.28 : view.tTheta;
   };
   const ponerRaton = (e) => { const r = canvas.getBoundingClientRect(); mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1; mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1; };
   canvas.addEventListener('pointerdown', (e) => { ponerRaton(e); drag = { x: e.clientX, y: e.clientY, th: view.tTheta, ph: view.tPhi, moved: false }; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
@@ -550,14 +547,16 @@
     let lx, ly;
     if (w === 'man') { lx = x - o.label.offsetWidth / 2; ly = y + 18; }
     else if (narrow) { lx = x > GW / 2 ? x - o.label.offsetWidth - 30 : x + 30; ly = y - o.label.offsetHeight / 2; }
-    else { lx = x + offX * (Math.min(220, 2600 / d) + (offX < 0 ? o.label.offsetWidth : 0)); ly = y - o.label.offsetHeight / 2; }
+    // La tarjeta se aparta del planeta lo que mide en pantalla (con su halo), para no taparlo
+    else { lx = x + offX * (Math.min(220, (o.r + 2) * CJ.h / (1.04 * d)) + (offX < 0 ? o.label.offsetWidth : 0)); ly = y - o.label.offsetHeight / 2; }
     // Dentro del hueco de la galaxia: sin tapar el saludo de arriba ni el paseo virtual y la pista de abajo
-    const minY = narrow ? 200 : 140, maxY = CJ.h - (narrow ? 70 : 64);
+    const ib = $('#intro').getBoundingClientRect().bottom - portada.getBoundingClientRect().top;
+    const minY = Math.max(narrow ? 200 : 140, Math.round(ib) + 10), maxY = CJ.h - (narrow ? 70 : 64);
     lx = Math.max(12, Math.min(GW - o.label.offsetWidth - 12, lx)); ly = Math.max(minY, Math.min(maxY - o.label.offsetHeight, ly));
     // La posición se aplica después de separar las etiquetas entre sí (separarEtiquetas)
     o.pos = { x: lx, y: ly, w: o.label.offsetWidth, h: o.label.offsetHeight, behind, minY, maxY, my: y, man: w === 'man' };
     o.label.style.visibility = behind ? 'hidden' : 'visible';
-    o.label.classList.toggle('far', d > (portrait ? 64 : R0 + 5));
+    o.label.classList.toggle('far', d > (portrait ? 64 : R0 + ELI.c + 5));
   }
   /* Separación mínima entre etiquetas: si dos se pisan, la de más abajo baja lo que falte (y, sin sitio abajo, suben las
      dos); la del manual, pequeña, prueba antes a ponerse encima de su luna */
@@ -610,7 +609,7 @@
     PE.teams.forEach((q, i) => { q.pivot.rotation.y = q.a0 + t * 0.16 * sp; q.cl.rotation.y = -t * (0.5 + i * 0.08) * sp; q.cl.rotation.x = Math.sin(t * 0.3 + i) * 0.4; });
     let li = 0; const put = (a, b) => { PE.lp.set([a.x, a.y, a.z, b.x, b.y, b.z], li * 6); li++; };
     const hub = new T.Vector3(), pp = new T.Vector3();
-    PE.teams.forEach((q, i) => { q.hub.getWorldPosition(hub); PE.g.worldToLocal(hub); put(new T.Vector3(), hub); q.people.forEach((m) => { m.getWorldPosition(pp); PE.g.worldToLocal(pp); put(hub, pp); }); const nx = PE.teams[(i + 1) % PE.teams.length]; nx.hub.getWorldPosition(pp); PE.g.worldToLocal(pp); put(hub, pp); });
+    PE.teams.forEach((q, i) => { q.hub.getWorldPosition(hub); PE.g.worldToLocal(hub); q.people.forEach((m) => { m.getWorldPosition(pp); PE.g.worldToLocal(pp); put(hub, pp); }); const nx = PE.teams[(i + 1) % PE.teams.length]; nx.hub.getWorldPosition(pp); PE.g.worldToLocal(pp); put(hub, pp); });
     PE.lines.geometry.attributes.position.needsUpdate = true;
     const IV = W.iv;
     IV.core.rotation.y = t * 0.14 * sp; IV.grid.rotation.y = -t * 0.05 * sp; IV.ecg.rotation.y = -t * 0.35 * sp; IV.sweepHold.rotation.y = -t * 1.1 * sp;
@@ -618,13 +617,9 @@
     const barrido = ((-t * 1.1 * sp) % (Math.PI * 2) + Math.PI * 4) % (Math.PI * 2);
     IV.beacons.forEach((b) => { const d = Math.abs(((b.a - barrido + Math.PI * 3) % (Math.PI * 2)) - Math.PI); const k = Math.max(0, 1 - d / 0.9); b.m.scale.setScalar(1 + k * 0.9); b.gl.material.opacity = 0.35 + k * 0.65; b.m.rotation.y = t * 1.4; });
     IV.ecg.material.opacity = 0.55 + Math.max(0, Math.sin(t * 2.4)) * 0.4;
-    if (portrait) W.man.g.position.set(-7 + Math.cos(t * 0.15 * sp) * 1.5, 2.5 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 3 - 4);
-    else W.man.g.position.set(15 + Math.cos(t * 0.15 * sp) * 3, 9 + Math.sin(t * 0.4) * 0.6, Math.sin(t * 0.15 * sp) * 3 - 6);
-    for (let i = 0; i < flowN; i++) { flowT[i] = (flowT[i] + 0.0016 * sp * (0.6 + (i % 5) * 0.15)) % 1; const p = curve.getPoint(flowT[i]); flowPos.set([p.x + Math.sin(i) * 0.25, p.y + Math.cos(i * 1.3) * 0.25, p.z], i * 3); }
-    flowGeo.attributes.position.needsUpdate = true;
-    for (let i = 0; i < flow2N; i++) { flow2T[i] = (flow2T[i] + 0.0013 * sp * (0.6 + (i % 4) * 0.15)) % 1; const p = curve2.getPoint(flow2T[i]); flow2Pos.set([p.x + Math.sin(i) * 0.2, p.y + Math.cos(i * 1.7) * 0.2, p.z], i * 3); }
-    flow2Geo.attributes.position.needsUpdate = true;
-    galaxy.rotation.y += 0.0004 * sp;
+    // El manual flota en el centro de la órbita, con un vaivén pequeño
+    W.man.g.position.set(Math.cos(t * 0.15 * sp) * 0.6, ELI.y0 + 0.4 + Math.sin(t * 0.4) * 0.4 * sp, Math.sin(t * 0.15 * sp) * 0.6);
+    moverFlujo(0.00055 * sp);
     nebulas.forEach((n, i) => { n.material.rotation += 0.0003 * (i % 2 ? 1 : -1) * sp; });
     starLayers.forEach((s, i) => { s.rotation.y += 0.00005 * (i + 1) * sp; s.material.opacity = 0.65 + Math.sin(t * (0.6 + i * 0.3) + i) * 0.15; });
 

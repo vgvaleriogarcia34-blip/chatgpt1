@@ -39,7 +39,7 @@
     // [clave, nombre, [], [[clave del bloque, nombre del bloque, pasos], …]]: la fase 3 tiene un bloque por producto
     iv: { href: 'intervencion.html', secuencial: true, areas: [
       ['previa', 'Análisis previo al contrato', [['guion', 'Guion de la sesión'], ['constantes', 'Constantes vitales'], ['escucha', 'Escucha y transcripción'], ['sintomas', 'Síntomas y causas'], ['triaje', 'Triaje y prioridades'], ['foto', 'Foto inicial']]],
-      ['propuesta', 'Propuesta y contrato', [['propuesta', 'Propuesta integral'], ['aceptacion', 'Aceptación y servicios']]],
+      ['propuesta', 'Propuesta y contrato', [['propuesta', 'Propuesta integral'], ['contrato', 'Contrato', 'El contrato de prestación de servicios con sus anexos, generado desde la propuesta aceptada.'], ['aceptacion', 'Aceptación y servicios']]],
       ['productos', 'Auditorías según el producto', [], [
         ['dinero', 'El dinero', [['s1docs', 'Documentación solicitada'], ['s1dinero', '¿Dónde está el dinero?'], ['s1cierre', 'Informe y siguiente propuesta']]],
         ['a360', 'Auditoría 360', [['documentacion', 'Documentación'], ['auditoria', 'Verificación por áreas'], ['ecosistema', 'Desviaciones del ecosistema'], ['foto360', 'Foto 360'], ['s2cierre', 'Informe y propuesta de acompañamiento']]]

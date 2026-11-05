@@ -384,3 +384,62 @@ body.arch-on #ivPanel { margin-top: 18px; }
 /* Precio por conversión sobre beneficio */
 .cv-arg { border-left: 3px solid var(--gold, #c9f24d); padding: 6px 12px; background: rgba(201, 242, 77, 0.05); border-radius: 0 10px 10px 0; display: grid; gap: 4px; }
 .cv-srv { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: 12px; }
+
+/* ---------- Módulo «Contrato» (js/intervencion/contrato.js) ---------- */
+.ct-g { display: grid; gap: 10px 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); align-items: end; }
+.ct-g label { display: grid; gap: 4px; min-width: 0; }
+.ct-g .ct-ancho { grid-column: 1 / -1; }
+.ct-g .input[aria-invalid="true"] { border-color: rgba(250, 178, 25, 0.75); }
+.ct-estado { display: flex; flex-wrap: wrap; gap: 6px; }
+.ct-estado .iv-st { white-space: normal; }
+.ct-acc { flex-wrap: wrap; gap: 8px; }
+.ct-fs { border: 1px solid var(--line-strong); border-radius: 12px; padding: 10px 12px 12px; margin: 0; min-width: 0; }
+.ct-fs legend { padding: 0 6px; font: 600 var(--t-xs) var(--font-display); color: var(--muted); }
+.ct-faltas { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ct-faltas li { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(250, 178, 25, 0.45); background: rgba(250, 178, 25, 0.06); }
+.ct-faltas li.aviso { border-color: rgba(224, 72, 72, 0.5); background: rgba(224, 72, 72, 0.07); }
+.ct-faltas li span { min-width: 0; overflow-wrap: anywhere; }
+.ct-faltas li .btn { flex: none; }
+.ct-listo { margin: 0; color: var(--go); }
+.ct-avisos { margin: 0; padding-left: 18px; color: var(--warn); font-size: var(--t-sm, 0.9rem); }
+.ct-subs { display: grid; gap: 10px; }
+.ct-sub { display: grid; gap: 8px 10px; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, 1.3fr) auto; align-items: end; padding-bottom: 10px; border-bottom: 1px dashed var(--line-strong); }
+.ct-sub label { display: grid; gap: 4px; min-width: 0; }
+@media (max-width: 860px) { .ct-sub { grid-template-columns: minmax(0, 1fr); } .ct-sub .btn { justify-self: start; } }
+.ct-borrador { position: sticky; top: 64px; z-index: 3; padding: 8px 12px; border-radius: 10px; background: #fff4d6; color: #7a1d1d; border: 1px solid #e0a43a; font-weight: 600; font-size: 0.9rem; }
+.ct-hoja-w { max-width: 100%; overflow: hidden; }
+/* La hoja: A4 (210 mm de ancho) en pantalla, fluida en el móvil */
+.paper.rp.ct-doc { width: min(794px, 100%); margin: 0 auto; padding: clamp(18px, 7%, 76px) clamp(16px, 9%, 80px); background: #fff; color: #14171e; border-radius: 4px; font-family: var(--font-body); font-size: 0.92rem; line-height: 1.55; box-sizing: border-box; overflow-wrap: anywhere; }
+.paper.rp.ct-doc > * { margin-left: 0; margin-right: 0; max-width: none; }
+.paper.rp.ct-doc .ct-borr-doc { margin: 0 0 18px; padding: 8px 10px; border: 1px solid #b42323; color: #b42323; font-weight: 700; font-size: 0.82rem; border-radius: 3px; }
+.paper.rp.ct-doc h1.ct-h1 { font-family: var(--font-display); font-size: 1.15rem; line-height: 1.3; letter-spacing: 0.01em; text-align: center; margin: 6px 0 16px; color: #0b0d13; text-wrap: balance; }
+.paper.rp.ct-doc h2.ct-h2 { display: block; font-family: var(--font-body); font-size: 0.98rem; font-weight: 700; letter-spacing: 0; margin: 20px 0 8px; padding: 0; border: 0; color: #0b0d13; }
+.paper.rp.ct-doc h2.ct-sin { text-align: center; letter-spacing: 0.06em; }
+.paper.rp.ct-doc h3.ct-h3 { font-size: 0.95rem; margin: 16px 0 6px; color: #0b0d13; }
+.paper.rp.ct-doc .ct-ord { font-weight: 700; }
+.paper.rp.ct-doc p.ct-p { margin: 0 0 8px; text-align: justify; hyphens: auto; max-width: none; }
+.paper.rp.ct-doc .ct-ind { margin-left: 22px; }
+.paper.rp.ct-doc ul.ct-ul { margin: 0 0 8px; padding-left: 22px; }
+.paper.rp.ct-doc ul.ct-ul.ct-ind { padding-left: 40px; margin-left: 0; }
+.paper.rp.ct-doc ul.ct-ul li { margin: 2px 0; max-width: none; }
+.paper.rp.ct-doc .ct-notab { margin: 4px 0; font-size: 0.85em; color: #555; }
+.paper.rp.ct-doc mark.ct-falta { background: #fff176; color: #3b2f00; padding: 0 2px; border-radius: 2px; }
+.paper.rp.ct-doc .ct-salto { border-top: 1px dashed #c8c4b6; margin: 28px 0 18px; }
+.paper.rp.ct-doc table.ct-tabla { width: 100%; border-collapse: collapse; font-size: 0.86em; margin: 6px 0 12px; table-layout: auto; }
+.paper.rp.ct-doc table.ct-tabla thead th { background: #f0eee8; color: #14171e; font: 700 0.92em var(--font-body); letter-spacing: 0; text-transform: none; padding: 6px 8px; border: 1px solid #d9d6cc; white-space: normal; }
+.paper.rp.ct-doc table.ct-tabla td { border: 1px solid #d9d6cc; padding: 6px 8px; background: #fff !important; overflow-wrap: anywhere; }
+.paper.rp.ct-doc table.ct-tabla:not(.ct-firmas) td:last-child { text-align: right; white-space: nowrap; }
+.paper.rp.ct-doc table.ct-firmas { table-layout: fixed; margin-top: 18px; }
+.paper.rp.ct-doc table.ct-firmas thead th { background: none; border: 0; padding-left: 0; }
+.paper.rp.ct-doc table.ct-firmas td { border: 0; padding: 3px 12px 3px 0; }
+.paper.rp.ct-doc table.ct-firmas tr:last-child td { padding-top: 54px; border-bottom: 1px solid #14171e; }
+@media (max-width: 520px) { .paper.rp.ct-doc table.ct-tabla:not(.ct-firmas) td:last-child { white-space: normal; } .paper.rp.ct-doc { font-size: 0.86rem; } }
+/* Impresión (marco de A.informe.pdf): A4 con los márgenes y el pie numerado de css/print.css */
+.pdf-print .paper.rp.ct-doc { width: auto !important; padding: 0 !important; font-size: 10.5pt; line-height: 1.45; border-radius: 0; }
+.pdf-print .paper.rp.ct-doc h1.ct-h1 { font-size: 13pt; margin-top: 2mm; }
+.pdf-print .paper.rp.ct-doc h2.ct-h2 { font-size: 10.5pt; margin-top: 5mm; break-after: avoid; page-break-after: avoid; }
+.pdf-print .paper.rp.ct-doc h3.ct-h3 { font-size: 10.5pt; break-after: avoid; page-break-after: avoid; }
+.pdf-print .paper.rp.ct-doc table.ct-tabla { font-size: 9pt; }
+.pdf-print .paper.rp.ct-doc .ct-salto { border: 0; margin: 0; break-before: page; page-break-before: always; }
+.pdf-print .paper.rp.ct-doc table.ct-firmas { break-inside: avoid; }
+.pdf-print .paper.rp.ct-doc mark.ct-falta { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

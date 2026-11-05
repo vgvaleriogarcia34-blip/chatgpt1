@@ -91,7 +91,7 @@
   const BLOQUES = [{ k: 'dinero', n: 'El dinero', s: 's1', prop: null }, { k: 'a360', n: 'Auditoría 360', s: 's2', prop: 'propS2' }];
   const TABS = [
     ['guion', 'Guion de la sesión', ETAPAS[0]], ['constantes', 'Constantes vitales', ETAPAS[0]], ['escucha', 'Escucha y transcripción', ETAPAS[0]], ['sintomas', 'Síntomas y causas', ETAPAS[0]], ['triaje', 'Triaje y prioridades', ETAPAS[0]], ['foto', 'Foto inicial', ETAPAS[0]],
-    ['propuesta', 'Propuesta integral', ETAPAS[1]], ['aceptacion', 'Aceptación y servicios', ETAPAS[1]],
+    ['propuesta', 'Propuesta integral', ETAPAS[1]], ['contrato', 'Contrato', ETAPAS[1]], ['aceptacion', 'Aceptación y servicios', ETAPAS[1]],
     ['s1docs', 'Documentación solicitada', ETAPAS[2], 'dinero'], ['s1dinero', '¿Dónde está el dinero?', ETAPAS[2], 'dinero'], ['s1cierre', 'Informe y siguiente propuesta', ETAPAS[2], 'dinero'],
     ['documentacion', 'Documentación', ETAPAS[2], 'a360'], ['auditoria', 'Verificación por áreas', ETAPAS[2], 'a360'], ['ecosistema', 'Desviaciones del ecosistema', ETAPAS[2], 'a360'], ['foto360', 'Foto 360', ETAPAS[2], 'a360'], ['s2cierre', 'Informe y propuesta de acompañamiento', ETAPAS[2], 'a360'],
     ['arranque', 'Arranque: reglas y método', ETAPAS[3]], ['objetivos', 'Objetivos SMART', ETAPAS[3]], ['plan', 'Plan por prioridades', ETAPAS[3]], ['sesiones', 'Sesiones quincenales', ETAPAS[3]],
