@@ -8,24 +8,26 @@
 #   DOMINIO_APP         p. ej. app.businessavance.es (el registro A se crea después, con la IP que muestra este script)
 #   CORREO_CERTIFICADOS correo para Let's Encrypt
 # Opcionales:
-#   RAMA (claude/wonderful-newton-durhbz) · UBICACION (nbg1) · MEMORIA_MIN_GB (8) · NOMBRE (atalaya-1)
-#   DOMINIO_ASISTENTE · COPIA_DESTINO (s3:https://nbg1.your-objectstorage.com/cubo/atalaya) · COPIA_S3_ID · COPIA_S3_CLAVE
+#   RAMA (claude/wonderful-newton-durhbz) · UBICACION (hel1) · MEMORIA_MIN_GB (4) · TIPO (fuerza un tipo, p. ej. cx23) · NOMBRE (atalaya-1)
+#   DOMINIO_ASISTENTE · COPIA_DESTINO (s3:https://hel1.your-objectstorage.com/atalaya-copias/atalaya) · COPIA_S3_ID · COPIA_S3_CLAVE
 #   SOLO_PLAN=1 → solo muestra qué crearía, sin crear nada
 set -euo pipefail
 : "${HCLOUD_TOKEN:?Falta HCLOUD_TOKEN}" "${GITHUB_LECTURA:?Falta GITHUB_LECTURA}" "${DOMINIO_APP:?Falta DOMINIO_APP}" "${CORREO_CERTIFICADOS:?Falta CORREO_CERTIFICADOS}"
-RAMA=${RAMA:-claude/wonderful-newton-durhbz}; UBICACION=${UBICACION:-nbg1}; MEM=${MEMORIA_MIN_GB:-8}; NOMBRE=${NOMBRE:-atalaya-1}
+RAMA=${RAMA:-claude/wonderful-newton-durhbz}; UBICACION=${UBICACION:-hel1}; MEM=${MEMORIA_MIN_GB:-4}; NOMBRE=${NOMBRE:-atalaya-1}
 REPO_HTTPS="https://x-access-token:${GITHUB_LECTURA}@github.com/vgvaleriogarcia34-blip/chatgpt1.git"
 API=https://api.hetzner.cloud/v1
 h() { curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" -H 'Content-Type: application/json' "$@"; }
 
 echo "== Comprobando la cuenta =="
 h "$API/locations" | jq -e --arg u "$UBICACION" '.locations[] | select(.name == $u)' >/dev/null || { echo "La ubicación $UBICACION no existe en esta cuenta."; exit 1; }
-# El tipo de servidor más barato con núcleos compartidos, en esa ubicación, con al menos MEM GB, x86
-TIPO=$(h "$API/server_types?per_page=50" | jq -r --arg u "$UBICACION" --argjson m "$MEM" '
-  [.server_types[] | select(.deprecation == null and .cpu_type == "shared" and .architecture == "x86" and .memory >= $m)
+# Tipos con plazas libres ahora mismo en algún centro de datos de esa ubicación
+DISPONIBLES=$(h "$API/datacenters" | jq -c --arg u "$UBICACION" '[.datacenters[] | select(.location.name == $u) | .server_types.available[]] | unique')
+# El tipo más barato con núcleos compartidos, disponible, con al menos MEM GB, x86 (o el que se fuerce con TIPO)
+TIPO=$(h "$API/server_types?per_page=50" | jq -r --arg u "$UBICACION" --argjson m "$MEM" --argjson d "$DISPONIBLES" --arg f "${TIPO:-}" '
+  [.server_types[] | select(.id as $i | $d | index($i)) | select(if $f != "" then .name == $f else (.deprecation == null and .cpu_type == "shared" and .architecture == "x86" and .memory >= $m) end)
    | {name, memory, cores, precio: ([.prices[] | select(.location == $u) | .price_monthly.gross | tonumber] | first)}
    | select(.precio != null)] | sort_by(.precio) | first | "\(.name) \(.cores) núcleos \(.memory) GB \(.precio)"')
-[ -n "$TIPO" ] && [ "$TIPO" != "null" ] || { echo "No hay tipo de servidor con $MEM GB en $UBICACION."; exit 1; }
+[ -n "$TIPO" ] && [ "$TIPO" != "null" ] || { echo "No hay ningún tipo de servidor disponible con $MEM GB en $UBICACION ahora mismo. Pruebe otra ubicación (UBICACION=nbg1, fsn1) o más tarde."; exit 1; }
 read -r TIPO_N NUC _ GB _ PRECIO <<<"$TIPO"
 CLAVES=$(h "$API/ssh_keys" | jq -c '[.ssh_keys[].id]')
 [ "$CLAVES" != "[]" ] || echo "Aviso: el proyecto no tiene ninguna clave SSH. Añada la suya en la consola de Hetzner (Seguridad → Claves SSH) para poder entrar al servidor."
