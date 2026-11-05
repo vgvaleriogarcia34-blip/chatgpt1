@@ -218,4 +218,4 @@ atalaya/
 
 ## Planes y varias empresas
 
-Esencial 49 €/mes y Profesional 129 €/mes (una empresa), Consultora 349 €/mes (hasta 15 empresas cliente) y Grupos por tramos de sociedades: 690 € (1-5), 970 € (6-10) y 1.790 € (más de 10). Pago anual con un 30 % de descuento. Cada empresa guarda sus datos aparte: en el servidor, las claves `simulador` y `estrategia` llevan el sufijo `--<id>` salvo la empresa principal; el registro de empresas es la clave `empresas` y los datos del grupo, `grupo`. Detalle en `PLAN-GRUPOS.md`.
+Esencial 49 €/mes y Profesional 129 €/mes (una empresa), Consultora por tramos de empresas cliente (349 €/mes hasta 5, 549 € de 6 a 10 y 749 € de 11 a 15; máximo 15 y sin contar la empresa propia) y Grupos por tramos de sociedades: 690 € (1-5), 970 € (6-10) y 1.790 € (más de 10). Pago anual con un 30 % de descuento. Cada empresa guarda sus datos aparte: en el servidor, las claves `simulador` y `estrategia` llevan el sufijo `--<id>` salvo la empresa principal; el registro de empresas es la clave `empresas` y los datos del grupo, `grupo`. Detalle en `PLAN-GRUPOS.md`.

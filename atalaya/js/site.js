@@ -176,7 +176,7 @@
 
   /* ---------- Planes ---------- */
   const P = A.platform.PLANES;
-  // Precio mensual o anual (−30 %); Grupos, por tramos de sociedades
+  // Precio mensual o anual (−30 %); Consultora, por tramos de empresas cliente (Grupos, a medida)
   let periodo = 'mensual';
   const drawPlans = () => {
     // Con la sesión abierta, los botones de los planes llevan a cambiar de plan dentro de la aplicación
@@ -186,8 +186,9 @@
       return `<article class="glass plan tilt ${p.destacado ? 'top' : ''} ${p.grupo ? 'grp' : ''}" data-tilt>
         ${p.destacado ? '<span class="tag">Recomendado</span>' : p.grupo ? '<span class="tag">Holdings y grupos</span>' : ''}
         <h3>${p.nombre}</h3><p class="small muted plan-para">${p.para || ''}</p>
-        ${p.aMedida ? '<div class="price"><b style="font-size:1.9rem;font-family:var(--font-display);font-weight:500">A medida</b></div><p class="small plan-bill">El precio se prepara con nuestro equipo según sus sociedades y su estructura.</p>' : `<div class="price"><b>${A.platform.eur(A.platform.cuota(pr).importe)}</b><span>${A.platform.cuota(pr).unidad}</span></div>
+        ${p.aMedida ? '<div class="price"><b style="font-size:1.9rem;font-family:var(--font-display);font-weight:500">A medida</b></div><p class="small plan-bill">El precio se prepara con nuestro equipo según sus sociedades y su estructura.</p>' : `${p.tramos ? '<p class="small muted" style="margin:0 0 -10px">Desde</p>' : ''}<div class="price"><b>${A.platform.eur(A.platform.cuota(pr).importe)}</b><span>${A.platform.cuota(pr).unidad}</span></div>
         <p class="small plan-bill">${periodo === 'anual' ? A.platform.cuota(pr).detalle : '&nbsp;'}</p>`}
+        ${p.tramos && !p.aMedida ? `<ul class="tramos" aria-label="Precio por tramos de empresas cliente">${p.tramos.map((t) => { const c = A.platform.cuota(A.platform.precio(k, periodo, t.hasta)); return `<li><span>${t.n.replace(/ empresas cliente$/, '')}</span><b>${A.platform.eur(c.importe)}${c.unidad}</b></li>`; }).join('')}</ul><p class="small muted" style="margin:-4px 0 0">Por número de empresas cliente; su propia empresa no cuenta.</p>` : ''}
         <ul>${p.incluye.map((x) => `<li>${x}</li>`).join('')}</ul>
         ${p.aMedida && conSesion !== k ? '<button class="btn solid" data-contacto>Contactar con nuestro equipo</button>' : `<a class="btn ${p.destacado ? 'solid' : ''}" href="acceso.html#alta-${k}${periodo === 'anual' ? '-anual' : ''}">${conSesion ? (conSesion === k ? 'Es su plan · entrar' : `Cambiar a ${p.nombre}`) : `Probar ${p.nombre}`}</a>`}</article>`;
     }).join('');

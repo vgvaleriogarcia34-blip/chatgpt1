@@ -35,7 +35,7 @@ Para una aplicación como esta (un proceso Node, una base SQLite, clientes en Es
 - Para las copias, una **Storage Box** de Hetzner (en otro centro de datos, desde unos 4 € al mes) o su almacén de objetos S3. Las copias van cifradas antes de salir del servidor.
 - Si algún día hiciera falta más, el mismo montaje con Docker se lleva a cualquier otro proveedor sin cambiar nada.
 
-**¿Y la base de datos?** No hace falta contratar un PostgreSQL. La base SQLite se crea sola en el primer arranque, con sus migraciones, comprobación de integridad, siete copias diarias en el disco y recuperación automática (ver `atalaya/PUESTA-EN-MARCHA.md`). Esta instalación añade la copia diaria **fuera** del servidor. Pasar a PostgreSQL solo tendría sentido con varias máquinas sirviendo a la vez, que no es el caso.
+**¿Y la base de datos?** No hace falta contratar un PostgreSQL. La base SQLite se crea sola en el primer arranque, con sus migraciones, comprobación de integridad, dos copias mensuales en el disco y recuperación automática (ver `atalaya/PUESTA-EN-MARCHA.md`). Esta instalación añade la copia diaria **fuera** del servidor. Pasar a PostgreSQL solo tendría sentido con varias máquinas sirviendo a la vez, que no es el caso.
 
 ## 4. Qué instala `instalar.sh`
 

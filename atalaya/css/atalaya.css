@@ -743,6 +743,10 @@ body.con-lineas .field[data-p="inversion.vidaUtil"] { display: none; }
 .pl-it ul { margin: 0; padding-left: 16px; }
 .pl-precio { font-family: var(--font-data); font-size: 1.4rem; }
 .pl-precio small { font-size: 0.7rem; color: var(--muted); margin-left: 3px; }
+.pl-it ul.pl-tramos { list-style: none; padding: 6px 8px; display: grid; gap: 3px; border: 1px solid var(--line); border-radius: 10px; }
+.pl-tramos li { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); }
+.pl-tramos li b { font-family: var(--font-data); font-weight: 500; color: var(--fg); white-space: nowrap; }
+.pl-tramos li.on, .pl-tramos li.on b { color: var(--gold); }
 .acc-menu button[data-planes] { color: var(--gold-soft); }
 .del-card { width: min(560px, 100%); border-color: rgba(224, 72, 72, 0.5); }
 .del-t { margin: 0; font-family: var(--font-display); letter-spacing: -0.02em; font-weight: 700; font-size: 1.45rem; }

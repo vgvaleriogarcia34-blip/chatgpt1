@@ -92,11 +92,11 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 - Contraseñas con scrypt y sal; comparación en tiempo constante.
 - Segundo factor TOTP (RFC 6238) para la administración (y opcional para clientes): secreto cifrado con AES-256-GCM, códigos de un solo uso, 10 códigos de recuperación guardados por su HMAC.
 - Registro de actividad del gestor de usuarios (2.1.B bis) y avisos por correo al equipo.
-- Base de datos SQLite con transacciones y escritura por registro; copias diarias con `VACUUM INTO`; todos los ficheros con permisos 600.
+- Base de datos SQLite con transacciones y escritura por registro; copias mensuales con `VACUUM INTO`; todos los ficheros con permisos 600.
 - Avisos de Stripe aceptados solo con firma HMAC-SHA256 válida y de menos de 5 minutos.
 - Cookie de sesión `atalaya_sid` HttpOnly, SameSite=Lax, 30 días, `Secure` con `COOKIE_SECURE=1`; sesiones guardadas por su SHA-256.
 - Enlaces de los test derivados de un secreto del servidor (HMAC); en `db.json` solo su hash.
-- Carpeta de datos fuera de la web, permisos 0700 y fichero 0600; escritura atómica; 7 copias diarias rotatorias.
+- Carpeta de datos fuera de la web, permisos 0700 y fichero 0600; escritura atómica; 2 copias mensuales rotatorias en el disco (la tercera se escribe sobre la más antigua).
 - Política de contenidos (CSP), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, HSTS con `COOKIE_SECURE=1`.
 - Límites de intentos y de tamaño de datos por cuenta; cuota diaria de IA.
 - Pendiente: cifrado en reposo del disco (depende del alojamiento), procedimiento de brechas (arts. 33-34). **[PENDIENTE]** (El registro de accesos y acciones del personal de administración está en 2.1.B bis.)
@@ -131,7 +131,7 @@ Terceros que solo intervienen si el usuario pulsa un enlace: WhatsApp (`wa.me`),
 | Uso diario de IA | Últimos 60 días | `usoIA` |
 | Contactos | Los 500 más recientes | `db.contactos.slice(0, 500)` |
 | Contadores de intentos | En memoria, 15-60 minutos | `LIMITES` |
-| Copias de seguridad | 7 copias diarias rotatorias (`atalaya.db.1…7`); la copia `db.json.migrado-<fecha>` de la migración a SQLite se conserva hasta que se borre a mano **[PENDIENTE: borrarla tras comprobar la migración]** | `COPIAS = 7` |
+| Copias de seguridad | 2 copias mensuales rotatorias en el disco (`atalaya.db.1` y `.2`; la tercera se escribe sobre la más antigua); la copia `db.json.migrado-<fecha>` de la migración a SQLite se conserva hasta que se borre a mano **[PENDIENTE: borrarla tras comprobar la migración]** | `COPIAS = 2` |
 | Invitaciones a test | Se borran 30 días después de importarse, caducar o anularse; la IP se borra al importar. Revisión cada 6 horas | `INVITACIONES_DIAS`, `purgarInvitaciones` |
 | Respuestas de lid360 | Solo se entregan al consultor sin nombres y a partir de 3 respuestas; la bolsa se vacía al importarse | `MIN_LID360`, `POST /api/lid360/:pid/importado` |
 | Borrado de cuenta (administración) | Borra datos, mercado, sesiones, enlaces, invitaciones con respuestas, contactos y uso, en una transacción | `DELETE /api/admin/users/:id` |

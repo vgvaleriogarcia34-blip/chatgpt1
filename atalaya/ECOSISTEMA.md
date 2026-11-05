@@ -18,7 +18,7 @@ Objetivo: que cada plan prometa lo que da, que se pueda subir o bajar de plan si
 
 | | Esencial | Profesional | Consultora | Grupos |
 |---|---|---|---|---|
-| Precio | 49 €/mes | 129 €/mes | 349 €/mes | A medida: «Contactar con nuestro equipo» |
+| Precio | 49 €/mes | 129 €/mes | 349 €/mes hasta 5 empresas cliente · 549 € de 6 a 10 · 749 € de 11 a 15 | A medida: «Contactar con nuestro equipo» |
 | Simulador de inversión | Sí | Sí | Sí | Sí |
 | Sistema estratégico (21 módulos, origen, informes 360) | No: se ve y se ofrece | Sí | Sí | Sí |
 | Personas y equipos (DISC, aportaciones al equipo, eneagrama, encaje, equipos, estructura, liderazgo, tablillas) | No: se ve y se ofrece | No: se ve y se ofrece | Sí | No, de momento |

@@ -103,10 +103,10 @@
   let periodo = /anual/.test(h) ? 'anual' : 'mensual';
   const drawPlans = () => {
     const cur = (document.querySelector('input[name="plan"]:checked') || {}).value || planIni;
-    $('#planPick').innerHTML = Object.keys(P.PLANES).filter((k) => !P.PLANES[k].aMedida).map((k) => { const pr = P.precio(k, periodo, 1); return `<label><input type="radio" name="plan" value="${k}" ${k === cur ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.eur(P.cuota(pr).importe)}${P.cuota(pr).unidad}${P.PLANES[k].tramos ? ' desde' : ''}</small></label>`; }).join('');
+    $('#planPick').innerHTML = Object.keys(P.PLANES).filter((k) => !P.PLANES[k].aMedida).map((k) => { const pr = P.precio(k, periodo, 1); return `<label><input type="radio" name="plan" value="${k}" ${k === cur ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.PLANES[k].tramos ? 'desde ' : ''}${P.eur(P.cuota(pr).importe)}${P.cuota(pr).unidad}</small></label>`; }).join('');
     document.querySelectorAll('#perPick button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
     const k = (document.querySelector('input[name="plan"]:checked') || {}).value || 'profesional', pr = P.precio(k, periodo, 1), pl = P.PLANES[k];
-    $('#planNote').innerHTML = `${(pl.para || '').replace(/\btu\b/g, 'su')}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}, ahorra ${P.eur(pr.ahorro)}` : ''}. Precios sin IVA. Los 14 días de prueba son gratuitos en todos los planes.`;
+    $('#planNote').innerHTML = `${(pl.para || '').replace(/\btu\b/g, 'su')}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}, ahorra ${P.eur(pr.ahorro)}` : ''}${pl.clientes ? ` · por tramos de empresas cliente: ${pl.tramos.map((t) => `${t.n.toLowerCase()}, ${P.eur(P.cuota(P.precio(k, periodo, t.hasta)).importe)}${P.cuota(P.precio(k, periodo, t.hasta)).unidad}`).join('; ')} (su propia empresa no cuenta)` : ''}. Precios sin IVA. Los 14 días de prueba son gratuitos en todos los planes.`;
     document.querySelectorAll('input[name="plan"]').forEach((r) => r.onchange = drawPlans);
   };
   document.querySelectorAll('#perPick button').forEach((b) => b.onclick = () => { periodo = b.dataset.per; drawPlans(); });

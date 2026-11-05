@@ -4,7 +4,8 @@ Estado: **propuesta para decidir**. No hay nada construido de este plan.
 
 ## 1. Punto de partida
 
-- Cuatro planes: Esencial 49 €, Profesional 129 €, Consultora 349 € y Grupos por tramos (690, 970 y 1.790 €). Pago anual con un 30 % de descuento.
+- Cuatro planes: Esencial 49 €, Profesional 129 €, Consultora por tramos de empresas cliente (349 € hasta 5, 549 € de 6 a 10 y 749 € de 11 a 15; la empresa propia del consultor no cuenta) y Grupos por tramos (690, 970 y 1.790 €, a medida). Pago anual con un 30 % de descuento. Precios sin IVA.
+- IA: además de la cuota diaria por cuenta, en Consultora y Grupos cada empresa tiene 300 consultas al mes y 40 al día (`IA_MENSUAL_EMPRESA`, `IA_DIARIA_EMPRESA`), ampliables por cuenta desde la administración. Así el coste de IA crece con las empresas y con el tramo.
 - Prueba de 14 días; después, el administrador activa el acceso a mano o, con el servidor 2.2 y Stripe configurado, el cobro con tarjeta lo activa solo (ver `PUESTA-EN-MARCHA.md`, apartado 5).
 - Hoy cada plan lo incluye todo lo suyo. Los módulos de la hoja de ruta (`AUDITORIA-MODULOS.md`) añaden mucho valor, pero meterlos todos en Profesional regala justo lo que más vale.
 
@@ -24,7 +25,7 @@ Estado: **propuesta para decidir**. No hay nada construido de este plan.
 |---|---|
 | Esencial · 49 € | Simulador de inversión. Puede añadir el pack Banca. |
 | Profesional · 129 € | Simulador y sistema estratégico con sus 21 módulos (Evolución, Cobros y Valoración incluidos), zona de origen, informes 360 y calendario de obligaciones legales cuando exista. Incluye la propiedad y **2 perfiles de equipo**. |
-| Consultora · 349 € | Lo de Profesional con **todos los packs**, 15 empresas y 10 perfiles. |
+| Consultora · 349 € / 549 € / 749 € | Lo de Profesional con **todos los packs**, hasta 15 empresas cliente por tramos (hasta 5, de 6 a 10 y de 11 a 15) y 10 perfiles. |
 | Grupos · por tramos | Lo de Profesional con **todos los packs**, grupo empresarial y 10 perfiles. |
 
 El calendario de obligaciones va en el núcleo: cuesta poco mantenerlo, se valora mucho y hace que el cliente vuelva cada mes.

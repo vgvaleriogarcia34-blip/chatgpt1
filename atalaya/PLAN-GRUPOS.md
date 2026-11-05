@@ -14,7 +14,9 @@ Estado: **decidido y construido** (fases 1 a 5). Pendiente: cobro automático (f
 |---|---|---|
 | Esencial | 49 € | 34,30 €/mes · 411,60 €/año |
 | Profesional | 129 € | 90,30 €/mes · 1.083,60 €/año |
-| Consultora | 349 € | 244,30 €/mes · 2.931,60 €/año |
+| Consultora, hasta 5 empresas cliente | 349 € | 244,30 €/mes · 2.931,60 €/año |
+| Consultora, de 6 a 10 | 549 € | 384,30 €/mes · 4.611,60 €/año |
+| Consultora, de 11 a 15 | 749 € | 524,30 €/mes · 6.291,60 €/año |
 | Grupos, 1-5 sociedades | 690 € | 483 €/mes · 5.796 €/año |
 | Grupos, 6-10 sociedades | 970 € | 679 €/mes · 8.148 €/año |
 | Grupos, más de 10 | 1.790 € | 1.253 €/mes · 15.036 €/año |
@@ -96,4 +98,4 @@ Es un descuento alto: lo habitual en software de suscripción es entre el 15 y e
 - Precio y sociedades incluidas en Grupos (690 € con 5, o dos tramos 640/790 €).
 - Descuento anual: 30 % para todos, o 20 % general y 30 % de lanzamiento.
 - Si Profesional pasa a 1 empresa (recomendado) y qué hacer con quien ya lo tenga.
-- Si Consultora mantiene 15 empresas cliente o pasa a un precio por empresa.
+- Si Consultora mantiene 15 empresas cliente o pasa a un precio por empresa. **Decidido:** máximo 15 empresas cliente por tramos (349 € hasta 5, 549 € de 6 a 10 y 749 € de 11 a 15; la empresa propia no cuenta).

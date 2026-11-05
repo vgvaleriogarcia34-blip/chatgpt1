@@ -33,6 +33,14 @@ const PLANES_LIBRES = ['esencial', 'profesional', 'consultora']; // los que el c
 const ORDEN_PLAN = { esencial: 1, profesional: 2, consultora: 3, grupos: 4 };
 const NOMBRE_PLAN = { esencial: 'Esencial', profesional: 'Profesional', consultora: 'Consultora', grupos: 'Grupos' };
 const PERIODOS = ['mensual', 'anual'];
+/* Consultora cobra por tramos de empresas cliente (hasta 5, de 6 a 10 y de 11 a 15; máximo 15). La empresa principal, la del
+   propio consultor, no cuenta ni para el límite ni para el tramo. El tramo se nombra por su tope: 5, 10 o 15. */
+const TRAMOS_CONSULTORA = [5, 10, 15];
+const PRECIO_CONSULTORA = { 5: 349, 10: 549, 15: 749 };
+const tramoConsultora = (n) => TRAMOS_CONSULTORA.find((t) => n <= t) || 15;
+const NOMBRE_TRAMO = { 5: 'hasta 5 empresas cliente', 10: 'de 6 a 10 empresas cliente', 15: 'de 11 a 15 empresas cliente' };
+// Lo que cuenta para el límite y el tramo: en Consultora, las empresas cliente (sin la principal); en los demás, todas
+const cuentanEmpresas = (plan, total) => (plan === 'consultora' ? Math.max(0, total - 1) : total);
 // Datos por cuenta: tamaño máximo de cada clave y del total de la cuenta (en MB)
 const DATA_MAX_CLAVE = num('DATA_MAX_CLAVE_MB', 2) * 1024 * 1024;
 const DATA_MAX_CUENTA = num('DATA_MAX_CUENTA_MB', 25) * 1024 * 1024;
@@ -92,7 +100,7 @@ if ((env.ALMACEN || 'sqlite').toLowerCase() !== 'json') {
   } finally { process.emitWarning = avisar; }
 }
 const ALMACEN = Sqlite ? 'sqlite' : 'json';
-const COPIAS = 7;
+const COPIAS = 2; // copias mensuales en el disco: al hacer la tercera se escribe sobre la más antigua
 const sello = () => now().replace(/[:.]/g, '-');
 const vacia = () => ({ users: [], sessions: {}, data: {}, mercado: {}, admin: null, adminSessions: {}, resets: {} });
 // Completa lo que falte en una base cargada (de cualquier versión) y da identificador a contactos y pagos antiguos
@@ -263,18 +271,21 @@ else { const r = cargarJson(); if (r.datos) Object.assign(db, r.datos); recupera
 // La administración ya no es una cuenta de usuario: las cuentas que lo eran pasan a cliente con acceso de cortesía
 db.users.forEach((u) => { if (u.rol === 'admin') { u.rol = 'cliente'; u.pagado = true; u.venceAcceso = null; u.estado = 'activo'; u.nota = ((u.nota || '') + ' Antigua cuenta de administración: acceso sin vencimiento.').trim(); } });
 
-// Copia del día: antes de la primera escritura de cada día se rota (.1 la de ayer … .7). En SQLite, con VACUUM INTO,
-// que hace una copia coherente y compacta sin parar el servidor.
+// Copia del mes: antes de la primera escritura de cada mes se rota (.1 la del mes anterior, .2 la de hace dos meses;
+// la tercera se escribe sobre la más antigua). En SQLite, con VACUUM INTO, que hace una copia coherente y compacta sin parar el servidor.
+// Las copias diarias las hacen fuera de este disco las de Hetzner y la copia externa cifrada.
 const BASE = ALMACEN === 'sqlite' ? DB_SQL : DB_FILE;
 const copia = (i) => `${BASE}.${i}`;
-let copiaDia = (() => { try { return fs.statSync(copia(1)).mtime.toISOString().slice(0, 10); } catch { return null; } })();
+const esteMes = () => today().slice(0, 7);
+let copiaMes = (() => { try { return fs.statSync(copia(1)).mtime.toISOString().slice(0, 7); } catch { return null; } })();
 function rotarCopias() {
-  if (copiaDia === today() || !fs.existsSync(BASE) || txProf) return; // VACUUM INTO no puede ir dentro de una transacción
+  if (copiaMes === esteMes() || !fs.existsSync(BASE) || txProf) return; // VACUUM INTO no puede ir dentro de una transacción
   try {
     for (let i = COPIAS - 1; i >= 1; i--) if (fs.existsSync(copia(i))) fs.renameSync(copia(i), copia(i + 1));
     if (sql) sql.exec(`VACUUM INTO '${copia(1).replace(/'/g, "''")}'`); else fs.copyFileSync(DB_FILE, copia(1));
     fs.chmodSync(copia(1), 0o600);
-    copiaDia = today();
+    for (let i = COPIAS + 1; fs.existsSync(copia(i)); i++) fs.unlinkSync(copia(i)); // restos del antiguo ciclo de 7 copias
+    copiaMes = esteMes();
   } catch (e) { console.error('Copia de seguridad de la base de datos:', e.message); }
 }
 let saveTimer = null;
@@ -370,7 +381,7 @@ const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
 const sha = (t) => crypto.createHash('sha256').update(t).digest('hex');
 const safeEq = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
 // Lo que sale de una cuenta hacia el navegador: nunca la contraseña ni el secreto del segundo factor
-const pub = (u) => { if (!u) return null; const { hash, salt, totp, ...rest } = u; return Object.assign(rest, { dosPasos: !!(totp && totp.activo) }); };
+const pub = (u) => { if (!u) return null; const { hash, salt, totp, ...rest } = u; return Object.assign(rest, { dosPasos: !!(totp && totp.activo) }, PLANES_VARIAS.includes(u.plan) ? { iaEmpresaLimite: { mes: iaEmpresaMesDe(u), dia: IA_DIARIA_EMPRESA } } : {}); };
 const emailOk = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 function access(u) {
   if (!u) return { ok: false, motivo: 'sin-sesion' };
@@ -655,7 +666,7 @@ function diferencias(antes, despues, campos) {
   campos.forEach((k) => { const x = antes[k] === undefined ? null : antes[k], y = despues[k] === undefined ? null : despues[k]; if (JSON.stringify(x) !== JSON.stringify(y)) { a[k] = x; d[k] = y; } });
   return Object.keys(a).length ? { antes: a, despues: d } : null;
 }
-const CAMPOS_CUENTA = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'estado', 'pagado', 'venceAcceso', 'pruebaHasta', 'planPendiente', 'cuotaPactada', 'nota'];
+const CAMPOS_CUENTA = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'estado', 'pagado', 'venceAcceso', 'pruebaHasta', 'planPendiente', 'cuotaPactada', 'tramo', 'iaEmpresaMes', 'nota'];
 const foto = (u) => JSON.parse(JSON.stringify(Object.fromEntries(CAMPOS_CUENTA.map((k) => [k, u[k]]))));
 
 /* ---------- Segundo factor (TOTP, RFC 6238) ----------
@@ -735,17 +746,33 @@ function comprobarSegundo(t, codigo) {
 
 /* ---------- Stripe Billing (sin SDK: API REST con STRIPE_SECRET_KEY) ----------
    Precios por plan y periodo: STRIPE_PRECIO_<PLAN>_<PERIODO> (p. ej. STRIPE_PRECIO_PROFESIONAL_ANUAL=price_…)
-   o STRIPE_PRECIOS='{"profesional-mensual":"price_…", …}'. Sin STRIPE_SECRET_KEY, todo sigue como antes:
+   o STRIPE_PRECIOS='{"profesional-mensual":"price_…", …}'. Consultora, por tramo de empresas cliente:
+   STRIPE_PRECIO_CONSULTORA_5_MENSUAL, _5_ANUAL, _10_MENSUAL, _10_ANUAL, _15_MENSUAL y _15_ANUAL (claves «consultora5-mensual»,
+   «consultora10-anual»…). Las antiguas STRIPE_PRECIO_CONSULTORA_MENSUAL/ANUAL (y «consultora-mensual») valen como tramo de 5.
+   Sin STRIPE_SECRET_KEY, todo sigue como antes:
    enlace de pago manual (P.PAGO_URLS en el navegador) o «Solicitar el enlace de pago». */
 const STRIPE_PRECIOS = (() => {
   const m = {};
-  try { Object.entries(JSON.parse(env.STRIPE_PRECIOS || '{}')).forEach(([k, v]) => { m[k.toLowerCase().replace(/_/g, '-')] = String(v); }); } catch { console.error('STRIPE_PRECIOS no es un JSON válido: se ignora.'); }
-  PLANES.forEach((p) => PERIODOS.forEach((per) => { const v = env[`STRIPE_PRECIO_${p.toUpperCase()}_${per.toUpperCase()}`]; if (v) m[`${p}-${per}`] = v; }));
+  // «consultora-mensual» (sin tramo) vale como tramo de 5; una clave explícita del tramo («consultora5-mensual») manda sobre ella
+  const antiguo = {};
+  const poner = (k, v) => { const r = /^consultora-(mensual|anual)$/.exec(k); if (r) antiguo[r[1]] = v; else m[k] = v; };
+  try { Object.entries(JSON.parse(env.STRIPE_PRECIOS || '{}')).forEach(([k, v]) => poner(k.toLowerCase().replace(/_/g, '-').replace(/^consultora-(\d+)-/, 'consultora$1-'), String(v))); } catch { console.error('STRIPE_PRECIOS no es un JSON válido: se ignora.'); }
+  PLANES.forEach((p) => PERIODOS.forEach((per) => { const v = env[`STRIPE_PRECIO_${p.toUpperCase()}_${per.toUpperCase()}`]; if (v) poner(`${p}-${per}`, v); }));
+  TRAMOS_CONSULTORA.forEach((t) => PERIODOS.forEach((per) => { const v = env[`STRIPE_PRECIO_CONSULTORA_${t}_${per.toUpperCase()}`]; if (v) m[`consultora${t}-${per}`] = v; }));
+  PERIODOS.forEach((per) => { if (antiguo[per] && !m[`consultora5-${per}`]) m[`consultora5-${per}`] = antiguo[per]; });
   return m;
 })();
 const STRIPE = !!env.STRIPE_SECRET_KEY;
 const STRIPE_GRACIA_DIAS = num('STRIPE_GRACIA_DIAS', 3); // días de margen tras el fin del periodo pagado (reintentos de cobro)
 const planDePrecio = (id) => Object.keys(STRIPE_PRECIOS).find((k) => STRIPE_PRECIOS[k] === id) || null;
+// «consultora10-anual» → { plan: 'consultora', tramo: 10, periodo: 'anual' }; «profesional-mensual» → sin tramo
+const leerPlanPer = (k) => { const r = /^([a-z]+?)(\d+)?-([a-z]+)$/.exec(String(k || '')); return r ? { plan: r[1], tramo: r[2] ? +r[2] : null, periodo: r[3] } : { plan: null, tramo: null, periodo: null }; };
+// Clave del precio de Stripe que toca pagar: en Consultora, la del tramo de sus empresas cliente (o el pendiente, si es mayor)
+function clavePrecioDe(u, plan, periodo) {
+  if (plan !== 'consultora') return `${plan}-${periodo}`;
+  const pend = u.planPendiente && u.planPendiente.plan === 'consultora' ? +u.planPendiente.tramo || 0 : 0;
+  return `consultora${Math.max(tramoConsultora(cuentanEmpresas('consultora', nEmpresas(u))), TRAMOS_CONSULTORA.includes(pend) ? pend : 0)}-${periodo}`;
+}
 async function stripeApi(ruta, params) {
   let r, j = {};
   try {
@@ -782,11 +809,14 @@ const precioLinea = (l) => l && ((l.price && l.price.id) || (l.pricing && l.pric
 function activarPorStripe(u, planPer, finSegundos) {
   const antes = foto(u), eraPagado = u.pagado;
   if (planPer) {
-    const [plan, periodo] = planPer.split('-');
+    const { plan, periodo, tramo } = leerPlanPer(planPer);
     if (PLANES.includes(plan) && plan !== u.plan) { (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: plan, fecha: now(), por: 'stripe' }); u.plan = plan; }
     if (PERIODOS.includes(periodo)) u.periodo = periodo;
+    // Consultora: el tramo cobrado pasa a ser el facturado
+    if (plan === 'consultora' && TRAMOS_CONSULTORA.includes(tramo)) u.tramo = tramo;
   }
-  if (u.planPendiente && ORDEN_PLAN[u.planPendiente.plan] <= ORDEN_PLAN[u.plan]) {
+  const pp = u.planPendiente;
+  if (pp && (pp.tramo ? u.plan !== 'consultora' || +u.tramo >= +pp.tramo : ORDEN_PLAN[pp.plan] <= ORDEN_PLAN[u.plan])) {
     delete u.planPendiente;
     (db.contactos || []).forEach((c) => { if (c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido) c.atendido = now(); });
   }
@@ -808,7 +838,7 @@ async function eventoStripe(ev) {
     if (o.customer) u.stripeCliente = o.customer.id || o.customer;
     if (o.subscription) u.stripeSuscripcion = o.subscription.id || o.subscription;
     u.stripeEstado = 'active';
-    const meta = o.metadata || {}, planPer = meta.plan && meta.periodo ? `${meta.plan}-${meta.periodo}` : null;
+    const meta = o.metadata || {}, planPer = meta.plan && meta.periodo ? `${meta.plan}${meta.plan === 'consultora' && meta.tramo ? meta.tramo : ''}-${meta.periodo}` : null;
     // Vencimiento provisional (un periodo); la factura pagada (invoice.paid) lo fija con la fecha exacta
     const fin = Math.floor(Date.now() / 1000) + (meta.periodo === 'anual' ? 366 : 31) * 86400;
     const dif = activarPorStripe(u, planPer, fin);
@@ -821,6 +851,8 @@ async function eventoStripe(ev) {
     const sub = o.subscription || (o.parent && o.parent.subscription_details && o.parent.subscription_details.subscription);
     if (sub) u.stripeSuscripcion = sub.id || sub;
     const dif = activarPorStripe(u, planPer, l && l.period && l.period.end);
+    // Renovación de Consultora con menos empresas cliente que el tramo cobrado: la bajada se aplica cambiando el precio en Stripe
+    if (u.plan === 'consultora' && +u.tramo > tramoConsultora(cuentanEmpresas('consultora', nEmpresas(u)))) avisarEquipo(`Bajada de tramo posible: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> tiene ${cuentanEmpresas('consultora', nEmpresas(u))} empresas cliente y Stripe le cobra el tramo ${NOMBRE_TRAMO[u.tramo]}.`, `Para que la siguiente renovación sea del tramo ${NOMBRE_TRAMO[tramoConsultora(cuentanEmpresas('consultora', nEmpresas(u)))]}, cambie el precio de su suscripción en Stripe (sin prorrateo ni devolución).`]);
     u.pagos = u.pagos || [];
     // invoice.paid e invoice.payment_succeeded llegan las dos: el pago se apunta una sola vez por factura
     if (!u.pagos.some((p) => p.stripeFactura === o.id)) {
@@ -943,7 +975,36 @@ const IA_PLAN = {
   escucha: { planes: ['consultora'], msg: 'La lectura con IA de la auditoría integral está incluida en el plan Consultora.' },
   mercado: { planes: ['profesional', 'consultora', 'grupos'], msg: 'El agente de mercado forma parte del sistema estratégico, incluido desde el plan Profesional.' }
 };
-async function conIA(u, funcion, peso, chars, fn) {
+/* Cuota por empresa en los planes con varias empresas (Consultora y Grupos): además de la diaria de la cuenta, cada empresa
+   tiene un máximo de consultas al mes (IA_MENSUAL_EMPRESA, 300) y al día (IA_DIARIA_EMPRESA, 40), con los mismos pesos.
+   La administración puede ampliar la mensual de una cuenta concreta (iaEmpresaMes). El navegador indica la empresa en la
+   cabecera X-Atalaya-Empresa; si no viene o no es de la cuenta, cuenta como la principal.
+   Uso: u.usoIAEmpresa[empresa]['AAAA-MM'] = {n, c} (mes) y ['AAAA-MM-DD'] = {n, c} (día); se guardan 13 meses y 7 días. */
+const IA_MENSUAL_EMPRESA = num('IA_MENSUAL_EMPRESA', 300);
+const IA_DIARIA_EMPRESA = num('IA_DIARIA_EMPRESA', 40);
+const PLANES_VARIAS = ['consultora', 'grupos'];
+const iaEmpresaMesDe = (u) => (+u.iaEmpresaMes > 0 ? +u.iaEmpresaMes : IA_MENSUAL_EMPRESA);
+function empresaIA(u, req) {
+  const h = String((req && req.headers['x-atalaya-empresa']) || '').trim().slice(0, 80);
+  if (!h || h === 'principal' || !/^[\w-]+$/.test(h)) return 'principal';
+  const reg = D.get(u.id, 'empresas');
+  return reg && Array.isArray(reg.lista) && reg.lista.some((e) => e && e.id === h && !e.modelo) ? h : 'principal';
+}
+function usoEmpresa(u, em, crear) {
+  const todo = u.usoIAEmpresa || (crear ? (u.usoIAEmpresa = {}) : {}), x = todo[em] || (crear ? (todo[em] = {}) : {});
+  const mes = today().slice(0, 7), dia = today();
+  return { x, mes: x[mes] || (crear ? (x[mes] = { n: 0, c: 0 }) : { n: 0, c: 0 }), dia: x[dia] || (crear ? (x[dia] = { n: 0, c: 0 }) : { n: 0, c: 0 }) };
+}
+function purgarUsoEmpresa(u) {
+  const t = u.usoIAEmpresa; if (!t) return;
+  Object.keys(t).forEach((em) => {
+    const ks = Object.keys(t[em]);
+    ks.filter((k) => k.length === 7).sort().slice(0, -13).forEach((k) => delete t[em][k]);
+    ks.filter((k) => k.length === 10).sort().slice(0, -7).forEach((k) => delete t[em][k]);
+    if (!Object.keys(t[em]).length) delete t[em];
+  });
+}
+async function conIA(u, funcion, peso, chars, fn, req) {
   const p = IA_PLAN[funcion]; if (p && !p.planes.includes(u.plan)) throw fallo(403, p.msg);
   if (!(await claude())) throw fallo(503, 'La IA no está configurada en el servidor');
   const tipo = access(u).motivo === 'pagado' ? 'pago' : 'prueba', lim = CUOTA_IA[tipo];
@@ -953,12 +1014,26 @@ async function conIA(u, funcion, peso, chars, fn) {
       ? `Ha llegado al límite diario de IA de la prueba gratuita (${lim.n} consultas o su volumen de texto). Se renueva mañana; con el plan activado el límite es mayor.`
       : `Ha llegado al límite diario de IA de su cuenta (${lim.n} consultas o su volumen de texto). Se renueva mañana; si necesita más, escríbanos.`);
   }
+  // Varias empresas: la cuota de la empresa en la que se trabaja (las demás siguen pudiendo usar la IA)
+  let ue = null;
+  if (PLANES_VARIAS.includes(u.plan)) {
+    const em = empresaIA(u, req), v = usoEmpresa(u, em, false), limMes = iaEmpresaMesDe(u);
+    if (v.mes.n + peso > limMes) throw fallo(429, `Ha llegado al límite mensual de IA de esta empresa (${limMes} consultas). Se renueva el día 1; si necesita más, escríbanos.`, { cuota: 'empresa-mes', empresa: em });
+    if (v.dia.n + peso > IA_DIARIA_EMPRESA) throw fallo(429, `Ha llegado al límite diario de IA de esta empresa (${IA_DIARIA_EMPRESA} consultas). Se renueva mañana; si necesita más, escríbanos.`, { cuota: 'empresa-dia', empresa: em });
+    ue = usoEmpresa(u, em, true);
+    ue.mes.n += peso; ue.mes.c += chars; ue.dia.n += peso; ue.dia.c += chars;
+    purgarUsoEmpresa(u);
+  }
   d.n += peso; d.c += chars; u.iaTotal = (u.iaTotal || 0) + peso;
   Object.keys(u.usoIA).sort().slice(0, -60).forEach((k) => delete u.usoIA[k]); // solo los últimos 60 días
   save();
   try { return await fn(); } catch (e) {
     // Si la API no llegó a responder (caída, saturación) la consulta no cuenta
-    if (e.status || /Connection|Timeout/.test((e.constructor && e.constructor.name) || '')) { d.n -= peso; d.c -= chars; u.iaTotal -= peso; save(); }
+    if (e.status || /Connection|Timeout/.test((e.constructor && e.constructor.name) || '')) {
+      d.n -= peso; d.c -= chars; u.iaTotal -= peso;
+      if (ue) { ue.mes.n -= peso; ue.mes.c -= chars; ue.dia.n -= peso; ue.dia.c -= chars; }
+      save();
+    }
     throw e;
   }
 }
@@ -1072,7 +1147,8 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
     if (nuevo === 'grupos') throw fallo(403, 'El plan Grupos se contrata a medida: pida la propuesta con «Contactar con nuestro equipo».');
     // Bajar a un plan con menos empresas exige borrar antes las que sobran
     const lim = LIMITE_EMPRESAS[nuevo];
-    if (nEmpresas(u) > lim) throw fallo(400, `Tiene ${nEmpresas(u)} empresas y ese plan admite ${lim}. Borre antes las que sobran.`);
+    const nCu = cuentanEmpresas(nuevo, nEmpresas(u));
+    if (nCu > lim) throw fallo(400, `Tiene ${nCu} empresas y ese plan admite ${lim}. Borre antes las que sobran.`);
     if (u.pagado && ORDEN_PLAN[nuevo] > (ORDEN_PLAN[u.plan] || 0)) {
       const periodo = PERIODOS.includes(body.periodo) ? body.periodo : u.periodo || 'mensual';
       u.planPendiente = { plan: nuevo, periodo, fecha: now() };
@@ -1219,9 +1295,9 @@ function revisionSistema() {
   const copias = [];
   for (let i = 1; i <= COPIAS; i++) { try { copias.push({ n: i, fecha: fs.statSync(copia(i)).mtime.toISOString() }); } catch { /* no existe */ } }
   const ultima = copias[0] && copias[0].fecha;
-  if (!copias.length) pon(db.users.length ? 'aviso' : 'ok', 'Copias', db.users.length ? 'Todavía no hay copias diarias en el disco.' : 'Sin copias todavía (no hay cuentas).', 'Se crean solas antes de la primera escritura de cada día.');
-  else if (diasDesde(ultima) > 2) pon('aviso', 'Copias', `La copia diaria más reciente es de hace ${diasDesde(ultima)} días.`, 'Es normal si no ha habido cambios; si los hubo, revise los errores del registro.');
-  else pon('ok', 'Copias', `${copias.length} ${copias.length === 1 ? 'copia diaria' : 'copias diarias'} en el disco; la última, ${diasDesde(ultima) === 0 ? 'de hoy' : `de hace ${diasDesde(ultima)} ${diasDesde(ultima) === 1 ? 'día' : 'días'}`}.`);
+  if (!copias.length) pon(db.users.length ? 'aviso' : 'ok', 'Copias', db.users.length ? 'Todavía no hay copias mensuales en el disco.' : 'Sin copias todavía (no hay cuentas).', 'Se crean solas antes de la primera escritura de cada mes.');
+  else if (diasDesde(ultima) > 40) pon('aviso', 'Copias', `La copia mensual más reciente es de hace ${diasDesde(ultima)} días.`, 'Es normal si no ha habido cambios este mes; si los hubo, revise los errores del registro.');
+  else pon('ok', 'Copias', `${copias.length} ${copias.length === 1 ? 'copia mensual' : 'copias mensuales'} en el disco (se guardan ${COPIAS}; la siguiente se escribe sobre la más antigua); la última, ${diasDesde(ultima) === 0 ? 'de hoy' : `de hace ${diasDesde(ultima)} ${diasDesde(ultima) === 1 ? 'día' : 'días'}`}.`);
   let externa = null;
   try { externa = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'copia-externa.json'), 'utf8')); } catch { /* sin registro */ }
   if (!externa) pon('grave', 'Copias', 'No consta ninguna copia fuera de este servidor.', 'Configure despliegue/copia-seguridad.sh (se instala con instalar.sh) y su destino externo.');
@@ -1268,6 +1344,9 @@ function revisionSistema() {
   if (fallidos) pon('grave', 'Cobros', `${fallidos} ${fallidos === 1 ? 'cuenta tiene' : 'cuentas tienen'} un cobro fallido.`, 'Revise la tabla de usuarios (estado «cobro fallido») y contacte con el cliente.');
   if (venceSemana) pon('aviso', 'Cobros', `${venceSemana} ${venceSemana === 1 ? 'acceso pagado vence' : 'accesos pagados vencen'} en los próximos 7 días.`);
   if (pendientes.contactosAntiguos) pon('aviso', 'Atención', `${pendientes.contactosAntiguos} solicitudes llevan más de 2 días sin atender.`, 'Ábralas en «Pendiente de atender».');
+  // Cuota de IA por empresa (Consultora y Grupos): cuentas con alguna empresa por encima del 80 % de su cuota de este mes
+  const mesIA = today().slice(0, 7), cercaIA = db.users.filter((u) => PLANES_VARIAS.includes(u.plan) && Object.values(u.usoIAEmpresa || {}).some((x) => x[mesIA] && x[mesIA].n >= 0.8 * iaEmpresaMesDe(u)));
+  if (cercaIA.length) pon('aviso', 'IA', `${cercaIA.length} ${cercaIA.length === 1 ? 'cuenta tiene' : 'cuentas tienen'} alguna empresa por encima del 80 % de su cuota mensual de IA.`, 'Revise el uso de IA por empresa en la ficha de cada cuenta y, si conviene, amplíe su cuota.');
   if (pendientes.activacion + pendientes.cambioPlan + pendientes.contrasena) pon('aviso', 'Atención', `Solicitudes abiertas: ${pendientes.activacion} de activación, ${pendientes.cambioPlan} de cambio de plan y ${pendientes.contrasena} de contraseña.`);
 
   // Errores recientes
@@ -1412,19 +1491,23 @@ const mb = (b) => (b < 1048576 ? Math.ceil(b / 1024) + ' KB' : (b / 1048576).toL
 const versionDe = (v) => (v == null ? '' : crypto.createHash('sha1').update(JSON.stringify(v)).digest('hex').slice(0, 16));
 route('GET', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => { if (access(u).motivo === 'bloqueado') throw fallo(402, 'Su acceso está suspendido'); claveDe(m[1]); const data = D.get(u.id, m[1]); return { data, ver: versionDe(data) }; }, { noAccess: true });
 // Empresas por plan: el servidor también lo comprueba (no basta con el navegador)
+// Consultora: 15 empresas cliente, sin contar la principal (ver cuentanEmpresas)
 const LIMITE_EMPRESAS = { esencial: 1, profesional: 1, consultora: 15, grupos: Infinity };
 route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m) => {
   const key = m[1], { base, empresa } = claveDe(key);
   const borrar = body === null;
   const regla = CLAVES[base];
+  let pasoTramo = null;
   if (regla && !borrar && !regla.planes.includes(u.plan)) throw fallo(403, regla.msg);
   if (key === 'empresas') {
     const lista = body && Array.isArray(body.lista) ? body.lista : null;
     if (!lista || !lista.length || lista.length > 500 || !lista.some((e) => e && e.id === 'principal')) throw fallo(400, 'Registro de empresas no válido');
     const lim = LIMITE_EMPRESAS[u.plan] != null ? LIMITE_EMPRESAS[u.plan] : 1;
     const reg = D.get(u.id, 'empresas'), antes = reg && Array.isArray(reg.lista) ? reg.lista.length : 1;
+    const nNuevo = cuentanEmpresas(u.plan, lista.length), nAntes = cuentanEmpresas(u.plan, antes);
     // Se puede quedar igual o bajar aunque se esté por encima (p. ej. tras cambiar a un plan menor), pero no subir del límite
-    if (lista.length > lim && lista.length > antes) throw fallo(403, lim === 1 ? 'Su plan incluye una empresa. Para varias, pase a Consultora o a Grupos.' : `Su plan incluye hasta ${lim} empresas.`);
+    if (nNuevo > lim && lista.length > antes) throw fallo(403, lim === 1 ? 'Su plan incluye una empresa. Para varias, pase a Consultora o a Grupos.' : `Su plan incluye hasta ${lim} ${u.plan === 'consultora' ? 'empresas cliente (su propia empresa no cuenta)' : 'empresas'}.`);
+    if (u.plan === 'consultora') pasoTramo = { nAntes, nNuevo };
   }
   if (empresa && !borrar) {
     const reg = D.get(u.id, 'empresas'), ids = reg && Array.isArray(reg.lista) ? reg.lista.map((e) => e && e.id) : [];
@@ -1440,8 +1523,29 @@ route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m
   if (bytes > DATA_MAX_CLAVE) throw fallo(413, `Este dato ocupa ${mb(bytes)} y el máximo es ${mb(DATA_MAX_CLAVE)}. Borre documentos o cargas antiguas y vuelva a guardar.`);
   const total = Object.values(t).reduce((a, b) => a + b, 0) - (t[key] || 0) + bytes;
   if (total > DATA_MAX_CUENTA) throw fallo(413, `Su cuenta llegaría a ${mb(total)} y el máximo es ${mb(DATA_MAX_CUENTA)}. Borre empresas o datos que no use, o escríbanos para ampliarlo.`);
-  D.set(u.id, key, body, json); return { ok: true, ver: versionDe(body) };
+  D.set(u.id, key, body, json);
+  if (pasoTramo) cambioDeTramo(req, u, pasoTramo.nAntes, pasoTramo.nNuevo);
+  return { ok: true, ver: versionDe(body) };
 });
+/* Paso de tramo en Consultora al dar de alta empresas cliente. En prueba (o sin pagar) la cuota sigue a las empresas al momento.
+   Con el acceso pagado, el tramo facturado (u.tramo) se fija y la subida queda como solicitud de cambio (planPendiente con
+   tramo) hasta que la administración la confirma o Stripe cobra el precio del tramo nuevo; bajar de tramo al borrar empresas
+   se aplica en la siguiente renovación (registro de un pago o cobro de Stripe), sin devoluciones. */
+function cambioDeTramo(req, u, nAntes, nNuevo) {
+  if (u.plan !== 'consultora' || !u.pagado || u.cuotaPactada > 0) return;
+  const facturado = +u.tramo || tramoConsultora(nAntes), nuevo = tramoConsultora(nNuevo);
+  if (!u.tramo) u.tramo = facturado;
+  if (nuevo <= facturado || (u.planPendiente && u.planPendiente.plan === 'consultora' && +u.planPendiente.tramo >= nuevo)) { save(); return; }
+  const periodo = u.periodo || 'mensual';
+  u.planPendiente = { plan: 'consultora', periodo, tramo: nuevo, fecha: now() };
+  const mensaje = `Cambio de tramo de Consultora: pasa a ${nNuevo} empresas cliente, tramo ${NOMBRE_TRAMO[nuevo]} (${PRECIO_CONSULTORA[nuevo]} €/mes antes del descuento anual), desde el tramo ${NOMBRE_TRAMO[facturado]}. Para confirmarlo, use «Confirmar el cambio» en los avisos del gestor de usuarios${u.stripeSuscripcion ? ' y cambie el precio de su suscripción en Stripe' : ''}.`;
+  db.contactos = (db.contactos || []).filter((c) => !(c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido));
+  db.contactos.unshift({ id: nid('c'), fecha: now(), plan: 'consultora', nombre: u.nombre || '', email: u.email, telefono: u.telefono || '', empresa: u.empresa || '', mensaje, origen: 'cambio-plan', cuenta: u.id });
+  db.contactos = db.contactos.slice(0, 500);
+  save();
+  anotarActividad(req, 'plan.tramo', u, { quien: 'cliente', antes: { tramo: facturado }, despues: { planPendiente: u.planPendiente } });
+  avisarEquipo(`Cambio de tramo: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> tiene ahora ${nNuevo} empresas cliente en Consultora (pago ${periodo}).`, mensaje]);
+}
 
 /* ---------- Test de personas por enlace ----------
    El responsable crea una invitación de un solo uso (caduca a los 14 días) para que una persona responda
@@ -1565,7 +1669,15 @@ function nuevoPago(u, d, por) {
   (u.pagos = u.pagos || []).push(p); delete u.solicitudPago;
   return p;
 }
-route('GET', /^\/api\/admin\/users$/, async () => ({ users: db.users.map((u) => Object.assign(pub(u), { empresas: nEmpresas(u) })) }), { admin: true });
+// Uso de IA de este mes por empresa (planes con varias empresas), con el nombre de cada una, para el detalle de la cuenta
+function iaPorEmpresa(u) {
+  if (!PLANES_VARIAS.includes(u.plan) && !u.usoIAEmpresa) return null;
+  const reg = D.get(u.id, 'empresas'), lista = reg && Array.isArray(reg.lista) ? reg.lista.filter((e) => e && e.id && !e.modelo) : [{ id: 'principal', nombre: u.empresa || 'Mi empresa' }];
+  const mes = today().slice(0, 7), t = u.usoIAEmpresa || {};
+  const ids = Array.from(new Set(lista.map((e) => e.id).concat(Object.keys(t))));
+  return ids.map((id) => { const e = lista.find((x) => x.id === id); return { id, nombre: e ? e.nombre || id : 'Empresa borrada', principal: id === 'principal', mes: (t[id] && t[id][mes]) || { n: 0, c: 0 }, hoy: (t[id] && t[id][today()]) || { n: 0, c: 0 } }; });
+}
+route('GET', /^\/api\/admin\/users$/, async () => ({ users: db.users.map((u) => Object.assign(pub(u), { empresas: nEmpresas(u), iaEmpresas: iaPorEmpresa(u) })) }), { admin: true });
 route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) => {
   const u = usuarioDe(m[1]), antes = foto(u);
   if (['prueba', 'activo', 'bloqueado'].includes(body.estado)) u.estado = body.estado;
@@ -1576,6 +1688,12 @@ route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) 
     u.plan = body.plan; delete u.planPendiente; cerrarCambioPlan(u);
   }
   if (body.planPendiente === null) { delete u.planPendiente; cerrarCambioPlan(u); }
+  // Tramo facturado de Consultora (5, 10 o 15): lo fija la administración al confirmar un cambio de tramo; null lo vuelve automático
+  // Cuota mensual de IA por empresa ampliada para esta cuenta (null o 0: la general, IA_MENSUAL_EMPRESA)
+  if (body.iaEmpresaMes === null || +body.iaEmpresaMes === 0) delete u.iaEmpresaMes;
+  else if (Number.isFinite(+body.iaEmpresaMes) && +body.iaEmpresaMes > 0) u.iaEmpresaMes = Math.min(100000, Math.round(+body.iaEmpresaMes));
+  if (body.tramo === null) delete u.tramo;
+  else if (TRAMOS_CONSULTORA.includes(+body.tramo)) { u.tramo = +body.tramo; if (u.planPendiente && u.planPendiente.tramo && u.planPendiente.plan === u.plan && +u.planPendiente.tramo <= u.tramo) { delete u.planPendiente; cerrarCambioPlan(u); } }
   if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
   if (body.venceAcceso === null || (typeof body.venceAcceso === 'string' && !isNaN(Date.parse(body.venceAcceso)))) u.venceAcceso = body.venceAcceso;
   if (typeof body.nota === 'string') u.nota = body.nota.slice(0, 2000);
@@ -1645,6 +1763,12 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/pagos$/, async (req, res, body, m
     const base = u.pagado && u.venceAcceso && Date.parse(u.venceAcceso) > Date.now() ? new Date(u.venceAcceso) : new Date();
     base.setMonth(base.getMonth() + pago.meses);
     Object.assign(u, { pagado: true, venceAcceso: base.toISOString() }); if (u.estado !== 'bloqueado') u.estado = 'activo';
+    // Renovación de Consultora: el tramo facturado pasa a ser el de sus empresas cliente de hoy (sube o baja), o el pedido si es mayor
+    if (u.plan === 'consultora' && !(u.cuotaPactada > 0)) {
+      const pend = u.planPendiente && u.planPendiente.plan === 'consultora' ? +u.planPendiente.tramo || 0 : 0;
+      u.tramo = Math.max(tramoConsultora(cuentanEmpresas('consultora', nEmpresas(u))), TRAMOS_CONSULTORA.includes(pend) ? pend : 0);
+      if (pend && pend <= u.tramo) { delete u.planPendiente; cerrarCambioPlan(u); }
+    }
   }
   const dif = diferencias(antes, foto(u), CAMPOS_CUENTA) || {};
   anotarActividad(req, 'pago.registrar', u, { antes: dif.antes, despues: Object.assign({ pago }, dif.despues) });
@@ -1760,13 +1884,15 @@ route('POST', /^\/api\/me\/pago\/checkout$/, async (req, res, body, u) => {
   // Plan que se paga: el elegido (si el cliente puede elegirlo), el pendiente de confirmar o el actual
   const plan = PLANES_LIBRES.includes(body.plan) || (body.plan === 'grupos' && u.plan === 'grupos') ? body.plan : (u.planPendiente && u.planPendiente.plan) || u.plan;
   const periodo = PERIODOS.includes(body.periodo) ? body.periodo : (u.planPendiente && u.planPendiente.periodo) || u.periodo || 'mensual';
-  const precio = STRIPE_PRECIOS[`${plan}-${periodo}`];
-  if (!precio) throw fallo(404, `El plan ${NOMBRE_PLAN[plan] || plan} con pago ${periodo} no se puede pagar en línea: solicite el enlace de pago.`, { manual: true });
+  const claveP = clavePrecioDe(u, plan, periodo), { tramo } = leerPlanPer(claveP);
+  const precio = STRIPE_PRECIOS[claveP];
+  if (!precio) throw fallo(404, `El plan ${NOMBRE_PLAN[plan] || plan}${tramo ? ` (tramo ${NOMBRE_TRAMO[tramo]})` : ''} con pago ${periodo} no se puede pagar en línea: solicite el enlace de pago.`, { manual: true });
   if (u.stripeSuscripcion && ['active', 'trialing', 'past_due'].includes(u.stripeEstado)) throw fallo(409, 'Ya tiene una suscripción. Cambie de plan o de tarjeta desde «Gestionar el pago».', { portal: true });
   const p = {
     mode: 'subscription', 'line_items[0][price]': precio, 'line_items[0][quantity]': '1', client_reference_id: u.id, locale: 'es',
     'metadata[cuenta]': u.id, 'metadata[plan]': plan, 'metadata[periodo]': periodo,
     'subscription_data[metadata][cuenta]': u.id, 'subscription_data[metadata][plan]': plan, 'subscription_data[metadata][periodo]': periodo,
+    ...(tramo ? { 'metadata[tramo]': String(tramo), 'subscription_data[metadata][tramo]': String(tramo) } : {}),
     success_url: env.STRIPE_URL_OK || `${APP_URL}/app.html?pago=ok`, cancel_url: env.STRIPE_URL_CANCELAR || `${APP_URL}/acceso.html#pago`,
     billing_address_collection: 'required', 'tax_id_collection[enabled]': 'true'
   };
@@ -1774,7 +1900,7 @@ route('POST', /^\/api\/me\/pago\/checkout$/, async (req, res, body, u) => {
   else p.customer_email = u.email;
   if (env.STRIPE_IMPUESTOS === '1') p['automatic_tax[enabled]'] = 'true';
   const s = await stripeApi('checkout/sessions', p);
-  anotarActividad(req, 'pago.checkout', u, { quien: 'cliente', despues: { plan, periodo }, nota: s.id });
+  anotarActividad(req, 'pago.checkout', u, { quien: 'cliente', despues: Object.assign({ plan, periodo }, tramo ? { tramo } : {}), nota: s.id });
   return { url: s.url };
 }, { noAccess: true });
 route('POST', /^\/api\/me\/pago\/portal$/, async (req, res, body, u) => {
@@ -1792,7 +1918,7 @@ route('POST', /^\/api\/chat$/, async (req, res, body, u) => {
   const largo = JSON.stringify(messages).length;
   if (!messages.length || largo > 400000) throw fallo(400, 'Conversación no válida');
   const pagina = String(body.page || '').replace(/[^a-z]/g, '').slice(0, 20);
-  const r = await conIA(u, 'chat', 1, largo + JSON.stringify(tools).length, () => ask({ system: SYSTEM_CHAT + (pagina ? `\nEl usuario está ahora en: ${pagina}.` : ''), tools, messages, output_config: { effort: 'low' } }));
+  const r = await conIA(u, 'chat', 1, largo + JSON.stringify(tools).length, () => ask({ system: SYSTEM_CHAT + (pagina ? `\nEl usuario está ahora en: ${pagina}.` : ''), tools, messages, output_config: { effort: 'low' } }), req);
   return { content: r.content, stop_reason: r.stop_reason };
 });
 
@@ -1806,7 +1932,7 @@ route('POST', /^\/api\/escucha$/, async (req, res, body, u) => {
     system: 'Eres un consultor sénior de pymes familiares españolas experto en diagnóstico: escuchas cómo el empresario describe su empresa, separas síntomas de causas, lees entre líneas lo que quiere decir y no dice, y priorizas las causas cuyo 20 % de solución da el 80 % del resultado. Cada afirmación se apoya en una cita literal de la transcripción; no inventas. Respondes en español y solo con JSON.',
     messages: [{ role: 'user', content: `${instr}\n\nDevuelve SOLO JSON con esta forma: ${forma}\n\nTranscripción:\n${texto}` }],
     output_config: { effort: 'medium' }
-  }));
+  }), req);
   return { datos: jsonOf(textOf(r)) };
 });
 
@@ -1820,7 +1946,7 @@ route('POST', /^\/api\/extract$/, async (req, res, body, u) => {
     system: 'Extraes datos de documentos de empresa (cuentas anuales, balances, extractos, listados) con exactitud. No inventas valores: si un dato no aparece, lo omites. Importes en euros como números sin separadores.',
     messages: [{ role: 'user', content: `Destino: ${destino}. Devuelve SOLO JSON con esta forma: ${forma}\n\nDocumento:\n${texto}` }],
     output_config: { effort: 'low' }
-  }));
+  }), req);
   return { datos: jsonOf(textOf(r)) };
 });
 
@@ -1830,7 +1956,7 @@ route('GET', /^\/api\/mercado$/, async (req, res, body, u) => ({ analisis: D.mer
 route('POST', /^\/api\/mercado\/actualizar$/, async (req, res, body, u) => {
   const perfil = { sector: body.sector, actividad: body.actividad, region: body.region, productos: body.productos, clientes: body.clientes, ventas: body.ventas };
   if (JSON.stringify(perfil).length > 20000) throw fallo(400, 'El perfil de la empresa es demasiado largo');
-  const a = await conIA(u, 'mercado', PESO_MERCADO, 6000, () => agenteMercado(perfil));
+  const a = await conIA(u, 'mercado', PESO_MERCADO, 6000, () => agenteMercado(perfil), req);
   a.perfil = perfil;
   D.setMercado(u.id, a);
   return { analisis: a };

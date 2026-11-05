@@ -24,7 +24,8 @@
   const PLANES = {
     esencial: { nombre: 'Esencial', precio: 49, periodo: 'mes', empresas: 1, para: 'Para estudiar una inversión', incluye: ['Simulador de inversión y crecimiento', 'Horizonte 3D y cinco escenarios', 'Semáforos con horquillas y plan de corrección', 'Informe de decisión', '1 empresa'] },
     profesional: { nombre: 'Profesional', precio: 129, periodo: 'mes', empresas: 1, destacado: true, para: 'Para diagnosticar su empresa y decidir', incluye: ['Todo lo de Esencial', 'Sistema estratégico completo: 22 módulos en cinco áreas, zona de origen de datos e informes 360', 'Análisis de cuentas de varios años', 'Asistente con voz', '1 empresa'] },
-    consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Personas y equipos: DISC, aportaciones al equipo, eneagrama, encaje persona-puesto, liderazgo y tablillas de entrenamiento', 'Auditoría integral: primera sesión como un triaje, auditoría por áreas y plan de intervención con sus sesiones', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
+    // Consultora cobra por tramos de empresas cliente: la empresa principal (la del propio consultor) no cuenta ni para el límite ni para el tramo
+    consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, clientes: true, para: 'Para consultores y asesorías', tramos: [{ hasta: 5, precio: 349, n: 'Hasta 5 empresas cliente' }, { hasta: 10, precio: 549, n: 'De 6 a 10 empresas cliente' }, { hasta: 15, precio: 749, n: 'De 11 a 15 empresas cliente' }], incluye: ['Todo lo de Profesional', 'Personas y equipos: DISC, aportaciones al equipo, eneagrama, encaje persona-puesto, liderazgo y tablillas de entrenamiento', 'Auditoría integral: primera sesión como un triaje, auditoría por áreas y plan de intervención con sus sesiones', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado; su propia empresa no cuenta', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
     // Grupos se contrata a medida con el equipo: no se publica precio. Los tramos quedan como referencia interna de administración
     grupos: { nombre: 'Grupos', precio: 690, periodo: 'mes', empresas: Infinity, grupo: true, aMedida: true, para: 'Para holdings y grupos familiares', tramos: [{ hasta: 5, precio: 690, n: 'De 1 a 5 sociedades' }, { hasta: 10, precio: 970, n: 'De 6 a 10 sociedades' }, { hasta: Infinity, precio: 1790, n: 'Más de 10 sociedades' }], incluye: ['Todo lo de Profesional, en cada sociedad del grupo', 'Estructuras de holding: sociedad dominante, filiales y participaciones, con su mapa', 'Grupo empresarial: consolidado con eliminaciones intragrupo, comparativa y tesorería entre sociedades', 'Informes del grupo e informe 360 de cada sociedad', 'Plan estratégico de toda la corporación: objetivos de la holding en cascada a cada sociedad', 'Sociedades sin límite y acompañamiento de nuestro equipo'] }
   };
@@ -42,12 +43,19 @@
   /* Contacto directo (pantalla de pago y avisos). El correo, vacío hasta que se configure */
   P.CONTACTO = { telefono: '+34 678 447 296', email: '', web: 'https://businessavance.es', respuesta: 'en 24 horas laborables' };
   const r2 = (x) => Math.round(x * 100) / 100;
-  /* Precio de un plan: mensual o anual (−30 %); en Grupos, según el tramo de sociedades */
+  /* Lo que cuenta para el límite y el tramo de un plan, a partir del total de empresas reales de la cuenta (sin la empresa
+     modelo): en Consultora, solo las empresas cliente (la principal, la del propio consultor, no cuenta); en los demás, todas */
+  P.nCuenta = (plan, total) => { total = Math.max(0, +total || 0); return PLANES[plan] && PLANES[plan].clientes ? Math.max(0, total - 1) : total; };
+  P.tramoDe = (plan, n) => { const p = PLANES[plan]; return p && p.tramos ? p.tramos.find((x) => (n || 1) <= x.hasta) || p.tramos[p.tramos.length - 1] : null; };
+  /* Número con el que se calcula la cuota de una cuenta. En Consultora con el acceso pagado manda el tramo facturado (u.tramo):
+     subir de tramo queda pendiente hasta que se confirma y bajar se aplica en la siguiente renovación (sin devoluciones) */
+  P.nPrecio = (u, total) => { u = u || {}; const n = P.nCuenta(u.plan, total); return PLANES[u.plan] && PLANES[u.plan].clientes && u.pagado && +u.tramo > 0 ? +u.tramo : n; };
+  /* Precio de un plan: mensual o anual (−30 %); en Grupos (sociedades) y en Consultora (empresas cliente), según el tramo */
   P.precio = function (plan, periodo, n, pactada) {
     const p = PLANES[plan] || PLANES.profesional;
     // Plan a medida con cuota pactada por la administración: manda la cuota acordada (mensual)
     if (pactada > 0) return periodo === 'anual' ? { periodo: 'anual', base: pactada, mes: pactada, total: r2(pactada * 12), ahorro: 0, tramo: null, pactada: true } : { periodo: 'mensual', base: pactada, mes: pactada, total: pactada, ahorro: 0, tramo: null, pactada: true };
-    const t = p.tramos ? p.tramos.find((x) => (n || 1) <= x.hasta) || p.tramos[p.tramos.length - 1] : null;
+    const t = P.tramoDe(plan in PLANES ? plan : 'profesional', n);
     const base = t ? t.precio : p.precio;
     if (periodo === 'anual') { const mes = r2(base * (1 - DTO_ANUAL)); return { periodo: 'anual', base, mes, total: r2(mes * 12), ahorro: r2(base * 12 - mes * 12), tramo: t }; }
     return { periodo: 'mensual', base, mes: base, total: base, ahorro: 0, tramo: t };
@@ -65,8 +73,13 @@
       return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
     } catch (e) { let h = 0; for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0; return 'x' + h; }
   }
+  // Las llamadas de IA llevan la empresa en la que se trabaja: en Consultora y Grupos la cuota de IA es también por empresa
+  const RUTA_IA = /^\/(chat|extract|escucha|mercado\/actualizar)(\?|$)/;
   async function api(path, opts) {
-    const r = await fetch('/api' + path, Object.assign({ credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } }, opts || {}));
+    const o = Object.assign({ credentials: 'same-origin' }, opts || {}), cab = { 'Content-Type': 'application/json' };
+    if (RUTA_IA.test(path)) { try { const id = P.empresaId(); if (id) cab['X-Atalaya-Empresa'] = id; } catch (e) { /* sin empresa: cuenta como la principal */ } }
+    o.headers = Object.assign(cab, (opts && opts.headers) || {});
+    const r = await fetch('/api' + path, o);
     let body = null; try { body = await r.json(); } catch (e) { /* sin cuerpo */ }
     if (!r.ok) throw Object.assign(new Error((body && body.error) || 'Error del servidor (' + r.status + ')'), { status: r.status, body });
     // Cada respuesta buena es una ocasión para reenviar lo que quedó pendiente
@@ -339,13 +352,18 @@
     lista: () => (REG ? REG.lista : []),
     // Las empresas de verdad (sin la empresa modelo): cuentan para el límite del plan
     reales: () => (REG ? REG.lista.filter((e) => !e.modelo) : []),
+    // Las que cuentan para el límite y el tramo del plan (en Consultora, sin la principal)
+    cuentan: (plan) => P.nCuenta(plan || (P.user && P.user.plan) || 'profesional', P.empresas.reales().length),
     activa: () => (REG ? REG.lista.find((e) => e.id === P.empresaId()) || REG.lista[0] : null),
     // En el servidor el alta de empresas se comprueba: si el plan no lo permite, el error llega aquí
     async guardar() { await P.ready; const out = Object.assign({}, REG, { lista: REG.lista.filter((e) => !e.modelo) }); if (P.mode === 'server') { await api('/data/empresas', { method: 'PUT', body: JSON.stringify(out) }); return; } await P.saveData('empresas', out); },
     async crear(d) {
       await P.empresas.cargar();
       const lim = P.limiteEmpresas();
-      if (P.empresas.reales().length >= lim) throw new Error(lim === 1 ? 'Su plan incluye una empresa. Para trabajar con varias, pase a Consultora (empresas cliente) o a Grupos (sociedades de un grupo).' : `Su plan incluye hasta ${lim} empresas.`);
+      if (P.empresas.cuentan() >= lim) throw new Error(lim === 1 ? 'Su plan incluye una empresa. Para trabajar con varias, pase a Consultora (empresas cliente) o a Grupos (sociedades de un grupo).' : `Su plan incluye hasta ${lim} ${PLANES[P.user.plan] && PLANES[P.user.plan].clientes ? 'empresas cliente (su propia empresa no cuenta)' : 'empresas'}.`);
+      // Consultora: si esta empresa hace pasar a un tramo superior, se avisa antes de crearla
+      if (!d.sinAvisoTramo && !(await P.avisoTramo())) throw Object.assign(new Error('No se ha creado la empresa.'), { cancelado: true });
+      d = Object.assign({}, d); delete d.sinAvisoTramo;
       const e = Object.assign({}, d, { id: 'e' + Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 4), nombre: (d.nombre || '').trim() || 'Nueva empresa', rol: d.rol || (P.user && PLANES[P.user.plan] && PLANES[P.user.plan].grupo ? 'filial' : 'cliente'), participacion: d.participacion != null && d.participacion !== '' ? +d.participacion : 100, alta: new Date().toISOString() });
       REG.lista.push(e);
       try { await P.empresas.guardar(); } catch (x) { REG.lista = REG.lista.filter((y) => y.id !== e.id); throw x; }
@@ -366,6 +384,39 @@
     },
     cambiar(id) { ponerAct(id); location.reload(); }
   };
+  /* Cambio de tramo al dar de alta una empresa cliente (Consultora). Devuelve qué tramo tocaría con una empresa más y si
+     cambia la cuota respecto a la que se paga hoy (en prueba, la del tramo actual; con el acceso pagado, la del tramo facturado). */
+  P.tramoAlCrear = (u) => {
+    u = u || P.user; const pl = u && PLANES[u.plan];
+    if (!pl || !pl.clientes || !pl.tramos || u.cuotaPactada > 0) return null;
+    const total = P.empresas.reales().length, n = P.nCuenta(u.plan, total), ahora = P.tramoDe(u.plan, P.nPrecio(u, total)), luego = P.tramoDe(u.plan, n + 1);
+    if (n + 1 > pl.empresas || luego.hasta <= ahora.hasta) return null;
+    return { ahora, luego, n: n + 1, precio: P.precio(u.plan, u.periodo, n + 1), pagado: !!u.pagado };
+  };
+  /* Uso de IA de este mes de una empresa (Consultora y Grupos): { n, lim } o null si el plan no tiene cuota por empresa.
+     Se lee de la cuenta tal como llegó al abrir la página. */
+  P.iaEmpresa = (id, u) => {
+    u = u || P.user; if (!u || !u.iaEmpresaLimite) return null;
+    const x = (u.usoIAEmpresa || {})[id || 'principal'] || {}, m = x[new Date().toISOString().slice(0, 7)] || {};
+    return { n: m.n || 0, lim: u.iaEmpresaLimite.mes };
+  };
+  P.avisoTramo = (u) => new Promise((resolve) => {
+    const t = P.tramoAlCrear(u); if (!t) return resolve(true);
+    const c = P.cuota(t.precio), back = document.createElement('div'); back.className = 'ef-back tr-back';
+    back.innerHTML = `<div class="ef-card glass" role="alertdialog" aria-modal="true" aria-labelledby="trT" aria-describedby="trD" style="width:min(520px,100%)">
+      <div class="eyebrow">Plan Consultora · cambio de tramo</div>
+      <h3 id="trT" style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.4rem">Con esta empresa pasa al tramo ${escH(t.luego.n.replace(/^De /, 'de ').replace(/^Hasta /, 'hasta ').replace(/ empresas cliente$/, ' empresas'))}: <span style="white-space:nowrap">${P.eur(c.importe)}${c.unidad}</span></h3>
+      <div id="trD" class="stack" style="gap:6px"><p class="small" style="margin:0">Será su empresa cliente número ${t.n}. Hoy paga el tramo ${escH(t.ahora.n.toLowerCase())} (${P.eur(P.cuota(P.precio(P.user.plan, P.user.periodo, t.ahora.hasta)).importe)}${c.unidad}); su propia empresa no cuenta. Precios sin IVA.</p>
+      <p class="small muted" style="margin:0">${t.pagado ? 'Como su acceso ya está activado, la nueva cuota se aplica cuando nuestro equipo la confirme; le avisaremos. Mientras, sigue con su cuota actual. Si más adelante borra empresas y baja de tramo, la cuota baja en la siguiente renovación.' : 'Está en la prueba gratuita: puede crearla sin coste y verá el nuevo precio en «Mi plan». Si borra empresas y vuelve a un tramo menor, el precio vuelve a bajar.'}</p></div>
+      <div class="row"><button type="button" class="btn solid" data-tr="si">Crear la empresa</button><button type="button" class="btn ghost" data-tr="no">Cancelar</button></div>
+    </div>`;
+    const fin = (v) => { back.remove(); document.removeEventListener('keydown', esc, true); resolve(v); };
+    const esc = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); fin(false); } };
+    document.addEventListener('keydown', esc, true);
+    back.querySelector('[data-tr="si"]').onclick = () => fin(true);
+    back.querySelector('[data-tr="no"]').onclick = () => fin(false);
+    document.body.appendChild(back); back.querySelector('[data-tr="si"]').focus();
+  });
   /* ---------- Varias pestañas y varios equipos ----------
      Cada dato que esta pestaña carga o guarda se recuerda tal como lo tenía la página (BASE). Antes de guardar se comprueba si
      alguien lo ha cambiado desde entonces (otra pestaña, u otro equipo en el servidor). Si es así, no se pisa: se combinan los
@@ -691,8 +742,8 @@
       escribir[k] = c.datos[k];
     });
     if (otras.length) avisos.push(`Se ignoran ${otras.length} datos que esta versión no reconoce.`);
-    const reales = emp && Array.isArray(emp.lista) ? emp.lista.filter((e) => e && !e.modelo) : [], lim = P.limiteEmpresas();
-    if (reales.length > lim) errores.push(`La copia tiene ${reales.length} empresas y su plan admite ${lim}. Cambie antes de plan (menú de la cuenta · Mi plan) y vuelva a importarla.`);
+    const reales = emp && Array.isArray(emp.lista) ? emp.lista.filter((e) => e && !e.modelo) : [], lim = P.limiteEmpresas(), nCop = P.nCuenta(P.user && P.user.plan, reales.length);
+    if (nCop > lim) errores.push(`La copia tiene ${nCop} ${PLANES[P.user.plan] && PLANES[P.user.plan].clientes ? 'empresas cliente' : 'empresas'} y su plan admite ${lim}. Cambie antes de plan (menú de la cuenta · Mi plan) y vuelva a importarla.`);
     if (emp && Array.isArray(emp.lista)) escribir.empresas = Object.assign({}, emp, { lista: reales });
     const resumen = { fecha: c.fecha || '', email: (c.cuenta && c.cuenta.email) || '', plan: (c.cuenta && c.cuenta.plan) || '', version: c.appVersion || '', empresas: reales.map((e) => e.nombre || e.id), claves: Object.keys(escribir).length };
     return { ok: !errores.length, errores, avisos, resumen, escribir };
@@ -851,6 +902,8 @@
     }
     document.body.appendChild(back); document.addEventListener('keydown', esc2);
   };
+  // Clave del precio en línea (Stripe): por plan y periodo; en Consultora, también por tramo («consultora10-anual»)
+  P.clavePrecio = (plan, periodo, n) => { const t = PLANES[plan] && PLANES[plan].clientes ? P.tramoDe(plan, n) : null; return `${plan}${t ? t.hasta : ''}-${periodo || 'mensual'}`; };
   P.irAlPago = async (u) => { u = u || P.user; const r = await api('/me/pago/checkout', { method: 'POST', body: JSON.stringify({ plan: u.plan, periodo: u.periodo || 'mensual' }) }); return r.url; };
   P.portalPago = async () => (await api('/me/pago/portal', { method: 'POST', body: '{}' })).url;
   /* Vuelta de Stripe (?pago=ok): el aviso del banco puede tardar unos segundos; se consulta la cuenta hasta verla pagada (máx. ~30 s) */
@@ -867,17 +920,17 @@
   };
   P.pintarPago = function (host, u, opts) {
     opts = opts || {};
-    const pl = PLANES[u.plan] || PLANES.profesional, pr = P.precio(u.plan, u.periodo, opts.empresas || 1, u.cuotaPactada), c = P.cuota(pr), url = P.pagoUrl(u.plan, u.periodo), C = P.CONTACTO;
+    const pl = PLANES[u.plan] || PLANES.profesional, pr = P.precio(u.plan, u.periodo, P.nPrecio(u, opts.empresas || 1), u.cuotaPactada), c = P.cuota(pr), url = P.pagoUrl(u.plan, u.periodo), C = P.CONTACTO;
     const bloq = opts.motivo === 'bloqueado', acc = P.accessOf(u);
     // Pago en línea (Stripe) si el servidor lo tiene configurado para este plan y periodo; si no, enlace o solicitud manual
-    const stripe = P.mode === 'server' && P.serverInfo && Array.isArray(P.serverInfo.stripe) && P.serverInfo.stripe.includes(u.plan + '-' + (u.periodo || 'mensual'));
+    const stripe = P.mode === 'server' && P.serverInfo && Array.isArray(P.serverInfo.stripe) && P.serverInfo.stripe.includes(P.clavePrecio(u.plan, u.periodo, P.nPrecio(u, opts.empresas || 1)));
     const intro = bloq ? 'Su acceso está suspendido. Póngase en contacto con nosotros para revisarlo.'
       : acc.motivo === 'prueba' ? `Su prueba termina en ${acc.diasPrueba} ${acc.diasPrueba === 1 ? 'día' : 'días'}. Si activa ahora el plan, sigue trabajando sin interrupción y con todos sus datos.`
       : 'Su periodo de prueba ha terminado. Sus datos se conservan: en cuanto se confirme el pago, su acceso se reactiva con todos ellos.';
     host.innerHTML = `<div class="pg">
       <div class="eyebrow">${bloq ? 'Acceso suspendido' : 'Activar el acceso'}</div>
       ${opts.titulo === false ? '' : `<h1 class="pg-h">Plan <em>${escH(pl.nombre)}</em></h1>`}
-      <p class="pg-intro">${intro}</p>
+      <p class="pg-intro">${intro}</p>${pr.tramo && !pr.pactada ? `<p class="small muted" style="margin:0">Tramo ${escH(pr.tramo.n.toLowerCase())}${PLANES[u.plan] && PLANES[u.plan].clientes ? ' (su propia empresa no cuenta)' : ''}.</p>` : ''}
       ${bloq ? '' : `<div class="pg-precio"><b>${P.eur(c.importe)}</b><span>${c.unidad} + IVA</span>${pr.periodo === 'anual' ? `<small>${escH(c.detalle)}</small>` : '<small>Pago mensual. Con el pago anual, un 30 % de descuento.</small>'}</div>
       ${stripe || url ? `<a class="btn solid" href="${stripe ? '#' : escH(url)}"${stripe ? '' : ' target="_blank" rel="noopener"'} data-pagar>Pagar ahora</a><p class="small muted" style="margin:0">El pago se hace en una página segura de nuestra pasarela. En cuanto se confirme, su acceso se activa.</p>`
         : `<form class="pg-form stack" data-pgform novalidate>
@@ -1162,15 +1215,15 @@
   P.PLAN_RESUMEN = {
     esencial: { mundos: 'Simulador de inversión', empresas: '1 empresa', vista: '—' },
     profesional: { mundos: 'Simulador y sistema estratégico', empresas: '1 empresa', vista: '—' },
-    consultora: { mundos: 'Simulador, sistema estratégico, personas y equipos y auditoría integral', empresas: 'Hasta 15 empresas cliente', vista: 'Cartera de clientes' },
+    consultora: { mundos: 'Simulador, sistema estratégico, personas y equipos y auditoría integral', empresas: 'Hasta 15 empresas cliente, por tramos: hasta 5, de 6 a 10 y de 11 a 15 (su propia empresa no cuenta)', vista: 'Cartera de clientes' },
     grupos: { mundos: 'Simulador y sistema estratégico', empresas: 'Sociedades sin límite', vista: 'Grupo empresarial con consolidado' }
   };
   P.cambiarPlan = async function (plan, periodo) {
     if (!PLANES[plan]) throw new Error('Plan no válido');
     await P.empresas.cargar();
     // Cuentan solo las empresas reales (la principal incluida); la empresa modelo no ocupa plaza del plan
-    const n = P.empresas.reales().length, lim = PLANES[plan].empresas;
-    if (n > lim) throw new Error(`Tiene ${n} empresas dadas de alta y ${PLANES[plan].nombre} admite ${lim}. Borre antes las que no necesite (desde el mapa de empresas) y vuelva a intentarlo.`);
+    const n = P.nCuenta(plan, P.empresas.reales().length), lim = PLANES[plan].empresas;
+    if (n > lim) throw new Error(`Tiene ${n} ${PLANES[plan].clientes ? 'empresas cliente' : 'empresas'} dadas de alta y ${PLANES[plan].nombre} admite ${lim}. Borre antes las que no necesite (desde el mapa de empresas) y vuelva a intentarlo.`);
     const antes = P.user && P.user.plan;
     let u;
     // Con el acceso pagado, subir de plan queda pendiente hasta que la administración lo confirme (el servidor responde 409)
@@ -1225,26 +1278,28 @@
     opts = opts || {};
     const u = P.user; if (!u) return;
     const acc = P.accessOf(u); let periodo = u.periodo || 'mensual';
-    const n = P.empresas.reales().length || 1; // sin la empresa modelo: ni ocupa plaza ni cambia el tramo
+    const n = P.empresas.reales().length || 1; // sin la empresa modelo: ni ocupa plaza ni cambia el tramo (en Consultora tampoco la principal: P.nCuenta)
     const back = document.createElement('div'); back.className = 'ef-back';
     const draw = () => {
       back.innerHTML = `<div class="ef-card pl-card glass" role="dialog" aria-modal="true" aria-label="Mi plan">
         <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
         <div class="eyebrow">Mi plan</div>
         <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.6rem">Ahora tiene <em>${PLANES[u.plan] ? PLANES[u.plan].nombre : escH(u.plan)}</em> · pago ${(u.periodo || 'mensual') === 'anual' ? 'anual' : 'mensual'}</h3>
-        <p class="small" style="margin:0">Su cuota: <b>${(() => { const c = P.cuota(P.precio(u.plan, u.periodo, n, u.cuotaPactada)); return P.eur(c.importe) + c.unidad; })()}</b></p>
+        <p class="small" style="margin:0">Su cuota: <b>${(() => { const pr = P.precio(u.plan, u.periodo, P.nPrecio(u, n), u.cuotaPactada), c = P.cuota(pr); return P.eur(c.importe) + c.unidad + (pr.tramo && !pr.pactada && PLANES[u.plan].clientes ? ' · tramo ' + escH(pr.tramo.n.toLowerCase()) : ''); })()}</b>${(() => { const pp = u.planPendiente; return pp && pp.plan === u.plan && pp.tramo ? `<br><span style="color:var(--warn)">Pendiente de confirmar: tramo ${escH((P.tramoDe(u.plan, pp.tramo) || {}).n || '').toLowerCase()} (${P.eur(P.cuota(P.precio(u.plan, u.periodo, pp.tramo)).importe)}${P.cuota(P.precio(u.plan, u.periodo, pp.tramo)).unidad}).</span>` : ''; })()}</p>
+        ${PLANES[u.plan] && PLANES[u.plan].clientes ? `<p class="small muted" style="margin:0">En Consultora la cuota va por tramos de empresas cliente: tiene ${P.nCuenta(u.plan, n)} (su propia empresa, la principal, no cuenta; tampoco la empresa modelo). Al pasar de tramo se le avisa antes de crear la empresa; si borra empresas y baja de tramo, la cuota baja en la siguiente renovación, sin devoluciones.</p>` : ''}
         <p class="small muted" style="margin:0">${acc.motivo === 'prueba' ? `Está en la prueba gratuita (quedan ${acc.diasPrueba} días). Puede cambiar de plan cuando quiera sin coste: la prueba sigue contando desde su alta.` : acc.motivo === 'pagado' ? 'Su acceso está activado. El cambio se aplica al momento y la diferencia de cuota se ajusta en su siguiente cobro; se lo confirmaremos por correo.' : 'Elija el plan que quiere activar.'}${opts.motivo ? `<br><b style="color:var(--gold-soft)">${opts.motivo}</b>` : ''}</p>
         <div class="seg" style="margin:0;justify-self:start"><button data-per="mensual" aria-pressed="${periodo === 'mensual'}">Pago mensual</button><button data-per="anual" aria-pressed="${periodo === 'anual'}">Pago anual · −30 %</button></div>
         ${periodo === 'anual' ? '<p class="small muted" style="margin:0">Cuota anual: se paga el año por adelantado y equivale a doce meses con un 30 % de descuento.</p>' : ''}
         <div class="pl-grid">${Object.keys(PLANES).map((k) => {
-          const pl = PLANES[k], pr = P.precio(k, periodo, k === 'grupos' ? Math.max(1, n) : 1), r = P.PLAN_RESUMEN[k], cur = k === u.plan;
-          const bloq = n > pl.empresas;
+          const pl = PLANES[k], r = P.PLAN_RESUMEN[k], cur = k === u.plan, nk = P.nCuenta(k, n);
+          const pr = P.precio(k, periodo, cur ? P.nPrecio(u, n) : pl.tramos ? Math.max(1, nk) : 1);
+          const bloq = nk > pl.empresas;
           return `<div class="pl-it ${cur ? 'on' : ''} ${opts.destacar === k ? 'dest' : ''}">
             <div class="row"><b>${pl.nombre}</b>${cur ? '<span class="em-act">su plan</span>' : ''}</div>
-            ${pl.aMedida ? '<div class="pl-precio" style="font-size:1.1rem">Precio a medida</div><div class="small muted">Lo preparamos con nuestro equipo según sus sociedades</div>' : (() => { const c = P.cuota(pr); return `<div class="pl-precio">${pl.tramos && n <= 1 ? '<small>desde </small>' : ''}${P.eur(c.importe)}<small>${c.unidad}</small></div>${c.detalle ? `<div class="small muted">${c.detalle}</div>` : ''}`; })()}
+            ${pl.aMedida ? '<div class="pl-precio" style="font-size:1.1rem">Precio a medida</div><div class="small muted">Lo preparamos con nuestro equipo según sus sociedades</div>' : (() => { const c = P.cuota(pr); return `<div class="pl-precio">${pl.tramos && nk <= 1 ? '<small>desde </small>' : ''}${P.eur(c.importe)}<small>${c.unidad}</small></div>${c.detalle ? `<div class="small muted">${c.detalle}</div>` : ''}${pl.clientes ? `<ul class="small pl-tramos" aria-label="Tramos por empresas cliente">${pl.tramos.map((t) => { const ct = P.cuota(P.precio(k, periodo, t.hasta)); return `<li${pr.tramo === t ? ' class="on"' : ''}><span>${escH(t.n.replace(/ empresas cliente$/, ''))}</span><b>${P.eur(ct.importe)}${ct.unidad}</b></li>`; }).join('')}</ul>` : ''}`; })()}
             <div class="small muted">${pl.para || ''}</div>
             <ul class="small"><li>${r.mundos}</li><li>${r.empresas}</li>${r.vista !== '—' ? `<li>${r.vista}</li>` : ''}</ul>
-            ${pl.aMedida && !cur ? '<button class="btn solid small" data-contacto>Contactar con nuestro equipo</button>' : cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es su plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tiene ${n} empresas (sin contar la empresa modelo) y este plan admite ${pl.empresas}. Para bajar, antes hay que borrar ${n - pl.empresas}.</p><a class="btn ghost small" href="portal.html#empresas">Ir al mapa de empresas</a>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
+            ${pl.aMedida && !cur ? '<button class="btn solid small" data-contacto>Contactar con nuestro equipo</button>' : cur ? (periodo !== (u.periodo || 'mensual') ? `<button class="btn solid small" data-plan="${k}">Pasar a pago ${periodo}</button>` : '<button class="btn ghost small" disabled>Es su plan</button>') : bloq ? `<p class="small" style="color:var(--warn);margin:0">Tiene ${nk} empresas (sin contar la empresa modelo) y este plan admite ${pl.empresas}. Para bajar, antes hay que borrar ${nk - pl.empresas}.</p><a class="btn ghost small" href="portal.html#empresas">Ir al mapa de empresas</a>` : `<button class="btn ${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'solid' : 'ghost'} small" data-plan="${k}">${PLANES[k].precio > (PLANES[u.plan] || {}).precio ? 'Subir' : 'Bajar'} a ${pl.nombre}</button>`}
           </div>`;
         }).join('')}</div>
         <p class="small" data-msg style="margin:0"></p>
@@ -1255,7 +1310,7 @@
       back.querySelectorAll('[data-contacto]').forEach((b) => b.onclick = () => { back.remove(); P.formContacto({ plan: 'grupos', origen: 'mi-plan' }); });
       back.querySelectorAll('[data-plan]').forEach((b) => b.onclick = async () => {
         const k = b.dataset.plan, msg = back.querySelector('[data-msg]');
-        try { const r = await P.cambiarPlan(k, periodo); if (r && r.pendiente) { msg.style.color = 'var(--warn)'; msg.textContent = r.mensaje || `Hemos recibido su petición de pasar a ${PLANES[k].nombre}: la administración la confirmará y se ajustará en el siguiente cobro.`; return; } const c = P.cuota(P.precio(k, periodo, n)); msg.style.color = 'var(--go)'; msg.textContent = `Hecho: ahora tiene ${PLANES[k].nombre} con pago ${periodo}: ${P.eur(c.importe)}${c.unidad}.`; setTimeout(() => { if (opts.onCambio) opts.onCambio(k); else location.reload(); }, 700); }
+        try { const r = await P.cambiarPlan(k, periodo); if (r && r.pendiente) { msg.style.color = 'var(--warn)'; msg.textContent = r.mensaje || `Hemos recibido su petición de pasar a ${PLANES[k].nombre}: la administración la confirmará y se ajustará en el siguiente cobro.`; return; } const c = P.cuota(P.precio(k, periodo, P.nCuenta(k, n))); msg.style.color = 'var(--go)'; msg.textContent = `Hecho: ahora tiene ${PLANES[k].nombre} con pago ${periodo}: ${P.eur(c.importe)}${c.unidad}.`; setTimeout(() => { if (opts.onCambio) opts.onCambio(k); else location.reload(); }, 700); }
         catch (x) { msg.style.color = 'var(--stop)'; msg.textContent = x.message; }
       });
     };
@@ -1294,6 +1349,7 @@
       back.innerHTML = `<form class="ef-card glass" role="dialog" aria-modal="true" aria-label="Ficha de la empresa">
         <button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button>
         <div class="eyebrow">${opts.nuevo ? (grupo ? 'Nueva sociedad' : 'Nueva empresa') : 'Ficha de la empresa'}</div>
+        ${(() => { const ia = !opts.nuevo && e && P.iaEmpresa(e.id); return ia ? `<p class="small muted" style="margin:0">IA este mes: ${ia.n} de ${ia.lim} consultas de esta empresa${ia.n >= ia.lim * 0.8 ? ' · <b style="color:var(--warn)">cerca del límite</b>' : ''}. Se renueva el día 1.</p>` : ''; })()}
         <label class="ef-name"><span>Nombre o razón social</span><input name="nombre" ${opts.nuevo ? 'required' : ''} value="${escH(d.nombre === 'Mi empresa' ? '' : d.nombre)}" placeholder="Por ejemplo: Transportes Ruiz, S.L."></label>
         <div class="ef-grid">
           <label><span>Forma jurídica</span><select class="input" name="forma">${P.FORMAS.map((f) => `<option ${f === d.forma ? 'selected' : ''}>${f}</option>`).join('')}</select></label>
@@ -1512,8 +1568,8 @@
         <div class="em-btns"><button class="btn solid small" data-enter="${escH(e.id)}">${e.id === act.id ? 'Seguir con esta' : 'Entrar con esta'}</button><button class="btn ghost small" data-ficha="${escH(e.id)}">Ficha${pc < 100 ? ` · ${pc} %` : ''}</button>${e.id !== 'principal' ? `<button class="icon-btn" data-del="${escH(e.id)}" aria-label="Borrar ${escH(e.nombre)}" title="Borrar">×</button>` : ''}</div>
       </div>`;
     };
-    const nReales = P.empresas.reales().length;
-    const nueva = nReales < lim ? `<button class="em-card em-new" data-new><b>+</b><span>${grupo ? 'Añadir una sociedad' : lim > 1 ? 'Dar de alta una empresa cliente' : ''}</span><small>${isFinite(lim) ? `${nReales} de ${lim}` : `${nReales} sociedades`}</small></button>` : (lim === 1 ? '' : `<div class="em-card em-new" style="cursor:default"><span class="small muted">Ha llegado a las ${lim} empresas de su plan.</span></div>`);
+    const nReales = P.empresas.cuentan(); // en Consultora, las empresas cliente (sin la principal)
+    const nueva = nReales < lim ? `<button class="em-card em-new" data-new><b>+</b><span>${grupo ? 'Añadir una sociedad' : lim > 1 ? 'Dar de alta una empresa cliente' : ''}</span><small>${isFinite(lim) ? `${nReales} de ${lim}${plan.clientes ? ' (su empresa no cuenta)' : ''}` : `${nReales} sociedades`}</small>${(() => { const t = P.tramoAlCrear(u); return t ? `<small style="color:var(--warn)">La siguiente pasa al tramo ${escH(t.luego.n.toLowerCase())}</small>` : ''; })()}</button>` : (lim === 1 ? '' : `<div class="em-card em-new" style="cursor:default"><span class="small muted">Ha llegado a las ${lim} ${plan.clientes ? 'empresas cliente' : 'empresas'} de su plan.</span></div>`);
     const cardModelo = (e) => `<div class="em-card em-modelo ${e.id === act.id ? 'on' : ''}" data-id="${e.id}">
         <div class="em-top"><i style="background:linear-gradient(135deg,#c9f24d,#3987e5)"></i><b>${escH(e.nombre)}</b>${e.id === act.id ? '<span class="em-act">activa</span>' : ''}</div>
         <div class="em-meta"><span class="em-tag">Empresa modelo · datos ficticios</span></div>
@@ -1719,10 +1775,10 @@
       const pal = ['#c9f24d', '#3987e5', '#199e70', '#d55181', '#d95926', '#9b7bff'];
       sel.innerHTML = `<button class="emp-btn" aria-haspopup="true" title="${esc(act.nombre)} · cambiar de ${grupo ? 'sociedad' : 'empresa'}" aria-label="${esc(act.nombre)} · cambiar de ${grupo ? 'sociedad' : 'empresa'}"><i style="background:${pal[lista.indexOf(act) % pal.length]}"></i><span class="nc">${P.nombreCortado(act.nombre)}</span><b>▾</b></button>
         <div class="emp-menu glass" hidden>
-          <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : lim > 1 ? 'Empresas cliente' : 'Su empresa'}</b><small>${lim > 1 ? `${P.empresas.reales().length}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ' · plan a medida' : ''} · más la empresa modelo` : 'Y la empresa modelo, para probar sin tocar la suya'}</small></div>
+          <div class="acc-head"><b>${grupo ? 'Sociedades del grupo' : lim > 1 ? 'Empresas cliente' : 'Su empresa'}</b><small>${lim > 1 ? `${P.empresas.cuentan()}${isFinite(lim) ? ' de ' + lim : ''}${grupo ? ' · plan a medida' : ''} · más ${PLANES[u.plan] && PLANES[u.plan].clientes ? 'su empresa y ' : ''}la empresa modelo` : 'Y la empresa modelo, para probar sin tocar la suya'}</small></div>
           <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${esc(e.id)}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.modelo ? 'Empresa modelo · datos ficticios' : grupo && e.rol === 'holding' ? 'Holding · sociedad dominante' : grupo && e.rol === 'filial' ? `Filial · ${esc(e.participacion != null ? e.participacion : 100)} %` : lim === 1 ? 'Su empresa' : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' && !e.modelo ? `<button class="icon-btn" data-empdel="${esc(e.id)}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${esc(e.id)}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
           <a class="emp-group" href="portal.html#empresas">Mapa de ${grupo ? 'sociedades' : 'empresas'} y fichas →</a>
-          ${lim === 1 ? '' : P.empresas.reales().length < lim ? `<form class="emp-new stack" data-empnew><input class="input" name="nombre" placeholder="Nombre de la ${grupo ? 'sociedad' : 'empresa'}" required>${grupo ? '<div class="row"><select class="input" name="rol"><option value="filial">Filial</option><option value="holding">Holding</option></select><input class="input" name="participacion" type="number" min="0" max="100" value="100" title="% de participación" style="width:90px"></div>' : ''}<button class="btn solid" type="submit">Añadir ${grupo ? 'sociedad' : 'empresa'}</button><small class="muted" data-empmsg></small></form>` : `<p class="small muted" style="padding:8px 12px">Ha llegado al máximo de su plan.</p>`}
+          ${lim === 1 ? '' : P.empresas.cuentan() < lim ? `<form class="emp-new stack" data-empnew><input class="input" name="nombre" placeholder="Nombre de la ${grupo ? 'sociedad' : 'empresa'}" required>${grupo ? '<div class="row"><select class="input" name="rol"><option value="filial">Filial</option><option value="holding">Holding</option></select><input class="input" name="participacion" type="number" min="0" max="100" value="100" title="% de participación" style="width:90px"></div>' : ''}<button class="btn solid" type="submit">Añadir ${grupo ? 'sociedad' : 'empresa'}</button><small class="muted" data-empmsg></small></form>` : `<p class="small muted" style="padding:8px 12px">Ha llegado al máximo de su plan.</p>`}
           ${P.esGrupo(u) ? `<a class="emp-group" href="grupo.html">${grupo ? 'Grupo empresarial →' : 'Cartera de clientes →'}</a>` : ''}
         </div>`;
       el.prepend(sel);
