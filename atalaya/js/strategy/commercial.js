@@ -246,11 +246,19 @@
     clave: 'comercial', datos: () => (S.state.comercial.productos || []).some((p) => S.num(p.unidades) * S.num(p.precio) > 0),
     render(host) {
       const L = C().palancas;
-      const lv = [['precio', 'Precio', -15, 15, 0.5], ['volumen', 'Esfuerzo comercial (volumen)', -20, 30, 1], ['costeVariable', 'Coste variable (compras)', -15, 15, 0.5], ['fijos', 'Costes fijos', -20, 20, 1], ['mix', 'Mezcla hacia productos de más margen', 0, 30, 1]];
+      // [clave, nombre, mínimo y máximo de la barra, paso, qué significa, qué hace en el cálculo]. La casilla numérica admite valores fuera de la barra (entre LV_MIN y LV_MAX).
+      const lv = [
+        ['precio', 'Precio', -30, 50, 0.5, 'Sube o baja el precio de venta de todos los productos en ese porcentaje.', 'Cada unidad deja más (o menos) margen, pero las unidades vendidas reaccionan según la elasticidad de cada producto: con elasticidad −1, subir el precio un 10 % resta un 10 % de unidades.'],
+        ['volumen', 'Esfuerzo comercial (volumen)', -50, 100, 1, 'Unidades de más (o de menos) que se venden por la acción comercial: más clientes, más pedidos o más frecuencia, al mismo precio.', 'Multiplica la demanda de cada producto por ese porcentaje, sin pasar de su capacidad. Si un producto llega a su capacidad, la tabla lo marca «al límite».'],
+        ['costeVariable', 'Coste variable (compras)', -30, 30, 0.5, 'Lo que cuesta cada unidad vendida: materia prima, compras, mercancía, comisiones o portes.', 'Un valor negativo es un ahorro (mejores compras, menos merma) y sube el margen de cada unidad; uno positivo, un encarecimiento.'],
+        ['fijos', 'Costes fijos', -50, 50, 1, 'Los costes que no dependen de lo que se vende: personal de estructura, alquileres, suministros y gastos generales.', 'Cambia en ese porcentaje los fijos del simulador. Negativo es un recorte; positivo, más estructura. Mueve el resultado y el punto de equilibrio, no el margen de contribución.'],
+        ['mix', 'Mezcla hacia productos de más margen', 0, 60, 1, 'Cuánto empuja la venta hacia los productos que más margen dejan y la aparta de los que menos dejan.', 'Aumenta las unidades de los productos con margen por encima de la media y reduce las de los que quedan por debajo, en proporción a esa diferencia. 0 % deja la mezcla como está.']
+      ];
+      const LV_MIN = -90, LV_MAX = 300;
       host.innerHTML = `${S.section('Cuadro operativo: margen de contribución sobre la demanda', 'Compara lo que deja la demanda actual con lo que dejaría su estrategia. Mueva las palancas: el volumen reacciona al precio según la elasticidad de cada producto y se limita a la capacidad. El efecto se descompone en precio, volumen, mix y coste.')}
         <div id="mcKpis"></div>
         <div class="grid cols-2 mt">
-          <div class="glass pad stack"><h4>Palancas de la estrategia</h4><div class="lever-grid">${lv.map(([k, n, mn, mx, st]) => `<div class="field"><div class="top"><label for="lv_${k}">${n}</label><span class="num" id="lvv_${k}">${L[k] >= 0 ? '+' : ''}${L[k]} %</span></div><input type="range" id="lv_${k}" min="${mn}" max="${mx}" step="${st}" value="${L[k]}" style="--p:${((L[k] - mn) / (mx - mn)) * 100}%"></div>`).join('')}</div>
+          <div class="glass pad stack"><h4>Palancas de la estrategia</h4><p class="small muted" style="margin:0">Cada palanca es un cambio en porcentaje sobre la situación de hoy. Mueva la barra o escriba el porcentaje en la casilla (de ${LV_MIN} % a +${LV_MAX} %): el resultado y el desglose de la derecha se recalculan al momento.</p><div class="lever-grid lv-explica">${lv.map(([k, n, mn, mx, st, que, hace]) => `<div class="field"><div class="top"><label for="lv_${k}">${n}</label><span class="lv-num"><input class="input" type="number" id="lvn_${k}" min="${LV_MIN}" max="${LV_MAX}" step="${st}" value="${L[k]}" aria-label="${n}, en porcentaje"><span>%</span></span></div><input type="range" id="lv_${k}" min="${Math.min(mn, L[k])}" max="${Math.max(mx, L[k])}" step="${st}" value="${L[k]}" aria-describedby="lvd_${k}" style="--p:${((L[k] - Math.min(mn, L[k])) / (Math.max(mx, L[k]) - Math.min(mn, L[k]))) * 100}%"><details class="lv-ayuda" id="lvd_${k}"><summary>Qué significa y qué hace</summary><p><b>Qué es.</b> ${que}</p><p><b>Qué hace en el cálculo.</b> ${hace}</p></details></div>`).join('')}</div>
             <div class="row"><input class="input" id="lvName" placeholder="Nombre de la estrategia" style="flex:1"><button class="btn" id="lvSave">Guardar escenario</button><button class="btn ghost" id="lvReset">Volver a cero</button></div></div>
           <div class="glass pad stack"><h4>De dónde sale el cambio de resultado</h4><div id="mcEf"></div></div>
         </div>
@@ -275,7 +283,17 @@
         $$('[data-del]', host).forEach((b) => b.onclick = () => { G.splice(+b.dataset.del, 1); S.save(); paint(); });
       };
       paint();
-      lv.forEach(([k, , mn, mx]) => { const r = $('#lv_' + k, host); r.oninput = () => { L[k] = +r.value; $('#lvv_' + k, host).textContent = `${L[k] >= 0 ? '+' : ''}${L[k]} %`; r.style.setProperty('--p', ((L[k] - mn) / (mx - mn)) * 100 + '%'); paint(); S.save(); }; });
+      lv.forEach(([k]) => {
+        const r = $('#lv_' + k, host), n = $('#lvn_' + k, host);
+        const pinta = () => { const mn = +r.min, mx = +r.max; r.style.setProperty('--p', ((L[k] - mn) / (mx - mn)) * 100 + '%'); };
+        r.oninput = () => { L[k] = +r.value; n.value = L[k]; pinta(); paint(); S.save(); };
+        // La casilla admite valores fuera de la barra: la barra se amplía para incluirlos
+        n.onchange = () => {
+          let v = parseFloat(String(n.value).replace(',', '.')); if (!isFinite(v)) v = 0;
+          v = Math.max(LV_MIN, Math.min(LV_MAX, v)); L[k] = v; n.value = v;
+          if (v < +r.min) r.min = v; if (v > +r.max) r.max = v; r.value = v; pinta(); paint(); S.save();
+        };
+      });
       $('#lvSave', host).onclick = () => { C().escenariosGuardados.push({ nombre: $('#lvName', host).value || 'Estrategia ' + (C().escenariosGuardados.length + 1), palancas: Object.assign({}, L) }); S.save(); paint(); };
       $('#lvReset', host).onclick = () => { Object.keys(L).forEach((k) => { L[k] = 0; }); S.save(); S.rerender(); };
       S.etable($('#prodTable', host), {

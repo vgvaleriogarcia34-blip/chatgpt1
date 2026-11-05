@@ -1383,3 +1383,11 @@ body.arch-on .ar-cab + :is(#ivHero, #msHero, #lbHero):not(.ar-plegada) { margin-
 .ar-pbtn:hover, .ar-pbtn:focus-visible { color: var(--fg); border-color: var(--wc, var(--gold)); }
 .ar-pbtn span { font-size: 0.66rem; color: var(--wc, var(--gold)); }
 @media print { .ar-arch, .ar-cab, .ar-pie, .ar-recorrido, .ar-carp, .bs-btn, .bs-velo { display: none !important; } body.arch-on .st-main { margin: 0 auto; } }
+/* Palancas con su explicación y casilla numérica (Margen y demanda) */
+.lv-explica .field { display: grid; gap: 6px; align-content: start; }
+.lv-num { display: inline-flex; align-items: center; gap: 4px; }
+.lv-num input { width: 5.5em; padding: 4px 6px; text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.lv-num span { color: var(--muted); font-size: 0.82rem; }
+.lv-ayuda summary { cursor: pointer; color: var(--muted); font-size: 0.8rem; }
+.lv-ayuda p { margin: 6px 0 0; font-size: 0.82rem; color: var(--muted); line-height: 1.45; }
+.lv-ayuda b { color: var(--fg); font-weight: 600; }
