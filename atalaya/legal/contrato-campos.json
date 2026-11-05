@@ -99,6 +99,7 @@
     "variable.objetivos": "La fila se repite por cada objetivo"
   },
   "condicionesNo": {
-    "honorarios.gastos_incluidos": "los honorarios no incluyen los desplazamientos"
+    "honorarios.gastos_incluidos": "los honorarios no incluyen los desplazamientos",
+    "s3": "el Cliente no contrata el Servicio 3 (acompañamiento)"
   }
 }
