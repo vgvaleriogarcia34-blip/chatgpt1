@@ -256,7 +256,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
   // en «Lo que falta» (no inventarlos). Rellénelos aquí, o en la ficha de la firma, cuando se conozcan.
   const DEF_CONSULTOR = { razon: 'FAMILIAS EMPRESARIAS, S.L.', cif: '', domicilio: '', email: '', marca: 'Business Avance International Consulting', representante: 'Valerio García' };
   const DEF_SUB = [
-    { id: 'sb-aloj', n: 'Proveedor de alojamiento del servidor (pendiente de designar)', servicio: 'alojamiento de la aplicación y copias', ubicacion: 'UE' },
+    { id: 'sb-aloj', n: 'Hetzner Online GmbH', servicio: 'alojamiento de la aplicación, sus datos y sus copias de seguridad', ubicacion: 'UE (Helsinki, Finlandia)' },
     { id: 'sb-ia', n: 'Anthropic, PBC', servicio: 'análisis con inteligencia artificial', ubicacion: 'EE. UU. (Marco de Privacidad de Datos UE-EE. UU. o cláusulas contractuales tipo)' },
     { id: 'sb-correo', n: 'Proveedor de correo electrónico (pendiente de designar)', servicio: 'envío de comunicaciones', ubicacion: 'UE' },
     { id: 'sb-crm', n: 'HubSpot, Inc.', servicio: 'gestión de la relación comercial (solo datos de contacto)', ubicacion: 'EE. UU. (Marco de Privacidad de Datos UE-EE. UU.)' }

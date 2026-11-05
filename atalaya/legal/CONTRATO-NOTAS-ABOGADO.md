@@ -48,7 +48,7 @@ Acompañan a `CONTRATO-PLANTILLA.md` y a `CONTRATO-PARA-REVISION.docx`. Recogen 
   - devolución y supresión.
 - **Cuestionarios de comportamiento (DISC, eneagrama).** Se tratan como datos ordinarios y no como categorías especiales. Confirmar ese criterio y si exige una evaluación de impacto o información reforzada a los trabajadores.
 - **Subencargados.** La lista la rellena la aplicación. A la fecha, los previstos son:
-  - el proveedor de alojamiento del servidor, en la UE (pendiente de contratar);
+  - Hetzner Online GmbH, alojamiento del servidor, sus datos y sus copias, en la UE (Helsinki, Finlandia); contrato de encargado firmado el 5 de noviembre de 2026 a nombre de Familias Empresarias SL;
   - Anthropic (análisis con inteligencia artificial, en EE. UU. con el Marco de Privacidad de Datos UE-EE. UU. o cláusulas contractuales tipo);
   - el proveedor de correo electrónico;
   - HubSpot (gestión comercial, solo para los datos de contacto).

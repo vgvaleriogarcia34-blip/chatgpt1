@@ -107,7 +107,7 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 
 | Subencargado | Servicio | Datos | Ubicación | Garantía |
 |---|---|---|---|---|
-| [PROVEEDOR DE ALOJAMIENTO] | Servidor y disco | Todos | [PAÍS] | [DPA] |
+| Hetzner Online GmbH | Servidor, disco y copias de seguridad | Todos | UE (Helsinki, Finlandia) | Contrato de encargado firmado el 5/11/2026 a nombre de Familias Empresarias SL |
 | Anthropic, PBC | API de Claude (asistente, extracción, escucha, agente de mercado con búsqueda web, propuestas) | Texto enviado a esas funciones | EE. UU. | [DPF / CCT] |
 | [PROVEEDOR DE CORREO] (SMTP configurado con `SMTP_HOST`) | Correos de contraseña, acceso e invitaciones a test | Correo, nombre, enlace, nombre de la empresa | [PAÍS] | [DPA] |
 | Stripe (Stripe Payments Europe, Ltd., si se configura `STRIPE_SECRET_KEY`; `PUESTA-EN-MARCHA.md` apartado 5) | Cobro de suscripciones, facturas y portal de cliente | Correo, identificador interno de la cuenta, plan y periodo; Stripe recoge directamente tarjeta, nombre, dirección de facturación y NIF | UE/EE. UU. | [DPA de Stripe; para los datos de pago Stripe actúa también como responsable] **[VALIDAR]** |
@@ -189,7 +189,7 @@ h) Poner a disposición del Responsable la información necesaria para demostrar
 
 **Anexo I. Medidas de seguridad.** Las del apartado 2.3 de este documento y [MEDIDAS PROPIAS DE LA CONSULTORA].
 
-**Anexo II. Subencargados autorizados.** Business Avance (FAMILIAS EMPRESARIAS, S.L., NIF [PENDIENTE: NIF de Familias Empresarias, S.L.]) como proveedor de Atalaya 360°; [PROVEEDOR DE ALOJAMIENTO]; [PROVEEDOR DE CORREO].
+**Anexo II. Subencargados autorizados.** Business Avance (FAMILIAS EMPRESARIAS, S.L., NIF [PENDIENTE: NIF de Familias Empresarias, S.L.]) como proveedor de Atalaya 360°; Hetzner Online GmbH (alojamiento y copias, UE); [PROVEEDOR DE CORREO].
 
 Firmas.
 
