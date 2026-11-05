@@ -20,7 +20,7 @@ set -euo pipefail
 DIR=/srv/atalaya            # código (clon del repositorio)
 DATOS=/srv/atalaya-datos    # base de datos, secretos y copias locales (fuera del código)
 DESP=$DIR/despliegue
-pregunta() { local v; read -r -p "$1${2:+ [$2]}: " v; echo "${v:-${2:-}}"; }
+pregunta() { local v=""; read -r -p "$1${2:+ [$2]}: " v || true; echo "${v:-${2:-}}"; }
 aleatorio() { openssl rand -base64 "${1:-32}" | tr -d '/+=\n' | cut -c1-"${2:-40}"; }
 
 echo "== Datos de la instalación =="
@@ -70,6 +70,13 @@ if [ ! -d "$DIR/.git" ]; then
     read -r -p "Pulse Intro cuando la haya añadido… " _
   fi
   git clone --branch "$RAMA" "$REPO" "$DIR"
+  # Si el repositorio se descarga con una clave de lectura (https://x-access-token:CLAVE@github.com/…),
+  # la clave pasa al almacén de credenciales de root (permisos 600) y la dirección del remoto queda limpia
+  if [[ "$REPO" == https://*@* ]]; then
+    umask 077; printf '%s\n' "$(echo "$REPO" | sed -E 's#^(https://[^/]+)/.*#\1#')" > /root/.git-credentials; umask 022
+    git -C "$DIR" config credential.helper store
+    git -C "$DIR" remote set-url origin "$(echo "$REPO" | sed -E 's#://[^@]+@#://#')"
+  fi
 else
   git -C "$DIR" fetch -q origin "$RAMA" && git -C "$DIR" checkout -q "$RAMA" && git -C "$DIR" pull -q --ff-only origin "$RAMA"
 fi
@@ -109,6 +116,10 @@ echo "${PERFIL[*]:-}" > .perfil
 echo "== 6/7 Copia de seguridad diaria (restic, cifrada) =="
 [ -f "$DATOS/secretos/restic.clave" ] || { aleatorio 48 48 > "$DATOS/secretos/restic.clave"; chmod 600 "$DATOS/secretos/restic.clave"; }
 [ -f "$DATOS/secretos/copia.env" ] || printf 'RESTIC_REPOSITORY=%s\n# Para un destino S3: AWS_ACCESS_KEY_ID=… y AWS_SECRET_ACCESS_KEY=…\n' "$COPIA_DESTINO" > "$DATOS/secretos/copia.env"
+# Credenciales del almacén S3 de las copias, si se pasan al instalar (Hetzner Object Storage u otro S3 en la UE)
+if [ -n "${COPIA_S3_ID:-}" ] && ! grep -q '^AWS_ACCESS_KEY_ID=' "$DATOS/secretos/copia.env"; then
+  printf 'AWS_ACCESS_KEY_ID=%s\nAWS_SECRET_ACCESS_KEY=%s\n' "$COPIA_S3_ID" "${COPIA_S3_CLAVE:-}" >> "$DATOS/secretos/copia.env"
+fi
 chmod 600 "$DATOS/secretos/copia.env"
 cat > /etc/systemd/system/atalaya-copia.service <<EOF
 [Unit]
@@ -144,6 +155,14 @@ if [ -n "$COPIA_DESTINO" ]; then
   bash "$DESP/copia-seguridad.sh" || echo "Aviso: la primera copia ha fallado. Revise el destino en $DATOS/secretos/copia.env."
 fi
 
+# Las credenciales iniciales quedan también en un fichero solo para root (para instalaciones sin pantalla, como cloud-init)
+umask 077
+{ echo "Atalaya 360° · credenciales iniciales ($(date '+%d/%m/%Y %H:%M'))"
+  echo "Dirección: https://$DOMINIO_APP · administración: https://$DOMINIO_APP/admin.html"
+  [ -n "$NUEVA_ADMIN" ] && echo "Contraseña inicial de la administración: $NUEVA_ADMIN"
+  echo "Clave de las copias (guárdela fuera del servidor): $(cat "$DATOS/secretos/restic.clave")"
+  echo "Borre este fichero cuando las haya guardado: rm /root/atalaya-credenciales.txt"; } > /root/atalaya-credenciales.txt
+umask 022
 echo
 echo "=================================================================="
 echo " Atalaya 360° está en https://$DOMINIO_APP"
