@@ -1,4 +1,4 @@
-/* Atalaya · Vista de grupo (plan Grupos) y cartera de clientes (plan Consultora)
+/* Atalaya · Grupo empresarial (plan Grupos) y cartera de clientes (plan Consultora)
    Reúne todas las empresas de la cuenta: cada una con su simulador y su sistema estratégico.
    · Constelación: la holding en el centro y cada sociedad en órbita, del tamaño de sus ventas y del color de su veredicto.
    · Sociedades una a una y, en Grupos, el consolidado con eliminación de las operaciones intragrupo.
@@ -170,7 +170,7 @@
     const kind = grupo ? 'grupo' : 'cartera';
     const pr = P.precio(user.plan, user.periodo, lista.length); // lista: solo empresas reales (sin la empresa modelo)
     const ask = `${grupo && (tesoreria().sinResp.length || (!G.tes.prestamos.length && !G.tes.sinPrestamos)) && E.filter((x) => x.ok).length > 1 ? `<div class="gr-ask glass"><span class="c3-orb" aria-hidden="true"></span><div><b>Pregunta pendiente: ¿quién financia a quién dentro del grupo?</b><span class="small muted">${!G.tes.prestamos.length ? 'No hay préstamos entre sociedades apuntados. ' : ''}${tesoreria().sinResp.length ? `Faltan ${tesoreria().sinResp.length} respuesta${tesoreria().sinResp.length > 1 ? 's' : ''} sobre cómo se gobierna la caja del grupo.` : ''}</span></div><span class="spacer"></span><button class="btn solid" data-goto="#gTes">Responder</button>${!G.tes.prestamos.length ? '<button class="btn ghost" data-noloans>No hay préstamos entre sociedades</button>' : ''}</div>` : ''}`;
-    main.innerHTML = bloque('empresas', `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${grupo ? 'Plan Grupos' : 'Plan Consultora'} · ${lista.length} ${grupo ? 'sociedades' : 'empresas'}${grupo ? ` · tramo ${pr.tramo ? pr.tramo.n.toLowerCase() : ''}: ${P.eur(pr.mes)}/mes${pr.periodo === 'anual' ? ' (anual)' : ''}` : ''}</span><h2 class="st-title">${grupo ? 'Vista de grupo' : 'Cartera de clientes'}</h2><p class="st-q">${grupo ? '¿Cómo está el grupo en conjunto y cada sociedad dentro de él?' : '¿Cómo están todas las empresas que acompaño?'}</p></div><span class="spacer"></span><button class="btn solid" id="gRep">${grupo ? 'Informe del grupo' : 'Informe de la cartera'}</button></div>
+    main.innerHTML = bloque('empresas', `<div class="st-repbar st-head"><div class="st-hd"><span class="st-kick">${grupo ? 'Plan Grupos' : 'Plan Consultora'} · ${lista.length} ${grupo ? 'sociedades' : 'empresas'}${grupo ? ` · tramo ${pr.tramo ? pr.tramo.n.toLowerCase() : ''}: ${P.eur(pr.mes)}/mes${pr.periodo === 'anual' ? ' (anual)' : ''}` : ''}</span><h2 class="st-title">${grupo ? 'Grupo empresarial' : 'Cartera de clientes'}</h2><p class="st-q">${grupo ? '¿Cómo está el grupo en conjunto y cada sociedad dentro de él?' : '¿Cómo están todas las empresas que acompaño?'}</p></div><span class="spacer"></span><button class="btn solid" id="gRep">${grupo ? 'Informe del grupo' : 'Informe de la cartera'}</button></div>
       <section class="glass pad gr-const"><div class="gr-sky"></div>
         <div class="gr-legend small muted">El tamaño es la venta de cada ${grupo ? 'sociedad' : 'empresa'}; el anillo, su veredicto en el simulador (verde, ámbar o rojo; gris sin datos); el relleno la identifica, como en la tabla. Contorno discontinuo: ventas negativas. Pulse una para entrar en ella.</div></section>
       <section class="glass pad stack mt"><div class="row"><h4>${grupo ? 'Sociedades' : 'Empresas'}</h4><span class="spacer"></span><span class="small muted">Cifras del último año cargado y previsión del escenario activo de cada una</span></div>
@@ -204,7 +204,7 @@
   }
 
   /* ---------- Módulos (archivador común, js/archivador.js) ----------
-     Un área «Cartera» y, en ella, los módulos de cada plan (cuarto dato: «G» solo en Grupos, «C» solo en la cartera de
+     Un área («Sociedades del grupo» en Grupos, «Cartera» en Consultora) y, en ella, los módulos de cada plan (cuarto dato: «G» solo en Grupos, «C» solo en la cartera de
      Consultora). Todos se pintan de una vez y solo se ve el abierto; cada uno tiene su # (grupo.html#comparativa). */
   const MODS = [['empresas', 'Empresas'], ['consolidado', 'Consolidado', 'G'], ['operativa', 'Cartera operativa', 'C'], ['operaciones', 'Operaciones dentro del grupo', 'G'], ['tesoreria', 'Tesorería del grupo', 'G'], ['comparativa', 'Comparativa'], ['riesgos', 'Riesgos en conjunto'], ['objetivos', 'Objetivos del grupo', 'G']];
   const modsPlan = () => MODS.filter((m) => !m[2] || (m[2] === 'G') === !!grupo);
@@ -213,7 +213,7 @@
   const bloque = (k, html) => `<div class="ar-mod gr-mod" data-mod="${k}"${k === mod ? '' : ' hidden'}>${html}</div>`;
   const areasArch = () => {
     const cat = A.catalogo && A.catalogo.mundo('grupo'), q = (k) => { const m = cat && cat.areas.flatMap((a) => a.modulos).find((x) => x.k === k); return m ? m.pregunta : ''; };
-    return [{ k: 'cartera', n: 'Cartera', modulos: modsPlan().map(([k, n]) => ({ k, n, pregunta: q(k) })) }];
+    return [{ k: 'cartera', n: grupo ? 'Sociedades del grupo' : 'Cartera', modulos: modsPlan().map(([k, n]) => ({ k, n, pregunta: q(k) })) }];
   };
   const marcarHash = () => { if (location.hash === '#' + mod) return; try { if (arrancado && !volviendo) history.pushState(null, '', '#' + mod); else history.replaceState(null, '', '#' + mod); } catch (e) { /* sin historial */ } };
   function mostrar(k, o) {
@@ -473,8 +473,8 @@
     const ok = await P.guard(); if (!ok) return;
     user = P.user; plan = P.PLANES[user.plan] || P.PLANES.profesional; grupo = !!plan.grupo;
     // El nombre de la página va antes que la barra: el botón «Mundos» lo toma de aquí
-    $('#gKind').textContent = grupo ? 'Vista de grupo' : 'Cartera de clientes';
-    document.title = 'Atalaya 360° · ' + (grupo ? 'Vista de grupo' : 'Cartera de clientes');
+    $('#gKind').textContent = grupo ? 'Grupo empresarial' : 'Cartera de clientes';
+    document.title = 'Atalaya 360° · ' + (grupo ? 'Grupo empresarial' : 'Cartera de clientes');
     P.mountAccount($('#account'));
     // La empresa modelo (datos ficticios) no entra en el consolidado, la cartera, las comparativas ni el tramo: va aparte
     lista = P.empresas.reales(); modelo = P.empresas.lista().find((e) => e.modelo) || null;

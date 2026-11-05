@@ -1028,7 +1028,7 @@ body.arch-on .ar-cab + .tb-main { margin-top: 18px; }
 .at-aviso .at-aviso-t { flex: 1 1 260px; min-width: 0; }
 .at-aviso .btn { white-space: nowrap; }
 .at-toast { border-radius: 14px; max-width: calc(100% - 32px); text-align: center; z-index: 96; }
-/* Distintivo de datos ficticios (cartera y vista de grupo) */
+/* Distintivo de datos ficticios (cartera y grupo empresarial) */
 .gr-fict { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(250, 178, 25, 0.55); color: var(--warn); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; white-space: nowrap; }
 .gr-modelo { border-style: dashed; }
 

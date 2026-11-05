@@ -24,8 +24,8 @@ Estado: **decidido y construido** (fases 1 a 5). Pendiente: cobro automático (f
 - Selector de empresa o sociedad en la cabecera de todas las pantallas, con alta, cambio de nombre y baja; cada empresa con sus datos separados (simulador, sistema estratégico, zona de origen, informes). La empresa que ya tenía cada cuenta pasa a ser la principal sin perder nada.
 - Límites por plan al dar de alta empresas.
 - Página comercial con interruptor mensual/anual y cuarta tarjeta Grupos con sus tramos; alta con plan y forma de pago; administración con forma de pago, número de empresas y cuota de cada cliente (el ingreso mensual cuenta los anuales a su precio con descuento).
-- Vista de grupo (`grupo.html`): constelación de sociedades, tabla y consolidado con eliminaciones intragrupo, atribuible a la holding, comparativa, riesgos cruzados (clientes y proveedores comunes, sociedades en rojo o sin liquidez, dependencia de una sociedad, endeudamiento), objetivos de la holding en cascada con reparto por peso, e informe del grupo. En Consultora la misma página es la cartera de clientes, sin consolidado.
-- Acceso a la vista de grupo desde el puesto de mando 3D y desde el menú de la cuenta.
+- Grupo empresarial (`grupo.html`): constelación de sociedades, tabla y consolidado con eliminaciones intragrupo, atribuible a la holding, comparativa, riesgos cruzados (clientes y proveedores comunes, sociedades en rojo o sin liquidez, dependencia de una sociedad, endeudamiento), objetivos de la holding en cascada con reparto por peso, e informe del grupo. En Consultora la misma página es la cartera de clientes, sin consolidado.
+- Acceso al grupo empresarial desde el puesto de mando 3D y desde el menú de la cuenta.
 - Tesorería del grupo: «¿quién financia a quién?» como pregunta pendiente hasta responderla, registro de préstamos entre sociedades, posición de cada una, propuesta de financiación interna, tres preguntas de gobierno y su reflejo en riesgos, consolidado e informe.
 - Límite de empresas comprobado también en el servidor.
 
@@ -86,7 +86,7 @@ Es un descuento alto: lo habitual en software de suscripción es entre el 15 y e
 
 1. **Multiempresa base:** selector de sociedad, datos separados, migración y límites por plan. Arregla también lo que hoy prometen Profesional y Consultora.
 2. **Planes y precios:** cuarta tarjeta, interruptor mensual/anual y plan y periodo en el gestor de usuarios (sin cobro automático todavía).
-3. **Vista de grupo:** cuadro de mando del grupo, comparativa entre sociedades y consolidación con eliminaciones marcadas a mano.
+3. **Grupo empresarial:** cuadro de mando del grupo, comparativa entre sociedades y consolidación con eliminaciones marcadas a mano.
 4. **Alineamiento:** objetivos en cascada, plan de acción e informe 360 del grupo.
 5. **Tesorería de grupo e intragrupo.**
 6. **Cobro automático** cuando Atalaya esté en el servidor.

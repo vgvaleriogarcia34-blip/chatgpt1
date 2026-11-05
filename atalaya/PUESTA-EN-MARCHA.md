@@ -91,7 +91,7 @@ El servidor ya comprueba el límite de empresas, además del navegador:
 - [ ] Una cuenta **Grupos** puede dar de alta las sociedades que quiera, y el gestor de usuarios muestra cuántas tiene y su tramo (690 €, 970 € o 1.790 € al mes).
 - [ ] No se pueden guardar datos de una empresa que no está dada de alta en la cuenta (`simulador--id` o `estrategia--id`).
 - [ ] Si un cliente baja de plan teniendo más empresas, puede seguir viéndolas y borrarlas, pero no crear más.
-- [ ] Los datos de cada empresa se guardan aparte y la vista de grupo los lee todos.
+- [ ] Los datos de cada empresa se guardan aparte y el grupo empresarial los lee todos.
 
 Probado ya en local contra el servidor: Profesional rechazado al crear la segunda empresa; Grupos aceptado; datos de una empresa no registrada, rechazados.
 

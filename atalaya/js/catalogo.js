@@ -57,7 +57,7 @@
     tablero: { href: 'tablero.html', areas: [
       ['tablero', 'Tablero', [['vistazo', 'La empresa, de un vistazo', '¿Cómo está la empresa: nota, equilibrio, cifras clave y capas?'], ['prioridades', 'Prioridades', '¿Qué toca tratar primero en toda la empresa?'], ['objetivos', 'Objetivos', '¿Cómo van los objetivos del empresario?'], ['mundos', 'Mundos', '¿Qué nota tiene cada mundo y qué toca primero en él?']]]
     ] },
-    // Módulos de js/grupo.js (MODS): cuarto dato «G» = solo en el plan Grupos (vista de grupo); «C» = solo en la cartera
+    // Módulos de js/grupo.js (MODS): cuarto dato «G» = solo en el plan Grupos (grupo empresarial); «C» = solo en la cartera
     grupo: { href: 'grupo.html', areas: [
       ['cartera', 'Cartera', [['empresas', 'Empresas', '¿Cómo están todas las empresas, una a una?'], ['consolidado', 'Consolidado', '¿Cómo está el grupo en conjunto, con las eliminaciones?', 'G'], ['operativa', 'Cartera operativa', '¿En qué etapa está cada cliente y qué tiene pendiente?', 'C'], ['operaciones', 'Operaciones dentro del grupo', '¿Qué se venden o se prestan las sociedades entre sí?', 'G'], ['tesoreria', 'Tesorería del grupo', '¿Quién financia a quién dentro del grupo?', 'G'], ['comparativa', 'Comparativa', '¿Cómo se comparan entre sí?'], ['riesgos', 'Riesgos en conjunto', '¿Qué riesgos solo se ven al mirarlas juntas?'], ['objetivos', 'Objetivos del grupo', '¿Cómo bajan los objetivos de la holding a cada sociedad?', 'G']]]
     ] },
@@ -76,7 +76,7 @@
   };
 
   const P = () => A.platform;
-  // ¿La cuenta es del plan Grupos (vista de grupo) o de varias empresas sin grupo (cartera de clientes)?
+  // ¿La cuenta es del plan Grupos (grupo empresarial) o de varias empresas sin grupo (cartera de clientes)?
   const planGrupo = () => { const p = P(), u = p && p.user, pl = u && p.PLANES && p.PLANES[u.plan]; return !!(pl && pl.grupo); };
   const enPlan = (marca) => (!marca ? true : marca === 'G' ? planGrupo() : marca === 'C' ? !planGrupo() : true);
   const mundoP = (k) => ((P() && P().mundos ? P().mundos() : (P() && P().MUNDOS) || []).find((m) => m.k === k)) || ((P() && P().MUNDOS) || []).find((m) => m.k === k) || { k, n: k, c: '#9ba4ba' };
@@ -90,6 +90,8 @@
       ? [{ k: k, n: p.n, modulos: d.entradas ? d.entradas.map(([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk })) : [{ k: '', n: p.n, pregunta: p.d || '', href: d.href }] }]
       : d.areas.map(([ak, an, mods, bls]) => {
         const mod = (b) => ([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk, bloque: b });
+        // En Grupos el área de la cartera se llama «Sociedades del grupo» (en Consultora, «Cartera»)
+        if (k === 'grupo' && ak === 'cartera' && planGrupo()) an = 'Sociedades del grupo';
         if (!bls) return { k: ak, n: an, modulos: mods.filter((x) => enPlan(x[3])).map(mod(null)) };
         const bloques = bls.map(([bk, bn]) => ({ k: bk, n: bn, modulos: [] }));
         bls.forEach((x, i) => { bloques[i].modulos = x[2].map(mod(bloques[i])); });
@@ -100,7 +102,7 @@
     ap.modulos = (d.aparte || []).map(([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk, aparte: true }));
     return { k, n: p.n, c: p.c, d: p.d || '', href: d.href, lock: !!p.lock, plan: p.plan, secuencial: !!d.secuencial, unico: !!d.unico, areas, aparte: ap.modulos, areaAparte: ap };
   }
-  // Mundos de la cuenta, en el orden de la barra común (la vista de grupo, solo si el plan la tiene)
+  // Mundos de la cuenta, en el orden de la barra común (el grupo empresarial, solo si el plan la tiene)
   function mundos() {
     const lista = P() && P().mundos ? P().mundos() : Object.keys(M).map((k) => ({ k }));
     return lista.map((m) => mundo(m.k)).filter(Boolean);

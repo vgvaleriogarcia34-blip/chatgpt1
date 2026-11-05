@@ -10,7 +10,7 @@ Esfuerzo: **S** = días, **M** = una o dos semanas, **L** = más.
 |---|---|---|
 | **Evolución** | Visión | Un corte del diagnóstico al mes (automático) y cortes manuales. Compara dos cortes: qué semáforos mejoran o empeoran, salud por área, riesgos, mejoras y plan de acción. Cada informe 360 incluye su evolución. |
 | **Cobros y morosidad** | Finanzas | Auditoría de la cartera a una fecha de corte: antigüedad de saldos, pago real frente a pactado por cliente, caja atrapada, deterioro estimado y saldos de más de seis meses. Sirve para decidir la política de crédito, no para reclamar. |
-| **Valoración de la empresa** | Estrategia | Múltiplo de EBITDA del sector con ajustes y flujos descontados; puente de hoy al valor con el plan; calculadoras de entrada de socio y de participación. En la vista de grupo, valor por sociedad y valor atribuible a la holding. |
+| **Valoración de la empresa** | Estrategia | Múltiplo de EBITDA del sector con ajustes y flujos descontados; puente de hoy al valor con el plan; calculadoras de entrada de socio y de participación. En el grupo empresarial, valor por sociedad y valor atribuible a la holding. |
 
 ## 2. Aprobado, por orden
 
@@ -44,7 +44,7 @@ Esfuerzo: **S** = días, **M** = una o dos semanas, **L** = más.
 | Compras | Evolución de precios de compra y su efecto en el margen |
 | Lean | OEE en el tiempo (se apoya en Evolución) |
 | Mercado y riesgos | Riesgos de continuidad: seguros, ciberseguridad, personas clave |
-| Vista de grupo | Servicios y dividendos entre sociedades y su efecto fiscal |
+| Grupo empresarial | Servicios y dividendos entre sociedades y su efecto fiscal |
 
 ## 4. Fuera de alcance (es gestión, no diagnóstico)
 

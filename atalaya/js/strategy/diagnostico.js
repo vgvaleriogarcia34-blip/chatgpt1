@@ -163,7 +163,7 @@
           <div class="glass pad stack"><h4>Para qué sirve este valor</h4>
             <p class="small"><b>Entrada de un socio.</b> Si un socio aporta <input class="input vl-in" data-v="socio" value="${socio || ''}" placeholder="300.000"> €, sobre el valor de hoy tendría el <b>${socio ? F.pct(socio / (Math.max(1, R.central) + socio) * 100) : '—'}</b> de la empresa después de su aportación.</p>
             <p class="small"><b>Sucesión o venta de una parte.</b> El <input class="input vl-in" data-v="participacion" value="${pct}"> % vale hoy unos <b>${F.eur(R.central * pct / 100)}</b> y con el plan unos <b>${F.eur(R.final * pct / 100)}</b>. Es la base para pactos entre socios, herencias o protocolos familiares.</p>
-            <p class="small"><b>Grupo.</b> En la vista de grupo cada sociedad muestra su valor y el valor atribuible a la holding.</p>
+            <p class="small"><b>Grupo.</b> En el grupo empresarial cada sociedad muestra su valor y el valor atribuible a la holding.</p>
             <p class="small muted">Estimación con los datos cargados: un comprador ajustaría por su propio análisis (due diligence), la calidad del beneficio y las sinergias.</p></div>
         </div>`;
       S.vbars($('#vlFcf', host), ['Año 1', 'Año 2', 'Año 3', 'Año 4', 'Año 5'], [{ n: 'Caja libre sin la inversión', data: R.flHoy, c: S.css('--s1') }, { n: 'Con la inversión', data: R.flPlan, c: S.css('--s3') }], F.eur, { h: 170, aria: 'Caja libre anual' });

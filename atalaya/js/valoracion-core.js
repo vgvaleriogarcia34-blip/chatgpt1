@@ -1,4 +1,4 @@
-/* Atalaya · Valoración orientativa de una empresa (la usan el sistema estratégico y la vista de grupo)
+/* Atalaya · Valoración orientativa de una empresa (la usan el sistema estratégico y el grupo empresarial)
    Dos métodos sobre los datos del simulador, con el escenario sin la inversión como «hoy»:
    · Múltiplo de EBITDA del sector (el EBITDA de hoy de las cifras clave), corregido por tamaño y por los factores que un comprador descuenta.
    · Descuento de los flujos de caja libre de los cinco años proyectados, con valor residual.

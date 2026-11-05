@@ -12,20 +12,20 @@ Todo el trabajo se apoya en transcripciones. De cada sesión salen dos documento
 
 Además, el consultor tiene su propio espacio interno de autoevaluación.
 
-## 2. La estructura: cinco fases y veintidós pasos
+## 2. La estructura: cinco fases y veintitrés pasos
 
 En pantalla, la auditoría se ordena como el resto de mundos en el archivador común: **Mundo → Fase → Paso** (cada módulo de una fase es un paso). La fase 3 agrupa sus pasos en un **bloque por producto**. Las claves de los pasos (`#guion`, `#s1dinero`…) no cambian.
 
 | Fase | Pasos | Qué entrega |
 |---|---|---|
 | **1 · Análisis previo al contrato** (escuchar al posible cliente) | Guion de la sesión · Constantes vitales · Escucha y transcripción · Síntomas y causas · Triaje y prioridades · Foto inicial | Informe de la sesión previa (foto inicial) |
-| **2 · Propuesta y contrato** | Propuesta integral · Aceptación y servicios | Propuesta integral con los tres servicios en orden, ajustada a sus prioridades |
+| **2 · Propuesta y contrato** | Propuesta integral · Contrato · Aceptación y servicios | Propuesta integral con los tres servicios en orden, ajustada a sus prioridades · Contrato de prestación de servicios con sus anexos |
 | **3 · Auditorías según el producto** · bloque **El dinero** | Documentación solicitada · ¿Dónde está el dinero? · Informe y siguiente propuesta | Solicitud de documentación · Informe «Dónde está su dinero» · Propuesta de la Auditoría 360 |
 | **3 · Auditorías según el producto** · bloque **Auditoría 360** | Documentación · Verificación por áreas · Desviaciones del ecosistema · Foto 360 · Informe y propuesta de acompañamiento | Informe de la auditoría 360 · Propuesta de acompañamiento de 6 a 12 meses |
 | **4 · Acompañamiento** | Arranque: reglas y método · Objetivos SMART · Plan por prioridades · Sesiones quincenales (actas y manuales) | Actas · Manuales de formación · Plan · Seguimiento |
 | **5 · Cierre y documentos** | Informes y documentos (cliente e internos) · Autoevaluación | Ecosistema documental completo |
 
-Cada bloque de la fase 3 muestra el estado de su producto, calculado con la aceptación y las propuestas: **Contratado** (casilla del servicio marcada en «Aceptación y servicios»), **Propuesto** (la propuesta integral o la de la Auditoría 360 se ha presentado) o **Sin proponer**. Los bloques no se ocultan nunca: el consultor puede prepararlos antes de que se contraten. El módulo «Contrato» de la fase 2 está pendiente de decidir.
+Cada bloque de la fase 3 muestra el estado de su producto, calculado con la aceptación y las propuestas: **Contratado** (casilla del servicio marcada en «Aceptación y servicios»), **Propuesto** (la propuesta integral o la de la Auditoría 360 se ha presentado) o **Sin proponer**. Los bloques no se ocultan nunca: el consultor puede prepararlos antes de que se contraten. El módulo «Contrato» de la fase 2 (`#contrato`, `js/intervencion/contrato.js`) genera el contrato de prestación de servicios desde la propuesta integral aceptada y los servicios contratados: lista lo que falta (datos del cliente y de la firma, propuesta sin aceptar, ningún servicio), deja editar las condiciones (fechas, plazos, IVA, días de pago, preaviso, prórroga, seguro, gastos y subencargados), lo maqueta en A4 con las cláusulas numeradas, lo imprime o guarda en PDF y lo descarga en Word. El texto jurídico tiene una sola fuente, `legal/CONTRATO-PLANTILLA.md`, que `legal/generar-plantilla.mjs` copia a `js/intervencion/contrato-plantilla.js`; `legal/generar-docx.py` hace con la misma plantilla el Word para el abogado (`legal/CONTRATO-PARA-REVISION.docx`). Mientras la plantilla no esté aprobada (campo `aprobada: { version, fecha, por }` en la ficha de la firma, `firma.contrato.aprobada`, o en la constante `APROBADA` de `contrato.js`), el documento sale con el aviso de borrador. Queda hecho cuando se ha generado con todos los datos y se marca como firmado; su estado se guarda en `ST.contrato`.
 
 Los «servicios» 1, 2 y 3 siguen siendo los productos que se venden (así aparecen en la propuesta, la aceptación y la autoevaluación); las fases son el orden del trabajo.
 
@@ -169,7 +169,7 @@ El manual de una sesión reúne los temas de esa sesión, elegidos a mano o dete
 
 | Pieza actual | Qué cambia | Riesgo y cómo se evita |
 |---|---|---|
-| `TABS` y `hecho()` en `core.js` (12 pasos en 3 grupos) | Pasan a 22 pasos en 5 fases (`FASES`; la fase 3 con dos bloques, `BLOQUES`). Los grupos del archivador se calculan desde `TABS`, no a mano. | Las claves antiguas (`guion`, `plan`…) se conservan: los enlaces con `#clave`, el paseo virtual y la mesa siguen funcionando. Las vistas nuevas registran su regla de «hecho» con un enganche (`V.hechoExtra`). |
+| `TABS` y `hecho()` en `core.js` (12 pasos en 3 grupos) | Pasan a 23 pasos en 5 fases (`FASES`; la fase 3 con dos bloques, `BLOQUES`). Los grupos del archivador se calculan desde `TABS`, no a mano. | Las claves antiguas (`guion`, `plan`…) se conservan: los enlaces con `#clave`, el paseo virtual y la mesa siguen funcionando. Las vistas nuevas registran su regla de «hecho» con un enganche (`V.hechoExtra`). |
 | `ST` (estado por empresa) | Clave nueva `ST.recorrido`: etapa y paso donde se quedó, estado de cada servicio, propuestas por servicio, documentación solicitada, notas del análisis del dinero y de la foto 360, arranque del acompañamiento y autoevaluación. | Se añade con `Object.assign` sobre el estado vacío, así que las empresas ya guardadas cargan sin migración. |
 | Pestaña al abrir (antes, solo por `#hash`) | Si no hay `#hash`, se abre donde se quedó el consultor (`ST.recorrido.ultimo`). La portada muestra «Continuar donde lo dejó». | Como `ir()` guarda el último paso en cada cambio, el dato está siempre al día. |
 | Propuesta comercial (`propuesta.js`) | Pasa a ser la **propuesta integral**: el texto presenta los tres servicios. Las propuestas de cada servicio salen de un generador nuevo y ligero que reutiliza el membrete y los informes. | No se toca el cálculo de valor ni de precio. La propuesta integral sigue marcando «hecho» al abrirse. |

@@ -443,3 +443,7 @@ body.arch-on #ivPanel { margin-top: 18px; }
 .pdf-print .paper.rp.ct-doc .ct-salto { border: 0; margin: 0; break-before: page; page-break-before: always; }
 .pdf-print .paper.rp.ct-doc table.ct-firmas { break-inside: avoid; }
 .pdf-print .paper.rp.ct-doc mark.ct-falta { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+/* En pantalla el aviso va fijo encima de la hoja; en el PDF, dentro del documento */
+.ct-hoja-w .paper.rp.ct-doc .ct-borr-doc { display: none; }
+.pdf-print .paper.rp.ct-doc .ct-borr-doc { display: block; }
+.paper.rp.ct-doc table.ct-tabla th, .paper.rp.ct-doc table.ct-tabla td { overflow-wrap: break-word; }

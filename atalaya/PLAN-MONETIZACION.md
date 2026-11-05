@@ -25,7 +25,7 @@ Estado: **propuesta para decidir**. No hay nada construido de este plan.
 | Esencial · 49 € | Simulador de inversión. Puede añadir el pack Banca. |
 | Profesional · 129 € | Simulador y sistema estratégico con sus 21 módulos (Evolución, Cobros y Valoración incluidos), zona de origen, informes 360 y calendario de obligaciones legales cuando exista. Incluye la propiedad y **2 perfiles de equipo**. |
 | Consultora · 349 € | Lo de Profesional con **todos los packs**, 15 empresas y 10 perfiles. |
-| Grupos · por tramos | Lo de Profesional con **todos los packs**, vista de grupo y 10 perfiles. |
+| Grupos · por tramos | Lo de Profesional con **todos los packs**, grupo empresarial y 10 perfiles. |
 
 El calendario de obligaciones va en el núcleo: cuesta poco mantenerlo, se valora mucho y hace que el cliente vuelva cada mes.
 

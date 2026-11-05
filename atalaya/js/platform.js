@@ -26,7 +26,7 @@
     profesional: { nombre: 'Profesional', precio: 129, periodo: 'mes', empresas: 1, destacado: true, para: 'Para diagnosticar su empresa y decidir', incluye: ['Todo lo de Esencial', 'Sistema estratégico completo: 22 módulos en cinco áreas, zona de origen de datos e informes 360', 'Análisis de cuentas de varios años', 'Asistente con voz', '1 empresa'] },
     consultora: { nombre: 'Consultora', precio: 349, periodo: 'mes', empresas: 15, para: 'Para consultores y asesorías', incluye: ['Todo lo de Profesional', 'Personas y equipos: DISC, aportaciones al equipo, eneagrama, encaje persona-puesto, liderazgo y tablillas de entrenamiento', 'Auditoría integral: primera sesión como un triaje, auditoría por áreas y plan de intervención con sus sesiones', 'Hasta 15 empresas cliente, cada una con su ficha y sus datos por separado', 'Mapa de empresas y vista de cartera de clientes', 'Acompañamiento en la puesta en marcha'] },
     // Grupos se contrata a medida con el equipo: no se publica precio. Los tramos quedan como referencia interna de administración
-    grupos: { nombre: 'Grupos', precio: 690, periodo: 'mes', empresas: Infinity, grupo: true, aMedida: true, para: 'Para holdings y grupos familiares', tramos: [{ hasta: 5, precio: 690, n: 'De 1 a 5 sociedades' }, { hasta: 10, precio: 970, n: 'De 6 a 10 sociedades' }, { hasta: Infinity, precio: 1790, n: 'Más de 10 sociedades' }], incluye: ['Todo lo de Profesional, en cada sociedad del grupo', 'Estructuras de holding: sociedad dominante, filiales y participaciones, con su mapa', 'Vista de grupo: consolidado con eliminaciones intragrupo, comparativa y tesorería entre sociedades', 'Informes del grupo e informe 360 de cada sociedad', 'Plan estratégico de toda la corporación: objetivos de la holding en cascada a cada sociedad', 'Sociedades sin límite y acompañamiento de nuestro equipo'] }
+    grupos: { nombre: 'Grupos', precio: 690, periodo: 'mes', empresas: Infinity, grupo: true, aMedida: true, para: 'Para holdings y grupos familiares', tramos: [{ hasta: 5, precio: 690, n: 'De 1 a 5 sociedades' }, { hasta: 10, precio: 970, n: 'De 6 a 10 sociedades' }, { hasta: Infinity, precio: 1790, n: 'Más de 10 sociedades' }], incluye: ['Todo lo de Profesional, en cada sociedad del grupo', 'Estructuras de holding: sociedad dominante, filiales y participaciones, con su mapa', 'Grupo empresarial: consolidado con eliminaciones intragrupo, comparativa y tesorería entre sociedades', 'Informes del grupo e informe 360 de cada sociedad', 'Plan estratégico de toda la corporación: objetivos de la holding en cascada a cada sociedad', 'Sociedades sin límite y acompañamiento de nuestro equipo'] }
   };
   const DTO_ANUAL = 0.30;
   const PRUEBA_DIAS = 14;
@@ -411,7 +411,7 @@
     return mio;
   }
   P.combinar3 = combinar3;
-  const NOMBRES = { agenda: 'la mesa de trabajo', simulador: 'el simulador', estrategia: 'el sistema estratégico', personas: 'personas y equipos', intervencion: 'la auditoría integral', consultor: 'el cuaderno del consultor', libro: 'el libro corporativo', grupo: 'la vista de grupo', empresas: 'las empresas de la cuenta' };
+  const NOMBRES = { agenda: 'la mesa de trabajo', simulador: 'el simulador', estrategia: 'el sistema estratégico', personas: 'personas y equipos', intervencion: 'la auditoría integral', consultor: 'el cuaderno del consultor', libro: 'el libro corporativo', grupo: 'el grupo empresarial', empresas: 'las empresas de la cuenta' };
   const nombreDe = (k) => NOMBRES[String(k).split('--')[0]] || 'estos datos';
   const callado = (k) => CALLADOS.includes(String(k).split('--')[0]);
   function avisoCombinado(key) {
@@ -475,7 +475,7 @@
     banda(`En otra pestaña ha pasado a ${escH(fin(nom(nueva)))}. Esta pestaña sigue trabajando con ${escH(fin(nom(actTab)))}.`, { tipo: 'warn', clave: 'empresa:' + nueva, accion: { texto: 'Cambiar aquí también', fn: () => { ponerAct(nueva); location.reload(); } } });
   });
 
-  /* Datos de otra empresa de la cuenta (vista de grupo) */
+  /* Datos de otra empresa de la cuenta (grupo empresarial) */
   P.loadDataOf = async function (key, id) {
     await P.ready;
     if ((id || P.empresaId()) === MID && SCOPED.includes(key)) return P.modelo.leer(key);
@@ -484,7 +484,7 @@
     const s = L.session(); return s ? LS.get(`atalaya.data.${s.id}.${k}`) : null;
   };
 
-  /* Escribir un dato de otra empresa de la cuenta (vista de grupo) sin cambiar la empresa activa: «key» para la principal,
+  /* Escribir un dato de otra empresa de la cuenta (grupo empresarial) sin cambiar la empresa activa: «key» para la principal,
      «key--id» para las demás. Mismo trato que saveData: en el servidor, si falla, queda pendiente y se reenvía. */
   P.saveDataOf = async function (key, id, obj) {
     await P.ready;
@@ -622,7 +622,7 @@
   };
 
   /* ---------- Copia de los datos de la cuenta: descargar e importar ----------
-     Una copia es un JSON con todo lo que la cuenta guarda: el registro de empresas («empresas»), la vista de grupo
+     Una copia es un JSON con todo lo que la cuenta guarda: el registro de empresas («empresas»), el grupo empresarial
      («grupo») y, de cada empresa real, sus datos por mundo (SCOPED; las que no son la principal llevan «--id»).
      La empresa modelo no va en la copia: es ficticia y vive solo en este navegador.
      Importar nunca sustituye nada sin avisar: se enseña un resumen y, si la cuenta ya tiene datos, solo se ofrece
@@ -631,7 +631,7 @@
   const RE_CLAVE = /^(?:(empresas|grupo)|(simulador|estrategia|personas|consultor|agenda|nota|libro|intervencion)(?:--([a-z0-9_-]{1,40}))?)$/i;
   // Datos que el servidor solo guarda en algunos planes (como CLAVES en server/server.mjs)
   const FUNCION_DE = { estrategia: 'estrategia', personas: 'personas', intervencion: 'intervencion', consultor: 'consultor', grupo: 'varias' };
-  const NOMBRE_DATO = { empresas: 'registro de empresas', grupo: 'vista de grupo', simulador: 'simulador de inversión', estrategia: 'sistema estratégico', personas: 'personas y equipos', consultor: 'cuaderno del consultor', agenda: 'mesa de trabajo', nota: 'nota de la empresa', libro: 'libro corporativo', intervencion: 'auditoría integral' };
+  const NOMBRE_DATO = { empresas: 'registro de empresas', grupo: 'grupo empresarial', simulador: 'simulador de inversión', estrategia: 'sistema estratégico', personas: 'personas y equipos', consultor: 'cuaderno del consultor', agenda: 'mesa de trabajo', nota: 'nota de la empresa', libro: 'libro corporativo', intervencion: 'auditoría integral' };
   async function leerCrudo(k) {
     if (P.mode === 'server') { const pd = leerPend(k); if (pd) return pd.v; const r = await api('/data/' + encodeURIComponent(k)); return r ? r.data : null; }
     const s = L.session(); return s ? LS.get(`atalaya.data.${s.id}.${k}`) : null;
@@ -1163,7 +1163,7 @@
     esencial: { mundos: 'Simulador de inversión', empresas: '1 empresa', vista: '—' },
     profesional: { mundos: 'Simulador y sistema estratégico', empresas: '1 empresa', vista: '—' },
     consultora: { mundos: 'Simulador, sistema estratégico, personas y equipos y auditoría integral', empresas: 'Hasta 15 empresas cliente', vista: 'Cartera de clientes' },
-    grupos: { mundos: 'Simulador y sistema estratégico', empresas: 'Sociedades sin límite', vista: 'Vista de grupo con consolidado' }
+    grupos: { mundos: 'Simulador y sistema estratégico', empresas: 'Sociedades sin límite', vista: 'Grupo empresarial con consolidado' }
   };
   P.cambiarPlan = async function (plan, periodo) {
     if (!PLANES[plan]) throw new Error('Plan no válido');
@@ -1312,7 +1312,7 @@
           <label data-fil><span>% que tiene la dominante</span><input class="input" name="participacion" type="number" min="0" max="100" step="0.01" value="${escH(d.participacion)}"></label>
         </div>` : ''}
         <h4>Socios y porcentaje</h4>
-        <p class="small muted" style="margin:0">Quién es dueño de la empresa y en qué proporción: personas, familias o sociedades. Sirve para la valoración, la sucesión y la vista de grupo.</p>
+        <p class="small muted" style="margin:0">Quién es dueño de la empresa y en qué proporción: personas, familias o sociedades. Sirve para la valoración, la sucesión y el grupo empresarial.</p>
         <div class="ef-socios">${(d.socios.length ? d.socios : [{ nombre: '', pct: '' }]).map(socioRow).join('')}</div>
         <div class="row"><button type="button" class="btn ghost small" data-sadd>Añadir socio</button><span class="small" data-stot></span></div>
         <h4>Datos con los que se trabaja</h4>
@@ -1451,7 +1451,7 @@
           <div class="eyebrow" style="color:var(--stop)">Borrado definitivo</div>
           <h3 class="del-t">¿Seguro que quiere borrar «${escH(e.nombre)}»?</h3>
           <p>Si sigue adelante <b>perderá toda la información de esta ${grupo ? 'sociedad' : 'empresa'}</b> y no se podrá recuperar:</p>
-          <ul class="small"><li>su ficha (forma jurídica, CIF, socios…);</li><li>sus datos del simulador de inversión: cifras, inversiones, escenarios e hipótesis;</li><li>su sistema estratégico: módulos, zona de origen, diagnósticos 360, objetivos, planes de acción y cortes de evolución;</li><li>su lugar en ${grupo ? 'la vista de grupo, los préstamos entre sociedades y los objetivos en cascada' : 'la cartera de clientes'}.</li></ul>
+          <ul class="small"><li>su ficha (forma jurídica, CIF, socios…);</li><li>sus datos del simulador de inversión: cifras, inversiones, escenarios e hipótesis;</li><li>su sistema estratégico: módulos, zona de origen, diagnósticos 360, objetivos, planes de acción y cortes de evolución;</li><li>su lugar en ${grupo ? 'el grupo empresarial, los préstamos entre sociedades y los objetivos en cascada' : 'la cartera de clientes'}.</li></ul>
           ${hijas.length ? `<p class="small" style="color:var(--warn)">Es la sociedad dominante de ${hijas.map((h) => '«' + escH(h.nombre) + '»').join(', ')}: quedarán sin sociedad dominante hasta que les asigne otra.</p>` : ''}
           <p class="small muted">Piénselo dos veces. Si solo quiere bajar de plan, recuerde que el plan Consultora o Grupos conserva todas sus empresas.</p>
           <div class="row"><button class="btn solid" data-no>No, conservarla</button><button class="btn del-btn" data-si>Sí, quiero borrarla</button></div>
@@ -1557,14 +1557,14 @@
     { k: 'mesa', n: 'Mesa de trabajo', d: 'Hoy, prioridades y agenda', href: 'mesa.html', c: '#199e70' },
     { k: 'tablero', n: 'Tablero general', d: 'Toda la empresa de un vistazo', href: 'tablero.html', c: '#9ba4ba' },
     { k: 'libro', n: 'Libro corporativo', d: 'Los informes en un libro', href: 'libro.html', c: '#ecd6a6' },
-    { k: 'grupo', n: 'Vista de grupo', d: 'Consolidado y sociedades', href: 'grupo.html', grupo: true, c: '#86b4ff' }
+    { k: 'grupo', n: 'Grupo empresarial', d: 'Consolidado y sociedades', href: 'grupo.html', grupo: true, c: '#86b4ff' }
   ];
   const MOTIVO_PLAN = {
     est: 'El sistema estratégico está incluido desde el plan Profesional. Su plan incluye el simulador de inversión.',
     per: 'Personas y equipos (perfiles, equipos, liderazgo y tablillas) está incluido en el plan Consultora.',
     iv: 'La auditoría integral (primera sesión como un triaje, auditoría por áreas y plan de intervención) está incluida en el plan Consultora.'
   };
-  // Mundos de la cuenta: la vista de grupo solo en planes con varias empresas (en Consultora se llama cartera de clientes)
+  // Mundos de la cuenta: el grupo empresarial solo en planes con varias empresas (en Consultora se llama cartera de clientes)
   P.mundos = (u) => {
     u = u || P.user; const pl = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional;
     return P.MUNDOS.filter((m) => !m.grupo || P.esGrupo(u)).map((m) => Object.assign({}, m, m.grupo && !pl.grupo ? { n: 'Cartera de clientes', d: 'Empresas cliente de un vistazo' } : {}, { lock: !!(m.f && u && !P.puede(m.f)) }));
@@ -1581,7 +1581,7 @@
     est: { d: 'El sistema estratégico añade veintidós módulos de diagnóstico en cinco áreas (cuadro de mando, flujo del dinero, cobros, márgenes, compras, personas, valoración, evolución…), la zona de origen de datos y los informes 360.' },
     per: { d: 'Perfiles de comportamiento (DISC), mapa de aportaciones al equipo y eneagrama; puestos y encaje persona-puesto; organigrama, relevos y mapa de talento; equipos equilibrados, liderazgo a medida y tablillas de entrenamiento, con informes para presentar a la empresa.' },
     iv: { d: 'La herramienta del consultor para entrar en una empresa: la primera sesión como un triaje (constantes, escucha y síntomas), la hoja de ruta de la auditoría integral y el plan de intervención completo con sus sesiones.' },
-    grupo: { n: 'Cartera de clientes', plan: 'consultora', d: 'Con Consultora lleva hasta quince empresas cliente por separado y las ve juntas en la cartera de clientes. Con Grupos reúne las sociedades de un grupo con su consolidado, la comparativa y los objetivos de la holding en cascada; ese plan se prepara a medida con nuestro equipo.', contacto: true }
+    grupo: { n: 'Cartera de clientes', plan: 'consultora', d: 'Con Consultora lleva hasta quince empresas cliente por separado y las ve juntas en la cartera de clientes. Con Grupos, el grupo empresarial reúne las sociedades de un grupo con su consolidado, la comparativa y los objetivos de la holding en cascada; ese plan se prepara a medida con nuestro equipo.', contacto: true }
   };
   P.bloqueo = function (k, host) {
     const m = P.MUNDOS.find((x) => x.k === k) || {}, b = BLOQUEO[k] || {}, pk = b.plan || m.plan || 'consultora';
@@ -1723,7 +1723,7 @@
           <div class="emp-list">${lista.map((e, i) => `<div class="emp-it ${e.id === act.id ? 'on' : ''}"><button data-emp="${esc(e.id)}"><i style="background:${pal[i % pal.length]}"></i><span><b>${esc(e.nombre)}</b><small>${e.modelo ? 'Empresa modelo · datos ficticios' : grupo && e.rol === 'holding' ? 'Holding · sociedad dominante' : grupo && e.rol === 'filial' ? `Filial · ${esc(e.participacion != null ? e.participacion : 100)} %` : lim === 1 ? 'Su empresa' : e.id === 'principal' ? 'Principal' : 'Cliente'}</small></span></button>${e.id !== 'principal' && !e.modelo ? `<button class="icon-btn" data-empdel="${esc(e.id)}" title="Borrar" aria-label="Borrar ${esc(e.nombre)}">×</button>` : ''}<button class="icon-btn" data-empren="${esc(e.id)}" title="Ficha de la empresa" aria-label="Ficha de ${esc(e.nombre)}">✎</button></div>`).join('')}</div>
           <a class="emp-group" href="portal.html#empresas">Mapa de ${grupo ? 'sociedades' : 'empresas'} y fichas →</a>
           ${lim === 1 ? '' : P.empresas.reales().length < lim ? `<form class="emp-new stack" data-empnew><input class="input" name="nombre" placeholder="Nombre de la ${grupo ? 'sociedad' : 'empresa'}" required>${grupo ? '<div class="row"><select class="input" name="rol"><option value="filial">Filial</option><option value="holding">Holding</option></select><input class="input" name="participacion" type="number" min="0" max="100" value="100" title="% de participación" style="width:90px"></div>' : ''}<button class="btn solid" type="submit">Añadir ${grupo ? 'sociedad' : 'empresa'}</button><small class="muted" data-empmsg></small></form>` : `<p class="small muted" style="padding:8px 12px">Ha llegado al máximo de su plan.</p>`}
-          ${P.esGrupo(u) ? `<a class="emp-group" href="grupo.html">${grupo ? 'Vista de grupo →' : 'Cartera de clientes →'}</a>` : ''}
+          ${P.esGrupo(u) ? `<a class="emp-group" href="grupo.html">${grupo ? 'Grupo empresarial →' : 'Cartera de clientes →'}</a>` : ''}
         </div>`;
       el.prepend(sel);
       const eb = sel.querySelector('.emp-btn'), em = sel.querySelector('.emp-menu');

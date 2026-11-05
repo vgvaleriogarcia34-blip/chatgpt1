@@ -298,7 +298,7 @@ body.rj-window { margin: 0; padding: 14px; background: var(--abyss, #05060a); co
 .or-doc summary { cursor: pointer; padding: 6px 0; }
 @media (prefers-reduced-motion: reduce) { .or-orb i { animation: none; } }
 
-/* ---------- Vista de grupo y cartera de clientes ---------- */
+/* ---------- Grupo empresarial y cartera de clientes ---------- */
 .gr-main { display: grid; gap: 14px; }
 .gr-mod { display: grid; gap: 14px; min-width: 0; }
 .gr-mod > .mt { margin-top: 0; }
