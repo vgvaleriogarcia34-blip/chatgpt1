@@ -54,7 +54,7 @@
   };
   // Cómo se enseña una cuota: en anual, la cuota del año (12 meses con el 30 % de descuento), no una mensual rebajada
   P.cuota = (pr) => (pr.periodo === 'anual'
-    ? { importe: pr.total, unidad: '/año', detalle: `12 × ${P.eur(pr.base)} = ${P.eur(r2(pr.base * 12))} − 30 % · ahorras ${P.eur(pr.ahorro)}` }
+    ? { importe: pr.total, unidad: '/año', detalle: `12 × ${P.eur(pr.base)} = ${P.eur(r2(pr.base * 12))} − 30 % · ahorra ${P.eur(pr.ahorro)}` }
     : { importe: pr.mes, unidad: '/mes', detalle: '' });
   // Importes con punto de miles también en cifras de cuatro dígitos (1.083,60 €)
   P.eur = (x) => { const neg = x < 0, v = Math.abs(x), d = v % 1 ? 2 : 0; const [e, f] = v.toFixed(d).split('.'); return (neg ? '−' : '') + e.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (f ? ',' + f : '') + ' €'; };
