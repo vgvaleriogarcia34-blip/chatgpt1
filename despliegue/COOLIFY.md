@@ -16,7 +16,7 @@ Servidor CX23 de Hetzner con la imagen de Coolify. Coolify construye la imagen d
 | Base Directory | `/atalaya` |
 | Dockerfile Location | `/Dockerfile` |
 | Ports Exposes | `8080` |
-| Domains | `https://atalaya.familiasempresarias.es` |
+| Domains | `https://app.businessavance.es` |
 | Health Check | activado, ruta `/api/health`, puerto 8080 |
 
 ## 3. Almacenamiento persistente (imprescindible)
@@ -35,7 +35,7 @@ Las marcadas como secreto se crean en Coolify como «Secret» o «Locked» y se 
 | Variable | Valor | Secreto |
 |---|---|---|
 | `NODE_ENV` | `production` | |
-| `APP_URL` | `https://atalaya.familiasempresarias.es` | |
+| `APP_URL` | `https://app.businessavance.es` | |
 | `COOKIE_SECURE` | `1` | |
 | `TRUST_PROXY` | `1` | |
 | `ZONA_HORARIA` | `Europe/Madrid` | |
@@ -53,10 +53,10 @@ openssl rand -hex 32
 
 ## 5. DNS en IONOS
 
-En el dominio familiasempresarias.es → DNS → añadir un registro:
+En el dominio businessavance.es → DNS → añadir un registro:
 
 - **Tipo:** A
-- **Nombre de host:** `atalaya`
+- **Nombre de host:** `app`
 - **Valor:** `2.29.35.108`
 - **TTL:** 1 hora
 
@@ -64,14 +64,14 @@ Si Hetzner le ha dado también una dirección IPv6, añada un registro AAAA con 
 
 ## 6. Seguridad del servidor
 
-- **Panel de Coolify:** ponerle un dominio propio con HTTPS, por ejemplo `panel.familiasempresarias.es` (Settings → Instance Domain). Después, cerrar el puerto 8000 en el cortafuegos de Hetzner. Mientras se use por el puerto 8000, la contraseña del panel viaja sin cifrar.
+- **Panel de Coolify:** ponerle un dominio propio con HTTPS, por ejemplo `panel.businessavance.es` (Settings → Instance Domain). Después, cerrar el puerto 8000 en el cortafuegos de Hetzner. Mientras se use por el puerto 8000, la contraseña del panel viaja sin cifrar.
 - **Cortafuegos de Hetzner:** dejar abiertos solo los puertos 22, 80 y 443. Si es posible, limitar el 22 a la IP de su oficina.
 - **Autenticación en dos pasos:** en Hetzner y en Coolify.
 - **Copias de seguridad:** activar las copias diarias de Hetzner en el servidor. Más adelante se añade la copia externa cifrada del volumen `atalaya-datos` (Coolify → «Backups» con destino S3, o `copia-seguridad.sh` adaptado).
 
 ## 7. Comprobación
 
-1. `https://atalaya.familiasempresarias.es/api/health` responde `{"atalaya":true,...}`.
-2. `https://atalaya.familiasempresarias.es/admin.html`: entrar con `ADMIN_PASSWORD`, cambiarla y activar el segundo factor en «Seguridad».
+1. `https://app.businessavance.es/api/health` responde `{"atalaya":true,...}`.
+2. `https://app.businessavance.es/admin.html`: entrar con `ADMIN_PASSWORD`, cambiarla y activar el segundo factor en «Seguridad».
 3. «Revisión del sistema» en la administración, sin nada por corregir salvo lo pendiente: copia externa, correo, Stripe y HubSpot.
 4. Hacer un nuevo despliegue en Coolify y comprobar que las cuentas siguen ahí. Así se confirma que el volumen persiste.
