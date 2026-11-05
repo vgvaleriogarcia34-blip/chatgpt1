@@ -23,7 +23,11 @@
        aparte: [{ k, n, pregunta }],       // opcional: módulos fuera del recorrido (no cuentan en «Paso N de M»); van al final
                                            //   del archivador con su propio título y, abiertos, su pie lleva de vuelta al recorrido
        hechoN: 'hecho',                    // opcional: cómo se llama el estado verde ('visitado' si el mundo no tiene otro criterio)
-       antes: elemento,                    // la ruta, «Abiertos» y las pestañas se colocan justo antes
+       antes: elemento,                    // la ruta, «Abiertos» y las pestañas se colocan justo antes (en todos los mundos,
+                                           //   justo bajo la barra superior: antes de la portada, si la hay)
+       portada: () => elemento,            // opcional: la portada grande del mundo (hero), que va debajo de la ruta. Se ve
+                                           //   al entrar sin #módulo; al abrir otro módulo, o al entrar con #módulo, se pliega
+                                           //   y queda «Ver la portada» para desplegarla
        panel: () => elemento               // contenedor del módulo: el pie se añade al final
      });
      arch.refrescar();                     // después de pintar cada módulo
@@ -46,6 +50,9 @@
   const APN = 'Fuera del recorrido';
   let AP = null; // módulos aparte de este mundo (fuera del recorrido), como un área sin número
   let ultimoRec = null; // último módulo del recorrido abierto: el pie de un módulo aparte lleva de vuelta a él
+  // Portada del mundo: se pliega al cambiar de módulo (o si se entra con #módulo); el # con que se abrió la página
+  const HASH0 = (location.hash || '').replace('#', '');
+  let actPrevio = null, portadaPlegada = false;
 
   /* ---------- Datos ---------- */
   const mundoCat = (k) => (A.catalogo && A.catalogo.mundo(k)) || Object.assign({ areas: [] }, Pm().find((m) => m.k === k) || { k, n: k, c: '#9ba4ba' });
@@ -272,17 +279,34 @@
     s.querySelectorAll('.ar-chips [data-k]').forEach((x) => x.onclick = () => { if (x.dataset.k !== act) cfg.ir(x.dataset.k); });
   }
 
+  /* ---------- g) Portada plegable (hero): debajo de la ruta; plegada, deja una línea para desplegarla ---------- */
+  const portadaEl = () => (cfg.portada ? (typeof cfg.portada === 'function' ? cfg.portada() : cfg.portada) : null);
+  function pintarPortada() {
+    const host = cab.querySelector('.ar-portada'), h = portadaEl();
+    if (!host) return;
+    if (!h) { host.hidden = true; return; }
+    if (!h.id) h.id = 'arPortada';
+    h.classList.toggle('ar-plegada', portadaPlegada);
+    host.hidden = !portadaPlegada;
+    host.innerHTML = `<button type="button" class="ar-pbtn" aria-expanded="false" aria-controls="${esc(h.id)}"><span aria-hidden="true">▾</span> Ver la portada de ${esc(este().n)}</button>`;
+    host.querySelector('button').onclick = () => { portadaPlegada = false; pintarPortada(); const t = portadaEl(); if (t) { if (!t.hasAttribute('tabindex')) t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true }); } };
+  }
+
   /* ---------- Montaje ---------- */
   function refrescar() {
     if (!cfg) return;
     leerAreas();
     const act = cfg.actual(), a = areaDe(act);
     if (!modDe(act)) return;
+    // Al abrir otro módulo, la portada se pliega para que el módulo quede a la vista bajo la ruta
+    if (actPrevio === null) portadaPlegada = !!(HASH0 && modDe(HASH0));
+    else if (act !== actPrevio) portadaPlegada = true;
+    actPrevio = act;
     abiertosM.add(cfg.mundo); if (a && !a.aparte) abiertasA.add(cfg.mundo + '|' + a.k);
     if (!apDe(act)) ultimoRec = act;
     apuntar(act);
     menu = null;
-    pintarArch(); pintarRuta(); pintarAbiertos(); pintarPest(); pintarPie();
+    pintarArch(); pintarRuta(); pintarAbiertos(); pintarPest(); pintarPie(); pintarPortada();
   }
   function montar(o) {
     cfg = Object.assign({ secuencial: false }, o);
@@ -297,7 +321,7 @@
     document.body.appendChild(velo); document.body.appendChild(aside);
     // Cabecera del contenido: ruta, abiertos y pestañas de módulos
     cab = document.createElement('div'); cab.className = 'ar-cab';
-    cab.innerHTML = '<nav class="ar-ruta" aria-label="Dónde está"></nav><div class="ar-abiertos" hidden></div><div class="ar-pest" role="tablist"></div>';
+    cab.innerHTML = '<nav class="ar-ruta" aria-label="Dónde está"></nav><div class="ar-abiertos" hidden></div><div class="ar-pest" role="tablist"></div><div class="ar-portada" hidden></div>';
     const antes = cfg.antes || (cfg.panel && cfg.panel());
     if (antes && antes.parentNode) antes.parentNode.insertBefore(cab, antes); else document.body.appendChild(cab);
     // Pestañas: flechas, Inicio y Fin mueven el foco (Intro o espacio abren)

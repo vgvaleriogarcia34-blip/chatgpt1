@@ -191,7 +191,7 @@
         if (q && q.hechos) toast('Informes recogidos: ' + Object.keys(q.hechos).map((k) => `${MUNDO_N[k]} ${typeof q.hechos[k] === 'number' ? q.hechos[k] : '(' + q.hechos[k] + ')'}`).join(' · ') + '.');
       }
       { const h = location.hash.replace('#', ''); if (esSec(h)) secAct = h; }
-      if (A.archivador) arch = A.archivador.montar({ mundo: 'libro', areas: areasArch, actual: () => secAct, ir: (k) => irSec(k, { ver: true }), antes: $('#lbPanel'), panel: () => $('#lbPanel') });
+      if (A.archivador) arch = A.archivador.montar({ mundo: 'libro', areas: areasArch, actual: () => secAct, ir: (k) => irSec(k, { ver: true }), antes: $('#lbHero'), portada: () => $('#lbHero'), panel: () => $('#lbPanel') });
       pintar(); arrancado = true;
       // Atrás y adelante del navegador recorren las secciones visitadas; un # en la misma página abre su sección
       const alVolver = () => { const k = location.hash.replace('#', ''); if (esSec(k) && k !== secAct) { volviendo = true; try { irSec(k); } finally { volviendo = false; } } };

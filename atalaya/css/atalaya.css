@@ -1372,4 +1372,14 @@ body.arch-on .ar-cab + .st-tabs + .st-panel, body.arch-on .ar-cab + .st-panel { 
 .ar-chips button { display: inline-flex; align-items: center; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-solid, #111418); color: var(--fg); font-size: 0.82rem; text-align: left; }
 .ar-chips button:hover { border-color: var(--line-strong); }
 .ar-chips button[aria-current="true"] { border-color: var(--wc, var(--gold)); }
+/* La ruta, «Abiertos» y las pestañas van siempre justo bajo la barra superior; la portada del mundo (hero), debajo.
+   Al abrir otro módulo la portada se pliega (archivador.js, opción «portada») y queda una línea para desplegarla */
+body.arch-on .ar-cab ~ .st-panel { margin-top: 18px; }
+body.arch-on .ar-cab + :is(#ivHero, #msHero, #lbHero):not(.ar-plegada) { margin-top: 14px; }
+.ar-plegada { display: none !important; }
+.ar-portada { display: flex; margin-top: -2px; }
+.ar-portada[hidden] { display: none; }
+.ar-pbtn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--muted); font-size: 0.78rem; }
+.ar-pbtn:hover, .ar-pbtn:focus-visible { color: var(--fg); border-color: var(--wc, var(--gold)); }
+.ar-pbtn span { font-size: 0.66rem; color: var(--wc, var(--gold)); }
 @media print { .ar-arch, .ar-cab, .ar-pie, .ar-recorrido, .ar-carp, .bs-btn, .bs-velo { display: none !important; } body.arch-on .st-main { margin: 0 auto; } }

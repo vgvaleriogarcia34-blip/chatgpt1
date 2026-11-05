@@ -530,7 +530,7 @@
     else if (ST.recorrido && ST.recorrido.ultimo && VISTAS[ST.recorrido.ultimo.tab]) tab = ST.recorrido.ultimo.tab; // vuelve donde se quedó
     try { if (location.hash !== '#' + tab) history.replaceState(null, '', '#' + tab); } catch (e) { /* nada */ }
     // Menú: el archivador común, por fases (la fase 3 con un bloque por producto y su estado)
-    if (A.archivador) V.arch = A.archivador.montar({ mundo: 'iv', secuencial: true, recorrido: true, areas: areasArch, actual: () => tab, ir: (k) => ir(k, { ver: true }), estado: (k) => (hecho(k) ? 'hecho' : k === tab ? 'curso' : ''), antes: $('#ivRuta'), panel: () => $('#ivPanel') });
+    if (A.archivador) V.arch = A.archivador.montar({ mundo: 'iv', secuencial: true, recorrido: true, areas: areasArch, actual: () => tab, ir: (k) => ir(k, { ver: true }), estado: (k) => (hecho(k) ? 'hecho' : k === tab ? 'curso' : ''), antes: $('#ivHero'), portada: () => $('#ivHero'), panel: () => $('#ivPanel') });
     render();
     // Atrás y adelante del navegador: cada paso visitado es una entrada del historial
     const alVolver = () => { const k = location.hash.replace('#', ''); if (VISTAS[k] && k !== tab) ir(k, { volver: true }); };

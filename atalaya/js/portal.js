@@ -1,9 +1,13 @@
-/* Atalaya · Puesto de mando 3D
-   Una galaxia con cuatro mundos: el simulador de inversión (planeta dorado con cinco lunas, una por escenario),
+/* Atalaya · Puesto de mando
+   La portada es una galaxia con cuatro mundos: el simulador de inversión (planeta dorado con cinco lunas, una por escenario),
    el sistema estratégico (núcleo azul con sus módulos en órbita, agrupados por áreas) y personas y equipos
    (planeta violeta con cuatro equipos de personas, uno por estilo DISC, unidos en red) y la auditoría integral
-   (planeta coral con su pulso en órbita, un radar que barre y ocho balizas de triaje, una por área). Se navega arrastrando,
-   con la rueda, pellizcando o con el teclado; al elegir un mundo la cámara vuela hacia él y se abre la herramienta. */
+   (planeta coral con su pulso en órbita, un radar que barre y ocho balizas de triaje, una por área). Se mueve arrastrando,
+   con la rueda, pellizcando o con el teclado; al pulsar un planeta la cámara vuela hacia él y se abre su mundo.
+   El menú es el archivador de entrada (#entrada): «Continuar donde lo dejó» (el registro «Abiertos» del archivador común,
+   atalaya.abiertos), el buscador común y los mundos como carpetas con sus áreas y módulos (js/catalogo.js).
+   En escritorio el archivador es un panel a la derecha y la galaxia se centra en el resto; en pantallas estrechas va
+   debajo de la galaxia, que se reduce. El archivador lateral de los otros mundos no se monta aquí: este panel lo sustituye. */
 (function () {
   const A = window.Atalaya, P = A.platform;
   const $ = (s) => document.querySelector(s);
@@ -15,69 +19,170 @@
   P.MUNDOS.forEach((m) => { if (m.k !== 'portal') { DEST[m.k] = m.href; NOMBRE[m.k] = m.n; } });
   const EN3D = ['sim', 'est', 'per', 'iv'];
   const LS = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const portada = $('#portada'), entrada = $('#entrada');
+  // ¿Está el archivador en el panel de la derecha (escritorio) o debajo de la galaxia?
+  const enPanel = () => !!entrada && getComputedStyle(entrada).position === 'fixed' && !document.body.classList.contains('paso-emp');
+  const portadaFija = () => !!portada && getComputedStyle(portada).position === 'fixed';
 
-  let entering = false;
-  function enter(w) {
+  let entering = false, hoverLabel = null, alCambiarLado = () => {};
+  // Entrar en un mundo (o en un módulo suyo, con href): en los mundos del espacio, la cámara vuela hacia el planeta
+  function enter(w, href) {
     if (entering || !DEST[w]) return;
     // El manual se abre en el lateral, sin salir del puesto de mando
-    if (w === 'man' && A.manualLateral) { A.manualLateral.abrir('navegar'); return; }
+    if (w === 'man' && A.manualLateral) { A.manualLateral.abrir('puesto'); return; }
     // Un mundo que el plan no incluye se ve, pero se ofrecen los planes en lugar de abrirlo
     const m = P.MUNDOS.find((x) => x.k === w);
     if (m && m.f && P.user && !P.puede(m.f)) { P.abrirMundo(w); return; }
     entering = true;
     LS.set('atalaya.ultimo', w);
-    if (scene && !reduce && EN3D.includes(w)) { flyTo(w); setTimeout(() => $('#warp').classList.add('on'), 650); setTimeout(() => { location.href = DEST[w]; }, 1350); }
-    else location.href = DEST[w];
+    const dest = href || DEST[w];
+    if (scene && !reduce && EN3D.includes(w)) { flyTo(w); setTimeout(() => $('#warp').classList.add('on'), 650); setTimeout(() => { location.href = dest; }, 1350); }
+    else location.href = dest;
+    // Si la página vuelve de la caché del navegador (atrás), se puede volver a entrar
+    setTimeout(() => { entering = false; }, 4000);
   }
-  /* Barra de mundos del puesto de mando: arriba los cuatro del espacio; debajo, mesa, tablero, libro y grupo.
-     Se pinta al cargar y otra vez con la cuenta (planes y vista de grupo). Las teclas 1 a 9 siguen su orden. */
-  const dock = $('.pt-dock');
-  const escT = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  function pintarDock() {
-    const ms = P.mundos().filter((m) => m.k !== 'portal');
-    let n = 0;
-    const it = (m) => `<button type="button" data-w="${m.k}" class="${EN3D.includes(m.k) ? '' : 'pt-sec'}${m.lock ? ' pt-lock' + (m.plan === 'consultora' ? ' pt-lock-c' : '') : ''}"><i class="d-${m.k}"${EN3D.includes(m.k) ? '' : ` style="background:${m.c}"`}></i><span><b>${escT(m.n)}</b><small>${m.lock ? `Incluido en el plan ${escT(P.PLANES[m.plan].nombre)} · ${P.verbo()} para ver los planes` : escT(m.d)}</small></span><kbd>${++n}</kbd></button>`;
-    dock.innerHTML = ms.filter((m) => EN3D.includes(m.k)).map(it).join('') + '<span class="pt-dock-br" aria-hidden="true"></span>' + ms.filter((m) => !EN3D.includes(m.k)).map(it).join('');
-    // La pista de las teclas cuenta los mundos de la lista (cambian con el plan)
-    const h = $('#hint'); if (h && !P.tactil() && /teclas/.test(h.textContent)) h.textContent = `Arrastre para girar · rueda para acercarse · teclas 1 a ${Math.min(9, n)} para entrar en cada mundo · Intro para entrar`;
-    medirDock();
-  }
-  dock.addEventListener('click', (e) => { const b = e.target.closest('[data-w]'); if (b) { e.stopPropagation(); enter(b.dataset.w); } });
+  // Mundos de la cuenta, en el orden de la barra común (sin el puesto de mando): las teclas 1 a 9 siguen este orden
+  const listaMundos = () => (A.catalogo ? A.catalogo.mundos() : []).filter((m) => m.k !== 'portal');
   $$('.pt-labels [data-w]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); enter(b.dataset.w); }));
-  // Paseo virtual con la empresa modelo, a petición desde el mapa
+  // Paseo virtual con la empresa modelo, a petición
   const pb = $('#ptPaseo'); if (pb) pb.addEventListener('click', (e) => { e.stopPropagation(); if (!A.paseo) return; const antes = P.empresaId(); A.paseo.iniciar(); if (A.paseo.activo() && P.empresaId() !== antes) location.reload(); });
-  // Altura real de la barra de mundos (una o dos filas según la pantalla) para colocar encima los botones flotantes
-  function medirDock() { const d = $('.pt-dock'); if (d) document.documentElement.style.setProperty('--pt-dock-h', d.offsetHeight + 'px'); }
-  pintarDock(); addEventListener('resize', medirDock); setTimeout(medirDock, 600);
   // Con el dedo no hay rueda ni teclas: la ayuda lo dice así
-  if (P.tactil()) { $('.pt-intro p').textContent = 'Elija un mundo: toque su nombre en la lista de abajo o el planeta en el espacio. Deslice para girar y pellizque para acercarse.'; $('#hint').textContent = 'Deslice para girar · pellizque para acercarse · toque un mundo para entrar'; }
+  function textosIntro() {
+    const ip = $('#introP'), abajo = !enPanel();
+    if (P.tactil()) { ip.textContent = `Toque un planeta para entrar en su mundo o elija ${abajo ? 'debajo' : 'a la derecha'}, en el archivador, el módulo concreto. Deslice de lado para girar y pellizque para acercarse.`; $('#hint').textContent = 'Deslice de lado para girar · pellizque para acercarse · toque un planeta para entrar'; }
+    else ip.textContent = `Pulse un planeta para entrar en su mundo o elija ${abajo ? 'debajo' : 'a la derecha'}, en el archivador, el módulo concreto. Arrastre para girar y acérquese con la rueda.`;
+  }
+  textosIntro();
   const vb = $('#ptVideo'); if (vb) vb.addEventListener('click', (e) => { e.stopPropagation(); P.verVideo(); });
+
+  /* ---------- Archivador de entrada ---------- */
+  const K_CARP = 'atalaya.portal.carpetas';
+  const carpAbiertas = new Set((() => { try { return JSON.parse(LS.get(K_CARP)) || []; } catch (e) { return []; } })());
+  const abiertos = () => { try { const l = JSON.parse(LS.get('atalaya.abiertos')); return Array.isArray(l) ? l.filter((x) => x && x.m && x.n) : []; } catch (e) { return []; } };
+  const planN = (m) => (P.PLANES && P.PLANES[m.plan] ? P.PLANES[m.plan].nombre : '');
+  // Área (o fase) de un módulo en el catálogo: «Finanzas», «1. Análisis previo al contrato», «Fuera del recorrido»
+  function areaDe(m, k) {
+    const i = m.areas.findIndex((a) => a.modulos.some((x) => x.k === k));
+    if (i >= 0) { const a = m.areas[i], b = (a.modulos.find((x) => x.k === k) || {}).bloque; return { n: (m.secuencial ? `${i + 1}. ` : '') + a.n + (b ? ' › ' + b.n : ''), mod: a.modulos.find((x) => x.k === k) }; }
+    const ap = m.aparte.find((x) => x.k === k); return ap ? { n: m.areaAparte.n, mod: ap } : { n: '', mod: null };
+  }
+  const cuando = (t) => {
+    if (!t) return ''; const d = new Date(t), h = new Date(); if (isNaN(d)) return '';
+    const hm = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const dia = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(), dd = Math.round((dia(h) - dia(d)) / 864e5);
+    return dd === 0 ? `hoy a las ${hm}` : dd === 1 ? `ayer a las ${hm}` : `el ${d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`;
+  };
+  // Abrir un módulo desde el archivador de entrada: lo bloqueado por el plan muestra los planes
+  function abrirModulo(mk, href) {
+    const m = listaMundos().find((x) => x.k === mk);
+    if (m && m.lock) { P.bloqueo(mk); return; }
+    enter(mk, href);
+  }
+  function pintarContinuar() {
+    const host = $('#ptCont'); if (!host) return;
+    const ms = listaMundos(), l = abiertos().filter((x) => ms.some((m) => m.k === x.m)).slice(0, 5);
+    if (!l.length) {
+      host.innerHTML = `<p class="pt-vacio">Todavía no ha abierto ningún módulo. Elija un mundo aquí debajo o búsquelo: los cinco últimos módulos que abra quedarán aquí, con su mundo y su área, para volver a ellos.</p>`;
+      return;
+    }
+    const it = l.map((x) => { const m = ms.find((y) => y.k === x.m), a = areaDe(m, x.k); return { x, m, a }; });
+    const [p0, ...resto] = it;
+    const lock = (m) => (m.lock ? `<span class="pt-lk" aria-label="bloqueado por el plan">🔒</span>` : '');
+    host.innerHTML = `<a class="pt-cont" href="${esc(p0.x.href)}" data-i="0" style="--wc:${esc(p0.m.c)}">
+        <span class="pt-cont-m"><i aria-hidden="true"></i>${esc(p0.m.n)}${p0.a.n ? ` <span aria-hidden="true">›</span> ${esc(p0.a.n)}` : ''}</span>
+        <b class="pt-cont-n">${esc(p0.x.n)}${lock(p0.m)}</b>
+        ${p0.a.mod && p0.a.mod.pregunta ? `<span class="pt-cont-q">${esc(p0.a.mod.pregunta)}</span>` : ''}
+        <span class="pt-cont-pie"><span class="pt-cont-t">${esc(cuando(p0.x.t) ? 'Abierto ' + cuando(p0.x.t) : 'Último módulo abierto')}</span><span class="pt-cont-go">Continuar <i aria-hidden="true">→</i></span></span>
+      </a>
+      ${resto.length ? `<h3 class="pt-h3">También abiertos hace poco</h3><ul class="pt-rec">${resto.map((o, i) => `<li><a href="${esc(o.x.href)}" data-i="${i + 1}" style="--wc:${esc(o.m.c)}"><i aria-hidden="true"></i><span><b>${esc(o.x.n)}${lock(o.m)}</b><small>${esc(o.m.n)}${o.a.n ? ' › ' + esc(o.a.n) : ''}</small></span></a></li>`).join('')}</ul>` : ''}`;
+    host.querySelectorAll('a[data-i]').forEach((a) => a.addEventListener('click', (e) => {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+      e.preventDefault(); const o = it[+a.dataset.i]; abrirModulo(o.m.k, o.x.href);
+    }));
+  }
+  function pintarMundos() {
+    const host = $('#ptMundos'); if (!host) return;
+    const ms = listaMundos();
+    const enlace = (m, x) => `<li><a href="${esc(x.href)}" data-m="${esc(m.k)}"${x.pregunta ? ` title="${esc(x.pregunta)}"` : ''}>${esc(x.n)}</a></li>`;
+    const area = (m, a, i) => `<div class="pt-area"><h3>${m.secuencial ? `<span class="pt-an">${i + 1}</span>` : ''}${esc(a.n)}</h3>${a.bloques
+      ? a.bloques.map((b) => `<h4>${esc(b.n)}</h4><ul>${b.modulos.map((x) => enlace(m, x)).join('')}</ul>`).join('')
+      : `<ul>${a.modulos.map((x) => enlace(m, x)).join('')}</ul>`}</div>`;
+    host.innerHTML = ms.map((m, n) => {
+      const nMod = m.areas.reduce((s, a) => s + a.modulos.length, 0), open = !m.lock && carpAbiertas.has(m.k);
+      const datos = m.lock ? `Incluido en el plan ${esc(planN(m))} · ${P.verbo()} para ver los planes` : `${esc(m.d)} · ${m.areas.length} ${m.secuencial ? (m.areas.length === 1 ? 'fase' : 'fases') : m.areas.length === 1 ? 'área' : 'áreas'}, ${nMod} ${m.secuencial ? 'pasos' : nMod === 1 ? 'módulo' : 'módulos'}`;
+      return `<div class="pt-carp${open ? ' abierta' : ''}${m.lock ? ' bloq' : ''}" style="--wc:${esc(m.c)}">
+        <button type="button" class="pt-carp-b" data-w="${esc(m.k)}"${m.lock ? '' : ` aria-expanded="${open}" aria-controls="ptC-${esc(m.k)}"`}>
+          <span class="pt-solapa" aria-hidden="true"></span>
+          <span class="pt-carp-t"><b>${esc(m.n)}</b><small>${datos}</small></span>
+          ${n < 9 ? `<kbd aria-hidden="true">${n + 1}</kbd>` : ''}
+          <span class="pt-flecha" aria-hidden="true">${m.lock ? '🔒' : open ? '▾' : '▸'}</span>${m.lock ? '<span class="ar-sr">(bloqueado por el plan)</span>' : ''}
+        </button>
+        ${open ? `<div class="pt-carp-d" id="ptC-${esc(m.k)}">
+          <a class="pt-entrar" href="${esc(m.href)}" data-entrar="${esc(m.k)}">Entrar en ${esc(m.n)} <i aria-hidden="true">→</i></a>
+          ${m.areas.map((a, i) => area(m, a, i)).join('')}
+          ${m.aparte.length ? `<div class="pt-area pt-aparte"><h3>${esc(m.areaAparte.n)}</h3><ul>${m.aparte.map((x) => enlace(m, x)).join('')}</ul></div>` : ''}
+        </div>` : ''}
+      </div>`;
+    }).join('');
+    host.querySelectorAll('.pt-carp-b').forEach((b) => {
+      b.onclick = () => {
+        const k = b.dataset.w, m = ms.find((x) => x.k === k); if (!m) return;
+        if (m.lock) { P.bloqueo(k); return; }
+        if (carpAbiertas.has(k)) carpAbiertas.delete(k); else carpAbiertas.add(k);
+        LS.set(K_CARP, JSON.stringify([...carpAbiertas]));
+        pintarMundos(); const nb = host.querySelector(`.pt-carp-b[data-w="${k}"]`); if (nb) nb.focus({ preventScroll: true });
+      };
+      // Pasar por encima de un mundo del espacio ilumina su planeta
+      b.addEventListener('pointerenter', () => { hoverLabel = EN3D.includes(b.dataset.w) ? b.dataset.w : null; });
+      b.addEventListener('pointerleave', () => { hoverLabel = null; });
+    });
+    host.querySelectorAll('[data-entrar]').forEach((a) => a.addEventListener('click', (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return; e.preventDefault(); enter(a.dataset.entrar); }));
+    host.querySelectorAll('a[data-m]').forEach((a) => a.addEventListener('click', (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return; e.preventDefault(); abrirModulo(a.dataset.m, a.getAttribute('href')); }));
+    // La pista de las teclas cuenta los mundos de la lista (cambian con el plan)
+    const h = $('#hint'); if (h && !P.tactil()) h.textContent = `Arrastre para girar · rueda para acercarse · teclas 1 a ${Math.min(9, ms.length)} para entrar en cada mundo`;
+  }
+  function pintarEntrada() { pintarContinuar(); pintarMundos(); }
+  // Buscador común, siempre visible en el archivador de entrada
+  const bb = $('#ptBuscar'); if (bb) bb.onclick = () => { if (A.buscador) A.buscador.abrir(); };
+  const kb = $('#ptBuscarK'); if (kb && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '')) { kb.textContent = '⌘ K'; bb.setAttribute('aria-label', 'Buscar un módulo, un mundo o una empresa (Cmd K)'); }
+  // Entradas del puesto de mando en el catálogo: #continuar y #mundos llevan a su parte del archivador; #empresas abre el mapa
+  let abrirEmpresas = null;
+  function irEntrada(h, suave) {
+    if (h === 'empresas') { if (abrirEmpresas) abrirEmpresas(); return; }
+    const el = (h === 'continuar' || h === 'mundos') && document.getElementById(h); if (!el) return;
+    el.scrollIntoView({ block: 'start', behavior: suave && !reduce ? 'smooth' : 'auto' }); el.focus({ preventScroll: true });
+  }
+  addEventListener('hashchange', () => irEntrada(location.hash.replace('#', ''), true));
+  pintarEntrada();
 
   /* ---------- Cuenta y saludo ---------- */
   (async () => {
     const ok = await P.guard(); if (!ok) return;
     P.mountAccount($('#account'));
     // Con la cuenta ya se sabe qué incluye el plan y si hay vista de grupo o cartera de clientes
-    pintarDock();
+    pintarEntrada();
     // Paso 1: el mapa de empresas. En planes con varias empresas se elige antes de entrar en los mundos;
     // con una sola, se enseña mientras la ficha esté a medias. Siempre se puede volver desde la barra de empresa.
     // La empresa elegida se recuerda en este navegador para la cuenta (no solo en la sesión): el paso 1 no vuelve cada vez
     const PA = P.primerAcceso;
-    const act = P.empresas.activa(), multi = P.limiteEmpresas() > 1 || P.empresas.reales().length > 1;
-    const cerrarPaso = () => { document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; PA.recordar(P.empresaId()); pintarBarra(); };
+    const multi = P.limiteEmpresas() > 1 || P.empresas.reales().length > 1;
+    const cerrarPaso = () => { document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; PA.recordar(P.empresaId()); pintarBarra(); if (location.hash === '#empresas') { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } } alCambiarLado(); };
     // Paseo virtual desde el mapa: primero se cierra el mapa y se pasa a la empresa modelo, que es la que se enseña
     const paseo = () => { if (!A.paseo) return; document.body.classList.remove('paso-emp'); $('#empPaso').hidden = true; const antes = P.empresaId(); A.paseo.iniciar(); if (A.paseo.activo() && P.empresaId() !== antes) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } location.reload(); } };
     const abrirPaso = () => {
       document.body.classList.add('paso-emp'); $('#empPaso').hidden = false; $('#empBar').hidden = true;
       P.mapaEmpresas($('#empMapa'), { paso: multi, cerrar: true, onCerrar: cerrarPaso, onPaseo: paseo, onEnter: (id) => { PA.recordar(id); if (id !== P.empresaId()) P.empresas.cambiar(id); else cerrarPaso(); } });
+      scrollTo({ top: 0 }); alCambiarLado();
     };
+    abrirEmpresas = abrirPaso;
     function pintarBarra() {
       const e = P.empresas.activa(), b = $('#empBar'); if (!e) return;
       const g = !!(P.PLANES[P.user.plan] || {}).grupo;
       b.hidden = false;
       // Con una sola empresa la ficha es opcional: se ofrece completarla, sin cortar el paso a los mundos
       const pc = P.fichaCompleta ? P.fichaCompleta(e) : 100;
-      b.innerHTML = `<span class="small muted">Trabajando en</span><b class="nc" title="${e.nombre.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}">${P.nombreCortado ? P.nombreCortado(e.nombre) : e.nombre.replace(/</g, '&lt;')}</b><span class="small muted">${[e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · ').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : !e.modelo && pc < 40 ? 'Completar la ficha (opcional)' : 'Ver la ficha'}</button>`;
+      b.innerHTML = `<span class="small muted">Trabajando en</span><b class="nc" title="${esc(e.nombre)}">${P.nombreCortado ? P.nombreCortado(e.nombre) : esc(e.nombre)}</b><span class="small muted">${esc([e.forma && e.forma.replace(/ \(.*\)/, ''), e.constitucion && 'desde ' + e.constitucion].filter(Boolean).join(' · '))}</span><button class="btn ghost small" data-cambiar>${multi ? (g ? 'Cambiar de sociedad' : 'Cambiar de empresa') : !e.modelo && pc < 40 ? 'Completar la ficha (opcional)' : 'Ver la ficha'}</button>`;
       b.querySelector('[data-cambiar]').onclick = abrirPaso;
     }
     // Balizas del mundo de la auditoría integral: si la empresa tiene triaje, cada baliza toma el color de su área
@@ -87,7 +192,7 @@
       ((W.iv && W.iv.beacons) || []).forEach((b, i) => { const c = COL_TRI[t[i]] != null ? COL_TRI[t[i]] : b.c0; b.m.material.color.setHex(c); b.m.material.emissive.setHex(c); b.gl.material.color.setHex(c); });
     } catch (e) { /* sin datos: colores de siempre */ } };
     colorBalizas();
-    addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); colorBalizas(); if (!$('#empPaso').hidden) return; pintarBarra(); });
+    addEventListener('atalaya:empresa', () => { P.mountAccount($('#account')); colorBalizas(); pintarEntrada(); if (!$('#empPaso').hidden) return; pintarBarra(); });
     // Mundos que el plan no incluye: se ven, marcados, y al tocarlos sale el aviso común con «Ver planes» y «Volver»
     const bloquear = (w, plan, desde) => $$(`.pt-labels [data-w="${w}"]`).forEach((x) => {
       x.classList.add('pt-lock'); if (plan === 'consultora') x.classList.add('pt-lock-c');
@@ -109,8 +214,8 @@
     else if (!enPaseo && (location.hash === '#empresas' || (multi && !PA.elegida()))) abrirPaso(); else pintarBarra();
     const n = (P.user && (P.user.nombre || '').split(/\s+/)[0]) || '';
     if (n) $('#hello').textContent = 'Hola, ' + n;
-    const u = LS.get('atalaya.ultimo');
-    if (u && NOMBRE[u] && u !== 'man') { const l = $('#last'); l.hidden = false; l.innerHTML = `<a href="${DEST[u]}">Seguir en ${NOMBRE[u]} →</a>`; l.querySelector('a').onclick = (e) => { e.preventDefault(); enter(u); }; }
+    // #continuar o #mundos (desde el buscador o el archivador de otro mundo): a su parte del archivador de entrada
+    const h0 = location.hash.replace('#', ''); if (h0 === 'continuar' || h0 === 'mundos') setTimeout(() => irEntrada(h0), 60);
   })();
 
   /* ---------- Escena ---------- */
@@ -122,11 +227,20 @@
   if (!renderer) { document.body.classList.add('no3d'); $('#hint').textContent = 'Elija una herramienta para empezar.'; return; }
 
   renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
-  renderer.setSize(innerWidth, innerHeight);
+  // Tamaño de la portada (la galaxia) y espacio que ocupa a la derecha el archivador de entrada en escritorio
+  const caja = () => ({ w: Math.max(1, portada.clientWidth), h: Math.max(1, portada.clientHeight) });
+  const lado = () => { if (!enPanel()) return 0; const r = entrada.getBoundingClientRect(); return Math.max(0, Math.round(caja().w - r.left)); };
+  let CJ = caja(), LADO = lado();
+  renderer.setSize(CJ.w, CJ.h);
   renderer.setClearColor(0x02040b, 1);
   scene = new T.Scene();
   scene.fog = new T.FogExp2(0x02040b, 0.0026);
-  const camera = new T.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 2000);
+  const camera = new T.PerspectiveCamera(55, CJ.w / CJ.h, 0.1, 2000);
+  // Con el archivador a la derecha, la galaxia se centra en el espacio que queda a la izquierda
+  // Con la galaxia reducida (archivador debajo), los mundos bajan un poco para dejar sitio al saludo de arriba
+  const bajar = () => (!portadaFija() ? Math.round(CJ.h * 0.1) : 0);
+  const centrar = () => { const dy = bajar(); if (LADO > 0 || dy) camera.setViewOffset(CJ.w, CJ.h, LADO / 2, -dy, CJ.w, CJ.h); else camera.clearViewOffset(); };
+  centrar();
 
   // Texturas generadas en un canvas (no se carga ninguna imagen externa)
   const tex = (size, draw) => { const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size); const t = new T.CanvasTexture(c); t.needsUpdate = true; return t; };
@@ -185,7 +299,8 @@
   /* ---------- Mundo 1: simulador de inversión ---------- */
   const W = {};
   // En pantallas verticales (móvil) los mundos se apilan; en horizontales quedan a izquierda y derecha
-  const portrait = innerHeight > innerWidth * 1.1;
+  // Solo en una portada muy alta se apilan; en el móvil la portada se reduce y los mundos van a izquierda y derecha
+  const portrait = CJ.h > CJ.w * 1.45;
   // En vertical los cuatro mundos van en zigzag; en horizontal la auditoría integral queda abajo a la izquierda
   const SIM_POS = portrait ? new T.Vector3(-4, 12, 0) : new T.Vector3(-11, 2.5, 0), EST_POS = portrait ? new T.Vector3(-4, -5, 0) : new T.Vector3(11, 1.5, 0);
   const PER_POS = portrait ? new T.Vector3(4, -14, 0) : new T.Vector3(0, -7.5, 3);
@@ -355,25 +470,31 @@
   scene.add(new T.Points(dustGeo, pointsMat(0.18, 0.45)));
 
   /* ---------- Cámara: órbita con inercia ---------- */
-  const view = { theta: 0, phi: 1.32, radius: portrait ? 66 : small ? 48 : 41, tTheta: 0, tPhi: 1.32, tRadius: portrait ? 66 : small ? 48 : 41, target: new T.Vector3(0, 0, 0), tTarget: new T.Vector3(0, 0, 0) };
+  // Distancia de la cámara para que quepan los cuatro mundos en el hueco de la galaxia (más lejos si es estrecho)
+  const radioBase = () => { if (portrait) return 66; const asp = CJ.w / CJ.h, f = (CJ.w - LADO) / CJ.w; return Math.round(Math.max(portadaFija() ? (small ? 46 : 41) : 36, Math.min(72, (LADO ? 25 : 21) / (0.52 * asp * f)))); };
+  const R0 = radioBase();
+  const view = { theta: 0, phi: 1.32, radius: R0, tTheta: 0, tPhi: 1.32, tRadius: R0, target: new T.Vector3(0, 0, 0), tTarget: new T.Vector3(0, 0, 0) };
   let focus = null, hover = null, drag = null, lastMove = performance.now(), flying = null;
   const setFocus = (w) => {
     focus = w;
     $$('.pt-world').forEach((el) => el.classList.toggle('on', el.dataset.w === w));
-    $$('.pt-dock button').forEach((el) => el.classList.toggle('on', el.dataset.w === w));
     view.tTarget.copy(w ? W[w].g.position.clone().multiplyScalar(0.45) : new T.Vector3());
     if (w && !portrait) view.tTheta = w === 'sim' ? -0.32 : w === 'est' ? 0.32 : w === 'per' || w === 'iv' ? 0 : view.tTheta;
   };
-  canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, th: view.tTheta, ph: view.tPhi, moved: false }; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
+  const ponerRaton = (e) => { const r = canvas.getBoundingClientRect(); mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1; mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1; };
+  canvas.addEventListener('pointerdown', (e) => { ponerRaton(e); drag = { x: e.clientX, y: e.clientY, th: view.tTheta, ph: view.tPhi, moved: false }; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
   canvas.addEventListener('pointermove', (e) => {
     lastMove = performance.now();
-    mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+    ponerRaton(e);
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
     view.tTheta = drag.th - dx * 0.006; view.tPhi = Math.max(0.55, Math.min(2.35, drag.ph - dy * 0.005));
   });
   canvas.addEventListener('pointerup', () => { canvas.classList.remove('drag'); if (drag && !drag.moved) { if (hover) enter(hover); else setFocus(null); } drag = null; });
-  canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.tRadius = Math.max(16, Math.min(80, view.tRadius * (1 + Math.sign(e.deltaY) * 0.1))); lastMove = performance.now(); }, { passive: false });
+  canvas.addEventListener('pointercancel', () => { canvas.classList.remove('drag'); drag = null; });
+  canvas.addEventListener('pointerleave', (e) => { if (!drag && e.pointerType === 'mouse') { mouse.x = -9; mouse.y = -9; } });
+  // Con la galaxia arriba y el archivador debajo (pantallas estrechas), la rueda desplaza la página y no acerca
+  canvas.addEventListener('wheel', (e) => { if (!portadaFija()) return; e.preventDefault(); view.tRadius = Math.max(16, Math.min(80, view.tRadius * (1 + Math.sign(e.deltaY) * 0.1))); lastMove = performance.now(); }, { passive: false });
   // Pellizco en pantallas táctiles
   const touches = new Map(); let pinch = null;
   canvas.addEventListener('touchstart', (e) => { if (e.touches.length === 2) { const [a, b] = e.touches; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), r: view.tRadius }; } }, { passive: true });
@@ -381,56 +502,62 @@
   canvas.addEventListener('touchend', () => { pinch = null; touches.clear(); });
   addEventListener('keydown', (e) => {
     // Las teclas son del espacio solo si no se está escribiendo ni dentro de la barra, un menú o una ventana
-    const t = e.target; if (e.ctrlKey || e.metaKey || e.altKey || (t && t.closest && (t.closest('input, textarea, select, [contenteditable], .topbar, .ef-back, .modal-back') || t.isContentEditable)) || document.querySelector('.ef-back, .modal-back') || !$('#empPaso').hidden) return;
+    const t = e.target; if (e.ctrlKey || e.metaKey || e.altKey || (t && t.closest && (t.closest('input, textarea, select, [contenteditable], .topbar, .ef-back, .modal-back, .bs-velo') || t.isContentEditable)) || document.querySelector('.ef-back, .modal-back') || document.body.classList.contains('bs-abierto') || !$('#empPaso').hidden) return;
+    // Dentro del archivador de entrada, las flechas e Intro son de sus botones y enlaces; los números siguen abriendo mundos
+    if (t && t.closest && t.closest('.pt-entrada') && !/^[1-9]$/.test(e.key)) return;
     if (e.key === 'ArrowLeft' || e.key === 'a') setFocus('sim');
     else if (e.key === 'ArrowRight' || e.key === 'd') setFocus('est');
     else if (e.key === 'ArrowUp' || e.key === 'w') view.tRadius = Math.max(16, view.tRadius * 0.9);
     else if (e.key === 'ArrowDown' || e.key === 's') view.tRadius = Math.min(80, view.tRadius * 1.1);
     else if (e.key === 'Enter' && focus) enter(focus);
-    else if (/^[1-9]$/.test(e.key) && $$('.pt-dock [data-w]')[+e.key - 1]) enter($$('.pt-dock [data-w]')[+e.key - 1].dataset.w);
+    else if (/^[1-9]$/.test(e.key) && listaMundos()[+e.key - 1]) { const m = listaMundos()[+e.key - 1]; if (m.lock) P.bloqueo(m.k); else enter(m.k); }
     else return;
     lastMove = performance.now();
   });
   // Pasar por encima de las etiquetas o del panel inferior también ilumina el mundo
-  let hoverLabel = null;
   $$('.pt-labels [data-w]').forEach((b) => { b.addEventListener('pointerenter', () => { hoverLabel = b.dataset.w; }); b.addEventListener('pointerleave', () => { hoverLabel = null; }); b.addEventListener('focus', () => setFocus(b.dataset.w)); });
-  // La barra de mundos se vuelve a pintar con la cuenta: se escucha en el contenedor (solo los mundos del espacio se iluminan)
-  const w3d = (e) => { const b = e.target.closest && e.target.closest('[data-w]'); return b && W[b.dataset.w] ? b.dataset.w : null; };
-  dock.addEventListener('pointerover', (e) => { hoverLabel = w3d(e); });
-  dock.addEventListener('pointerleave', () => { hoverLabel = null; });
-  dock.addEventListener('focusin', (e) => { const w = w3d(e); if (w) setFocus(w); });
+  // El foco en la carpeta de un mundo del espacio lo enfoca también en la galaxia
+  entrada.addEventListener('focusin', (e) => { const b = e.target.closest && e.target.closest('.pt-carp-b'); if (b && W[b.dataset.w] && EN3D.includes(b.dataset.w)) setFocus(b.dataset.w); });
 
   flyTo = (w) => {
     const to = W[w].g.position.clone();
     const dir = camera.position.clone().sub(to).normalize();
     flying = { from: camera.position.clone(), to: to.clone().add(dir.multiplyScalar(W[w].r * 1.6)), look: to, t0: performance.now(), fov0: camera.fov };
-    $('#intro').style.opacity = 0; $$('.pt-world, .pt-moon, .pt-dock, .pt-hint, .pt-last').forEach((el) => { el.style.opacity = 0; el.style.pointerEvents = 'none'; });
+    $('#intro').style.opacity = 0; $$('.pt-world, .pt-moon, .pt-hint, .pt-entrada, .pt-flota, .pt-empbar').forEach((el) => { el.style.opacity = 0; el.style.pointerEvents = 'none'; });
   };
 
   /* ---------- Bucle ---------- */
   const ray = new T.Raycaster(), mouse = new T.Vector2(-9, -9), tmp = new T.Vector3();
   const clock = new T.Clock();
-  function resize() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+  function resize() {
+    const c = caja(), l = lado(); if (c.w === CJ.w && c.h === CJ.h && l === LADO) return;
+    const r0 = radioBase(); CJ = c; LADO = l;
+    renderer.setSize(CJ.w, CJ.h); camera.aspect = CJ.w / CJ.h; centrar(); camera.updateProjectionMatrix();
+    // Si no se ha acercado ni alejado a mano, la cámara se recoloca para que quepan los mundos
+    if (Math.abs(view.tRadius - r0) < 0.5) view.tRadius = radioBase();
+  }
   addEventListener('resize', resize);
+  alCambiarLado = () => { textosIntro(); requestAnimationFrame(resize); };
+  try { new ResizeObserver(resize).observe(portada); } catch (e) { /* sin observador: basta el evento resize */ }
 
   function placeLabel(w, offX) {
     const o = W[w]; if (!o.label) return;
     tmp.copy(o.g.position); tmp.project(camera);
     const behind = tmp.z > 1;
-    const x = (tmp.x * 0.5 + 0.5) * innerWidth, y = (-tmp.y * 0.5 + 0.5) * innerHeight;
+    const GW = CJ.w - LADO, x = (tmp.x * 0.5 + 0.5) * CJ.w, y = (-tmp.y * 0.5 + 0.5) * CJ.h;
     const d = camera.position.distanceTo(o.g.position);
-    const narrow = innerWidth < 760;
+    const narrow = GW < 760;
     let lx, ly;
     if (w === 'man') { lx = x - o.label.offsetWidth / 2; ly = y + 18; }
-    else if (narrow) { lx = x > innerWidth / 2 ? x - o.label.offsetWidth - 30 : x + 30; ly = y - o.label.offsetHeight / 2; }
+    else if (narrow) { lx = x > GW / 2 ? x - o.label.offsetWidth - 30 : x + 30; ly = y - o.label.offsetHeight / 2; }
     else { lx = x + offX * (Math.min(220, 2600 / d) + (offX < 0 ? o.label.offsetWidth : 0)); ly = y - o.label.offsetHeight / 2; }
-    // Sin tapar la barra de mundos de abajo (una o dos filas)
-    const minY = narrow ? 200 : 140, maxY = innerHeight - Math.max(narrow ? 150 : 130, dock.offsetHeight + 70);
-    lx = Math.max(12, Math.min(innerWidth - o.label.offsetWidth - 12, lx)); ly = Math.max(minY, Math.min(maxY - o.label.offsetHeight, ly));
+    // Dentro del hueco de la galaxia: sin tapar el saludo de arriba ni el paseo virtual y la pista de abajo
+    const minY = narrow ? 200 : 140, maxY = CJ.h - (narrow ? 70 : 64);
+    lx = Math.max(12, Math.min(GW - o.label.offsetWidth - 12, lx)); ly = Math.max(minY, Math.min(maxY - o.label.offsetHeight, ly));
     // La posición se aplica después de separar las etiquetas entre sí (separarEtiquetas)
     o.pos = { x: lx, y: ly, w: o.label.offsetWidth, h: o.label.offsetHeight, behind, minY, maxY, my: y, man: w === 'man' };
     o.label.style.visibility = behind ? 'hidden' : 'visible';
-    o.label.classList.toggle('far', d > (portrait ? 64 : 46));
+    o.label.classList.toggle('far', d > (portrait ? 64 : R0 + 5));
   }
   /* Separación mínima entre etiquetas: si dos se pisan, la de más abajo baja lo que falte (y, sin sitio abajo, suben las
      dos); la del manual, pequeña, prueba antes a ponerse encima de su luna */

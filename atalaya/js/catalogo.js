@@ -66,8 +66,13 @@
     libro: { href: 'libro.html', areas: [
       ['secciones', 'Secciones', [['intervencion', 'Auditoría integral'], ['simulador', 'Inversión y crecimiento'], ['estrategia', 'Sistema estratégico'], ['personas', 'Personas y equipos'], ['mesa', 'Plan de trabajo']]]
     ] },
-    // Sin módulos: una entrada
-    portal: { href: 'portal.html', unico: true }
+    // Una entrada sola en el archivador (es la portada); sus partes, para el buscador: el archivador de entrada (#continuar,
+    // #mundos) y el mapa de empresas (#empresas)
+    portal: { href: 'portal.html', unico: true, entradas: [
+      ['continuar', 'Continuar donde lo dejó', 'El último módulo abierto y los otros cuatro recientes.'],
+      ['mundos', 'Mundos y módulos', 'Todos los mundos con sus áreas, para ir directo a cualquier módulo.'],
+      ['empresas', 'Empresas', '¿En qué empresa trabaja? El mapa de empresas y sus fichas.']
+    ] }
   };
 
   const P = () => A.platform;
@@ -75,13 +80,14 @@
   const planGrupo = () => { const p = P(), u = p && p.user, pl = u && p.PLANES && p.PLANES[u.plan]; return !!(pl && pl.grupo); };
   const enPlan = (marca) => (!marca ? true : marca === 'G' ? planGrupo() : marca === 'C' ? !planGrupo() : true);
   const mundoP = (k) => ((P() && P().mundos ? P().mundos() : (P() && P().MUNDOS) || []).find((m) => m.k === k)) || ((P() && P().MUNDOS) || []).find((m) => m.k === k) || { k, n: k, c: '#9ba4ba' };
-  /* Mundo completo con sus áreas y módulos: [{ k, n, c, d, href, lock, secuencial, unico, areas: [{ k, n, modulos: [{ k, n, pregunta, href }] }], aparte: [módulos fuera del recorrido] }]
+  /* Un mundo «unico» (el puesto de mando) es una entrada sola en el archivador; si tiene «entradas», el buscador las encuentra.
+     Mundo completo con sus áreas y módulos: [{ k, n, c, d, href, lock, secuencial, unico, areas: [{ k, n, modulos: [{ k, n, pregunta, href }] }], aparte: [módulos fuera del recorrido] }]
      Un área con bloques trae además bloques: [{ k, n, modulos }]; sus «modulos» son los de todos sus bloques y cada uno lleva su «bloque». */
   function mundo(k) {
     const d = M[k]; if (!d) return null;
     const p = mundoP(k);
     const areas = d.unico
-      ? [{ k: k, n: p.n, modulos: [{ k: '', n: p.n, pregunta: p.d || '', href: d.href }] }]
+      ? [{ k: k, n: p.n, modulos: d.entradas ? d.entradas.map(([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk })) : [{ k: '', n: p.n, pregunta: p.d || '', href: d.href }] }]
       : d.areas.map(([ak, an, mods, bls]) => {
         const mod = (b) => ([mk, mn, q]) => ({ k: mk, n: mn, pregunta: q || '', href: d.href + '#' + mk, bloque: b });
         if (!bls) return { k: ak, n: an, modulos: mods.filter((x) => enPlan(x[3])).map(mod(null)) };

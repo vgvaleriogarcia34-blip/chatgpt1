@@ -706,7 +706,7 @@
     };
     pintaHero(); A.mesa.pintaHero = pintaHero;
     const r0 = render; render = function () { r0(); pintaHero(); }; // eslint-disable-line no-func-assign
-    if (A.archivador) arch = A.archivador.montar({ mundo: 'mesa', areas: areasArch, actual: () => tab, ir: (k) => irTab(k, { ver: true }), antes: $('#msTabs'), panel: () => $('#msPanel') });
+    if (A.archivador) arch = A.archivador.montar({ mundo: 'mesa', areas: areasArch, actual: () => tab, ir: (k) => irTab(k, { ver: true }), antes: $('#msHero'), portada: () => $('#msHero'), panel: () => $('#msPanel') });
     render(); arrancada = true;
     // Atrás y adelante del navegador recorren las pestañas visitadas; un #pestaña en la misma página la abre
     const alVolver = () => { const k = location.hash.replace('#', ''); if (VISTAS[k] && k !== tab) { volviendo = true; try { irTab(k); } finally { volviendo = false; } } };

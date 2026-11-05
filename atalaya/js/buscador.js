@@ -12,7 +12,7 @@
   const P = () => A.platform;
   const pagina = () => (location.pathname.split('/').pop() || 'index.html').toLowerCase();
   // Páginas que abren su módulo al cambiar el #: en las demás se recarga
-  const OYEN_HASH = ['estrategia.html', 'personas.html', 'intervencion.html', 'app.html', 'mesa.html', 'tablero.html', 'grupo.html', 'libro.html'];
+  const OYEN_HASH = ['portal.html', 'estrategia.html', 'personas.html', 'intervencion.html', 'app.html', 'mesa.html', 'tablero.html', 'grupo.html', 'libro.html'];
   const acciones = [];
   let velo = null, input = null, lista = null, res = [], sel = 0, previo = null;
 
@@ -24,7 +24,8 @@
     if (A.archivador && A.archivador.irA && A.archivador.irA(x.mundo.k, x.k)) return;
     const [pg, h] = x.href.split('#');
     if (pg.toLowerCase() === pagina() && h) {
-      if (location.hash === '#' + h) return;
+      // Ya en ese #: se avisa igual a la página (el puesto de mando lleva otra vez a esa parte de su archivador)
+      if (location.hash === '#' + h) { try { dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { /* nada */ } return; }
       location.hash = h; if (!OYEN_HASH.includes(pagina())) location.reload();
       return;
     }
@@ -42,6 +43,7 @@
   function rango(texto, q) { const t = norm(texto); if (!q) return 3; if (t.startsWith(q)) return 0; if ((' ' + t).includes(' ' + q)) return 1; if (t.includes(q)) return 2; return -1; }
   // Ruta de un módulo: «Mundo › 3. Fase › Bloque» (el número, solo en los mundos por fases)
   function ruta(x) {
+    if (x.mundo.unico) return x.mundo.n;
     const i = x.mundo.areas ? x.mundo.areas.indexOf(x.area) : -1;
     return [x.mundo.n, (x.mundo.secuencial && i >= 0 ? `${i + 1}. ` : '') + x.area.n, x.bloque && x.bloque.n].filter(Boolean).join(' › ');
   }
@@ -55,7 +57,7 @@
       accionesBase().forEach((a) => out.push({ g: 'Acciones', t: a.n, d: a.d || 'Acción', c: a.c || '#69707c', ir: a.ir }));
     } else {
       // Módulos: primero por su nombre; después por área, mundo o la pregunta que responde
-      const mods = (C ? C.modulos() : []).filter((x) => !x.mundo.unico).map((x) => {
+      const mods = (C ? C.modulos() : []).filter((x) => !x.mundo.unico || x.k).map((x) => {
         const r = rango(x.n, q), r2 = r < 0 ? (norm(x.area.n + ' ' + (x.bloque ? x.bloque.n + ' ' : '') + x.mundo.n + ' ' + (x.pregunta || '')).includes(q) ? 5 : -1) : r;
         return { x, r: r2 };
       }).filter((o) => o.r >= 0).sort((a, b) => a.r - b.r || a.x.n.length - b.x.n.length).slice(0, 12);

@@ -11,8 +11,6 @@
 <link rel="stylesheet" href="css/portal.css">
 </head>
 <body class="portal">
-<canvas id="space" aria-hidden="true"></canvas>
-<div class="pt-vignette" aria-hidden="true"></div>
 <div class="pt-warp" id="warp" aria-hidden="true"></div>
 
 <header class="topbar">
@@ -21,57 +19,76 @@
   <div class="account" id="account"></div>
 </header>
 
-<div class="pt-empbar" id="empBar" hidden></div>
 <section class="pt-emp" id="empPaso" hidden><div class="glass em-panel stack" id="empMapa"></div></section>
 
-<section class="pt-intro" id="intro">
-  <div class="pt-kicker" id="hello">Le damos la bienvenida</div>
-  <h1>¿Por dónde <em>empezamos hoy</em>?</h1>
-  <p>Elija un mundo. Arrastre para moverse por el espacio, acérquese con la rueda y toque el que quiera para entrar.</p>
-</section>
+<!-- Portada: la galaxia 3D. Los planetas se pueden pulsar y llevan a su mundo; el menú es el archivador de entrada.
+     En escritorio ocupa la pantalla y el archivador va en un panel a la derecha; en pantallas estrechas se reduce y el archivador va debajo -->
+<div class="pt-portada" id="portada">
+  <canvas id="space" aria-hidden="true"></canvas>
+  <div class="pt-vignette" aria-hidden="true"></div>
+  <div class="pt-empbar" id="empBar" hidden></div>
 
-<!-- Paseo virtual: pequeño y flotante, en la esquina inferior izquierda (el vídeo está en la landing) -->
-<div class="pt-flota" aria-label="Conocer Atalaya">
-  <button class="pt-mini" id="ptPaseo" type="button" title="Recorrer todos los mundos con la empresa modelo y ver qué gana con cada uno"><i aria-hidden="true">▶</i>Paseo virtual</button>
+  <section class="pt-intro" id="intro">
+    <div class="pt-kicker" id="hello">Le damos la bienvenida</div>
+    <h1>¿Por dónde <em>empezamos hoy</em>?</h1>
+    <p id="introP">Pulse un planeta para entrar en su mundo o elija en el archivador el módulo concreto. Arrastre para girar y acérquese con la rueda.</p>
+  </section>
+
+  <!-- Paseo virtual: pequeño, en la esquina inferior izquierda de la portada (el vídeo está en la landing) -->
+  <div class="pt-flota" aria-label="Conocer Atalaya">
+    <button class="pt-mini" id="ptPaseo" type="button" title="Recorrer todos los mundos con la empresa modelo y ver qué gana con cada uno"><i aria-hidden="true">▶</i>Paseo virtual</button>
+  </div>
+
+  <!-- Etiquetas que siguen a cada mundo en el espacio -->
+  <div class="pt-labels" id="labels">
+    <button class="pt-world" data-w="sim" aria-label="Entrar en el simulador de inversión">
+      <span class="pt-w-kicker">Mundo 1</span>
+      <b>Simulador de inversión</b>
+      <span class="pt-q">¿Puedo dar este paso pagándolo con lo que gano, sin quedarme sin caja?</span>
+      <span class="pt-go">Entrar <i>→</i></span>
+    </button>
+    <button class="pt-world" data-w="est" aria-label="Entrar en el sistema estratégico">
+      <span class="pt-w-kicker">Mundo 2</span>
+      <b>Sistema estratégico</b>
+      <span class="pt-q">¿Cómo ordeno y gobierno mi empresa día a día: ventas, márgenes, presupuesto, equipo?</span>
+      <span class="pt-go">Entrar <i>→</i></span>
+    </button>
+    <button class="pt-world pt-per" data-w="per" aria-label="Entrar en personas y equipos">
+      <span class="pt-w-kicker">Mundo 3</span>
+      <b>Personas y equipos</b>
+      <span class="pt-q">¿Tengo a cada persona en su sitio y equipos equilibrados? DISC, roles de equipo y eneagrama.</span>
+      <span class="pt-go">Entrar <i>→</i></span>
+    </button>
+    <button class="pt-world pt-iv" data-w="iv" aria-label="Entrar en la auditoría integral">
+      <span class="pt-w-kicker">Mundo 4 · consultor</span>
+      <b>Auditoría integral</b>
+      <span class="pt-q">¿Dónde le duele de verdad a la empresa? Triaje, auditoría por áreas y plan de intervención.</span>
+      <span class="pt-go">Entrar <i>→</i></span>
+    </button>
+    <button class="pt-moon" data-w="man" aria-label="Abrir el manual">Manual</button>
+  </div>
+  <p class="pt-hint" id="hint">Arrastre para girar · rueda para acercarse · teclas 1 a 8 para entrar en cada mundo</p>
 </div>
 
-<!-- Etiquetas que siguen a cada mundo en el espacio -->
-<div class="pt-labels" id="labels">
-  <button class="pt-world" data-w="sim" aria-label="Entrar en el simulador de inversión">
-    <span class="pt-w-kicker">Mundo 1</span>
-    <b>Simulador de inversión</b>
-    <span class="pt-q">¿Puedo dar este paso pagándolo con lo que gano, sin quedarme sin caja?</span>
-    <span class="pt-go">Entrar <i>→</i></span>
-  </button>
-  <button class="pt-world" data-w="est" aria-label="Entrar en el sistema estratégico">
-    <span class="pt-w-kicker">Mundo 2</span>
-    <b>Sistema estratégico</b>
-    <span class="pt-q">¿Cómo ordeno y gobierno mi empresa día a día: ventas, márgenes, presupuesto, equipo?</span>
-    <span class="pt-go">Entrar <i>→</i></span>
-  </button>
-  <button class="pt-world pt-per" data-w="per" aria-label="Entrar en personas y equipos">
-    <span class="pt-w-kicker">Mundo 3</span>
-    <b>Personas y equipos</b>
-    <span class="pt-q">¿Tengo a cada persona en su sitio y equipos equilibrados? DISC, roles de equipo y eneagrama.</span>
-    <span class="pt-go">Entrar <i>→</i></span>
-  </button>
-  <button class="pt-world pt-iv" data-w="iv" aria-label="Entrar en la auditoría integral">
-    <span class="pt-w-kicker">Mundo 4 · consultor</span>
-    <b>Auditoría integral</b>
-    <span class="pt-q">¿Dónde le duele de verdad a la empresa? Triaje, auditoría por áreas y plan de intervención.</span>
-    <span class="pt-go">Entrar <i>→</i></span>
-  </button>
-  <button class="pt-moon" data-w="man" aria-label="Abrir el manual">Manual</button>
-</div>
-
-<!-- Alternativa siempre visible (y para teclado, móvil o sin 3D): la misma lista de mundos que la barra superior.
-     portal.js la rellena desde Atalaya.platform.MUNDOS: los cuatro mundos del espacio y, debajo, mesa, tablero, libro y grupo -->
-<nav class="pt-dock" aria-label="Elegir mundo"></nav>
-<p class="pt-hint" id="hint">Arrastre para girar · rueda para acercarse · teclas 1 a 7 para entrar en cada mundo · Intro para entrar</p>
-<div class="pt-last" id="last" hidden></div>
+<!-- Archivador de entrada: continuar donde lo dejó, el buscador y los mundos como carpetas con sus áreas y módulos.
+     portal.js lo rellena desde el registro «Abiertos» (atalaya.abiertos, el mismo del archivador) y el catálogo (js/catalogo.js) -->
+<main class="pt-entrada" id="entrada" aria-label="Archivador de entrada">
+  <button type="button" class="pt-bsc" id="ptBuscar" aria-label="Buscar un módulo, un mundo o una empresa (Ctrl K)"><span class="pt-bsc-i" aria-hidden="true">⌕</span><span class="pt-bsc-t">Buscar un módulo, un mundo o una empresa</span><kbd id="ptBuscarK">Ctrl K</kbd></button>
+  <section class="pt-sec" id="continuar" aria-labelledby="ptContT" tabindex="-1">
+    <h2 class="pt-h" id="ptContT">Continuar donde lo dejó</h2>
+    <div id="ptCont"><p class="pt-vacio">Cargando…</p></div>
+  </section>
+  <section class="pt-sec" id="mundos" aria-labelledby="ptMunT" tabindex="-1">
+    <h2 class="pt-h" id="ptMunT">Mundos</h2>
+    <p class="pt-sub">Despliegue un mundo para ver sus áreas e ir directamente a cualquier módulo.</p>
+    <div class="pt-carpetas" id="ptMundos"></div>
+  </section>
+</main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="js/platform.js"></script>
+<script src="js/catalogo.js"></script>
+<script src="js/buscador.js"></script>
 <script src="js/modelo/datos.js"></script>
 <script src="js/paseo.js"></script>
 <script src="js/sectors.js"></script>

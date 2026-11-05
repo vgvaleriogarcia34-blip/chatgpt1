@@ -38,7 +38,7 @@
       if (p === 'grupo.html') return 'grupo';
       if (p === 'tablero.html') return 'tablero';
       if (p === 'libro.html') return 'libro';
-      if (p === 'portal.html') return 'navegar';
+      if (p === 'portal.html') return 'puesto';
     } catch (e) { /* sin contexto */ }
     return 'que-es';
   };
