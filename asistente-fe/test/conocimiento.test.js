@@ -255,6 +255,11 @@ test('oferta vigente: la ingesta corrige lo que la web dice de la primera reuni�
   assert.match(corregirObsoleto('Abrir el diagnóstico gratuito'), /Mapa de Gobierno del Equipo/);
   assert.equal(corregirObsoleto('Una hora con un socio, sin coste y sin propuesta comercial.'), 'Sesión estratégica de 60 minutos con Valerio García, sin coste ni compromiso.');
   assert.match(corregirObsoleto('Treinta minutos para saber si tiene sentido seguir.'), /^Sesenta minutos con Valerio García/);
+  // Responsable de los datos: FAMILIAS EMPRESARIAS, S.L. (la web aún nombra a AKOMPANO GROUP, S.L.); sin NIF ni domicilio inventados
+  const leg = corregirObsoleto('He leído y acepto el tratamiento de mis datos. Responsable: AKOMPANO GROUP, S.L. (NIF B05544713), C/ Fernández Ardavín 6 – 6º, 30001 Murcia. Finalidad: atender su solicitud de contacto. Puede ejercer sus derechos de acceso y supresión en servicios@akompanogroup.es . Más información.');
+  assert.match(leg, /Responsable: FAMILIAS EMPRESARIAS, S\.L\. Finalidad/);
+  assert.doesNotMatch(leg, /AKOMPANO|B05544713|Ardav|akompanogroup/);
+  assert.ok(!tieneObsoleto(leg));
   const d = carpeta({
     'oferta.md': '# Oferta\n\n## Sesión estratégica\nSesión estratégica de 60 minutos con Valerio García, sin coste.\n',
     'fuentes/web-v.txt': '# Web\nFuente: https://ejemplo.es\n\nSesión estratégica\n30 minutos Sin coste ni compromiso\n\nAbrir el diagnóstico gratuito\n\nUna hora con un socio, sin coste y sin propuesta comercial.\n',

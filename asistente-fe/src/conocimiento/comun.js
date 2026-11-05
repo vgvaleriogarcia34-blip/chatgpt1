@@ -226,6 +226,11 @@ export const OBSOLETAS = [
   // «Una hora con un socio, sin coste…»: la primera conversación es la sesión estratégica con Valerio García
   [/\buna hora con un socio,?\s*sin coste y sin propuesta comercial\.?/gi, 'Sesión estratégica de 60 minutos con Valerio García, sin coste ni compromiso.'],
   [/\buna hora con un socio\b/gi, 'la sesión estratégica de 60 minutos con Valerio García'],
+  // Responsable de los datos (cambio de noviembre de 2026): FAMILIAS EMPRESARIAS, S.L., no AKOMPANO GROUP, S.L. La web de
+  // businessavance.es aún no se ha cambiado. NIF, domicilio y correo de privacidad de la nueva titular, pendientes: no se ponen
+  [/\bResponsable:\s*AKOMPANO\s+GROUP,?\s*S\.?\s*L\.?\s*(?:\(NIF\s*B05544713\))?,?\s*(?:C\/\s*Fern[aá]ndez\s+Ardav[ií]n[^.\n]*?30001\s+Murcia)?\.?/gi, 'Responsable: FAMILIAS EMPRESARIAS, S.L.'],
+  [/\b(ejercer sus derechos[^.\n]*?)\s+en\s+servicios@akompanogroup\.es\s*\./gi, '$1 como indica la política de privacidad.'],
+  [/\bAKOMPANO\s+GROUP,?\s*S\.?\s*L\.?(?:\s*\(NIF\s*B05544713\))?/gi, 'FAMILIAS EMPRESARIAS, S.L.'],
 ];
 /** Corrige en un texto en bruto las frases que contradicen la oferta vigente (OBSOLETAS). */
 export function corregirObsoleto(texto) {

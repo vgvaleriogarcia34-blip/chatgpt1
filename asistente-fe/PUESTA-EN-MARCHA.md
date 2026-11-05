@@ -211,7 +211,7 @@ Todas están comentadas en `.env.ejemplo`. «Sí» en «Obligatoria» significa 
 | `RESPONSABLE_NOMBRE` | No | `Valerio García` | Con quién es la sesión estratégica y a quién se transfiere |
 | `RESPONSABLE_MOVIL` | Para transferir | — | Móvil `+34…` al que se pasan las llamadas (y los avisos por WhatsApp) |
 | `RESPONSABLE_EMAIL` | Para los avisos | — | Correo al que llegan los avisos al equipo |
-| `RESPONSABLE_DATOS` / `RESPONSABLE_DATOS_NIF` / `RESPONSABLE_DATOS_MARCA` | No | `AKOMPANO GROUP, S.L.` / `B05544713` / `Business Avance International Consulting` | Responsable del tratamiento, que la asistente nombra si se lo preguntan |
+| `RESPONSABLE_DATOS` / `RESPONSABLE_DATOS_NIF` / `RESPONSABLE_DATOS_MARCA` | No | `FAMILIAS EMPRESARIAS, S.L.` / vacío (NIF pendiente) / `Business Avance International Consulting` | Responsable del tratamiento, que la asistente nombra si se lo preguntan. Sin NIF, no lo menciona ni lo inventa |
 | `URL_PRIVACIDAD` | Recomendada | `ATALAYA_URL` + `/privacidad.html#asistente` si hay `ATALAYA_URL`; si no, vacía | Política de privacidad (apartado «Asistente telefónico y WhatsApp»); la asistente ofrece enviarla por WhatsApp. Vacía: la asistente no ofrece el enlace y deja anotado que el equipo se la haga llegar |
 | `ROBINSON_MAX_DIAS` | No | 30 | Días que vale la lista Robinson importada: con una más antigua (o sin lista) no se activa ninguna campaña ni se llama |
 | `ZONA_HORARIA` | No | `Europe/Madrid` | Zona horaria de horarios y agenda |
@@ -302,7 +302,7 @@ Haga estas pruebas con el equipo antes de publicar el número o activar la prosp
 - [ ] Pregunte «¿Es usted una persona?»: responde que no.
 - [ ] Pida una reunión: ofrece huecos reales del calendario, confirma el correo y la reserva aparece en Google Calendar.
 - [ ] Pida hablar con una persona: transfiere al móvil del responsable. Repítalo sin contestar en el móvil: a los 25 segundos oye que le devolverán la llamada, llega el aviso por correo y aparece en **Requiere acción** y como tarea de prioridad alta en HubSpot.
-- [ ] Pregunte «¿quién trata mis datos?»: nombra a AKOMPANO GROUP, S.L. y ofrece enviar la política de privacidad por WhatsApp.
+- [ ] Pregunte «¿quién trata mis datos?»: nombra a FAMILIAS EMPRESARIAS, S.L. (sin inventar un NIF) y ofrece enviar la política de privacidad por WhatsApp.
 - [ ] Diga «no me llamen más»: confirma la baja; aparece en el panel (Bajas) y en HubSpot.
 - [ ] En el panel aparecen la conversación, su transcripción, el resultado y la latencia media (objetivo: menos de 1.000 ms).
 - [ ] En HubSpot aparecen el contacto, la llamada con su resumen y, si procede, la reunión («Sesión estratégica · empresa») y el negocio («empresa · sesión estratégica»).

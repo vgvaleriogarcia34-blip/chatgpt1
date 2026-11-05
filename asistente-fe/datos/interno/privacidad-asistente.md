@@ -6,9 +6,10 @@
 
 ## Quién trata sus datos
 
-- **Responsable:** AKOMPANO GROUP, S.L., NIF B05544713, nombre comercial Business Avance International Consulting. La asistente se presenta con la marca «Familias Empresarias, de Business Avance».
-- **Domicilio:** [PENDIENTE].
-- **Contacto para privacidad:** [PENDIENTE: correo electrónico para ejercer los derechos].
+- **Responsable:** FAMILIAS EMPRESARIAS, S.L., NIF [PENDIENTE: NIF de Familias Empresarias, S.L.], nombre comercial Business Avance International Consulting. La asistente se presenta con la marca «Familias Empresarias, de Business Avance».
+- **Domicilio social:** [PENDIENTE: domicilio social].
+- **Datos registrales:** [PENDIENTE: datos registrales].
+- **Contacto para privacidad:** [PENDIENTE: correo de privacidad] · +34 678 447 296.
 - **Delegado de protección de datos:** [PENDIENTE: si se ha nombrado, nombre y contacto; si no, suprimir esta línea].
 
 ## Qué es la asistente
@@ -86,4 +87,4 @@ El borrado se hace de forma automática cada día.
 
 ## Información en la propia llamada (primera capa)
 
-En la llamada, la asistente le dice quién es («Lucía, la asistente de inteligencia artificial de Familias Empresarias, de Business Avance»), por qué le llama si la llamada es nuestra y, si lo pide, quién es el responsable de sus datos (AKOMPANO GROUP, S.L.). Si quiere la información completa, le envía el enlace a esta política por WhatsApp. [A CONFIRMAR con el abogado que esta información por capas es suficiente].
+En la llamada, la asistente le dice quién es («Lucía, la asistente de inteligencia artificial de Familias Empresarias, de Business Avance»), por qué le llama si la llamada es nuestra y, si lo pide, quién es el responsable de sus datos (FAMILIAS EMPRESARIAS, S.L.). Si quiere la información completa, le envía el enlace a esta política por WhatsApp. [A CONFIRMAR con el abogado que esta información por capas es suficiente].

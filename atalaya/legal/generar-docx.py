@@ -189,7 +189,7 @@ def portada(doc, version):
         doc.add_paragraph()
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run('AKOMPANO GROUP, S.L. · Business Avance International Consulting')
+    r = p.add_run('FAMILIAS EMPRESARIAS, S.L. · Business Avance International Consulting')
     r.font.size = Pt(11)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -351,7 +351,7 @@ def main():
     contrato(doc, datos['bloques'])
     pie(doc, datos['version'])
     doc.core_properties.title = 'Contrato de prestación de servicios de consultoría · borrador para revisión jurídica'
-    doc.core_properties.author = 'AKOMPANO GROUP, S.L.'
+    doc.core_properties.author = 'FAMILIAS EMPRESARIAS, S.L.'
     doc.core_properties.language = 'es-ES'
     doc.save(SALIDA)
     print('Escrito ' + SALIDA)

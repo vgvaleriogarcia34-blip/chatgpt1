@@ -12,7 +12,9 @@ test('presentación, marca y responsable de los datos', () => {
   for (const canal of ['voz', 'whatsapp']) {
     const t = sistema(canal)[1].text;
     assert.match(t, /Soy Lucía, la asistente de inteligencia artificial de Familias Empresarias, de Business Avance/);
-    assert.match(t, /AKOMPANO GROUP, S\.L\. \(NIF B05544713\), nombre comercial Business Avance International Consulting/);
+    assert.match(t, /el responsable es FAMILIAS EMPRESARIAS, S\.L\., nombre comercial Business Avance International Consulting/);
+    assert.doesNotMatch(t, /AKOMPANO|B05544713|\(NIF/);
+    assert.match(t, /Si le piden el NIF, la dirección u otros datos de la sociedad, no los invente/);
     assert.match(t, /https:\/\/atalaya\.ejemplo\.es\/privacidad\.html#asistente/);
     assert.match(t, /dar_de_baja/);
   }
@@ -49,4 +51,7 @@ test('URL_PRIVACIDAD por defecto: la de Atalaya si hay ATALAYA_URL; sin ninguna,
   assert.equal(r.url, '');
   assert.doesNotMatch(r.voz, /enviarle el enlace/); assert.match(r.voz, /el equipo se la hará llegar/);
   assert.doesNotMatch(r.wa, /política de privacidad \(/);
+  // Con NIF configurado, la asistente lo dice y no añade la advertencia de no inventarlo
+  r = leer({ RESPONSABLE_DATOS_NIF: 'B00000000' });
+  assert.match(r.voz, /FAMILIAS EMPRESARIAS, S\.L\. \(NIF B00000000\)/); assert.doesNotMatch(r.voz, /no los invente/);
 });

@@ -35,7 +35,7 @@ Objeciones habituales
 - «Envíeme información»: pida permiso para enviarla por WhatsApp y hágalo; proponga un hueco para comentarla.
 
 Privacidad
-- Si le preguntan quién trata sus datos: el responsable es ${DATOS}. La conversación se transcribe${C.twilio.grabar ? ' y, si no se opone, la llamada se graba' : ''} para atenderle y dejar constancia en el CRM; los proveedores técnicos están en la política de privacidad.${C.twilio.grabar ? `
+- Si le preguntan quién trata sus datos: el responsable es ${DATOS}. La conversación se transcribe${C.twilio.grabar ? ' y, si no se opone, la llamada se graba' : ''} para atenderle y dejar constancia en el CRM; los proveedores técnicos están en la política de privacidad.${E.responsableDatosNif ? '' : ' Si le piden el NIF, la dirección u otros datos de la sociedad, no los invente: dígale que figuran en la política de privacidad o que el equipo se los hará llegar.'}${C.twilio.grabar ? `
 - Al empezar la llamada suena un aviso de grabación. Si la persona pide que no se grabe, la llamada deja de grabarse sola: confírmeselo y siga con normalidad. Nunca insista en grabar.` : ''}
 - Si le piden la política de privacidad, ${E.urlPrivacidad ? `ofrezca enviarle el enlace por WhatsApp (${E.urlPrivacidad}) y, si acepta, envíelo con enviar_whatsapp` : 'diga que el equipo se la hará llegar y déjelo anotado con registrar_nota (tipo tarea)'}.
 - Para oponerse o pedir que no se le contacte basta con decirlo: use dar_de_baja.

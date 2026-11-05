@@ -2,7 +2,7 @@
 
 Acompañan a `CONTRATO-PLANTILLA.md` y a `CONTRATO-PARA-REVISION.docx`. Recogen las decisiones de redacción que conviene confirmar.
 
-**Qué es.** Es la plantilla del contrato que Atalaya 360° genera cuando un cliente acepta la propuesta de consultoría de AKOMPANO GROUP, S.L. (nombre comercial Business Avance International Consulting). Los campos entre llaves los rellena la aplicación con los datos de la propuesta aceptada y de la ficha del cliente. Los bloques condicionales solo aparecen cuando el cliente ha contratado ese servicio o esa modalidad.
+**Qué es.** Es la plantilla del contrato que Atalaya 360° genera cuando un cliente acepta la propuesta de consultoría de FAMILIAS EMPRESARIAS, S.L. (nombre comercial Business Avance International Consulting), que figura como el Consultor. Akompano Group y DM Focus Global Business son marcas o firmas asociadas. [CONFIRMAR CON EL ABOGADO LA RELACIÓN CONTRACTUAL CON LAS FIRMAS ASOCIADAS] Los campos entre llaves los rellena la aplicación con los datos de la propuesta aceptada y de la ficha del cliente. Los bloques condicionales solo aparecen cuando el cliente ha contratado ese servicio o esa modalidad.
 
 **Cliente tipo.** Son sociedades mercantiles y empresarios, no consumidores. Por eso no se aplica el texto refundido de la Ley General para la Defensa de los Consumidores, y la sumisión expresa a fuero es válida (artículo 55 de la LEC). Si un día se contratara con un consumidor, esta plantilla no sirve.
 
@@ -59,8 +59,10 @@ Acompañan a `CONTRATO-PLANTILLA.md` y a `CONTRATO-PARA-REVISION.docx`. Recogen 
 
 ## Datos que faltan para poder usarlo
 
-- Los datos de inscripción de AKOMPANO GROUP, S.L. en el Registro Mercantil (tomo, folio, hoja).
-- El cargo de quien firma por AKOMPANO GROUP, S.L.: administrador único, consejero delegado, apoderado…
+- El NIF, el domicilio social y el correo electrónico de FAMILIAS EMPRESARIAS, S.L. [PENDIENTE: NIF de Familias Empresarias, S.L.] [PENDIENTE: domicilio social] [PENDIENTE: correo de privacidad]. La aplicación los deja vacíos y salen en «Lo que falta».
+- Los datos de inscripción de FAMILIAS EMPRESARIAS, S.L. en el Registro Mercantil (tomo, folio, hoja). [PENDIENTE: datos registrales]
+- El cargo de quien firma por FAMILIAS EMPRESARIAS, S.L.: administrador único, consejero delegado, apoderado…
+- La política de privacidad publicada en businessavance.es sigue nombrando a AKOMPANO GROUP, S.L. como responsable: debe cambiarse en la web para que coincida con el contrato y con los textos legales de Atalaya 360°.
 - Si existe seguro de responsabilidad civil profesional (compañía y póliza). La cláusula solo aparece si se indica.
 - El tipo de IVA aplicable: 21 % por defecto.
 

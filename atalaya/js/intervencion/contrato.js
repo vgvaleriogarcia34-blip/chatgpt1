@@ -252,7 +252,9 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
   const APROBADA = null; // p. ej. { version: '1.0', fecha: '2026-12-01', por: 'Nombre del abogado' }
 
   /* ---------- Valores por defecto del consultor (si la ficha de la firma está vacía) ---------- */
-  const DEF_CONSULTOR = { razon: 'AKOMPANO GROUP, S.L.', cif: 'B05544713', domicilio: 'C/ Fernández Ardavín 6, 6º, 30001 Murcia', email: 'servicios@akompanogroup.es', marca: 'Business Avance International Consulting', representante: 'Valerio García' };
+  // Titular: FAMILIAS EMPRESARIAS, S.L. NIF, domicilio social y correo, PENDIENTES: se dejan vacíos a propósito para que salgan
+  // en «Lo que falta» (no inventarlos). Rellénelos aquí, o en la ficha de la firma, cuando se conozcan.
+  const DEF_CONSULTOR = { razon: 'FAMILIAS EMPRESARIAS, S.L.', cif: '', domicilio: '', email: '', marca: 'Business Avance International Consulting', representante: 'Valerio García' };
   const DEF_SUB = [
     { id: 'sb-aloj', n: 'Proveedor de alojamiento del servidor (pendiente de designar)', servicio: 'alojamiento de la aplicación y copias', ubicacion: 'UE' },
     { id: 'sb-ia', n: 'Anthropic, PBC', servicio: 'análisis con inteligencia artificial', ubicacion: 'EE. UU. (Marco de Privacidad de Datos UE-EE. UU. o cláusulas contractuales tipo)' },
@@ -282,7 +284,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
   const consultor = () => {
     const f = firmaRaw(), fc = firmaC(), t = (x) => String(x == null ? '' : x).trim();
     const def = !t(f.razon) || norm(f.razon) === norm(DEF_CONSULTOR.razon);
-    // Lo escrito en el contrato (firma.contrato) manda; después, la ficha de la firma o, si está vacía, AKOMPANO GROUP
+    // Lo escrito en el contrato (firma.contrato) manda; después, la ficha de la firma o, si está vacía, FAMILIAS EMPRESARIAS, S.L.
     const pick = (k, top, d) => t(fc[k]) || (def ? d : t(top));
     const rep = pick('representante', f.consultor, DEF_CONSULTOR.representante);
     return { razon: t(f.razon) || DEF_CONSULTOR.razon, nif: t(f.cif) || (def ? DEF_CONSULTOR.cif : ''), domicilio: pick('domicilio', [t(f.direccion), t(f.ciudad)].filter(Boolean).join(', '), DEF_CONSULTOR.domicilio),
@@ -376,7 +378,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
     else if (!r.propuesta.fecha) out.push({ t: 'Falta la fecha de aceptación de la propuesta.', ir: 'aceptacion' });
     if (!x.sv.length) out.push({ t: 'No hay ningún servicio contratado: márquelos en «Aceptación y servicios».', ir: 'aceptacion', aviso: true });
     CAMPOS_CLI.filter((f) => f[3] && !String(cl[f[0]] || '').trim()).forEach((f) => out.push({ t: 'Cliente: ' + f[1].toLowerCase(), campo: 'cc-' + f[0] }));
-    CAMPOS_CON.filter((f) => f[2] && !String(conVal(cs, f[0]) || '').trim()).forEach((f) => out.push({ t: 'Consultor: ' + f[1].replace(/^Datos del /, '').replace(/^\w/, (y) => y.toLowerCase()), campo: 'cf-' + f[0] }));
+    CAMPOS_CON.filter((f) => f[2] && !String(conVal(cs, f[0]) || '').trim()).forEach((f) => out.push({ t: 'Consultor: ' + f[1].replace(/^Datos del /, '').replace(/^\w(?![A-Z])/, (y) => y.toLowerCase()), campo: 'cf-' + f[0] }));
     const p = C().p; [['iva', 'tipo de IVA'], ['pagoDias', 'días de pago'], ['copias', 'días del ciclo de las copias de seguridad']].forEach(([k, n]) => { if (!num(p[k])) out.push({ t: 'Condiciones: ' + n, campo: 'cp-' + k }); });
     if (!x.d.subencargados.length) out.push({ t: 'Protección de datos: la lista de subencargados está vacía.', campo: 'cs-nuevo' });
     // Cualquier campo de la plantilla que siga vacío (por si la plantilla cambia)
@@ -429,7 +431,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
       <section class="glass pad stack"><div class="eyebrow">Lo que falta para generar el contrato</div><div id="ctFaltas">${faltasHTML(fl)}</div>${x.aviso.length ? `<ul class="ct-avisos">${x.aviso.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}</section>
       <section class="glass pad stack"><div class="eyebrow">Datos del cliente</div><small class="muted">La razón social, el NIF y la actividad salen de la ficha de la empresa; lo que escriba aquí vale solo para el contrato.</small>
         <div class="ct-g">${CAMPOS_CLI.map(([k, n, ph, req]) => inp('cc', k, k === 'actividad' ? (C().cliente.actividad || ficha().actividad || '') : cl[k], { n, ph, req, ancho: ['domicilio', 'registro', 'actividad'].includes(k) })).join('')}</div></section>
-      <section class="glass pad stack"><div class="eyebrow">Datos del consultor</div><small class="muted">${cs.def ? 'La ficha de su firma no tiene razón social: se usan los datos de AKOMPANO GROUP, S.L. ' : ''}Se guardan en la ficha de su firma y valen para todos sus contratos.</small>
+      <section class="glass pad stack"><div class="eyebrow">Datos del consultor</div><small class="muted">${cs.def ? 'La ficha de su firma no tiene razón social: se usan los datos de FAMILIAS EMPRESARIAS, S.L. ' : ''}Se guardan en la ficha de su firma y valen para todos sus contratos.</small>
         <div class="ct-g">${CAMPOS_CON.map(([k, n, req]) => inp('cf', k, conVal(cs, k), { n, req, ph: k === 'cargo' ? 'administrador único' : k === 'registro' ? 'el Registro Mercantil de Murcia, tomo …, folio …, hoja MU-…' : k === 'seguro' ? 'Compañía, número de póliza (la cláusula solo aparece si se indica)' : '', ancho: ['domicilio', 'registro', 'seguro', 'marca'].includes(k) })).join('')}</div></section>
       <section class="glass pad stack"><div class="eyebrow">Condiciones del contrato</div>
         <div class="ct-g">${inp('cp', 'fecha', p.fecha || hoy(), { n: 'Fecha de firma', tipo: 'date' })}${inp('cp', 'lugar', p.lugar || cs.ciudad || 'Murcia', { n: 'Lugar de firma' })}${inp('cp', 'inicio', p.inicio || p.fecha || hoy(), { n: 'Inicio de los Servicios', tipo: 'date' })}

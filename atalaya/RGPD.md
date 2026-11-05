@@ -1,6 +1,6 @@
 # Atalaya 360° · Protección de datos (RGPD)
 
-> **Borrador pendiente de validación jurídica.** Este documento describe lo que hace hoy el código de Atalaya 360° (octubre de 2026) para que un abogado lo revise. No es un dictamen. Responsable: **AKOMPANO GROUP, S.L.**, NIF B05544713, nombre comercial Business Avance International Consulting, C/ Fernández Ardavín 6, 6º, 30001 Murcia, servicios@akompanogroup.es (datos de la política de privacidad publicada en businessavance.es; noviembre de 2026). Es también la responsable del asistente telefónico y de WhatsApp de Familias Empresarias. Siguen pendientes: [PENDIENTE: datos registrales], [PENDIENTE: delegado de protección de datos, si procede], [PROVEEDOR DE ALOJAMIENTO], [PROVEEDOR DE CORREO], [PROVEEDOR DE PAGOS].
+> **Borrador pendiente de validación jurídica.** Este documento describe lo que hace hoy el código de Atalaya 360° (octubre de 2026) para que un abogado lo revise. No es un dictamen. Responsable: **FAMILIAS EMPRESARIAS, S.L.**, nombre comercial Business Avance International Consulting (decisión de noviembre de 2026; la cuenta de alojamiento en Hetzner y su contrato de encargado del tratamiento están a su nombre). Es también la responsable del asistente telefónico y de WhatsApp de Familias Empresarias. Akompano Group y DM Focus Global Business figuran como marcas o firmas asociadas. Siguen pendientes: [PENDIENTE: NIF de Familias Empresarias, S.L.], [PENDIENTE: domicilio social], [PENDIENTE: datos registrales], [PENDIENTE: correo de privacidad], [PENDIENTE: delegado de protección de datos, si procede], [PROVEEDOR DE ALOJAMIENTO], [PROVEEDOR DE CORREO], [PROVEEDOR DE PAGOS].
 
 Páginas públicas relacionadas: `aviso-legal.html`, `privacidad.html`, `cookies.html`, `condiciones.html`.
 
@@ -10,8 +10,8 @@ Páginas públicas relacionadas: `aviso-legal.html`, `privacidad.html`, `cookies
 
 | Datos | Responsable | Encargado | Subencargados |
 |---|---|---|---|
-| Cuentas de cliente, contactos comerciales, seguridad del acceso | Business Avance (AKOMPANO GROUP, S.L.) | — | Alojamiento, correo, pagos, HubSpot |
-| Asistente telefónico y de WhatsApp de Familias Empresarias (llamadas, mensajes, transcripciones, agenda) | AKOMPANO GROUP, S.L. | — | Twilio, Deepgram, ElevenLabs, Anthropic, Meta (WhatsApp), HubSpot, Google, alojamiento del asistente |
+| Cuentas de cliente, contactos comerciales, seguridad del acceso | Business Avance (FAMILIAS EMPRESARIAS, S.L.) | — | Alojamiento, correo, pagos, HubSpot |
+| Asistente telefónico y de WhatsApp de Familias Empresarias (llamadas, mensajes, transcripciones, agenda) | FAMILIAS EMPRESARIAS, S.L. | — | Twilio, Deepgram, ElevenLabs, Anthropic, Meta (WhatsApp), HubSpot, Google, alojamiento del asistente |
 | Datos de empresa que carga el cliente (incluidos datos personales de socios, clientes, empleados, transcripciones) | El cliente | Business Avance | Alojamiento, Anthropic (si se usa la IA), correo |
 | Personas y equipos: plantilla de una empresa cliente de una consultora (plan Consultora) | La empresa cliente (empleadora) | La firma consultora titular de la cuenta | Business Avance (proveedor de la aplicación) y, por debajo, alojamiento y correo |
 | Personas y equipos cuando la propia empresa usa la aplicación sin consultor | La empresa | Business Avance | Alojamiento, correo |
@@ -50,7 +50,7 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 - Reunión: el asistente envía la sesión estratégica agendada (id, inicio, fin, enlace, nombre, correo, teléfono, empresa, ids de HubSpot). Atalaya la anota como tarea en la mesa de trabajo de la empresa (dato de la cuenta del cliente: Atalaya actúa por cuenta del cliente para el contenido de la mesa, apartado D). Se guarda nombre, teléfono y correo del contacto en el campo `contacto` de la tarea.
 - Invitación: desde HubSpot o el panel del asistente se crea la cuenta en prueba con nombre, empresa, teléfono e id de empresa de HubSpot, y se envía el enlace de alta (7 días). Base: medidas precontractuales a petición del interesado (6.1.b). **[VALIDAR que la invitación se envía solo a quien la ha pedido o aceptado]**
 - Las dos acciones quedan en el registro de actividad (B bis) con autor «asistente»; si una reunión no encuentra cuenta se anota el correo recibido.
-- Comunicación entre dos sistemas del mismo responsable (AKOMPANO GROUP, S.L.); autenticación con secreto compartido, comparación en tiempo constante y límite de peticiones.
+- Comunicación entre dos sistemas del mismo responsable (FAMILIAS EMPRESARIAS, S.L.); autenticación con secreto compartido, comparación en tiempo constante y límite de peticiones.
 
 **B quinquies. Asistente telefónico y de WhatsApp** (código en `asistente-fe/`; detalle en `asistente-fe/CUMPLIMIENTO.md`)
 - Finalidades: atención de llamadas y mensajes, cualificación, agenda de la sesión estratégica (60 minutos con Valerio García, sin coste), seguimiento comercial con base legal registrada, gestión de la lista de exclusión.
@@ -189,7 +189,7 @@ h) Poner a disposición del Responsable la información necesaria para demostrar
 
 **Anexo I. Medidas de seguridad.** Las del apartado 2.3 de este documento y [MEDIDAS PROPIAS DE LA CONSULTORA].
 
-**Anexo II. Subencargados autorizados.** Business Avance (AKOMPANO GROUP, S.L., NIF B05544713) como proveedor de Atalaya 360°; [PROVEEDOR DE ALOJAMIENTO]; [PROVEEDOR DE CORREO].
+**Anexo II. Subencargados autorizados.** Business Avance (FAMILIAS EMPRESARIAS, S.L., NIF [PENDIENTE: NIF de Familias Empresarias, S.L.]) como proveedor de Atalaya 360°; [PROVEEDOR DE ALOJAMIENTO]; [PROVEEDOR DE CORREO].
 
 Firmas.
 
@@ -233,5 +233,6 @@ Firmas.
 - Plazos de conservación pendientes (apartado 4).
 - Condiciones de uso: consumidores y desistimiento, renovación, reembolsos, límite de responsabilidad, fuero.
 - Si las cookies técnicas y el almacenamiento local descritos quedan exentos de consentimiento (art. 22.2 LSSI).
-- Texto del aviso legal sobre la titularidad (relación entre Business Avance y Familias Empresarias, Akompano Group y DM Focus Global Business).
+- Texto del aviso legal sobre la titularidad: FAMILIAS EMPRESARIAS, S.L. es la titular y responsable; Akompano Group y DM Focus Global Business figuran como marcas o firmas asociadas. [CONFIRMAR CON EL ABOGADO LA RELACIÓN CONTRACTUAL CON LAS FIRMAS ASOCIADAS]
+- La política de privacidad publicada en businessavance.es (y el aviso del formulario de contacto de esa web) sigue nombrando a AKOMPANO GROUP, S.L. como responsable: debe cambiarse en la web para que coincida con estos textos.
 - Marcas: «Método D.I.N.E.R.O.» se publica sin ™ hasta confirmar su registro.

@@ -12,7 +12,7 @@ Preguntas que el equipo debe responder para completar la base de conocimiento. M
 
 ## Servicios y duración
 7. ~~Primera conversación~~ **Decidido (3 nov 2026):** «sesión estratégica», 60 minutos, con Valerio García, sin coste y sin compromiso. Nunca se llama «diagnóstico» (es un servicio de pago).
-8. ~~Marca del asistente~~ **Decidido (3 nov 2026):** se presenta como «Lucía, la asistente de inteligencia artificial de Familias Empresarias, de Business Avance». Responsable de los datos: AKOMPANO GROUP, S.L. (NIF B05544713), nombre comercial Business Avance International Consulting.
+8. ~~Marca del asistente~~ **Decidido (3 nov 2026):** se presenta como «Lucía, la asistente de inteligencia artificial de Familias Empresarias, de Business Avance». Responsable de los datos (cambio de noviembre de 2026): FAMILIAS EMPRESARIAS, S.L., nombre comercial Business Avance International Consulting. Pendientes: NIF, domicilio social, datos registrales y correo de privacidad. La política publicada en businessavance.es sigue nombrando a AKOMPANO GROUP, S.L. y debe cambiarse.
 9. ¿Qué duración y formato tienen las ponencias y talleres (horas, presencial/online, número de asistentes)? ¿Lista de temas cerrada?
 10. Escuela de consultoría de Business Avance: la web de Atalaya dice 300 horas y certificación; la de Business Avance, título universitario en evaluación (500 horas, 10 meses). ¿Qué dato es el vigente?
 11. ¿Tamaño mínimo o perfil de empresa con el que no trabajan (facturación, plantilla, sectores)?

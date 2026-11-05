@@ -30,8 +30,9 @@ export const C = {
     asistente: e('ASISTENTE_NOMBRE', 'Lucía'), // nombre con el que se presenta (siempre dice que es una asistente de IA)
     responsable: e('RESPONSABLE_NOMBRE', 'Valerio García'), // con quien es la sesión estratégica y a quien se transfiere
     // Responsable del tratamiento de los datos (lo dice el asistente si se lo preguntan)
-    responsableDatos: e('RESPONSABLE_DATOS', 'AKOMPANO GROUP, S.L.'),
-    responsableDatosNif: e('RESPONSABLE_DATOS_NIF', 'B05544713'),
+    responsableDatos: e('RESPONSABLE_DATOS', 'FAMILIAS EMPRESARIAS, S.L.'),
+    // PENDIENTE: NIF de Familias Empresarias, S.L. Vacío a propósito: sin NIF, la asistente no lo menciona (no lo inventa)
+    responsableDatosNif: e('RESPONSABLE_DATOS_NIF', ''),
     responsableDatosMarca: e('RESPONSABLE_DATOS_MARCA', 'Business Avance International Consulting'),
     // Política de privacidad (apartado «Asistente telefónico y WhatsApp»). Por defecto, la de la web de Atalaya si está
     // configurada; sin ninguna de las dos, el asistente no ofrece el enlace (dice que el equipo se la hará llegar)
