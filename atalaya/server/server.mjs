@@ -381,14 +381,25 @@ const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
 const sha = (t) => crypto.createHash('sha256').update(t).digest('hex');
 const safeEq = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
 // Lo que sale de una cuenta hacia el navegador: nunca la contraseña ni el secreto del segundo factor
-const pub = (u) => { if (!u) return null; const { hash, salt, totp, ...rest } = u; return Object.assign(rest, { dosPasos: !!(totp && totp.activo) }, PLANES_VARIAS.includes(u.plan) ? { iaEmpresaLimite: { mes: iaEmpresaMesDe(u), dia: IA_DIARIA_EMPRESA } } : {}); };
+const pub = (u) => { if (!u) return null; const { hash, salt, totp, ...rest } = u; return Object.assign(rest, { dosPasos: !!(totp && totp.activo), requiereTarjeta: pideTarjeta(u) }, PLANES_VARIAS.includes(u.plan) ? { iaEmpresaLimite: { mes: iaEmpresaMesDe(u), dia: IA_DIARIA_EMPRESA } } : {}); };
 const emailOk = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 function access(u) {
   if (!u) return { ok: false, motivo: 'sin-sesion' };
   if (u.estado === 'bloqueado') return { ok: false, motivo: 'bloqueado' };
   if (u.pagado && (!u.venceAcceso || Date.parse(u.venceAcceso) > Date.now())) return { ok: true, motivo: 'pagado' };
+  // Prueba con tarjeta (Checkout de Stripe con periodo de prueba): manda el estado de la suscripción, no la fecha interna.
+  // «trialing» da acceso completo; «past_due» al terminar la prueba, los días de gracia; cancelada (sin tarjeta al final), nada.
+  if (!u.pagado && u.stripeSuscripcion) {
+    const fin = Date.parse(u.stripeFinPrueba) || 0, gracia = STRIPE_GRACIA_DIAS * 864e5;
+    if (u.stripeEstado === 'trialing' && (!fin || fin + gracia > Date.now())) return { ok: true, motivo: 'prueba' };
+    if (u.stripeEstado === 'past_due' && fin && fin + gracia > Date.now()) return { ok: true, motivo: 'prueba' };
+    // Una suscripción sin prueba que aún no se ha cobrado (p. ej. «incomplete») no quita la prueba interna que quedara
+    if (u.pruebaStripeUsada) return { ok: false, motivo: 'pago' };
+  }
+  // Prueba sin tarjeta con Stripe configurado y precio en línea para su plan: antes de seguir, el Checkout con la tarjeta
+  if (pideTarjeta(u)) return { ok: false, motivo: 'tarjeta' };
   // La prueba dura PRUEBA_DIAS desde el alta, o hasta «pruebaHasta» si la administración la ha ampliado
-  if (!u.pagado && Math.max(Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0) > Date.now()) return { ok: true, motivo: 'prueba' };
+  if (!u.pagado && finPruebaInterna(u) > Date.now()) return { ok: true, motivo: 'prueba' };
   return { ok: false, motivo: 'pago' };
 }
 function cookies(req) {
@@ -666,7 +677,7 @@ function diferencias(antes, despues, campos) {
   campos.forEach((k) => { const x = antes[k] === undefined ? null : antes[k], y = despues[k] === undefined ? null : despues[k]; if (JSON.stringify(x) !== JSON.stringify(y)) { a[k] = x; d[k] = y; } });
   return Object.keys(a).length ? { antes: a, despues: d } : null;
 }
-const CAMPOS_CUENTA = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'estado', 'pagado', 'venceAcceso', 'pruebaHasta', 'planPendiente', 'cuotaPactada', 'tramo', 'iaEmpresaMes', 'nota'];
+const CAMPOS_CUENTA = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'estado', 'pagado', 'venceAcceso', 'pruebaHasta', 'planPendiente', 'cuotaPactada', 'tramo', 'iaEmpresaMes', 'nota', 'stripeFinPrueba'];
 const foto = (u) => JSON.parse(JSON.stringify(Object.fromEntries(CAMPOS_CUENTA.map((k) => [k, u[k]]))));
 
 /* ---------- Segundo factor (TOTP, RFC 6238) ----------
@@ -773,6 +784,56 @@ function clavePrecioDe(u, plan, periodo) {
   const pend = u.planPendiente && u.planPendiente.plan === 'consultora' ? +u.planPendiente.tramo || 0 : 0;
   return `consultora${Math.max(tramoConsultora(cuentanEmpresas('consultora', nEmpresas(u))), TRAMOS_CONSULTORA.includes(pend) ? pend : 0)}-${periodo}`;
 }
+/* ---------- Prueba con tarjeta (Checkout con periodo de prueba) ----------
+   Con Stripe configurado y un precio en línea para su plan, la prueba de PRUEBA_DIAS días se hace con tarjeta: el Checkout
+   la pide y Stripe no cobra hasta el día siguiente al final de la prueba. Solo hay una prueba con Stripe por cuenta
+   (u.pruebaStripeUsada). Quedan fuera las cuentas que ya han pagado (Stripe o pago registrado a mano), las de Grupos y las de
+   cuota pactada: siguen como antes. */
+// STRIPE_PRUEBA_TARJETA=0 vuelve a la prueba sin tarjeta (Stripe solo para pagar, sin periodo de prueba en el Checkout)
+const PRUEBA_TARJETA = env.STRIPE_PRUEBA_TARJETA !== '0';
+const finPruebaInterna = (u) => Math.max(Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
+const SUSCRIPCION_VIVA = ['active', 'trialing', 'past_due'];
+// Cuenta en la prueba interna, sin tarjeta, a la que se le pide el Checkout antes de seguir
+function pideTarjeta(u) {
+  if (!STRIPE || !PRUEBA_TARJETA || !u || u.estado === 'bloqueado' || u.pagado || u.stripeSuscripcion || (u.pagos || []).length || u.plan === 'grupos' || u.cuotaPactada > 0) return false;
+  if (!(finPruebaInterna(u) > Date.now())) return false;
+  return !!STRIPE_PRECIOS[clavePrecioDe(u, u.plan, u.periodo || 'mensual')];
+}
+/* Parámetros de la prueba en el Checkout (null si la cuenta no tiene derecho a ella). Regla de los días:
+   - cuenta recién creada (le quedan los PRUEBA_DIAS días, con una hora de margen): trial_period_days = PRUEBA_DIAS;
+   - prueba ya empezada sin tarjeta con más de 48 horas por delante: trial_end = el final de su prueba interna (ni pierde ni gana días);
+   - menos de 48 horas (Stripe no admite un trial_end tan cercano): trial_period_days = los días que le quedan redondeados
+     hacia arriba (1 o 2), es decir, como mucho unas horas de más y nunca de menos. */
+function pruebaCheckout(u, plan) {
+  if (!PRUEBA_TARJETA || u.pagado || (u.pagos || []).length || u.pruebaStripeUsada || u.stripeSuscripcion || plan === 'grupos' || u.cuotaPactada > 0) return null;
+  const fin = finPruebaInterna(u), resto = fin - Date.now();
+  if (!(resto > 0)) return null;
+  if (Math.abs(resto - PRUEBA_DIAS * 864e5) <= 3600e3) return { 'subscription_data[trial_period_days]': String(PRUEBA_DIAS), fin: Date.now() + PRUEBA_DIAS * 864e5 };
+  if (resto > 48 * 3600e3 + 600e3) return { 'subscription_data[trial_end]': String(Math.floor(fin / 1000)), fin };
+  const dias = Math.max(1, Math.ceil(resto / 864e5));
+  return { 'subscription_data[trial_period_days]': String(dias), fin: Date.now() + dias * 864e5 };
+}
+// Durante la prueba con tarjeta, la suscripción de Stripe sigue al plan, al periodo y (en Consultora) al tramo de la cuenta:
+// se cambia el precio sin prorrateo (no hay nada cobrado todavía). Si no hay precio en línea para lo nuevo, se avisa al equipo.
+async function seguirPrecioEnStripe(req, u) {
+  if (!STRIPE || u.pagado || !u.stripeSuscripcion || u.stripeEstado !== 'trialing' || u.cuotaPactada > 0) return;
+  const clave = clavePrecioDe(u, u.plan, u.periodo || 'mensual'), precio = STRIPE_PRECIOS[clave], { tramo } = leerPlanPer(clave);
+  if (!precio || precio === u.stripePrecio) { if (!precio) avisarEquipo(`Cambio en prueba sin precio en línea: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> está en la prueba con tarjeta y ha pasado a ${NOMBRE_PLAN[u.plan] || u.plan}${tramo ? ` (tramo ${NOMBRE_TRAMO[tramo]})` : ''}, pago ${u.periodo || 'mensual'}, que no tiene precio en Stripe.`, 'Cambie a mano el precio de su suscripción en Stripe antes del final de la prueba.']); return; }
+  if (!u.stripeItem) { avisarEquipo(`Cambio en prueba: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> ha pasado a ${clave} durante la prueba con tarjeta.`, 'Cambie el precio de su suscripción en Stripe (sin prorrateo) antes del final de la prueba.']); return; }
+  const antes = u.stripePrecio || null;
+  try {
+    await stripeApi(`subscriptions/${encodeURIComponent(u.stripeSuscripcion)}`, { 'items[0][id]': u.stripeItem, 'items[0][price]': precio, proration_behavior: 'none', 'metadata[plan]': u.plan, 'metadata[periodo]': u.periodo || 'mensual', 'metadata[tramo]': tramo ? String(tramo) : '' });
+    u.stripePrecio = precio; if (tramo) u.tramo = tramo;
+    anotarActividad(req, 'stripe.precio', u, { quien: 'cliente', antes: { precio: antes }, despues: Object.assign({ precio: clave }, tramo ? { tramo } : {}), nota: 'Precio de la suscripción cambiado durante la prueba (sin prorrateo)' });
+    save();
+  } catch (e) {
+    avisarEquipo(`No se pudo cambiar el precio en Stripe: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> está en la prueba con tarjeta y ha pasado a ${clave}, pero Stripe no ha aceptado el cambio.`, 'Cambie el precio de su suscripción en Stripe (sin prorrateo) antes del final de la prueba.']);
+  }
+}
+// Línea de los correos de alta para las cuentas a las que se pedirá la tarjeta al entrar
+const AVISO_TARJETA = (u) => (pideTarjeta(u) ? 'Al entrar le pediremos una tarjeta en nuestra pasarela de pago segura. No se cobra nada hasta el final de la prueba y puede cancelar antes sin coste.\n' : '');
+const eurTxt = (n) => Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' }) + ' €';
+const fechaLarga = (ms) => new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' });
 async function stripeApi(ruta, params) {
   let r, j = {};
   try {
@@ -806,15 +867,28 @@ function cuentaStripe(o) {
 const precioLinea = (l) => l && ((l.price && l.price.id) || (l.pricing && l.pricing.price_details && l.pricing.price_details.price) || (l.plan && l.plan.id)) || null;
 // Activa o renueva el acceso pagado: plan y periodo del precio, vencimiento al final del periodo más los días de gracia.
 // Si el plan pagado es el que el cliente había pedido (planPendiente), la solicitud queda resuelta.
+// Plan, periodo y tramo del precio de Stripe
+function planDeStripe(u, planPer) {
+  if (!planPer) return;
+  const { plan, periodo, tramo } = leerPlanPer(planPer);
+  if (PLANES.includes(plan) && plan !== u.plan) { (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: plan, fecha: now(), por: 'stripe' }); u.plan = plan; }
+  if (PERIODOS.includes(periodo)) u.periodo = periodo;
+  // Consultora: el tramo cobrado pasa a ser el facturado
+  if (plan === 'consultora' && TRAMOS_CONSULTORA.includes(tramo)) u.tramo = tramo;
+}
+// Prueba con tarjeta en Stripe: estado «prueba» (sin marcar la cuenta como pagada) con el plan del precio de la suscripción
+function pruebaPorStripe(u, planPer, finPruebaSeg) {
+  const antes = foto(u);
+  planDeStripe(u, planPer);
+  if (u.estado !== 'bloqueado') u.estado = 'prueba';
+  if (finPruebaSeg) u.stripeFinPrueba = new Date(+finPruebaSeg * 1000).toISOString();
+  if (!u.pruebaStripeUsada) u.pruebaStripeUsada = now();
+  delete u.solicitudPago;
+  return diferencias(antes, foto(u), CAMPOS_CUENTA);
+}
 function activarPorStripe(u, planPer, finSegundos) {
   const antes = foto(u), eraPagado = u.pagado;
-  if (planPer) {
-    const { plan, periodo, tramo } = leerPlanPer(planPer);
-    if (PLANES.includes(plan) && plan !== u.plan) { (u.cambiosPlan = u.cambiosPlan || []).push({ de: u.plan, a: plan, fecha: now(), por: 'stripe' }); u.plan = plan; }
-    if (PERIODOS.includes(periodo)) u.periodo = periodo;
-    // Consultora: el tramo cobrado pasa a ser el facturado
-    if (plan === 'consultora' && TRAMOS_CONSULTORA.includes(tramo)) u.tramo = tramo;
-  }
+  planDeStripe(u, planPer);
   const pp = u.planPendiente;
   if (pp && (pp.tramo ? u.plan !== 'consultora' || +u.tramo >= +pp.tramo : ORDEN_PLAN[pp.plan] <= ORDEN_PLAN[u.plan])) {
     delete u.planPendiente;
@@ -836,15 +910,30 @@ async function eventoStripe(ev) {
   if (tipo === 'checkout.session.completed') {
     if (o.mode !== 'subscription' && o.payment_status !== 'paid') return;
     if (o.customer) u.stripeCliente = o.customer.id || o.customer;
-    if (o.subscription) u.stripeSuscripcion = o.subscription.id || o.subscription;
-    u.stripeEstado = 'active';
+    const subId = o.subscription && (o.subscription.id || o.subscription), otraSub = subId && u.stripeSuscripcion !== subId;
+    if (subId) u.stripeSuscripcion = subId;
     const meta = o.metadata || {}, planPer = meta.plan && meta.periodo ? `${meta.plan}${meta.plan === 'consultora' && meta.tramo ? meta.tramo : ''}-${meta.periodo}` : null;
+    // Checkout con prueba: la tarjeta queda guardada y no se cobra nada hasta el final de la prueba; la cuenta sigue «en prueba»
+    if (o.mode === 'subscription' && meta.prueba === '1' && !u.pagado) {
+      // Si el aviso de la suscripción llegó antes, su estado manda; si no, la suscripción recién creada está en prueba
+      if (otraSub || !u.stripeEstadoEv) u.stripeEstado = 'trialing';
+      const dif = pruebaPorStripe(u, planPer, !u.stripeFinPrueba || otraSub ? +meta.finPrueba || null : null);
+      anotarActividad(null, 'stripe.prueba', u, Object.assign({}, quien, dif || {}));
+      avisarEquipo(`Prueba con tarjeta: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> ha añadido la tarjeta en Stripe y empieza la prueba del plan ${NOMBRE_PLAN[u.plan] || u.plan} (${u.periodo}).`, `Primer cobro: ${u.stripeFinPrueba ? fechaLarga(Date.parse(u.stripeFinPrueba)) : 'al final de la prueba'}, salvo que cancele antes.`]);
+      save(); return;
+    }
+    u.stripeEstado = 'active';
     // Vencimiento provisional (un periodo); la factura pagada (invoice.paid) lo fija con la fecha exacta
     const fin = Math.floor(Date.now() / 1000) + (meta.periodo === 'anual' ? 366 : 31) * 86400;
     const dif = activarPorStripe(u, planPer, fin);
     anotarActividad(null, 'stripe.checkout', u, Object.assign({}, quien, dif || {}));
     avisarEquipo(`Pago con tarjeta: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> ha pagado el plan ${NOMBRE_PLAN[u.plan] || u.plan} (${u.periodo}) en Stripe.`, o.amount_total != null ? `Importe: ${(o.amount_total / 100).toFixed(2)} ${String(o.currency || '').toUpperCase()}` : '']);
   } else if (tipo === 'invoice.paid' || tipo === 'invoice.payment_succeeded') {
+    // Factura de 0 € con la que Stripe abre la prueba: no es un pago ni activa el acceso pagado
+    if (!(o.amount_paid > 0) && (o.billing_reason === 'subscription_create' || (!u.pagado && u.stripeEstado === 'trialing'))) {
+      if (o.customer && !u.stripeCliente) u.stripeCliente = o.customer.id || o.customer;
+      save(); return;
+    }
     const lineas = (o.lines && o.lines.data) || [], l = lineas.slice().sort((a, b) => ((b.period || {}).end || 0) - ((a.period || {}).end || 0))[0];
     const planPer = planDePrecio(precioLinea(l));
     if (o.customer && !u.stripeCliente) u.stripeCliente = o.customer.id || o.customer;
@@ -867,16 +956,54 @@ async function eventoStripe(ev) {
     avisarEquipo(`Cobro fallido: ${u.nombre || u.email}`, [`Stripe no ha podido cobrar a ${u.nombre || ''} <${u.email}> (intento ${o.attempt_count || 1}).`, `El acceso sigue hasta ${u.venceAcceso ? u.venceAcceso.slice(0, 10) : '—'}; Stripe reintentará el cobro.`]);
   } else if (tipo === 'customer.subscription.created' || tipo === 'customer.subscription.updated') {
     const item = o.items && o.items.data && o.items.data[0];
+    // Los avisos pueden llegar desordenados: uno más antiguo que el último aplicado de la misma suscripción no cambia el estado
+    const t = +ev.created || 0;
+    if (t && u.stripeSuscripcion === o.id && u.stripeEstadoEv && t < u.stripeEstadoEv) { anotarActividad(null, 'stripe.suscripcion', u, Object.assign({}, quien, { nota: `${quien.nota} · ${o.status} · aviso atrasado: no cambia el estado` })); save(); return; }
     u.stripeSuscripcion = o.id; u.stripeEstado = o.status; u.stripeCancelaAlFinal = !!o.cancel_at_period_end;
+    if (t) u.stripeEstadoEv = t;
+    if (item && item.id) u.stripeItem = item.id;
+    if (precioLinea(item)) u.stripePrecio = precioLinea(item);
+    if (o.trial_end) { u.stripeFinPrueba = new Date(o.trial_end * 1000).toISOString(); if (!u.pruebaStripeUsada) u.pruebaStripeUsada = now(); }
     if (o.customer && !u.stripeCliente) u.stripeCliente = o.customer.id || o.customer;
     let dif = null;
-    if (o.status === 'active' || o.status === 'trialing') dif = activarPorStripe(u, planDePrecio(precioLinea(item)), o.current_period_end || (item && item.current_period_end));
+    const planPer = planDePrecio(precioLinea(item));
+    // En prueba (sin nada pagado): estado «prueba» con acceso completo mientras Stripe la mantenga
+    if (o.status === 'trialing' && !u.pagado) dif = pruebaPorStripe(u, planPer, o.trial_end);
+    // Fin de la prueba de una cuenta que aún no ha pagado: el acceso pagado empieza con el final de la prueba más los días de
+    // gracia, y la factura pagada (invoice.paid) lo amplía hasta el final del periodo; si el cobro falla, termina con la gracia
+    else if (o.status === 'active' && !u.pagado && o.trial_end) dif = activarPorStripe(u, planPer, Math.min(o.trial_end, Math.floor(Date.now() / 1000)));
+    else if (o.status === 'active' || o.status === 'trialing') dif = activarPorStripe(u, planPer, o.current_period_end || (item && item.current_period_end));
     anotarActividad(null, 'stripe.suscripcion', u, Object.assign({}, quien, dif || {}, { nota: `${quien.nota} · ${o.status}${o.cancel_at_period_end ? ' · se cancela al final del periodo' : ''}` }));
   } else if (tipo === 'customer.subscription.deleted') {
+    // Baja de una suscripción anterior que ya no es la de la cuenta: solo se anota
+    if (u.stripeSuscripcion && o.id && o.id !== u.stripeSuscripcion) { anotarActividad(null, 'stripe.baja', u, Object.assign({}, quien, { nota: `${quien.nota} · suscripción antigua ${o.id}` })); save(); return; }
+    const enPrueba = !u.pagado;
     u.stripeEstado = 'canceled'; u.stripeCancelaAlFinal = false;
-    // El acceso pagado sigue hasta su vencimiento y después no se renueva
+    if (+ev.created) u.stripeEstadoEv = +ev.created;
     anotarActividad(null, 'stripe.baja', u, quien);
-    avisarEquipo(`Suscripción cancelada: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> ya no tiene suscripción en Stripe. El acceso vence el ${u.venceAcceso ? u.venceAcceso.slice(0, 10) : '—'}.`]);
+    // Prueba terminada sin tarjeta válida (o cancelada en la prueba): Stripe cancela la suscripción y el acceso termina.
+    // Los datos se conservan; si vuelve, paga sin prueba.
+    if (enPrueba) avisarEquipo(`Prueba terminada sin pago: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> (plan ${NOMBRE_PLAN[u.plan] || u.plan}) ya no tiene suscripción en Stripe: la prueba ha terminado sin cobro o la ha cancelado.`, 'Su acceso queda cerrado y sus datos se conservan. Si vuelve, paga sin periodo de prueba.']);
+    // El acceso pagado sigue hasta su vencimiento y después no se renueva
+    else avisarEquipo(`Suscripción cancelada: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}> ya no tiene suscripción en Stripe. El acceso vence el ${u.venceAcceso ? u.venceAcceso.slice(0, 10) : '—'}.`]);
+  } else if (tipo === 'customer.subscription.trial_will_end') {
+    // Tres días antes del final de la prueba: correo al cliente y aviso al equipo, una sola vez por suscripción y fecha
+    const clave = `${o.id}:${o.trial_end || ''}`;
+    if (u.avisoFinPrueba === clave) return;
+    u.avisoFinPrueba = clave; save();
+    const item = o.items && o.items.data && o.items.data[0], precio = (item && (item.price || item.plan)) || {};
+    const { plan, tramo, periodo } = leerPlanPer(planDePrecio(precioLinea(item)));
+    const intervalo = (precio.recurring && precio.recurring.interval) || precio.interval;
+    const planN = NOMBRE_PLAN[plan || u.plan] || plan || u.plan, per = periodo || (intervalo === 'year' ? 'anual' : 'mensual');
+    const importe = precio.unit_amount != null ? precio.unit_amount / 100 : null;
+    const fin = o.trial_end ? fechaLarga(o.trial_end * 1000) : 'el final de la prueba';
+    const cuota = `${importe != null ? eurTxt(importe) + ' más IVA (21 %)' : 'la cuota de su plan más IVA (21 %)'} por el plan ${planN}${tramo ? ` (${NOMBRE_TRAMO[tramo]})` : ''} con pago ${per}`;
+    const texto = o.cancel_at_period_end
+      ? `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nSu prueba de Atalaya 360° termina el ${fin}. Como ha cancelado la suscripción, ese día no se le cobrará nada y su acceso terminará. Sus datos se conservan: puede descargarlos desde el menú de su cuenta («Descargar todos mis datos»).\n\nSi cambia de opinión, puede reactivarla antes de esa fecha desde Atalaya: en el menú de su cuenta, «Gestionar el pago: tarjeta y facturas».\n${APP_URL}/acceso.html\n\nEquipo de Business Avance`
+      : `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nSu prueba de Atalaya 360° termina el ${fin}.\nEse día cargaremos en su tarjeta ${cuota}. Después, el cobro se repite cada ${per === 'anual' ? 'año' : 'mes'} hasta que cancele.\n\nSi quiere cambiar de plan o de tarjeta, o cancelar sin coste antes de esa fecha, entre en Atalaya y, en el menú de su cuenta, pulse «Gestionar el pago: tarjeta y facturas»:\n${APP_URL}/acceso.html\nSi cancela antes del ${fin}, no se le cobrará nada y sus datos se conservan.\n\nPara cualquier duda, responda a este correo.\n\nEquipo de Business Avance`;
+    const enviado = await sendMail(u.email, `Atalaya 360° · Su prueba termina el ${fin}`, texto);
+    anotarActividad(null, 'stripe.finprueba', u, Object.assign({}, quien, { nota: `${quien.nota} · fin de la prueba el ${fin} · ${enviado ? 'correo enviado' : 'sin correo'}` }));
+    avisarEquipo(`La prueba termina el ${fin}: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}>: la prueba con tarjeta termina el ${fin}.`, o.cancel_at_period_end ? 'Ha cancelado: no se cobrará.' : `Stripe cobrará ${cuota}.`, enviado ? 'Se le ha enviado el recordatorio por correo.' : 'No se ha podido enviar el recordatorio por correo.']);
   } else return;
   save();
 }
@@ -1085,7 +1212,7 @@ const routes = [];
 const route = (method, re, fn, opts = {}) => routes.push({ method, re, fn, opts });
 
 // «stripe»: planes y periodos que se pueden pagar en línea (Checkout); false si el cobro sigue siendo manual
-route('GET', /^\/api\/health$/, async () => ({ atalaya: true, ia: !!(await claude()), version: 2, stripe: STRIPE ? Object.keys(STRIPE_PRECIOS) : false }), { public: true });
+route('GET', /^\/api\/health$/, async () => ({ atalaya: true, ia: !!(await claude()), version: 2, stripe: STRIPE ? Object.keys(STRIPE_PRECIOS) : false, pruebaTarjeta: STRIPE && PRUEBA_TARJETA }), { public: true });
 
 // Hash de referencia para que un correo inexistente tarde lo mismo que una contraseña errónea
 const DUMMY = (() => { const salt = crypto.randomBytes(16).toString('hex'); return { salt, hash: hashPw(crypto.randomBytes(16).toString('hex'), salt) }; })();
@@ -1141,6 +1268,7 @@ route('GET', /^\/api\/me$/, async (req, res, body, u) => ({ user: pub(u) }), { n
      (al cambiar el plan en el gestor de usuarios), porque cambia la cuota;
    - Grupos solo lo concede la administración. */
 route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
+  const precioAntes = `${u.plan}-${u.periodo}`;
   ['nombre', 'empresa', 'telefono'].forEach((k) => { if (typeof body[k] === 'string') u[k] = body[k].slice(0, 160); });
   if (PLANES.includes(body.plan) && body.plan !== u.plan) {
     const nuevo = body.plan;
@@ -1169,7 +1297,10 @@ route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
     if (u.planPendiente) { delete u.planPendiente; (db.contactos || []).forEach((c) => { if (c.origen === 'cambio-plan' && c.cuenta === u.id && !c.atendido) c.atendido = now(); }); }
   }
   if (PERIODOS.includes(body.periodo)) u.periodo = body.periodo;
-  save(); return { user: pub(u) };
+  save();
+  // En la prueba con tarjeta, el precio de la suscripción sigue al plan y al periodo nuevos
+  if (!u.pagado && precioAntes !== `${u.plan}-${u.periodo}`) await seguirPrecioEnStripe(req, u);
+  return { user: pub(u) };
 }, { noAccess: true });
 // Solicitudes de contacto para el plan Grupos (a medida): públicas, con límite de envíos
 route('POST', /^\/api\/contacto$/, async (req, res, body) => {
@@ -1322,6 +1453,7 @@ function revisionSistema() {
   if (!env.SMTP_HOST) pon('aviso', 'Servicios', 'No hay correo de salida: las invitaciones y contraseñas olvidadas se atienden a mano.', 'Configure SMTP_HOST, SMTP_USER, SMTP_PASS y SMTP_FROM.');
   if (STRIPE && !env.STRIPE_WEBHOOK_SECRET) pon('grave', 'Servicios', 'Stripe está activo sin secreto del webhook: los cobros no se confirman.', 'Ponga STRIPE_WEBHOOK_SECRET.');
   if (!STRIPE) pon('aviso', 'Servicios', 'El cobro con tarjeta (Stripe) no está activo: los pagos se registran a mano.');
+  if (STRIPE && PRUEBA_TARJETA && !env.SMTP_HOST) pon('aviso', 'Servicios', 'La prueba con tarjeta está activa sin correo: el cliente no recibe el recordatorio tres días antes del primer cobro.', 'Configure SMTP_HOST y los demás datos del correo.');
   if (!env.HUBSPOT_TOKEN) pon('aviso', 'Servicios', 'HubSpot no está conectado: las solicitudes no llegan al CRM.', 'Ponga HUBSPOT_TOKEN y HUBSPOT_OWNER_ID.');
   if (!env.INTEGRACION_TOKEN) pon('aviso', 'Servicios', 'La integración con el asistente telefónico está apagada.', 'Ponga el mismo INTEGRACION_TOKEN aquí y en el asistente.');
 
@@ -1330,7 +1462,7 @@ function revisionSistema() {
   us.forEach((u) => {
     porPlan[u.plan] = (porPlan[u.plan] || 0) + 1;
     const a = access(u);
-    if (u.estado === 'bloqueado') est.bloqueadas++; else if (a.motivo === 'pagado') est.pagando++; else if (a.motivo === 'prueba') est.prueba++; else est.sinAcceso++;
+    if (u.estado === 'bloqueado') est.bloqueadas++; else if (a.motivo === 'pagado') est.pagando++; else if (a.motivo === 'prueba' || a.motivo === 'tarjeta') est.prueba++; else est.sinAcceso++;
   });
   const fallidos = us.filter((u) => u.pagoFallido).length;
   const venceSemana = us.filter((u) => u.pagado && u.venceAcceso && Date.parse(u.venceAcceso) > Date.now() && Date.parse(u.venceAcceso) - Date.now() < 7 * 864e5).length;
@@ -1532,6 +1664,8 @@ route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m
    tramo) hasta que la administración la confirma o Stripe cobra el precio del tramo nuevo; bajar de tramo al borrar empresas
    se aplica en la siguiente renovación (registro de un pago o cobro de Stripe), sin devoluciones. */
 function cambioDeTramo(req, u, nAntes, nNuevo) {
+  // En la prueba con tarjeta, la suscripción de Stripe sigue al tramo nuevo (sin prorrateo)
+  if (u.plan === 'consultora' && !u.pagado && !(u.cuotaPactada > 0) && tramoConsultora(nAntes) !== tramoConsultora(nNuevo)) { seguirPrecioEnStripe(req, u).catch(() => {}); return; }
   if (u.plan !== 'consultora' || !u.pagado || u.cuotaPactada > 0) return;
   const facturado = +u.tramo || tramoConsultora(nAntes), nuevo = tramoConsultora(nNuevo);
   if (!u.tramo) u.tramo = facturado;
@@ -1704,7 +1838,10 @@ route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) 
     const accion = pago ? 'pago.registrar' : dif.despues.estado === 'bloqueado' ? 'cuenta.bloquear' : dif.antes.estado === 'bloqueado' ? 'cuenta.desbloquear' : 'plan' in dif.despues ? 'plan.cambio' : 'cuenta.modificar';
     anotarActividad(req, accion, u, { antes: dif && dif.antes, despues: Object.assign({}, dif && dif.despues, pago ? { pago } : {}), nota: typeof body.motivo === 'string' ? body.motivo : null });
   }
-  save(); return { user: pub(u) };
+  save();
+  // En la prueba con tarjeta, un cambio de plan, periodo o tramo hecho por la administración también cambia el precio en Stripe
+  if (dif && ['plan', 'periodo', 'tramo'].some((k) => k in dif.despues)) await seguirPrecioEnStripe(req, u);
+  return { user: pub(u) };
 }, { admin: true });
 // Borrar una cuenta borra todo lo suyo: datos, análisis de mercado, sesiones, enlaces de contraseña, invitaciones
 // (con sus respuestas), solicitudes de contacto con su correo y uso de IA (va en la propia cuenta).
@@ -1738,7 +1875,7 @@ route('POST', /^\/api\/admin\/users$/, async (req, res, body) => {
   if (typeof body.nota === 'string') u.nota = body.nota.slice(0, 2000);
   db.users.push(u);
   const token = newResetToken(u, 'invitación', 7 * 24 * 60), link = `${APP_URL}/acceso.html#reset=${token}`;
-  const enviado = body.enviar ? await sendMail(u.email, 'Atalaya 360° · Su cuenta está lista', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nLe hemos creado una cuenta en Atalaya 360° con el plan ${NOMBRE_PLAN[u.plan]}${u.pagado ? '' : ` y ${Math.round(((Date.parse(u.pruebaHasta) || Date.now() + PRUEBA_DIAS * 864e5) - Date.now()) / 864e5)} días de prueba`}.\nPara elegir su contraseña abra este enlace (válido 7 días):\n${link}\n\nEquipo de Business Avance`) : false;
+  const enviado = body.enviar ? await sendMail(u.email, 'Atalaya 360° · Su cuenta está lista', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nLe hemos creado una cuenta en Atalaya 360° con el plan ${NOMBRE_PLAN[u.plan]}${u.pagado ? '' : ` y ${Math.round(((Date.parse(u.pruebaHasta) || Date.now() + PRUEBA_DIAS * 864e5) - Date.now()) / 864e5)} días de prueba`}.\n${AVISO_TARJETA(u)}Para elegir su contraseña abra este enlace (válido 7 días):\n${link}\n\nEquipo de Business Avance`) : false;
   anotarActividad(req, 'cuenta.crear', u, { despues: foto(u) });
   save();
   return { user: pub(u), token, minutos: 7 * 24 * 60, enviado };
@@ -1749,9 +1886,16 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/prueba$/, async (req, res, body, 
   if (dias < 1 || dias > 90) throw fallo(400, 'Indique entre 1 y 90 días');
   if (u.pagado) throw fallo(409, 'Esta cuenta tiene el acceso pagado: amplíe su vencimiento registrando un pago o cambiando la fecha.');
   const antes = foto(u), fin = Math.max(Date.now(), Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
+  // Prueba con tarjeta: se amplía en Stripe (el primer cobro se retrasa); su fecha es la que manda
+  let nota = `${dias} días más`;
+  if (u.stripeSuscripcion && u.stripeEstado === 'trialing') {
+    const finSt = Math.max(Date.now(), Date.parse(u.stripeFinPrueba) || 0) + dias * 864e5;
+    await stripeApi(`subscriptions/${encodeURIComponent(u.stripeSuscripcion)}`, { trial_end: String(Math.floor(finSt / 1000)), proration_behavior: 'none' });
+    u.stripeFinPrueba = new Date(finSt).toISOString(); nota += ' (también en Stripe: el primer cobro se retrasa)';
+  }
   u.pruebaHasta = new Date(fin + dias * 864e5).toISOString();
   if (u.estado !== 'bloqueado') u.estado = 'prueba';
-  anotarActividad(req, 'prueba.ampliar', u, Object.assign({ nota: `${dias} días más` }, diferencias(antes, foto(u), CAMPOS_CUENTA) || {}));
+  anotarActividad(req, 'prueba.ampliar', u, Object.assign({ nota }, diferencias(antes, foto(u), CAMPOS_CUENTA) || {}));
   save(); return { user: pub(u) };
 }, { admin: true });
 // Registrar un pago y ampliar el acceso «meses» desde el vencimiento actual (o desde hoy si ya venció)
@@ -1887,21 +2031,30 @@ route('POST', /^\/api\/me\/pago\/checkout$/, async (req, res, body, u) => {
   const claveP = clavePrecioDe(u, plan, periodo), { tramo } = leerPlanPer(claveP);
   const precio = STRIPE_PRECIOS[claveP];
   if (!precio) throw fallo(404, `El plan ${NOMBRE_PLAN[plan] || plan}${tramo ? ` (tramo ${NOMBRE_TRAMO[tramo]})` : ''} con pago ${periodo} no se puede pagar en línea: solicite el enlace de pago.`, { manual: true });
-  if (u.stripeSuscripcion && ['active', 'trialing', 'past_due'].includes(u.stripeEstado)) throw fallo(409, 'Ya tiene una suscripción. Cambie de plan o de tarjeta desde «Gestionar el pago».', { portal: true });
+  if (u.stripeSuscripcion && SUSCRIPCION_VIVA.includes(u.stripeEstado)) throw fallo(409, 'Ya tiene una suscripción. Cambie de plan o de tarjeta desde «Gestionar el pago».', { portal: true });
+  // Prueba de PRUEBA_DIAS días con tarjeta: solo una por cuenta y solo si nunca ha pagado (ver pruebaCheckout)
+  const prueba = pruebaCheckout(u, plan);
   const p = {
     mode: 'subscription', 'line_items[0][price]': precio, 'line_items[0][quantity]': '1', client_reference_id: u.id, locale: 'es',
     'metadata[cuenta]': u.id, 'metadata[plan]': plan, 'metadata[periodo]': periodo,
     'subscription_data[metadata][cuenta]': u.id, 'subscription_data[metadata][plan]': plan, 'subscription_data[metadata][periodo]': periodo,
     ...(tramo ? { 'metadata[tramo]': String(tramo), 'subscription_data[metadata][tramo]': String(tramo) } : {}),
     success_url: env.STRIPE_URL_OK || `${APP_URL}/app.html?pago=ok`, cancel_url: env.STRIPE_URL_CANCELAR || `${APP_URL}/acceso.html#pago`,
-    billing_address_collection: 'required', 'tax_id_collection[enabled]': 'true'
+    billing_address_collection: 'required', 'tax_id_collection[enabled]': 'true', payment_method_collection: 'always'
   };
+  if (prueba) {
+    const { fin, ...dias } = prueba;
+    Object.assign(p, dias, {
+      'subscription_data[trial_settings][end_behavior][missing_payment_method]': 'cancel',
+      'metadata[prueba]': '1', 'metadata[finPrueba]': String(Math.floor(fin / 1000)), 'subscription_data[metadata][prueba]': '1'
+    });
+  }
   if (u.stripeCliente) Object.assign(p, { customer: u.stripeCliente, 'customer_update[name]': 'auto', 'customer_update[address]': 'auto' });
   else p.customer_email = u.email;
   if (env.STRIPE_IMPUESTOS === '1') p['automatic_tax[enabled]'] = 'true';
   const s = await stripeApi('checkout/sessions', p);
-  anotarActividad(req, 'pago.checkout', u, { quien: 'cliente', despues: Object.assign({ plan, periodo }, tramo ? { tramo } : {}), nota: s.id });
-  return { url: s.url };
+  anotarActividad(req, 'pago.checkout', u, { quien: 'cliente', despues: Object.assign({ plan, periodo }, tramo ? { tramo } : {}), nota: `${s.id}${prueba ? ` · con prueba hasta el ${fechaLarga(prueba.fin)}` : ''}` });
+  return { url: s.url, prueba: prueba ? new Date(prueba.fin).toISOString() : null };
 }, { noAccess: true });
 route('POST', /^\/api\/me\/pago\/portal$/, async (req, res, body, u) => {
   if (!STRIPE) throw fallo(404, 'El pago en línea no está configurado.', { manual: true });
@@ -2052,7 +2205,7 @@ route('POST', /^\/api\/integracion\/invitar$/, async (req, res, body) => {
   // La prueba empieza al invitar: 14 días desde hoy
   u.pruebaHasta = new Date(Date.now() + PRUEBA_DIAS * 864e5).toISOString(); u.invitado = now();
   const token = newResetToken(u, 'invitación', 7 * 24 * 60), enlace = `${APP_URL}/acceso.html#reset=${token}`;
-  const enviado = await sendMail(u.email, 'Atalaya 360° · Su invitación', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nLe invitamos a Atalaya 360°, el software de Business Avance, con ${PRUEBA_DIAS} días de prueba del plan ${NOMBRE_PLAN[u.plan]}${u.empresa ? ` para ${u.empresa}` : ''}.\nPara elegir su contraseña y entrar abra este enlace (válido 7 días):\n${enlace}\n\nEquipo de Business Avance`);
+  const enviado = await sendMail(u.email, 'Atalaya 360° · Su invitación', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nLe invitamos a Atalaya 360°, el software de Business Avance, con ${PRUEBA_DIAS} días de prueba del plan ${NOMBRE_PLAN[u.plan]}${u.empresa ? ` para ${u.empresa}` : ''}.\n${AVISO_TARJETA(u)}Para elegir su contraseña y entrar abra este enlace (válido 7 días):\n${enlace}\n\nEquipo de Business Avance`);
   anotarActividad(req, 'integracion.invitar', u, { quien: 'asistente', despues: creada ? foto(u) : { pruebaHasta: u.pruebaHasta }, nota: `${creada ? 'Cuenta creada' : 'Invitación renovada'} desde el asistente o HubSpot${hs ? ' · empresa HubSpot ' + hs : ''} · ${enviado ? 'correo enviado' : 'sin correo: enlace devuelto'}` });
   save();
   aHubspot({ clave: `invitacion:${u.id}:${today()}`, origen: 'Atalaya · invitación de alta enviada', nombre: u.nombre, email: u.email, telefono: u.telefono, empresa: u.empresa, cuenta: u.id, hubspotCompanyId: hs, tarea: false, mensaje: `Invitación de alta en Atalaya 360° (plan ${NOMBRE_PLAN[u.plan]}, ${PRUEBA_DIAS} días de prueba). ${enviado ? 'Enviada por correo.' : 'Sin correo configurado: enlace entregado al asistente.'}` });

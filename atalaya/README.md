@@ -7,7 +7,7 @@ Plataforma para que una empresa decida si puede afrontar una inversión **sin ro
 | Página | Para qué |
 |---|---|
 | `index.html` | Página comercial (con el laboratorio de escenarios de `js/lab.js`: inversión, Lean, impuestos, mercado y «todo a la vez») en un espacio 3D (fondo de galaxias por el que se avanza al bajar, tarjetas y titulares que flotan, se inclinan y se acercan al cursor): propuesta, el ecosistema en 3D (los dos mundos y el abanico de pantallas de cada uno), demo en vivo con el motor real, planes y preguntas. |
-| `acceso.html` | Alta con 14 días de prueba, inicio de sesión, recuperación de contraseña y solicitud de activación al terminar la prueba. |
+| `acceso.html` | Alta con 14 días de prueba (con Stripe configurado, con tarjeta: no se cobra hasta el día 15 y se puede cancelar antes sin coste), inicio de sesión, recuperación de contraseña, «Añadir la tarjeta y seguir» para las pruebas sin tarjeta y pago o solicitud de activación al terminar la prueba. |
 | `grupo.html` | Grupo empresarial (plan Grupos) o cartera de clientes (plan Consultora): sociedades, consolidado con eliminaciones intragrupo, comparativa, riesgos cruzados, objetivos en cascada e informe. |
 | `portal.html` | Puesto de mando en 3D tras entrar: una galaxia con cuatro mundos (simulador de inversión, sistema estratégico, personas y equipos y auditoría integral) por la que se navega y desde la que se entra en cada herramienta. |
 | `app.html` | Simulador de inversión y crecimiento. |
@@ -171,7 +171,7 @@ ANTHROPIC_API_KEY=sk-ant-... ADMIN_PASSWORD='una-clave-larga' APP_URL=https://at
 - Modelo de IA: `claude-opus-5-5` por defecto (`ATALAYA_MODEL` para cambiarlo).
 
 ### Pagos
-El control de acceso es real en el servidor: prueba de 14 días, acceso pagado con fecha de vencimiento y bloqueo. El cobro se registra desde el gestor de usuarios («Registrar pago»). Para cobrar con tarjeta de forma automática hay que conectar una pasarela (por ejemplo Stripe) que llame a `PATCH /api/admin/users/:id` al confirmar el pago; no está incluida. Los precios de los planes son de ejemplo: cámbialos en `js/platform.js`.
+El control de acceso es real en el servidor: prueba de 14 días, acceso pagado con fecha de vencimiento y bloqueo. El cobro se registra desde el gestor de usuarios («Registrar pago») o, con Stripe configurado, lo hace el propio servidor (Checkout, portal del cliente y aviso firmado), con la prueba de 14 días con tarjeta: ver `PUESTA-EN-MARCHA.md`, apartados 5 y 5.1. Los precios de los planes son de ejemplo: cámbialos en `js/platform.js`.
 
 ## Legal y protección de datos
 **Borradores pendientes de validación jurídica.** Cada página lo indica arriba y lleva entre corchetes los datos que faltan ([RAZÓN SOCIAL], [NIF], [DOMICILIO], [DATOS REGISTRALES], [EMAIL DE CONTACTO], [DELEGADO DE PROTECCIÓN DE DATOS, si procede], proveedores de alojamiento, correo y pagos).

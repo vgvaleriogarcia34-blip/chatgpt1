@@ -51,7 +51,7 @@
 
     <form id="fUp" novalidate hidden>
       <h1>Empiece su <em>prueba</em></h1>
-      <p class="small muted" style="margin:0">14 días con todas las funciones de su plan. Sin tarjeta.</p>
+      <p class="small muted" id="upLede" style="margin:0">14 días con todas las funciones de su plan. Le pediremos una tarjeta en nuestra pasarela de pago segura: no se cobra nada hasta el día 15 y puede cancelar antes sin coste.</p>
       <label for="upName">Nombre y apellidos<input class="input" id="upName" autocomplete="name" required aria-describedby="upNameErr"><small class="fld-err" id="upNameErr" hidden></small></label>
       <label for="upCo">Nombre de su empresa<input class="input" id="upCo" autocomplete="organization" required aria-describedby="upCoErr"><small class="fld-err" id="upCoErr" hidden></small></label>
       <label for="upSector">Sector (opcional)<select class="input" id="upSector"><option value="">Elegir más tarde</option></select></label>
@@ -101,12 +101,18 @@
   if (A.SECTORS) $('#upSector').insertAdjacentHTML('beforeend', Object.keys(A.SECTORS).map((k) => `<option value="${k}">${A.SECTORS[k].nombre}</option>`).join(''));
   // Planes y forma de pago: el anual lleva un 30 % de descuento sobre el precio mensual
   let periodo = /anual/.test(h) ? 'anual' : 'mensual';
+  // Prueba con tarjeta: si el servidor tiene precio en línea (Stripe) para el plan y la forma de pago (en Consultora, el tramo de
+  // hasta 5 empresas cliente, el de una cuenta nueva). Mientras no se sabe, se da por hecho (es lo habitual con el servidor).
+  let listo = false;
+  const conTarjeta = (k) => (!listo ? true : P.mode === 'server' && !!P.serverInfo && !!P.serverInfo.pruebaTarjeta && Array.isArray(P.serverInfo.stripe) && P.serverInfo.stripe.includes(P.clavePrecio(k, periodo, 0)));
   const drawPlans = () => {
     const cur = (document.querySelector('input[name="plan"]:checked') || {}).value || planIni;
     $('#planPick').innerHTML = Object.keys(P.PLANES).filter((k) => !P.PLANES[k].aMedida).map((k) => { const pr = P.precio(k, periodo, 1); return `<label><input type="radio" name="plan" value="${k}" ${k === cur ? 'checked' : ''}><b>${P.PLANES[k].nombre}</b><small>${P.PLANES[k].tramos ? 'desde ' : ''}${P.eur(P.cuota(pr).importe)}${P.cuota(pr).unidad}</small></label>`; }).join('');
     document.querySelectorAll('#perPick button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.per === periodo));
     const k = (document.querySelector('input[name="plan"]:checked') || {}).value || 'profesional', pr = P.precio(k, periodo, 1), pl = P.PLANES[k];
-    $('#planNote').innerHTML = `${(pl.para || '').replace(/\btu\b/g, 'su')}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}, ahorra ${P.eur(pr.ahorro)}` : ''}${pl.clientes ? ` · por tramos de empresas cliente: ${pl.tramos.map((t) => `${t.n.toLowerCase()}, ${P.eur(P.cuota(P.precio(k, periodo, t.hasta)).importe)}${P.cuota(P.precio(k, periodo, t.hasta)).unidad}`).join('; ')} (su propia empresa no cuenta)` : ''}. Precios sin IVA. Los 14 días de prueba son gratuitos en todos los planes.`;
+    $('#planNote').innerHTML = `${(pl.para || '').replace(/\btu\b/g, 'su')}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}, ahorra ${P.eur(pr.ahorro)}` : ''}${pl.clientes ? ` · por tramos de empresas cliente: ${pl.tramos.map((t) => `${t.n.toLowerCase()}, ${P.eur(P.cuota(P.precio(k, periodo, t.hasta)).importe)}${P.cuota(P.precio(k, periodo, t.hasta)).unidad}`).join('; ')} (su propia empresa no cuenta)` : ''}. Precios sin IVA (21 %). ${conTarjeta(k) ? 'Los 14 días de prueba no se cobran: el primer cargo en la tarjeta es el día 15, salvo que cancele antes.' : 'Los 14 días de prueba son gratuitos en todos los planes.'}`;
+    // Sin pago en línea para el plan elegido (o sin servidor), la prueba sigue sin tarjeta
+    $('#upLede').textContent = conTarjeta(k) ? '14 días con todas las funciones de su plan. Le pediremos una tarjeta en nuestra pasarela de pago segura: no se cobra nada hasta el día 15 y puede cancelar antes sin coste.' : '14 días con todas las funciones de su plan. Sin tarjeta.';
     document.querySelectorAll('input[name="plan"]').forEach((r) => r.onchange = drawPlans);
   };
   document.querySelectorAll('#perPick button').forEach((b) => b.onclick = () => { periodo = b.dataset.per; drawPlans(); });
@@ -120,6 +126,7 @@
   addEventListener('hashchange', () => { if (location.hash.startsWith('#reset=')) location.reload(); else if (location.hash.startsWith('#alta')) show('up'); });
 
   P.ready.then(async (mode) => {
+    listo = true; drawPlans();
     if (mode === 'local') $('#notice').innerHTML = '<div class="alert info">Modo demostración: no hay servidor conectado, así que las cuentas se guardan solo en este navegador.</div>';
     if (resetToken) return;
     const u = await P.me();
@@ -127,7 +134,7 @@
     // Con la sesión abierta, «Probar» un plan desde la página comercial lleva a cambiar de plan dentro de la aplicación
     if (u && acc.ok) { const quiere = (h.match(/^alta-(esencial|profesional|consultora|grupos)/) || [])[1]; location.href = 'portal.html' + (quiere && quiere !== u.plan ? '#plan-' + quiere : ''); return; }
     if (u && !acc.ok) payScreen(u, acc.motivo);
-    else if (h === 'pago' || h === 'bloqueado') $('#notice').insertAdjacentHTML('beforeend', '<div class="alert warn">Entre con su cuenta para continuar: verá su plan y cómo activarlo, y podrá descargar sus datos.</div>');
+    else if (h === 'pago' || h === 'bloqueado' || h === 'tarjeta') $('#notice').insertAdjacentHTML('beforeend', '<div class="alert warn">Entre con su cuenta para continuar: verá su plan y cómo activarlo, y podrá descargar sus datos.</div>');
   });
 
   /* Prueba terminada o acceso suspendido: plan y precio, enlace de pago o solicitud, contacto directo y descarga de datos */
@@ -193,9 +200,19 @@
     if (primero) { $('#upMsg').textContent = ''; primero.focus(); return; }
     $('#upMsg').textContent = 'Creando su cuenta…';
     try {
-      await P.register({ nombre: $('#upName').value.trim(), empresa: $('#upCo').value.trim(), email: $('#upEmail').value.trim(), telefono: $('#upTel').value.trim(), password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value, periodo });
+      const u = await P.register({ nombre: $('#upName').value.trim(), empresa: $('#upCo').value.trim(), email: $('#upEmail').value.trim(), telefono: $('#upTel').value.trim(), password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value, periodo });
+      const ficha = { nombre: $('#upCo').value.trim(), sector: $('#upSector').value };
+      // Con pago en línea para su plan, la prueba empieza al añadir la tarjeta: directo al Checkout. El nombre y el sector de la
+      // empresa se guardan en este navegador y se aplican a la ficha al volver.
+      if (P.accessOf(u).motivo === 'tarjeta') {
+        try { localStorage.setItem('atalaya.fichaPendiente', JSON.stringify(Object.assign({ cuenta: u.id }, ficha))); } catch (x) { /* sin almacenamiento: se completa en la ficha */ }
+        $('#upMsg').textContent = 'Cuenta creada. Abriendo la página segura para añadir la tarjeta…';
+        try { location.href = await P.irAlPago(u); }
+        catch (x) { $('#upMsg').textContent = ''; payScreen(u, 'tarjeta'); const m = $('#payHost [data-pgmsg]'); if (m) { m.style.color = 'var(--stop)'; m.textContent = x.message; } }
+        return;
+      }
       // El nombre y el sector van a la ficha de la empresa principal
-      try { await P.fichaInicial({ nombre: $('#upCo').value.trim(), sector: $('#upSector').value }); } catch (x) { /* se completa en la ficha */ }
+      try { await P.fichaInicial(ficha); } catch (x) { /* se completa en la ficha */ }
       location.href = 'portal.html';
     } catch (err) { $('#upMsg').textContent = /correo/i.test(err.message) && /cuenta/i.test(err.message) ? 'Ya hay una cuenta con ese correo. Entre con su contraseña o recupérela.' : err.message; if (/correo/i.test(err.message)) marcar('#upEmail', err.message); }
   };

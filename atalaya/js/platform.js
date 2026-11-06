@@ -105,8 +105,16 @@
     if (u.estado === 'bloqueado') return { ok: false, motivo: 'bloqueado' };
     const now = Date.now();
     if (u.pagado && (!u.venceAcceso || new Date(u.venceAcceso).getTime() > now)) return { ok: true, motivo: 'pagado' };
+    // Prueba con tarjeta en Stripe: manda el estado de la suscripción (como en el servidor)
+    if (!u.pagado && u.stripeSuscripcion) {
+      const fin = Date.parse(u.stripeFinPrueba) || 0, gracia = 3 * 864e5;
+      if ((u.stripeEstado === 'trialing' && (!fin || fin + gracia > now)) || (u.stripeEstado === 'past_due' && fin && fin + gracia > now)) return { ok: true, motivo: 'prueba', conTarjeta: true, diasPrueba: fin ? Math.max(1, Math.ceil((fin - now) / 864e5)) : PRUEBA_DIAS, finPrueba: fin || null };
+      if (u.pruebaStripeUsada) return { ok: false, motivo: 'pago' };
+    }
     // La prueba dura PRUEBA_DIAS desde el alta, o hasta «pruebaHasta» si la administración la ha ampliado (como en el servidor)
     const finPrueba = Math.max(new Date(u.alta).getTime() + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
+    // Con Stripe configurado y precio en línea para su plan, la prueba sin tarjeta pide antes la tarjeta (u.requiereTarjeta, del servidor)
+    if (!u.pagado && finPrueba > now && u.requiereTarjeta) return { ok: false, motivo: 'tarjeta', diasPrueba: Math.ceil((finPrueba - now) / 864e5), finPrueba };
     if (!u.pagado && finPrueba > now) return { ok: true, motivo: 'prueba', diasPrueba: Math.ceil((finPrueba - now) / 864e5), finPrueba };
     return { ok: false, motivo: 'pago' };
   };
@@ -202,13 +210,21 @@
 
   /* Protege las páginas de la aplicación. Devuelve true si se puede seguir. */
   P.guard = async function () {
-    const u = await P.me();
-    const acc = P.accessOf(u);
+    let u = await P.me();
+    let acc = P.accessOf(u);
+    // Vuelta del Checkout con la tarjeta: el aviso de Stripe puede tardar unos segundos en llegar al servidor
+    if (acc.motivo === 'tarjeta' && /[?&]pago=ok\b/.test(location.search)) {
+      P.toast('Tarjeta recibida, preparando su prueba…', 30000);
+      for (let i = 0; i < 15 && acc.motivo === 'tarjeta'; i++) { await new Promise((r) => setTimeout(r, 2000)); u = await P.me(); acc = P.accessOf(u); }
+    }
     if (!acc.ok) { location.href = 'acceso.html' + (acc.motivo === 'sin-sesion' ? '' : '#' + acc.motivo); return false; }
     P.access = acc;
     startHeartbeat();
     if (P.mode === 'server' && pendientes().length) { hayPend = true; programar(); setTimeout(reenviar, 0); }
     await P.empresas.cargar();
+    // Alta con tarjeta: el nombre y el sector de la empresa se guardaron antes de ir al Checkout y se aplican al volver
+    const fp = LS.get('atalaya.fichaPendiente');
+    if (fp && u && fp.cuenta === u.id) { try { await P.fichaInicial(fp); LS.del('atalaya.fichaPendiente'); } catch (e) { /* se completa en la ficha */ } }
     prepararMapa();
     P.esperarPago();
     return true;
@@ -853,8 +869,12 @@
     if (!urge && LS.get(KO) === today()) { if (viejo) viejo.remove(); return; }
     if (urge && ssGet(KO)) { if (viejo) viejo.remove(); return; }
     const b = viejo || document.createElement('div'); b.id = 'atPrueba'; b.className = 'at-prueba' + (urge ? ' urge' : ''); b.setAttribute('role', 'status');
-    b.innerHTML = `<span class="at-prueba-t"><b>Su prueba termina en ${n} ${n === 1 ? 'día' : 'días'}</b><span class="at-prueba-p"> · plan ${escH((PLANES[u.plan] || {}).nombre || u.plan)}</span></span><button type="button" class="btn solid small" data-act>Activar ahora</button><button type="button" class="btn ghost small" data-exp>Descargar mis datos</button><button type="button" class="icon-btn at-prueba-x" aria-label="${urge ? 'Ocultar el aviso en esta página' : 'Ocultar el aviso hasta mañana'}">×</button>`;
-    b.querySelector('[data-act]').onclick = () => P.activarAhora();
+    // Con la tarjeta ya en Stripe no hay que activar nada: se recuerda la fecha del primer cobro y se ofrece el portal de pagos
+    const ct = acc.conTarjeta && P.mode === 'server' && u.stripeCliente;
+    const fCobro = ct && acc.finPrueba ? new Date(acc.finPrueba).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) : '';
+    b.innerHTML = `<span class="at-prueba-t"><b>Su prueba termina en ${n} ${n === 1 ? 'día' : 'días'}</b><span class="at-prueba-p"> · plan ${escH((PLANES[u.plan] || {}).nombre || u.plan)}${fCobro ? ` · primer cobro el ${escH(fCobro)}, salvo que cancele antes` : ''}</span></span>${ct ? '<button type="button" class="btn solid small" data-portal>Gestionar el pago</button>' : '<button type="button" class="btn solid small" data-act>Activar ahora</button>'}<button type="button" class="btn ghost small" data-exp>Descargar mis datos</button><button type="button" class="icon-btn at-prueba-x" aria-label="${urge ? 'Ocultar el aviso en esta página' : 'Ocultar el aviso hasta mañana'}">×</button>`;
+    if (ct) b.querySelector('[data-portal]').onclick = async () => { try { location.href = await P.portalPago(); } catch (e) { P.toast(e.message, 6000); } };
+    else b.querySelector('[data-act]').onclick = () => P.activarAhora();
     b.querySelector('[data-exp]').onclick = () => P.descargarDatos();
     b.querySelector('.at-prueba-x').onclick = () => { if (urge) ssSet(KO, 1); else LS.set(KO, today()); b.remove(); };
     const colocar = () => { const tb = document.querySelector('.topbar, .pt-top'), r = tb && tb.getBoundingClientRect(); b.style.top = (r && r.bottom > 0 ? Math.round(r.bottom + 8) : 12) + 'px'; };
@@ -911,10 +931,15 @@
     if (!/[?&]pago=ok\b/.test(location.search) || P.mode !== 'server') return;
     try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* sin historial */ }
     if (P.user && P.user.pagado) { P.toast('Pago recibido. Su acceso está activado.', 6000); return; }
+    // Prueba con tarjeta: no se ha cobrado nada; se confirma la fecha del primer cobro
+    const enPrueba = (u) => u && !u.pagado && u.stripeSuscripcion && u.stripeEstado === 'trialing';
+    const msgPrueba = (u) => `Tarjeta guardada. Su prueba sigue${u.stripeFinPrueba ? ' hasta el ' + new Date(u.stripeFinPrueba).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) : ''}; no se cobra nada hasta entonces y puede cancelar antes sin coste.`;
+    if (enPrueba(P.user)) { P.toast(msgPrueba(P.user), 8000); return; }
     P.toast('Pago recibido, activando su acceso…', 30000);
     for (let i = 0; i < 15; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       const u = await P.me(); if (u && u.pagado) { P.toast('Acceso activado. Gracias.', 5000); location.reload(); return; }
+      if (enPrueba(u)) { P.toast(msgPrueba(u), 8000); return; }
     }
     P.toast('El pago se está confirmando. Si en unos minutos no ve el acceso activado, escríbanos.', 10000);
   };
@@ -922,17 +947,21 @@
     opts = opts || {};
     const pl = PLANES[u.plan] || PLANES.profesional, pr = P.precio(u.plan, u.periodo, P.nPrecio(u, opts.empresas || 1), u.cuotaPactada), c = P.cuota(pr), url = P.pagoUrl(u.plan, u.periodo), C = P.CONTACTO;
     const bloq = opts.motivo === 'bloqueado', acc = P.accessOf(u);
+    // Prueba sin tarjeta con Stripe configurado: se pide la tarjeta (el servidor solo lo marca si hay precio en línea)
+    const tarjeta = !bloq && acc.motivo === 'tarjeta';
     // Pago en línea (Stripe) si el servidor lo tiene configurado para este plan y periodo; si no, enlace o solicitud manual
-    const stripe = P.mode === 'server' && P.serverInfo && Array.isArray(P.serverInfo.stripe) && P.serverInfo.stripe.includes(P.clavePrecio(u.plan, u.periodo, P.nPrecio(u, opts.empresas || 1)));
+    const stripe = tarjeta || (P.mode === 'server' && P.serverInfo && Array.isArray(P.serverInfo.stripe) && P.serverInfo.stripe.includes(P.clavePrecio(u.plan, u.periodo, P.nPrecio(u, opts.empresas || 1))));
+    const finTxt = acc.finPrueba ? new Date(acc.finPrueba).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
     const intro = bloq ? 'Su acceso está suspendido. Póngase en contacto con nosotros para revisarlo.'
+      : tarjeta ? `Para seguir con su prueba de ${PRUEBA_DIAS} días, añada una tarjeta en nuestra pasarela de pago segura. No se cobra nada hasta el ${escH(finTxt)}${acc.diasPrueba ? ` (le ${acc.diasPrueba === 1 ? 'queda 1 día' : `quedan ${acc.diasPrueba} días`} de prueba)` : ''} y puede cancelar antes sin coste desde «Gestionar el pago». Sus datos se conservan.`
       : acc.motivo === 'prueba' ? `Su prueba termina en ${acc.diasPrueba} ${acc.diasPrueba === 1 ? 'día' : 'días'}. Si activa ahora el plan, sigue trabajando sin interrupción y con todos sus datos.`
       : 'Su periodo de prueba ha terminado. Sus datos se conservan: en cuanto se confirme el pago, su acceso se reactiva con todos ellos.';
     host.innerHTML = `<div class="pg">
-      <div class="eyebrow">${bloq ? 'Acceso suspendido' : 'Activar el acceso'}</div>
+      <div class="eyebrow">${bloq ? 'Acceso suspendido' : tarjeta ? `Prueba de ${PRUEBA_DIAS} días con tarjeta` : 'Activar el acceso'}</div>
       ${opts.titulo === false ? '' : `<h1 class="pg-h">Plan <em>${escH(pl.nombre)}</em></h1>`}
       <p class="pg-intro">${intro}</p>${pr.tramo && !pr.pactada ? `<p class="small muted" style="margin:0">Tramo ${escH(pr.tramo.n.toLowerCase())}${PLANES[u.plan] && PLANES[u.plan].clientes ? ' (su propia empresa no cuenta)' : ''}.</p>` : ''}
-      ${bloq ? '' : `<div class="pg-precio"><b>${P.eur(c.importe)}</b><span>${c.unidad} + IVA</span>${pr.periodo === 'anual' ? `<small>${escH(c.detalle)}</small>` : '<small>Pago mensual. Con el pago anual, un 30 % de descuento.</small>'}</div>
-      ${stripe || url ? `<a class="btn solid" href="${stripe ? '#' : escH(url)}"${stripe ? '' : ' target="_blank" rel="noopener"'} data-pagar>Pagar ahora</a><p class="small muted" style="margin:0">El pago se hace en una página segura de nuestra pasarela. En cuanto se confirme, su acceso se activa.</p>`
+      ${bloq ? '' : `<div class="pg-precio">${tarjeta ? '<small style="margin:0 0 2px">Desde el final de la prueba</small>' : ''}<b>${P.eur(c.importe)}</b><span>${c.unidad} + IVA (21 %)</span>${pr.periodo === 'anual' ? `<small>${escH(c.detalle)}</small>` : '<small>Pago mensual. Con el pago anual, un 30 % de descuento.</small>'}</div>
+      ${stripe || url ? `<a class="btn solid" href="${stripe ? '#' : escH(url)}"${stripe ? '' : ' target="_blank" rel="noopener"'} data-pagar>${tarjeta ? 'Añadir la tarjeta y seguir' : 'Pagar ahora'}</a><p class="small muted" style="margin:0">${tarjeta ? 'La tarjeta se guarda en la página segura de nuestra pasarela de pago. Le avisaremos por correo tres días antes del primer cobro.' : 'El pago se hace en una página segura de nuestra pasarela. En cuanto se confirme, su acceso se activa.'}</p>`
         : `<form class="pg-form stack" data-pgform novalidate>
           <p class="small" style="margin:0"><b>Le enviaremos el enlace de pago</b> a ${escH(u.email || 'su correo')}. Si lo desea, indíquenos los datos de facturación.</p>
           <label class="small">Teléfono de contacto (opcional)<input class="input" name="telefono" type="tel" autocomplete="tel" value="${escH(u.telefono || '')}"></label>
@@ -941,7 +970,7 @@
         </form>`}`}
       <p class="small" data-pgmsg role="status" style="margin:0"></p>
       <div class="pg-contacto small"><b>Contacto directo</b><a href="tel:${C.telefono.replace(/\s+/g, '')}">${escH(C.telefono)}</a>${C.email ? `<a href="mailto:${escH(C.email)}">${escH(C.email)}</a>` : ''}${C.web ? `<a href="${escH(C.web)}" target="_blank" rel="noopener">${escH(C.web.replace(/^https?:\/\//, ''))}</a>` : ''}<span class="muted">Le respondemos ${escH(C.respuesta)}.</span></div>
-      <div class="row pg-acc">${bloq ? '' : '<button type="button" class="btn ghost small" data-pgplan>Cambiar de plan antes de activar</button>'}<button type="button" class="btn ghost small" data-pgexp>Descargar mis datos</button></div>
+      <div class="row pg-acc">${bloq ? '' : `<button type="button" class="btn ghost small" data-pgplan>${tarjeta ? 'Cambiar de plan' : 'Cambiar de plan antes de activar'}</button>`}<button type="button" class="btn ghost small" data-pgexp>Descargar mis datos</button></div>
       <p class="small" data-pgexpmsg role="status" style="margin:0"></p>
     </div>`;
     const msg = host.querySelector('[data-pgmsg]');
@@ -953,7 +982,7 @@
     };
     const pg = host.querySelector('[data-pagar]');
     if (pg && stripe) pg.onclick = async (ev) => {
-      ev.preventDefault(); if (pg.dataset.ocupado) return; pg.dataset.ocupado = '1'; msg.style.color = ''; msg.textContent = 'Abriendo la página de pago…';
+      ev.preventDefault(); if (pg.dataset.ocupado) return; pg.dataset.ocupado = '1'; msg.style.color = ''; msg.textContent = tarjeta ? 'Abriendo la página segura para añadir la tarjeta…' : 'Abriendo la página de pago…';
       try { location.href = await P.irAlPago(u); }
       catch (e) {
         // Ya hay una suscripción: el cambio de tarjeta o de plan se hace en el portal de pagos
@@ -1287,7 +1316,7 @@
         <h3 style="margin:0;font-family:var(--font-display);font-weight:500;font-size:1.6rem">Ahora tiene <em>${PLANES[u.plan] ? PLANES[u.plan].nombre : escH(u.plan)}</em> · pago ${(u.periodo || 'mensual') === 'anual' ? 'anual' : 'mensual'}</h3>
         <p class="small" style="margin:0">Su cuota: <b>${(() => { const pr = P.precio(u.plan, u.periodo, P.nPrecio(u, n), u.cuotaPactada), c = P.cuota(pr); return P.eur(c.importe) + c.unidad + (pr.tramo && !pr.pactada && PLANES[u.plan].clientes ? ' · tramo ' + escH(pr.tramo.n.toLowerCase()) : ''); })()}</b>${(() => { const pp = u.planPendiente; return pp && pp.plan === u.plan && pp.tramo ? `<br><span style="color:var(--warn)">Pendiente de confirmar: tramo ${escH((P.tramoDe(u.plan, pp.tramo) || {}).n || '').toLowerCase()} (${P.eur(P.cuota(P.precio(u.plan, u.periodo, pp.tramo)).importe)}${P.cuota(P.precio(u.plan, u.periodo, pp.tramo)).unidad}).</span>` : ''; })()}</p>
         ${PLANES[u.plan] && PLANES[u.plan].clientes ? `<p class="small muted" style="margin:0">En Consultora la cuota va por tramos de empresas cliente: tiene ${P.nCuenta(u.plan, n)} (su propia empresa, la principal, no cuenta; tampoco la empresa modelo). Al pasar de tramo se le avisa antes de crear la empresa; si borra empresas y baja de tramo, la cuota baja en la siguiente renovación, sin devoluciones.</p>` : ''}
-        <p class="small muted" style="margin:0">${acc.motivo === 'prueba' ? `Está en la prueba gratuita (quedan ${acc.diasPrueba} días). Puede cambiar de plan cuando quiera sin coste: la prueba sigue contando desde su alta.` : acc.motivo === 'pagado' ? 'Su acceso está activado. El cambio se aplica al momento y la diferencia de cuota se ajusta en su siguiente cobro; se lo confirmaremos por correo.' : 'Elija el plan que quiere activar.'}${opts.motivo ? `<br><b style="color:var(--gold-soft)">${opts.motivo}</b>` : ''}</p>
+        <p class="small muted" style="margin:0">${acc.motivo === 'prueba' ? `Está en la prueba gratuita (quedan ${acc.diasPrueba} días). Puede cambiar de plan cuando quiera sin coste: la prueba sigue contando desde su alta.${acc.conTarjeta ? ' El cobro de su tarjeta al final de la prueba sigue al plan que tenga ese día.' : ''}` : acc.motivo === 'pagado' ? 'Su acceso está activado. El cambio se aplica al momento y la diferencia de cuota se ajusta en su siguiente cobro; se lo confirmaremos por correo.' : 'Elija el plan que quiere activar.'}${opts.motivo ? `<br><b style="color:var(--gold-soft)">${opts.motivo}</b>` : ''}</p>
         <div class="seg" style="margin:0;justify-self:start"><button data-per="mensual" aria-pressed="${periodo === 'mensual'}">Pago mensual</button><button data-per="anual" aria-pressed="${periodo === 'anual'}">Pago anual · −30 %</button></div>
         ${periodo === 'anual' ? '<p class="small muted" style="margin:0">Cuota anual: se paga el año por adelantado y equivale a doce meses con un 30 % de descuento.</p>' : ''}
         <div class="pl-grid">${Object.keys(PLANES).map((k) => {
@@ -1758,7 +1787,7 @@
       <div class="acc-menu glass" hidden>
         <nav class="acc-mundos" aria-label="Mundos de Atalaya"><div class="bm-h">Ir a</div>${listaMundos('bm-it')}</nav>
         <div class="acc-head"><b>${esc(u.nombre || u.email)}</b><small>${esc(u.email)}</small><small>Plan ${planN} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <button data-inicio>Cómo empezar</button><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button>${P.mode === 'server' && u.stripeCliente ? '<button data-portalpago>Gestionar el pago: tarjeta y facturas</button>' : ''}<button data-pw>Cambiar contraseña</button>${P.mode === 'server' ? `<button data-2fa>${u.dosPasos ? 'Verificación en dos pasos: activada · desactivar' : 'Activar la verificación en dos pasos'}</button>` : ''}<button data-logout>Cerrar sesión</button>
+        <button data-inicio>Cómo empezar</button><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' && !acc.conTarjeta ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button>${P.mode === 'server' && u.stripeCliente ? '<button data-portalpago>Gestionar el pago: tarjeta y facturas</button>' : ''}<button data-pw>Cambiar contraseña</button>${P.mode === 'server' ? `<button data-2fa>${u.dosPasos ? 'Verificación en dos pasos: activada · desactivar' : 'Activar la verificación en dos pasos'}</button>` : ''}<button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)

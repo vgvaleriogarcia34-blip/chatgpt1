@@ -6,7 +6,7 @@ Estado: **propuesta para decidir**. No hay nada construido de este plan.
 
 - Cuatro planes: Esencial 49 €, Profesional 129 €, Consultora por tramos de empresas cliente (349 € hasta 5, 549 € de 6 a 10 y 749 € de 11 a 15; la empresa propia del consultor no cuenta) y Grupos por tramos (690, 970 y 1.790 €, a medida). Pago anual con un 30 % de descuento. Precios sin IVA.
 - IA: además de la cuota diaria por cuenta, en Consultora y Grupos cada empresa tiene 300 consultas al mes y 40 al día (`IA_MENSUAL_EMPRESA`, `IA_DIARIA_EMPRESA`), ampliables por cuenta desde la administración. Así el coste de IA crece con las empresas y con el tramo.
-- Prueba de 14 días; después, el administrador activa el acceso a mano o, con el servidor 2.2 y Stripe configurado, el cobro con tarjeta lo activa solo (ver `PUESTA-EN-MARCHA.md`, apartado 5).
+- Prueba de 14 días. Con Stripe configurado, la prueba se hace con tarjeta: se pide al darse de alta, no se cobra nada hasta el día 15, el cliente puede cancelar antes sin coste y el cobro activa el acceso solo (ver `PUESTA-EN-MARCHA.md`, apartados 5 y 5.1). Sin Stripe, la prueba es sin tarjeta y el administrador activa el acceso a mano. Precios sin IVA (21 %).
 - Hoy cada plan lo incluye todo lo suyo. Los módulos de la hoja de ruta (`AUDITORIA-MODULOS.md`) añaden mucho valor, pero meterlos todos en Profesional regala justo lo que más vale.
 
 ## 2. Principios
@@ -56,7 +56,7 @@ El calendario de obligaciones va en el núcleo: cuesta poco mantenerlo, se valor
 
 ## 4. Cómo se vende dentro de la aplicación
 
-1. **Prueba de 14 días con todo.** En el día 10, un aviso: «Te quedan 4 días. Has usado Valoración, Dossier bancario e Inventario».
+1. **Prueba de 14 días con todo, con tarjeta y sin cargo hasta el día 15.** En el día 11, Stripe avisa al servidor y el cliente recibe un correo con la fecha y el importe del primer cargo y cómo cancelar. En el día 10, un aviso en la aplicación: «Te quedan 4 días. Has usado Valoración, Dossier bancario e Inventario».
 2. **Fin de la prueba con una recomendación.** Atalaya recomienda un plan según lo que se ha usado: «Te recomendamos Profesional + Operaciones a fondo (178 €/mes), o Profesional Completo (199 €/mes) si quieres también Banca». El cliente elige el periodo, mensual o anual.
 3. **Los módulos de un pack sin contratar no se esconden.** Se ven en el mapa con su sello de pack y, al entrar, muestran **el titular calculado con los datos del cliente** y el resto difuminado: «Tienes 85 k€ de existencias sin moverse desde hace más de 180 días. Añade Operaciones a fondo para ver el detalle, el coste real y el plan». Es la venta más honesta: enseñar el hallazgo, no una promesa.
 4. **Los informes 360 y el informe de auditoría** citan el hallazgo del pack («hay un análisis disponible en Operaciones a fondo») sin dar el detalle.

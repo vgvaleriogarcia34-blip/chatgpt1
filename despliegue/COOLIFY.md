@@ -46,9 +46,17 @@ Las marcadas como secreto se crean en Coolify como «Secret» o «Locked» y se 
 | `INTEGRACION_TOKEN` | el mismo valor que en el asistente telefónico (más adelante) | sí |
 | `IA_DIARIA_PRUEBA` (20), `IA_DIARIA_PAGO` (200) | consultas de IA al día por cuenta, en prueba y con el acceso pagado (opcionales) | |
 | `IA_MENSUAL_EMPRESA` (300), `IA_DIARIA_EMPRESA` (40) | en Consultora y Grupos, consultas de IA de cada empresa al mes y al día, además de la diaria de la cuenta; el agente de mercado cuenta como 5 (opcionales). La administración amplía la mensual de una cuenta desde su ficha | |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | cobro con tarjeta (más adelante) | sí |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | cobro con tarjeta y prueba de 14 días con tarjeta | sí |
 | `STRIPE_PRECIO_ESENCIAL_MENSUAL`, `_ANUAL`, `STRIPE_PRECIO_PROFESIONAL_MENSUAL`, `_ANUAL` | precios de Stripe (`price_…`) de Esencial y Profesional | |
 | `STRIPE_PRECIO_CONSULTORA_5_MENSUAL`, `_5_ANUAL`, `_10_MENSUAL`, `_10_ANUAL`, `_15_MENSUAL`, `_15_ANUAL` | precios de Stripe de Consultora por tramo de empresas cliente: hasta 5 (349 €/mes · 2.931,60 €/año), de 6 a 10 (549 € · 4.611,60 €) y de 11 a 15 (749 € · 6.291,60 €), sin IVA. Las antiguas `STRIPE_PRECIO_CONSULTORA_MENSUAL`/`_ANUAL` siguen valiendo como tramo de 5 | |
+| `STRIPE_IMPUESTOS` (`1`) · `STRIPE_GRACIA_DIAS` (3) | cálculo automático del IVA en el Checkout (opcional) y días de margen tras el fin del periodo pagado o de la prueba si falla el cobro | |
+
+**Prueba de 14 días con tarjeta.** Con `STRIPE_SECRET_KEY` y el precio del plan configurado, la prueba se hace con tarjeta en el Checkout de Stripe: no se cobra hasta el día 15 y Stripe cancela la suscripción si al final no hay tarjeta válida. No hace falta ninguna variable nueva en Coolify; `STRIPE_PRUEBA_TARJETA=0` la desactiva (vuelve la prueba sin tarjeta) si hiciera falta volver atrás sin cambiar el código. En Stripe hay que:
+
+- añadir el evento **`customer.subscription.trial_will_end`** al webhook `https://app.businessavance.es/api/stripe/webhook` (además de `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed` y `customer.subscription.created`, `.updated` y `.deleted`);
+- en el portal de clientes, permitir cancelar la suscripción y cambiar de tarjeta.
+
+Tres días antes del final de la prueba el servidor envía el recordatorio al cliente por correo y avisa a `AVISOS_EMAIL`: necesita `SMTP_*`. Detalle completo en `atalaya/PUESTA-EN-MARCHA.md`, apartado 5.1.
 
 Para generar `ATALAYA_SECRETO`, en la terminal de Coolify o en cualquier ordenador:
 

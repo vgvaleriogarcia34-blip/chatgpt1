@@ -30,7 +30,7 @@ La regla en el código está en un solo sitio (`P.puede` y `P.PLAN_RESUMEN` en `
 
 ## 3. Recorrido
 
-1. **Alta** con el plan elegido en la página comercial: 14 días de prueba de ese plan.
+1. **Alta** con el plan elegido en la página comercial: 14 días de prueba de ese plan (con Stripe configurado, con tarjeta: no se cobra hasta el día 15 y se puede cancelar antes sin coste).
 2. **Paso 1 · mapa de empresas** en el puesto de mando: la ficha de la empresa (o el mapa de clientes o del grupo) y, si el plan lo permite, el alta de nuevas.
 3. **Paso 2 · mundos**: simulador, sistema estratégico (este, desde Profesional) y personas y equipos (solo Consultora). La barra superior dice con qué empresa se trabaja.
 4. **Mi plan** (menú de la cuenta, mapa de empresas, grupo empresarial, pantalla de bloqueo del sistema estratégico, página comercial con sesión abierta):

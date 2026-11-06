@@ -17,6 +17,8 @@
   // Acceso como P.accessOf, contando la prueba ampliada por la administración (pruebaHasta)
   function accesoDe(u) {
     const a = P.accessOf(u), fin = Date.parse(u.pruebaHasta);
+    // Prueba con tarjeta en Stripe o pendiente de añadirla: manda lo que diga P.accessOf
+    if (a.motivo === 'tarjeta' || (u.stripeSuscripcion && !u.pagado)) return a;
     if (!u.pagado && u.estado !== 'bloqueado' && fin > Date.now() && (a.motivo !== 'prueba' || fin > Date.parse(u.alta) + P.PRUEBA_DIAS * 864e5)) return { ok: true, motivo: 'prueba', diasPrueba: Math.ceil((fin - Date.now()) / 864e5) };
     return a;
   }
@@ -24,7 +26,8 @@
     if (u.estado === 'bloqueado') return { k: 'bloqueado', t: 'Bloqueado', st: 'stop' };
     const acc = accesoDe(u);
     if (acc.motivo === 'pagado') return { k: 'activo', t: u.pagoFallido ? 'Pagando · cobro fallido' : 'Pagando', st: u.pagoFallido ? 'warn' : 'ok' };
-    if (acc.motivo === 'prueba') return { k: 'prueba', t: `Prueba · ${acc.diasPrueba} d`, st: 'warn' };
+    if (acc.motivo === 'prueba') return { k: 'prueba', t: `Prueba${acc.conTarjeta ? ' con tarjeta' : ''} · ${acc.diasPrueba} d`, st: 'warn' };
+    if (acc.motivo === 'tarjeta') return { k: 'prueba', t: `Prueba · falta la tarjeta · ${acc.diasPrueba} d`, st: 'warn' };
     return { k: 'vencido', t: u.pagado ? 'Plan vencido' : 'Prueba terminada', st: 'stop' };
   }
 
@@ -396,7 +399,7 @@
 
   /* ---------- Registro de actividad ---------- */
   const ACCIONES = { 'cuenta.': 'Cuentas', 'plan.': 'Planes', 'pago.': 'Pagos', 'prueba.': 'Pruebas', 'solicitud.': 'Solicitudes', 'stripe.': 'Stripe', 'admin.': 'Accesos de administración', 'dospasos.': 'Segundo factor' };
-  const NOMBRE_ACC = { 'cuenta.alta': 'Alta (el cliente)', 'cuenta.crear': 'Cuenta creada', 'cuenta.modificar': 'Cuenta modificada', 'cuenta.bloquear': 'Bloqueo', 'cuenta.desbloquear': 'Desbloqueo', 'cuenta.borrar': 'Cuenta eliminada', 'cuenta.contrasena': 'Contraseña cambiada', 'cuenta.enlace-contrasena': 'Enlace de contraseña', 'plan.cambio': 'Cambio de plan', 'plan.solicitud': 'Pide cambio de plan', 'plan.conceder': 'Plan a medida concedido', 'pago.registrar': 'Pago registrado', 'pago.corregir': 'Pago corregido', 'pago.anular': 'Pago anulado', 'pago.solicitud': 'Pide activar', 'pago.checkout': 'Va a pagar con tarjeta', 'pago.stripe': 'Cobro de Stripe', 'pago.fallido': 'Cobro fallido', 'prueba.ampliar': 'Prueba ampliada', 'solicitud.cerrar': 'Solicitud cerrada', 'solicitud.reabrir': 'Solicitud reabierta', 'stripe.checkout': 'Pago con tarjeta completado', 'stripe.suscripcion': 'Suscripción actualizada', 'stripe.baja': 'Suscripción cancelada', 'admin.entrar': 'Entrada a la administración', 'admin.entrar.fallido': 'Código de segundo factor erróneo', 'admin.salir': 'Salida', 'admin.contrasena': 'Contraseña de administración cambiada', 'admin.configurar': 'Administración configurada', 'dospasos.activar': 'Segundo factor activado', 'dospasos.desactivar': 'Segundo factor desactivado', 'dospasos.recuperacion': 'Códigos de recuperación nuevos', 'dospasos.quitar': 'Segundo factor quitado' };
+  const NOMBRE_ACC = { 'cuenta.alta': 'Alta (el cliente)', 'cuenta.crear': 'Cuenta creada', 'cuenta.modificar': 'Cuenta modificada', 'cuenta.bloquear': 'Bloqueo', 'cuenta.desbloquear': 'Desbloqueo', 'cuenta.borrar': 'Cuenta eliminada', 'cuenta.contrasena': 'Contraseña cambiada', 'cuenta.enlace-contrasena': 'Enlace de contraseña', 'plan.cambio': 'Cambio de plan', 'plan.solicitud': 'Pide cambio de plan', 'plan.conceder': 'Plan a medida concedido', 'pago.registrar': 'Pago registrado', 'pago.corregir': 'Pago corregido', 'pago.anular': 'Pago anulado', 'pago.solicitud': 'Pide activar', 'pago.checkout': 'Va a pagar con tarjeta', 'pago.stripe': 'Cobro de Stripe', 'pago.fallido': 'Cobro fallido', 'prueba.ampliar': 'Prueba ampliada', 'solicitud.cerrar': 'Solicitud cerrada', 'solicitud.reabrir': 'Solicitud reabierta', 'stripe.checkout': 'Pago con tarjeta completado', 'stripe.suscripcion': 'Suscripción actualizada', 'stripe.baja': 'Suscripción cancelada', 'stripe.prueba': 'Prueba con tarjeta empezada', 'stripe.finprueba': 'Aviso del final de la prueba', 'stripe.precio': 'Precio de Stripe cambiado en la prueba', 'admin.entrar': 'Entrada a la administración', 'admin.entrar.fallido': 'Código de segundo factor erróneo', 'admin.salir': 'Salida', 'admin.contrasena': 'Contraseña de administración cambiada', 'admin.configurar': 'Administración configurada', 'dospasos.activar': 'Segundo factor activado', 'dospasos.desactivar': 'Segundo factor desactivado', 'dospasos.recuperacion': 'Códigos de recuperación nuevos', 'dospasos.quitar': 'Segundo factor quitado' };
   const valor = (v) => (v == null ? '—' : typeof v === 'boolean' ? (v ? 'sí' : 'no') : typeof v === 'object' ? (v.importe != null ? `${v.importe} € · ${v.meses} m${v.referencia ? ' · ' + v.referencia : ''}${v.anulado ? ' · anulado' : ''}` : v.plan ? `${planN(v.plan)}${v.periodo ? ' · ' + v.periodo : ''}` : JSON.stringify(v)) : /^\d{4}-\d{2}-\d{2}T/.test(v) ? fdate(v) : String(v));
   const cambiosTxt = (a) => { const ks = Array.from(new Set(Object.keys(a.antes || {}).concat(Object.keys(a.despues || {})))); return ks.map((k) => `${k}: ${a.antes && k in a.antes ? valor(a.antes[k]) + ' → ' : ''}${valor((a.despues || {})[k])}`).join(' · '); };
   let actividad = [], actT = null;
