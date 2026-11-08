@@ -23,6 +23,8 @@
     return a;
   }
   function estadoDe(u) {
+    // La cuenta de demostración no es un cliente: ni paga ni está en prueba
+    if (u.demo) return { k: 'demo', t: u.demoInactiva ? 'Demostración · desactivada' : u.estado === 'bloqueado' ? 'Demostración · bloqueada' : 'Demostración', st: u.demoInactiva || u.estado === 'bloqueado' ? 'stop' : 'ok' };
     if (u.estado === 'bloqueado') return { k: 'bloqueado', t: 'Bloqueado', st: 'stop' };
     const acc = accesoDe(u);
     if (acc.motivo === 'pagado') return { k: 'activo', t: u.pagoFallido ? 'Pagando · cobro fallido' : 'Pagando', st: u.pagoFallido ? 'warn' : 'ok' };
@@ -40,17 +42,19 @@
   function render() {
     const now = Date.now();
     const est = users.map((u) => ({ u, e: estadoDe(u) }));
-    const pagando = est.filter((x) => x.e.k === 'activo');
+    // Cifras del negocio sin la cuenta de demostración (cuotas, recuentos, uso)
+    const clientes = users.filter((u) => !u.demo), estC = est.filter((x) => !x.u.demo);
+    const pagando = estC.filter((x) => x.e.k === 'activo');
     const mrr = pagando.reduce((a, x) => a + P.precio(x.u.plan, x.u.periodo, P.nPrecio(x.u, x.u.empresas), x.u.cuotaPactada).mes, 0); // ingreso mensual equivalente (los anuales, a su precio con descuento)
     // Cobrado de verdad: pagos registrados (a mano o por Stripe) de los últimos 30 días, sin los anulados
-    const cobrado30 = users.reduce((a, u) => a + (u.pagos || []).filter((p) => !p.anulado && now - new Date(p.fecha).getTime() < 30 * 864e5).reduce((s, p) => s + (+p.importe || 0), 0), 0);
-    const uso30 = users.reduce((a, u) => a + P.usageMinutes(u, 30), 0);
-    const activos7 = users.filter((u) => u.ultimoAcceso && now - new Date(u.ultimoAcceso).getTime() < 7 * 864e5).length;
+    const cobrado30 = clientes.reduce((a, u) => a + (u.pagos || []).filter((p) => !p.anulado && now - new Date(p.fecha).getTime() < 30 * 864e5).reduce((s, p) => s + (+p.importe || 0), 0), 0);
+    const uso30 = clientes.reduce((a, u) => a + P.usageMinutes(u, 30), 0);
+    const activos7 = clientes.filter((u) => u.ultimoAcceso && now - new Date(u.ultimoAcceso).getTime() < 7 * 864e5).length;
     $('#akpis').innerHTML = [
-      ['Usuarios', users.length, 'cuentas creadas'],
+      ['Usuarios', clientes.length, `cuentas creadas${clientes.length !== users.length ? ' (sin la de demostración)' : ''}`],
       ['Pagando', pagando.length, 'acceso de pago vigente'],
-      ['En prueba', est.filter((x) => x.e.k === 'prueba').length, 'prueba gratuita en curso'],
-      ['Sin acceso', est.filter((x) => x.e.k === 'vencido' || x.e.k === 'bloqueado').length, 'vencidos, impagados o bloqueados'],
+      ['En prueba', estC.filter((x) => x.e.k === 'prueba').length, 'prueba gratuita en curso'],
+      ['Sin acceso', estC.filter((x) => x.e.k === 'vencido' || x.e.k === 'bloqueado').length, 'vencidos, impagados o bloqueados'],
       ['Cuotas al mes', F.eur(mrr), 'según el plan de quien paga'],
       ['Cobrado 30 días', F.eur(cobrado30), 'pagos registrados'],
       ['Uso 30 días', hm(uso30), `${activos7} usuarios activos esta semana`]
@@ -58,7 +62,7 @@
 
     // Uso diario agregado
     const days = []; for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
-    const tot = days.map((d) => users.reduce((a, u) => a + ((u.uso || {})[d] || 0), 0));
+    const tot = days.map((d) => clientes.reduce((a, u) => a + ((u.uso || {})[d] || 0), 0));
     const W = 560, Hh = 170, m = { l: 40, r: 8, t: 8, b: 22 }, mx = Math.max(60, ...tot), bw = (W - m.l - m.r) / days.length;
     let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Minutos de uso por día"><g class="grid">`;
     [0, 0.5, 1].forEach((k) => { const y = m.t + (1 - k) * (Hh - m.t - m.b); svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y}" y2="${y}"/><text x="${m.l - 6}" y="${y + 3}" text-anchor="end">${Math.round((mx * k) / 60 * 10) / 10} h</text>`; });
@@ -100,25 +104,25 @@
     const q = ($('#q').value || '').toLowerCase(), fe = $('#fEstado').value;
     const rows = est.filter((x) => (!q || `${x.u.nombre} ${x.u.email} ${x.u.empresa}`.toLowerCase().includes(q)) && (!fe || x.e.k === fe));
     $('#utable').innerHTML = rows.length ? `<table><thead><tr><th>Usuario</th><th>Empresa</th><th>Plan</th><th>Pago</th><th>Empresas</th><th>Cuota</th><th>Estado</th><th>Vence</th><th>Alta</th><th>Último acceso</th><th>Uso 7 d</th><th>Uso 30 d</th><th>Uso total</th><th>Sesiones</th><th></th></tr></thead><tbody>` +
-      rows.map(({ u, e }) => `<tr data-id="${u.id}"><td><b>${esc(u.nombre || '—')}</b><br><span class="muted">${esc(u.email)}</span>${u.dosPasos ? ' <span class="muted" title="Segundo factor activado">· 2FA</span>' : ''}</td><td>${esc(u.empresa || '—')}</td>
-        <td><select data-plan aria-label="Plan">${Object.keys(P.PLANES).map((k) => `<option value="${k}" ${k === u.plan ? 'selected' : ''}>${P.PLANES[k].nombre}</option>`).join('')}</select>${u.planPendiente ? `<br><span class="muted">${u.planPendiente.tramo && u.planPendiente.plan === u.plan ? 'tramo pendiente: ' + esc(((P.tramoDe(u.plan, u.planPendiente.tramo) || {}).n || '').toLowerCase()) : 'pide ' + esc(planN(u.planPendiente.plan))}</span>` : ''}</td>
-        <td><select data-per aria-label="Periodo de pago"><option value="mensual" ${u.periodo !== 'anual' ? 'selected' : ''}>Mensual</option><option value="anual" ${u.periodo === 'anual' ? 'selected' : ''}>Anual −30 %</option></select></td>
+      rows.map(({ u, e }) => `<tr data-id="${u.id}"><td><b>${esc(u.nombre || '—')}</b>${u.demo ? ' <span class="state st-info" title="Cuenta para presentaciones comerciales: no cuenta en las cifras y se restablece cada noche">Demostración</span>' : ''}<br><span class="muted">${esc(u.email)}</span>${u.dosPasos ? ' <span class="muted" title="Segundo factor activado">· 2FA</span>' : ''}</td><td>${esc(u.empresa || '—')}</td>
+        <td><select data-plan aria-label="Plan" ${u.demo ? 'disabled title="Lo fija DEMO_PLAN en el servidor"' : ''}>${Object.keys(P.PLANES).map((k) => `<option value="${k}" ${k === u.plan ? 'selected' : ''}>${P.PLANES[k].nombre}</option>`).join('')}</select>${u.planPendiente ? `<br><span class="muted">${u.planPendiente.tramo && u.planPendiente.plan === u.plan ? 'tramo pendiente: ' + esc(((P.tramoDe(u.plan, u.planPendiente.tramo) || {}).n || '').toLowerCase()) : 'pide ' + esc(planN(u.planPendiente.plan))}</span>` : ''}</td>
+        <td><select data-per aria-label="Periodo de pago" ${u.demo ? 'disabled' : ''}><option value="mensual" ${u.periodo !== 'anual' ? 'selected' : ''}>Mensual</option><option value="anual" ${u.periodo === 'anual' ? 'selected' : ''}>Anual −30 %</option></select></td>
         <td>${(P.PLANES[u.plan] || {}).clientes ? `${P.nCuenta(u.plan, u.empresas || 1)} / ${P.PLANES[u.plan].empresas}<br><span class="muted">clientes y la suya</span>` : `${u.empresas || 1}${isFinite((P.PLANES[u.plan] || {}).empresas) ? ' / ' + P.PLANES[u.plan].empresas : ''}`}</td>
-        <td>${(() => { const pr = P.precio(u.plan, u.periodo, P.nPrecio(u, u.empresas), u.cuotaPactada); return pr.pactada ? `${P.eur(pr.mes)}/mes<br><span class="muted">pactada${pr.periodo === 'anual' ? ' · anual' : ''}</span>` : pr.periodo === 'anual' ? `${P.eur(pr.total)}/año<br><span class="muted">anual, −30 %</span>` : `${P.eur(pr.mes)}/mes`; })()}</td>
+        <td>${u.demo ? '<span class="muted">sin cuota</span>' : (() => { const pr = P.precio(u.plan, u.periodo, P.nPrecio(u, u.empresas), u.cuotaPactada); return pr.pactada ? `${P.eur(pr.mes)}/mes<br><span class="muted">pactada${pr.periodo === 'anual' ? ' · anual' : ''}</span>` : pr.periodo === 'anual' ? `${P.eur(pr.total)}/año<br><span class="muted">anual, −30 %</span>` : `${P.eur(pr.mes)}/mes`; })()}</td>
         <td><span class="state st-${e.st}">${e.t}</span></td><td>${u.pagado ? fdate(u.venceAcceso) : u.pruebaHasta ? `<span class="muted">prueba hasta</span><br>${fdate(u.pruebaHasta)}` : '—'}</td><td>${fdate(u.alta)}</td><td>${fdate(u.ultimoAcceso)}</td>
         <td>${hm(P.usageMinutes(u, 7))}</td><td>${hm(P.usageMinutes(u, 30))}</td><td>${hm(P.usageMinutes(u))}</td><td>${u.sesiones || 0}</td>
-        <td><div class="uactions"><button class="btn" data-pay>Registrar pago</button>${u.estado === 'bloqueado' ? '<button class="btn ghost" data-unblock>Desbloquear</button>' : '<button class="btn ghost" data-block>Bloquear</button>'}<button class="btn ghost" data-pwrow>Contraseña</button><button class="btn ghost" data-more>Ficha</button></div></td></tr>`).join('') + '</tbody></table>'
+        <td><div class="uactions">${u.demo ? '' : '<button class="btn" data-pay>Registrar pago</button>'}${u.estado === 'bloqueado' ? '<button class="btn ghost" data-unblock>Desbloquear</button>' : '<button class="btn ghost" data-block>Bloquear</button>'}${u.demo ? '' : '<button class="btn ghost" data-pwrow>Contraseña</button>'}<button class="btn ghost" data-more>Ficha</button></div></td></tr>`).join('') + '</tbody></table>'
       : '<p class="muted">No hay usuarios con ese filtro.</p>';
     $$('#utable tr[data-id]').forEach((tr) => {
       const id = tr.dataset.id, u = users.find((x) => x.id === id);
       // Cambiar plan o periodo pide confirmación: hasta confirmar, el desplegable vuelve a su valor
       $('[data-plan]', tr).onchange = (ev) => { const v = ev.target.value; ev.target.value = u.plan; confirmarPlan(u, { plan: v }); };
       $('[data-per]', tr).onchange = (ev) => { const v = ev.target.value; ev.target.value = u.periodo === 'anual' ? 'anual' : 'mensual'; confirmarPlan(u, { periodo: v }); };
-      $('[data-pay]', tr).onclick = () => payDialog(u);
+      const bp = $('[data-pay]', tr); if (bp) bp.onclick = () => payDialog(u);
       const bl = $('[data-block]', tr); if (bl) bl.onclick = () => confirmarBloqueo(u, true);
       const ub = $('[data-unblock]', tr); if (ub) ub.onclick = () => confirmarBloqueo(u, false);
       $('[data-more]', tr).onclick = () => ficha(u);
-      $('[data-pwrow]', tr).onclick = () => pwDialog(u);
+      const bpw = $('[data-pwrow]', tr); if (bpw) bpw.onclick = () => pwDialog(u);
     });
   }
   async function upd(id, patch) {
@@ -222,6 +226,7 @@
   }
   function ficha(u) {
     if (!u) return;
+    if (u.demo) return fichaDemo(u);
     const dias = Object.keys(u.uso || {}).sort().slice(-14);
     const pagos = (u.pagos || []).slice().reverse();
     const el = openModal(`<div class="eyebrow">Ficha de usuario</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
@@ -248,6 +253,26 @@
     $('#fDel', el).onclick = () => confirmar({ eyebrow: 'Eliminar la cuenta', titulo: u.nombre || u.email, peligro: true, escribir: u.email, boton: 'Eliminar definitivamente',
       html: `<p class="small">Se borran para siempre la cuenta, sus datos de empresa, el análisis de mercado, las sesiones, las invitaciones a test con sus respuestas y sus solicitudes de contacto. No se puede deshacer; las copias de seguridad del servidor se sobrescriben en 7 días.</p>${(u.pagos || []).length ? `<p class="small" style="color:var(--warn)">Tiene ${u.pagos.length} pagos registrados: conserve antes lo que necesite para la contabilidad (Descargar CSV).</p>` : ''}`,
       hacer: (motivo) => (SRV() ? P.api('/admin/users/' + u.id, { method: 'DELETE', body: JSON.stringify(motivo ? { motivo } : {}) }) : P.admin.remove(u.id)) });
+  }
+  /* Ficha de la cuenta de demostración: qué es, cuándo se restablece y el botón para restablecerla ya */
+  async function fichaDemo(u) {
+    // Estado al momento (sesiones abiertas, último uso, próximo restablecimiento)
+    if (SRV()) { try { estado = await P.adminAuth.status(); } catch (x) { /* el de antes */ } }
+    const d = estado.demo || {}, dias = Object.keys(u.uso || {}).sort().slice(-7);
+    const fh = (x) => (x ? new Date(x).toLocaleString('es-ES', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: d.zona || undefined }) : '—');
+    const el = openModal(`<div class="eyebrow">Cuenta de demostración</div><h2 style="font-size:1.6rem">${esc(u.email)}</h2>
+      <p class="small">Cuenta para presentaciones comerciales. La crea el servidor con la variable DEMO_PASSWORD y no cuenta en las cuotas, los recuentos, HubSpot ni los avisos al equipo. Nunca pide tarjeta ni abre la pasarela de pago, y desde la aplicación no se cambian su contraseña, su correo ni su plan.</p>
+      <div class="mgrid mt"><div><span>Estado</span><b>${estadoDe(u).t}</b></div><div><span>Plan</span><b>${esc(planN(u.plan))}${d.planEnv && d.planEnv !== u.plan ? ` <span class="muted">(vista elegida; DEMO_PLAN: ${esc(planN(d.planEnv))})</span>` : ''}</b></div><div><span>Último restablecimiento</span><b>${fh(u.demoRestablecida)}</b></div><div><span>Próximo</span><b>${d.activa ? fh(d.proximo) + (d.aplazada ? ' (aplazado: está en uso)' : '') : '—'}</b></div><div><span>Sesiones abiertas</span><b>${d.sesiones || 0}</b></div><div><span>Último uso</span><b>${fh(d.ultimaActividad)}</b></div><div><span>IA hoy</span><b>${(+d.iaEurHoy || 0).toFixed(2).replace('.', ',')} € de ${(+d.iaEurDia || 0).toFixed(2).replace('.', ',')} €</b></div></div>
+      <p class="small muted mt">Cada noche${d.hora ? ` a las ${esc(d.hora)}` : ''} (si se ha usado en la última media hora, se aplaza de media hora en media hora${d.limite ? `, como mucho hasta las ${esc(d.limite)}` : ''}) se borra lo que se haya escrito y vuelven las empresas ficticias de partida. Para cambiar la contraseña, cambie DEMO_PASSWORD en el servidor y vuelva a desplegar: se cierran las sesiones abiertas. Sin DEMO_PASSWORD, la cuenta queda desactivada.</p>
+      <h4 class="mt">Uso de los últimos días</h4>${dias.length ? `<table><tbody>${dias.map((x) => `<tr><td>${fdate(x)}</td><td>${hm(u.uso[x])}</td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Sin uso registrado.</p>'}
+      <h4 class="mt">Nota interna</h4><textarea class="input" id="fNota" rows="2" style="width:100%">${esc(u.nota || '')}</textarea>
+      <div class="row mt" style="flex-wrap:wrap"><button class="btn solid" id="fDemoReset" ${u.demoInactiva ? 'disabled' : ''}>Restablecer la demostración</button><button class="btn" id="fSave">Guardar nota</button>${SRV() ? '<button class="btn ghost" id="fAct">Ver actividad</button>' : ''}</div><p class="small" id="fMsg"></p>`);
+    $('#fSave', el).onclick = () => upd(u.id, { nota: $('#fNota', el).value }).then((b) => { if (b) modal.hidden = true; });
+    const fa = $('#fAct', el); if (fa) fa.onclick = () => { modal.hidden = true; $('#aq').value = u.email; cargarActividad(); $('#actBox').scrollIntoView({ behavior: 'smooth' }); };
+    const enUso = !!(d.enUso || d.sesiones);
+    $('#fDemoReset', el).onclick = () => confirmar({ eyebrow: 'Cuenta de demostración', titulo: 'Restablecer la demostración', boton: 'Restablecer ahora', peligro: enUso, escribir: enUso ? 'RESTABLECER' : null,
+      html: `${enUso ? `<p class="alert warn small">La demostración tiene ${d.sesiones || 0} ${d.sesiones === 1 ? 'sesión abierta' : 'sesiones abiertas'}${d.enUso ? ` y se ha usado a las ${esc(fh(d.ultimaActividad))}` : ''}: puede haber una presentación en curso. Quien la esté usando perderá lo que haya escrito.</p>` : ''}<p class="small">Se borra todo lo que se haya escrito en la cuenta de demostración y vuelven sus empresas ficticias de partida, con el plan de DEMO_PLAN. Las sesiones abiertas siguen abiertas; al cambiar de página, cada navegador borra también su copia local.</p>`,
+      hacer: () => api(`/admin/users/${u.id}/demo/restablecer`, 'POST', { confirmado: true }) });
   }
   function pwDialog(u) {
     const gen = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const r = crypto.getRandomValues(new Uint32Array(12)); return Array.from(r, (x) => c[x % c.length]).join(''); };
@@ -392,14 +417,15 @@
   }
   const hoy = () => new Date().toISOString().slice(0, 10);
   function csv() {
-    const head = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'empresas', 'cuota_mes', 'estado', 'pagado', 'vence', 'prueba_hasta', 'alta', 'ultimo_acceso', 'uso_7d_min', 'uso_30d_min', 'uso_total_min', 'sesiones', 'pagos', 'cobrado_total', 'nota'];
-    const rows = users.map((u) => [u.nombre, u.email, u.empresa, u.telefono, u.plan, u.periodo || 'mensual', u.empresas || 1, P.precio(u.plan, u.periodo, P.nPrecio(u, u.empresas), u.cuotaPactada).mes, estadoDe(u).t, u.pagado ? 'sí' : 'no', u.venceAcceso || '', u.pruebaHasta || '', u.alta, u.ultimoAcceso, P.usageMinutes(u, 7), P.usageMinutes(u, 30), P.usageMinutes(u), u.sesiones || 0, (u.pagos || []).filter((p) => !p.anulado).length, Math.round((u.pagos || []).filter((p) => !p.anulado).reduce((a, p) => a + (+p.importe || 0), 0) * 100) / 100, u.nota || '']);
+    const head = ['nombre', 'email', 'empresa', 'telefono', 'demo', 'plan', 'periodo', 'empresas', 'cuota_mes', 'estado', 'pagado', 'vence', 'prueba_hasta', 'alta', 'ultimo_acceso', 'uso_7d_min', 'uso_30d_min', 'uso_total_min', 'sesiones', 'pagos', 'cobrado_total', 'nota'];
+    // La cuenta de demostración va marcada («demo») y con la cuota a cero: no es un ingreso
+    const rows = users.map((u) => [u.nombre, u.email, u.empresa, u.telefono, u.demo ? 'demo' : '', u.plan, u.periodo || 'mensual', u.empresas || 1, u.demo ? 0 : P.precio(u.plan, u.periodo, P.nPrecio(u, u.empresas), u.cuotaPactada).mes, estadoDe(u).t, u.pagado ? 'sí' : 'no', u.venceAcceso || '', u.pruebaHasta || '', u.alta, u.ultimoAcceso, P.usageMinutes(u, 7), P.usageMinutes(u, 30), P.usageMinutes(u), u.sesiones || 0, (u.pagos || []).filter((p) => !p.anulado).length, Math.round((u.pagos || []).filter((p) => !p.anulado).reduce((a, p) => a + (+p.importe || 0), 0) * 100) / 100, u.nota || '']);
     descargar(`atalaya-usuarios-${hoy()}.csv`, aCsv([head].concat(rows)));
   }
 
   /* ---------- Registro de actividad ---------- */
-  const ACCIONES = { 'cuenta.': 'Cuentas', 'plan.': 'Planes', 'pago.': 'Pagos', 'prueba.': 'Pruebas', 'solicitud.': 'Solicitudes', 'stripe.': 'Stripe', 'admin.': 'Accesos de administración', 'dospasos.': 'Segundo factor' };
-  const NOMBRE_ACC = { 'cuenta.alta': 'Alta (el cliente)', 'cuenta.crear': 'Cuenta creada', 'cuenta.modificar': 'Cuenta modificada', 'cuenta.bloquear': 'Bloqueo', 'cuenta.desbloquear': 'Desbloqueo', 'cuenta.borrar': 'Cuenta eliminada', 'cuenta.contrasena': 'Contraseña cambiada', 'cuenta.enlace-contrasena': 'Enlace de contraseña', 'plan.cambio': 'Cambio de plan', 'plan.solicitud': 'Pide cambio de plan', 'plan.conceder': 'Plan a medida concedido', 'pago.registrar': 'Pago registrado', 'pago.corregir': 'Pago corregido', 'pago.anular': 'Pago anulado', 'pago.solicitud': 'Pide activar', 'pago.checkout': 'Va a pagar con tarjeta', 'pago.stripe': 'Cobro de Stripe', 'pago.fallido': 'Cobro fallido', 'prueba.ampliar': 'Prueba ampliada', 'solicitud.cerrar': 'Solicitud cerrada', 'solicitud.reabrir': 'Solicitud reabierta', 'stripe.checkout': 'Pago con tarjeta completado', 'stripe.suscripcion': 'Suscripción actualizada', 'stripe.baja': 'Suscripción cancelada', 'stripe.prueba': 'Prueba con tarjeta empezada', 'stripe.finprueba': 'Aviso del final de la prueba', 'stripe.precio': 'Precio de Stripe cambiado en la prueba', 'admin.entrar': 'Entrada a la administración', 'admin.entrar.fallido': 'Código de segundo factor erróneo', 'admin.salir': 'Salida', 'admin.contrasena': 'Contraseña de administración cambiada', 'admin.configurar': 'Administración configurada', 'dospasos.activar': 'Segundo factor activado', 'dospasos.desactivar': 'Segundo factor desactivado', 'dospasos.recuperacion': 'Códigos de recuperación nuevos', 'dospasos.quitar': 'Segundo factor quitado' };
+  const ACCIONES = { 'cuenta.': 'Cuentas', 'plan.': 'Planes', 'pago.': 'Pagos', 'prueba.': 'Pruebas', 'solicitud.': 'Solicitudes', 'stripe.': 'Stripe', 'admin.': 'Accesos de administración', 'dospasos.': 'Segundo factor', 'demo.': 'Cuenta de demostración' };
+  const NOMBRE_ACC = { 'cuenta.alta': 'Alta (el cliente)', 'cuenta.crear': 'Cuenta creada', 'cuenta.modificar': 'Cuenta modificada', 'cuenta.bloquear': 'Bloqueo', 'cuenta.desbloquear': 'Desbloqueo', 'cuenta.borrar': 'Cuenta eliminada', 'cuenta.contrasena': 'Contraseña cambiada', 'cuenta.enlace-contrasena': 'Enlace de contraseña', 'plan.cambio': 'Cambio de plan', 'plan.solicitud': 'Pide cambio de plan', 'plan.conceder': 'Plan a medida concedido', 'pago.registrar': 'Pago registrado', 'pago.corregir': 'Pago corregido', 'pago.anular': 'Pago anulado', 'pago.solicitud': 'Pide activar', 'pago.checkout': 'Va a pagar con tarjeta', 'pago.stripe': 'Cobro de Stripe', 'pago.fallido': 'Cobro fallido', 'prueba.ampliar': 'Prueba ampliada', 'solicitud.cerrar': 'Solicitud cerrada', 'solicitud.reabrir': 'Solicitud reabierta', 'stripe.checkout': 'Pago con tarjeta completado', 'stripe.suscripcion': 'Suscripción actualizada', 'stripe.baja': 'Suscripción cancelada', 'stripe.prueba': 'Prueba con tarjeta empezada', 'stripe.finprueba': 'Aviso del final de la prueba', 'stripe.precio': 'Precio de Stripe cambiado en la prueba', 'admin.entrar': 'Entrada a la administración', 'admin.entrar.fallido': 'Código de segundo factor erróneo', 'admin.salir': 'Salida', 'admin.contrasena': 'Contraseña de administración cambiada', 'admin.configurar': 'Administración configurada', 'dospasos.activar': 'Segundo factor activado', 'dospasos.desactivar': 'Segundo factor desactivado', 'dospasos.recuperacion': 'Códigos de recuperación nuevos', 'dospasos.quitar': 'Segundo factor quitado', 'demo.crear': 'Demostración creada', 'demo.configurar': 'Demostración configurada', 'demo.desactivar': 'Demostración desactivada', 'demo.restablecer': 'Demostración restablecida' };
   const valor = (v) => (v == null ? '—' : typeof v === 'boolean' ? (v ? 'sí' : 'no') : typeof v === 'object' ? (v.importe != null ? `${v.importe} € · ${v.meses} m${v.referencia ? ' · ' + v.referencia : ''}${v.anulado ? ' · anulado' : ''}` : v.plan ? `${planN(v.plan)}${v.periodo ? ' · ' + v.periodo : ''}` : JSON.stringify(v)) : /^\d{4}-\d{2}-\d{2}T/.test(v) ? fdate(v) : String(v));
   const cambiosTxt = (a) => { const ks = Array.from(new Set(Object.keys(a.antes || {}).concat(Object.keys(a.despues || {})))); return ks.map((k) => `${k}: ${a.antes && k in a.antes ? valor(a.antes[k]) + ' → ' : ''}${valor((a.despues || {})[k])}`).join(' · '); };
   let actividad = [], actT = null;

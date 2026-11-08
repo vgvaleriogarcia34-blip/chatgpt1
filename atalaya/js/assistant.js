@@ -448,7 +448,8 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
       if (!answer) {
         await A.platform.ready;
         if (A.platform.mode === 'server' && A.platform.serverInfo && A.platform.serverInfo.ia) {
-          try { answer = await viaServer(history); } catch (e) { answer = null; }
+          // Tope de IA de la cuenta de demostración: se dice tal cual (no es un fallo); con otros errores, el modo básico
+          try { answer = await viaServer(history); } catch (e) { answer = e && e.body && e.body.limiteDemo ? e.message : null; }
         }
         if (!answer) answer = await viaSample(history, (t) => { bubble.textContent = t; });
         if (!answer) answer = local(text);

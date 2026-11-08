@@ -103,6 +103,8 @@
   P.accessOf = function (u) {
     if (!u) return { ok: false, motivo: 'sin-sesion' };
     if (u.estado === 'bloqueado') return { ok: false, motivo: 'bloqueado' };
+    // Cuenta de demostración: acceso sin vencimiento ni pagos (el servidor la desactiva si no hay DEMO_PASSWORD)
+    if (u.demo) return { ok: true, motivo: 'pagado', demo: true };
     const now = Date.now();
     if (u.pagado && (!u.venceAcceso || new Date(u.venceAcceso).getTime() > now)) return { ok: true, motivo: 'pagado' };
     // Prueba con tarjeta en Stripe: manda el estado de la suscripción (como en el servidor)
@@ -211,6 +213,8 @@
   /* Protege las páginas de la aplicación. Devuelve true si se puede seguir. */
   P.guard = async function () {
     let u = await P.me();
+    // Demostración restablecida (cada noche o desde la administración): fuera lo que quedó en este navegador
+    if (u && u.demo) P.demo.limpiar(u);
     let acc = P.accessOf(u);
     // Vuelta del Checkout con la tarjeta: el aviso de Stripe puede tardar unos segundos en llegar al servidor
     if (acc.motivo === 'tarjeta' && /[?&]pago=ok\b/.test(location.search)) {
@@ -325,6 +329,47 @@
   const ssSet = (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } };
   // ¿Hay que deshacer un paseo? Si no está activo en esta pestaña y, o bien lo empezó esta pestaña, o nadie lo renueva desde hace 90 s
   const vueltaPendiente = () => { const v = P.modelo.vuelta.pendiente(); if (!v || ssGet('atalaya.paseo')) return false; return !!ssGet(VSS) || Date.now() - (v.ts || 0) > 90e3; };
+  /* ---------- Cuenta de demostración ----------
+     Cuenta compartida para presentaciones (la crea el servidor con DEMO_PASSWORD). Sus datos se restablecen cada noche en el
+     servidor; lo que guarda este navegador (empresa modelo, copias locales de los mundos, cambios pendientes, conversación
+     del asistente) se borra al entrar la primera vez después de cada restablecimiento (marca demoRestablecida). */
+  const DEMO_LOCAL = ['atalaya.v1', 'atalaya.estrategia.v1', 'atalaya.personas.v1', 'atalaya.consultor.v1', 'atalaya.agenda.v1', 'atalaya.nota.v1', 'atalaya.libro.v1', 'atalaya.intervencion.v1', 'atalaya.snapshots.v1', 'atalaya.mesa.meta', 'atalaya.libro.cola', 'atalaya.asistente.log', 'atalaya.iv.ficha', 'atalaya.calendario', 'atalaya.portal.carpetas', 'atalaya.emp.elegida', 'atalaya.firma', 'atalaya.fichaPendiente'];
+  P.demo = {
+    TEXTO: 'Cuenta de demostración. No introduzca datos reales: se restablece cada noche.',
+    es: (u) => !!((u || P.user) && (u || P.user).demo),
+    limpiar(u) {
+      const marca = `atalaya.demo.${u.id}`, hecho = u.demoRestablecida || '';
+      if (LS.get(marca) === hecho) return false;
+      const ks = []; try { for (let i = 0; i < localStorage.length; i++) ks.push(localStorage.key(i)); } catch (e) { return false; }
+      ks.forEach((k) => { if (k && (k.includes(u.id) || DEMO_LOCAL.some((b) => k.startsWith(b)))) LS.del(k); });
+      ['atalaya.paseo', 'atalaya.paseo.volver', 'atalaya.aviso'].forEach((k) => { try { sessionStorage.removeItem(k); } catch (e) { /* sin almacenamiento */ } });
+      ponerAct('principal'); REG = null;
+      LS.set(marca, hecho);
+      return true;
+    },
+    // Consultora (cartera de clientes) o Grupos (grupo empresarial): cada vista con sus datos de partida, sin tocar cobros
+    vista: async (plan) => { const r = await api('/me/demo/vista', { method: 'POST', body: JSON.stringify({ plan }) }); P.user = r.user; return r.user; },
+    aviso() {
+      const u = P.user, viejo = document.getElementById('atDemo');
+      if (!u || !u.demo || ssGet('atalaya.demo.oculto')) { if (viejo) viejo.remove(); return; }
+      const b = viejo || document.createElement('div'); b.id = 'atDemo'; b.className = 'at-demo'; b.setAttribute('role', 'note');
+      b.innerHTML = `<span>${escH(P.demo.TEXTO)}</span><button type="button" class="icon-btn at-demo-x" aria-label="Ocultar el aviso en esta pestaña">×</button>`;
+      b.querySelector('.at-demo-x').onclick = () => { ssSet('atalaya.demo.oculto', 1); b.remove(); };
+      // En la cabecera si cabe en el hueco libre (entre lo de la izquierda y lo de la derecha); si no, justo debajo
+      const colocar = () => {
+        const tb = document.querySelector('.topbar, .pt-top'), r = tb && tb.getBoundingClientRect();
+        b.style.left = ''; b.style.transform = ''; b.classList.remove('en-cabecera');
+        if (!r || r.bottom <= 0) { b.style.top = '10px'; return; }
+        const hijos = Array.from(tb.children).filter((x) => x !== b && !x.classList.contains('spacer') && x.offsetParent !== null).map((x) => x.getBoundingClientRect()).filter((x) => x.width > 0).sort((x, y) => x.left - y.left);
+        let hueco = null; for (let i = 1; i < hijos.length; i++) { const g = { a: hijos[i - 1].right, z: hijos[i].left }; if (!hueco || g.z - g.a > hueco.z - hueco.a) hueco = g; }
+        const w = b.getBoundingClientRect().width;
+        if (hueco && hueco.z - hueco.a >= w + 16) { b.classList.add('en-cabecera'); b.style.left = Math.round((hueco.a + hueco.z - w) / 2) + 'px'; b.style.transform = 'none'; b.style.top = Math.round(r.top + (r.height - b.getBoundingClientRect().height) / 2) + 'px'; return; }
+        b.style.top = Math.round(r.bottom + 6) + 'px';
+      };
+      if (!viejo) { document.body.appendChild(b); addEventListener('resize', colocar); addEventListener('scroll', colocar, { passive: true }); }
+      colocar(); setTimeout(colocar, 400);
+    }
+  };
   P.k = (base, id) => { id = id || P.empresaId(); return id === 'principal' ? base : base + '@' + id; };
   const dk = (key, id) => { id = id || P.empresaId(); return SCOPED.includes(key) && id !== 'principal' ? key + '--' + id : key; };
   P.limiteEmpresas = (u) => { u = u || P.user; const p = PLANES[(u && u.plan) || 'profesional'] || PLANES.profesional; return p.empresas; };
@@ -887,7 +932,7 @@
      Alta: el servidor da un secreto, se añade a la aplicación de autenticación y se confirma con el primer código;
      entonces se ven una sola vez los códigos de recuperación. Baja: contraseña y un código. */
   P.dosPasos = function (alCambiar) {
-    const u = P.user; if (!u || P.mode !== 'server') return;
+    const u = P.user; if (!u || P.mode !== 'server' || u.demo) return;
     const back = document.createElement('div'); back.className = 'ef-back';
     const cerrar = () => { back.remove(); document.removeEventListener('keydown', esc2); };
     const esc2 = (e) => { if (e.key === 'Escape') cerrar(); };
@@ -1003,6 +1048,7 @@
     return { ok: true };
   };
   P.activarAhora = function () {
+    if (P.user && P.user.demo) { P.toast('La cuenta de demostración no tiene pagos.', 5000); return; }
     const u = P.user; if (!u) return;
     const back = document.createElement('div'); back.className = 'ef-back';
     back.innerHTML = '<div class="ef-card glass pg-card" role="dialog" aria-modal="true" aria-label="Activar el acceso"><button type="button" class="icon-btn ef-x" aria-label="Cerrar">×</button><div data-host></div></div>';
@@ -1306,6 +1352,7 @@
   P.panelPlanes = function (opts) {
     opts = opts || {};
     const u = P.user; if (!u) return;
+    if (u.demo) { P.toast(`La cuenta de demostración no cambia de plan.${['consultora', 'grupos'].includes(u.plan) ? ' Desde el menú de la cuenta puede enseñarla como Consultora o como Grupos.' : ''}`, 7000); return; }
     const acc = P.accessOf(u); let periodo = u.periodo || 'mensual';
     const n = P.empresas.reales().length || 1; // sin la empresa modelo: ni ocupa plaza ni cambia el tramo (en Consultora tampoco la principal: P.nCuenta)
     const back = document.createElement('div'); back.className = 'ef-back';
@@ -1786,8 +1833,8 @@
     el.innerHTML = `<button class="acc-btn" aria-haspopup="true" aria-expanded="false" aria-label="Su cuenta" title="${esc(u.email)}"><span>${esc(ini)}</span></button>
       <div class="acc-menu glass" hidden>
         <nav class="acc-mundos" aria-label="Mundos de Atalaya"><div class="bm-h">Ir a</div>${listaMundos('bm-it')}</nav>
-        <div class="acc-head"><b>${esc(u.nombre || u.email)}</b><small>${esc(u.email)}</small><small>Plan ${planN} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}</div>
-        <button data-inicio>Cómo empezar</button><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' && !acc.conTarjeta ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button><button data-planes>Mi plan: ${planN} · cambiar</button>${P.mode === 'server' && u.stripeCliente ? '<button data-portalpago>Gestionar el pago: tarjeta y facturas</button>' : ''}<button data-pw>Cambiar contraseña</button>${P.mode === 'server' ? `<button data-2fa>${u.dosPasos ? 'Verificación en dos pasos: activada · desactivar' : 'Activar la verificación en dos pasos'}</button>` : ''}<button data-logout>Cerrar sesión</button>
+        <div class="acc-head"><b>${esc(u.nombre || u.email)}</b><small>${esc(u.email)}</small><small>Plan ${planN} · ${acc.motivo === 'prueba' ? `prueba: quedan ${acc.diasPrueba} días` : 'acceso activo'}</small>${P.mode === 'local' ? '<small class="demo">Modo demostración: datos solo en este navegador</small>' : ''}${u.demo ? `<small class="demo">${esc(P.demo.TEXTO)}</small>` : ''}</div>
+        <button data-inicio>Cómo empezar</button><a href="manual.html">Manual de uso</a><a href="index.html">Página de Atalaya</a><button data-real title="Con datos reales ningún mundo usa los datos de ejemplo: lo que no se haya subido queda a cero y se pide">${P.modelo.activa() ? 'Empresa modelo · conectar o desconectar sus mundos' : P.modoReal() ? 'Datos reales: activados · ningún dato de ejemplo' : 'Datos de ejemplo permitidos · pasar a datos reales'}</button><button data-conex>Conexiones: IA, grabadora y calendario</button>${acc.motivo === 'prueba' && !acc.conTarjeta ? '<button data-activar>Activar el acceso</button>' : ''}<button data-exp>Descargar todos mis datos</button><button data-imp>Importar una copia</button>${u.demo ? (['consultora', 'grupos'].includes(u.plan) ? `<button data-demovista title="Cambiar de vista restablece los datos de la demostración">Enseñar la vista ${u.plan === 'grupos' ? 'Consultora: cartera de clientes' : 'Grupos: grupo empresarial y consolidado'}</button>` : '') : `<button data-planes>Mi plan: ${planN} · cambiar</button>`}${P.mode === 'server' && u.stripeCliente && !u.demo ? '<button data-portalpago>Gestionar el pago: tarjeta y facturas</button>' : ''}${u.demo ? '' : '<button data-pw>Cambiar contraseña</button>'}${P.mode === 'server' && !u.demo ? `<button data-2fa>${u.dosPasos ? 'Verificación en dos pasos: activada · desactivar' : 'Activar la verificación en dos pasos'}</button>` : ''}<button data-logout>Cerrar sesión</button>
         <form data-pwform hidden class="stack" style="padding:8px 12px 12px"><input class="input" type="password" name="actual" placeholder="Contraseña actual" autocomplete="current-password" required><input class="input" type="password" name="nueva" placeholder="Nueva (mín. 8 caracteres)" autocomplete="new-password" minlength="8" required><button class="btn solid" type="submit">Guardar</button><small data-pwmsg></small></form>
       </div>`;
     // Selector de empresa o sociedad (planes con varias empresas, o si ya hay más de una)
@@ -1843,11 +1890,19 @@
     }
     el.querySelector('[data-logout]').onclick = P.logout;
     el.querySelector('[data-inicio]').onclick = () => { m.hidden = true; P.primerAcceso.tarjeta(); };
-    el.querySelector('[data-planes]').onclick = () => { m.hidden = true; P.panelPlanes(); };
+    const bpl = el.querySelector('[data-planes]'); if (bpl) bpl.onclick = () => { m.hidden = true; P.panelPlanes(); };
+    const dv = el.querySelector('[data-demovista]');
+    if (dv) dv.onclick = async (ev) => {
+      ev.stopPropagation(); const otra = u.plan === 'grupos' ? 'consultora' : 'grupos';
+      if (!dv.dataset.ok) { dv.dataset.ok = '1'; dv.textContent = `Pulse otra vez: la demostración vuelve a sus datos de partida con la vista ${PLANES[otra].nombre}`; return; }
+      dv.disabled = true;
+      try { await P.demo.vista(otra); location.href = 'grupo.html'; } catch (x) { dv.disabled = false; P.toast(x.message, 6000); }
+    };
     el.querySelector('[data-exp]').onclick = () => { m.hidden = true; P.descargarDatos(); };
     el.querySelector('[data-imp]').onclick = () => { m.hidden = true; P.importarDatos(); };
     const ab = el.querySelector('[data-activar]'); if (ab) ab.onclick = () => { m.hidden = true; P.activarAhora(); };
     P.avisoPrueba();
+    P.demo.aviso();
     el.querySelector('[data-real]').onclick = async (ev) => {
       ev.stopPropagation(); const b = ev.currentTarget, on = P.modoReal();
       // La empresa modelo se conecta y desconecta desde su ficha
@@ -1859,7 +1914,7 @@
     };
     el.querySelector('[data-conex]').onclick = () => { m.hidden = true; const go = () => A.conexiones.abrir('claude'); if (A.conexiones) return go(); const sc = document.createElement('script'); sc.src = 'js/conexiones.js'; sc.onload = go; document.head.appendChild(sc); };
     const pf = el.querySelector('[data-pwform]');
-    el.querySelector('[data-pw]').onclick = (e) => { e.stopPropagation(); pf.hidden = !pf.hidden; };
+    const bpw = el.querySelector('[data-pw]'); if (bpw) bpw.onclick = (e) => { e.stopPropagation(); pf.hidden = !pf.hidden; };
     const pp = el.querySelector('[data-portalpago]'); if (pp) pp.onclick = async () => { pp.disabled = true; try { location.href = await P.portalPago(); } catch (x) { pp.disabled = false; P.toast(x.message, 6000); } };
     const d2 = el.querySelector('[data-2fa]'); if (d2) d2.onclick = () => { m.hidden = true; P.dosPasos(() => P.mountAccount(el)); };
     pf.onsubmit = async (e) => {

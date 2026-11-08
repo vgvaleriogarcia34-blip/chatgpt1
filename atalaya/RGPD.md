@@ -138,6 +138,7 @@ Terceros que solo intervienen si el usuario pulsa un enlace: WhatsApp (`wa.me`),
 | Registro de actividad | 730 días (24 meses); revisión cada 6 horas. Se conserva tras borrar la cuenta | `ACTIVIDAD_DIAS`, `purgar` |
 | Eventos de Stripe recibidos | Solo su identificador y fecha, los 5.000 más recientes (para no aplicar dos veces el mismo aviso) | `db.stripeEventos` |
 | Alta de segundo factor sin confirmar | 15 minutos, solo en memoria | `altasTotp` |
+| Cuenta de demostración (presentaciones comerciales) | No contiene datos personales: empresas ficticias sin NIF. Lo que se escriba en ella (incluidas las invitaciones a test y sus respuestas, si alguien respondiera a un enlace de la demostración) se borra cada noche a las 04:00 y al restablecerla desde la administración. No envía correos a terceros ni pasa nada a HubSpot | `restablecerDemo`, `DEMO_PASSWORD` |
 
 ### Pendientes (no implementados)
 1. **Cuentas de prueba no activadas e inactivas**: sin plazo.

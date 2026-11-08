@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 const env = process.env;
 const num = (k, d) => (env[k] != null && env[k] !== '' && !isNaN(+env[k]) ? +env[k] : d);
@@ -386,6 +387,8 @@ const emailOk = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 function access(u) {
   if (!u) return { ok: false, motivo: 'sin-sesion' };
   if (u.estado === 'bloqueado') return { ok: false, motivo: 'bloqueado' };
+  // Cuenta de demostración: acceso pagado sin vencimiento mientras DEMO_PASSWORD esté puesta (ver configurarDemo)
+  if (u.demo) return u.demoInactiva ? { ok: false, motivo: 'bloqueado' } : { ok: true, motivo: 'pagado' };
   if (u.pagado && (!u.venceAcceso || Date.parse(u.venceAcceso) > Date.now())) return { ok: true, motivo: 'pagado' };
   // Prueba con tarjeta (Checkout de Stripe con periodo de prueba): manda el estado de la suscripción, no la fecha interna.
   // «trialing» da acceso completo; «past_due» al terminar la prueba, los días de gracia; cancelada (sin tarjeta al final), nada.
@@ -421,7 +424,8 @@ function currentUser(req) {
   const sid = cookies(req)[COOKIE];
   const s = sid && db.sessions[sha(sid)];
   if (!s || Date.parse(s.exp) < Date.now()) return null;
-  return db.users.find((u) => u.id === s.userId) || null;
+  const u = db.users.find((x) => x.id === s.userId) || null;
+  return u && u.demo && u.demoInactiva ? null : u;
 }
 function startSession(res, u) {
   const sid = crypto.randomBytes(32).toString('hex');
@@ -441,7 +445,7 @@ function ipDe(req) {
 
 /* ---------- Límites de intentos: un contador por ruta y por clave (IP, correo o cuenta) ---------- */
 const LIMITES = { // [máximo, minutos]
-  login_ip: [30, 15], login_email: [10, 15], verificar: [10, 15], registro: [num('REGISTROS_HORA', 5), 60],
+  login_ip: [30, 15], login_email: [10, 15], login_demo: [num('DEMO_INTENTOS_HORA', 10), 60], login_demo_ip: [num('DEMO_INTENTOS_HORA', 10), 60], verificar: [10, 15], registro: [num('REGISTROS_HORA', 5), 60],
   contacto: [6, 60], olvido_ip: [10, 60], olvido_email: [3, 60], restablecer: [20, 15], admin: [10, 15], test: [300, 15], dospasos: [10, 15],
   integracion: [num('INTEGRACION_MINUTO', 60), 1], integracion_fallo: [10, 15]
 };
@@ -538,8 +542,8 @@ async function sendMail(to, subject, text) {
 
 // Avisos al equipo (AVISOS_EMAIL, una o varias direcciones separadas por comas): altas, contactos, solicitudes de
 // activación y pagos. No retrasan la respuesta al cliente y, sin correo configurado, no hacen nada.
-function avisarEquipo(asunto, lineas) {
-  if (!env.AVISOS_EMAIL || !env.SMTP_HOST) return;
+function avisarEquipo(asunto, lineas, u) {
+  if (!env.AVISOS_EMAIL || !env.SMTP_HOST || (u && u.demo)) return;
   const texto = lineas.filter(Boolean).join('\n') + `\n\nGestor de usuarios: ${APP_URL}/admin.html`;
   sendMail(env.AVISOS_EMAIL, `Atalaya · ${asunto}`, texto).catch(() => { /* ya registrado en sendMail */ });
 }
@@ -650,6 +654,8 @@ async function hsEnviar(ev) {
 let hsFila = Promise.resolve();
 function aHubspot(ev) {
   if (!env.HUBSPOT_TOKEN || !ev || !ev.email && !ev.telefono) return;
+  // La cuenta de demostración no es un interesado: nada suyo llega al CRM
+  if (db.users.some((x) => x.demo && (x.id === ev.cuenta || x.email === String(ev.email || '').trim().toLowerCase()))) return;
   ev.email = ev.email ? String(ev.email).trim().toLowerCase() : '';
   const r = hsEnviados()[ev.clave];
   if (r && r.ok && (ev.tarea === false || r.tarea)) return; // ya enviado entero: un reenvío no duplica
@@ -795,7 +801,7 @@ const finPruebaInterna = (u) => Math.max(Date.parse(u.alta) + PRUEBA_DIAS * 864e
 const SUSCRIPCION_VIVA = ['active', 'trialing', 'past_due'];
 // Cuenta en la prueba interna, sin tarjeta, a la que se le pide el Checkout antes de seguir
 function pideTarjeta(u) {
-  if (!STRIPE || !PRUEBA_TARJETA || !u || u.estado === 'bloqueado' || u.pagado || u.stripeSuscripcion || (u.pagos || []).length || u.plan === 'grupos' || u.cuotaPactada > 0) return false;
+  if (!STRIPE || !PRUEBA_TARJETA || !u || u.demo || u.estado === 'bloqueado' || u.pagado || u.stripeSuscripcion || (u.pagos || []).length || u.plan === 'grupos' || u.cuotaPactada > 0) return false;
   if (!(finPruebaInterna(u) > Date.now())) return false;
   return !!STRIPE_PRECIOS[clavePrecioDe(u, u.plan, u.periodo || 'mensual')];
 }
@@ -907,6 +913,8 @@ async function eventoStripe(ev) {
   const o = (ev.data && ev.data.object) || {}, u = cuentaStripe(o), tipo = ev.type;
   const quien = { quien: 'stripe', nota: `${tipo} · ${ev.id}` };
   if (!u) { if (/^(checkout|invoice|customer\.subscription)\./.test(tipo)) console.warn(`Stripe: ${tipo} (${ev.id}) sin cuenta de Atalaya asociada.`); return; }
+  // La cuenta de demostración nunca tiene pagos: un aviso que la nombrara no cambia nada ni envía correos
+  if (u.demo) { console.warn(`Stripe: ${tipo} (${ev.id}) se refiere a la cuenta de demostración; se ignora.`); return; }
   if (tipo === 'checkout.session.completed') {
     if (o.mode !== 'subscription' && o.payment_status !== 'paid') return;
     if (o.customer) u.stripeCliente = o.customer.id || o.customer;
@@ -1079,9 +1087,30 @@ async function claude() {
 async function ask(params) {
   const c = await claude();
   if (!c) throw fallo(503, 'La IA no está configurada en el servidor');
-  return c.beta.messages.create({
+  const r = await c.beta.messages.create({
     model: MODEL, max_tokens: 16000, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', ...params
   });
+  // Coste de la llamada, para el tope en euros de la cuenta de demostración (conIA abre el contexto con IA_GASTO.run)
+  const g = IA_GASTO.getStore(); if (g) g.usd += costeLlamada(r, params);
+  return r;
+}
+/* Coste estimado de una llamada a partir del uso que devuelve Anthropic: entrada a 4 $ por millón de tokens (también la que
+   se lee o escribe en la caché, contada como entrada normal para no quedarse cortos), salida a 20 $ por millón y búsquedas
+   web a 10 $ cada mil. Sin uso en la respuesta, una estimación prudente: un token por cada 3 caracteres enviados y la salida
+   máxima pedida (max_tokens, 16.000 por defecto), más las búsquedas web que admita la herramienta. */
+const IA_PRECIO = { entrada: num('IA_USD_MTOK_ENTRADA', 4), salida: num('IA_USD_MTOK_SALIDA', 20), busqueda: num('IA_USD_BUSQUEDA', 0.01) };
+const EUR_USD = num('EUR_USD', 1.08); // dólares por euro: el coste en euros es el coste en dólares dividido entre EUR_USD
+const IA_GASTO = new AsyncLocalStorage();
+function costeLlamada(r, params) {
+  const us = r && r.usage;
+  if (us && (us.input_tokens != null || us.output_tokens != null)) {
+    const ent = (+us.input_tokens || 0) + (+us.cache_creation_input_tokens || 0) + (+us.cache_read_input_tokens || 0);
+    const bus = +((us.server_tool_use || {}).web_search_requests) || 0;
+    return ent * IA_PRECIO.entrada / 1e6 + (+us.output_tokens || 0) * IA_PRECIO.salida / 1e6 + bus * IA_PRECIO.busqueda;
+  }
+  const chars = JSON.stringify((params && (params.messages || [])) || []).length + String((params && params.system) || '').length;
+  const busq = ((params && params.tools) || []).reduce((a, t) => a + (t && /^web_search/.test(t.type || '') ? +t.max_uses || 5 : 0), 0);
+  return (chars / 3) * IA_PRECIO.entrada / 1e6 + ((params && params.max_tokens) || 16000) * IA_PRECIO.salida / 1e6 + busq * IA_PRECIO.busqueda;
 }
 const textOf = (msg) => msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
 function jsonOf(text) {
@@ -1094,8 +1123,13 @@ function jsonOf(text) {
    El uso queda en la cuenta (usoIA por día e iaTotal) y lo ve la administración. */
 const CUOTA_IA = {
   prueba: { n: num('IA_DIARIA_PRUEBA', 20), c: num('IA_CARACTERES_PRUEBA', 1500000) },
-  pago: { n: num('IA_DIARIA_PAGO', 200), c: num('IA_CARACTERES_PAGO', 10000000) }
+  pago: { n: num('IA_DIARIA_PAGO', 200), c: num('IA_CARACTERES_PAGO', 10000000) },
+  // Cuenta de demostración: cuota propia, más baja (la comparten quienes la usan a la vez); la cuota por empresa también se aplica
+  demo: { n: num('IA_DIARIA_DEMO', 60), c: num('IA_CARACTERES_DEMO', 3000000) }
 };
+// Tope de gasto diario de IA de la cuenta de demostración, en euros (además de la cuota por número de consultas)
+const IA_DEMO_EUR_DIA = num('IA_DEMO_EUR_DIA', 1.5);
+const MSG_IA_DEMO = 'Por hoy se ha alcanzado el uso de IA previsto para la demostración. Vuelve a estar disponible mañana.';
 // Qué funciones de IA abre cada plan (como P.puede en js/platform.js); null = todos los planes
 const IA_PLAN = {
   chat: null, extract: null,
@@ -1134,17 +1168,22 @@ function purgarUsoEmpresa(u) {
 async function conIA(u, funcion, peso, chars, fn, req) {
   const p = IA_PLAN[funcion]; if (p && !p.planes.includes(u.plan)) throw fallo(403, p.msg);
   if (!(await claude())) throw fallo(503, 'La IA no está configurada en el servidor');
-  const tipo = access(u).motivo === 'pagado' ? 'pago' : 'prueba', lim = CUOTA_IA[tipo];
+  const tipo = u.demo ? 'demo' : access(u).motivo === 'pagado' ? 'pago' : 'prueba', lim = CUOTA_IA[tipo];
   u.usoIA = u.usoIA || {}; const d = (u.usoIA[today()] = u.usoIA[today()] || { n: 0, c: 0 });
+  // Demostración: tope en euros del día (el gasto se apunta al terminar cada consulta) y cuota por número, con el mismo aviso
+  if (tipo === 'demo' && (d.eur || 0) >= IA_DEMO_EUR_DIA) throw fallo(429, MSG_IA_DEMO, { limiteDemo: true });
   if (d.n + peso > lim.n || d.c + chars > lim.c) {
-    throw fallo(429, tipo === 'prueba'
+    throw fallo(429, tipo === 'demo'
+      ? MSG_IA_DEMO
+      : tipo === 'prueba'
       ? `Ha llegado al límite diario de IA de la prueba gratuita (${lim.n} consultas o su volumen de texto). Se renueva mañana; con el plan activado el límite es mayor.`
-      : `Ha llegado al límite diario de IA de su cuenta (${lim.n} consultas o su volumen de texto). Se renueva mañana; si necesita más, escríbanos.`);
+      : `Ha llegado al límite diario de IA de su cuenta (${lim.n} consultas o su volumen de texto). Se renueva mañana; si necesita más, escríbanos.`, tipo === 'demo' ? { limiteDemo: true } : undefined);
   }
   // Varias empresas: la cuota de la empresa en la que se trabaja (las demás siguen pudiendo usar la IA)
   let ue = null;
   if (PLANES_VARIAS.includes(u.plan)) {
     const em = empresaIA(u, req), v = usoEmpresa(u, em, false), limMes = iaEmpresaMesDe(u);
+    if (u.demo && (v.mes.n + peso > limMes || v.dia.n + peso > IA_DIARIA_EMPRESA)) throw fallo(429, MSG_IA_DEMO, { limiteDemo: true });
     if (v.mes.n + peso > limMes) throw fallo(429, `Ha llegado al límite mensual de IA de esta empresa (${limMes} consultas). Se renueva el día 1; si necesita más, escríbanos.`, { cuota: 'empresa-mes', empresa: em });
     if (v.dia.n + peso > IA_DIARIA_EMPRESA) throw fallo(429, `Ha llegado al límite diario de IA de esta empresa (${IA_DIARIA_EMPRESA} consultas). Se renueva mañana; si necesita más, escríbanos.`, { cuota: 'empresa-dia', empresa: em });
     ue = usoEmpresa(u, em, true);
@@ -1154,7 +1193,10 @@ async function conIA(u, funcion, peso, chars, fn, req) {
   d.n += peso; d.c += chars; u.iaTotal = (u.iaTotal || 0) + peso;
   Object.keys(u.usoIA).sort().slice(0, -60).forEach((k) => delete u.usoIA[k]); // solo los últimos 60 días
   save();
-  try { return await fn(); } catch (e) {
+  const gasto = { usd: 0 };
+  const apuntar = () => { if (gasto.usd > 0) { const eur = gasto.usd / EUR_USD; d.eur = Math.round(((d.eur || 0) + eur) * 1e4) / 1e4; u.iaEurTotal = Math.round(((u.iaEurTotal || 0) + eur) * 1e4) / 1e4; save(); } };
+  try { const r = await IA_GASTO.run(gasto, fn); apuntar(); return r; } catch (e) {
+    apuntar(); // lo que llegó a responder la API se ha gastado, aunque la consulta falle después
     // Si la API no llegó a responder (caída, saturación) la consulta no cuenta
     if (e.status || /Connection|Timeout/.test((e.constructor && e.constructor.name) || '')) {
       d.n -= peso; d.c -= chars; u.iaTotal -= peso;
@@ -1242,10 +1284,14 @@ route('POST', /^\/api\/register$/, async (req, res, body) => {
 route('POST', /^\/api\/login$/, async (req, res, body) => {
   const ip = ipDe(req), email = String(body.email || '').trim().toLowerCase().slice(0, 160);
   if (bloqueado('login_ip', ip) || bloqueado('login_email', email)) throw demasiados();
+  // Cuenta de demostración: además, su propio límite de fallos (por IP y en total para la cuenta), más estricto
+  const aDemo = email === DEMO_EMAIL;
+  if (aDemo && (bloqueado('login_demo', 'cuenta') || bloqueado('login_demo_ip', ip))) throw demasiados();
   const u = db.users.find((x) => x.email === email);
   const ref = u || DUMMY;
-  const ok = safeEq(hashPw(String(body.password || ''), ref.salt), ref.hash) && !!u;
-  if (!ok) { anotar('login_ip', ip); anotar('login_email', email); throw fallo(401, 'Correo o contraseña incorrectos'); }
+  // Una cuenta de demostración desactivada (sin DEMO_PASSWORD) responde como una contraseña errónea
+  const ok = safeEq(hashPw(String(body.password || ''), ref.salt), ref.hash) && !!u && !(u.demo && u.demoInactiva);
+  if (!ok) { anotar('login_ip', ip); anotar('login_email', email); if (aDemo) { anotar('login_demo', 'cuenta'); anotar('login_demo_ip', ip); } throw fallo(401, 'Correo o contraseña incorrectos'); }
   // Segundo factor (si el cliente lo activó): sin código se pide; con código erróneo cuenta como intento fallido
   if (u.totp && u.totp.activo) {
     if (!String(body.codigo || '').trim()) throw fallo(401, 'Escriba el código de su aplicación de autenticación.', { segundoFactor: true });
@@ -1269,6 +1315,8 @@ route('GET', /^\/api\/me$/, async (req, res, body, u) => ({ user: pub(u) }), { n
    - Grupos solo lo concede la administración. */
 route('PATCH', /^\/api\/me$/, async (req, res, body, u) => {
   const precioAntes = `${u.plan}-${u.periodo}`;
+  // La cuenta de demostración no cambia de plan ni de forma de pago (la vista de Grupos tiene su propia ruta: /api/me/demo/vista)
+  if (u.demo && ((PLANES.includes(body.plan) && body.plan !== u.plan) || (PERIODOS.includes(body.periodo) && body.periodo !== (u.periodo || 'mensual')))) throw fallo(403, NO_DEMO.plan);
   ['nombre', 'empresa', 'telefono'].forEach((k) => { if (typeof body[k] === 'string') u[k] = body[k].slice(0, 160); });
   if (PLANES.includes(body.plan) && body.plan !== u.plan) {
     const nuevo = body.plan;
@@ -1313,6 +1361,8 @@ route('POST', /^\/api\/contacto$/, async (req, res, body) => {
   const c = { id: nid('c'), fecha: now(), plan: body.tipo === 'sesion' ? 'sesion' : t('plan', 20), nombre: t('nombre'), email: t('email'), telefono: t('telefono', 40), empresa: t('empresa'), sociedades: t('sociedades', 6), mensaje: t('mensaje', 2000), origen: t('origen', 40) };
   // Si llega con sesión de cliente (p. ej. datos de facturación al pedir la activación), se enlaza con su cuenta
   const yo = currentUser(req); if (yo && String(yo.email) === c.email.toLowerCase()) c.cuenta = yo.id;
+  // Desde una sesión de la cuenta de demostración: no es una solicitud real (no se guarda, no va a HubSpot ni sale ningún correo)
+  if (yo && yo.demo) return { ok: true };
   // Un reenvío de la misma solicitud (mismo correo, tipo y mensaje, sin atender, en las últimas 24 horas) no se duplica
   const huella = sha([c.email.toLowerCase(), c.plan, c.origen, c.mensaje].join('|')).slice(0, 24);
   const previa = (db.contactos || []).find((x) => x.huella === huella && !x.atendido && Date.now() - Date.parse(x.fecha) < 864e5);
@@ -1335,6 +1385,7 @@ route('POST', /^\/api\/me\/verificar$/, async (req, res, body, u) => {
   return { ok };
 }, { noAccess: true });
 route('POST', /^\/api\/me\/solicitar-pago$/, async (req, res, body, u) => {
+  if (u.demo) throw fallo(403, NO_DEMO.pago);
   // Se avisa una vez al día como mucho (el botón «Pagar ahora» también la marca)
   const nueva = !u.solicitudPago || u.solicitudPago.slice(0, 10) !== today();
   u.solicitudPago = now(); save();
@@ -1346,6 +1397,7 @@ route('POST', /^\/api\/me\/solicitar-pago$/, async (req, res, body, u) => {
   return { ok: true };
 }, { noAccess: true });
 route('POST', /^\/api\/me\/password$/, async (req, res, body, u) => {
+  if (u.demo) throw fallo(403, NO_DEMO.contrasena);
   if (bloqueado('verificar', u.id)) throw demasiados();
   if (!safeEq(hashPw(String(body.actual || ''), u.salt), u.hash)) { anotar('verificar', u.id); throw fallo(400, 'La contraseña actual no es correcta'); }
   if (String(body.nueva || '').length < 8) throw fallo(400, 'La nueva contraseña debe tener al menos 8 caracteres');
@@ -1360,7 +1412,8 @@ route('POST', /^\/api\/password\/olvido$/, async (req, res, body) => {
   const ip = ipDe(req), email = String(body.email || '').trim().toLowerCase().slice(0, 160);
   if (bloqueado('olvido_ip', ip) || bloqueado('olvido_email', email)) throw demasiados();
   anotar('olvido_ip', ip); anotar('olvido_email', email);
-  const u = db.users.find((x) => x.email === email);
+  // La cuenta de demostración no recupera la contraseña por correo (se fija con DEMO_PASSWORD): responde igual que un correo sin cuenta
+  const u = db.users.find((x) => x.email === email && !x.demo);
   const correo = !!env.SMTP_HOST;
   if (u) {
     const token = newResetToken(u, 'usuario');
@@ -1379,6 +1432,7 @@ route('POST', /^\/api\/password\/restablecer$/, async (req, res, body) => {
   if (!r || Date.parse(r.exp) < Date.now()) { anotar('restablecer', ip); throw fallo(400, 'El enlace no es válido o ha caducado. Pida uno nuevo.'); }
   if (String(body.password || '').length < 8) throw fallo(400, 'La contraseña debe tener al menos 8 caracteres');
   const u = db.users.find((x) => x.id === r.userId); if (!u) throw fallo(404, 'Usuario no encontrado');
+  if (u.demo) { delete db.resets[k]; save(); throw fallo(400, 'El enlace no es válido o ha caducado. Pida uno nuevo.'); }
   u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(String(body.password), u.salt); delete u.solicitudReset;
   delete db.resets[k];
   Object.keys(db.sessions).forEach((s) => { if (db.sessions[s].userId === u.id) delete db.sessions[s]; });
@@ -1391,7 +1445,7 @@ route('POST', /^\/api\/password\/restablecer$/, async (req, res, body) => {
 // Acceso de administración (con su propio límite de intentos)
 route('GET', /^\/api\/admin\/estado$/, async (req) => {
   const s = adminSesion(req), t = db.adminTotp;
-  return { configurado: !!db.admin, sesion: !!s, correo: !!env.SMTP_HOST, dosPasos: !!(t && t.activo), ...(s ? { nombre: s.nombre || null, recuperacion: t && t.activo ? (t.codigos || []).length : null, stripe: STRIPE ? { precios: Object.keys(STRIPE_PRECIOS), webhook: !!env.STRIPE_WEBHOOK_SECRET } : false, almacen: ALMACEN, avisos: !!(env.AVISOS_EMAIL && env.SMTP_HOST) } : {}) };
+  return { configurado: !!db.admin, sesion: !!s, correo: !!env.SMTP_HOST, dosPasos: !!(t && t.activo), ...(s ? { nombre: s.nombre || null, recuperacion: t && t.activo ? (t.codigos || []).length : null, stripe: STRIPE ? { precios: Object.keys(STRIPE_PRECIOS), webhook: !!env.STRIPE_WEBHOOK_SECRET } : false, almacen: ALMACEN, avisos: !!(env.AVISOS_EMAIL && env.SMTP_HOST), demo: estadoDemo() } : {}) };
 }, { public: true });
 /* ---------- Revisión del sistema (administración) ----------
    GET  /api/admin/revision     comprobaciones automáticas del servidor, la base, las copias, la configuración y las cuentas.
@@ -1457,8 +1511,8 @@ function revisionSistema() {
   if (!env.HUBSPOT_TOKEN) pon('aviso', 'Servicios', 'HubSpot no está conectado: las solicitudes no llegan al CRM.', 'Ponga HUBSPOT_TOKEN y HUBSPOT_OWNER_ID.');
   if (!env.INTEGRACION_TOKEN) pon('aviso', 'Servicios', 'La integración con el asistente telefónico está apagada.', 'Ponga el mismo INTEGRACION_TOKEN aquí y en el asistente.');
 
-  // Cuentas y tareas pendientes (solo recuentos)
-  const us = db.users, porPlan = {}, est = { pagando: 0, prueba: 0, sinAcceso: 0, bloqueadas: 0 };
+  // Cuentas y tareas pendientes (solo recuentos). La cuenta de demostración no cuenta: no es un cliente
+  const us = db.users.filter((u) => !u.demo), porPlan = {}, est = { pagando: 0, prueba: 0, sinAcceso: 0, bloqueadas: 0 };
   us.forEach((u) => {
     porPlan[u.plan] = (porPlan[u.plan] || 0) + 1;
     const a = access(u);
@@ -1477,8 +1531,12 @@ function revisionSistema() {
   if (venceSemana) pon('aviso', 'Cobros', `${venceSemana} ${venceSemana === 1 ? 'acceso pagado vence' : 'accesos pagados vencen'} en los próximos 7 días.`);
   if (pendientes.contactosAntiguos) pon('aviso', 'Atención', `${pendientes.contactosAntiguos} solicitudes llevan más de 2 días sin atender.`, 'Ábralas en «Pendiente de atender».');
   // Cuota de IA por empresa (Consultora y Grupos): cuentas con alguna empresa por encima del 80 % de su cuota de este mes
-  const mesIA = today().slice(0, 7), cercaIA = db.users.filter((u) => PLANES_VARIAS.includes(u.plan) && Object.values(u.usoIAEmpresa || {}).some((x) => x[mesIA] && x[mesIA].n >= 0.8 * iaEmpresaMesDe(u)));
+  const mesIA = today().slice(0, 7), cercaIA = us.filter((u) => PLANES_VARIAS.includes(u.plan) && Object.values(u.usoIAEmpresa || {}).some((x) => x[mesIA] && x[mesIA].n >= 0.8 * iaEmpresaMesDe(u)));
   if (cercaIA.length) pon('aviso', 'IA', `${cercaIA.length} ${cercaIA.length === 1 ? 'cuenta tiene' : 'cuentas tienen'} alguna empresa por encima del 80 % de su cuota mensual de IA.`, 'Revise el uso de IA por empresa en la ficha de cada cuenta y, si conviene, amplíe su cuota.');
+  const dm = db.users.find((u) => u.demo);
+  if (dm && !dm.demoInactiva) pon('ok', 'Demostración', `Cuenta de demostración activa (plan ${NOMBRE_PLAN[dm.plan] || dm.plan}); se restablece cada noche${dm.demoRestablecida ? `, la última vez ${diasDesde(dm.demoRestablecida) === 0 ? 'hoy' : `hace ${diasDesde(dm.demoRestablecida)} días`}` : ''}.`);
+  else if (dm) pon('ok', 'Demostración', 'La cuenta de demostración está desactivada (no hay DEMO_PASSWORD).');
+  if (dm && !dm.demoInactiva && dm.demoRestablecida && diasDesde(dm.demoRestablecida) > 1) pon('aviso', 'Demostración', `La cuenta de demostración no se restablece desde hace ${diasDesde(dm.demoRestablecida)} días.`, 'Revise los errores del registro o restablézcala desde su ficha.');
   if (pendientes.activacion + pendientes.cambioPlan + pendientes.contrasena) pon('aviso', 'Atención', `Solicitudes abiertas: ${pendientes.activacion} de activación, ${pendientes.cambioPlan} de cambio de plan y ${pendientes.contrasena} de contraseña.`);
 
   // Errores recientes
@@ -1555,6 +1613,7 @@ route('POST', /^\/api\/admin\/password$/, async (req, res, body) => {
 // La administración pone directamente una contraseña nueva a un usuario (se cierran sus sesiones abiertas)
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/password$/, async (req, res, body, me, m) => {
   const u = db.users.find((x) => x.id === m[1]); if (!u) throw fallo(404, 'Usuario no encontrado');
+  noDemoAdmin(u);
   if (String(body.password || '').length < 8) throw fallo(400, 'La contraseña debe tener al menos 8 caracteres');
   u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(String(body.password), u.salt); delete u.solicitudReset; u.passwordCambiada = now();
   Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === u.id) delete db.sessions[k]; });
@@ -1564,6 +1623,7 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/password$/, async (req, res, body
 }, { admin: true });
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/reset$/, async (req, res, body, me, m) => {
   const u = db.users.find((x) => x.id === m[1]); if (!u) throw fallo(404, 'Usuario no encontrado');
+  noDemoAdmin(u);
   const token = newResetToken(u, 'administración');
   const enviado = body.enviar ? await sendMail(u.email, 'Atalaya · Restablecer su contraseña', `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nPara crear una contraseña nueva abra este enlace (caduca en ${RESET_MIN} minutos):\n${APP_URL}/acceso.html#reset=${token}`) : false;
   delete u.solicitudReset; save();
@@ -1579,6 +1639,7 @@ route('POST', /^\/api\/admin\/conceder$/, async (req, res, body) => {
   const plan = PLANES.includes(body.plan) ? body.plan : 'grupos', periodo = PERIODOS.includes(body.periodo) ? body.periodo : 'mensual';
   const cuota = Math.max(0, +body.cuota || 0), meses = Math.max(1, Math.min(36, +body.meses || (periodo === 'anual' ? 12 : 1)));
   let u = db.users.find((x) => x.email === email), creado = false;
+  if (u) noDemoAdmin(u);
   const antes = u ? foto(u) : {};
   if (!u) { u = cuentaNueva(body, email); db.users.push(u); creado = true; }
   const venc = new Date(); venc.setMonth(venc.getMonth() + meses);
@@ -1664,6 +1725,7 @@ route('PUT', /^\/api\/data\/([A-Za-z0-9_-]{1,80})$/, async (req, res, body, u, m
    tramo) hasta que la administración la confirma o Stripe cobra el precio del tramo nuevo; bajar de tramo al borrar empresas
    se aplica en la siguiente renovación (registro de un pago o cobro de Stripe), sin devoluciones. */
 function cambioDeTramo(req, u, nAntes, nNuevo) {
+  if (u.demo) return; // sin cuota: el tramo de la demostración no se factura ni se pide
   // En la prueba con tarjeta, la suscripción de Stripe sigue al tramo nuevo (sin prorrateo)
   if (u.plan === 'consultora' && !u.pagado && !(u.cuotaPactada > 0) && tramoConsultora(nAntes) !== tramoConsultora(nNuevo)) { seguirPrecioEnStripe(req, u).catch(() => {}); return; }
   if (u.plan !== 'consultora' || !u.pagado || u.cuotaPactada > 0) return;
@@ -1716,17 +1778,18 @@ route('POST', /^\/api\/invitaciones$/, async (req, res, body, u) => {
     if (!b || !TESTS_INV[b.test]) throw fallo(400, 'Test no válido');
     if (b.email && !emailOk(String(b.email).trim())) throw fallo(400, 'Correo no válido: ' + String(b.email).slice(0, 160));
     const v = nuevaInv(u, b);
-    const enviado = b.enviar && v.email ? await invMail(v) : false;
+    // La cuenta de demostración no envía correos a terceros: se crea el enlace y quien presenta lo copia
+    const enviado = b.enviar && v.email && !u.demo ? await invMail(v) : false;
     out.push(Object.assign(invPub(v), { enviado }));
   }
   save();
-  return { invitaciones: out, correo: !!env.SMTP_HOST };
+  return { invitaciones: out, correo: !!env.SMTP_HOST && !u.demo };
 });
 route('GET', /^\/api\/invitaciones$/, async (req, res, body, u) => {
   const url = new URL(req.url, 'http://x'), emp = url.searchParams.get('empresa');
   // Bolsas del 360: solo con tres respuestas o más, en orden aleatorio y sin nombres
   const lid360 = Object.entries(db.lid360).filter(([k]) => k.startsWith(u.id + '|') && (!emp || k.split('|')[1] === emp)).map(([k, l]) => ({ empresaId: k.split('|')[1], pid: k.split('|')[2], n: l.length, resps: l.length >= MIN_LID360 ? l.map((x) => x.resp).sort(() => Math.random() - 0.5) : null }));
-  return { invitaciones: Object.values(db.invitaciones).filter((v) => v.owner === u.id && (!emp || v.empresaId === emp)).sort((a, b) => b.creado.localeCompare(a.creado)).map(invPub), lid360, minLid360: MIN_LID360, correo: !!env.SMTP_HOST };
+  return { invitaciones: Object.values(db.invitaciones).filter((v) => v.owner === u.id && (!emp || v.empresaId === emp)).sort((a, b) => b.creado.localeCompare(a.creado)).map(invPub), lid360, minLid360: MIN_LID360, correo: !!env.SMTP_HOST && !u.demo };
 });
 // La ficha ya recogió las respuestas del 360 de un responsable: se vacía su bolsa
 route('POST', /^\/api\/lid360\/([\w-]+)\/importado$/, async (req, res, body, u, m) => {
@@ -1742,6 +1805,7 @@ route('POST', /^\/api\/invitaciones\/([\w-]+)\/(anular|recordar|reenviar|importa
   else if (acc === 'recordar') {
     if (invEstado(v) === 'completado' || invEstado(v) === 'anulado' || invEstado(v) === 'caducado') throw fallo(409, 'Esta invitación ya no está abierta');
     if (!v.email) throw fallo(400, 'La invitación no tiene correo');
+    if (u.demo) throw fallo(403, NO_DEMO.correo);
     const ok = await invMail(v, true); if (!ok) throw fallo(503, 'No hay correo configurado en el servidor: copie el enlace y envíelo usted.');
     v.recordatorios = (v.recordatorios || 0) + 1; v.recordado = now();
   } else if (acc === 'reenviar') {
@@ -1749,7 +1813,7 @@ route('POST', /^\/api\/invitaciones\/([\w-]+)\/(anular|recordar|reenviar|importa
     if (v.estado !== 'completado') v.estado = 'anulado';
     const n = nuevaInv(u, Object.assign({}, v, { enviar: false }));
     if (v.estado === 'anulado' && Array.isArray(v.resp)) { n.resp = v.resp; n.estado = 'a medias'; n.consent = v.consent; }
-    const enviado = n.email ? await invMail(n) : false;
+    const enviado = n.email && !u.demo ? await invMail(n) : false;
     save(); return { invitacion: Object.assign(invPub(n), { enviado }) };
   }
   save(); return { invitacion: invPub(v) };
@@ -1814,6 +1878,8 @@ function iaPorEmpresa(u) {
 route('GET', /^\/api\/admin\/users$/, async () => ({ users: db.users.map((u) => Object.assign(pub(u), { empresas: nEmpresas(u), iaEmpresas: iaPorEmpresa(u) })) }), { admin: true });
 route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) => {
   const u = usuarioDe(m[1]), antes = foto(u);
+  // Demostración: plan, pago y vencimiento los fija el servidor (DEMO_PLAN); la nota, el bloqueo y la cuota de IA por empresa sí se cambian
+  if (u.demo && (['pagado', 'venceAcceso', 'tramo', 'registrarPago', 'planPendiente'].some((k) => k in body) || (PLANES.includes(body.plan) && body.plan !== u.plan) || (PERIODOS.includes(body.periodo) && body.periodo !== (u.periodo || 'mensual')) || body.estado === 'prueba')) throw fallo(409, NO_DEMO.admin);
   if (['prueba', 'activo', 'bloqueado'].includes(body.estado)) u.estado = body.estado;
   if (typeof body.pagado === 'boolean') u.pagado = body.pagado;
   if (PLANES.includes(body.plan)) {
@@ -1848,6 +1914,7 @@ route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) 
 // En el registro de actividad queda que se borró (correo, plan y fechas), no sus datos.
 route('DELETE', /^\/api\/admin\/users\/([\w-]+)$/, async (req, res, body, me, m) => {
   const id = m[1], u = usuarioDe(id);
+  noDemoAdmin(u);
   tx(() => {
     D.borrarCuenta(id);
     db.users = db.users.filter((x) => x.id !== id);
@@ -1883,6 +1950,7 @@ route('POST', /^\/api\/admin\/users$/, async (req, res, body) => {
 // Ampliar la prueba gratuita: «dias» más desde hoy o desde el final actual, si aún no ha terminado
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/prueba$/, async (req, res, body, me, m) => {
   const u = usuarioDe(m[1]), dias = Math.round(+body.dias || 0);
+  noDemoAdmin(u);
   if (dias < 1 || dias > 90) throw fallo(400, 'Indique entre 1 y 90 días');
   if (u.pagado) throw fallo(409, 'Esta cuenta tiene el acceso pagado: amplíe su vencimiento registrando un pago o cambiando la fecha.');
   const antes = foto(u), fin = Math.max(Date.now(), Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
@@ -1901,6 +1969,7 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/prueba$/, async (req, res, body, 
 // Registrar un pago y ampliar el acceso «meses» desde el vencimiento actual (o desde hoy si ya venció)
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/pagos$/, async (req, res, body, me, m) => {
   const u = usuarioDe(m[1]), antes = foto(u);
+  noDemoAdmin(u);
   if (!(+String(body.importe).replace(',', '.') >= 0)) throw fallo(400, 'Importe no válido');
   const pago = nuevoPago(u, body, 'administración');
   if (body.ampliar !== false && pago.meses > 0) {
@@ -2001,10 +2070,12 @@ route('POST', /^\/api\/admin\/2fa\/recuperacion$/, async (req, res, body) => {
 
 /* ---------- Segundo factor del cliente (opcional) ---------- */
 route('POST', /^\/api\/me\/2fa\/iniciar$/, async (req, res, body, u) => {
+  if (u.demo) throw fallo(403, NO_DEMO.dospasos);
   if (u.totp && u.totp.activo) throw fallo(409, 'El segundo factor ya está activado');
   return iniciarTotp('u:' + u.id, u.email);
 }, { noAccess: true });
 route('POST', /^\/api\/me\/2fa\/activar$/, async (req, res, body, u) => {
+  if (u.demo) throw fallo(403, NO_DEMO.dospasos);
   if (bloqueado('dospasos', u.id)) throw demasiados();
   let r; try { r = confirmarTotp('u:' + u.id, body.codigo); } catch (e) { anotar('dospasos', u.id); throw e; }
   u.totp = r.registro;
@@ -2023,6 +2094,7 @@ route('POST', /^\/api\/me\/2fa\/desactivar$/, async (req, res, body, u) => {
 
 /* ---------- Pago en línea con Stripe (Checkout y portal del cliente) ---------- */
 route('POST', /^\/api\/me\/pago\/checkout$/, async (req, res, body, u) => {
+  if (u.demo) throw fallo(403, NO_DEMO.pago);
   if (!STRIPE) throw fallo(404, 'El pago en línea no está configurado: solicite el enlace de pago.', { manual: true });
   if (u.estado === 'bloqueado') throw fallo(403, 'Su acceso está suspendido. Póngase en contacto con nosotros.');
   // Plan que se paga: el elegido (si el cliente puede elegirlo), el pendiente de confirmar o el actual
@@ -2057,6 +2129,7 @@ route('POST', /^\/api\/me\/pago\/checkout$/, async (req, res, body, u) => {
   return { url: s.url, prueba: prueba ? new Date(prueba.fin).toISOString() : null };
 }, { noAccess: true });
 route('POST', /^\/api\/me\/pago\/portal$/, async (req, res, body, u) => {
+  if (u.demo) throw fallo(403, NO_DEMO.pago);
   if (!STRIPE) throw fallo(404, 'El pago en línea no está configurado.', { manual: true });
   if (!u.stripeCliente) throw fallo(404, 'Su cuenta no tiene pagos en línea todavía.', { manual: true });
   const s = await stripeApi('billing_portal/sessions', { customer: u.stripeCliente, return_url: env.STRIPE_URL_PORTAL || `${APP_URL}/app.html`, locale: 'es' });
@@ -2134,14 +2207,14 @@ const txt = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 160);
 // por el correo de la ficha (contacto o responsable) o por el correo de la cuenta (su empresa principal)
 function buscarEmpresa(d) {
   const hs = txt(d.hubspotCompanyId || d.hubspotId, 40), email = txt(d.email).toLowerCase();
-  const regs = db.users.map((u) => { const r = D.get(u.id, 'empresas'); return { u, lista: r && Array.isArray(r.lista) ? r.lista.filter((e) => e && e.id && !e.modelo) : [] }; });
+  const regs = db.users.filter((u) => !u.demo).map((u) => { const r = D.get(u.id, 'empresas'); return { u, lista: r && Array.isArray(r.lista) ? r.lista.filter((e) => e && e.id && !e.modelo) : [] }; });
   if (hs) {
     for (const { u, lista } of regs) { const e = lista.find((x) => String(x.hubspotId || '') === hs); if (e) return { u, e, por: 'hubspotId' }; }
-    const u = db.users.find((x) => String(x.hubspotCompanyId || '') === hs); if (u) return { u, e: { id: 'principal', nombre: u.empresa }, por: 'hubspotId de la cuenta' };
+    const u = db.users.find((x) => !x.demo && String(x.hubspotCompanyId || '') === hs); if (u) return { u, e: { id: 'principal', nombre: u.empresa }, por: 'hubspotId de la cuenta' };
   }
-  if (d.hubspotContactId) { const u = db.users.find((x) => String(x.hubspotContactId || '') === txt(d.hubspotContactId, 40)); if (u) return { u, e: { id: 'principal', nombre: u.empresa }, por: 'contacto de HubSpot' }; }
+  if (d.hubspotContactId) { const u = db.users.find((x) => !x.demo && String(x.hubspotContactId || '') === txt(d.hubspotContactId, 40)); if (u) return { u, e: { id: 'principal', nombre: u.empresa }, por: 'contacto de HubSpot' }; }
   if (email) {
-    const u = db.users.find((x) => x.email === email);
+    const u = db.users.find((x) => x.email === email && !x.demo);
     if (u) return { u, e: (regs.find((r) => r.u === u).lista.find((x) => x.id === 'principal')) || { id: 'principal', nombre: u.empresa }, por: 'correo de la cuenta' };
     for (const { u: v, lista } of regs) { const e = lista.find((x) => [x.email, x.contacto, x.responsableEmail].some((c) => String(c || '').trim().toLowerCase() === email)); if (e) return { u: v, e, por: 'correo de la ficha' }; }
   }
@@ -2188,6 +2261,7 @@ route('POST', /^\/api\/integracion\/invitar$/, async (req, res, body) => {
   if (!emailOk(email)) throw fallo(400, 'Correo no válido');
   const hs = txt(body.hubspotCompanyId || body.hubspotId, 40) || null, hc = txt(body.hubspotContactId, 40) || null;
   let u = db.users.find((x) => x.email === email), creada = false;
+  if (u && u.demo) return { ok: false, motivo: 'demostracion' };
   // Una cuenta que ya se usa no se toca: basta con que entre con su contraseña
   if (u && (u.ultimoAcceso || (u.sesiones || 0) > 0)) {
     if (hs && !u.hubspotCompanyId) { u.hubspotCompanyId = hs; save(); }
@@ -2285,6 +2359,7 @@ async function manejar(req, res) {
     if (req.method !== 'GET' && !(req.headers['content-type'] || '').includes('application/json')) return send(res, 415, { error: 'Se esperaba JSON' });
     const body = req.method === 'GET' ? {} : await readBody(req);
     const u = currentUser(req);
+    if (u && u.demo) demoVista = Date.now(); // uso reciente de la demostración (aplaza el restablecimiento nocturno)
     if (r.opts.integracion) { /* ya autenticada arriba */ }
     else if (r.opts.admin) {
       if (!isAdmin(req)) return send(res, 401, { error: 'Entre con la contraseña de administración' });
@@ -2307,6 +2382,167 @@ async function manejar(req, res) {
     if (!res.headersSent) send(res, code, Object.assign({}, e.code === code && e.extra ? e.extra : {}, { error: msg }));
   }
 }
+
+/* ---------- Cuenta de demostración (presentaciones comerciales) ----------
+   La crea el propio servidor, como ADMIN_PASSWORD la contraseña de la administración, con estas variables:
+   · DEMO_PASSWORD (secreta, 12 caracteres como mínimo): sin ella no hay demostración; si la cuenta ya existía, queda
+     desactivada (no se puede entrar) y se conserva. Si cambia, se pone la nueva y se cierran las sesiones abiertas.
+   · DEMO_EMAIL (demo@businessavance.es): correo con el que se entra. Si ya es de una cuenta de cliente, no se toca.
+   · DEMO_PLAN (consultora): plan con el que se enseña. Si cambia, la cuenta pasa a ese plan con sus datos de partida.
+   · DEMO_HORA (04:00, en ZONA_HORARIA): hora a la que se restablece cada noche.
+   La cuenta lleva demo: true: acceso pagado sin vencimiento, nunca pide tarjeta ni abre Stripe, no cambia de contraseña,
+   correo ni plan desde la aplicación, no envía correos a terceros y no cuenta como cliente (cuotas, HubSpot, avisos al
+   equipo, revisión del sistema). Sus datos se restablecen cada noche y a petición desde la administración con la semilla
+   de server/demo-semilla.json (empresas ficticias; ver generar-semilla-demo.mjs). Admite varias sesiones a la vez. */
+const NO_DEMO = {
+  plan: 'La cuenta de demostración no cambia de plan ni de forma de pago.',
+  pago: 'La cuenta de demostración no tiene pagos: no se abre la pasarela de pago.',
+  contrasena: 'La contraseña de la cuenta de demostración no se cambia desde la aplicación.',
+  dospasos: 'La cuenta de demostración no usa la verificación en dos pasos: la comparten varias personas.',
+  correo: 'La cuenta de demostración no envía correos: copie el enlace si quiere enseñarlo.',
+  admin: 'La cuenta de demostración se gestiona con las variables DEMO_PASSWORD y DEMO_PLAN del servidor. Desde aquí puede restablecer sus datos, bloquearla o escribir una nota.'
+};
+const noDemoAdmin = (u) => { if (u && u.demo) throw fallo(409, NO_DEMO.admin); };
+const DEMO_EMAIL = String(env.DEMO_EMAIL || 'demo@businessavance.es').trim().toLowerCase();
+const DEMO_PLAN = PLANES.includes(String(env.DEMO_PLAN || '').toLowerCase()) ? String(env.DEMO_PLAN).toLowerCase() : 'consultora';
+if (env.DEMO_PLAN && !PLANES.includes(String(env.DEMO_PLAN).toLowerCase())) console.warn(`DEMO_PLAN=${env.DEMO_PLAN} no es un plan conocido (${PLANES.join(', ')}); se usa consultora.`);
+const DEMO_HORA = (() => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(env.DEMO_HORA || '04:00').trim()); return m && +m[1] < 24 && +m[2] < 60 ? [+m[1], +m[2]] : [4, 0]; })();
+// Vistas entre las que puede cambiar la demostración sin tocar ningún cobro (los dos planes con varias empresas)
+const VISTAS_DEMO = ['consultora', 'grupos'];
+const SEMILLA_DEMO = (() => {
+  try { const j = JSON.parse(fs.readFileSync(path.join(here, 'demo-semilla.json'), 'utf8')); if (j && j.planes) return j; } catch (e) { if (env.DEMO_PASSWORD) console.warn('No se puede leer server/demo-semilla.json: la demostración se queda sin datos de partida.', e.message); }
+  return { planes: {} };
+})();
+// Fecha local (ZONA_HORARIA) de un instante, en AAAA-MM-DD
+const fechaLocal = (ms) => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(ms)).map((x) => [x.type, x.value])); return `${p.year}-${p.month}-${p.day}`; };
+// Fechas relativas de la semilla: «@d+7» (fecha, dentro de 7 días) y «@t-3» (instante, hace 3 días)
+function fechasDemo(v, ahora) {
+  if (typeof v === 'string') {
+    const m = /^@([dt])([+-]\d{1,5})$/.exec(v); if (!m) return v;
+    const ms = ahora + +m[2] * 864e5;
+    return m[1] === 'd' ? fechaLocal(ms) : new Date(ms).toISOString();
+  }
+  if (Array.isArray(v)) return v.map((x) => fechasDemo(x, ahora));
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fechasDemo(x, ahora)]));
+  return v;
+}
+/* Restablece la cuenta de demostración: borra todos sus datos (empresas, mundos, análisis de mercado, invitaciones a
+   test con sus respuestas) y pone los de la semilla del plan. «plan»: el de la vista elegida (por defecto, DEMO_PLAN).
+   El uso de IA del día no se pone a cero: la cuota diaria sigue siendo la misma aunque se restablezca a mano. */
+function restablecerDemo(u, motivo, req, plan) {
+  plan = PLANES.includes(plan) ? plan : DEMO_PLAN;
+  const datos = SEMILLA_DEMO.planes[plan] || {}, ahora = Date.now();
+  let n = 0;
+  tx(() => {
+    D.borrarCuenta(u.id);
+    for (const [k, v] of Object.entries(datos)) { const val = fechasDemo(v, ahora), j = JSON.stringify(val); D.set(u.id, k, val, j); n++; }
+  });
+  Object.keys(db.invitaciones).forEach((k) => { if (db.invitaciones[k].owner === u.id) delete db.invitaciones[k]; });
+  Object.keys(db.lid360).forEach((k) => { if (k.startsWith(u.id + '|')) delete db.lid360[k]; });
+  const reg = datos.empresas && Array.isArray(datos.empresas.lista) ? datos.empresas.lista.find((e) => e.id === 'principal') : null;
+  Object.assign(u, { plan, periodo: 'mensual', nombre: 'Cuenta de demostración', empresa: (reg && reg.nombre) || 'Empresa de demostración', telefono: '', demoRestablecida: now() });
+  ['planPendiente', 'tramo', 'cambiosPlan', 'solicitudPago', 'solicitudReset', 'cuotaPactada'].forEach((k) => delete u[k]);
+  anotarActividad(req || null, 'demo.restablecer', u, { quien: req ? undefined : 'sistema', nota: `${motivo} · plan ${NOMBRE_PLAN[plan]} · ${n} datos de partida` });
+  save();
+  return n;
+}
+// Próxima hora de restablecimiento (DEMO_HORA en ZONA_HORARIA), en milisegundos, después de «desde»
+function proximoRestablecimiento(desde = Date.now(), hora = DEMO_HORA, zona = ZONA) {
+  const offset = (ms) => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms)).map((x) => [x.type, x.value])); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000; };
+  for (let dia = 0; dia < 3; dia++) {
+    const [y, mo, d] = fechaLocal(desde + dia * 864e5).split('-').map(Number);
+    const local = Date.UTC(y, mo - 1, d, hora[0], hora[1]);
+    let t = local - offset(local); t = local - offset(t); // dos pasadas: el desfase de ese día (horario de verano o de invierno)
+    if (t > desde) return t;
+  }
+  return desde + 864e5;
+}
+const demoActiva = () => db.users.find((u) => u.demo && !u.demoInactiva) || null;
+/* Uso reciente de la demostración: la última petición con su sesión (en memoria) o el último pulso de uso o entrada.
+   Si alguien la ha usado en los últimos DEMO_ESPERA_MIN minutos (30), el restablecimiento nocturno se aplaza de 30 en 30
+   minutos, como mucho hasta DEMO_HORA_LIMITE (07:00): a esa hora se restablece aunque siga en uso. */
+const DEMO_ESPERA = num('DEMO_ESPERA_MIN', 30) * 60e3;
+const DEMO_LIMITE = (() => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(env.DEMO_HORA_LIMITE || '07:00').trim()); return m && +m[1] < 24 && +m[2] < 60 ? [+m[1], +m[2]] : [7, 0]; })();
+let demoVista = 0;
+const actividadDemo = (u) => Math.max(demoVista, Date.parse(u.ultimoAcceso) || 0);
+const sesionesDemo = (u) => Object.values(db.sessions).filter((x) => x.userId === u.id && Date.parse(x.exp) > Date.now()).length;
+let demoTimer = null, demoProxima = null, demoAplazada = null;
+const esperarHasta = (t, fn) => { clearTimeout(demoTimer); demoProxima = t; demoTimer = setTimeout(fn, Math.min(2 ** 31 - 1, Math.max(1000, t - Date.now()))); demoTimer.unref(); };
+function programarDemo() {
+  clearTimeout(demoTimer); demoTimer = null; demoProxima = null; demoAplazada = null;
+  if (!demoActiva()) return;
+  const t = proximoRestablecimiento();
+  // Hora límite de ese mismo turno (la primera DEMO_HORA_LIMITE después de la hora del restablecimiento)
+  const limite = proximoRestablecimiento(t - 1000, DEMO_LIMITE);
+  // setTimeout no admite más de ~24,8 días; con una espera de horas basta con volver a calcular al despertar
+  esperarHasta(t, () => (Date.now() < t - 1000 ? programarDemo() : intentoDemo(limite)));
+}
+function intentoDemo(limite) {
+  const u = demoActiva(); if (!u) return programarDemo();
+  const ahora = Date.now();
+  if (ahora - actividadDemo(u) < DEMO_ESPERA && ahora < limite - 1000) {
+    const sig = Math.min(ahora + DEMO_ESPERA, limite);
+    demoAplazada = new Date(sig).toISOString();
+    console.log(`Restablecimiento de la demostración aplazado: se ha usado en los últimos ${Math.round(DEMO_ESPERA / 60e3)} minutos (siguiente intento ${demoAplazada}).`);
+    return esperarHasta(sig, () => intentoDemo(limite));
+  }
+  try { restablecerDemo(u, demoAplazada ? 'restablecimiento nocturno (aplazado por uso)' : 'restablecimiento nocturno'); console.log('Cuenta de demostración restablecida (restablecimiento nocturno).'); } catch (e) { console.error('Restablecer la demostración:', e.message); }
+  programarDemo();
+}
+const hhmm = (h) => h.map((x) => String(x).padStart(2, '0')).join(':');
+const estadoDemo = () => { const u = db.users.find((x) => x.demo); if (!u) return null; const act = actividadDemo(u); return { cuenta: u.id, email: u.email, activa: !u.demoInactiva, plan: u.plan, planEnv: DEMO_PLAN, hora: hhmm(DEMO_HORA), limite: hhmm(DEMO_LIMITE), zona: ZONA, proximo: demoProxima ? new Date(demoProxima).toISOString() : null, aplazada: demoAplazada, ultimo: u.demoRestablecida || null, sesiones: sesionesDemo(u), ultimaActividad: act ? new Date(act).toISOString() : null, enUso: Date.now() - act < DEMO_ESPERA, iaEurHoy: ((u.usoIA || {})[today()] || {}).eur || 0, iaEurDia: IA_DEMO_EUR_DIA }; };
+const cerrarSesionesDe = (u) => Object.keys(db.sessions).forEach((k) => { if (db.sessions[k].userId === u.id) delete db.sessions[k]; });
+function configurarDemo() {
+  let pw = env.DEMO_PASSWORD || '';
+  if (pw && pw.length < 12) { console.warn('DEMO_PASSWORD debe tener al menos 12 caracteres; se ignora (sin cuenta de demostración).'); pw = ''; }
+  let u = db.users.find((x) => x.demo);
+  if (!pw) {
+    // Sin contraseña no hay demostración: la cuenta que hubiera queda desactivada, con sus datos, y se cierran sus sesiones
+    if (u && sesionesDemo(u)) { cerrarSesionesDe(u); save(); }
+    if (u && !u.demoInactiva) { u.demoInactiva = now(); cerrarSesionesDe(u); anotarActividad(null, 'demo.desactivar', u, { quien: 'sistema', nota: 'Sin DEMO_PASSWORD: no se puede entrar' }); save(); console.log('Cuenta de demostración desactivada (no hay DEMO_PASSWORD).'); }
+    return;
+  }
+  if (!emailOk(DEMO_EMAIL)) { console.warn(`DEMO_EMAIL (${DEMO_EMAIL}) no es un correo válido: no se crea la cuenta de demostración.`); return; }
+  if (db.users.some((x) => x.email === DEMO_EMAIL && !x.demo)) { console.warn(`DEMO_EMAIL (${DEMO_EMAIL}) ya es el correo de una cuenta de cliente: no se convierte en demostración. Elija otro correo.`); return; }
+  const nueva = !u;
+  if (nueva) {
+    u = { id: uid(), nombre: 'Cuenta de demostración', email: DEMO_EMAIL, empresa: '', telefono: '', plan: DEMO_PLAN, periodo: 'mensual', rol: 'cliente', estado: 'activo', pagado: true, venceAcceso: null, alta: now(), ultimoAcceso: null, sesiones: 0, uso: {}, pagos: [], demo: true, creadoPor: 'servidor (DEMO_PASSWORD)', salt: '', hash: '' };
+    db.users.push(u);
+  }
+  const notas = [];
+  if (u.email !== DEMO_EMAIL) { notas.push(`correo ${u.email} → ${DEMO_EMAIL}`); u.email = DEMO_EMAIL; }
+  if (!u.salt || !safeEq(hashPw(pw, u.salt), u.hash)) {
+    u.salt = crypto.randomBytes(16).toString('hex'); u.hash = hashPw(pw, u.salt);
+    if (!nueva) { cerrarSesionesDe(u); notas.push('contraseña nueva desde DEMO_PASSWORD; sesiones cerradas'); }
+  }
+  if (u.demoInactiva) { delete u.demoInactiva; notas.push('reactivada'); }
+  Object.assign(u, { pagado: true, venceAcceso: null, rol: 'cliente' }); if (u.estado !== 'bloqueado') u.estado = 'activo';
+  delete u.totp; delete u.pruebaHasta;
+  if (nueva || u.demoPlanEnv !== DEMO_PLAN) { if (!nueva) notas.push(`DEMO_PLAN: ${DEMO_PLAN}`); u.demoPlanEnv = DEMO_PLAN; restablecerDemo(u, nueva ? 'cuenta creada' : 'DEMO_PLAN cambiado'); }
+  if (nueva) { anotarActividad(null, 'demo.crear', u, { quien: 'sistema', despues: { plan: u.plan }, nota: 'Cuenta de demostración creada desde DEMO_PASSWORD' }); console.log(`Cuenta de demostración creada: ${DEMO_EMAIL} (plan ${NOMBRE_PLAN[u.plan]}).`); }
+  else if (notas.length) { anotarActividad(null, 'demo.configurar', u, { quien: 'sistema', nota: notas.join(' · ') }); console.log(`Cuenta de demostración: ${notas.join(' · ')}.`); }
+  save();
+}
+configurarDemo();
+programarDemo();
+// Restablecer la demostración desde su ficha en la administración
+route('POST', /^\/api\/admin\/users\/([\w-]+)\/demo\/restablecer$/, async (req, res, body, me, m) => {
+  const u = usuarioDe(m[1]);
+  if (!u.demo) throw fallo(409, 'Esta cuenta no es la de demostración.');
+  // Con una sesión abierta o un uso reciente, se pide confirmación expresa (puede haber una presentación en curso)
+  const act = actividadDemo(u), enUso = Date.now() - act < DEMO_ESPERA, ses = sesionesDemo(u);
+  if ((enUso || ses) && body.confirmado !== true) throw fallo(409, `La demostración tiene ${ses} ${ses === 1 ? 'sesión abierta' : 'sesiones abiertas'}${enUso ? ` y se ha usado hace ${Math.max(1, Math.round((Date.now() - act) / 60e3))} minutos` : ''}. Si la restablece ahora, quien la esté usando pierde lo que haya escrito. Confirme para seguir.`, { sesionActiva: true, sesiones: ses, enUso });
+  const n = restablecerDemo(u, 'restablecida desde la administración', req, DEMO_PLAN);
+  return { user: pub(u), datos: n };
+}, { admin: true });
+// Vista de la demostración: Consultora (cartera de clientes) o Grupos (grupo empresarial con consolidado). Cada vista tiene
+// sus datos de partida, así que cambiar de vista restablece la demostración. No toca ningún cobro ni avisa a nadie.
+route('POST', /^\/api\/me\/demo\/vista$/, async (req, res, body, u) => {
+  if (!u.demo) throw fallo(403, 'Solo la cuenta de demostración cambia de vista.');
+  if (!VISTAS_DEMO.includes(body.plan) || !VISTAS_DEMO.includes(u.plan)) throw fallo(400, 'La demostración puede enseñarse como Consultora o como Grupos.');
+  if (body.plan !== u.plan) restablecerDemo(u, `vista ${NOMBRE_PLAN[body.plan]} elegida en la aplicación`, req, body.plan);
+  return { user: pub(u) };
+});
 
 const server = http.createServer((req, res) => {
   manejar(req, res).catch((e) => {
@@ -2355,7 +2591,7 @@ if (autoDias > 0) {
   setInterval(async () => {
     for (const u of db.users) {
       const a = D.mercado(u.id);
-      if (!a || !a.perfil || access(u).motivo !== 'pagado' || !IA_PLAN.mercado.planes.includes(u.plan) || Date.now() - Date.parse(a.fecha) < autoDias * 864e5) continue;
+      if (u.demo || !a || !a.perfil || access(u).motivo !== 'pagado' || !IA_PLAN.mercado.planes.includes(u.plan) || Date.now() - Date.parse(a.fecha) < autoDias * 864e5) continue;
       try { const n = await agenteMercado(a.perfil); n.perfil = a.perfil; D.setMercado(u.id, n); } catch (e) { console.error('Agente de mercado:', e.message); }
     }
   }, 6 * 3600e3);

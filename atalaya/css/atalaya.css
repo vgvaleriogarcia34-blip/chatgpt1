@@ -1043,6 +1043,13 @@ body.arch-on .ar-cab + .tb-main { margin-top: 18px; }
 .at-prueba .btn { white-space: nowrap; } .at-prueba-x { margin-left: auto; }
 @media (max-width: 560px) { .at-prueba { width: calc(100% - 20px); padding: 6px 6px 6px 10px; font-size: 0.8rem; } .at-prueba-p { display: none; } .at-prueba .btn { padding: 5px 9px; } }
 @media print { .at-prueba { display: none !important; } }
+/* Cuenta de demostración: aviso pequeño bajo la cabecera (se puede ocultar en la pestaña; también va en el menú de la cuenta) */
+.at-demo { position: fixed; z-index: 38; left: 50%; top: 76px; transform: translateX(-50%); max-width: calc(100% - 32px); box-sizing: border-box; display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 12px; border-radius: 12px; border: 1px solid rgba(57, 135, 229, 0.55); background: var(--panel-solid, #10131a); color: var(--muted, #b8bcc6); font-size: 0.76rem; line-height: 1.35; }
+.at-demo span { min-width: 0; }
+.at-demo.en-cabecera { z-index: 60; }
+.at-demo .icon-btn { width: 24px; height: 24px; min-width: 24px; font-size: 0.9rem; }
+@media (max-width: 560px) { .at-demo { width: calc(100% - 20px); max-width: none; font-size: 0.72rem; padding: 3px 3px 3px 10px; } }
+@media print { .at-demo { display: none !important; } }
 
 /* ---------- Activación del acceso (pantalla de acceso y ventana «Activar ahora») ---------- */
 .pg { display: grid; gap: 12px; }

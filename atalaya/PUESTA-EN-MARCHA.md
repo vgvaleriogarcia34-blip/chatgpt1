@@ -13,6 +13,7 @@ Lo que hay que revisar el día que Atalaya pase de la demostración en el navega
 - [ ] Copia de seguridad diaria de **toda** la carpeta `ATALAYA_DATA` en otra máquina (el servidor guarda 2 copias mensuales rotatorias, pero en el mismo disco). Copie `atalaya.db.1` (la copia coherente del mes) o pare el servidor antes de copiar `atalaya.db`, que con el servidor en marcha va acompañada de `atalaya.db-wal`. Incluye `secreto.key`: sin él dejan de valer los enlaces de los test enviados, el segundo factor y los códigos de recuperación.
 - [ ] Una sola instancia del servidor por carpeta de datos (SQLite admite un único proceso escritor como este).
 - [ ] Contraseña de administración configurada y acceso solo por `index.html#admin` o `admin.html`. **Segundo factor activado** en «Seguridad» y los códigos de recuperación guardados fuera del servidor.
+- [ ] Cuenta de demostración para presentaciones: `DEMO_PASSWORD` (secreta) y, si se quiere, `DEMO_EMAIL`, `DEMO_PLAN` e `IA_DEMO_EUR_DIA` (apartado 5 ter).
 - [ ] Revisar las cuotas diarias de IA (`IA_DIARIA_PRUEBA`, `IA_DIARIA_PAGO`) y, en Consultora y Grupos, las de cada empresa (`IA_MENSUAL_EMPRESA`, 300 al mes; `IA_DIARIA_EMPRESA`, 40 al día) según el coste que se quiera asumir por cliente.
 
 ## 1 bis. Seguridad del servidor · variables y comportamiento
@@ -175,6 +176,46 @@ Con `STRIPE_SECRET_KEY` y un precio en línea para el plan y la forma de pago de
 - [ ] El mismo `INTEGRACION_TOKEN` en Atalaya y en el asistente; la ruta sin token responde 401.
 - [ ] Las fichas de empresa de los clientes que vienen de HubSpot tienen su `hubspotId`.
 - Pruebas con un HubSpot y un SMTP falsos: `prueba-integracion.mjs` (45 comprobaciones) y `prueba-servidor.mjs` (regresión básica).
+
+## 5 ter. Cuenta de demostración (presentaciones comerciales)
+
+Una cuenta para enseñar Atalaya 360° en reuniones y ferias, con empresas ficticias ya cargadas. La crea el propio servidor al arrancar, como `ADMIN_PASSWORD` la contraseña de la administración: nadie tiene que escribir la contraseña en ningún chat ni entrar a la administración para crearla.
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `DEMO_PASSWORD` (**secreta**) | — | Contraseña de la demostración, de 12 caracteres o más. **Sin ella (o vacía, o más corta) la demostración no se puede usar**: no se crea, y si ya existía queda desactivada al arrancar (no se entra y se cierran sus sesiones), con sus datos guardados. Si cambia su valor, al arrancar se pone la nueva y se cierran todas las sesiones de la demostración. |
+| `DEMO_EMAIL` | `demo@businessavance.es` | Correo con el que se entra. Si ya es el de una cuenta de cliente, no se toca y el arranque avisa en la consola. |
+| `DEMO_PLAN` | `consultora` | Plan con el que se enseña (abre simulador, sistema estratégico, personas y equipos, auditoría integral y cartera de clientes). Si cambia, la cuenta pasa a ese plan con sus datos de partida. |
+| `IA_DEMO_EUR_DIA` | `1.5` | Gasto máximo de IA al día de la demostración, en euros (lo comparten todos los que la usen ese día). |
+| `IA_DIARIA_DEMO` | `60` | Además, máximo de consultas de IA al día (mismos pesos: el agente de mercado cuenta 5). La cuota por empresa de Consultora y Grupos también se aplica. |
+| `EUR_USD` | `1.08` | Dólares por euro para pasar el coste de la API a euros. |
+| `DEMO_HORA` · `DEMO_HORA_LIMITE` | `04:00` · `07:00` | Hora del restablecimiento nocturno y hora máxima a la que se puede aplazar, en `ZONA_HORARIA` (Europe/Madrid, con el cambio de hora). |
+| `DEMO_INTENTOS_HORA` | `10` | Fallos de contraseña por hora con el correo de la demostración, por IP y en total para la cuenta (además de los límites generales). Al llegar, nadie puede entrar en la demostración durante una hora. |
+
+**Generar y cambiar la contraseña.** En cualquier terminal: `openssl rand -base64 18` (24 caracteres). Se pega en Coolify como variable secreta `DEMO_PASSWORD` y se vuelve a desplegar. Para rotarla, se pone un valor nuevo y se despliega: se cierran todas las sesiones abiertas de la demostración y la anterior deja de valer. Para apagarla, se borra la variable (o se deja vacía) y se despliega.
+
+**Qué hace la demostración (y qué no)**
+- Acceso pagado sin vencimiento: nunca pide tarjeta (no le afecta la prueba con tarjeta) y el servidor rechaza para ella el Checkout, el portal de pago, «solicitar el enlace de pago», los cambios de plan, de forma de pago y de tramo, y cualquier aviso de Stripe que la nombre. Stripe no recibe nada suyo.
+- No se le puede cambiar la contraseña, el correo ni activar la verificación en dos pasos desde la aplicación (la comparten varias personas). «He olvidado mi contraseña» con su correo responde lo mismo que con un correo sin cuenta y no crea ningún enlace; un enlace de restablecimiento no le vale. En la administración, «Cambiar contraseña», «Generar enlace», registrar pagos, ampliar la prueba, cambiar el plan y eliminar la cuenta responden 409: la contraseña solo viene de `DEMO_PASSWORD`.
+- No envía ningún correo: las invitaciones a test crean el enlace pero no lo mandan, el recordatorio y el reenvío no envían, y lo que se mande desde el formulario de contacto con su sesión no se guarda. No llega nada a HubSpot ni a `AVISOS_EMAIL`.
+- Admite varias sesiones a la vez (dos personas presentando). Sin segundo factor.
+- No cuenta como cliente: fuera de las cuotas al mes, los recuentos y el uso del gestor de usuarios, de la revisión del sistema (sale una línea informativa) y de la actualización automática del análisis de mercado. En la tabla de usuarios aparece con la insignia «Demostración», sin cuota; en el CSV va marcada en la columna `demo` y con la cuota a 0.
+- En la aplicación se ve un aviso pequeño: «Cuenta de demostración. No introduzca datos reales: se restablece cada noche.» (en la cabecera si cabe; se puede ocultar en la pestaña y siempre está en el menú de la cuenta).
+- Vista de Grupos: con `DEMO_PLAN` Consultora o Grupos, el menú de la cuenta ofrece «Enseñar la vista Grupos: grupo empresarial y consolidado» (y la vuelta a Consultora). Cada vista tiene sus datos de partida (un grupo con una holding y tres filiales, con operaciones dentro del grupo), así que cambiar de vista restablece la demostración; no toca ningún cobro. El paseo virtual y «Enseñarla como el plan…» de la empresa modelo no abren la vista de grupo: solo cambian los mundos de la empresa modelo, que nunca entra en el consolidado.
+
+**Datos de partida y restablecimiento.** La semilla está en `server/demo-semilla.json` (se genera con `node server/generar-semilla-demo.mjs`): en Consultora, el despacho del consultor y seis empresas cliente ficticias (nombres inventados que no aparecen en ningún documento del repositorio, sin NIF), cada una con cinco años de cuentas, su proyecto de inversión en el simulador y, para la cartera operativa, su punto en la auditoría, próximas sesiones y tareas (las fechas son relativas al día del restablecimiento). La empresa modelo (Valdenorte) sigue como siempre en cada navegador.
+- Cada noche a `DEMO_HORA` se borra todo lo que se haya escrito (empresas, mundos, análisis de mercado, invitaciones y respuestas) y vuelve la semilla del plan de `DEMO_PLAN`. Si la demostración se ha usado en los últimos 30 minutos, se aplaza de 30 en 30 minutos, como mucho hasta `DEMO_HORA_LIMITE`.
+- Cada navegador borra su copia local (empresa modelo, copias de los mundos, cambios pendientes, conversación del asistente) la primera vez que entra después de un restablecimiento.
+- A mano: gestor de usuarios → ficha de la demostración → «Restablecer la demostración». Si hay una sesión abierta o un uso en la última media hora, avisa y pide escribir RESTABLECER.
+- El gasto de IA del día no se pone a cero al restablecer.
+
+**Coste de la IA (supuestos del tope en euros).** El coste de cada consulta se calcula con el uso de tokens que devuelve la API: entrada a 4 $ por millón de tokens (la de caché, leída o escrita, se cuenta igual, por prudencia), salida a 20 $ por millón y búsquedas web a 10 $ cada mil; se divide entre `EUR_USD`. Si la respuesta no trae el uso, se estima a lo alto: un token por cada 3 caracteres enviados más la salida máxima pedida (16.000 tokens = 0,32 $) y las búsquedas que permita la herramienta. Orientativamente, una pregunta al asistente con el contexto de la página (unos 20.000 tokens de entrada y 600 de salida) cuesta unos 0,09 $ (0,08 €), y una actualización del agente de mercado (dos peticiones con hasta 16 búsquedas) entre 0,30 y 0,60 $. Con 1,5 € al día caben unas 15-20 preguntas al asistente. Al llegar al tope, la aplicación dice: «Por hoy se ha alcanzado el uso de IA previsto para la demostración. Vuelve a estar disponible mañana.» El gasto del día se ve en la ficha de la demostración.
+
+**Comprobación**
+- [ ] `DEMO_PASSWORD` puesta como secreta en Coolify; tras desplegar, la consola dice «Cuenta de demostración creada: demo@businessavance.es».
+- [ ] Entrar con ella en `/acceso.html`: aviso de demostración, cartera con seis empresas cliente y ninguna petición de tarjeta.
+- [ ] En el gestor de usuarios sale con la insignia «Demostración» y no suma en «Cuotas al mes».
+- Pruebas: `prueba-demo.mjs` (servidor, con Stripe, SMTP, HubSpot y Anthropic falsos) y `ui-demo.js` (navegador, 1440 y 390 px).
 
 ## 6. Otros
 
