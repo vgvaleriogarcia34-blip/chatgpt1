@@ -58,6 +58,10 @@
       <label for="upEmail">Correo electrónico<input class="input" id="upEmail" type="email" autocomplete="email" required aria-describedby="upEmailErr"><small class="fld-err" id="upEmailErr" hidden></small></label>
       <label for="upTel">Teléfono (opcional)<input class="input" id="upTel" type="tel" autocomplete="tel" aria-describedby="upTelErr"><small class="fld-err" id="upTelErr" hidden></small></label>
       <label for="upPass">Contraseña (mínimo 8 caracteres)<input class="input" id="upPass" type="password" autocomplete="new-password" minlength="8" required aria-describedby="upPassErr"><small class="fld-err" id="upPassErr" hidden></small></label>
+      <div class="up-cod" id="upCodBox" hidden>
+        <button type="button" class="up-cod-t" id="upCodT" aria-expanded="false" aria-controls="upCodL">¿Tiene un código de prueba?</button>
+        <label for="upCod" id="upCodL" hidden>Código de prueba<input class="input mono" id="upCod" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" placeholder="ATALAYA-XXXX-XXXX" aria-describedby="upCodErr upCodNota"><small class="fld-err" id="upCodErr" hidden></small><small class="muted" id="upCodNota">Con un código válido no le pedimos tarjeta durante la prueba: el plan y los días los fija el código.</small></label>
+      </div>
       <div class="periodpick seg" id="perPick" role="group" aria-label="Forma de pago"><button type="button" data-per="mensual" aria-pressed="true">Pago mensual</button><button type="button" data-per="anual" aria-pressed="false">Pago anual <b>−30 %</b></button></div>
       <div class="planpick" id="planPick" role="radiogroup" aria-label="Plan"></div>
       <p class="small muted" id="planNote" style="margin:0"></p>
@@ -95,6 +99,8 @@
   // Enlace de recuperación: se lee el código y se quita de la barra de direcciones
   const resetToken = (h.match(/^reset=([a-f0-9]{20,})$/) || [])[1];
   if (resetToken) { h = ''; try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ } }
+  // Código de prueba en el enlace (acceso.html?codigo=…): abre el alta con el código escrito
+  const codigoUrl = (new URLSearchParams(location.search).get('codigo') || '').trim().slice(0, 40);
   const planSel = (h.match(/^alta-(esencial|profesional|consultora|grupos)/) || [])[1] || 'profesional';
   const planIni = planSel === 'grupos' ? 'profesional' : planSel;
   // Sectores de la ficha de la empresa (los mismos que en el simulador)
@@ -112,6 +118,9 @@
     const k = (document.querySelector('input[name="plan"]:checked') || {}).value || 'profesional', pr = P.precio(k, periodo, 1), pl = P.PLANES[k];
     $('#planNote').innerHTML = `${(pl.para || '').replace(/\btu\b/g, 'su')}${periodo === 'anual' ? ` · se paga el año: ${P.eur(pr.total)}, ahorra ${P.eur(pr.ahorro)}` : ''}${pl.clientes ? ` · por tramos de empresas cliente: ${pl.tramos.map((t) => `${t.n.toLowerCase()}, ${P.eur(P.cuota(P.precio(k, periodo, t.hasta)).importe)}${P.cuota(P.precio(k, periodo, t.hasta)).unidad}`).join('; ')} (su propia empresa no cuenta)` : ''}. Precios sin IVA (21 %). ${conTarjeta(k) ? 'Los 14 días de prueba no se cobran: el primer cargo en la tarjeta es el día 15, salvo que cancele antes.' : 'Los 14 días de prueba son gratuitos en todos los planes.'}`;
     // Sin pago en línea para el plan elegido (o sin servidor), la prueba sigue sin tarjeta
+    const cod = $('#upCod').value.trim();
+    $('#planPick').hidden = !!cod; $('#grpNote') && ($('#grpNote').hidden = !!cod);
+    if (cod) { $('#planNote').textContent = 'El plan y los días de prueba los fija su código. Precios sin IVA (21 %).'; $('#upLede').textContent = 'Prueba con todas las funciones del plan de su código. Mientras dure, no le pedimos tarjeta.'; document.querySelectorAll('input[name="plan"]').forEach((r) => r.onchange = drawPlans); return; }
     $('#upLede').textContent = conTarjeta(k) ? '14 días con todas las funciones de su plan. Le pediremos una tarjeta en nuestra pasarela de pago segura: no se cobra nada hasta el día 15 y puede cancelar antes sin coste.' : '14 días con todas las funciones de su plan. Sin tarjeta.';
     document.querySelectorAll('input[name="plan"]').forEach((r) => r.onchange = drawPlans);
   };
@@ -121,12 +130,17 @@
   $('#planPick').insertAdjacentHTML('afterend', '<p class="small muted" id="grpNote">¿Holding o grupo familiar? El plan Grupos se prepara a medida. <button type="button" class="btn ghost small" id="grpCont">Contactar con nuestro equipo</button></p>');
   $('#grpCont').onclick = () => P.formContacto({ plan: 'grupos', origen: 'alta' });
   if (planSel === 'grupos') setTimeout(() => P.formContacto({ plan: 'grupos', origen: 'alta' }), 300);
+  // Campo del código de prueba (solo con el servidor): discreto, se abre al pulsar o con el código en el enlace
+  const abrirCodigo = () => { $('#upCodL').hidden = false; $('#upCodT').setAttribute('aria-expanded', 'true'); };
+  $('#upCodT').onclick = () => { const abierto = !$('#upCodL').hidden; if (abierto && !$('#upCod').value.trim()) { $('#upCodL').hidden = true; $('#upCodT').setAttribute('aria-expanded', 'false'); } else { abrirCodigo(); $('#upCod').focus(); } };
+  $('#upCod').addEventListener('input', () => { marcar('#upCod', ''); drawPlans(); });
+  if (codigoUrl) { $('#upCod').value = codigoUrl.toUpperCase(); abrirCodigo(); $('#upCodBox').hidden = false; drawPlans(); }
   if (resetToken) show('reset');
-  else if (h.startsWith('alta')) show('up');
+  else if (h.startsWith('alta') || codigoUrl) show('up');
   addEventListener('hashchange', () => { if (location.hash.startsWith('#reset=')) location.reload(); else if (location.hash.startsWith('#alta')) show('up'); });
 
   P.ready.then(async (mode) => {
-    listo = true; drawPlans();
+    listo = true; $('#upCodBox').hidden = mode !== 'server' && !codigoUrl; drawPlans();
     if (mode === 'local') $('#notice').innerHTML = '<div class="alert info">Modo demostración: no hay servidor conectado, así que las cuentas se guardan solo en este navegador.</div>';
     if (resetToken) return;
     const u = await P.me();
@@ -200,7 +214,7 @@
     if (primero) { $('#upMsg').textContent = ''; primero.focus(); return; }
     $('#upMsg').textContent = 'Creando su cuenta…';
     try {
-      const u = await P.register({ nombre: $('#upName').value.trim(), empresa: $('#upCo').value.trim(), email: $('#upEmail').value.trim(), telefono: $('#upTel').value.trim(), password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value, periodo });
+      const u = await P.register({ nombre: $('#upName').value.trim(), empresa: $('#upCo').value.trim(), email: $('#upEmail').value.trim(), telefono: $('#upTel').value.trim(), password: $('#upPass').value, plan: (document.querySelector('input[name="plan"]:checked') || {}).value, periodo, codigo: $('#upCod').value.trim() || undefined });
       const ficha = { nombre: $('#upCo').value.trim(), sector: $('#upSector').value };
       // Con pago en línea para su plan, la prueba empieza al añadir la tarjeta: directo al Checkout. El nombre y el sector de la
       // empresa se guardan en este navegador y se aplican a la ficha al volver.
@@ -214,7 +228,10 @@
       // El nombre y el sector van a la ficha de la empresa principal
       try { await P.fichaInicial(ficha); } catch (x) { /* se completa en la ficha */ }
       location.href = 'portal.html';
-    } catch (err) { $('#upMsg').textContent = /correo/i.test(err.message) && /cuenta/i.test(err.message) ? 'Ya hay una cuenta con ese correo. Entre con su contraseña o recupérela.' : err.message; if (/correo/i.test(err.message)) marcar('#upEmail', err.message); }
+    } catch (err) {
+      // Código de prueba no válido: el aviso va debajo del campo (el mismo para cualquier motivo)
+      if ((err.body && err.body.codigo) || (err.status === 429 && $('#upCod').value.trim())) { $('#upMsg').textContent = ''; marcar('#upCod', err.message); $('#upCod').focus(); return; }
+      $('#upMsg').textContent = /correo/i.test(err.message) && /cuenta/i.test(err.message) ? 'Ya hay una cuenta con ese correo. Entre con su contraseña o recupérela.' : err.message; if (/correo/i.test(err.message)) marcar('#upEmail', err.message); }
   };
 })();
 </script>

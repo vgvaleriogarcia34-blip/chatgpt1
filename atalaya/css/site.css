@@ -421,3 +421,23 @@ input.vl-in { display: inline-block; width: 7.5em; padding: 2px 8px; height: aut
   .admin-main table.rev-tabla td { border: 0; padding: 0; }
   .admin-main table.rev-tabla td:nth-child(3), .admin-main table.rev-tabla td:nth-child(4) { grid-column: 1 / -1; }
 }
+/* Códigos de prueba (administración): formulario en rejilla y tabla que en móvil pasa a fichas */
+.cod-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 12px; align-items: end; }
+.cod-form label { display: grid; gap: 4px; min-width: 0; }
+.cod-form .cod-codigo { grid-column: span 2; }
+.cod-form .cod-nota { grid-column: span 2; }
+.cod-form .cod-fila { gap: 6px; flex-wrap: nowrap; }
+.cod-form .cod-fila .input { flex: 1; min-width: 0; letter-spacing: .05em; text-transform: uppercase; }
+.cod-form .cod-acc { grid-column: 1 / -1; flex-wrap: wrap; gap: 10px; }
+.admin-main table.cod-tabla td, .admin-main table.cod-tabla th { text-align: left; white-space: normal; vertical-align: top; }
+.admin-main table.cod-tabla td.cod-c { font-family: var(--font-data); white-space: nowrap; letter-spacing: .03em; }
+.cod-tabla ul { margin: 0; padding-left: 16px; }
+.cod-tabla .uactions { justify-content: flex-start; }
+.state.cod-badge { font-family: var(--font-data); letter-spacing: .02em; }
+@media (max-width: 640px) {
+  .cod-form .cod-codigo, .cod-form .cod-nota { grid-column: 1 / -1; }
+  .admin-main table.cod-tabla thead { display: none; }
+  .admin-main table.cod-tabla tr { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line, rgba(255,255,255,.1)); }
+  .admin-main table.cod-tabla td { border: 0; padding: 0; }
+  .admin-main table.cod-tabla td[data-l]::before { content: attr(data-l) ": "; color: var(--muted); font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.04em; }
+}

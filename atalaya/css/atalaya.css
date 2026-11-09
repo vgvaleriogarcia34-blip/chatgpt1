@@ -1083,6 +1083,13 @@ body.arch-on .ar-cab + .tb-main { margin-top: 18px; }
 .input[aria-invalid="true"], input[type="checkbox"][aria-invalid="true"] { border-color: var(--stop); outline-color: var(--stop); }
 .up-ok { display: grid; gap: 4px; }
 .up-ok a, .up-priv a { color: var(--gold-soft); }
+/* Código de prueba: un enlace discreto que abre el campo */
+.up-cod { display: grid; gap: 6px; }
+.up-cod-t { justify-self: start; background: none; border: 0; padding: 2px 0; color: var(--gold-soft); font: inherit; font-size: var(--t-xs); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.up-cod-t:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.up-cod label { display: grid; gap: 4px; }
+.up-cod .input { letter-spacing: .06em; text-transform: uppercase; }
+.up-cod small.muted { font-size: var(--t-xs); }
 
 /* ---------- Cabecera compacta en móvil (≤ 560 px) ----------
    Se quedan la marca, la empresa (recortada con puntos suspensivos) y el botón de la cuenta; los accesos secundarios

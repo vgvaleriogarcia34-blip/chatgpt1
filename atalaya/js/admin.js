@@ -18,7 +18,8 @@
   function accesoDe(u) {
     const a = P.accessOf(u), fin = Date.parse(u.pruebaHasta);
     // Prueba con tarjeta en Stripe o pendiente de añadirla: manda lo que diga P.accessOf
-    if (a.motivo === 'tarjeta' || (u.stripeSuscripcion && !u.pagado)) return a;
+    // Prueba con código: su fecha (venceAcceso o la ampliación) ya la tiene en cuenta P.accessOf
+    if (a.motivo === 'tarjeta' || (u.stripeSuscripcion && !u.pagado) || u.pruebaCodigo) return a;
     if (!u.pagado && u.estado !== 'bloqueado' && fin > Date.now() && (a.motivo !== 'prueba' || fin > Date.parse(u.alta) + P.PRUEBA_DIAS * 864e5)) return { ok: true, motivo: 'prueba', diasPrueba: Math.ceil((fin - Date.now()) / 864e5) };
     return a;
   }
@@ -28,7 +29,9 @@
     if (u.estado === 'bloqueado') return { k: 'bloqueado', t: 'Bloqueado', st: 'stop' };
     const acc = accesoDe(u);
     if (acc.motivo === 'pagado') return { k: 'activo', t: u.pagoFallido ? 'Pagando · cobro fallido' : 'Pagando', st: u.pagoFallido ? 'warn' : 'ok' };
-    if (acc.motivo === 'prueba') return { k: 'prueba', t: `Prueba${acc.conTarjeta ? ' con tarjeta' : ''} · ${acc.diasPrueba} d`, st: 'warn' };
+    if (acc.motivo === 'prueba') return { k: 'prueba', t: `Prueba${acc.conTarjeta ? ' con tarjeta' : acc.codigo ? ' con código' : ''} · ${acc.diasPrueba} d`, st: 'warn' };
+    // Prueba con código terminada: se le pide la tarjeta para seguir pagando (no es una prueba en curso)
+    if (acc.motivo === 'tarjeta' && acc.codigo) return { k: 'vencido', t: 'Prueba con código terminada · falta la tarjeta', st: 'stop' };
     if (acc.motivo === 'tarjeta') return { k: 'prueba', t: `Prueba · falta la tarjeta · ${acc.diasPrueba} d`, st: 'warn' };
     return { k: 'vencido', t: u.pagado ? 'Plan vencido' : 'Prueba terminada', st: 'stop' };
   }
@@ -37,7 +40,7 @@
     try { contactos = await P.admin.contactos(); } catch (e) { contactos = []; }
     try { users = await P.admin.list(); } catch (e) { if (/administraci/i.test(e.message)) return gate(); $('#utable').innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; return; }
     render();
-    if (SRV()) cargarActividad();
+    if (SRV()) { cargarActividad(); cargarCodigos(); }
   }
   function render() {
     const now = Date.now();
@@ -104,12 +107,12 @@
     const q = ($('#q').value || '').toLowerCase(), fe = $('#fEstado').value;
     const rows = est.filter((x) => (!q || `${x.u.nombre} ${x.u.email} ${x.u.empresa}`.toLowerCase().includes(q)) && (!fe || x.e.k === fe));
     $('#utable').innerHTML = rows.length ? `<table><thead><tr><th>Usuario</th><th>Empresa</th><th>Plan</th><th>Pago</th><th>Empresas</th><th>Cuota</th><th>Estado</th><th>Vence</th><th>Alta</th><th>Último acceso</th><th>Uso 7 d</th><th>Uso 30 d</th><th>Uso total</th><th>Sesiones</th><th></th></tr></thead><tbody>` +
-      rows.map(({ u, e }) => `<tr data-id="${u.id}"><td><b>${esc(u.nombre || '—')}</b>${u.demo ? ' <span class="state st-info" title="Cuenta para presentaciones comerciales: no cuenta en las cifras y se restablece cada noche">Demostración</span>' : ''}<br><span class="muted">${esc(u.email)}</span>${u.dosPasos ? ' <span class="muted" title="Segundo factor activado">· 2FA</span>' : ''}</td><td>${esc(u.empresa || '—')}</td>
+      rows.map(({ u, e }) => `<tr data-id="${u.id}"><td><b>${esc(u.nombre || '—')}</b>${u.demo ? ' <span class="state st-info" title="Cuenta para presentaciones comerciales: no cuenta en las cifras y se restablece cada noche">Demostración</span>' : ''}<br><span class="muted">${esc(u.email)}</span>${badgeCodigo(u)}${u.dosPasos ? ' <span class="muted" title="Segundo factor activado">· 2FA</span>' : ''}</td><td>${esc(u.empresa || '—')}</td>
         <td><select data-plan aria-label="Plan" ${u.demo ? 'disabled title="Lo fija DEMO_PLAN en el servidor"' : ''}>${Object.keys(P.PLANES).map((k) => `<option value="${k}" ${k === u.plan ? 'selected' : ''}>${P.PLANES[k].nombre}</option>`).join('')}</select>${u.planPendiente ? `<br><span class="muted">${u.planPendiente.tramo && u.planPendiente.plan === u.plan ? 'tramo pendiente: ' + esc(((P.tramoDe(u.plan, u.planPendiente.tramo) || {}).n || '').toLowerCase()) : 'pide ' + esc(planN(u.planPendiente.plan))}</span>` : ''}</td>
         <td><select data-per aria-label="Periodo de pago" ${u.demo ? 'disabled' : ''}><option value="mensual" ${u.periodo !== 'anual' ? 'selected' : ''}>Mensual</option><option value="anual" ${u.periodo === 'anual' ? 'selected' : ''}>Anual −30 %</option></select></td>
         <td>${(P.PLANES[u.plan] || {}).clientes ? `${P.nCuenta(u.plan, u.empresas || 1)} / ${P.PLANES[u.plan].empresas}<br><span class="muted">clientes y la suya</span>` : `${u.empresas || 1}${isFinite((P.PLANES[u.plan] || {}).empresas) ? ' / ' + P.PLANES[u.plan].empresas : ''}`}</td>
         <td>${u.demo ? '<span class="muted">sin cuota</span>' : (() => { const pr = P.precio(u.plan, u.periodo, P.nPrecio(u, u.empresas), u.cuotaPactada); return pr.pactada ? `${P.eur(pr.mes)}/mes<br><span class="muted">pactada${pr.periodo === 'anual' ? ' · anual' : ''}</span>` : pr.periodo === 'anual' ? `${P.eur(pr.total)}/año<br><span class="muted">anual, −30 %</span>` : `${P.eur(pr.mes)}/mes`; })()}</td>
-        <td><span class="state st-${e.st}">${e.t}</span></td><td>${u.pagado ? fdate(u.venceAcceso) : u.pruebaHasta ? `<span class="muted">prueba hasta</span><br>${fdate(u.pruebaHasta)}` : '—'}</td><td>${fdate(u.alta)}</td><td>${fdate(u.ultimoAcceso)}</td>
+        <td><span class="state st-${e.st}">${e.t}</span></td><td>${u.pagado ? fdate(u.venceAcceso) : u.pruebaCodigo ? `<span class="muted">prueba hasta</span><br>${fdate(finCodigo(u))}` : u.pruebaHasta ? `<span class="muted">prueba hasta</span><br>${fdate(u.pruebaHasta)}` : '—'}</td><td>${fdate(u.alta)}</td><td>${fdate(u.ultimoAcceso)}</td>
         <td>${hm(P.usageMinutes(u, 7))}</td><td>${hm(P.usageMinutes(u, 30))}</td><td>${hm(P.usageMinutes(u))}</td><td>${u.sesiones || 0}</td>
         <td><div class="uactions">${u.demo ? '' : '<button class="btn" data-pay>Registrar pago</button>'}${u.estado === 'bloqueado' ? '<button class="btn ghost" data-unblock>Desbloquear</button>' : '<button class="btn ghost" data-block>Bloquear</button>'}${u.demo ? '' : '<button class="btn ghost" data-pwrow>Contraseña</button>'}<button class="btn ghost" data-more>Ficha</button></div></td></tr>`).join('') + '</tbody></table>'
       : '<p class="muted">No hay usuarios con ese filtro.</p>';
@@ -215,9 +218,10 @@
     };
   }
   function ampliarPrueba(u) {
-    const fin = Math.max(Date.now(), new Date(u.alta).getTime() + P.PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
+    // Con código, la prueba termina en su venceAcceso (o en la ampliación); sin código, a los PRUEBA_DIAS del alta
+    const fin = Math.max(Date.now(), u.pruebaCodigo ? Date.parse(u.venceAcceso) || 0 : new Date(u.alta).getTime() + P.PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
     const el = openModal(`<div class="eyebrow">Ampliar la prueba</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
-      <p class="small muted">${fin > Date.now() + 864e5 ? `La prueba termina el ${fdate(fin)}.` : 'La prueba ya ha terminado: se amplía desde hoy.'} Sus datos se conservan.</p>
+      <p class="small muted">${fin > Date.now() + 864e5 ? `La prueba termina el ${fdate(fin)}.` : 'La prueba ya ha terminado: se amplía desde hoy.'} Sus datos se conservan.${u.pruebaCodigo ? ` Es una prueba con el código ${esc(u.pruebaCodigo.codigo)}: sigue sin tarjeta hasta la nueva fecha y no gasta otro uso del código.` : ''}</p>
       <form class="stack mt" id="apF"><label class="small">Días más<select class="input" id="apD"><option>7</option><option selected>14</option><option>30</option></select></label><p class="small" id="apV"></p>
       <button class="btn solid">Ampliar</button><p class="small" id="apM"></p></form>`);
     const ver = () => { $('#apV', el).textContent = `Nueva fecha de fin: ${fdate(fin + +$('#apD', el).value * 864e5)}.`; };
@@ -231,6 +235,7 @@
     const pagos = (u.pagos || []).slice().reverse();
     const el = openModal(`<div class="eyebrow">Ficha de usuario</div><h2 style="font-size:1.6rem">${esc(u.nombre || u.email)}</h2>
       <div class="mgrid mt"><div><span>Correo</span><b style="font-size:.85rem">${esc(u.email)}</b></div><div><span>Teléfono</span><b>${esc(u.telefono || '—')}</b></div><div><span>Empresa</span><b>${esc(u.empresa || '—')}</b></div><div><span>Estado</span><b>${estadoDe(u).t}</b></div></div>
+      ${u.pruebaCodigo ? `<p class="small mt">${badgeCodigo(u)} Alta con el código de prueba <b class="mono">${esc(u.pruebaCodigo.codigo)}</b> (${esc(u.pruebaCodigo.dias)} días, sin tarjeta). ${u.pagado || (u.pagos || []).some((p) => !p.anulado) ? 'Ya paga.' : `La prueba ${finCodigo(u) > Date.now() ? 'termina' : 'terminó'} el ${fdate(finCodigo(u))}; al terminar se le pide la tarjeta y paga sin otro periodo de prueba.`}</p>` : ''}
       ${u.stripeCliente ? `<p class="small muted mt">Stripe: cliente ${esc(u.stripeCliente)}${u.stripeSuscripcion ? ' · suscripción ' + esc(u.stripeSuscripcion) : ''}${u.stripeEstado ? ' · ' + esc(u.stripeEstado) : ''}${u.stripeCancelaAlFinal ? ' · se cancela al final del periodo' : ''}.</p>` : ''}
       ${(P.PLANES[u.plan] || {}).clientes ? `<p class="small muted mt">Consultora: ${P.nCuenta(u.plan, u.empresas || 1)} empresas cliente (la suya no cuenta) · tramo ${u.pagado && u.tramo ? 'facturado' : 'actual'}: ${esc(((P.tramoDe(u.plan, P.nPrecio(u, u.empresas)) || {}).n || '').toLowerCase())}${u.pagado && u.tramo && P.tramoDe(u.plan, P.nCuenta(u.plan, u.empresas || 1)) !== P.tramoDe(u.plan, u.tramo) ? ` (por sus empresas le toca ${esc(P.tramoDe(u.plan, P.nCuenta(u.plan, u.empresas || 1)).n.toLowerCase())}; ${P.tramoDe(u.plan, P.nCuenta(u.plan, u.empresas || 1)).hasta < u.tramo ? 'la bajada se aplica en la siguiente renovación' : 'la subida está pendiente de confirmar'})` : ''}.</p>` : ''}
       ${Array.isArray(u.iaEmpresas) ? `<h4 class="mt">IA por empresa este mes</h4>
@@ -417,15 +422,74 @@
   }
   const hoy = () => new Date().toISOString().slice(0, 10);
   function csv() {
-    const head = ['nombre', 'email', 'empresa', 'telefono', 'demo', 'plan', 'periodo', 'empresas', 'cuota_mes', 'estado', 'pagado', 'vence', 'prueba_hasta', 'alta', 'ultimo_acceso', 'uso_7d_min', 'uso_30d_min', 'uso_total_min', 'sesiones', 'pagos', 'cobrado_total', 'nota'];
+    const head = ['nombre', 'email', 'empresa', 'telefono', 'demo', 'plan', 'periodo', 'empresas', 'cuota_mes', 'estado', 'pagado', 'vence', 'prueba_hasta', 'alta', 'ultimo_acceso', 'uso_7d_min', 'uso_30d_min', 'uso_total_min', 'sesiones', 'pagos', 'cobrado_total', 'codigo_prueba', 'nota'];
     // La cuenta de demostración va marcada («demo») y con la cuota a cero: no es un ingreso
-    const rows = users.map((u) => [u.nombre, u.email, u.empresa, u.telefono, u.demo ? 'demo' : '', u.plan, u.periodo || 'mensual', u.empresas || 1, u.demo ? 0 : P.precio(u.plan, u.periodo, P.nPrecio(u, u.empresas), u.cuotaPactada).mes, estadoDe(u).t, u.pagado ? 'sí' : 'no', u.venceAcceso || '', u.pruebaHasta || '', u.alta, u.ultimoAcceso, P.usageMinutes(u, 7), P.usageMinutes(u, 30), P.usageMinutes(u), u.sesiones || 0, (u.pagos || []).filter((p) => !p.anulado).length, Math.round((u.pagos || []).filter((p) => !p.anulado).reduce((a, p) => a + (+p.importe || 0), 0) * 100) / 100, u.nota || '']);
+    const rows = users.map((u) => [u.nombre, u.email, u.empresa, u.telefono, u.demo ? 'demo' : '', u.plan, u.periodo || 'mensual', u.empresas || 1, u.demo ? 0 : P.precio(u.plan, u.periodo, P.nPrecio(u, u.empresas), u.cuotaPactada).mes, estadoDe(u).t, u.pagado ? 'sí' : 'no', u.venceAcceso || '', u.pruebaHasta || '', u.alta, u.ultimoAcceso, P.usageMinutes(u, 7), P.usageMinutes(u, 30), P.usageMinutes(u), u.sesiones || 0, (u.pagos || []).filter((p) => !p.anulado).length, Math.round((u.pagos || []).filter((p) => !p.anulado).reduce((a, p) => a + (+p.importe || 0), 0) * 100) / 100, u.pruebaCodigo ? u.pruebaCodigo.codigo : '', u.nota || '']);
     descargar(`atalaya-usuarios-${hoy()}.csv`, aCsv([head].concat(rows)));
   }
 
+  /* ---------- Códigos de prueba ----------
+     Los crea solo la administración. El servidor guarda el código en claro, así se puede volver a copiar; el enlace
+     acceso.html?codigo=… abre el alta con el código escrito. Revocar no quita el acceso a las cuentas ya creadas. */
+  const ESTADO_COD = { activo: ['ok', 'Activo'], agotado: ['warn', 'Agotado'], caducado: ['nd', 'Caducado'], revocado: ['stop', 'Revocado'] };
+  const ESTADO_CTA = { paga: 'paga', prueba: 'en prueba', terminada: 'prueba terminada', bloqueada: 'bloqueada' };
+  const finCodigo = (u) => Math.max(Date.parse(u.venceAcceso) || 0, Date.parse(u.pruebaHasta) || 0);
+  function badgeCodigo(u) { return u.pruebaCodigo ? ` <span class="state st-info cod-badge" title="Alta con el código de prueba ${esc(u.pruebaCodigo.codigo)} (${esc(u.pruebaCodigo.dias)} días, sin tarjeta)">Código ${esc(u.pruebaCodigo.codigo)}</span>` : ''; }
+  const enlaceCodigo = (c) => location.href.replace(/[^/]*([?#].*)?$/, '') + 'acceso.html?codigo=' + encodeURIComponent(c);
+  const copiar = (texto, boton, hecho) => (navigator.clipboard ? navigator.clipboard.writeText(texto) : Promise.reject()).then(() => { const t = boton.textContent; boton.textContent = hecho; setTimeout(() => { boton.textContent = t; }, 2000); }, () => { window.prompt('Copie el texto:', texto); });
+  let codigos = [], codSugerido = '';
+  const isoDia = (ms) => new Date(ms).toISOString().slice(0, 10);
+  function prepararCodigos() {
+    $('#codPlan').innerHTML = Object.keys(P.PLANES).filter((k) => !P.PLANES[k].aMedida && k !== 'grupos').map((k) => `<option value="${k}" ${k === 'profesional' ? 'selected' : ''}>${esc(P.PLANES[k].nombre)}</option>`).join('');
+    $('#codCad').value = isoDia(Date.now() + 30 * 864e5); $('#codCad').min = isoDia(Date.now()); $('#codCad').max = isoDia(Date.now() + 365 * 864e5);
+    $('#codGen').onclick = async () => { try { const r = await api('/admin/codigos'); codSugerido = r.sugerido; $('#codC').value = r.sugerido; } catch (x) { msgEn($('#codMsg'), x.message); } };
+    $('#codF').onsubmit = async (e) => {
+      e.preventDefault(); const f = e.target, b = $('#codOk');
+      const dias = +f.dias.value, usos = +f.usosMax.value;
+      if (!(dias >= 1 && dias <= 60)) return msgEn($('#codMsg'), 'Indique entre 1 y 60 días de prueba.');
+      if (!(usos >= 1 && usos <= 1000)) return msgEn($('#codMsg'), 'Indique entre 1 y 1000 usos.');
+      b.disabled = true;
+      try {
+        const r = await api('/admin/codigos', 'POST', { codigo: f.codigo.value.trim(), plan: f.plan.value, dias, usosMax: usos, caduca: f.caduca.value, nota: f.nota.value.trim() });
+        msgEn($('#codMsg'), `Código ${r.codigo.codigo} creado. Copie el enlace en la lista y envíeselo al cliente.`, true);
+        f.nota.value = ''; f.dias.value = 14; f.usosMax.value = 1; f.codigo.value = '';
+        await cargarCodigos();
+      } catch (x) { msgEn($('#codMsg'), x.message); }
+      b.disabled = false;
+    };
+  }
+  async function cargarCodigos() {
+    let r; try { r = await api('/admin/codigos'); } catch (e) { $('#codTabla').innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; return; }
+    codigos = r.codigos || []; codSugerido = r.sugerido;
+    if (!$('#codC').value.trim()) $('#codC').value = codSugerido;
+    const activos = codigos.filter((c) => c.estado === 'activo').length, cuentas = codigos.reduce((a, c) => a + c.cuentas.length, 0), pagan = codigos.reduce((a, c) => a + c.pagan, 0);
+    $('#codCnt').textContent = codigos.length ? `${activos} ${activos === 1 ? 'activo' : 'activos'} de ${codigos.length} · ${cuentas} ${cuentas === 1 ? 'cuenta creada' : 'cuentas creadas'}, ${pagan} ${pagan === 1 ? 'paga' : 'pagan'}` : '';
+    $('#codTabla').innerHTML = codigos.length ? `<table class="cod-tabla"><thead><tr><th>Código</th><th>Plan y prueba</th><th>Usos</th><th>Caduca</th><th>Estado</th><th>Cuentas creadas</th><th>Pagan</th><th>Nota</th><th></th></tr></thead><tbody>${codigos.map((c) => `<tr data-cod="${esc(c.clave)}">
+        <td class="cod-c" data-l="Código">${esc(c.codigo)}</td>
+        <td data-l="Plan y prueba">${esc(planN(c.plan))} · ${c.dias} días</td>
+        <td data-l="Usos">${c.usos} de ${c.usosMax}</td>
+        <td data-l="Caduca">${fdate(c.caduca)}</td>
+        <td data-l="Estado"><span class="state st-${ESTADO_COD[c.estado][0]}"${c.revocado ? ` title="Revocado el ${esc(fdate(c.revocado))}"` : ''}>${ESTADO_COD[c.estado][1]}</span></td>
+        <td data-l="Cuentas creadas">${c.cuentas.length ? `<ul>${c.cuentas.map((x) => `<li><a href="#" data-cta="${esc(x.id)}">${esc(x.nombre || x.email)}</a> <span class="muted">· ${esc(ESTADO_CTA[x.estado] || x.estado)}</span></li>`).join('')}</ul>` : '<span class="muted">Ninguna</span>'}</td>
+        <td data-l="Pagan">${c.cuentas.length ? `${c.pagan} de ${c.cuentas.length}` : '—'}</td>
+        <td data-l="Nota">${esc(c.nota || '—')}</td>
+        <td><div class="uactions"><button class="btn ghost" data-cenl>Copiar enlace</button><button class="btn ghost" data-ccod>Copiar código</button>${c.estado === 'revocado' ? '' : '<button class="btn ghost" data-crev style="color:var(--stop)">Revocar</button>'}</div></td></tr>`).join('')}</tbody></table>`
+      : '<p class="small muted">Todavía no hay códigos de prueba.</p>';
+    $$('#codTabla tr[data-cod]').forEach((tr) => {
+      const c = codigos.find((x) => x.clave === tr.dataset.cod);
+      $('[data-cenl]', tr).onclick = (ev) => copiar(enlaceCodigo(c.codigo), ev.currentTarget, 'Enlace copiado');
+      $('[data-ccod]', tr).onclick = (ev) => copiar(c.codigo, ev.currentTarget, 'Código copiado');
+      const rv = $('[data-crev]', tr);
+      if (rv) rv.onclick = () => confirmar({ eyebrow: 'Revocar el código', titulo: c.codigo, peligro: true, boton: 'Revocar el código',
+        html: `<p class="small">Desde ahora nadie podrá darse de alta con este código. ${c.cuentas.length ? `Las ${c.cuentas.length === 1 ? 'cuenta ya creada sigue' : c.cuentas.length + ' cuentas ya creadas siguen'} con su prueba hasta la fecha de fin.` : 'No se ha creado ninguna cuenta con él.'} No se puede deshacer: si hace falta, cree otro código.</p>`,
+        hacer: (motivo) => api(`/admin/codigos/${encodeURIComponent(c.clave)}/revocar`, 'POST', motivo ? { motivo } : {}) });
+      $$('[data-cta]', tr).forEach((a) => a.onclick = (ev) => { ev.preventDefault(); ficha(users.find((u) => u.id === a.dataset.cta)); });
+    });
+  }
+
   /* ---------- Registro de actividad ---------- */
-  const ACCIONES = { 'cuenta.': 'Cuentas', 'plan.': 'Planes', 'pago.': 'Pagos', 'prueba.': 'Pruebas', 'solicitud.': 'Solicitudes', 'stripe.': 'Stripe', 'admin.': 'Accesos de administración', 'dospasos.': 'Segundo factor', 'demo.': 'Cuenta de demostración' };
-  const NOMBRE_ACC = { 'cuenta.alta': 'Alta (el cliente)', 'cuenta.crear': 'Cuenta creada', 'cuenta.modificar': 'Cuenta modificada', 'cuenta.bloquear': 'Bloqueo', 'cuenta.desbloquear': 'Desbloqueo', 'cuenta.borrar': 'Cuenta eliminada', 'cuenta.contrasena': 'Contraseña cambiada', 'cuenta.enlace-contrasena': 'Enlace de contraseña', 'plan.cambio': 'Cambio de plan', 'plan.solicitud': 'Pide cambio de plan', 'plan.conceder': 'Plan a medida concedido', 'pago.registrar': 'Pago registrado', 'pago.corregir': 'Pago corregido', 'pago.anular': 'Pago anulado', 'pago.solicitud': 'Pide activar', 'pago.checkout': 'Va a pagar con tarjeta', 'pago.stripe': 'Cobro de Stripe', 'pago.fallido': 'Cobro fallido', 'prueba.ampliar': 'Prueba ampliada', 'solicitud.cerrar': 'Solicitud cerrada', 'solicitud.reabrir': 'Solicitud reabierta', 'stripe.checkout': 'Pago con tarjeta completado', 'stripe.suscripcion': 'Suscripción actualizada', 'stripe.baja': 'Suscripción cancelada', 'stripe.prueba': 'Prueba con tarjeta empezada', 'stripe.finprueba': 'Aviso del final de la prueba', 'stripe.precio': 'Precio de Stripe cambiado en la prueba', 'admin.entrar': 'Entrada a la administración', 'admin.entrar.fallido': 'Código de segundo factor erróneo', 'admin.salir': 'Salida', 'admin.contrasena': 'Contraseña de administración cambiada', 'admin.configurar': 'Administración configurada', 'dospasos.activar': 'Segundo factor activado', 'dospasos.desactivar': 'Segundo factor desactivado', 'dospasos.recuperacion': 'Códigos de recuperación nuevos', 'dospasos.quitar': 'Segundo factor quitado', 'demo.crear': 'Demostración creada', 'demo.configurar': 'Demostración configurada', 'demo.desactivar': 'Demostración desactivada', 'demo.restablecer': 'Demostración restablecida' };
+  const ACCIONES = { 'cuenta.': 'Cuentas', 'plan.': 'Planes', 'pago.': 'Pagos', 'prueba.': 'Pruebas', 'solicitud.': 'Solicitudes', 'stripe.': 'Stripe', 'admin.': 'Accesos de administración', 'dospasos.': 'Segundo factor', 'demo.': 'Cuenta de demostración', 'codigo.': 'Códigos de prueba' };
+  const NOMBRE_ACC = { 'cuenta.alta': 'Alta (el cliente)', 'cuenta.crear': 'Cuenta creada', 'cuenta.modificar': 'Cuenta modificada', 'cuenta.bloquear': 'Bloqueo', 'cuenta.desbloquear': 'Desbloqueo', 'cuenta.borrar': 'Cuenta eliminada', 'cuenta.contrasena': 'Contraseña cambiada', 'cuenta.enlace-contrasena': 'Enlace de contraseña', 'plan.cambio': 'Cambio de plan', 'plan.solicitud': 'Pide cambio de plan', 'plan.conceder': 'Plan a medida concedido', 'pago.registrar': 'Pago registrado', 'pago.corregir': 'Pago corregido', 'pago.anular': 'Pago anulado', 'pago.solicitud': 'Pide activar', 'pago.checkout': 'Va a pagar con tarjeta', 'pago.stripe': 'Cobro de Stripe', 'pago.fallido': 'Cobro fallido', 'prueba.ampliar': 'Prueba ampliada', 'solicitud.cerrar': 'Solicitud cerrada', 'solicitud.reabrir': 'Solicitud reabierta', 'stripe.checkout': 'Pago con tarjeta completado', 'stripe.suscripcion': 'Suscripción actualizada', 'stripe.baja': 'Suscripción cancelada', 'stripe.prueba': 'Prueba con tarjeta empezada', 'stripe.finprueba': 'Aviso del final de la prueba', 'stripe.precio': 'Precio de Stripe cambiado en la prueba', 'admin.entrar': 'Entrada a la administración', 'admin.entrar.fallido': 'Código de segundo factor erróneo', 'admin.salir': 'Salida', 'admin.contrasena': 'Contraseña de administración cambiada', 'admin.configurar': 'Administración configurada', 'dospasos.activar': 'Segundo factor activado', 'dospasos.desactivar': 'Segundo factor desactivado', 'dospasos.recuperacion': 'Códigos de recuperación nuevos', 'dospasos.quitar': 'Segundo factor quitado', 'demo.crear': 'Demostración creada', 'demo.configurar': 'Demostración configurada', 'demo.desactivar': 'Demostración desactivada', 'demo.restablecer': 'Demostración restablecida', 'codigo.crear': 'Código de prueba creado', 'codigo.revocar': 'Código de prueba revocado', 'codigo.aviso': 'Aviso del final de la prueba con código' };
   const valor = (v) => (v == null ? '—' : typeof v === 'boolean' ? (v ? 'sí' : 'no') : typeof v === 'object' ? (v.importe != null ? `${v.importe} € · ${v.meses} m${v.referencia ? ' · ' + v.referencia : ''}${v.anulado ? ' · anulado' : ''}` : v.plan ? `${planN(v.plan)}${v.periodo ? ' · ' + v.periodo : ''}` : JSON.stringify(v)) : /^\d{4}-\d{2}-\d{2}T/.test(v) ? fdate(v) : String(v));
   const cambiosTxt = (a) => { const ks = Array.from(new Set(Object.keys(a.antes || {}).concat(Object.keys(a.despues || {})))); return ks.map((k) => `${k}: ${a.antes && k in a.antes ? valor(a.antes[k]) + ' → ' : ''}${valor((a.despues || {})[k])}`).join(' · '); };
   let actividad = [], actT = null;
@@ -526,12 +590,13 @@
       if (estado.stripe && !estado.stripe.webhook) avisos.push('Stripe está configurado sin STRIPE_WEBHOOK_SECRET: los pagos no activarán el acceso solos.');
       $('#modeNote').innerHTML = avisos.map((t) => `<div class="alert warn" style="margin-bottom:8px">${esc(t)}</div>`).join('') + `<p class="small muted" style="margin:0">${estado.nombre ? `Ha entrado como <b>${esc(estado.nombre)}</b>. ` : ''}Cobro: ${estado.stripe ? `Stripe (${estado.stripe.precios.length} precios)` : 'manual (enlaces de pago y «Registrar pago»)'} · Avisos al equipo por correo: ${estado.avisos ? 'sí' : 'no (AVISOS_EMAIL y SMTP)'}.</p>`;
     }
-    $('#actBox').hidden = !SRV(); $('#nuevo').hidden = !SRV(); $('#admSeg').hidden = !SRV();
+    $('#actBox').hidden = !SRV(); $('#nuevo').hidden = !SRV(); $('#admSeg').hidden = !SRV(); $('#codBox').hidden = !SRV();
     $('#revBox').hidden = !SRV(); if (SRV()) revisar();
     if (!wired) {
       wired = true;
       $('#q').addEventListener('input', render); $('#fEstado').addEventListener('change', render); $('#csv').onclick = csv;
       $('#nuevo').onclick = nuevoDialog;
+      if (SRV()) prepararCodigos();
       $('#admPw').onclick = adminPwDialog;
       $('#admSeg').onclick = seguridadDialog;
       $('#admOut').onclick = async () => { await P.adminAuth.logout(); gate(); };

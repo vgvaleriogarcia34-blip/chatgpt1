@@ -62,6 +62,8 @@ Las marcadas como secreto se crean en Coolify como «Secret» o «Locked» y se 
 
 Tres días antes del final de la prueba el servidor envía el recordatorio al cliente por correo y avisa a `AVISOS_EMAIL`: necesita `SMTP_*`. Detalle completo en `atalaya/PUESTA-EN-MARCHA.md`, apartado 5.1.
 
+**Códigos de prueba (sin tarjeta).** No hace falta ninguna variable en Coolify: los códigos se crean en el gestor de usuarios (`https://app.businessavance.es/admin.html`, caja «Códigos de prueba») y se guardan en la base del servidor, en el volumen de datos (entran en las copias). Quien se da de alta con un código prueba el plan y los días del código sin tarjeta; al terminar se le pide la tarjeta y paga sin otro periodo de prueba en Stripe. El recordatorio de tres días antes usa el mismo `SMTP_*`. Opcional: `CODIGOS_INTENTOS_HORA` (5), códigos erróneos admitidos por IP y hora. Detalle en `atalaya/PUESTA-EN-MARCHA.md`, apartado 5.2.
+
 **Cuenta de demostración.** La crea el servidor al arrancar con `DEMO_PASSWORD`: no hace falta entrar a la administración. Para crearla, genere la contraseña con `openssl rand -base64 18`, póngala en Coolify como variable secreta `DEMO_PASSWORD` y vuelva a desplegar; se entra en `https://app.businessavance.es/acceso.html` con `demo@businessavance.es`. Para cambiarla, ponga un valor nuevo y despliegue: se cierran todas las sesiones de la demostración. Para apagarla, borre la variable y despliegue (la cuenta se conserva desactivada). Sus datos vuelven cada noche a las 04:00 (hora de Madrid) a las empresas ficticias de partida. Detalle en `atalaya/PUESTA-EN-MARCHA.md`, apartado 5 ter.
 
 Para generar `ATALAYA_SECRETO`, en la terminal de Coolify o en cualquier ordenador:

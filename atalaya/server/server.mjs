@@ -107,7 +107,7 @@ const vacia = () => ({ users: [], sessions: {}, data: {}, mercado: {}, admin: nu
 // Completa lo que falte en una base cargada (de cualquier versión) y da identificador a contactos y pagos antiguos
 function normalizar(d) {
   d.users = Array.isArray(d.users) ? d.users : []; d.contactos = Array.isArray(d.contactos) ? d.contactos : [];
-  ['sessions', 'adminSessions', 'resets', 'invitaciones', 'lid360', 'stripeEventos', 'data', 'mercado'].forEach((k) => { if (!d[k] || typeof d[k] !== 'object') d[k] = {}; });
+  ['sessions', 'adminSessions', 'resets', 'invitaciones', 'lid360', 'stripeEventos', 'data', 'mercado', 'codigosPrueba'].forEach((k) => { if (!d[k] || typeof d[k] !== 'object') d[k] = {}; });
   d.contactos.forEach((c) => { if (!c.id) c.id = nid('c'); });
   d.users.forEach((u) => (u.pagos || []).forEach((p) => { if (!p.id) p.id = nid('p', 5); }));
   return d;
@@ -142,7 +142,7 @@ function cargarJson() {
 
 /* --- SQLite: esquema con migraciones numeradas (PRAGMA user_version) --- */
 const COLS = { // tabla → registros [clave, valor] de la base en memoria
-  meta: (d) => ['admin', 'adminEnv', 'adminTotp', 'admin2faReset', 'sesionesHash', 'hubspot'].filter((k) => d[k] != null).map((k) => [k, d[k]]),
+  meta: (d) => ['admin', 'adminEnv', 'adminTotp', 'admin2faReset', 'sesionesHash', 'hubspot', 'codigosPrueba'].filter((k) => d[k] != null).map((k) => [k, d[k]]),
   usuarios: (d) => d.users.map((u) => [u.id, u]),
   sesiones: (d) => Object.entries(d.sessions),
   sesiones_admin: (d) => Object.entries(d.adminSessions),
@@ -445,7 +445,7 @@ function ipDe(req) {
 
 /* ---------- Límites de intentos: un contador por ruta y por clave (IP, correo o cuenta) ---------- */
 const LIMITES = { // [máximo, minutos]
-  login_ip: [30, 15], login_email: [10, 15], login_demo: [num('DEMO_INTENTOS_HORA', 10), 60], login_demo_ip: [num('DEMO_INTENTOS_HORA', 10), 60], verificar: [10, 15], registro: [num('REGISTROS_HORA', 5), 60],
+  login_ip: [30, 15], login_email: [10, 15], login_demo: [num('DEMO_INTENTOS_HORA', 10), 60], login_demo_ip: [num('DEMO_INTENTOS_HORA', 10), 60], verificar: [10, 15], registro: [num('REGISTROS_HORA', 5), 60], codigo: [num('CODIGOS_INTENTOS_HORA', 5), 60],
   contacto: [6, 60], olvido_ip: [10, 60], olvido_email: [3, 60], restablecer: [20, 15], admin: [10, 15], test: [300, 15], dospasos: [10, 15],
   integracion: [num('INTEGRACION_MINUTO', 60), 1], integracion_fallo: [10, 15]
 };
@@ -683,7 +683,7 @@ function diferencias(antes, despues, campos) {
   campos.forEach((k) => { const x = antes[k] === undefined ? null : antes[k], y = despues[k] === undefined ? null : despues[k]; if (JSON.stringify(x) !== JSON.stringify(y)) { a[k] = x; d[k] = y; } });
   return Object.keys(a).length ? { antes: a, despues: d } : null;
 }
-const CAMPOS_CUENTA = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'estado', 'pagado', 'venceAcceso', 'pruebaHasta', 'planPendiente', 'cuotaPactada', 'tramo', 'iaEmpresaMes', 'nota', 'stripeFinPrueba'];
+const CAMPOS_CUENTA = ['nombre', 'email', 'empresa', 'telefono', 'plan', 'periodo', 'estado', 'pagado', 'venceAcceso', 'pruebaHasta', 'pruebaCodigo', 'planPendiente', 'cuotaPactada', 'tramo', 'iaEmpresaMes', 'nota', 'stripeFinPrueba'];
 const foto = (u) => JSON.parse(JSON.stringify(Object.fromEntries(CAMPOS_CUENTA.map((k) => [k, u[k]]))));
 
 /* ---------- Segundo factor (TOTP, RFC 6238) ----------
@@ -797,12 +797,18 @@ function clavePrecioDe(u, plan, periodo) {
    cuota pactada: siguen como antes. */
 // STRIPE_PRUEBA_TARJETA=0 vuelve a la prueba sin tarjeta (Stripe solo para pagar, sin periodo de prueba en el Checkout)
 const PRUEBA_TARJETA = env.STRIPE_PRUEBA_TARJETA !== '0';
-const finPruebaInterna = (u) => Math.max(Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
+// Prueba con código (u.pruebaCodigo): dura lo que dice el código (venceAcceso, fijado al darse de alta), o hasta «pruebaHasta» si la
+// administración la ha ampliado; las demás, PRUEBA_DIAS desde el alta o hasta «pruebaHasta»
+const finPruebaInterna = (u) => (u.pruebaCodigo
+  ? Math.max(Date.parse(u.venceAcceso) || 0, Date.parse(u.pruebaHasta) || 0)
+  : Math.max(Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0));
 const SUSCRIPCION_VIVA = ['active', 'trialing', 'past_due'];
 // Cuenta en la prueba interna, sin tarjeta, a la que se le pide el Checkout antes de seguir
 function pideTarjeta(u) {
   if (!STRIPE || !PRUEBA_TARJETA || !u || u.demo || u.estado === 'bloqueado' || u.pagado || u.stripeSuscripcion || (u.pagos || []).length || u.plan === 'grupos' || u.cuotaPactada > 0) return false;
-  if (!(finPruebaInterna(u) > Date.now())) return false;
+  // Prueba sin tarjeta: se pide mientras dura. Prueba con código: no se pide mientras dura; al terminar, sí (para seguir pagando)
+  const viva = finPruebaInterna(u) > Date.now();
+  if (u.pruebaCodigo ? viva : !viva) return false;
   return !!STRIPE_PRECIOS[clavePrecioDe(u, u.plan, u.periodo || 'mensual')];
 }
 /* Parámetros de la prueba en el Checkout (null si la cuenta no tiene derecho a ella). Regla de los días:
@@ -811,7 +817,8 @@ function pideTarjeta(u) {
    - menos de 48 horas (Stripe no admite un trial_end tan cercano): trial_period_days = los días que le quedan redondeados
      hacia arriba (1 o 2), es decir, como mucho unas horas de más y nunca de menos. */
 function pruebaCheckout(u, plan) {
-  if (!PRUEBA_TARJETA || u.pagado || (u.pagos || []).length || u.pruebaStripeUsada || u.stripeSuscripcion || plan === 'grupos' || u.cuotaPactada > 0) return null;
+  // Una cuenta que ya tuvo su prueba con un código paga sin otro periodo de prueba en Stripe
+  if (!PRUEBA_TARJETA || u.pagado || (u.pagos || []).length || u.pruebaStripeUsada || u.pruebaCodigo || u.stripeSuscripcion || plan === 'grupos' || u.cuotaPactada > 0) return null;
   const fin = finPruebaInterna(u), resto = fin - Date.now();
   if (!(resto > 0)) return null;
   if (Math.abs(resto - PRUEBA_DIAS * 864e5) <= 3600e3) return { 'subscription_data[trial_period_days]': String(PRUEBA_DIAS), fin: Date.now() + PRUEBA_DIAS * 864e5 };
@@ -1266,6 +1273,10 @@ route('POST', /^\/api\/register$/, async (req, res, body) => {
   if (!emailOk(email) || email.length > 160) throw fallo(400, 'Correo no válido');
   if (String(body.password || '').length < 8) throw fallo(400, 'La contraseña debe tener al menos 8 caracteres');
   if (db.users.some((u) => u.email === email)) throw fallo(409, 'Ya hay una cuenta con ese correo');
+  // Código de prueba (opcional; ver «Códigos de prueba»). Solo en el alta: nunca se aplica a una cuenta que ya existe. Si no vale,
+  // el mensaje es el mismo sea cual sea el motivo, y cada fallo cuenta para el límite por IP. Desde aquí hasta guardar la cuenta no
+  // hay ninguna espera: la comprobación y el uso del código son atómicos aunque lleguen varias altas a la vez.
+  const cod = String(body.codigo || '').trim() ? codigoParaAlta(String(body.codigo), ip) : null;
   anotar('registro', ip);
   const salt = crypto.randomBytes(16).toString('hex');
   const u = {
@@ -1274,10 +1285,13 @@ route('POST', /^\/api\/register$/, async (req, res, body) => {
     plan: PLANES_LIBRES.includes(body.plan) ? body.plan : 'profesional', periodo: PERIODOS.includes(body.periodo) ? body.periodo : 'mensual', rol: 'cliente',
     estado: 'prueba', pagado: false, venceAcceso: null, alta: now(), ultimoAcceso: now(), sesiones: 1, uso: {}, pagos: [], salt, hash: hashPw(String(body.password), salt)
   };
+  // Con código: el plan y los días son los del código, sin tarjeta mientras dure (ver pideTarjeta y pruebaCheckout)
+  if (cod) { cod.usos = (cod.usos || 0) + 1; Object.assign(u, { plan: cod.plan, venceAcceso: new Date(Date.now() + cod.dias * 864e5).toISOString(), pruebaCodigo: { codigo: cod.codigo, dias: cod.dias } }); }
   db.users.push(u); save(); startSession(res, u);
-  anotarActividad(req, 'cuenta.alta', u, { quien: 'cliente', despues: { plan: u.plan, periodo: u.periodo } });
-  avisarEquipo(`Nueva cuenta: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}>${u.empresa ? ' · ' + u.empresa : ''}${u.telefono ? ' · ' + u.telefono : ''}`, `Plan elegido: ${NOMBRE_PLAN[u.plan]} (${u.periodo}). Prueba de ${PRUEBA_DIAS} días.`]);
-  aHubspot({ clave: 'alta:' + u.id, origen: 'Atalaya · alta de cuenta', nombre: u.nombre, email: u.email, telefono: u.telefono, empresa: u.empresa, cuenta: u.id, mensaje: `Alta en Atalaya 360° con el plan ${NOMBRE_PLAN[u.plan]} (${u.periodo}). Prueba de ${PRUEBA_DIAS} días.` });
+  const pruebaTxt = cod ? `Prueba de ${cod.dias} días sin tarjeta con el código ${cod.codigo}.` : `Prueba de ${PRUEBA_DIAS} días.`;
+  anotarActividad(req, 'cuenta.alta', u, Object.assign({ quien: 'cliente', despues: Object.assign({ plan: u.plan, periodo: u.periodo }, cod ? { pruebaCodigo: u.pruebaCodigo, venceAcceso: u.venceAcceso } : {}) }, cod ? { nota: `Alta con el código de prueba ${cod.codigo}` } : {}));
+  avisarEquipo(`Nueva cuenta: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}>${u.empresa ? ' · ' + u.empresa : ''}${u.telefono ? ' · ' + u.telefono : ''}`, `Plan ${cod ? 'del código' : 'elegido'}: ${NOMBRE_PLAN[u.plan]} (${u.periodo}). ${pruebaTxt}${cod && cod.nota ? ` Nota del código: ${cod.nota}.` : ''}`]);
+  aHubspot({ clave: 'alta:' + u.id, origen: 'Atalaya · alta de cuenta', nombre: u.nombre, email: u.email, telefono: u.telefono, empresa: u.empresa, cuenta: u.id, mensaje: `Alta en Atalaya 360° con el plan ${NOMBRE_PLAN[u.plan]} (${u.periodo}). ${pruebaTxt}` });
   return { user: pub(u) };
 }, { public: true });
 
@@ -1512,11 +1526,13 @@ function revisionSistema() {
   if (!env.INTEGRACION_TOKEN) pon('aviso', 'Servicios', 'La integración con el asistente telefónico está apagada.', 'Ponga el mismo INTEGRACION_TOKEN aquí y en el asistente.');
 
   // Cuentas y tareas pendientes (solo recuentos). La cuenta de demostración no cuenta: no es un cliente
-  const us = db.users.filter((u) => !u.demo), porPlan = {}, est = { pagando: 0, prueba: 0, sinAcceso: 0, bloqueadas: 0 };
+  const us = db.users.filter((u) => !u.demo), porPlan = {}, est = { pagando: 0, prueba: 0, pruebaCodigo: 0, sinAcceso: 0, bloqueadas: 0 };
   us.forEach((u) => {
     porPlan[u.plan] = (porPlan[u.plan] || 0) + 1;
     const a = access(u);
-    if (u.estado === 'bloqueado') est.bloqueadas++; else if (a.motivo === 'pagado') est.pagando++; else if (a.motivo === 'prueba' || a.motivo === 'tarjeta') est.prueba++; else est.sinAcceso++;
+    // Con código: en prueba mientras dura (nunca como pago); terminada, sin acceso aunque se le pida la tarjeta
+    if (u.estado === 'bloqueado') est.bloqueadas++; else if (a.motivo === 'pagado') est.pagando++; else if (a.motivo === 'prueba' || (a.motivo === 'tarjeta' && !u.pruebaCodigo)) est.prueba++; else est.sinAcceso++;
+    if (u.pruebaCodigo && u.estado !== 'bloqueado' && a.motivo === 'prueba') est.pruebaCodigo++;
   });
   const fallidos = us.filter((u) => u.pagoFallido).length;
   const venceSemana = us.filter((u) => u.pagado && u.venceAcceso && Date.parse(u.venceAcceso) > Date.now() && Date.parse(u.venceAcceso) - Date.now() < 7 * 864e5).length;
@@ -1953,7 +1969,8 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/prueba$/, async (req, res, body, 
   noDemoAdmin(u);
   if (dias < 1 || dias > 90) throw fallo(400, 'Indique entre 1 y 90 días');
   if (u.pagado) throw fallo(409, 'Esta cuenta tiene el acceso pagado: amplíe su vencimiento registrando un pago o cambiando la fecha.');
-  const antes = foto(u), fin = Math.max(Date.now(), Date.parse(u.alta) + PRUEBA_DIAS * 864e5, Date.parse(u.pruebaHasta) || 0);
+  // Una prueba con código también se puede ampliar: sigue sin tarjeta hasta la nueva fecha y no gasta otro uso del código
+  const antes = foto(u), fin = Math.max(Date.now(), finPruebaInterna(u));
   // Prueba con tarjeta: se amplía en Stripe (el primer cobro se retrasa); su fecha es la que manda
   let nota = `${dias} días más`;
   if (u.stripeSuscripcion && u.stripeEstado === 'trialing') {
@@ -1966,6 +1983,100 @@ route('POST', /^\/api\/admin\/users\/([\w-]+)\/prueba$/, async (req, res, body, 
   anotarActividad(req, 'prueba.ampliar', u, Object.assign({ nota }, diferencias(antes, foto(u), CAMPOS_CUENTA) || {}));
   save(); return { user: pub(u) };
 }, { admin: true });
+/* ---------- Códigos de prueba ----------
+   Los crea solo la administración (gestor de usuarios, «Códigos de prueba»): plan (no Grupos), días de prueba (hasta
+   CODIGO_DIAS_MAX), usos máximos, fecha de caducidad del código y una nota interna. Quien se da de alta con un código válido
+   empieza la prueba de ese plan y esos días sin tarjeta: estado «prueba», venceAcceso = ahora + días y pruebaCodigo =
+   { codigo, dias }. Al terminar, el acceso pide la tarjeta («Añadir la tarjeta y seguir») y el Checkout es sin otro periodo de
+   prueba (pruebaCheckout). Los datos se conservan.
+   - El código se guarda en claro (la administración puede volver a copiarlo) en db.codigosPrueba, por su forma canónica
+     (mayúsculas, sin guiones ni espacios): «atalaya 7kq4 m2px» vale por «ATALAYA-7KQ4-M2PX». No guarda datos personales:
+     las cuentas creadas con él se sacan de las propias cuentas (u.pruebaCodigo).
+   - Solo en el alta (POST /api/register): un código nunca se aplica a una cuenta que ya existe.
+   - Revocar un código no quita el acceso a las cuentas ya creadas con él.
+   - «Ampliar prueba» del gestor también amplía una prueba con código (sin tarjeta y sin gastar otro uso del código).
+   - Tres días antes del final, un correo al cliente con la fecha y cómo seguir (si hay SMTP), una vez por fecha de fin. */
+const CODIGO_ALFABETO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // sin I, L, O, 0 ni 1, que se confunden al leerlos o dictarlos
+const CODIGO_DIAS_MAX = 60, CODIGO_USOS_MAX = 1000, CODIGO_CADUCA_MAX = 365;
+const MSG_CODIGO = 'El código de prueba no es válido o ya no está disponible. Revíselo o deje el campo en blanco para crear la cuenta con la prueba habitual.';
+const claveCodigo = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 40);
+const codigosPrueba = () => (db.codigosPrueba = db.codigosPrueba && typeof db.codigosPrueba === 'object' ? db.codigosPrueba : {});
+const codigoDe = (k) => (k && Object.prototype.hasOwnProperty.call(codigosPrueba(), k) ? codigosPrueba()[k] : null);
+function generarCodigo() {
+  const bloque = () => Array.from({ length: 4 }, () => CODIGO_ALFABETO[crypto.randomInt(CODIGO_ALFABETO.length)]).join('');
+  for (;;) { const c = `ATALAYA-${bloque()}-${bloque()}`; if (!codigoDe(claveCodigo(c))) return c; }
+}
+const estadoCodigo = (c) => (c.revocado ? 'revocado' : (c.usos || 0) >= c.usosMax ? 'agotado' : !(Date.parse(c.caduca) > Date.now()) ? 'caducado' : 'activo');
+// Código para un alta: el registro si vale; si no, un error con el mismo mensaje sea cual sea el motivo (y un fallo más para el límite)
+function codigoParaAlta(texto, ip) {
+  if (bloqueado('codigo', ip)) throw demasiados('Ha probado demasiados códigos de prueba. Inténtelo dentro de una hora o cree la cuenta sin código.');
+  const c = codigoDe(claveCodigo(texto));
+  if (!c || estadoCodigo(c) !== 'activo') { anotar('codigo', ip); throw fallo(400, MSG_CODIGO, { codigo: true }); }
+  return c;
+}
+// Cuenta que ha pagado (conversión de la prueba): acceso pagado o algún pago registrado
+const haPagado = (u) => !!u.pagado || (u.pagos || []).some((p) => !p.anulado);
+function codigoPub(k, c) {
+  const cuentas = db.users.filter((u) => !u.demo && u.pruebaCodigo && claveCodigo(u.pruebaCodigo.codigo) === k);
+  return {
+    clave: k, codigo: c.codigo, plan: c.plan, dias: c.dias, usosMax: c.usosMax, usos: c.usos || 0, caduca: c.caduca, nota: c.nota || '', creado: c.creado, revocado: c.revocado || null, estado: estadoCodigo(c),
+    cuentas: cuentas.map((u) => { const a = access(u); return { id: u.id, email: u.email, nombre: u.nombre || '', alta: u.alta, estado: haPagado(u) ? 'paga' : u.estado === 'bloqueado' ? 'bloqueada' : a.motivo === 'prueba' ? 'prueba' : 'terminada' }; }),
+    pagan: cuentas.filter(haPagado).length
+  };
+}
+route('GET', /^\/api\/admin\/codigos$/, async () => ({
+  codigos: Object.entries(codigosPrueba()).map(([k, c]) => codigoPub(k, c)).sort((a, b) => String(b.creado).localeCompare(String(a.creado))),
+  sugerido: generarCodigo(), limites: { dias: CODIGO_DIAS_MAX, usos: CODIGO_USOS_MAX, caducaDias: CODIGO_CADUCA_MAX }
+}), { admin: true });
+route('POST', /^\/api\/admin\/codigos$/, async (req, res, body) => {
+  const codigo = String(body.codigo || '').trim().toUpperCase().replace(/[\s_]+/g, '-') || generarCodigo(), k = claveCodigo(codigo);
+  if (!/^[A-Z0-9]+(-[A-Z0-9]+)*$/.test(codigo) || codigo.length > 32) throw fallo(400, 'El código solo admite letras sin tilde, números y guiones, hasta 32 caracteres.');
+  if (k.length < 8) throw fallo(400, 'El código debe tener al menos 8 letras o números, para que no se pueda adivinar.');
+  if (codigoDe(k)) throw fallo(409, 'Ya hay un código igual (sin contar mayúsculas ni guiones). Elija otro.');
+  const plan = body.plan ? String(body.plan) : 'profesional';
+  if (!PLANES_LIBRES.includes(plan)) throw fallo(400, 'Plan no válido. El plan Grupos se prepara a medida y no admite códigos de prueba.');
+  const entero = (v, def) => (v === undefined || v === null || v === '' ? def : Number(v));
+  const dias = entero(body.dias, PRUEBA_DIAS), usosMax = entero(body.usosMax, 1);
+  if (!Number.isInteger(dias) || dias < 1 || dias > CODIGO_DIAS_MAX) throw fallo(400, `Indique entre 1 y ${CODIGO_DIAS_MAX} días de prueba.`);
+  if (!Number.isInteger(usosMax) || usosMax < 1 || usosMax > CODIGO_USOS_MAX) throw fallo(400, `Indique entre 1 y ${CODIGO_USOS_MAX} usos.`);
+  // Caduca al final del día indicado (por defecto, dentro de 30 días)
+  const dia = body.caduca ? String(body.caduca) : new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
+  const caduca = /^\d{4}-\d{2}-\d{2}$/.test(dia) ? Date.parse(dia + 'T23:59:59.999Z') : NaN;
+  if (!(caduca > Date.now()) || caduca > Date.now() + (CODIGO_CADUCA_MAX + 1) * 864e5) throw fallo(400, `La fecha de caducidad del código debe estar entre hoy y dentro de ${CODIGO_CADUCA_MAX} días.`);
+  const c = { codigo, plan, dias, usosMax, usos: 0, caduca: new Date(caduca).toISOString(), nota: String(body.nota || '').trim().slice(0, 120), creado: now() };
+  codigosPrueba()[k] = c; save();
+  anotarActividad(req, 'codigo.crear', null, { despues: { codigo, plan, dias, usosMax, caduca: c.caduca.slice(0, 10) }, nota: c.nota || null });
+  return { codigo: codigoPub(k, c) };
+}, { admin: true });
+route('POST', /^\/api\/admin\/codigos\/([A-Za-z0-9-]{1,60})\/revocar$/, async (req, res, body, me, m) => {
+  const k = claveCodigo(m[1]), c = codigoDe(k);
+  if (!c) throw fallo(404, 'Ese código no existe.');
+  if (!c.revocado) {
+    c.revocado = now(); save();
+    anotarActividad(req, 'codigo.revocar', null, { antes: { estado: 'activo' }, despues: { codigo: c.codigo, usos: c.usos || 0 }, nota: typeof body.motivo === 'string' && body.motivo.trim() ? body.motivo.trim() : null });
+  }
+  return { codigo: codigoPub(k, c) };
+}, { admin: true });
+// Aviso al cliente tres días antes del final de su prueba con código: una vez por fecha de fin (si se amplía, vuelve a avisar)
+async function avisarFinCodigos() {
+  if (!env.SMTP_HOST) return;
+  for (const u of db.users) {
+    if (!u.pruebaCodigo || u.demo || haPagado(u) || u.stripeSuscripcion || u.estado === 'bloqueado') continue;
+    const fin = finPruebaInterna(u), clave = new Date(fin).toISOString(), queda = fin - Date.now();
+    // Sin aviso el mismo día del alta (una prueba de 3 días o menos ya sabe cuándo termina)
+    if (!(queda > 0 && queda <= 3 * 864e5) || u.avisoFinCodigo === clave || Date.now() - Date.parse(u.alta) < 864e5) continue;
+    u.avisoFinCodigo = clave; save();
+    const fecha = fechaLarga(fin), plan = NOMBRE_PLAN[u.plan] || u.plan, per = u.periodo === 'anual' ? 'anual' : 'mensual';
+    const enLinea = !!(STRIPE && STRIPE_PRECIOS[clavePrecioDe(u, u.plan, per)]);
+    const como = enLinea
+      ? `Para seguir después de esa fecha, entre en Atalaya y pulse «Añadir la tarjeta y seguir». La tarjeta se guarda en nuestra pasarela de pago segura; el primer cobro, la cuota del plan ${plan} con pago ${per} más IVA (21 %), se hace ese día y después se repite cada ${per === 'anual' ? 'año' : 'mes'} hasta que cancele.`
+      : `Para seguir después de esa fecha, entre en Atalaya y active su plan ${plan}: le enviaremos el enlace de pago.`;
+    const texto = `Hola${u.nombre ? ' ' + u.nombre : ''}:\n\nSu prueba de Atalaya 360° termina el ${fecha}.\n\n${como}\n${APP_URL}/acceso.html\n\nSi no sigue, sus datos se conservan y puede descargarlos desde el menú de su cuenta («Descargar todos mis datos»).\n\nPara cualquier duda, responda a este correo.\n\nEquipo de Business Avance`;
+    const enviado = await sendMail(u.email, `Atalaya 360° · Su prueba termina el ${fecha}`, texto);
+    anotarActividad(null, 'codigo.aviso', u, { quien: 'sistema', nota: `Prueba con el código ${u.pruebaCodigo.codigo}: termina el ${fecha} · ${enviado ? 'correo enviado' : 'no se ha podido enviar el correo'}` });
+    avisarEquipo(`La prueba con código termina el ${fecha}: ${u.nombre || u.email}`, [`${u.nombre || ''} <${u.email}>: la prueba con el código ${u.pruebaCodigo.codigo} (plan ${plan}) termina el ${fecha}.`, enviado ? 'Se le ha enviado el recordatorio por correo.' : 'No se ha podido enviar el recordatorio por correo.']);
+  }
+}
 // Registrar un pago y ampliar el acceso «meses» desde el vencimiento actual (o desde hoy si ya venció)
 route('POST', /^\/api\/admin\/users\/([\w-]+)\/pagos$/, async (req, res, body, me, m) => {
   const u = usuarioDe(m[1]), antes = foto(u);
@@ -2554,7 +2665,10 @@ server.on('error', (e) => { console.error('No se pudo arrancar el servidor:', e.
 server.listen(PORT, () => {
   console.log(`Atalaya en http://localhost:${PORT}  (IA: ${env.ANTHROPIC_API_KEY ? 'configurada' : 'sin clave'} · base: ${ALMACEN === 'sqlite' ? DB_SQL : DB_FILE} · Stripe: ${STRIPE ? Object.keys(STRIPE_PRECIOS).length + ' precios' + (env.STRIPE_WEBHOOK_SECRET ? ', avisos firmados' : ', SIN STRIPE_WEBHOOK_SECRET (los pagos no activarán el acceso)') : 'no'})`);
   if (recuperada) saveNow();
+  avisarFinCodigos().catch((e) => console.error('Aviso del final de las pruebas con código:', e.message));
 });
+// Recordatorio del final de las pruebas con código (tres días antes), cada hora
+setInterval(() => avisarFinCodigos().catch((e) => console.error('Aviso del final de las pruebas con código:', e.message)), 3600e3).unref();
 
 // Limpieza periódica: contadores de intentos, sesiones y enlaces caducados
 setInterval(() => {
