@@ -1282,8 +1282,12 @@
      de conjunto tiene. El cambio de plan se hace dentro de la aplicación (no desde la página comercial):
      en la prueba es libre y al momento; con el acceso activado también es inmediato y la diferencia de cuota
      se ajusta en el siguiente cobro. Para bajar a un plan con menos empresas, antes hay que borrar las que sobran. */
+  // ¿Todo lo que abre el plan «pv» lo incluye también el plan «real»? (para enseñar la empresa modelo como un plan igual o menor)
+  const FUNCIONES = ['estrategia', 'varias', 'grupo', 'cartera', 'personas', 'consultor', 'intervencion'];
+  P.cabePlan = (pv, real) => FUNCIONES.every((f) => !P.puede(f, { plan: pv }, true) || P.puede(f, { plan: real || 'profesional' }, true));
   P.puede = (f, u, exacto) => {
-    if (!exacto && (!u || u === P.user) && P.empresaId() === MID && P.user) { const pv = P.modelo.cfg().plan; if (pv && PLANES[pv]) u = Object.assign({}, P.user, { plan: pv }); }
+    // La empresa modelo puede enseñarse «como» otro plan, pero nunca abre más de lo que incluye el plan de la cuenta
+    if (!exacto && (!u || u === P.user) && P.empresaId() === MID && P.user) { const pv = P.modelo.cfg().plan; if (pv && PLANES[pv] && P.cabePlan(pv, P.user.plan)) u = Object.assign({}, P.user, { plan: pv }); }
     u = u || P.user; const k = (u && u.plan) || 'profesional', pl = PLANES[k] || PLANES.profesional;
     if (f === 'estrategia') return k !== 'esencial';
     if (f === 'varias') return pl.empresas > 1;
@@ -1539,7 +1543,7 @@
         <div class="emf-mundos">${P.modelo.MUNDOS.map((m) => `<label class="emf-m"><input type="checkbox" name="con" value="${m.k}" ${c.con[m.k] !== false ? 'checked' : ''}><span><b>${escH(m.n)}</b><small>${m.f ? 'Desde el plan ' + planes.filter((pl) => P.puede(m.f, { plan: pl }, true)).map((pl) => PLANES[pl].nombre).join(', ') : 'En todos los planes'}</small></span></label>`).join('')}</div>
         <h4>Enseñarla como el plan…</h4>
         <p class="small muted" style="margin:0">Con la empresa modelo activa, Atalaya se comporta como el plan que elija: abre sus mundos y conecta los que incluye. Su plan y sus empresas no cambian.</p>
-        <div class="emf-planes">${[['', 'Mi plan (' + ((PLANES[mio] || {}).nombre || mio) + ')']].concat(planes.map((pl) => [pl, PLANES[pl].nombre])).map(([k, n]) => `<label class="emf-p"><input type="radio" name="plan" value="${k}" ${c.plan === k ? 'checked' : ''}><span>${escH(n)}</span></label>`).join('')}</div>
+        <div class="emf-planes">${[['', 'Mi plan (' + ((PLANES[mio] || {}).nombre || mio) + ')']].concat(planes.filter((pl) => pl !== mio && P.cabePlan(pl, mio)).map((pl) => [pl, PLANES[pl].nombre])).map(([k, n]) => `<label class="emf-p"><input type="radio" name="plan" value="${k}" ${(c.plan === k || (k === '' && !(c.plan && P.cabePlan(c.plan, mio) && c.plan !== mio))) ? 'checked' : ''}><span>${escH(n)}</span></label>`).join('')}</div>
         <p class="small" data-msg style="margin:0"></p>
         <div class="row">
           <button class="btn solid" type="submit">Guardar las conexiones</button>

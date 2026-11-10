@@ -20,7 +20,7 @@
   const K = () => (A.modelo && A.modelo.cifras ? A.modelo.cifras() : null);
 
   /* ---------- Paradas ---------- */
-  const PASOS = [
+  const TODOS = [
     { p: 'portal.html', m: 'Puesto de mando', t: 'Valdenorte, la empresa modelo',
       que: 'Atalaya reúne cuatro mundos (simulador, sistema estratégico, personas y auditoría) más la mesa de trabajo y el libro corporativo. Todos leen los mismos datos: lo que mide uno lo usan los demás.',
       ben: (k) => `Valdenorte fabrica y monta estructuras metálicas desde 1996: ${k.plantilla} personas y ${meur(k.ventas)} de ventas, que crecen un ${pc(k.cagr)} al año. Y aun así, cada año tiene menos caja. Vamos a ver qué descubre cada mundo.` },
@@ -73,6 +73,11 @@
       que: 'Todo enlazado: las cuentas alimentan el simulador y el sistema estratégico; las conversaciones, la auditoría; la auditoría, la mesa; y la mesa, el libro.',
       ben: (k) => `Unos ${eur(k.cajaDso)} de caja por cobrar antes, un riesgo de cliente medido, una línea que vendía por debajo de su coste, un relevo en marcha y una inversión de ${meur(k.inversion)} decidida con números. Puede seguir probando con la empresa modelo o salir y volver a su empresa.`, fin: true }
   ];
+  // Solo las paradas de los mundos que incluye el plan de la cuenta (el paseo no abre mundos de otros planes)
+  const pasos = () => {
+    const Pl = A.platform, u = Pl && Pl.user; if (!u || !Pl.MUNDOS) return TODOS;
+    return TODOS.filter((s) => { const m = Pl.MUNDOS.find((x) => x.href === s.p); return !m || (!m.f || Pl.puede(m.f, u, true)) && (!m.grupo || Pl.esGrupo(u)); });
+  };
   const aqui = (s) => { const f = location.pathname.split('/').pop() || 'portal.html'; return f === s.p; };
   const url = (s) => s.p + (s.h ? '#' + s.h : '');
 
@@ -84,14 +89,14 @@
     if (Pl.modelo.vuelta) Pl.modelo.vuelta.apuntar();
     const c = Pl.modelo.cfg();
     SS.set({ i: 0, prevEmp: Pl.empresaId(), prevCfg: { plan: c.plan, con: Object.assign({}, c.con) } });
-    // Durante el paseo se enseñan todos los mundos (como en el plan Consultora)
-    c.plan = 'consultora'; Object.keys(c.con).forEach((k) => { c.con[k] = true; }); Pl.modelo.guardarCfg(c);
+    // Durante el paseo se enseñan todos los mundos del plan de la cuenta, y solo esos
+    c.plan = ''; Object.keys(c.con).forEach((k) => { c.con[k] = true; }); Pl.modelo.guardarCfg(c);
     try { sessionStorage.setItem('atalaya.ruta.intro', '1'); Pl.ponerEmpresa(Pl.modelo.ID); } catch (e) { /* sin almacenamiento */ }
     ir(0);
   }
   function ir(i) {
     const st = SS.get(); if (!st) return;
-    i = Math.max(0, Math.min(PASOS.length - 1, i)); st.i = i; st.pausa = false; SS.set(st);
+    const PASOS = pasos(); i = Math.max(0, Math.min(PASOS.length - 1, i)); st.i = i; st.pausa = false; SS.set(st);
     const s = PASOS[i], f = location.pathname.split('/').pop() || 'portal.html';
     if (f === s.p && !s.h && !location.hash) { pintar(); return; }
     location.href = url(s); if (f === s.p) location.reload();
@@ -117,6 +122,7 @@
     const st = SS.get(); let el = document.getElementById('paseo');
     if (!st) { if (el) el.remove(); return; }
     if (!el) { el = document.createElement('aside'); el.id = 'paseo'; el.className = 'paseo'; el.setAttribute('aria-live', 'polite'); el.setAttribute('aria-label', 'Paseo virtual'); document.body.appendChild(el); }
+    const PASOS = pasos(); if (st.i >= PASOS.length) st.i = PASOS.length - 1;
     const s = PASOS[st.i], k = K() || {};
     if (st.pausa) { el.className = 'paseo paseo-min'; el.innerHTML = `<button class="paseo-pill" data-pseguir>Paseo virtual · ${st.i + 1} de ${PASOS.length} · seguir</button>`; el.querySelector('[data-pseguir]').onclick = () => { st.pausa = false; SS.set(st); pintar(); }; return; }
     el.className = 'paseo';
@@ -138,12 +144,12 @@
   // Teclado: flechas para avanzar o retroceder y Esc para plegar
   addEventListener('keydown', (e) => {
     const st = SS.get(); if (!st || st.pausa || /input|textarea|select/i.test((e.target && e.target.tagName) || '')) return;
-    if (e.key === 'ArrowRight' && st.i < PASOS.length - 1) ir(st.i + 1);
+    if (e.key === 'ArrowRight' && st.i < pasos().length - 1) ir(st.i + 1);
     else if (e.key === 'ArrowLeft' && st.i > 0) ir(st.i - 1);
     else if (e.key === 'Escape') { st.pausa = true; SS.set(st); pintar(); }
   });
 
-  A.paseo = { iniciar, ir, salir, activo: () => !!SS.get(), PASOS };
+  A.paseo = { iniciar, ir, salir, activo: () => !!SS.get(), get PASOS() { return pasos(); } };
   // Mientras el paseo sigue en esta pestaña, se renueva su marca: así otra pestaña no lo da por abandonado
   const vivo = () => { const Pl = P(); if (SS.get() && Pl && Pl.user && Pl.modelo && Pl.modelo.vuelta) Pl.modelo.vuelta.vivo(); };
   setInterval(vivo, 30000);
