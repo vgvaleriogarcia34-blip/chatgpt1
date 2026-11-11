@@ -90,6 +90,8 @@
           <div><dt>Empresa</dt><dd>${esc(o.empresa || '—')}</dd></div>
           ${o.sector ? `<div><dt>Sector</dt><dd>${esc(o.sector)}</dd></div>` : ''}
           <div><dt>Fecha</dt><dd>${esc(I.fecha())}</dd></div>
+          ${o.ambito ? `<div><dt>Ámbito</dt><dd>${esc(o.ambito)}</dd></div>` : ''}
+          ${o.periodo ? `<div><dt>Periodo analizado</dt><dd>${esc(o.periodo)}</dd></div>` : ''}
           <div><dt>Referencia</dt><dd>${esc(o.ref || I.ref(o.tipo))}</dd></div>
         </dl>
       </div>
@@ -107,12 +109,12 @@
   I.table = (heads, rows, opts) => {
     opts = opts || {};
     const cell = (c, i) => { const v = c && typeof c === 'object' && 'h' in c ? c.h : esc(c); const num = opts.num && opts.num.includes(i); return `<td${num ? ' class="rp-num"' : ''}>${v}</td>`; };
-    return `<div class="rp-tw"><table class="rp-table"><thead><tr>${heads.map((h, i) => `<th${opts.num && opts.num.includes(i) ? ' class="rp-num"' : ''}>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map(cell).join('')}</tr>`).join('') || `<tr><td colspan="${heads.length}" class="rp-empty">Sin datos.</td></tr>`}</tbody></table></div>`;
+    return `<div class="rp-tw"><table class="rp-table"><thead><tr>${heads.map((h, i) => `<th${opts.num && opts.num.includes(i) ? ' class="rp-num"' : ''}>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map(cell).join('')}</tr>`).join('') || `<tr><td colspan="${heads.length}" class="rp-empty">Sin información disponible.</td></tr>`}</tbody></table></div>`;
   };
-  I.risks = (R) => (R && R.length ? I.table(['Riesgo', 'Prob.', 'Impacto', 'Nivel', 'Mitigación'], R.map((r) => [r.nombre, r.prob + '/5', r.impacto + '/5', { h: I.pill(r.estado, String(r.nivel)) }, r.mitigacion || '']), { num: [1, 2] }) : '<p class="rp-muted">Sin riesgos relevantes con los datos actuales.</p>');
-  I.findings = (Fi, fmt) => (Fi && Fi.length ? I.table(['Hallazgo', 'Acción recomendada', 'Impacto anual', 'Plazo'], Fi.map((f) => [f.hallazgo, f.accion, fmt ? fmt(f.impactoEUR || 0) : f.impactoEUR, (f.plazo || 90) + ' días']), { num: [2, 3] }) : '<p class="rp-muted">Sin hallazgos con impacto económico con los datos actuales.</p>');
+  I.risks = (R) => (R && R.length ? I.table(['Riesgo', 'Prob.', 'Impacto', 'Nivel', 'Mitigación'], R.map((r) => [r.nombre, r.prob + '/5', r.impacto + '/5', { h: I.pill(r.estado, String(r.nivel)) }, r.mitigacion || '']), { num: [1, 2] }) : '<p class="rp-muted">No se han identificado riesgos relevantes.</p>');
+  I.findings = (Fi, fmt) => (Fi && Fi.length ? I.table(['Hallazgo', 'Acción recomendada', 'Impacto anual', 'Plazo'], Fi.map((f) => [f.hallazgo, f.accion, fmt ? fmt(f.impactoEUR || 0) : f.impactoEUR, (f.plazo || 90) + ' días']), { num: [2, 3] }) : '<p class="rp-muted">No se han identificado hallazgos con impacto económico cuantificable.</p>');
   I.callout = (html, tipo) => `<div class="rp-callout${tipo ? ' rp-c-' + tipo : ''}">${html}</div>`;
-  I.foot = (txt) => `<footer class="rp-foot"><span>${esc(I.marcaTxt())} · Documento generado el ${esc(I.fecha())}</span><span>${esc(txt || 'Las cifras son estimaciones a partir de los datos introducidos. La fiscalidad y las decisiones societarias deben validarse con los asesores de la empresa.')}</span>${I.elab()}</footer>`;
+  I.foot = (txt) => `<footer class="rp-foot"><span>${esc(I.marcaTxt())} · ${esc(I.fecha())}</span><span>${esc(txt || 'Las cifras son estimaciones elaboradas con la información facilitada por la empresa. La fiscalidad y las decisiones societarias deben validarse con sus asesores.')}</span>${I.elab()}</footer>`;
   // Coletilla del pie (en su propia línea, más pequeña)
   I.elab = () => (I.elaborado() ? `<span class="rp-elab" style="font-size:0.64rem;letter-spacing:0.04em;opacity:0.75">${esc(I.elaborado())}</span>` : '');
 
@@ -210,9 +212,9 @@
     const doc = paper.cloneNode(true); doc.removeAttribute('id'); doc.style.zoom = ''; doc.style.width = ''; doc.classList.remove('pdf-doc');
     const pag = !!(o.paginado || doc.querySelector(':scope > .pp-page'));
     if (pag) doc.classList.add('pp-doc');
-    doc.querySelectorAll('button, .ci-add, .ci-del, script').forEach((x) => x.remove());
+    doc.querySelectorAll('button, .ci-add, .ci-del, script, .no-print').forEach((x) => x.remove()); // .no-print: notas de trabajo que se ven en pantalla y no van al documento
     // Los campos del cuaderno se imprimen como texto
-    doc.querySelectorAll('textarea, input, select').forEach((i) => { const v = i.tagName === 'SELECT' ? (i.options[i.selectedIndex] || {}).text : i.type === 'checkbox' ? (i.checked ? '☑' : '☐') : i.value; const t = document.createElement(i.tagName === 'TEXTAREA' ? 'div' : 'span'); t.className = 'pdf-campo'; t.textContent = v || (i.type === 'checkbox' ? '' : '—'); i.replaceWith(t); });
+    doc.querySelectorAll('textarea, input, select').forEach((i) => { const v = i.tagName === 'SELECT' ? (i.options[i.selectedIndex] || {}).text : i.type === 'checkbox' ? (i.checked ? '☑' : '☐') : i.type === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(i.value) ? new Date(i.value + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : i.value; const t = document.createElement(i.tagName === 'TEXTAREA' ? 'div' : 'span'); t.className = 'pdf-campo'; t.textContent = v || (i.type === 'checkbox' ? '' : '—'); i.replaceWith(t); });
     // Imágenes: el logotipo de la firma, una sola vez y a su tamaño; las fotos grandes, aligeradas
     const F = A.firma(), memo = {};
     const logo = F.logo ? await reducir(F.logo, 600, 104, 6e4) : null;
@@ -284,7 +286,8 @@ ${estilos}
     const pr = ov.querySelector('#rpPrint'); if (pr) pr.onclick = (e) => I.pdf(ov.querySelector('#paper'), { titulo: o.barra || o.titulo, boton: e.currentTarget, paginado: o.paginado });
     ov.querySelector('#rpPdf').onclick = (e) => I.pdf(ov.querySelector('#paper'), { titulo: o.barra || o.titulo, boton: e.currentTarget, paginado: o.paginado });
     ov.querySelector('#rpCopy').onclick = (e) => {
-      const t = o.texto || ov.querySelector('#paper').innerText;
+      const sinNotas = (p) => { const ocultas = Array.from(p.querySelectorAll('.no-print')).map((x) => [x, x.style.display]); ocultas.forEach(([x]) => { x.style.display = 'none'; }); const tx = p.innerText; ocultas.forEach(([x, d]) => { x.style.display = d; }); return tx; };
+      const t = o.texto || sinNotas(ov.querySelector('#paper'));
       (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { e.target.textContent = 'Copiado'; }, () => { e.target.textContent = 'No se pudo copiar'; });
     };
     if (o.after) o.after(ov.querySelector('#paper'));

@@ -138,9 +138,10 @@
   const informeSolicitud = () => {
     const In = A.informe; In.reset();
     const d = R().docs;
-    const html = In.cover({ tipo: 'Solicitud de documentación', kicker: 'Servicio 1 · ¿Dónde está el dinero que gana su empresa?', titulo: 'Documentación que necesitamos', subtitulo: 'Con estos documentos reconstruimos año a año dónde ha ido el dinero que la empresa gana.', empresa: empresa() })
+    const EST_D = { '': 'Pendiente de recibir', pedido: 'Solicitado', recibido: 'Recibido', revisado: 'Recibido y revisado', na: 'No aplica' };
+    const html = In.cover({ tipo: 'Solicitud de documentación', kicker: 'Análisis de beneficio y caja · ¿Dónde está el dinero que gana su empresa?', titulo: 'Documentación que necesitamos', subtitulo: 'Con estos documentos reconstruimos año a año dónde ha ido el dinero que la empresa gana.', empresa: empresa() })
       + In.summary('Para qué la pedimos', '<p>La cuenta de resultados dice cuánto gana la empresa; el banco dice cuánto dinero tiene. La diferencia está en algún sitio: clientes que aún no han pagado, stock, inversiones, préstamos o lo que han retirado los socios. Con esta documentación le enseñaremos dónde está cada euro.</p>')
-      + In.section('Documentos', In.table(['Documento', 'Detalle', 'Estado'], DOCS_S1.map((x) => [x.n, x.d, ((DOC_E.find((e) => e[0] === ((d[x.id] || {}).e || '')) || [])[1]) || 'Pendiente'])))
+      + In.section('Documentos', In.table(['Documento', 'Detalle', 'Estado'], DOCS_S1.map((x) => [x.n, x.d, EST_D[(d[x.id] || {}).e || ''] || 'Pendiente de recibir'])))
       + In.section('Cómo enviarla', '<p>Puede enviarla en PDF, Excel o fotografía legible. Si algún documento no existe, díganoslo: también es información. Trataremos todo con confidencialidad.</p>')
       + In.foot('Documento para la empresa.');
     In.open({ titulo: 'Solicitud de documentación', html, paginado: true }); marca('solicitud');
@@ -217,33 +218,44 @@
     const In = A.informe; In.reset();
     const sim = await leerSim(), Y = aniosDe(sim), an = Y.length >= 2 ? analisisDinero(Y) : null, dn = R().dinero;
     const nl = (t) => esc(t || '').replace(/\n+/g, '</p><p>');
-    let html = In.cover({ tipo: 'Informe', kicker: 'Servicio 1', titulo: '¿Dónde está el dinero que gana su empresa?', subtitulo: 'Beneficio frente a caja: adónde ha ido cada euro.', empresa: empresa() });
-    if (!an) html += In.callout('Faltan las cuentas de al menos dos años para completar el análisis.', 'warn');
+    let html = In.cover({ tipo: 'Informe', kicker: 'Análisis de beneficio y caja', titulo: '¿Dónde está el dinero que gana su empresa?', subtitulo: 'Beneficio frente a caja: adónde ha ido cada euro.' + (an ? ` Ejercicios ${Y[0].anio} a ${an.F[an.F.length - 1].anio}.` : ''), empresa: empresa() });
+    if (!an) html += In.summary('Resumen ejecutivo', '<p>A la fecha de este informe no se dispone de las cuentas de al menos dos ejercicios, por lo que no puede reconstruirse el destino del beneficio de la empresa. El anexo detalla la información necesaria.</p>');
     else {
-      html += In.summary('En pocas palabras', `<ul>${an.lect.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`, an.st)
-        + In.kpis([{ k: 'Beneficio acumulado', v: eur(an.benAc) }, { k: 'Variación de la caja', v: eur(an.cajaAc), st: an.cajaAc < 0 ? 'stop' : 'ok' }, { k: 'Atrapado en circulante', v: eur(an.atrAc), st: an.atrAc > an.benAc * 0.4 ? 'warn' : 'ok' }, { k: 'Invertido en activos', v: eur(an.capAc) }])
-        + In.section('Año a año', In.table(['Año', 'Beneficio', 'Recursos generados', 'Variación de caja', 'Atrapado en circulante', 'Inversión', 'Deuda', 'Dividendos', 'Días de cobro'], an.F.map((x) => [String(x.anio), eur(x.bn), eur(x.recursos), eur(x.caja), eur(x.atrapado), eur(x.capex), eur(x.deuda), eur(x.div), x.dso ? String(Math.round(x.dso)) : '—']), { num: [1, 2, 3, 4, 5, 6, 7, 8] }))
-        + ((f) => In.section(`¿Adónde fue el dinero en ${f.anio}?`, In.table(['Destino', 'De cada 100 € que se movieron'], f.usos.map((u) => [u.n, u.e + ' €']), { num: [1] }), 'Solo lo que se hizo con el dinero; de dónde salió está en la tabla anterior.'))(anioSel(an, dn))
-        + In.section('La regla que lo explica', '<p><b>La liquidez genera rentabilidad, la rentabilidad genera crecimiento.</b> Cuando se crece financiando a los clientes, al stock o a las inversiones con la caja del día a día, el beneficio se queda en el papel y la empresa depende del banco. Es una regla como la gravedad: puede no verse, pero está ahí.</p>');
+      const F = an.F, f0 = F[0], u = F[F.length - 1], nNeg = F.filter((x) => x.caja < 0).length, todosBen = F.every((x) => x.bn > 0), fs = anioSel(an, dn), topU = fs.usos.slice().sort((p, q) => q.e - p.e)[0];
+      const cobro = f0.dso && u.dso && u.dso - f0.dso > 7 && u.ventas ? (u.dso - f0.dso) * u.ventas / 365 : 0;
+      const prio = [];
+      if (cobro) prio.push(`Reducir el plazo medio de cobro de ${Math.round(u.dso)} a ${Math.round(f0.dso)} días, el de ${f0.anio}: libera en torno a ${eur(cobro)} de caja.`);
+      if (an.capAc > 0 && an.benAc > 0 && an.capAc > an.benAc * 0.5) prio.push(`Ligar las inversiones a la caja disponible: las del periodo suman ${eur(an.capAc)}, el ${pct((an.capAc / an.benAc) * 100)} del beneficio.`);
+      if (an.divAc > 0 && an.cajaAc < 0) prio.push(`Condicionar el reparto de dividendos (${eur(an.divAc)} en el periodo) a la recuperación de la caja.`);
+      if (an.deuAc > 0) prio.push(`Frenar el recurso a la deuda bancaria para financiar el día a día: ha crecido ${eur(an.deuAc)} en el periodo.`);
+      html += In.summary('Resumen ejecutivo', `<p><b>${esc(an.lect[0])}</b></p><ul>${an.lect.slice(1).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`, an.st)
+        + In.kpis([{ k: 'Beneficio acumulado', v: eur(an.benAc), d: `${f0.anio}-${u.anio}` }, { k: 'Variación de la caja', v: eur(an.cajaAc), st: an.cajaAc < 0 ? 'stop' : 'ok' }, { k: 'Retenido en clientes y existencias', v: eur(an.atrAc), st: an.atrAc > an.benAc * 0.4 ? 'warn' : 'ok' }, { k: 'Invertido en activos', v: eur(an.capAc) }])
+        + In.section(nNeg ? `La caja baja en ${nNeg === F.length ? (F.length === 1 ? 'el ejercicio analizado' : 'los ' + F.length + ' ejercicios') : nNeg + ' de los ' + F.length + ' ejercicios'}${todosBen ? ', aunque todos cierran con beneficio' : ''}` : 'La caja acompaña al beneficio en todos los ejercicios', In.table(['Año', 'Beneficio', 'Recursos generados', 'Variación de caja', 'Retenido en clientes y existencias', 'Inversión', 'Variación de deuda', 'Dividendos', 'Días de cobro'], an.F.map((x) => [String(x.anio), eur(x.bn), eur(x.recursos), eur(x.caja), eur(x.atrapado), eur(x.capex), eur(x.deuda), eur(x.div), x.dso ? String(Math.round(x.dso)) : '—']), { num: [1, 2, 3, 4, 5, 6, 7, 8] }), 'Recursos generados: beneficio más amortizaciones. Retenido: aumento de clientes y existencias menos la financiación de proveedores.')
+        + (topU ? In.section(`En ${fs.anio}, ${topU.e} de cada 100 € se destinaron a ${topU.n.charAt(0).toLowerCase() + topU.n.slice(1)}`, In.table(['Destino', 'De cada 100 € que se movieron'], fs.usos.map((x) => [x.n, x.e + ' €']), { num: [1] }), 'Solo lo que se hizo con el dinero; de dónde salió está en la tabla anterior.') : '')
+        + In.section('Qué significa para la empresa', '<p><b>La liquidez genera rentabilidad y la rentabilidad genera crecimiento.</b> Cuando se crece financiando a los clientes, al stock o a las inversiones con la caja del día a día, el beneficio se queda en el papel y la empresa depende del banco.</p>'
+          + (cobro ? `<p><b>Oportunidad.</b> Cada día de cobro equivale a ${eur(u.ventas / 365)} de caja: los ${Math.round(u.dso - f0.dso)} días que se han perdido desde ${f0.anio} suman ${eur(cobro)}.</p>` : ''))
+        + (prio.length ? In.section('Prioridades de actuación', `<ol>${prio.map((t) => `<li>${esc(t)}</li>`).join('')}</ol>`, 'Por orden: primero lo que devuelve caja a la empresa.') : '');
     }
     if ((dn.notas || '').trim()) html += In.section('Conclusiones del consultor', `<p>${nl(dn.notas)}</p>`);
-    html += In.section('Siguiente paso', '<p>Este informe dice <b>dónde</b> está el dinero. La Auditoría integral 360 explica <b>por qué</b>: cómo funcionan las operaciones, los clientes y los productos, la estructura de costes y el sistema financiero, y qué hay que cambiar primero.</p>') + In.foot('Documento para la empresa.');
+    html += In.section('Siguiente paso', '<p>Este informe dice <b>dónde</b> está el dinero. La auditoría integral 360 explica <b>por qué</b>: cómo funcionan las operaciones, los clientes y los productos, la estructura de costes y el sistema financiero, y qué hay que cambiar primero.</p>')
+      + In.section('Anexo: metodología, fuentes y limitaciones', an ? `<ul><li>El análisis reconstruye, con el balance y la cuenta de resultados de los ejercicios ${Y[0].anio} a ${an.F[an.F.length - 1].anio}, el destino del beneficio de cada año: variación de clientes, existencias y proveedores, inversión, deuda, dividendos y caja.</li><li>Las cifras proceden de las cuentas facilitadas por la empresa y no han sido auditadas.</li><li>El análisis dice dónde está el dinero, no por qué: las causas se estudian en la auditoría integral.</li></ul>` : '<ul><li>No se ha dispuesto del balance y la cuenta de resultados de al menos dos ejercicios consecutivos: sin ellos no puede calcularse adónde fue el beneficio de cada año.</li><li>Con las cuentas de los últimos tres a cinco ejercicios el análisis cubre clientes, existencias, proveedores, inversión, deuda, dividendos y caja.</li></ul>')
+      + In.foot('Informe para la empresa. Las cifras proceden de las cuentas facilitadas por la empresa.');
     In.open({ titulo: 'Dónde está su dinero', html, paginado: true }); marca('dinero');
   };
 
   /* ---------- Propuestas de cada servicio (S2 tras el dinero, S3 tras la 360) ---------- */
   const PROP = {
-    propS2: { titulo: 'Propuesta · Auditoría integral 360', kicker: 'Servicio 2', sub: 'La foto completa de su empresa, de los datos a la operativa.',
+    propS2: { titulo: 'Propuesta · Auditoría integral 360', kicker: 'Propuesta de servicios', sub: 'La foto completa de su empresa, de los datos a la operativa.',
       alcance: ['Datos de partida y documentación de todas las áreas', 'Flujos de caja: cobros, pagos, tesorería a 13 semanas', 'Sistema operativo: procesos, tiempos y método de trabajo', 'ABC de clientes y de producto: quién y qué deja margen', 'Estructura económica: márgenes, costes fijos y punto de equilibrio', 'Sistema financiero: deuda, financiación y riesgos'],
       entregables: ['Informe de la auditoría integral 360 con la foto completa', 'Mapa de prioridades ordenado: liquidez, rentabilidad, crecimiento', 'Propuesta de acompañamiento por objetivos'], plazo: '4 a 6 semanas' },
-    propS3: { titulo: 'Propuesta · Acompañamiento por objetivos', kicker: 'Servicio 3', sub: 'Sesiones quincenales para alcanzar los objetivos que usted se marque.',
+    propS3: { titulo: 'Propuesta · Acompañamiento por objetivos', kicker: 'Propuesta de servicios', sub: 'Sesiones quincenales para alcanzar los objetivos que usted se marque.',
       alcance: ['Arranque: las reglas básicas de funcionamiento de una empresa y el método SMART', 'Objetivos SMART que dependen solo de quien los ejecuta, con su acción diaria', 'Sesiones quincenales sobre las prioridades que revela la auditoría', 'Formación de apoyo en cada tema y acción directa del empresario', 'Acta y manual de formación de cada sesión'],
       entregables: ['Actas de cada sesión con acuerdos, responsables y fechas', 'Manuales de formación de los temas trabajados', 'Seguimiento de objetivos y del plan de intervención'], plazo: '6 a 12 meses' }
   };
   const hallazgosS1 = async () => { const sim = await leerSim(), Y = aniosDe(sim), an = Y.length >= 2 ? analisisDinero(Y) : null; return an ? an.lect : []; };
   const informePropuesta = async (k) => {
     const In = A.informe, T = PROP[k], pr = prop(k); In.reset();
-    const visto = k === 'propS2' ? await hallazgosS1() : I.ruta().filter((x) => x.n === 'stop' || x.n === 'warn').slice(0, 5).map((x) => `${x.a.n}: ${(I.TRIAJE[x.n] || {}).n || ''}${x.cs[0] ? ' · ' + x.cs[0].t : ''}`);
+    const visto = k === 'propS2' ? await hallazgosS1() : I.ruta().filter((x) => x.n === 'stop' || x.n === 'warn').slice(0, 5).map((x) => `${x.a.n} (prioridad ${x.n === 'stop' ? 'alta' : 'media'})${x.cs[0] ? ': ' + x.cs[0].t.charAt(0).toLowerCase() + x.cs[0].t.slice(1) : ''}`);
     const meses = k === 'propS3' ? (+pr.meses || +R().servicios.s3.meses || 6) : 0;
     // Mismo cálculo que el calendario de sesiones (plan.js): meses contratados y frecuencia de la propuesta
     const paso = +pr.frecuencia || 14, nSes = Math.floor(Math.round(meses * 52 / 12) * 7 / paso), CADA = { 7: 'cada semana', 14: 'cada quince días', 21: 'cada tres semanas', 28: 'cada mes' };
@@ -352,12 +364,6 @@
       if (I.botonesAmpliar) I.botonesAmpliar();
     });
   };
-  // El informe de la auditoría integral se amplía con la foto 360
-  const foto360Informe = async () => {
-    const In = A.informe, dat = await datos360(), F = R().foto360;
-    return In.section('Foto 360: de los datos a la operativa', BLOQUES.map((b) => { const l = dat[b.id] || [], f = F[b.id] || {}, st = f.st || peor(l.map((x) => x.st).filter(Boolean)); return `<h3>${esc(b.n)} ${st ? In.pill(st) : ''}</h3>${l.length ? In.table(['Indicador', 'Valor'], l.map((x) => [x.k, x.v])) : '<p>Sin datos suficientes.</p>'}${f.nota ? `<p>${esc(f.nota)}</p>` : ''}`; }).join(''));
-  };
-  V.foto360Informe = foto360Informe;
   VISTAS.s2cierre = (host) => {
     const s2 = svc('s2');
     host.innerHTML = `<div class="glass pad stack"><div class="eyebrow">Servicio 2 · entrega</div>
@@ -368,15 +374,8 @@
     wireProp(host, 'propS3');
   };
 
-  /* La foto 360 entra en el informe de la auditoría integral, antes del pie */
-  if (V.informes && V.informes.auditoria) {
-    const aud0 = V.informes.auditoria;
-    V.informes.auditoria = async () => {
-      const extra = await foto360Informe(); const In = A.informe, open0 = In.open;
-      In.open = (o) => { In.open = open0; if (o && o.html) o.html = o.html.replace('<footer class="rp-foot"', extra + '<footer class="rp-foot"'); return open0(o); };
-      try { return await aud0(); } finally { In.open = open0; }
-    };
-  }
+  /* La foto 360 (estructura económica, sistema financiero y las notas del consultor en cada bloque) forma parte del
+     informe de diagnóstico de la auditoría integral: integral.js la lee con datos360() y la reparte por sus secciones. */
 
   /* Los informes nuevos se añaden a la pestaña «Informes y documentos» */
   V.serviciosInformes = [

@@ -369,3 +369,14 @@
   .paper.rp.pp-doc > .pp-page { page: pp; width: 210mm; height: 296.6mm; box-shadow: none; margin: 0 !important; break-after: page; break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .paper.rp.pp-doc > .pp-page:last-child { break-after: auto; }
 }
+
+/* Informes: mensajes clave del resumen ejecutivo, anexo y nota de trabajo (fuera del documento) */
+.paper.rp .rp-claves { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 5px; }
+.paper.rp .rp-claves li { line-height: 1.45; }
+.paper.rp .rp-anexo ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 0.86rem; color: #4f5560; }
+.paper.rp .rp-anexo h2 .rp-n { background: #4f5560; }
+.pp-doc .pp-claves { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 12.5px; }
+.pp-doc .pp-lead { font-size: 14px; line-height: 1.5; margin: 0; }
+.report-overlay .pe-nota-trabajo { text-align: left; padding: 8px 12px; border: 1px dashed var(--line, #5a5f6a); border-radius: 8px; margin-bottom: 10px; }
+@media print { .pe-nota-trabajo { display: none !important; } }
+.paper.rp .rp-anexo .rp-lede { margin-top: 14px; }

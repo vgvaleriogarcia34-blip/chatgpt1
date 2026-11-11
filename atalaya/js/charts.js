@@ -123,7 +123,7 @@
     const y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (Hh - m.t - m.b);
     const minOf = (s) => { let im = 0; s.data.forEach((v, i) => { if (v < s.data[im]) im = i; }); return im; };
     const qual = neta ? 'Caja neta' : 'Liquidez';
-    const resumen = `${qual} mensual a ${n} meses por escenario. ` + visible.map((s) => { const im = minOf(s); return `${s.name}${s.active ? ' (activo)' : ''}: mínimo ${A.fmt.eur(s.data[im])} en el mes ${im + 1}`; }).join('; ') + '.';
+    const resumen = `${qual} mensual a ${n} meses por escenario. ` + visible.map((s) => { const im = minOf(s); return `${s.name}${s.active ? ' (de referencia)' : ''}: mínimo ${A.fmt.eur(s.data[im])} en el mes ${im + 1}`; }).join('; ') + '.';
     let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" tabindex="0" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title><g class="grid">`;
     ticks.forEach((t) => { svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/><text x="${m.l - 8}" y="${y(t) + 3}" text-anchor="end">${fy(t)}</text>`; });
     YEARS.filter((i) => i < n).forEach((i) => { svg += `<text x="${x(i)}" y="${Hh - 8}" text-anchor="middle">${yearLbl(i)}</text>`; });

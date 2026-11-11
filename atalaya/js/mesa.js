@@ -357,7 +357,7 @@
   const frase = (m) => {
     const q = (m.especifica || m.objetivo || '').trim().replace(/[.\s]+$/, ''); if (!q) return '';
     const n = (v) => String(v || '').trim();
-    return `${n(m.responsable) ? n(m.responsable) + ' va a ' : ''}${n(m.responsable) ? q.charAt(0).toLowerCase() + q.slice(1) : q}${n(m.valor) && !(q.includes(n(m.valor)) && !n(m.actual)) ? `, ${n(m.actual) ? 'pasando de ' + n(m.actual) + ' a ' : 'hasta '}${n(m.valor)} ${n(m.unidad)}${n(m.indicador) && !q.toLowerCase().includes(n(m.indicador).toLowerCase()) && !n(m.indicador).toLowerCase().includes(n(m.unidad).toLowerCase()) ? ' (' + n(m.indicador).toLowerCase() + ')' : ''}` : ''}${m.fecha ? ', antes del ' + fCorta(m.fecha) + ' de ' + m.fecha.slice(0, 4) : ''}${n(m.beneficio) ? ', para ' + n(m.beneficio).charAt(0).toLowerCase() + n(m.beneficio).slice(1).replace(/[.\s]+$/, '') : ''}.`;
+    return `${n(m.responsable) ? n(m.responsable) + ' va a ' : ''}${n(m.responsable) ? q.charAt(0).toLowerCase() + q.slice(1) : q}${n(m.valor) && !(q.includes(n(m.valor)) && !n(m.actual)) ? `, ${n(m.actual) ? 'pasando de ' + n(m.actual) + ' a ' : 'hasta '}${n(m.valor)} ${n(m.unidad)}${n(m.indicador) && !q.toLowerCase().includes(n(m.indicador).toLowerCase()) && !n(m.indicador).toLowerCase().includes(n(m.unidad).toLowerCase()) ? ' (' + n(m.indicador).toLowerCase() + ')' : ''}` : ''}${m.fecha ? ', antes del ' + fCorta(m.fecha) + ' de ' + m.fecha.slice(0, 4) : ''}${n(m.beneficio) ? (/^\S+(ar|er|ir)(se|lo|la|le)?\b/i.test(n(m.beneficio)) ? ', para ' + n(m.beneficio).charAt(0).toLowerCase() + n(m.beneficio).slice(1).replace(/[.\s]+$/, '') : '. Beneficio esperado: ' + n(m.beneficio).charAt(0).toLowerCase() + n(m.beneficio).slice(1).replace(/[.\s]+$/, '')) : ''}.`;
   };
   /* Semáforo del beneficio: claro y cuantificado, con pros y contras pesados y confirmación de que compensa */
   const CUANT = /\d[\d.,]*\s*(€|eur|euros|k€|mil|millones|%|horas?|h\b|d[ií]as?|semanas?|meses|minutos|clientes|pedidos|unidades|visitas|puntos)/i;
@@ -551,23 +551,51 @@
     }
   };
 
-  /* ---------- Informe del plan de trabajo ---------- */
+  /* ---------- Informe: plan de trabajo de la dirección ----------
+     Documento de dirección: qué va a hacer la empresa, quién y cuándo. Habla de tareas, objetivos, plazos y
+     responsables; no de la mesa ni de cómo se han apuntado. Lo que no tiene contenido no sale. */
+  const PROCEDE = { manual: 'Dirección', simulador: 'Plan de inversión', estrategia: 'Plan estratégico', personas: 'Personas y equipos', intervencion: 'Plan de intervención', meta: 'Objetivo', reunion: 'Reunión', delegacion: 'Delegación', asistente: 'Dirección' };
   const informe = () => {
     const In = A.informe; if (!In) return; In.reset();
-    const e = P() && P().empresas && P().empresas.activa(), l = pend(), top = l.slice().sort((a, b) => score(b) - score(a)).slice(0, Math.max(1, Math.ceil(l.length * 0.2)));
-    const w0 = lunes(M.hoy()), sem = ST.tareas.filter((t) => t.hora && t.fecha >= w0 && t.fecha <= sumar(w0, 6)).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
-    let h = In.cover({ tipo: 'Mesa de trabajo', kicker: 'Plan de trabajo', titulo: 'Prioridades, metas y agenda', subtitulo: (() => { const na = ST.metas.filter((m) => m.estado !== 'cumplida').length; return `${l.length} tarea${l.length === 1 ? '' : 's'} pendiente${l.length === 1 ? '' : 's'} · ${na} meta${na === 1 ? '' : 's'} activa${na === 1 ? '' : 's'}`; })(), empresa: (e && e.nombre) || 'Mi empresa' });
-    h += In.summary('Resumen', `<p>${top.length} tarea${top.length > 1 ? 's' : ''} concentran el impacto (el 20 %). ${ST.metas.length} meta${ST.metas.length === 1 ? '' : 's'}, ${ST.metas.filter((m) => smart(m).every((y) => y.ok)).length} completamente SMART. ${sem.length} bloques reservados esta semana${(() => { const mT = sem.reduce((a, t) => a + (+t.dur || 30), 0), mC = sem.filter((t) => t.clave).reduce((a, t) => a + (+t.dur || 30), 0); return mT ? `; el ${Math.round((mC / mT) * 100)} % de ese tiempo va a actividades clave (★)` : ''; })()}.</p>`);
-    if (top.length) h += In.section('Su 20 %', In.table(['Tarea', 'Área', 'Impacto', 'Esfuerzo', 'Fecha'], top.map((t) => [t.t, t.area || '—', String(t.impacto), String(t.esfuerzo), t.fecha ? fCorta(t.fecha) + (t.hora ? ' ' + t.hora : '') : '—'])));
-    ST.metas.filter((m) => m.estado !== 'cumplida').forEach((m) => {
-      const s = smart(m);
-      h += In.section(numMeta(m) + ' · ' + (m.especifica || m.objetivo || 'sin definir'), In.table(['Campo', 'Contenido'], [['La meta en una frase', frase(m) || '—'], ['Objetivo de partida', m.objetivo || '—'], ['Beneficio (semáforo)', ({ ok: 'Verde', warn: 'Ámbar', stop: 'Rojo' })[evalBeneficio(m).st] + ': ' + evalBeneficio(m).t], ['Indicador', `${m.indicador || '—'}: de ${m.actual || '?'} a ${m.valor || '?'} ${m.unidad || ''}`], ['Fecha límite', fCorta(m.fecha)], ['Responsable', m.responsable || '—'], ['Beneficio', m.beneficio || '—'], ['Pros', m.pros || '—'], ['Contras', m.contras || '—'], ['Obstáculos y soluciones', (m.obstaculos || []).filter((o) => o.o).map((o) => `${o.o} → ${o.s}`).join(' · ') || '—'], ['Seguimiento', m.seguimiento || '—'], ['Afirmación', m.afirmacion || '—'], ['Criterios', s.map((y) => `${y.k} ${y.ok ? '✓' : '✗'}`).join('  ')]]) + ((m.acciones || []).some((a) => a.t) ? In.table(['Acción', 'Fecha límite', 'Revisada', 'Hecha'], m.acciones.filter((a) => a.t).map((a) => [a.t, fCorta(a.fecha), fCorta(a.revisada), a.hecha ? fCorta(a.hecha) : '—'])) : ''));
+    const e = P() && P().empresas && P().empresas.activa(), emp = (e && e.nombre) || 'Mi empresa', hoy = M.hoy();
+    const l = pend(), top = l.slice().sort((a, b) => score(b) - score(a)).slice(0, Math.max(1, Math.ceil(l.length * 0.2)));
+    const w0 = lunes(hoy), sem = ST.tareas.filter((t) => t.hora && t.fecha >= w0 && t.fecha <= sumar(w0, 6)).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+    const metas = ST.metas.filter((m) => m.estado !== 'cumplida' && (m.especifica || m.objetivo)), atras = l.filter((t) => t.fecha && t.fecha < hoy), sinFecha = l.filter((t) => !t.fecha).length;
+    // Fecha con año cuando no es el año en curso; una fecha que no lo es no se imprime
+    const fA = (v) => { if (!v || typeof v !== 'string' || !isFinite(D(v).getTime())) return '—'; return D(v).toLocaleDateString('es-ES', Object.assign({ day: 'numeric', month: 'short' }, v.slice(0, 4) === hoy.slice(0, 4) ? {} : { year: 'numeric' })); };
+    const pl = (n, a, b) => `${n} ${n === 1 ? a : b}`, min = (t) => +t.dur || 30;
+    const mT = sem.reduce((a, t) => a + min(t), 0), mC = sem.filter((t) => t.clave).reduce((a, t) => a + min(t), 0);
+    const horas = (m) => (m % 60 ? String((m / 60).toFixed(1)).replace('.', ',') : String(m / 60)) + ' h';
+    const prox = metas.filter((m) => m.fecha).sort((a, b) => a.fecha.localeCompare(b.fecha))[0];
+    let h = In.cover({ tipo: 'Plan de trabajo', kicker: 'Plan de trabajo de la dirección', titulo: 'Prioridades, objetivos y agenda', subtitulo: `Semana del ${fA(w0)} al ${fA(sumar(w0, 6))}. ${pl(l.length, 'tarea abierta', 'tareas abiertas')}${metas.length ? ' y ' + pl(metas.length, 'objetivo en curso', 'objetivos en curso') : ''}.`, empresa: emp });
+    // Resumen ejecutivo: la conclusión primero y los mensajes clave con su cifra
+    const concl = !l.length ? 'La dirección no tiene tareas abiertas'
+      : atras.length ? `${pl(atras.length, 'tarea ha superado', 'tareas han superado')} su fecha: ${l.length === 1 ? 'es la única tarea abierta' : `son lo primero que hay que cerrar de las ${l.length} tareas abiertas`}`
+        : l.length === 1 ? `La dirección tiene una sola tarea abierta, ${sinFecha ? 'sin fecha comprometida' : 'dentro de plazo'}`
+          : `La dirección tiene ${l.length} tareas abiertas y ninguna ha superado su fecha`;
+    const msgs = [];
+    if (l.length > 1) msgs.push(`<b>${pl(top.length, 'tarea concentra', 'tareas concentran')} el mayor impacto con el menor esfuerzo.</b> La primera: ${esc(top[0].t)}${top[0].fecha ? ` (${fA(top[0].fecha)})` : ''}.`);
+    if (metas.length) msgs.push(`<b>${pl(metas.length, 'objetivo en curso', 'objetivos en curso')}.</b>${prox ? ` El más próximo vence el ${fA(prox.fecha)}: ${esc(prox.especifica || prox.objetivo)}.` : ''}`);
+    if (mT) msgs.push(`<b>${horas(mT)} reservadas esta semana</b> en ${pl(sem.length, 'bloque', 'bloques')}${mC ? `; el ${Math.round((mC / mT) * 100)} % se dedica a actividades clave` : '; ninguna corresponde a actividades clave'}.`);
+    if (ST.delegaciones.length) msgs.push(`<b>${pl(ST.delegaciones.length, 'tarea delegada', 'tareas delegadas')}</b> con seguimiento${(() => { const q = [...new Set(ST.delegaciones.map((d) => d.a).filter(Boolean))]; return q.length ? ': ' + esc(q.join(', ')) : ''; })()}.`);
+    if (sinFecha && l.length > 1) msgs.push(`<b>${pl(sinFecha, 'tarea abierta no tiene', 'tareas abiertas no tienen')} fecha comprometida.</b> Conviene fijarla o descartarla.`);
+    h += In.summary('Resumen ejecutivo', `<p><b>${esc(concl)}.</b></p>${msgs.length ? `<ul>${msgs.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}`, !l.length ? null : atras.length ? 'warn' : 'ok');
+    if (atras.length) h += In.section(`${pl(atras.length, 'tarea atrasada', 'tareas atrasadas')}: lo primero que hay que cerrar`, In.table(['Fecha comprometida', 'Tarea', 'Prioridad', 'Procede de'], atras.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map((t) => [fA(t.fecha), t.t, TIPOS[t.tipo] || '—', PROCEDE[t.mundo || 'manual'] || '—'])));
+    if (top.length) h += In.section(l.length > 1 ? `Las ${top.length === 1 ? 'tarea' : top.length + ' tareas'} de mayor impacto` : 'Tarea abierta', In.table(['Tarea', 'Área', 'Impacto (1–5)', 'Esfuerzo (1–5)', 'Fecha'], top.map((t) => [t.t, t.area || '—', String(t.impacto || 3), String(t.esfuerzo || 3), t.fecha ? fA(t.fecha) + (t.hora ? ' ' + t.hora : '') : 'Sin fecha']), { num: [2, 3] }), l.length > 1 ? 'El 20 % de las tareas abiertas que más resultado aporta por el esfuerzo que exige.' : '');
+    metas.forEach((m, i) => {
+      const filas = [['Formulación', frase(m)], ['Punto de partida', m.objetivo], ['Indicador', m.indicador ? `${m.indicador}: ${String(m.actual || '').trim() ? `de ${m.actual} a ${m.valor || '—'}` : m.valor ? `hasta ${m.valor}` : '—'} ${m.unidad || ''}`.trim() : ''], ['Fecha límite', m.fecha ? fA(m.fecha) : ''], ['Responsable', m.responsable], ['Beneficio esperado', m.beneficio], ['Ventajas', m.pros], ['Inconvenientes', m.contras], ['Obstáculos previstos y respuesta', (m.obstaculos || []).filter((o) => o.o).map((o) => (o.s ? `${o.o}: ${o.s}` : o.o)).join(' · ')], ['Seguimiento', m.seguimiento], ['Compromiso', m.afirmacion]].filter((f) => String(f[1] || '').trim());
+      const acc = (m.acciones || []).filter((a) => a.t);
+      h += In.section(`Objetivo ${i + 1}: ${m.especifica || m.objetivo}`, In.table(['Concepto', 'Contenido'], filas) + (acc.length ? In.table(['Acción', 'Fecha límite', 'Última revisión', 'Realizada'], acc.map((a) => [a.t, fA(a.fecha), fA(a.revisada), a.hecha ? (fA(a.hecha) === '—' ? 'Sí' : fA(a.hecha)) : '—'])) : ''));
     });
-    if (sem.length) h += In.section('Agenda de la semana', In.table(['Día', 'Hora', 'Tarea', 'Minutos'], sem.map((t) => [fLarga(t.fecha), t.hora, t.t, String(t.dur || 30)])));
-    if (ST.repetitivas.length) h += In.section('Tareas repetitivas', In.table(['Tarea', 'Frecuencia', 'Hora'], ST.repetitivas.map((r) => [(r.clave ? '★ ' : '') + r.t, FREQ[r.freq], r.hora || '—'])));
-    if (ST.delegaciones.length) h += In.section('Delegaciones', In.table(['Tarea', 'A quién', 'Seguimiento', 'Pasos hechos'], ST.delegaciones.map((d) => [d.tarea, d.a || '—', d.seguimiento || '—', `${(d.pasos || []).filter((p) => p.hecho).length}/${(d.pasos || []).filter((p) => p.t).length}`])));
-    h += In.section('Pendientes por fecha', In.table(['Fecha', 'Tarea', 'Tipo', 'Origen'], l.slice().sort((a, b) => (a.fecha || '9').localeCompare(b.fecha || '9')).slice(0, 60).map((t) => [t.fecha ? fCorta(t.fecha) : 'Sin fecha', (t.clave ? '★ ' : '') + t.t, TIPOS[t.tipo] || '—', MUNDOS[t.mundo || 'manual']])));
-    h += In.foot('Plan de trabajo generado en la mesa de trabajo de Atalaya 360°.');
+    if (sem.length) h += In.section(`Agenda de la semana: ${horas(mT)} comprometidas`, In.table(['Día', 'Hora', 'Asunto', 'Actividad clave', 'Minutos'], sem.map((t) => [fLarga(t.fecha), t.hora, t.t, t.clave ? 'Sí' : '—', String(min(t))]), { num: [4] }));
+    if (ST.repetitivas.length) h += In.section('Rutinas de dirección', In.table(['Tarea', 'Frecuencia', 'Hora', 'Actividad clave'], ST.repetitivas.map((r) => [r.t, FREQ[r.freq] || '—', r.hora || '—', r.clave ? 'Sí' : '—'])));
+    if (ST.delegaciones.length) h += In.section('Tareas delegadas y su seguimiento', In.table(['Tarea', 'Responsable', 'Seguimiento', 'Avance'], ST.delegaciones.map((d) => { const tot = (d.pasos || []).filter((p) => p.t).length, he = (d.pasos || []).filter((p) => p.t && p.hecho).length; return [d.tarea, d.a || '—', d.seguimiento || '—', tot ? `${he} de ${pl(tot, 'paso', 'pasos')}` : '—']; })));
+    if (l.length > 1) h += In.section('Hoja de ruta: calendario de las tareas abiertas', In.table(['Fecha', 'Tarea', 'Actividad clave', 'Prioridad', 'Procede de'], l.slice().sort((a, b) => (a.fecha || '9').localeCompare(b.fecha || '9')).slice(0, 60).map((t) => [t.fecha ? fA(t.fecha) : 'Sin fecha', t.t, t.clave ? 'Sí' : '—', TIPOS[t.tipo] || '—', PROCEDE[t.mundo || 'manual'] || '—'])), l.length > 60 ? `Se muestran las 60 primeras de ${l.length}.` : '');
+    const lim = [];
+    if (!metas.length) lim.push('La dirección no ha formalizado objetivos con indicador y fecha: el plan se limita a las tareas abiertas.');
+    if (!sem.length) lim.push('No hay tiempo reservado en la agenda de esta semana para las tareas del plan.');
+    h += In.section('Alcance y limitaciones', `<p>El plan recoge las tareas, los objetivos y los compromisos de la dirección de ${esc(emp)} a ${esc(fLarga(hoy))} de ${hoy.slice(0, 4)}. El impacto y el esfuerzo de cada tarea se valoran de 1 a 5 según el criterio de la dirección; son actividades clave las que la dirección ha señalado como decisivas para sus objetivos.</p>${lim.length ? `<ul>${lim.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`);
+    h += In.foot(`Plan de trabajo de la dirección de ${emp.replace(/\.$/, '')}. Recoge los compromisos vigentes en la fecha del documento.`);
     In.open({ titulo: 'Plan de trabajo', html: h });
   };
 

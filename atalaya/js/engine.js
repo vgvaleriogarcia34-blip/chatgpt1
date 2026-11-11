@@ -497,7 +497,7 @@
         lectura: `${h.sucesion} % de puestos clave con sustituto y ${h.polivalencia} % de polivalencia. Una baja larga en un puesto sin sustituto para la operación.` },
       { key: 'carga', corto: 'Carga', nombre: 'Carga y absentismo', vars: ['humano.absentismo', 'humano.horasExtra'],
         score: C(100 - Math.max(0, h.absentismo - 3) * 7 - Math.max(0, h.horasExtra - 5) * 4),
-        lectura: `Absentismo del ${h.absentismo} %: cada contratación cuesta un ${h.absentismo} % más. ${h.horasExtra > 8 ? 'El equipo está saturado.' : 'Hay holgura razonable.'}` }
+        lectura: `Absentismo del ${String(h.absentismo).replace('.', ',')} %: cada contratación cuesta un ${String(h.absentismo).replace('.', ',')} % más. ${h.horasExtra > 8 ? 'El equipo está saturado.' : 'Hay holgura razonable.'}` }
     ];
     const weights = { mando: 0.16, absorcion: 0.12, fundador: 0.14, procesos: 0.13, estabilidad: 0.09, reclutamiento: 0.1, aprendizaje: 0.1, sucesion: 0.09, carga: 0.07 };
     const score = dims.reduce((a, d) => a + d.score * weights[d.key], 0);
@@ -544,7 +544,7 @@
       ok: (s) => s.meta.deudaEbitdaMax, warn: (s) => s.meta.deudaEbitdaMax + 1,
       que: 'Años de beneficio operativo que harían falta para devolver toda la deuda neta.',
       // Deuda sobre EBITDA de la proyección (tras la inversión, si la hay); la de hoy es deudaEbitdaPre
-      lectura: (r, s) => { const inv = s && s.inversion && (+s.inversion.importe > 0 || (s.inversion.lineas || []).some((l) => +l.importe > 0)); return `La deuda neta equivale a ${A.fmt.x(r.deudaEbitda)} el beneficio antes de intereses e impuestos (EBITDA) en los dos primeros años ${inv ? 'tras la inversión' : 'de la proyección, sin inversión'}. Hoy es ${r.deudaEbitdaPre >= 99 ? 'incalculable (EBITDA ≤ 0)' : A.fmt.x(r.deudaEbitdaPre)}.`; },
+      lectura: (r, s) => { const inv = s && s.inversion && (+s.inversion.importe > 0 || (s.inversion.lineas || []).some((l) => +l.importe > 0)); return `La deuda neta equivale a ${A.fmt.x(r.deudaEbitda)} el resultado bruto de explotación (EBITDA) en los dos primeros años ${inv ? 'tras la inversión' : 'de la proyección, sin inversión'}. Hoy es ${r.deudaEbitdaPre >= 99 ? 'incalculable (EBITDA ≤ 0)' : A.fmt.x(r.deudaEbitdaPre)}.`; },
       directas: [V('inversion.pctFin', 'Parte financiada'), V('inversion.aportacion', 'Aportación de socios'), V('inversion.importe', 'Importe de la inversión'), V('empresa.deudaViva', 'Deuda actual')],
       indirectas: [V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.incVentas', 'Venta nueva'), V('empresa.personal', 'Coste de personal')],
       consejo: 'Menos deuda (más aportación o inversión por fases) o más beneficio del negocio. Cuidado: bajar la deuda suele castigar la liquidez.' },
@@ -560,7 +560,7 @@
       value: (r) => (r.tir === null ? -1 : r.tir * 100), fmt: (v) => (v <= -1 ? 'Sin dato' : A.fmt.pct(v) + ' al año'),
       ok: (s) => s.inversion.tipo + 4, warn: () => 8,
       que: 'Rentabilidad anual del proyecto (TIR) comparada con lo que cuesta el dinero.',
-      lectura: (r, s) => `Verde exige superar el tipo del préstamo más 4 puntos (${A.fmt.pct(s.inversion.tipo + 4)}); por debajo del 8 % el proyecto no cubre el coste de oportunidad.`,
+      lectura: (r, s) => `La rentabilidad anual del proyecto debe superar el tipo del préstamo más 4 puntos (${A.fmt.pct(s.inversion.tipo + 4)}); por debajo del 8 % no cubre el coste de oportunidad.`,
       directas: [V('inversion.margenNuevo', 'Margen nuevo'), V('inversion.incVentas', 'Venta nueva'), V('inversion.importe', 'Importe')],
       indirectas: [V('inversion.rampa', 'Meses de rampa'), V('inversion.vidaUtil', 'Vida útil'), V('inversion.fijosNuevos', 'Fijos nuevos')],
       consejo: 'Revise el precio y el mix de la actividad nueva antes que la financiación.' },
@@ -571,7 +571,7 @@
       lectura: (r) => `Inversión ${r.dim.clase.toLowerCase()}: ${A.fmt.pct(r.dim.sobreVentas * 100)} de la venta actual.`,
       directas: [V('inversion.importe', 'Importe de la inversión')],
       indirectas: [V('empresa.personal', 'Coste de personal (sube el beneficio si baja)'), V('empresa.margen', 'Margen actual'), V('empresa.fijos', 'Otros gastos fijos')],
-      consejo: 'Si la dimensión está en rojo, divide la inversión en fases que se paguen unas con otras.' },
+      consejo: 'Si la dimensión está en rojo, divida la inversión en fases que se paguen unas con otras.' },
     { key: 'circulante', nombre: 'Circulante', better: -1,
       value: (r) => r.wcPeak, fmt: (v) => A.fmt.eur(v),
       ok: (s, r) => 0.5 * Math.max(1, s.empresa.caja + (r.polLim || 0)), warn: (s, r) => Math.max(1, s.empresa.caja + (r.polLim || 0)),
@@ -587,7 +587,7 @@
       lectura: (r, s) => `Referencia del sector: ${A.SECTORS[s.sector].pesoSalarialMax} %.`,
       directas: [V('inversion.contrataciones', 'Contrataciones'), V('inversion.salario', 'Coste por persona'), V('empresa.personal', 'Coste de personal actual')],
       indirectas: [V('inversion.incVentas', 'Venta nueva'), V('humano.absentismo', 'Absentismo'), V('humano.curva', 'Curva de aprendizaje')],
-      consejo: 'Contrate al ritmo de la venta real, no del plan, y mide ventas por persona cada trimestre.' },
+      consejo: 'Contrate al ritmo de la venta real, no del plan, y mida las ventas por persona cada trimestre.' },
     { key: 'margen', nombre: 'Margen bruto', better: 1,
       value: (r) => r.tamano.despues.margen - r.tamano.antes.margen, fmt: (v) => (v >= 0 ? '+' : '') + A.fmt.pp(v),
       ok: () => -1, warn: () => -4,
@@ -727,7 +727,7 @@
   /* Qué significa cada vehículo para esta empresa, con sus cifras */
   A.STRUCT_GLOSA = {
     encaje: 'Puntuación de 0 a 100 de lo bien que encaja el vehículo con sus objetivos: liquidez (hasta 25), plazo (20), control (15), aislamiento del riesgo (15), sencillez (10) y metas cumplidas (15). Por encima de 70 encaja bien; entre 50 y 70, con matices; por debajo de 50, no conviene. La estrella marca el de mejor encaje.',
-    control: 'Parte del negocio nuevo, y de las decisiones sobre él, que sigue en manos de los socios actuales. 100 % es que decide usted solo; 65 % es que entra un socio con el 35 %; 50 % es que lo compartes a medias.',
+    control: 'Parte del negocio nuevo, y de las decisiones sobre él, que sigue en manos de los socios actuales. 100 % es que decide usted solo; 65 % es que entra un socio con el 35 %; 50 % es que se comparte a medias.',
     pleno: 'Mes en que lo nuevo llega al 100 % de la venta prevista: el arranque, más el tiempo de montar el vehículo (notaría, registro, negociación con el socio) y la rampa comercial. No es el mes en que se recupera la inversión.',
     metas: 'Cuántas de sus cinco metas (liquidez mínima, recuperación, cobertura de las cuotas, deuda sobre beneficio y peso salarial) cumple este vehículo en el escenario activo. Las fijas en «Meta y plan».',
     marcha: 'Tiempo orientativo para tener el vehículo funcionando: constituir sociedades, escrituras, registro y financiación.'
@@ -742,7 +742,7 @@
       case 'filial': return `Se crea una sociedad filial, 100 % de su empresa, que compra ${que} por ${F.eur(p.capexOperativa)} y pide ${F.eur(r.loan)} de préstamo. Si lo nuevo sale mal, el golpe se queda en la filial; a cambio, son unos ${F.eur(p.extraFijos)} al año más de gestión y conviene pactar bien las garantías que pida el banco.`;
       case 'patrimonial': return `Una sociedad patrimonial de los socios compra ${que} por ${F.eur(inv.importe)} (con su propio préstamo o con aportaciones de los socios) y se lo alquila a su empresa por unos ${F.eur(p.alquiler)} al mes (un 7,5 % anual del valor). Su empresa no compra ni se endeuda: solo paga el alquiler, que es gasto. El activo queda fuera del riesgo del negocio.`;
       case 'socio': return `Un inversor aporta la mitad de la inversión (${F.eur(inv.importe * 0.5)}) a cambio del 35 % del negocio nuevo. Necesita menos deuda y menos caja, pero reparte beneficio y decisiones: los socios actuales conservan el 65 %.`;
-      case 'jv': return `Un socio del sector pone la mitad (${F.eur(inv.importe * 0.5)}) y compartís al 50 % ventas, beneficios y decisiones. Aporta clientes y oficio, por eso la rampa es más corta; a cambio, solo se queda con la mitad de lo nuevo.`;
+      case 'jv': return `Un socio del sector pone la mitad (${F.eur(inv.importe * 0.5)}) y ambos comparten al 50 % ventas, beneficios y decisiones. Aporta clientes y oficio, por eso la rampa es más corta; a cambio, solo se queda con la mitad de lo nuevo.`;
       default: return '';
     }
   };

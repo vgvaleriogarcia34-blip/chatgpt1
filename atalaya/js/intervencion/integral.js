@@ -4,9 +4,10 @@
      Las condiciones del contrato o de la propuesta (componente variable, honorarios, pagos…) no son
      objetivos de la empresa y se descartan. Cada objetivo se comprueba con las cinco letras SMART:
      solo los que cumplen las cinco figuran como objetivos; el resto se señala como «por trabajar».
-   · Informe integral: la foto completa de la empresa en cada momento (transcripciones, constantes,
-     nota de cada mundo, objetivos, datos del simulador, del sistema estratégico, de personas y de la
-     mesa, triaje, verificaciones, hallazgos, causas, plan y sesiones). Se rehace cada vez que se abre. */
+   · Informe integral: el diagnóstico de la empresa como dossier (resumen ejecutivo, situación
+     económico-financiera, diagnóstico por áreas, riesgos y oportunidades, recomendaciones, hoja de
+     ruta y anexo de metodología, fuentes y limitaciones). El sujeto es la empresa: lo que no se ha
+     podido analizar se dice en el anexo, no como estado de la aplicación. */
 (function () {
   const A = window.Atalaya, V = A.interv;
   const { D, $, esc, norm, uid, sumar, fCorta, fLarga, pl, guardar, toast, empresa, render, VISTAS, cte, fraseObj, smartObj, evalObj, ST_N, TRIAJE, causasOrdenadas, veinte, ruta, monitor } = V.int;
@@ -245,10 +246,10 @@
     const c = clasificar(); if (!c.smart.length && !c.trabajar.length && !c.fuera.length) return '';
     const letras = (sm) => sm.map((y) => (y.ok ? '✓ ' : '✗ ') + y.k).join('  ');
     let h = '';
-    h += c.smart.length ? In.table(['#', 'Objetivo SMART', 'Indicador · hoy → meta', 'Beneficio', 'Fecha', 'S M A R T'], c.smart.map((x, i) => ['O' + (i + 1), fraseObj(x.o), `${x.o.indicador}: ${x.o.actual || '?'} → ${x.o.valor} ${x.o.unidad || ''}`, x.o.beneficio, fLarga(x.o.fecha), letras(x.sm)]))
+    h += c.smart.length ? In.table(['#', 'Objetivo SMART', 'Indicador · hoy → meta', 'Beneficio', 'Fecha', 'S M A R T'], c.smart.map((x, i) => ['O' + (i + 1), fraseObj(x.o), `${x.o.indicador}: ${x.o.actual || 'por medir'} → ${x.o.valor} ${x.o.unidad || ''}`, x.o.beneficio, fLarga(x.o.fecha), letras(x.sm)]))
       : In.callout('Todavía ningún objetivo cumple las cinco condiciones SMART. Los que ha planteado están abajo, con lo que falta para cerrarlos.', 'warn');
     if (c.trabajar.length) h += `<h4 style="margin:14px 0 6px">Objetivos que hay que trabajar</h4><p class="rp-muted" style="margin:0 0 6px">Los ha planteado, pero aún no cumplen las cinco condiciones. No se dan por objetivos hasta cerrarlos en la próxima sesión.</p>`
-      + In.table(['Lo que dijo', 'Propuesta de objetivo', 'Indicador · hoy → meta', 'Beneficio', 'Qué falta'], c.trabajar.map((x) => [x.o.dice ? '«' + x.o.dice + '»' : '—', x.o.especifica || '—', x.o.indicador ? `${x.o.indicador}: ${x.o.actual || '?'} → ${x.o.valor || '?'} ${x.o.unidad || ''}` : '—', x.o.beneficio || 'Sin cuantificar', x.sm.filter((y) => !y.ok).map((y) => `${y.n}: ${FALTA_U[y.k] || y.h}`).join(' ')]));
+      + In.table(['Lo que dijo', 'Propuesta de objetivo', 'Indicador · hoy → meta', 'Beneficio', 'Qué falta'], c.trabajar.map((x) => [x.o.dice ? '«' + x.o.dice + '»' : '—', x.o.especifica || '—', x.o.indicador ? `${x.o.indicador}: ${x.o.actual || 'por medir'} → ${x.o.valor || 'por fijar'} ${x.o.unidad || ''}` : '—', x.o.beneficio || 'Por cuantificar', x.sm.filter((y) => !y.ok).map((y) => `${String(y.n).replace(/de él$/, 'de usted')}: ${FALTA_U[y.k] || y.h}`).join(' ')]));
     if (c.fuera.length) h += `<p class="rp-muted" style="margin:10px 0 0">Las condiciones del contrato o de la propuesta (por ejemplo, el componente variable) no son objetivos de la empresa y no figuran aquí.</p>`;
     return h;
   };
@@ -277,63 +278,211 @@
 
   /* ================= INFORME INTEGRAL: LA FOTO COMPLETA ================= */
   const cargar = async (k) => { try { return await P().loadData(k); } catch (e) { return null; } };
-  const kpiSim = (sim) => {
-    if (!sim || !sim.empresa || (A.simEsEjemplo && A.simEsEjemplo(sim)) || !(+sim.empresa.ventas > 0)) return null;
-    const e = sim.empresa;
-    // Ventas, EBITDA, caja, deuda y plantilla de la fuente única (js/cifras.js), con su origen
-    if (A.cifras) { const c = A.cifras.desdeSim(sim, P().empresas && P().empresas.activa ? P().empresas.activa() : null), f = (k) => A.cifras.fmt(k, c[k]);
-      return [['Ventas anuales', f('ventas')], ['Margen bruto', c.margen == null ? '—' : (Math.round(c.margen * 10) / 10).toLocaleString('es-ES') + ' %'], ['Coste de personal', fmtE(c.personal || 0) + ` (${Math.round((c.personal || 0) / c.ventas * 100)} % de las ventas)`], ['Gastos fijos', fmtE(c.fijos || 0)], ['Beneficio del negocio aproximado (EBITDA)', f('ebitda') + (c.ebitdaPct == null ? '' : ` (${(Math.round(c.ebitdaPct * 10) / 10).toLocaleString('es-ES')} %)`)], ['Caja', f('caja')], ['Deuda bancaria', f('deuda')], ['Póliza: límite / dispuesto', `${fmtE(e.polizaLimite || 0)} / ${fmtE(e.polizaDispuesta || 0)}`], ['Plazos de cobro · existencias · pago', `${e.dso || 0} · ${e.dio || 0} · ${e.dpo || 0} días`], ['Plantilla', f('plantilla')], ['Origen de las cifras', c.origen.ventas || '—']]; }
-    const ebitda = e.ventas * (e.margen || 0) / 100 - (e.personal || 0) - (e.fijos || 0);
-    return [['Ventas anuales', fmtE(e.ventas)], ['Margen bruto', (+e.margen || 0).toLocaleString('es-ES') + ' %'], ['Coste de personal', fmtE(e.personal || 0) + ` (${Math.round((e.personal || 0) / e.ventas * 100)} % de las ventas)`], ['Gastos fijos', fmtE(e.fijos || 0)], ['Beneficio del negocio aproximado (EBITDA)', fmtE(ebitda) + ` (${(Math.round(ebitda / e.ventas * 1000) / 10).toLocaleString('es-ES')} %)`], ['Caja', fmtE(e.caja || 0)], ['Deuda viva', fmtE(e.deudaViva || 0)], ['Póliza: límite / dispuesto', `${fmtE(e.polizaLimite || 0)} / ${fmtE(e.polizaDispuesta || 0)}`], ['Plazos de cobro · existencias · pago', `${e.dso || 0} · ${e.dio || 0} · ${e.dpo || 0} días`], ['Plantilla', String(e.plantilla || 0)]];
+  /* ---------- Informe de la auditoría integral: diagnóstico de la empresa ----------
+     Dossier para la empresa: conclusión primero, situación con evidencia, diagnóstico por áreas, riesgos y
+     oportunidades, recomendaciones, hoja de ruta y un anexo con metodología, fuentes y limitaciones.
+     El sujeto es la empresa: lo que no se ha podido analizar se dice en el anexo, en una línea. */
+  const ORIGEN_N = ['Simulador de inversión', 'Sistema estratégico', 'Personas y equipos', 'Mesa de trabajo'];
+  const dec1 = (v) => (Math.round(v * 10) / 10).toLocaleString('es-ES');
+  const eurA = (v) => (v < 0 ? '−' : '') + Math.round(Math.abs(+v || 0)).toLocaleString('es-ES') + ' €';
+  const fDia = (f) => (f ? new Date(String(f).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+  const fMes = (f) => (f ? new Date(String(f).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) : '—');
+  const minus = (t) => { t = String(t || ''); return t.charAt(0).toLowerCase() + t.slice(1); };
+  const sinPunto = (t) => String(t || '').replace(/[.\s]+$/, '');
+  const aUsted = (t) => String(t || '').replace(/\s*\((estimado|estimada)[^)]*\)/gi, '').replace(/todo pasa por él/gi, 'todo pasa por una persona').replace(/\bdel empresario\b/g, 'de la dirección').replace(/\bal empresario\b/g, 'a la dirección').replace(/\bEl empresario\b/g, 'La dirección').replace(/\bel empresario\b/g, 'la dirección');
+  // Los indicadores que llegan de los otros análisis se pasan a lenguaje de empresa; lo que no son datos reales de la empresa no entra
+  const limpiarDatos = (datos, est) => {
+    const ind = [], riesgos = [];
+    (datos || []).forEach((d) => {
+      const v = String(d.v), origen = ORIGEN_N.includes(v) ? v : '';
+      if (/datos de ejemplo|datos aterrizados/i.test(d.k)) return;
+      if (!origen) { ind.push({ k: d.k.replace(/\s*\(simulador\)/i, ''), v: v.replace(/\s*\((simulador|ficha de la empresa|personas y equipos[^)]*)\)/i, ''), st: d.st || '' }); return; }
+      if (est && ((origen === ORIGEN_N[0] && !est.simulador.ok) || (origen === ORIGEN_N[1] && !est.estrategia.ok) || (origen === ORIGEN_N[2] && !est.personas.ok))) return;
+      let m;
+      if ((m = /^Riesgo alto: (.+)$/.exec(d.k))) { riesgos.push(m[1]); return; }
+      if ((m = /^Veredicto de la inversión: (.+)$/.exec(d.k))) { ind.push({ k: 'Inversión en estudio: conclusión del análisis', v: m[1], st: 'stop' }); return; }
+      m = /^En rojo: (.+?) \((.+)\)$/.exec(d.k) || /^En rojo: (.+)$/.exec(d.k);
+      const k = m ? m[1] : d.k;
+      if (origen === ORIGEN_N[0]) ind.push({ k: k + ' de la inversión en estudio', v: (m && m[2]) || 'Nivel crítico', st: 'stop' });
+      else if (!ind.some((x) => norm(x.k) === norm(k))) ind.push({ k, v: 'Nivel crítico', st: 'stop' });
+    });
+    return { ind, riesgos };
   };
-  const MUNDOS_N = ['Simulador de inversión', 'Sistema estratégico', 'Personas y equipos', 'Mesa de trabajo'];
+  const hT = (t) => { const m = /^En rojo: (.+)$/.exec(String(t || '')); return m ? m[1] + ': nivel crítico' : String(t || ''); };
   V.informes.auditoria = async () => {
     const In = I(); In.reset();
     const ST = S(); ST.informes = ST.informes || {}; ST.informes.auditoria = new Date().toISOString(); guardar();
-    toast('Preparando la foto completa…');
-    const [sim, mesa, nota, cuenta, datos] = await Promise.all([cargar('simulador'), cargar('agenda'), A.nota && A.nota.calcular ? A.nota.calcular().catch(() => null) : null, V.cruce.leerCuenta ? V.cruce.leerCuenta().catch(() => null) : null, V.cruce.estadoDatos ? V.cruce.estadoDatos().catch(() => null) : null]);
-    const r = ruta(), l = causasOrdenadas(), v20 = veinte(), conf = ST.causas.filter((c) => c.estado === 'confirmada'), desc = ST.causas.filter((c) => c.estado === 'descartada');
-    const c1 = V.cruce.conjunta ? V.cruce.conjunta('primera') : null, trs = ST.transcripciones, oc = clasificar(), ahora = new Date();
-    const fuentes = [trs.length ? pl(trs.length, 'transcripción', 'transcripciones') : '', ...(cuenta ? cuenta.fuentes : [])].filter(Boolean);
-    let h = In.cover({ empresa: empresa(), tipo: 'Auditoría integral', kicker: 'Auditoría integral · foto completa', titulo: 'La empresa hoy, con todos sus datos', subtitulo: `Actualizado el ${fLarga(ahora.toISOString().slice(0, 10))} a las ${ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} · ${fuentes.join(' · ') || 'sin fuentes todavía'}` });
-    const nRojo = nota ? Object.values(nota.mundos).reduce((a, m) => a + m.puntos.filter((x) => x.st === 'stop').length, 0) : 0;
-    h += In.summary('En pocas palabras', `<p>Este informe recoge todo lo que sabemos de la empresa en este momento y se rehace cada vez que se abre: lo escuchado en las sesiones, las constantes, la nota de cada mundo, sus objetivos, los datos de finanzas, clientes, personas y la mesa de trabajo, el triaje, lo verificado en la auditoría y el plan.</p>`
-      + In.kpis([{ k: 'Nota de la empresa', v: nota && nota.global != null ? String(nota.global).replace('.', ',') + '/10' : '—', d: pl(nRojo, 'punto en rojo', 'puntos en rojo') }, { k: 'Constantes', v: D.CONSTANTES.filter((c) => cte(c.id)).length + '/' + D.CONSTANTES.length, d: ST_N[V.int.global()] ? 'Estado ' + ST_N[V.int.global()].toLowerCase() : 'sin tomar' }, { k: 'Síntomas · causas', v: `${ST.sintomas.length} · ${l.length}`, d: pl(conf.length, 'causa confirmada', 'causas confirmadas') }, { k: 'Objetivos SMART', v: String(oc.smart.length), d: `${oc.trabajar.length} por trabajar` }]));
-    // Datos reales pendientes
-    if (datos) { const falta = Object.keys(datos).filter((k) => !datos[k].ok); if (falta.length) h += In.callout(`<b>Para completar el análisis necesitamos:</b> ${falta.map((k) => ({ simulador: 'las cuentas de la empresa (balance y cuenta de resultados)', estrategia: 'los listados de clientes, ventas, compras y cobros', personas: 'la plantilla, con puestos y equipos' })[k]).join('; ')}. El informe se completa en cuanto los tengamos.`, 'warn'); }
-    // Termómetros: nota de cada mundo
-    if (nota && Object.keys(nota.mundos).length) h += In.section('Nota de cada mundo', In.table(['Mundo', 'Nota', 'En rojo', 'En ámbar', 'Lo más urgente'], Object.keys(nota.mundos).map((k) => { const m = nota.mundos[k], ro = m.puntos.filter((x) => x.st === 'stop'); return [m.n, m.nota != null ? String(m.nota).replace('.', ',') + '/10' : '—', String(ro.length), String(m.puntos.filter((x) => x.st === 'warn').length), ro.slice(0, 3).map((x) => x.t).join(' · ') || '—']; })), 'De 0 a 10, con el mismo criterio en todas las herramientas: lo que está en orden suma, lo que hay que vigilar suma la mitad y lo que hay que corregir no suma.');
-    // Constantes vitales
-    const O = ST.cteOrigen || {}, Lg = ST.cteLenguaje || (c1 && c1.est) || {};
-    h += In.section('Constantes vitales', `<div class="pdf-keep" style="max-width:560px;margin:0 0 10px">${monitor('claro')}</div>` + In.table(['Constante', 'Lectura', 'Estado'], D.CONSTANTES.map((c) => [c.n, cte(c.id) ? String(c.e[cte(c.id) - 1]).replace(/todo pasa por él/i, 'todo pasa por una persona') : 'Sin tomar', cte(c.id) ? { h: In.pill(D.nivelConst(cte(c.id)), ST_N[D.nivelConst(cte(c.id))]) } : '—'])), '1 = bien, 5 = grave.');
-    // Lo escuchado
-    if (trs.length) {
-      const R = ST.sesion.respuestas || {}, nPreg = D.GUION.reduce((a, b) => a + b.p.length, 0);
-      const trE = trs.filter((t) => (t.momento || 'primera') !== 'comercial'), FN = (V.cruce && V.cruce.FASE_N) || {};
-      if (trE.length) h += In.section('Las conversaciones', In.table(['Conversación', 'Tipo', 'Fecha'], trE.map((t) => [t.nombre, FN[t.momento || 'primera'] || '', fLarga(t.fecha)])));
-      const cit = ST.sintomas.filter((s) => s.cita).slice(0, 12);
-      if (cit.length) h += In.section('Sus palabras', In.table(['Síntoma', 'Lo que dijo', 'Área', 'Origen'], cit.map((s) => [s.t, '«' + s.cita + '»', (D.area(s.area) || {}).n || '', s.origen === 'documentacion' ? s.de || 'Documentación' : s.origen === 'transcripcion' ? 'Conversación' : 'Notas de la sesión'])));
+    toast('Preparando el informe…');
+    const SV = V.servicios || {};
+    const [sim, mesa, cuenta, est, c0, d360] = await Promise.all([cargar('simulador'), cargar('agenda'), V.cruce.leerCuenta ? V.cruce.leerCuenta().catch(() => null) : null, V.cruce.estadoDatos ? V.cruce.estadoDatos().catch(() => null) : null, A.cifras && A.cifras.actual ? A.cifras.actual().catch(() => null) : null, SV.datos360 ? SV.datos360().catch(() => null) : null]);
+    const hoyD = V.int.hoy(), r = ruta(), l = causasOrdenadas(), v20 = veinte(), conf = ST.causas.filter((x) => x.estado === 'confirmada');
+    const trs = ST.transcripciones.filter((t) => (t.momento || 'primera') !== 'comercial'), FN = (V.cruce && V.cruce.FASE_N) || {}, F360 = (ST.recorrido && ST.recorrido.foto360) || {};
+    const c = c0 && !c0.sinDatos && !c0.ejemplo && c0.ventas > 0 ? c0 : null, sem = c ? A.cifras.semaforos(c) : [], luzDe = (k) => sem.find((x) => x.k === k);
+    const Y = sim && sim.historico && !sim.historico.ejemplo && SV.aniosDe ? SV.aniosDe(sim) : [], an = c && Y.length >= 2 && SV.analisisDinero ? SV.analisisDinero(Y) : null;
+    const pill = (st, t) => (st ? { h: In.pill(st, t || ST_N[st] || '') } : '—');
+    const porArea = {}; D.AREAS.forEach((a) => { porArea[a.id] = limpiarDatos(cuenta && cuenta.out[a.id] ? cuenta.out[a.id].datos : [], est); });
+    const indDe = (a, k) => (porArea[a].ind.find((x) => x.k === k) || null);
+    const p1 = indDe('com', 'Peso del primer cliente'), p3 = indDe('com', 'Peso de los tres primeros');
+    const acc = (ST.plan && ST.plan.acciones) || [], oc = clasificar(), top = r[0];
+    const cts = D.CONSTANTES.filter((x) => cte(x.id)), crit = cts.filter((x) => cte(x.id) >= 4);
+    const a0 = an ? an.F[0].anio : null, a1 = an ? an.F[an.F.length - 1].anio : null;
+    const ambito = [c ? 'finanzas y caja' : '', ...r.map((x) => x.a.n.toLowerCase())].filter((x, i, arr) => x && arr.indexOf(x) === i);
+    const periodo = an ? `ejercicios ${Y[0].anio}-${a1}` : c && c.anio ? `ejercicio ${c.anio}` : '';
+    let h = In.cover({ empresa: empresa(), tipo: 'Auditoría integral', kicker: 'Informe de diagnóstico', titulo: 'Diagnóstico integral de la empresa', subtitulo: [`Situación a ${fLarga(hoyD)}`, ambito.length ? 'Ámbito: ' + ambito.slice(0, 6).join(', ') : '', periodo ? 'Periodo analizado: ' + periodo : ''].filter(Boolean).join(' · ') });
+
+    /* Resumen ejecutivo: la conclusión primero y de tres a cinco mensajes, cada uno con su cifra */
+    const sinNada = !c && !r.length && !l.length && !cts.length && !oc.smart.length && !oc.trabajar.length;
+    const rojo = sem.filter((x) => x.st === 'stop');
+    const lead = sinNada ? 'A la fecha de este informe no se dispone de información económica ni de entrevistas con la dirección que permitan emitir un diagnóstico. El anexo detalla la información necesaria para elaborarlo.'
+      : an && an.cajaAc < 0 && an.benAc > 0 ? 'La empresa gana dinero, pero no lo convierte en caja. La prioridad es la liquidez: cobrar antes y dejar de financiar el crecimiento con la tesorería.'
+      : rojo.length ? 'La situación económica exige actuar a corto plazo. ' + rojo.map((x) => x.d).filter(Boolean).join(' ')
+      : top ? `La prioridad de la empresa está en ${top.a.n.toLowerCase()}${top.cs[0] ? ': ' + minus(sinPunto(top.cs[0].t)) : ''}.`
+      : c && sem.length && sem.every((x) => x.st === 'ok') ? 'Las magnitudes económicas analizadas están dentro de los umbrales de referencia.' : '';
+    const msgs = [];
+    if (an && !(an.cajaAc < 0 && an.benAc > 0)) msgs.push(an.lect[0]);
+    if (an && an.cajaAc < 0 && an.benAc > 0) msgs.push(`Entre ${a0} y ${a1} el beneficio acumulado fue de ${eurA(an.benAc)} y la caja bajó ${eurA(Math.abs(an.cajaAc))}${an.atrAc > 0 ? `; ${eurA(an.atrAc)} quedaron retenidos en clientes y existencias` : ''}.`);
+    if (c && c.ebitda != null) msgs.push(`Las ventas anuales son de ${eurA(c.ventas)} y el beneficio del negocio (EBITDA), de ${eurA(c.ebitda)}: el ${dec1(c.ebitdaPct)} % de las ventas.`);
+    if (c && c.mesesCaja != null) msgs.push(`La caja de ${eurA(c.caja)} cubre ${dec1(c.mesesCaja)} meses de costes${c.deudaEbitda != null ? ` y la deuda neta equivale a ${dec1(c.deudaEbitda)} veces el EBITDA` : ''}.`);
+    if (p1) msgs.push(`El primer cliente concentra el ${p1.v} de las ventas${p3 ? ` y los tres primeros, el ${p3.v}` : ''}.`);
+    if (l.length) msgs.push(`El diagnóstico identifica ${pl(l.length, 'causa', 'causas')} de fondo${conf.length ? `, ${conf.length} de ellas ${conf.length === 1 ? 'confirmada' : 'confirmadas'} con evidencia` : ', pendientes de contraste documental'}${top ? `. El área prioritaria es ${top.a.n.toLowerCase()}` : ''}.`);
+    if (acc.length) msgs.push(`Se proponen ${pl(acc.length, 'acción', 'acciones')}, ${acc.filter((a) => a.clave).length} de ellas prioritarias, con horizonte en ${fMes(acc.reduce((m, a) => (a.fecha > m ? a.fecha : m), ''))}.`);
+    const kp = c ? [{ k: 'Ventas anuales', v: eurA(c.ventas), d: c.anio ? 'Ejercicio ' + c.anio : '' }, { k: 'Beneficio del negocio (EBITDA)', v: c.ebitda == null ? '—' : eurA(c.ebitda), d: c.ebitdaPct == null ? '' : dec1(c.ebitdaPct) + ' % de las ventas', st: (luzDe('ebitda') || {}).st }, { k: 'Caja', v: c.caja == null ? '—' : eurA(c.caja), d: c.mesesCaja == null ? '' : dec1(c.mesesCaja) + ' meses de costes', st: (luzDe('caja') || {}).st }, { k: 'Deuda neta / EBITDA', v: c.deudaEbitda == null ? '—' : dec1(c.deudaEbitda) + ' veces', d: c.deuda == null ? '' : 'Deuda bancaria de ' + eurA(c.deuda), st: (luzDe('deudaEbitda') || {}).st }]
+      : r.length ? [{ k: 'Áreas con prioridad alta', v: String(r.filter((x) => x.n === 'stop').length), d: `de ${r.length} analizadas` }, { k: 'Causas identificadas', v: String(l.length), d: pl(conf.length, 'confirmada', 'confirmadas') }, { k: 'Objetivos de la dirección', v: String(oc.smart.length + oc.trabajar.length), d: oc.smart.length ? pl(oc.smart.length, 'definido', 'definidos') + ' por completo' : 'en definición' }] : [];
+    h += In.summary('Resumen ejecutivo', (lead ? `<p><b>${esc(lead)}</b></p>` : '') + (msgs.length ? `<ul>${msgs.slice(0, 5).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''), sinNada ? '' : rojo.length || (an && an.st === 'stop') ? 'stop' : '') + In.kpis(kp);
+
+    /* Situación económico-financiera */
+    if (c) {
+      const e = sim.empresa || {}, eco = (d360 && d360.economica) || [], fin = (d360 && d360.financiero) || [], de = (lista, k) => lista.find((x) => x.k.indexOf(k) === 0);
+      const pe = de(eco, 'Punto de equilibrio'), mb = de(eco, 'Margen bruto'), pp = de(eco, 'Peso del personal'), dc = de(fin, 'Deuda a corto'), au = de(fin, 'Autonomía');
+      const filas = [['Ventas anuales', eurA(c.ventas), '—']];
+      if (c.margen != null) filas.push(['Margen bruto', dec1(c.margen) + ' %', pill(mb && mb.st)]);
+      if (c.personal != null) filas.push(['Coste de personal', `${eurA(c.personal)} (${dec1(c.personal / c.ventas * 100)} % de las ventas)`, pill(pp && pp.st)]);
+      if (c.fijos != null) filas.push(['Gastos fijos', `${eurA(c.fijos)} (${dec1(c.fijos / c.ventas * 100)} % de las ventas)`, '—']);
+      if (c.ebitda != null) filas.push(['Beneficio del negocio (EBITDA)', `${eurA(c.ebitda)} (${dec1(c.ebitdaPct)} % de las ventas)`, pill((luzDe('ebitda') || {}).st)]);
+      if (pe) filas.push(['Punto de equilibrio', pe.v + (c.ventas ? ` (las ventas lo superan en un ${dec1((c.ventas - parseFloat(String(pe.v).replace(/[^\d]/g, ''))) / c.ventas * 100)} %)` : ''), pill(pe.st)]);
+      if (c.caja != null) filas.push(['Caja', eurA(c.caja) + (c.mesesCaja != null ? ` (${dec1(c.mesesCaja)} meses de costes)` : ''), pill((luzDe('caja') || {}).st)]);
+      if (c.deuda != null) filas.push(['Deuda bancaria', eurA(c.deuda), '—']);
+      if (c.deudaEbitda != null) filas.push(['Deuda neta / EBITDA', dec1(c.deudaEbitda) + ' veces', pill((luzDe('deudaEbitda') || {}).st)]);
+      if (dc && dc.v !== '—') filas.push(['Deuda a corto plazo sobre el total', dc.v, pill(dc.st)]);
+      if (au && au.v !== '—') filas.push(['Autonomía financiera (fondos propios / activo)', au.v, pill(au.st)]);
+      if (+e.polizaLimite > 0) filas.push(['Póliza de crédito', `${eurA(e.polizaDispuesta || 0)} dispuestos de ${eurA(e.polizaLimite)} (${Math.round((e.polizaDispuesta || 0) / e.polizaLimite * 100)} %)`, pill((e.polizaDispuesta || 0) / e.polizaLimite > 0.8 ? 'stop' : (e.polizaDispuesta || 0) / e.polizaLimite > 0.5 ? 'warn' : 'ok')]);
+      if (+e.dso > 0) filas.push(['Plazos de cobro · existencias · pago', `${e.dso || 0} · ${e.dio || 0} · ${e.dpo || 0} días`, '—']);
+      const rent = c.ebitda == null ? '' : c.ebitda <= 0 ? 'El negocio no genera resultado operativo' : c.ebitdaPct < 5 ? `El margen operativo es estrecho (EBITDA del ${dec1(c.ebitdaPct)} % de las ventas)` : `El negocio es rentable (EBITDA del ${dec1(c.ebitdaPct)} % de las ventas)`;
+      const liq = c.mesesCaja == null ? '' : c.mesesCaja < 1 ? 'la caja no cubre un mes de costes' : c.mesesCaja < 2 ? `la caja cubre solo ${dec1(c.mesesCaja)} meses de costes` : `la caja cubre ${dec1(c.mesesCaja)} meses de costes`;
+      const titulo = an && an.cajaAc < 0 && an.benAc > 0 ? `La empresa ganó ${eurA(an.benAc)} entre ${a0} y ${a1}, pero la caja bajó ${eurA(Math.abs(an.cajaAc))}` : rent && liq ? `${rent}${(c.ebitda > 0) === (c.mesesCaja >= 2) ? ' y ' : ', pero '}${liq}` : rent || 'Situación económico-financiera';
+      const notas = ['caja', 'economica', 'financiero'].map((k) => (F360[k] || {}).nota).filter(Boolean);
+      h += In.section(titulo, In.table(['Magnitud', 'Valor', 'Valoración'], filas)
+        + (sem.filter((x) => x.d).length ? `<p style="margin:8px 0 2px"><b>Qué significa para la empresa</b></p><ul style="margin:0">${sem.filter((x) => x.d).map((x) => `<li>${esc(x.t)} (${esc(x.v)}): ${esc(minus(x.d))}</li>`).join('')}</ul>` : '')
+        + (an ? `<h4 style="margin:14px 0 6px">Beneficio frente a caja, ${a0}-${a1}</h4><ul style="margin:0 0 8px">${an.lect.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` + In.table(['Año', 'Beneficio', 'Variación de caja', 'Retenido en clientes y existencias', 'Inversión', 'Variación de deuda', 'Días de cobro'], an.F.map((x) => [String(x.anio), eurA(x.bn), eurA(x.caja), eurA(x.atrapado), eurA(x.capex), eurA(x.deuda), x.dso ? String(Math.round(x.dso)) : '—']), { num: [1, 2, 3, 4, 5, 6] }) : '')
+        + (notas.length ? `<p style="margin:10px 0 2px"><b>Valoración del consultor</b></p>${notas.map((t) => `<p style="margin:0 0 4px">${esc(t)}</p>`).join('')}` : ''),
+        `Cifras ${c.anio ? 'del ejercicio ' + c.anio : 'facilitadas por la empresa'}${an ? `, con la evolución desde ${Y[0].anio}` : ''}.`);
     }
-    // Objetivos
-    const so = seccionObjetivos(In); if (so) h += In.section('Sus objetivos', so, 'Lo que usted quiere conseguir, comprobado con las cinco condiciones SMART: específico, medible, que depende de usted, rentable y con fecha.');
-    // Datos de los otros mundos
-    const ks = kpiSim(sim); if (ks) h += In.section('Finanzas y caja (simulador)', In.table(['Dato', 'Valor'], ks));
-    if (cuenta) { const filas = D.AREAS.flatMap((a) => { const o = cuenta.out[a.id]; return o.datos.filter((d) => !MUNDOS_N.includes(String(d.v))).map((d) => [a.n, d.k, String(d.v), d.st ? { h: In.pill(d.st, ST_N[d.st] || d.st) } : '—']).concat(o.docs.map((d) => [a.n, 'Documento', d.n, '—'])); }); if (filas.length) h += In.section('Datos de la empresa, por áreas', In.table(['Área', 'Dato', 'Valor', 'Estado'], filas.slice(0, 60)), 'Lo que dicen sus cuentas, sus clientes y ventas, su plantilla y los documentos aportados.'); }
-    if (mesa && (Array.isArray(mesa.metas) || Array.isArray(mesa.tareas))) { const mt = (mesa.metas || []).filter((m) => m.estado !== 'archivada'), ta = mesa.tareas || [], hechas = ta.filter((t) => t.estado === 'hecha').length; if (mt.length || ta.length) h += In.section('Mesa de trabajo', In.kpis([{ k: 'Metas activas', v: String(mt.filter((m) => m.estado !== 'cumplida').length), d: pl(mt.filter((m) => m.estado === 'cumplida').length, 'cumplida', 'cumplidas') }, { k: 'Tareas', v: String(ta.length), d: `${hechas} hechas · ${ta.length - hechas} abiertas` }]) + (mt.length ? In.table(['Meta', 'Indicador', 'Fecha'], mt.slice(0, 10).map((m) => [m.especifica || m.objetivo || '—', m.indicador ? `${m.indicador}: ${m.actual || '?'} → ${m.valor || '?'} ${m.unidad || ''}` : '—', m.fecha ? fCorta(m.fecha) : '—'])) : '')); }
-    // Triaje
-    if (r.length) h += In.section('Triaje por áreas', In.table(['Área', 'Triaje', 'Síntomas', 'Hipótesis de causa'], r.map((x) => [x.a.n, x.n ? { h: In.pill(x.n, TRIAJE[x.n].n) } : '—', String(x.ss.length), x.cs.map((c) => c.t).join(' · ') || '—'])), 'Urgencias: 0-14 días. Preferente: este trimestre. Programable: sin urgencia.');
-    // Verificaciones, evidencias y hallazgos por área
-    r.forEach((x) => { const v = ST.verifica[x.a.id] || {}; const filas = (D.VERIFICA[x.a.id] || []).map((q, i) => [q, D.ESTADOS_V[(v[i] || {}).e || 'pend'], (v[i] || {}).nota || '—']); const hs = ST.hallazgos.filter((hh) => hh.area === x.a.id); const dc = cuenta && cuenta.out[x.a.id]; h += In.section('Verificación · ' + x.a.n, In.table(['Verificación', 'Estado', 'Evidencia'], filas) + (hs.length ? In.table(['Hallazgo', 'Gravedad', 'Origen'], hs.map((hh) => [hh.t, String(hh.gravedad), hh.origen === 'ecosistema' ? 'Datos de la empresa' : 'Auditoría'])) : '') + (dc && dc.datos.length ? `<p class="rp-muted" style="margin:6px 0 0">Datos de la empresa: ${dc.datos.filter((d) => !MUNDOS_N.includes(String(d.v))).map((d) => esc(d.k + ' ' + d.v)).join(' · ')}</p>` : '')); });
-    // Causas
-    if (l.length) h += In.section('Causas', In.table(['Causa', 'Área', 'Explica', 'Estado', 'Prioridad'], l.map((x) => [x.c.t, (D.area(x.c.area) || {}).n || '', pl(x.ss.length, 'síntoma', 'síntomas'), x.c.estado === 'confirmada' ? { h: In.pill('stop', 'Confirmada') } : x.c.estado === 'descartada' ? 'Descartada' : 'Por confirmar', v20.has(x.c.id) ? 'De las que más pesan' : '—'])), `${pl(conf.length, 'confirmada', 'confirmadas')}, ${pl(desc.length, 'descartada', 'descartadas')} y ${l.length - conf.length - desc.length} por verificar.`);
-    // Plan y sesiones
-    const acc = (ST.plan && ST.plan.acciones) || [];
-    if (acc.length) { const est = (e) => acc.filter((a) => (a.estado || 'pendiente') === e).length; h += In.section('Plan de intervención', In.kpis([{ k: 'Acciones', v: String(acc.length), d: `${acc.filter((a) => a.clave).length} clave` }, { k: 'Hechas', v: String(est('hecha')), d: `${est('en curso')} en curso` }, { k: 'Pendientes', v: String(est('pendiente')), d: acc.filter((a) => a.estado !== 'hecha' && a.fecha && a.fecha < V.int.hoy()).length + ' con la fecha pasada' }])); }
-    const ses = ST.sesiones.filter((s) => s.tipo !== 'contacto'); if (ses.length) h += In.section('Sesiones', In.table(['Fecha', 'Sesión', 'Acuerdos', 'Avances', 'Acta'], ses.map((s) => [fCorta(s.fecha), D.TIPOS_SESION[s.tipo] || s.tipo, String((s.acuerdos || []).length), String((s.avances || []).length), s.acta ? 'Sí' : '—'])));
-    h += In.foot('Informe integral de la auditoría. Recoge los datos de todos los mundos de la empresa en el momento en que se abre; las causas sin verificar son hipótesis de trabajo.');
+
+    /* Señales de la dirección y la organización (valoración cualitativa de las entrevistas) */
+    if (cts.length) h += In.section(crit.length ? `${crit.length === 1 ? 'Una' : crit.length} de las ${cts.length} señales de la dirección ${crit.length === 1 ? 'está' : 'están'} en nivel crítico: ${crit.map((x) => x.n.toLowerCase()).join(', ')}` : 'Las señales de la dirección no muestran tensiones críticas',
+      `<div class="pdf-keep" style="max-width:560px;margin:0 0 10px">${monitor('claro')}</div>` + In.table(['Señal', 'Qué mide', 'Lectura', 'Nivel'], cts.map((x) => [x.n, aUsted(minus(x.q)), cte(x.id) + '/5 · ' + aUsted(x.e[cte(x.id) - 1]), pill(D.nivelConst(cte(x.id)))])),
+      'Valoración cualitativa a partir de las entrevistas con la dirección, de 1 (situación favorable) a 5 (situación grave).');
+
+    /* Diagnóstico por áreas: conclusión en el título, evidencia y lo que significa */
+    const PRIO = { stop: 'alta (actuar en un plazo de 0 a 14 días)', warn: 'media (resolver este trimestre)', ok: 'baja (programable)' }, NOTA_A = { com: 'abc', ope: 'operativo' };
+    const yaFin = /^(Facturación|Margen bruto|Beneficio del negocio|Años de beneficio|Caja|Deuda)/;
+    const pendV = [], riesgosOp = [];
+    const areas = r.map((x) => x.a.id).concat(D.AREAS.map((a) => a.id)).filter((id, i, arr) => arr.indexOf(id) === i);
+    areas.forEach((id) => {
+      const a = D.area(id), x = r.find((y) => y.a.id === id), ss = x ? x.ss : [], cs = l.filter((y) => y.c.area === id).map((y) => y.c);
+      const ind = porArea[id].ind.filter((d) => !(id === 'fin' && c && yaFin.test(d.k)) && !(d.k === 'Plantilla' && porArea[id].ind.some((y) => /^Trabajadores/.test(y.k)))), hs = ST.hallazgos.filter((hh) => hh.area === id).sort((p, q) => (+q.gravedad || 0) - (+p.gravedad || 0));
+      porArea[id].riesgos.forEach((t) => riesgosOp.push({ t, a: a.n }));
+      const v = ST.verifica[id] || {}, vs = (D.VERIFICA[id] || []).map((q, i) => ({ q, e: (v[i] || {}).e || 'pend', nota: (v[i] || {}).nota || '' }));
+      const hechas = vs.filter((y) => y.e === 'ok' || y.e === 'desv');
+      if (x && vs.some((y) => y.e === 'pend')) pendV.push(`${a.n}: ${vs.filter((y) => y.e === 'pend').map((y) => minus(y.q)).join('; ')}`);
+      const nota = (F360[NOTA_A[id]] || {}).nota;
+      if (!ss.length && !cs.length && !ind.length && !hs.length && !hechas.length && !nota) return;
+      const cc = cs.find((y) => y.estado === 'confirmada'), peor = ind.find((d) => d.st === 'stop');
+      const concl = cc ? minus(sinPunto(cc.t)) : hs.length ? minus(sinPunto(hT(hs[0].t))) : cs.length ? minus(sinPunto(cs[0].t)) + ' (hipótesis por contrastar)' : peor ? minus(peor.k) + (peor.v && peor.v !== 'Nivel crítico' ? ' de ' + peor.v : ' en nivel crítico') : ind.some((d) => d.st === 'warn') ? 'indicadores que conviene vigilar' : 'sin incidencias relevantes';
+      const mc = cc || cs.find((y) => y.estado !== 'descartada'), ct = mc && mc.ref && V.primeraInterno && V.primeraInterno.causaTxt ? V.primeraInterno.causaTxt(mc.ref) : null, pt = mc && mc.patron && !(mc.patron === 'limite' && id !== 'ope') ? D.patron(mc.patron) : null;
+      const signif = [ct && ct.q, pt && pt.cuesta].filter(Boolean).join(' '), citas = ss.filter((s) => s.cita).slice(0, 3);
+      h += In.section(`${a.n}: ${concl}`,
+        (x && x.n ? `<p><b>Prioridad ${esc(PRIO[x.n])}.</b> ${x.pr && PRIN_A[x.pr.p] ? esc(PRIN_A[x.pr.p]) : ''}</p>` : '')
+        + (ind.length ? In.table(['Indicador', 'Valor', 'Valoración'], ind.map((d) => [d.k, d.v, pill(d.st)])) : '')
+        + (hs.length ? In.table(['Hallazgo', 'Gravedad', 'Fuente'], hs.map((hh) => [hT(hh.t), (hh.gravedad || '—') + '/5', hh.origen === 'ecosistema' ? 'Datos de la empresa' : 'Comprobación documental'])) : '')
+        + (hechas.length ? In.table(['Comprobación realizada', 'Resultado', 'Evidencia'], hechas.map((y) => [y.q, pill(y.e === 'ok' ? 'ok' : 'stop', y.e === 'ok' ? 'Conforme' : 'Desviación'), y.nota || '—'])) : '')
+        + (citas.length ? `<p style="margin:8px 0 2px"><b>Lo que dice la dirección</b></p><ul style="margin:0">${citas.map((s) => `<li><i>«${esc(s.cita.replace(/^[«"]|[»"]$/g, ''))}»</i></li>`).join('')}</ul>` : '')
+        + (cs.length ? `<p style="margin:8px 0 2px"><b>Causas</b></p><ul style="margin:0">${cs.map((y) => `<li>${esc(y.t)} · ${y.estado === 'confirmada' ? 'confirmada' : y.estado === 'descartada' ? 'descartada' : 'hipótesis por contrastar'}</li>`).join('')}</ul>` : '')
+        + (signif ? `<p style="margin:8px 0 0"><b>Qué significa para la empresa:</b> ${esc(aUsted(signif))}</p>` : '')
+        + (nota ? `<p style="margin:8px 0 0"><b>Valoración del consultor:</b> ${esc(nota)}</p>` : ''));
+    });
+
+    /* Causas de fondo */
+    if (l.length) h += In.section(`${pl(l.length, 'causa de fondo explica', 'causas de fondo explican')} lo observado${conf.length ? `; ${conf.length === 1 ? 'una está confirmada' : conf.length + ' están confirmadas'}` : ''}`,
+      In.table(['Causa', 'Área', 'Síntomas que explica', 'Estado', 'Prioridad'], l.map((x) => [x.c.t, (D.area(x.c.area) || {}).n || '', String(x.ss.length), x.c.estado === 'confirmada' ? { h: In.pill('stop', 'Confirmada') } : x.c.estado === 'descartada' ? 'Descartada' : 'Hipótesis', v20.has(x.c.id) ? 'Alta' : 'Media'])),
+      'Prioridad alta: las causas que concentran la mayor parte de la gravedad observada.');
+
+    /* Riesgos y oportunidades */
+    const riesgos = [];
+    sem.filter((x) => x.st !== 'ok' && x.d).forEach((x) => riesgos.push([sinPunto(x.d), `${x.t}: ${x.v}`, x.st]));
+    if (p1 && p1.st && p1.st !== 'ok') riesgos.push(['Concentración de las ventas en pocos clientes', `El primer cliente representa el ${p1.v}${p3 ? ' y los tres primeros, el ' + p3.v : ''}`, p1.st]);
+    riesgosOp.forEach((x) => riesgos.push([x.t, 'Análisis de ' + x.a.toLowerCase(), 'stop']));
+    ST.hallazgos.filter((hh) => +hh.gravedad >= 4).forEach((hh) => riesgos.push([hT(hh.t), (hh.origen === 'ecosistema' ? 'Datos de la empresa · ' : 'Comprobación documental · ') + ((D.area(hh.area) || {}).n || ''), +hh.gravedad >= 5 ? 'stop' : 'warn']));
+    crit.forEach((x) => riesgos.push([aUsted(x.e[cte(x.id) - 1]), `Entrevistas con la dirección · ${x.n.toLowerCase()} ${cte(x.id)}/5`, cte(x.id) >= 5 ? 'stop' : 'warn']));
+    const opos = [];
+    if (an) { const f0 = an.F[0], u = an.F[an.F.length - 1]; if (f0.dso && u.dso && u.dso - f0.dso > 7 && u.ventas) opos.push(`Volver al plazo de cobro de ${f0.anio} (${Math.round(f0.dso)} días frente a los ${Math.round(u.dso)} actuales) liberaría en torno a ${eurA((u.dso - f0.dso) * u.ventas / 365)} de caja.`); }
+    oc.smart.concat(oc.trabajar).forEach((y) => { if (y.o.beneficio && !/^sin cuantificar/i.test(y.o.beneficio)) opos.push(`${sinPunto(y.o.especifica || y.o.dice)}: ${minus(sinPunto(aUsted(y.o.beneficio)))}.`); });
+    if (riesgos.length || opos.length) h += In.section('Riesgos y oportunidades',
+      (riesgos.length ? In.table(['Riesgo', 'Evidencia', 'Nivel'], riesgos.slice(0, 12).map((x) => [x[0], x[1], pill(x[2], x[2] === 'stop' ? 'Alto' : 'Medio')])) : '')
+      + (opos.length ? `<p style="margin:10px 0 2px"><b>Oportunidades</b></p><ul style="margin:0">${opos.slice(0, 5).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''));
+
+    /* Objetivos de la dirección */
+    const so = seccionObjetivos(In); if (so) h += In.section('Los objetivos de la dirección', so, 'Lo que la dirección quiere conseguir, contrastado con cinco condiciones: específico, medible, que depende de la propia empresa, rentable y con fecha.');
+
+    /* Recomendaciones priorizadas */
+    const resp = (a) => a.responsable || (a.quien === 'empresa' ? 'Dirección de la empresa' : 'Equipo consultor');
+    const ENT = { '—': '', 'Artefacto que cierra la causa': 'Causa resuelta y documentada' };
+    if (acc.length) {
+      const rec = acc.filter((a) => a.estado !== 'hecha').sort((p, q) => (+!!q.clave - +!!p.clave) || p.f - q.f || p.fecha.localeCompare(q.fecha)).slice(0, 8);
+      if (rec.length) h += In.section('Recomendaciones priorizadas', In.table(['#', 'Recomendación', 'Resultado esperado', 'Responsable', 'Plazo'], rec.map((a, i) => [String(i + 1), a.t.replace(/^Corregir: (.)/, (m, x) => 'Corregir la desviación: ' + x.toLowerCase()).replace(/^Resolver: (.)/, (m, x) => 'Resolver: ' + x.toLowerCase()), [a.ent in ENT ? ENT[a.ent] : a.ent].concat((a.kpis || []).filter((k) => k.n && k.meta).map((k) => `${k.n}: ${k.actual || '—'} → ${k.meta}`)).filter(Boolean).join(' · ') || '—', resp(a), fDia(a.fecha) + (a.fecha && a.fecha < hoyD ? ' (con retraso)' : '')])),
+        'Ordenadas por el principio que protegen: primero la liquidez, después la rentabilidad y después el crecimiento, con la organización como base de las tres.');
+    } else if (l.length) h += In.section('Recomendaciones priorizadas', In.table(['#', 'Causa que hay que resolver', 'Primer paso', 'Área'], l.filter((x) => x.c.estado !== 'descartada').slice(0, 6).map((x, i) => [String(i + 1), x.c.t, x.c.estado === 'confirmada' ? 'Definir la acción correctora, con responsable y fecha' : 'Contrastarla con: ' + minus((D.VERIFICA[x.c.area] || ['la documentación del área'])[0]), (D.area(x.c.area) || {}).n || ''])),
+      'Ordenadas por el principio que protegen: primero la liquidez, después la rentabilidad y después el crecimiento.');
+
+    /* Hoja de ruta y próximos pasos */
+    const fut = ST.sesiones.filter((s) => s.fecha >= hoyD).slice(0, 4), metas = mesa && Array.isArray(mesa.metas) ? mesa.metas.filter((m) => m.estado !== 'archivada' && m.estado !== 'cumplida' && (m.especifica || m.objetivo)) : [];
+    let hr = '';
+    if (acc.length) {
+      const hechas = acc.filter((a) => a.estado === 'hecha').length, tarde = acc.filter((a) => a.estado !== 'hecha' && a.fecha && a.fecha < hoyD).length;
+      hr += In.table(['Fase', 'Qué se consigue', 'Periodo', 'Acciones', 'Hitos'], D.FASES.map((F) => { const la = acc.filter((a) => +a.f === F.id); if (!la.length) return null; const fs = la.map((a) => a.fecha).sort(); return [`${F.id}. ${F.n}`, aUsted(F.d), fs[0] === fs[fs.length - 1] ? fDia(fs[0]) : `${fDia(fs[0])} → ${fDia(fs[fs.length - 1])}`, String(la.length), la.filter((a) => a.clave).map((a) => (a.ent in ENT ? ENT[a.ent] : a.ent)).filter(Boolean).filter((t, i, arr) => arr.indexOf(t) === i).slice(0, 3).join(' · ') || '—']; }).filter(Boolean));
+      if (hechas || tarde) hr += `<p style="margin:6px 0 0">A la fecha de este informe, ${hechas} de las ${acc.length} acciones están completadas${tarde ? ` y ${tarde} ${tarde === 1 ? 'supera' : 'superan'} la fecha prevista` : ''}.</p>`;
+    }
+    if (fut.length) hr += `<p style="margin:10px 0 2px"><b>Próximas sesiones de trabajo</b></p>` + In.table(['Fecha', 'Sesión', 'Objetivo'], fut.map((s) => [fDia(s.fecha), D.TIPOS_SESION[s.tipo] || s.tipo, aUsted(s.obj) || '—']));
+    if (metas.length) hr += `<p style="margin:10px 0 2px"><b>Metas en curso</b></p>` + In.table(['Meta', 'Indicador', 'Fecha'], metas.slice(0, 8).map((m) => [m.especifica || m.objetivo, m.indicador ? `${m.indicador}: ${m.actual || 'por medir'} → ${m.valor || 'por fijar'} ${m.unidad || ''}` : '—', m.fecha ? fDia(m.fecha) : '—']));
+    if (!hr) hr = `<ol>${[!trs.length ? 'Sesión de diagnóstico con la dirección: situación, prioridades y objetivos.' : '', !c ? 'Análisis económico-financiero con las cuentas de los últimos ejercicios.' : '', l.some((x) => x.c.estado !== 'confirmada' && x.c.estado !== 'descartada') ? 'Contraste documental de las hipótesis por áreas.' : '', 'Plan de actuación con responsables, fechas y resultados esperados.'].filter(Boolean).map((t) => `<li>${t}</li>`).join('')}</ol>`;
+    h += In.section('Hoja de ruta y próximos pasos', hr, acc.length ? 'Las fechas son orientativas y se revisan en cada sesión de seguimiento.' : '');
+
+    /* Anexo: metodología, fuentes y limitaciones */
+    const docs = [...new Set(D.AREAS.flatMap((a) => (cuenta && cuenta.out[a.id] ? cuenta.out[a.id].docs : []).map((d) => String(d.n).replace(/\.(txt|pdf|docx?|xlsx?|csv|md)$/i, ''))))];
+    const fu = [];
+    if (trs.length) fu.push(['Entrevistas con la dirección', trs.map((t) => `${FN[t.momento || 'primera'] || 'Sesión'} (${fDia(t.fecha)})`).join('; ')]);
+    if (c) fu.push(['Información económico-financiera', an ? `Cuentas de los ejercicios ${Y[0].anio} a ${a1}` : c.anio ? `Cuentas del ejercicio ${c.anio}` : 'Cifras facilitadas por la empresa']);
+    if (est && est.estrategia.ok && porArea.com.ind.length) fu.push(['Clientes y ventas', 'Relación de clientes con sus ventas, márgenes y plazos de cobro']);
+    if (est && est.personas.ok) fu.push(['Plantilla y organización', 'Relación de personas, puestos y equipos']);
+    if (docs.length) fu.push(['Documentos aportados por la empresa', docs.join('; ')]);
+    const lim = [];
+    if (!trs.length) lim.push('No se han mantenido todavía entrevistas con la dirección: el informe no recoge sus prioridades ni sus objetivos.');
+    if (!c) lim.push('No se ha dispuesto de las cuentas de la empresa (balance y cuenta de resultados): el informe no incluye análisis económico-financiero.');
+    else if (!an) lim.push('No se ha dispuesto de cuentas de al menos dos ejercicios: no se analiza la evolución del beneficio frente a la caja.');
+    if (est && !est.estrategia.ok) lim.push('No se ha dispuesto de la relación de clientes, ventas, compras y cobros: no se analizan la concentración de clientes ni el margen por cliente.');
+    if (est && !est.personas.ok) lim.push('No se ha dispuesto de la plantilla con sus puestos y equipos: el análisis de la organización se basa en las entrevistas.');
+    if (pendV.length) lim.push('Queda por contrastar documentalmente: ' + pendV.join('. ') + '.');
+    const hip = l.filter((x) => x.c.estado !== 'confirmada' && x.c.estado !== 'descartada').length; if (hip) lim.push(`${hip === 1 ? 'Una de las causas es una hipótesis' : hip + ' de las causas son hipótesis'} de trabajo: se ${hip === 1 ? 'confirma o descarta' : 'confirman o descartan'} con la documentación anterior.`);
+    lim.push('Las cifras proceden de la información facilitada por la empresa y no han sido auditadas. Las cuestiones fiscales, laborales y societarias requieren la validación de los asesores de la empresa.');
+    h += In.section('Anexo: metodología, fuentes y limitaciones',
+      `<p><b>Metodología.</b> El diagnóstico combina las entrevistas con la dirección, el análisis de las cuentas y de los datos de clientes, operaciones y plantilla, y la comprobación documental por áreas. Las áreas se ordenan por el principio que protegen: primero la liquidez (que la empresa pueda pagar), después la rentabilidad (que gane dinero con lo que hace) y después el crecimiento; la organización sostiene las tres. Una causa se da por confirmada solo cuando la documentación la respalda.</p>`
+      + (fu.length ? `<p style="margin:8px 0 2px"><b>Fuentes</b></p>` + In.table(['Fuente', 'Detalle'], fu) : '')
+      + `<p style="margin:8px 0 2px"><b>Alcance y limitaciones</b></p><ul style="margin:0">${lim.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`);
+    h += In.foot('Informe de diagnóstico de la auditoría integral. Las causas no confirmadas son hipótesis de trabajo; las cifras proceden de la información facilitada por la empresa.');
     In.open({ titulo: 'Auditoría integral · ' + empresa(), html: h, clave: 'iv:auditoria' });
   };
+  const PRIN_A = { liquidez: 'Afecta a la liquidez: a que la empresa pueda pagar.', rentabilidad: 'Afecta a la rentabilidad: a que la empresa gane dinero con lo que hace.', crecimiento: 'Afecta al crecimiento.', organizacion: 'Afecta a la organización, que sostiene la liquidez, la rentabilidad y el crecimiento.' };
   // La tarjeta del informe integral explica que recoge todo
   const inf0 = VISTAS.informes;
-  VISTAS.informes = (host) => { inf0(host); const b = host.querySelector('[data-inf="auditoria"]'); const card = b && b.closest('.iv-inf'); const p = card && card.querySelector('p'); if (p) p.textContent = 'La foto completa de la empresa desde el primer día: transcripciones, constantes, nota de cada mundo, objetivos SMART, finanzas, clientes, personas, mesa de trabajo, triaje, verificaciones, hallazgos, causas, plan y sesiones. Se actualiza cada vez que se abre.'; };
+  VISTAS.informes = (host) => { inf0(host); const b = host.querySelector('[data-inf="auditoria"]'); const card = b && b.closest('.iv-inf'); const p = card && card.querySelector('p'); if (p) p.textContent = 'El diagnóstico de la empresa, con la conclusión primero: resumen ejecutivo con sus cifras, situación económico-financiera, diagnóstico por áreas con su evidencia, riesgos y oportunidades, recomendaciones priorizadas, hoja de ruta y un anexo de fuentes y limitaciones. Se rehace con los datos del día.'; };
 })();

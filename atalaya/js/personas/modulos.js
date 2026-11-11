@@ -490,7 +490,7 @@
   let catFiltro = 'todas';
   R.register({
     id: 'tablillas', grupo: 'Desarrollo', nombre: 'Tablillas de entrenamiento', pregunta: '¿Qué conviene entrenar a cada persona y a cada equipo, y cómo?',
-    informe: () => { const p = R.personaActiva(); if (p) R.informeTablillas(p); }, informeTxt: 'Imprimir sus tablillas',
+    informe: () => { const p = R.personaActiva(); if (p) R.informeTablillas(p); }, informeTxt: 'Plan de entrenamiento',
     render(host) {
       const p = R.personaActiva();
       const prop = p ? R.tablillasDe(p) : [];
@@ -520,88 +520,240 @@
     }
   });
 
-  /* ================= INFORMES ================= */
-  const discTabla = (d, ideal) => I().table(['Factor', 'Persona', ideal ? 'Puesto' : null].filter(Boolean), ['D', 'I', 'S', 'C'].map((k) => [`${k} · ${H.DISC[k].n}`, String(d[k]), ideal ? String(ideal[k]) : null].filter((x) => x != null)), { num: [1, 2] });
-  const pie = 'Herramientas orientativas para conocerse y trabajar mejor. No son diagnósticos ni deben ser el único criterio para decisiones sobre personas. Datos tratados con el consentimiento de cada persona.';
-  const cover = (o) => { const e = R.empresa(); return I().cover(Object.assign({ empresa: e.nombre, sector: e.sector, tipo: 'Personas y equipos' }, o)); };
-  /* Informe con su parte de consultor (hoja de ruta, seguimiento y cuaderno interno) */
-  R.abrirInforme = (o) => (A.consultorInf ? A.consultorInf.abrir(Object.assign({}, o, { ctx: Object.assign({ empresa: R.empresa().nombre, sector: R.empresa().sector }, o.ctx || {}) })) : I().open(o));
-  const SEG_PERSONA = [['Semanal', 'Avance de la tablilla en curso', 'Responsable directo', 'Señal de avance de la tablilla', 'Seguir con el paso o cambiarlo'], ['Mensual (30 min)', 'Conversación de desarrollo: qué ha cambiado y qué cuesta', 'Responsable y persona', 'Señales de avance de las tablillas', 'Elegir la siguiente tablilla'], ['Trimestral', 'Repetir los cuestionarios que hagan falta y revisar el encaje', 'Consultor', 'Encaje con el puesto', 'Ajustar el plan de desarrollo']];
+  /* ================= INFORMES =================
+     Cada documento es un dossier sobre la empresa: resumen ejecutivo con la conclusión y sus cifras, diagnóstico,
+     riesgos y oportunidades, recomendaciones priorizadas y anexo de metodología y limitaciones. Lo que falta por
+     valorar se dice en el anexo, en lenguaje de empresa; los avisos de trabajo van fuera del documento. */
+  const F4 = ['D', 'I', 'S', 'C'];
+  const pl = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+  const min = (t) => { t = String(t || ''); return t.charAt(0).toLowerCase() + t.slice(1); };
+  const sinPunto = (t) => String(t || '').replace(/\.\s*$/, '');
+  const nivelEnc = { ok: 'alto', warn: 'medio', stop: 'bajo' };
+  const claves = (l) => `<ul class="rp-claves">${l.filter(Boolean).map((x) => `<li>${x}</li>`).join('')}</ul>`;
+  const recos = (l) => I().table(['N.º', 'Qué hacer', 'Impacto esperado', 'Responsable', 'Plazo'], l.map((r, i) => [String(i + 1), { h: `<b>${esc(r.q)}</b>${r.c ? '<br>' + esc(r.c) : ''}` }, r.imp, r.quien, r.plazo]));
+  const pasosDe = (l) => l.map((r) => ({ q: r.q, c: r.c || r.imp, quien: r.quien, s: r.imp }));
+  const ryo = (ri, op) => I().table(['Tipo', 'Descripción', 'Qué significa para la empresa'], ri.map((x) => [{ h: I().pill('warn', 'Riesgo') }, x[0], x[1]]).concat(op.map((x) => [{ h: I().pill('ok', 'Oportunidad') }, x[0], x[1]])));
+  const anexo = (metodo, limites) => `<section class="rp-sec rp-anexo"><h2><span class="rp-n">A</span>Anexo · Metodología, fuentes y limitaciones</h2>${I().table(['Aspecto', 'Cómo se ha obtenido'], metodo)}<p class="rp-lede"><b>Alcance y limitaciones de la información</b></p><ul>${limites.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>`;
+  const MET = {
+    disc: ['Estilo de comportamiento', `Cuestionario de ${H.DISC_BLOQUES.length} bloques en los que la persona elige lo que más y lo que menos la describe (modelo DISC). Mide cuatro factores de 0 a 100: dominancia, influencia, estabilidad y cumplimiento.`],
+    roles: ['Aportación al equipo', `Cuestionario de ${H.ROLES_ITEMS.length} afirmaciones sobre nueve aportaciones al trabajo en equipo, de 0 a 100 %. Una aportación se considera natural a partir del 60 % y sin cubrir por debajo del 45 %.`],
+    enea: ['Motivación', `Cuestionario de ${H.ENEA_ITEMS.length} afirmaciones sobre lo que mueve a la persona y lo que tiende a evitar (eneagrama).`],
+    encaje: ['Encaje con el puesto', 'Compara a la persona con lo que requiere su puesto: 60 % comportamiento y 40 % aportaciones clave. Alto: 75 % o más. Medio: del 55 % al 74 %. Bajo: menos del 55 %.'],
+    fuentes: ['Fuentes', 'Relación de personas, puestos, dependencias y equipos aportada por la empresa. Las valoraciones proceden de cuestionarios respondidos por cada persona.'],
+    talento: ['Mapa de talento', 'Valoración de desempeño y de potencial de cada persona, en tres niveles, realizada por la dirección.']
+  };
+  const LIM_BASE = 'Las valoraciones parten de las respuestas de cada persona y describen tendencias de comportamiento, no capacidad ni desempeño. No deben ser el único criterio en decisiones sobre personas.';
+  const discTabla = (d, ideal) => I().table(['Factor', 'Persona', ideal ? 'Requerido por el puesto' : null].filter(Boolean), F4.map((k) => [`${k} · ${H.DISC[k].n}`, String(d[k]), ideal ? String(ideal[k]) : null].filter((x) => x != null)), { num: [1, 2] });
+  const pie = 'Documento orientativo para el desarrollo profesional. Describe tendencias de comportamiento, no capacidad ni desempeño, y no debe ser el único criterio en decisiones sobre personas. Información tratada con el consentimiento de cada persona.';
+  const cover = (o) => { const e = R.empresa(); return I().cover(Object.assign({ empresa: e.nombre, sector: e.sector, tipo: 'Personas y organización' }, o)); };
+  const fichaHTML = (t, motivos, i) => `<article class="pe-tab"><header><span class="pe-tk">Ficha ${i + 1}</span><h4>${esc(t.titulo)}</h4></header><p><b>Objetivo:</b> ${esc(t.objetivo)}</p><ol>${t.pasos.map((s) => `<li>${esc(s)}</li>`).join('')}</ol><p class="small"><b>Duración:</b> ${esc(t.duracion)} · <b>Señal de avance:</b> ${esc(t.senal)}</p>${motivos && motivos.length ? `<p class="small pe-why">Motivo: ${motivos.map(esc).join(' ')}</p>` : ''}</article>`;
+  /* Nota de trabajo para quien prepara el informe: va encima de la hoja, fuera del documento (ni se imprime ni se copia) */
+  R.notaTrabajo = (paper, txt) => { const ov = paper && paper.parentNode; if (!ov) return; ov.querySelectorAll('.pe-nota-trabajo').forEach((x) => x.remove()); if (!txt) return; const n = document.createElement('p'); n.className = 'rp-hint pe-nota-trabajo'; n.innerHTML = '<b>Nota de trabajo · no forma parte del documento ni se imprime.</b> ' + esc(txt); ov.insertBefore(n, paper); };
+  /* Informe con su parte de consultor (hoja de ruta, seguimiento y cuaderno interno). El anexo cierra el documento:
+     se coloca justo antes del pie cada vez que se pinta la versión para la empresa. */
+  R.abrirInforme = (o) => {
+    const after = (paper) => {
+      if (o.after) o.after(paper);
+      R.notaTrabajo(paper, o.nota);
+      if (!o.anexo) return;
+      const poner = () => { if (paper.classList.contains('ci-interno') || paper.querySelector('.rp-anexo')) return; const f = paper.querySelectorAll('.rp-foot'), u = f[f.length - 1]; if (u) u.insertAdjacentHTML('beforebegin', o.anexo); else paper.insertAdjacentHTML('beforeend', o.anexo); };
+      poner(); new MutationObserver(poner).observe(paper, { childList: true });
+    };
+    const oo = Object.assign({}, o, { after, ctx: Object.assign({ empresa: R.empresa().nombre, sector: R.empresa().sector }, o.ctx || {}) });
+    return A.consultorInf ? A.consultorInf.abrir(oo) : I().open(oo);
+  };
+  const SEG_PERSONA = [['Semanal', 'Avance de la ficha de entrenamiento en curso', 'Responsable directo', 'Señal de avance de la ficha', 'Seguir con el paso o cambiarlo'], ['Mensual (30 min)', 'Conversación de desarrollo: qué ha cambiado y qué cuesta', 'Responsable y persona', 'Señales de avance del plan de entrenamiento', 'Elegir la siguiente ficha'], ['Trimestral', 'Actualizar las valoraciones y revisar el encaje con el puesto', 'Consultor', 'Encaje con el puesto', 'Ajustar el plan de desarrollo']];
   R.SEG_PERSONA = SEG_PERSONA;
+  R.inf = { pl, min, sinPunto, claves, recos, pasosDe, ryo, anexo, MET, LIM_BASE, nivelEnc };
+
+  /* Lectura de una persona: conclusión, mensajes clave, riesgos, oportunidades, recomendaciones y limitaciones */
+  R.lecPersona = (p) => {
+    const pu = R.puestoDe(p), enc = R.encaje(p, pu), e = p.disc && R.discEstilo(p.disc), D = e && H.DISC[e.pri], n1 = String(p.nombre || '').split(' ')[0];
+    const s = p.roles && p.roles.scores, ro = s && R.rolesOrden(s), En = p.enea && p.enea.tipo ? H.ENEA[p.enea.tipo] : null;
+    const jefe = R.persona(p.responsable), cargo = R.state.personas.filter((x) => x.responsable === p.id);
+    const encOk = !!(enc && enc.total != null), sinRelevo = !!(pu && pu.critico && (!pu.sucesor || !R.persona(pu.sucesor)));
+    const perfilPuesto = !!(pu && (pu.disc || (pu.roles && pu.roles.length)));
+    const tabs = R.tablillasDe(p).slice(0, 5), hay = !!(e || s || En), quien = jefe ? jefe.nombre : 'Consultor';
+    const lead = encOk ? `<b>${esc(p.nombre)}</b> presenta un encaje ${nivelEnc[enc.st]} con el puesto de ${esc(pu.nombre)}: <b>${enc.total} %</b>. ${enc.brechas.length ? 'La principal diferencia: ' + esc(min(enc.brechas[0].txt)) : 'Su perfil coincide con lo que requiere el puesto.'}`
+      : e ? `<b>${esc(p.nombre)}</b> tiene un estilo de comportamiento de <b>${esc(e.nombre.toLowerCase())}</b>. ${esc(D.resumen)}`
+        : `<b>${esc(p.nombre)}</b> ${pu ? 'ocupa el puesto de ' + esc(pu.nombre) : 'forma parte de la plantilla'}${jefe ? ', depende de ' + esc(jefe.nombre) : ''}${cargo.length ? ' y dirige a ' + pl(cargo.length, 'persona', 'personas') : ''}.`;
+    const cl = [
+      e && encOk ? `Estilo de comportamiento: <b>${esc(e.nombre.toLowerCase())}</b> (${F4.map((k) => k + ' ' + p.disc[k]).join(' · ')}, sobre 100). ${esc(D.resumen)}` : e ? `Factores de comportamiento: ${F4.map((k) => k + ' ' + p.disc[k]).join(' · ')}, sobre 100.` : '',
+      ro ? `Aportación al equipo: ${ro.slice(0, 3).map((k) => `${esc(H.ROLES[k].n.toLowerCase())} (${s[k]} %)`).join(', ')}.` : '',
+      En ? `Motivación: le mueve ${esc(min(En.motivacion))}` : '',
+      encOk && enc.disc != null && enc.roles != null ? `Encaje con el puesto: comportamiento ${pct(enc.disc)} y aportaciones clave ${pct(enc.roles)}.` : '',
+      hay ? `Posición: ${jefe ? 'depende de ' + esc(jefe.nombre) : 'primer nivel de la organización'}${cargo.length ? '; dirige a ' + pl(cargo.length, 'persona', 'personas') : ''}.` : '',
+      sinRelevo ? 'Ocupa un puesto crítico para la empresa que no tiene relevo designado.' : ''
+    ];
+    const ri = [], op = [];
+    if (encOk) enc.brechas.forEach((b) => ri.push([b.txt, b.tipo === 'rol' ? 'El puesto necesita esa aportación: conviene entrenarla o apoyarla desde el equipo.' : b.d > 0 ? 'Sostener ese comportamiento le exige un esfuerzo de adaptación continuado.' : 'Capacidad que el puesto actual no aprovecha del todo.']));
+    if (sinRelevo) ri.push([`El puesto de ${pu.nombre} es crítico y no tiene relevo designado.`, `Si ${n1} falta, la función queda sin cobertura.`]);
+    if (D) ri.push([D.presion, 'Conviene anticipar los periodos de más carga y acordar cómo pedirle las cosas.']);
+    if (En) ri.push([En.riesgo, 'A tratar en la conversación de desarrollo.']);
+    if (encOk) enc.fuertes.forEach((f) => op.push([f, 'Fortaleza que el puesto aprovecha.']));
+    if (D) op.push([D.aporta.join('; ') + '.', 'Fortalezas de su estilo que conviene poner al servicio del equipo.']);
+    if (ro) op.push([H.ROLES[ro[0]].aporta, `Su aportación más natural al equipo (${s[ro[0]]} %).`]);
+    const rc = [];
+    if (!hay) rc.push({ q: `Valorar el estilo de comportamiento, la aportación al equipo y la motivación de ${n1}`, c: 'Tres cuestionarios breves, con su consentimiento y una explicación previa de para qué se usan.', imp: 'Base para orientar su desarrollo y valorar el encaje con el puesto', quien: 'Dirección o recursos humanos', plazo: '1 mes' });
+    if (!pu) rc.push({ q: 'Definir su puesto, su misión y de quién depende', imp: 'Responsabilidades claras y encaje valorable', quien: 'Dirección', plazo: '1 mes' });
+    else if (!perfilPuesto) rc.push({ q: `Definir el comportamiento y las aportaciones que requiere el puesto de ${pu.nombre}`, imp: 'Permite valorar el encaje de la persona con el puesto', quien: 'Dirección', plazo: '1 mes' });
+    if (hay) rc.push({ q: 'Conversación de devolución del perfil', c: `Treinta minutos entre ${jefe ? jefe.nombre : 'el consultor'} y ${n1}: contrastar el perfil con ejemplos y acordar una prioridad de desarrollo.`, imp: 'Prioridad de desarrollo acordada, con fecha de revisión', quien, plazo: '2 semanas' });
+    if (encOk && enc.st !== 'ok' && enc.brechas.length) rc.push({ q: 'Acordar cómo se cubre la principal diferencia con el puesto', c: enc.brechas[0].txt, imp: `Acercar el encaje del ${enc.total} % al 75 % (umbral de encaje alto)`, quien, plazo: '3 meses' });
+    if (sinRelevo) rc.push({ q: `Designar y preparar un relevo para el puesto de ${pu.nombre}`, c: 'Elegir a la persona, acordar un plan de traspaso y revisar su avance cada trimestre.', imp: 'Función crítica cubierta ante una ausencia', quien: 'Dirección', plazo: '6 meses' });
+    tabs.slice(0, 3).forEach((x) => rc.push({ q: 'Entrenar: ' + x.t.titulo, c: x.t.objetivo, imp: x.t.senal, quien: p.nombre, plazo: x.t.duracion }));
+    const lim = [];
+    if (!p.disc) lim.push(`No se ha dispuesto de la valoración del estilo de comportamiento de ${n1}; el documento no describe su estilo ni su forma de comunicarse.`);
+    if (!s) lim.push('No se ha dispuesto de la valoración de su aportación al equipo.');
+    if (!En) lim.push('No se ha dispuesto de la valoración de su motivación.');
+    if (!pu) lim.push('La persona no tiene un puesto definido en el organigrama; no se valora su encaje.');
+    else if (!perfilPuesto) lim.push(`El puesto de ${pu.nombre} no tiene definidos el comportamiento ni las aportaciones que requiere; no se valora el encaje.`);
+    lim.push(LIM_BASE);
+    const falta = [!p.disc && 'el cuestionario de comportamiento', !s && 'el de aportaciones al equipo', !En && 'el de motivación', !pu && 'asignarle un puesto', pu && !perfilPuesto && 'el perfil que requiere su puesto'].filter(Boolean);
+    return { pu, enc, e, D, n1, s, ro, En, jefe, cargo, encOk, sinRelevo, perfilPuesto, tabs, hay, lead, claves: cl, ri, op, rc, lim, falta };
+  };
 
   R.informePersona = (p) => {
     if (!p) return; const In = I(); In.reset();
-    const pu = R.puestoDe(p), enc = R.encaje(p, pu), e = p.disc && R.discEstilo(p.disc);
-    let h = cover({ kicker: 'Informe de persona', titulo: p.nombre, subtitulo: (pu ? pu.nombre : 'Sin puesto asignado') + (p.area ? ' · ' + p.area : '') });
-    h += In.summary('Resumen', `<p>${e ? `Estilo <b>${esc(e.nombre)}</b>: ${esc(H.DISC[e.pri].resumen)}` : 'Sin DISC.'}${p.roles && p.roles.scores ? ` Aportaciones naturales: ${R.rolesOrden(p.roles.scores).slice(0, 3).map((k) => H.ROLES[k].n.toLowerCase()).join(', ')}.` : ''}${p.enea && p.enea.tipo ? ` Eneatipo ${p.enea.tipo} (${H.ENEA[p.enea.tipo].n.toLowerCase()}).` : ''}${enc && enc.total != null ? ` Encaje con su puesto: ${enc.total} %.` : ''}</p>`, enc && enc.st);
-    if (p.disc) { const D = H.DISC[e.pri]; h += In.section('Estilo de comportamiento (DISC)', discTabla(p.disc, pu && pu.disc) + In.table(['Aspecto', 'Lectura'], [['Aporta', D.aporta.join('; ')], ['Necesita', D.necesita.join('; ')], ['Cómo comunicarse', D.comunicar], ['Qué evitar', D.evitar], ['Bajo presión', D.presion], ['Entorno donde rinde', D.entorno]]), `Resultado del ${R.fechaES(p.disc.fecha)}${p.disc.origen === 'externo' ? ' (test externo)' : ''}.`); }
-    if (p.roles && p.roles.scores) { const s = p.roles.scores; h += In.section('Aportaciones al equipo', In.table(['Aportación', 'Familia', 'Puntuación', 'Aporta'], R.rolesOrden(s).map((k) => [H.ROLES[k].n, H.ROLES[k].g, s[k] + ' %', H.ROLES[k].aporta]), { num: [2] }), 'Modelo propio. Las tres primeras son sus aportaciones naturales.'); }
-    if (p.enea && p.enea.tipo) { const E = H.ENEA[p.enea.tipo]; h += In.section('Motivación (eneagrama)', In.table(['Aspecto', 'Lectura'], [['Tipo', `${p.enea.tipo} · ${E.n} (ala ${p.enea.ala}, centro ${E.centro.toLowerCase()})`], ['Le mueve', E.motivacion], ['Teme', E.miedo], ['Fortaleza', E.fortaleza], ['En estrés / al crecer', `Tipo ${E.estres} / tipo ${E.crece}`], ['Cómo liderarle', E.liderar], ['Riesgo', E.riesgo]])); }
-    if (enc && enc.total != null) h += In.section('Encaje con el puesto', In.kpis([{ k: 'Encaje', v: enc.total + ' %', st: enc.st }, { k: 'Comportamiento', v: pct(enc.disc) }, { k: 'Aportaciones clave', v: pct(enc.roles) }]) + (enc.brechas.length ? In.table(['Brecha'], enc.brechas.map((b) => [b.txt])) : In.callout('Perfil alineado con lo que pide el puesto.', 'ok')), pu.mision ? 'Misión del puesto: ' + esc(pu.mision) : '');
+    const { pu, enc, e, D, s, ro, En, jefe, cargo, encOk, sinRelevo, tabs, lead, claves: cl, ri, op, rc, lim, falta } = R.lecPersona(p);
+    let h = cover({ kicker: 'Perfil profesional', titulo: p.nombre, subtitulo: [pu ? pu.nombre : null, p.area || (pu && pu.area)].filter(Boolean).join(' · ') });
+    h += In.summary('Resumen ejecutivo', `<p>${lead}</p>` + claves(cl), enc && enc.st);
+    h += In.section('Posición en la organización', In.table(['Aspecto', 'Situación'], [['Puesto', pu ? pu.nombre : null], ['Área', p.area || (pu && pu.area)], ['Depende de', jefe ? jefe.nombre : null], ['Personas a su cargo', cargo.length ? `${cargo.length}: ${cargo.slice(0, 8).map((x) => x.nombre).join(', ')}${cargo.length > 8 ? '…' : ''}` : 'Ninguna'], ['Misión del puesto', pu && pu.mision], ['Puesto crítico', pu && pu.critico ? (sinRelevo ? 'Sí, sin relevo designado' : 'Sí; relevo designado: ' + R.nombre(pu.sucesor)) : null]].filter((r) => r[1])));
+    if (p.disc) h += In.section('Estilo de comportamiento: ' + e.nombre.toLowerCase(), discTabla(p.disc, pu && pu.disc) + In.table(['Aspecto', 'Lectura'], [['Aporta', D.aporta.join('; ')], ['Necesita', D.necesita.join('; ')], ['Cómo comunicarse', D.comunicar], ['Qué evitar', D.evitar], ['Bajo presión', D.presion], ['Entorno donde rinde', D.entorno]]), `Valoración del ${R.fechaES(p.disc.fecha)}${p.disc.origen === 'externo' ? ', aportada por la empresa' : ''}.`);
+    if (s) h += In.section('Aportación al equipo: ' + ro.slice(0, 3).map((k) => H.ROLES[k].n.toLowerCase()).join(', '), In.table(['Aportación', 'Familia', 'Puntuación', 'Qué aporta'], ro.map((k) => [H.ROLES[k].n, H.ROLES[k].g, s[k] + ' %', H.ROLES[k].aporta]), { num: [2] }), 'Las tres primeras son sus aportaciones naturales al trabajo en equipo.');
+    if (En) h += In.section('Motivación: ' + sinPunto(min(En.motivacion)), In.table(['Aspecto', 'Lectura'], [['Le mueve', En.motivacion], ['Le incomoda', En.miedo], ['Fortaleza', En.fortaleza], ['Cómo dirigirle', En.liderar], ['A cuidar', En.riesgo]]));
+    if (encOk) h += In.section(`Encaje ${nivelEnc[enc.st]} con el puesto: ${enc.total} %`, In.kpis([{ k: 'Encaje', v: enc.total + ' %', st: enc.st }, { k: 'Comportamiento', v: pct(enc.disc) }, { k: 'Aportaciones clave', v: pct(enc.roles) }]) + (enc.brechas.length ? In.table(['Diferencias con lo que requiere el puesto'], enc.brechas.map((b) => [b.txt])) : In.callout('Perfil alineado con lo que requiere el puesto.', 'ok')) + (enc.fuertes.length ? In.table(['Puntos fuertes para el puesto'], enc.fuertes.map((f) => [f])) : ''), pu.mision ? 'Misión del puesto: ' + esc(pu.mision) : '');
     if (R.identidadInforme) h += R.identidadInforme(p);
-    const tabs = R.tablillasDe(p).slice(0, 5);
-    if (tabs.length) h += In.section('Plan de entrenamiento', In.table(['Tablilla', 'Objetivo', 'Duración', 'Por qué'], tabs.map((x) => [x.t.titulo, x.t.objetivo, x.t.duracion, x.motivos.join(' ')])));
+    if (ri.length || op.length) h += In.section('Riesgos y oportunidades', ryo(ri, op));
+    h += In.section('Recomendaciones', recos(rc), 'Por orden de prioridad.');
+    if (tabs.length) h += In.section('Plan de entrenamiento', In.table(['Ficha de entrenamiento', 'Objetivo', 'Duración', 'Motivo'], tabs.map((x) => [x.t.titulo, x.t.objetivo, x.t.duracion, x.motivos.join(' ')])));
     h += In.foot(pie);
-    const jefe = R.persona(p.responsable);
-    R.abrirInforme({ titulo: 'Informe de ' + p.nombre, html: h, clave: 'per:' + p.id, ctx: { titulo: p.nombre, tipo: 'Informe de persona', seguimiento: SEG_PERSONA,
-      pasos: [{ q: 'Conversación de devolución del perfil', c: 'Treinta minutos entre ' + (jefe ? jefe.nombre : 'su responsable') + ' y ' + p.nombre + ': leer juntos el informe, contrastarlo con ejemplos y elegir la primera tablilla.', quien: jefe ? jefe.nombre : 'Responsable directo', s: 'Tablilla elegida con fecha de revisión' }]
-        .concat(tabs.map((x) => ({ q: 'Tablilla: ' + x.t.titulo, c: x.t.pasos[0] + ' (' + x.t.duracion + ')', quien: p.nombre, s: x.t.senal })))
-        .concat(enc && enc.brechas.length ? [{ q: 'Cerrar la brecha principal con el puesto', c: enc.brechas[0].txt, quien: jefe ? jefe.nombre : 'Responsable directo', s: 'La brecha deja de aparecer en la siguiente valoración' }] : []),
-      datos: [['Puesto', pu ? pu.nombre : 'Sin puesto'], ['Estilo DISC', e ? e.nombre : '—'], ['Aportaciones naturales', p.roles && p.roles.scores ? R.rolesOrden(p.roles.scores).slice(0, 3).map((k) => H.ROLES[k].n).join(', ') : '—'], ['Eneatipo', p.enea && p.enea.tipo ? p.enea.tipo + ' · ' + H.ENEA[p.enea.tipo].n : '—'], ['Encaje', enc && enc.total != null ? enc.total + ' %' : '—'], ['Consentimiento', p.consentimiento ? 'Sí' + (p.consentFecha ? ' · ' + R.fechaES(p.consentFecha) : '') : 'No']] } });
+    R.abrirInforme({ titulo: 'Perfil profesional de ' + p.nombre, html: h, clave: 'per:' + p.id, nota: falta.length ? 'Para completar este perfil falta: ' + falta.join(', ') + '.' : '',
+      anexo: anexo([p.disc && MET.disc, s && MET.roles, En && MET.enea, encOk && MET.encaje, MET.fuentes].filter(Boolean), lim),
+      ctx: { titulo: p.nombre, tipo: 'Perfil profesional', seguimiento: SEG_PERSONA, pasos: pasosDe(rc),
+        datos: [['Puesto', pu ? pu.nombre : 'Por definir'], ['Estilo de comportamiento', e ? e.nombre : 'Sin valorar'], ['Aportaciones naturales', ro ? ro.slice(0, 3).map((k) => H.ROLES[k].n).join(', ') : 'Sin valorar'], ['Motivación', En ? sinPunto(En.motivacion) : 'Sin valorar'], ['Encaje con el puesto', encOk ? enc.total + ' %' : 'Sin valorar'], ['Consentimiento informado', p.consentimiento ? 'Sí' + (p.consentFecha ? ' · ' + R.fechaES(p.consentFecha) : '') : 'Pendiente de recabar']] } });
   };
 
   R.informeTablillas = (p) => {
     if (!p) return; const In = I(); In.reset();
-    const tabs = R.tablillasDe(p).slice(0, 6);
-    let h = cover({ kicker: 'Tablillas de entrenamiento', titulo: p.nombre, subtitulo: (R.puestoDe(p) || {}).nombre || '' });
-    h += tabs.length ? `<div class="pe-tabs pe-print">${tabs.map((x) => R.tablillaHTML(x.t, x.motivos)).join('')}</div>` : '<p class="rp-muted">Sin tablillas propuestas: complete su DISC y asígnele un puesto.</p>';
+    const tabs = R.tablillasDe(p).slice(0, 6), pu = R.puestoDe(p), jefe = R.persona(p.responsable);
+    let h = cover({ kicker: 'Plan de entrenamiento', titulo: p.nombre, subtitulo: [pu && pu.nombre, p.area].filter(Boolean).join(' · ') });
+    h += In.summary('Plan de entrenamiento', tabs.length
+      ? `<p><b>${pl(tabs.length, 'ficha', 'fichas')} de entrenamiento</b> para ${esc(p.nombre)}, elegidas según su estilo de comportamiento, lo que requiere su puesto y lo que necesita su equipo. Cada ficha se trabaja durante el plazo indicado y se revisa con ${esc(jefe ? jefe.nombre : 'su responsable')}, con la señal de avance como referencia.</p>`
+      : `<p>El plan de entrenamiento de ${esc(p.nombre)} se define a partir de su estilo de comportamiento y de lo que requiere su puesto. Esa valoración queda fuera del alcance de este documento.</p>`);
+    if (tabs.length) h += `<div class="pe-tabs pe-print">${tabs.map((x, i) => fichaHTML(x.t, x.motivos, i)).join('')}</div>`;
     h += In.foot(pie);
-    In.open({ titulo: 'Tablillas de ' + p.nombre, html: h });
+    In.open({ titulo: 'Plan de entrenamiento de ' + p.nombre, html: h, after: (paper) => R.notaTrabajo(paper, tabs.length ? '' : 'Para proponer fichas de entrenamiento hacen falta el cuestionario de comportamiento de la persona y un puesto asignado.') });
+  };
+
+  /* Lectura de un equipo, común al diagnóstico breve y al informe completo paginado */
+  R.lecEquipo = (ids, nombre, objetivo) => {
+    const an = R.analizarEquipo(ids), M = an.miembros, nD = an.conDisc.length, nR = an.conRoles.length;
+    const top = nD ? F4.slice().sort((a, b) => an.dist[b] - an.dist[a])[0] : null, cub = 9 - an.faltan.length;
+    const encs = M.map((p) => R.encaje(p, R.puestoDe(p))).filter((x) => x && x.total != null), encM = encs.length ? Math.round(encs.reduce((a, x) => a + x.total, 0) / encs.length) : null;
+    const eq = nombre === 'Toda la empresa' ? 'la plantilla' : 'el equipo ' + nombre, Eq = eq.charAt(0).toUpperCase() + eq.slice(1);
+    const lead = nR ? (an.faltan.length ? `A ${esc(eq)} le ${an.faltan.length === 1 ? 'falta' : 'faltan'} <b>${an.faltan.length} de las 9 aportaciones</b> que necesita un equipo equilibrado: ${an.faltan.map((k) => esc(H.ROLES[k].n.toLowerCase())).join(', ')}. ${esc(H.ROLES[an.faltan[0]].falta)}` : `${esc(Eq)} tiene cubiertas <b>las 9 aportaciones</b> que necesita un equipo equilibrado.`)
+      : nD ? `En ${esc(eq)} predomina el estilo de <b>${esc(H.DISC[top].n.toLowerCase())}</b>: ${an.dist[top]} de ${nD} personas.`
+        : `${esc(Eq)} reúne a ${pl(M.length, 'persona', 'personas')}${objetivo ? ' con el objetivo «' + esc(objetivo) + '»' : ''}.`;
+    const cl = [
+      (nR || nD) ? `Composición: ${pl(M.length, 'persona', 'personas')}${objetivo ? '; objetivo: «' + esc(objetivo) + '»' : ''}.` : '',
+      nD && nR ? `Estilo predominante: ${esc(H.DISC[top].n.toLowerCase())} (${an.dist[top]} de ${nD} personas). Media del equipo: ${F4.map((k) => k + ' ' + an.media[k]).join(' · ')}, sobre 100.` : nD ? `Media del equipo: ${F4.map((k) => k + ' ' + an.media[k]).join(' · ')}, sobre 100.` : '',
+      nR ? `Aportaciones cubiertas: ${cub} de 9.` : '',
+      nD ? (an.tensiones.length ? `${pl(an.tensiones.length, 'diferencia de estilo que conviene pactar', 'diferencias de estilo que conviene pactar')} entre miembros del equipo.` : 'Sin diferencias de estilo relevantes entre sus miembros.') : '',
+      encM != null ? `Encaje medio de sus miembros con sus puestos: ${encM} % (${pl(encs.length, 'persona valorada', 'personas valoradas')}).` : '',
+      an.contratar && (an.contratar.rol || an.contratar.estilo) ? `Perfil que más equilibraría el equipo: ${[an.contratar.rol && 'aportación de ' + esc(H.ROLES[an.contratar.rol].n.toLowerCase()), an.contratar.estilo && 'estilo de ' + esc(H.DISC[an.contratar.estilo].n.toLowerCase())].filter(Boolean).join(' y ')}.` : ''
+    ];
+    const ri = an.avisos.filter((a) => a.st !== 'info' && !/fricción/.test(a.t)).map((a) => [a.t, /homogéneo/.test(a.t) ? 'Decisiones más rápidas, con menos contraste de puntos de vista.' : /sin cubrir/.test(a.t) ? 'El equipo depende de cubrirla desde fuera o de que alguien la asuma con esfuerzo.' : 'A tener en cuenta en el reparto de tareas y en la próxima incorporación.']);
+    if (an.tensiones.length) ri.push([`${pl(an.tensiones.length, 'diferencia de estilo', 'diferencias de estilo')} entre miembros.`, 'Sin un acuerdo de funcionamiento, pueden traducirse en roces y retrasos.']);
+    const op = an.cobertura.filter((c) => c.best && c.best.v >= 75).slice(0, 4).map((c) => [`Aportación de ${H.ROLES[c.k].n.toLowerCase()} muy sólida (${R.nombre(c.best.id)}, ${c.best.v} %).`, 'Fortaleza sobre la que apoyar el objetivo del equipo.']);
+    if (an.contratar && (an.contratar.rol || an.contratar.estilo)) op.push([`Próxima incorporación: ${[an.contratar.rol && 'aportación de ' + H.ROLES[an.contratar.rol].n.toLowerCase(), an.contratar.estilo && 'estilo de ' + H.DISC[an.contratar.estilo].n.toLowerCase()].filter(Boolean).join(' y ')}.`, 'El perfil que más equilibraría el equipo.']);
+    const tq = R.tablillasEquipo(an), rc = [];
+    if (!nD && !nR) rc.push({ q: 'Valorar el estilo de comportamiento y la aportación al equipo de cada miembro', c: 'Cuestionarios breves, con el consentimiento de cada persona.', imp: 'Diagnóstico del equipo: estilos, aportaciones cubiertas y diferencias a pactar', quien: 'Responsable del equipo', plazo: '1 mes' });
+    if (nD) rc.push({ q: 'Sesión de devolución con el equipo', c: 'Sesenta minutos: cada persona comparte su estilo y cómo prefiere que le pidan las cosas.', imp: 'Cada persona conoce el estilo de las demás', quien: 'Responsable del equipo', plazo: '1 mes' });
+    if (an.faltan.length) rc.push({ q: 'Cubrir ' + (an.faltan.length === 1 ? 'la aportación de ' : 'las aportaciones de ') + an.faltan.map((k) => H.ROLES[k].n.toLowerCase()).join(', '), c: 'Decidir quién del equipo las asume, con una ficha de entrenamiento, o incorporarlas desde fuera.', imp: `Aportaciones cubiertas: de ${cub} a 9 de 9`, quien: 'Responsable del equipo', plazo: '3 meses' });
+    an.tensiones.slice(0, 3).forEach((t) => rc.push({ q: 'Pactar la diferencia entre ' + R.nombre(t.a) + ' y ' + R.nombre(t.b), c: t.t.clave, imp: 'Acuerdo de funcionamiento escrito y revisado al mes', quien: 'Responsable del equipo', plazo: '1 mes' }));
+    if (an.contratar && (an.contratar.rol || an.contratar.estilo)) rc.push({ q: 'Orientar la próxima incorporación', c: [an.contratar.rol && 'Aportación de ' + H.ROLES[an.contratar.rol].n.toLowerCase(), an.contratar.estilo && 'estilo de ' + H.DISC[an.contratar.estilo].n.toLowerCase()].filter(Boolean).join(' y ') + '.', imp: 'Equipo más equilibrado en estilos y aportaciones', quien: 'Dirección', plazo: 'Próxima vacante' });
+    const lim = [];
+    if (nD < M.length) lim.push(nD ? `La valoración del estilo de comportamiento cubre a ${nD} de ${M.length} personas; las conclusiones sobre estilos se refieren a ese grupo.` : 'No se ha dispuesto de la valoración del estilo de comportamiento de los miembros; el documento no analiza estilos ni diferencias entre ellos.');
+    if (nR < M.length) lim.push(nR ? `La valoración de aportaciones al equipo cubre a ${nR} de ${M.length} personas.` : 'No se ha dispuesto de la valoración de aportaciones al equipo; el documento no analiza su cobertura.');
+    lim.push(LIM_BASE);
+    return { an, M, nD, nR, top, cub, encs, encM, eq, Eq, lead, claves: cl, ri, op, tq, rc, lim, st: an.faltan.length > 2 ? 'stop' : an.faltan.length || an.tensiones.length ? 'warn' : nR ? 'ok' : null };
   };
 
   R.informeEquipo = (ids, nombre, objetivo) => {
-    const In = I(); In.reset(); const an = R.analizarEquipo(ids);
-    let h = cover({ kicker: 'Informe de equipo', titulo: nombre, subtitulo: objetivo || `${an.miembros.length} personas` });
-    h += In.summary('Resumen', `<p>${an.miembros.length} personas · ${an.conDisc.length} con DISC · ${an.conRoles.length} con aportaciones.${an.faltan.length ? ` Aportaciones sin cubrir: ${an.faltan.map((k) => H.ROLES[k].n.toLowerCase()).join(', ')}.` : an.conRoles.length ? ' Todas las aportaciones tienen a alguien.' : ''}${an.tensiones.length ? ` ${an.tensiones.length} posibles fricciones entre estilos.` : ''}</p>`, an.faltan.length > 2 ? 'stop' : an.faltan.length || an.tensiones.length ? 'warn' : 'ok');
-    h += In.section('Miembros', In.table(['Persona', 'Puesto', 'Estilo DISC', 'Aportaciones naturales', 'Eneatipo'], an.miembros.map((p) => [p.nombre, (R.puestoDe(p) || {}).nombre || '—', p.disc ? R.discEstilo(p.disc).nombre : '—', p.roles && p.roles.scores ? R.rolesOrden(p.roles.scores).slice(0, 2).map((k) => H.ROLES[k].n).join(', ') : '—', p.enea && p.enea.tipo ? p.enea.tipo + ' · ' + H.ENEA[p.enea.tipo].n : '—'])));
-    if (an.media) h += In.section('Estilos', `<div class="rp-block">${R.rueda(an.miembros, { numeros: true })}${R.ruedaLeyenda(an.miembros)}</div>` + In.table(['Estilo', 'Personas', 'Media del factor'], ['D', 'I', 'S', 'C'].map((k) => [H.DISC[k].n, String(an.dist[k]), String(an.media[k])]), { num: [1, 2] }));
-    if (an.conRoles.length) h += In.section('Aportaciones cubiertas', In.table(['Aportación', 'Mejor del equipo', 'Puntuación', 'Estado'], an.cobertura.map((c) => [H.ROLES[c.k].n, c.best ? R.nombre(c.best.id) : '—', c.best ? c.best.v + ' %' : '—', { h: In.pill(c.nivel === 'sin' ? 'warn' : c.nivel, c.nivel === 'ok' ? 'Cubierto' : c.nivel === 'warn' ? 'A medias' : 'Sin cubrir') }]), { num: [2] }));
-    h += In.section('Lectura y fricciones', (an.avisos.length ? In.table(['Aviso'], an.avisos.map((a) => [a.t])) : '') + (an.tensiones.length ? In.table(['Entre', 'Diferencia', 'Cómo pactarla'], an.tensiones.map((t) => [R.nombre(t.a) + ' y ' + R.nombre(t.b), t.t.txt, t.t.clave])) : '') + (an.contratar ? In.callout(`Próxima incorporación: ${an.contratar.rol ? 'rol de ' + esc(H.ROLES[an.contratar.rol].n.toLowerCase()) : ''}${an.contratar.rol && an.contratar.estilo ? ', ' : ''}${an.contratar.estilo ? 'estilo ' + esc(H.DISC[an.contratar.estilo].n.toLowerCase()) : ''}.`, 'info') : ''));
-    const tq = R.tablillasEquipo(an);
-    h += In.section('Tablillas del equipo', In.table(['Tablilla', 'Objetivo', 'Pasos', 'Por qué'], tq.map((x) => [x.t.titulo, x.t.objetivo, x.t.pasos.join(' · '), x.motivos.join(' ')])));
+    const In = I(); In.reset(); const { an, M, nD, nR, top, cub, encM, lead, claves: cl, ri, op, tq, rc, lim, st } = R.lecEquipo(ids, nombre, objetivo);
+    let h = cover({ kicker: 'Diagnóstico de equipo', titulo: nombre, subtitulo: objetivo ? 'Objetivo: ' + objetivo : pl(M.length, 'persona', 'personas') });
+    h += In.summary('Resumen ejecutivo', `<p>${lead}</p>` + claves(cl), st);
+    h += In.section('Composición del equipo', In.table(['Persona', 'Puesto', 'Estilo de comportamiento', 'Aportaciones naturales', 'Encaje con el puesto'], M.map((p) => { const en = R.encaje(p, R.puestoDe(p)); return [p.nombre, (R.puestoDe(p) || {}).nombre || '—', p.disc ? R.discEstilo(p.disc).nombre : '—', p.roles && p.roles.scores ? R.rolesOrden(p.roles.scores).slice(0, 2).map((k) => H.ROLES[k].n).join(', ') : '—', en && en.total != null ? { h: In.pill(en.st, en.total + ' %') } : '—']; })));
+    if (an.media) h += In.section(`Estilos de comportamiento: predomina la ${H.DISC[top].n.toLowerCase()}`, `<div class="rp-block">${R.rueda(M, { numeros: true })}${R.ruedaLeyenda(M)}</div>` + In.table(['Estilo', 'Personas con ese estilo principal', 'Media del factor (0-100)'], F4.map((k) => [H.DISC[k].n, String(an.dist[k]), String(an.media[k])]), { num: [1, 2] }), 'Cada punto es una persona, numerada y con el color de su estilo principal.');
+    if (nR) h += In.section(an.faltan.length ? `Aportaciones al equipo: ${an.faltan.length} de 9 sin cubrir` : 'Aportaciones al equipo: las 9 están cubiertas', In.table(['Aportación', 'Quién la cubre mejor', 'Puntuación', 'Situación'], an.cobertura.map((c) => [H.ROLES[c.k].n, c.best ? R.nombre(c.best.id) : '—', c.best ? c.best.v + ' %' : '—', { h: In.pill(c.nivel === 'sin' ? 'warn' : c.nivel, c.nivel === 'ok' ? 'Cubierta' : c.nivel === 'warn' ? 'A medias' : 'Sin cubrir') }]), { num: [2] }));
+    if (an.tensiones.length) h += In.section(`Diferencias de estilo que conviene pactar: ${an.tensiones.length}`, In.table(['Entre', 'Diferencia', 'Cómo pactarla'], an.tensiones.map((t) => [R.nombre(t.a) + ' y ' + R.nombre(t.b), t.t.txt, t.t.clave])), 'No son conflictos: son formas distintas de trabajar.');
+    if (ri.length || op.length) h += In.section('Riesgos y oportunidades', ryo(ri, op));
+    h += In.section('Recomendaciones', recos(rc), 'Por orden de prioridad.');
+    if (nD || nR) h += In.section('Plan de entrenamiento del equipo', In.table(['Ficha de entrenamiento', 'Objetivo', 'Pasos', 'Motivo'], tq.map((x) => [x.t.titulo, x.t.objetivo, x.t.pasos.join(' · '), x.motivos.join(' ')])));
     h += In.foot(pie);
-    R.abrirInforme({ titulo: 'Informe del equipo ' + nombre, html: h, clave: 'eq:' + nombre, ctx: { titulo: 'Equipo ' + nombre, tipo: 'Informe de equipo',
-      pasos: [{ q: 'Sesión de devolución con el equipo', c: 'Sesenta minutos: cada persona comparte su estilo y cómo prefiere que le pidan las cosas; se leen las aportaciones cubiertas y las que faltan.', quien: 'Responsable del equipo', s: 'Cada persona conoce el estilo de las demás' }]
-        .concat(tq.map((x) => ({ q: 'Tablilla de equipo: ' + x.t.titulo, c: x.t.pasos[0], quien: 'Responsable del equipo', s: x.t.senal })))
-        .concat(an.tensiones.slice(0, 3).map((t) => ({ q: 'Pactar la diferencia entre ' + R.nombre(t.a) + ' y ' + R.nombre(t.b), c: t.t.clave, quien: 'Responsable del equipo', s: 'Acuerdo escrito y revisado al mes' })))
-        .concat(an.contratar ? [{ q: 'Definir la próxima incorporación', c: [an.contratar.rol && 'Aportación de ' + H.ROLES[an.contratar.rol].n.toLowerCase(), an.contratar.estilo && 'estilo ' + H.DISC[an.contratar.estilo].n.toLowerCase()].filter(Boolean).join(', '), quien: 'Dirección', s: 'Perfil del puesto actualizado' }] : []),
-      seguimiento: [['Quincenal', 'Acuerdos del equipo y fricciones', 'Responsable del equipo', 'Incidencias entre personas', 'Ajustar los acuerdos'], ['Mensual', 'Avance de las tablillas del equipo', 'Responsable y consultor', 'Señales de avance', 'Siguiente tablilla'], ['Trimestral', 'Revisión del análisis del equipo', 'Consultor', 'Aportaciones cubiertas', 'Recomposición o incorporación']],
-      datos: [['Personas', String(an.miembros.length)], ['Con DISC', String(an.conDisc.length)], ['Aportaciones sin cubrir', an.faltan.map((k) => H.ROLES[k].n).join(', ') || 'Ninguna'], ['Fricciones probables', String(an.tensiones.length)]] } });
+    R.abrirInforme({ titulo: 'Diagnóstico del equipo ' + nombre, html: h, clave: 'eq:' + nombre, nota: nD < M.length || nR < M.length ? `Faltan cuestionarios por responder: comportamiento, ${M.length - nD} de ${M.length} personas; aportaciones, ${M.length - nR} de ${M.length}.` : '',
+      anexo: anexo([nD && MET.disc, nR && MET.roles, encM != null && MET.encaje, MET.fuentes].filter(Boolean), lim),
+      ctx: { titulo: 'Equipo ' + nombre, tipo: 'Diagnóstico de equipo', pasos: pasosDe(rc).concat((nD || nR) ? tq.slice(0, 2).map((x) => ({ q: 'Entrenamiento de equipo: ' + x.t.titulo, c: x.t.pasos[0], quien: 'Responsable del equipo', s: x.t.senal })) : []),
+        seguimiento: [['Quincenal', 'Acuerdos del equipo y diferencias de estilo', 'Responsable del equipo', 'Incidencias entre personas', 'Ajustar los acuerdos'], ['Mensual', 'Avance del plan de entrenamiento del equipo', 'Responsable y consultor', 'Señales de avance', 'Siguiente ficha'], ['Trimestral', 'Revisión del diagnóstico del equipo', 'Consultor', 'Aportaciones cubiertas', 'Recomposición o incorporación']],
+        datos: [['Personas', String(M.length)], ['Con estilo de comportamiento valorado', `${nD} de ${M.length}`], ['Aportaciones sin cubrir', nR ? an.faltan.map((k) => H.ROLES[k].n).join(', ') || 'Ninguna' : 'Sin valorar'], ['Diferencias de estilo a pactar', String(an.tensiones.length)]] } });
   };
 
   R.informeOrg = () => {
-    const In = I(); In.reset(); const s = R.resumen(), ps = R.state.personas;
-    if (!ps.length) { In.open({ titulo: 'Informe de la organización', html: cover({ kicker: 'Auditoría de personas', titulo: 'Personas y estructura' }) + '<p class="rp-muted">Sin personas dadas de alta.</p>' }); return; }
-    let h = cover({ kicker: 'Auditoría de personas y estructura', titulo: 'Personas y estructura', subtitulo: `${s.n} personas · ${R.state.puestos.length} puestos · ${R.state.equipos.length} equipos` });
-    const stops = s.est.avisos.filter((a) => a.st === 'stop').length;
-    h += In.summary('Resumen ejecutivo', `<p>${s.disc} de ${s.n} personas tienen su DISC, ${s.roles} sus roles y ${s.enea} su eneagrama.${s.encMedio != null ? ` El encaje medio persona-puesto es del ${s.encMedio} % (${s.encBajo} con encaje bajo).` : ''} La estructura tiene ${s.est.niveles} niveles y ${s.est.mandos.length} mandos${stops ? `; hay ${stops} alerta${stops > 1 ? 's' : ''} grave${stops > 1 ? 's' : ''} (puestos críticos sin relevo o sin cubrir)` : ''}.${s.todo.faltan.length ? ` En el conjunto nadie cubre: ${s.todo.faltan.map((k) => H.ROLES[k].n.toLowerCase()).join(', ')}.` : ''}</p>`, stops ? 'stop' : s.est.avisos.some((a) => a.st === 'warn') || s.encBajo ? 'warn' : 'ok');
-    h += In.kpis([{ k: 'Personas', v: s.n }, { k: 'DISC completados', v: `${s.disc}/${s.n}` }, { k: 'Encaje medio', v: pct(s.encMedio), st: s.encMedio == null ? null : s.encMedio >= 75 ? 'ok' : s.encMedio >= 55 ? 'warn' : 'stop' }, { k: 'Niveles', v: String(s.est.niveles) }, { k: 'Alertas de estructura', v: String(s.est.avisos.filter((a) => a.st !== 'info').length), st: stops ? 'stop' : 'ok' }]);
-    h += In.section('Plantilla y perfiles', In.table(['Persona', 'Puesto', 'Depende de', 'Estilo DISC', 'Aportaciones naturales', 'Eneatipo', 'Encaje'], ps.map((p) => { const e = R.encaje(p, R.puestoDe(p)); return [p.nombre, (R.puestoDe(p) || {}).nombre || '—', p.responsable ? R.nombre(p.responsable) : '—', p.disc ? R.discEstilo(p.disc).nombre : '—', p.roles && p.roles.scores ? R.rolesOrden(p.roles.scores).slice(0, 2).map((k) => H.ROLES[k].n).join(', ') : '—', p.enea && p.enea.tipo ? String(p.enea.tipo) : '—', e && e.total != null ? { h: In.pill(e.st, e.total + ' %') } : '—']; })));
-    if (s.todo.media) h += In.section('Mapa de estilos', `<div class="rp-block">${R.rueda(ps, { numeros: true })}${R.ruedaLeyenda(ps)}</div>`, 'Cada punto es una persona, numerada y con el color de su estilo principal.');
-    const enc = ps.map((p) => ({ p, e: R.encaje(p, R.puestoDe(p)) })).filter((x) => x.e && x.e.total != null && x.e.brechas.length);
-    if (enc.length) h += In.section('Encaje persona-puesto: brechas', In.table(['Persona', 'Puesto', 'Encaje', 'Brecha principal'], enc.sort((a, b) => a.e.total - b.e.total).map((x) => [x.p.nombre, R.puestoDe(x.p).nombre, { h: In.pill(x.e.st, x.e.total + ' %') }, x.e.brechas[0].txt])));
-    h += In.section('Estructura y relevos', In.table(['Estado', 'Hallazgo'], s.est.avisos.map((a) => [{ h: In.pill(a.st === 'info' ? 'warn' : a.st, a.st === 'stop' ? 'Grave' : a.st === 'warn' ? 'Revisar' : 'Nota') }, a.t])));
-    if (s.evaluados) { const filas = Object.keys(R.CAJAS).map((k) => ({ k, quien: ps.filter((p) => R.caja(p) === k) })).filter((x) => x.quien.length); h += In.section('Mapa de talento', In.table(['Casilla', 'Personas', 'Acción recomendada'], filas.map((x) => [R.CAJAS[x.k].n, x.quien.map((p) => p.nombre).join(', '), R.CAJAS[x.k].a]))); }
-    if (R.state.equipos.length) h += In.section('Equipos', In.table(['Equipo', 'Miembros', 'Aportaciones sin cubrir', 'Fricciones', 'Incorporar'], R.state.equipos.map((q) => { const a = R.analizarEquipo(q.miembros); return [q.nombre, String(a.miembros.length), a.faltan.map((k) => H.ROLES[k].n).join(', ') || '—', String(a.tensiones.length), a.contratar ? [a.contratar.rol && H.ROLES[a.contratar.rol].n, a.contratar.estilo && H.DISC[a.contratar.estilo].n].filter(Boolean).join(' · ') : '—']; }), { num: [1, 3] }));
+    const In = I(); In.reset(); const s = R.resumen(), ps = R.state.personas, pus = R.state.puestos, emp = R.empresa().nombre;
+    if (!ps.length) { In.open({ titulo: 'Diagnóstico de personas y estructura', html: cover({ kicker: 'Diagnóstico de personas y estructura', titulo: 'Personas y estructura' }) + In.summary('Alcance', '<p>La empresa no ha aportado la relación de personas y puestos. El diagnóstico de personas y estructura queda fuera del alcance de este documento.</p>') + In.foot(pie), after: (paper) => R.notaTrabajo(paper, 'Dé de alta la plantilla y los puestos para elaborar este diagnóstico.') }); return; }
+    let h = cover({ kicker: 'Diagnóstico de personas y estructura', titulo: 'Personas y estructura', subtitulo: `${pl(s.n, 'persona', 'personas')} · ${pl(pus.length, 'puesto', 'puestos')} · ${pl(R.state.equipos.length, 'equipo', 'equipos')}` });
+    const est = s.est, crit = pus.filter((x) => x.critico), critSin = crit.filter((x) => !est.ocupantes(x.id).length || !x.sucesor || !R.persona(x.sucesor));
+    const unaP = Object.keys(est.areas).filter((a) => est.areas[a].length === 1 && ps.length > 3), warns = est.avisos.filter((a) => a.st === 'warn');
+    const encs = ps.map((p) => ({ p, e: R.encaje(p, R.puestoDe(p)) })).filter((x) => x.e && x.e.total != null), bajos = encs.filter((x) => x.e.st === 'stop'), altos = encs.filter((x) => x.e.st === 'ok');
+    const top = s.todo.media ? F4.slice().sort((a, b) => s.todo.dist[b] - s.todo.dist[a])[0] : null;
+    const porMando = est.mandos.length ? Math.round((est.mandos.reduce((a, m) => a + m.n, 0) / est.mandos.length) * 10) / 10 : null;
+    const lead = critSin.length ? `La principal vulnerabilidad de ${esc(emp)} en personas es la continuidad: <b>${critSin.length} de sus ${pl(crit.length, 'puesto crítico', 'puestos críticos')}</b> no ${critSin.length === 1 ? 'tiene' : 'tienen'} relevo designado o titular.`
+      : bajos.length ? `<b>${pl(bajos.length, 'persona presenta', 'personas presentan')} un encaje bajo</b> con su puesto en ${esc(emp)}; el encaje medio de la plantilla valorada es del ${s.encMedio} %.`
+        : s.encMedio != null ? `La plantilla de ${esc(emp)} encaja con sus puestos al <b>${s.encMedio} %</b> de media, sin riesgos graves de continuidad en su estructura.`
+          : `${esc(emp)} cuenta con ${pl(s.n, 'persona', 'personas')} en ${pl(pus.length, 'puesto', 'puestos')}, organizadas en ${pl(est.niveles, 'nivel', 'niveles')}.`;
+    h += In.summary('Resumen ejecutivo', `<p>${lead}</p>` + claves([
+      `Estructura: ${pl(s.n, 'persona', 'personas')}, ${pl(est.niveles, 'nivel jerárquico', 'niveles jerárquicos')} y ${pl(est.mandos.length, 'mando', 'mandos')}${porMando != null ? `, con ${String(porMando).replace('.', ',')} personas por mando de media` : ''}.`,
+      s.encMedio != null ? `Encaje medio persona-puesto: <b>${s.encMedio} %</b> sobre ${pl(s.enc, 'persona valorada', 'personas valoradas')}; ${altos.length} con encaje alto y ${bajos.length} con encaje bajo.` : '',
+      crit.length ? `Continuidad: ${critSin.length} de ${pl(crit.length, 'puesto crítico', 'puestos críticos')} sin relevo designado o sin titular.` : '',
+      unaP.length ? `${pl(unaP.length, 'área depende', 'áreas dependen')} de una sola persona: ${unaP.map(esc).join(', ')}.` : '',
+      s.roles ? (s.todo.faltan.length ? `Nadie en la plantilla aporta de forma natural: ${s.todo.faltan.map((k) => esc(H.ROLES[k].n.toLowerCase())).join(', ')}.` : 'Las 9 aportaciones al trabajo en equipo están cubiertas en la plantilla.') : '',
+      top ? `Estilo de comportamiento predominante: ${esc(H.DISC[top].n.toLowerCase())} (${s.todo.dist[top]} de ${pl(s.disc, 'persona valorada', 'personas valoradas')}).` : ''
+    ]), critSin.length ? 'stop' : warns.length || bajos.length ? 'warn' : 'ok');
+    h += In.kpis([{ k: 'Personas', v: s.n }, { k: 'Niveles', v: String(est.niveles) }, { k: 'Encaje medio', v: pct(s.encMedio), st: s.encMedio == null ? null : s.encMedio >= 75 ? 'ok' : s.encMedio >= 55 ? 'warn' : 'stop' }, { k: 'Puestos críticos sin relevo', v: `${critSin.length} de ${crit.length}`, st: critSin.length ? 'stop' : crit.length ? 'ok' : null }, { k: 'Riesgos de estructura', v: String(est.avisos.filter((a) => a.st !== 'info').length), st: critSin.length ? 'stop' : warns.length ? 'warn' : 'ok' }]);
+    h += In.section('Plantilla y perfiles', In.table(['Persona', 'Puesto', 'Depende de', 'Estilo de comportamiento', 'Aportaciones naturales', 'Encaje'], ps.map((p) => { const e = R.encaje(p, R.puestoDe(p)); return [p.nombre, (R.puestoDe(p) || {}).nombre || '—', p.responsable ? R.nombre(p.responsable) : '—', p.disc ? R.discEstilo(p.disc).nombre : '—', p.roles && p.roles.scores ? R.rolesOrden(p.roles.scores).slice(0, 2).map((k) => H.ROLES[k].n).join(', ') : '—', e && e.total != null ? { h: In.pill(e.st, e.total + ' %') } : '—']; })));
+    if (top) h += In.section(`Mapa de estilos: predomina la ${H.DISC[top].n.toLowerCase()}`, `<div class="rp-block">${R.rueda(ps, { numeros: true })}${R.ruedaLeyenda(ps)}</div>` + In.table(['Estilo', 'Personas con ese estilo principal', 'Media del factor (0-100)'], F4.map((k) => [H.DISC[k].n, String(s.todo.dist[k]), String(s.todo.media[k])]), { num: [1, 2] }), 'Cada punto es una persona, numerada y con el color de su estilo principal.');
+    const dif = encs.filter((x) => x.e.brechas.length).sort((a, b) => a.e.total - b.e.total);
+    if (dif.length) h += In.section(`Encaje persona-puesto: ${pl(dif.length, 'persona con diferencias relevantes', 'personas con diferencias relevantes')}`, In.table(['Persona', 'Puesto', 'Encaje', 'Principal diferencia'], dif.map((x) => [x.p.nombre, R.puestoDe(x.p).nombre, { h: In.pill(x.e.st, x.e.total + ' %') }, x.e.brechas[0].txt])));
+    if (est.avisos.length) h += In.section(critSin.length ? `Estructura y relevos: ${pl(critSin.length, 'puesto crítico', 'puestos críticos')} sin cobertura asegurada` : 'Estructura y relevos', In.table(['Gravedad', 'Hallazgo'], est.avisos.map((a) => [{ h: In.pill(a.st === 'info' ? 'warn' : a.st, a.st === 'stop' ? 'Grave' : a.st === 'warn' ? 'A revisar' : 'A observar') }, a.t])));
+    if (s.evaluados) { const filas = Object.keys(R.CAJAS).map((k) => ({ k, quien: ps.filter((p) => R.caja(p) === k) })).filter((x) => x.quien.length); h += In.section(`Mapa de talento: ${pl(s.evaluados, 'persona valorada', 'personas valoradas')}`, In.table(['Situación', 'Personas', 'Acción recomendada'], filas.map((x) => [R.CAJAS[x.k].n, x.quien.map((p) => p.nombre).join(', '), R.CAJAS[x.k].a]))); }
+    if (R.state.equipos.length) h += In.section('Equipos', In.table(['Equipo', 'Personas', 'Aportaciones sin cubrir', 'Diferencias de estilo', 'Perfil que lo equilibraría'], R.state.equipos.map((q) => { const a = R.analizarEquipo(q.miembros); return [q.nombre, String(a.miembros.length), a.conRoles.length ? a.faltan.map((k) => H.ROLES[k].n).join(', ') || 'Ninguna' : '—', a.conDisc.length ? String(a.tensiones.length) : '—', a.contratar ? [a.contratar.rol && H.ROLES[a.contratar.rol].n, a.contratar.estilo && H.DISC[a.contratar.estilo].n].filter(Boolean).join(' · ') : '—']; }), { num: [1, 3] }));
+    const ri = critSin.map((x) => { const oc = est.ocupantes(x.id)[0]; return [oc ? `El puesto crítico «${x.nombre}» no tiene relevo designado.` : `El puesto crítico «${x.nombre}» está sin cubrir.`, oc ? `Si ${oc.nombre} falta, la función queda sin cobertura.` : 'La función no tiene titular.']; })
+      .concat(warns.map((a) => [a.t, /una sola persona/.test(a.t) ? 'Una ausencia detiene el área.' : 'Resta agilidad a la organización.']))
+      .concat(bajos.length ? [[`${pl(bajos.length, 'persona', 'personas')} con encaje bajo: ${bajos.map((x) => x.p.nombre).join(', ')}.`, 'Riesgo de menor rendimiento y de desgaste si no se ajusta el puesto o se entrena la diferencia.']] : [])
+      .concat(s.roles && s.todo.faltan.length ? [[`Nadie aporta de forma natural: ${s.todo.faltan.map((k) => H.ROLES[k].n.toLowerCase()).join(', ')}.`, H.ROLES[s.todo.faltan[0]].falta]] : []);
+    const cantera = ps.filter((p) => ['3-3', '3-2', '2-3'].includes(R.caja(p)));
+    const op = (altos.length ? [[`${altos.length} de ${pl(encs.length, 'persona valorada', 'personas valoradas')} con encaje alto (75 % o más).`, 'Base estable sobre la que apoyar los cambios.']] : [])
+      .concat(cantera.length ? [[`Personas con recorrido: ${cantera.map((p) => p.nombre).join(', ')}.`, 'Cantera para relevos y puestos de más responsabilidad.']] : []);
+    if (ri.length || op.length) h += In.section('Riesgos y oportunidades', ryo(ri, op));
+    const sinH = s.n - s.disc, sinPerfil = pus.filter((q) => !q.disc && !(q.roles && q.roles.length)), rc = [];
+    if (critSin.length) rc.push({ q: `Asegurar el relevo de ${pl(critSin.length, 'puesto crítico', 'puestos críticos')}: ${critSin.map((x) => x.nombre).join(', ')}`, c: 'Elegir a la persona, acordar un plan de traspaso y revisar su avance cada trimestre.', imp: `Puestos críticos sin cobertura asegurada: de ${critSin.length} a 0`, quien: 'Dirección', plazo: '6 meses' });
+    if (bajos.length) rc.push({ q: 'Revisar el encaje de ' + bajos.map((x) => x.p.nombre).join(', '), c: 'Conversación individual: ajustar el puesto, entrenar la diferencia o valorar otro puesto.', imp: 'Plan acordado con cada persona; encaje por encima del 55 %', quien: 'Responsable directo', plazo: '3 meses' });
+    if (unaP.length) rc.push({ q: 'Reducir la dependencia de una sola persona en ' + unaP.join(', '), c: 'Documentar las tareas clave y formar a una segunda persona.', imp: 'Cada área con al menos dos personas capaces de sostenerla', quien: 'Dirección', plazo: '6 meses' });
+    if (s.roles && s.todo.faltan.length) rc.push({ q: 'Cubrir las aportaciones que nadie tiene: ' + s.todo.faltan.map((k) => H.ROLES[k].n.toLowerCase()).join(', '), c: 'Asignarlas a quien más cerca esté de cubrirlas o tenerlas en cuenta en la próxima incorporación.', imp: 'Las 9 aportaciones cubiertas en la plantilla', quien: 'Dirección', plazo: '6 meses' });
+    if (sinH) rc.push({ q: `Extender la valoración de comportamiento a ${pl(sinH, 'la persona restante', 'las ' + sinH + ' personas restantes').replace(/^\d+ /, '')}`, c: 'Cuestionarios breves, con el consentimiento de cada persona.', imp: `Cobertura del diagnóstico: del ${Math.round((s.disc / s.n) * 100)} % al 100 % de la plantilla`, quien: 'Recursos humanos o dirección', plazo: '1 mes' });
+    if (sinPerfil.length) rc.push({ q: `Definir lo que ${pl(sinPerfil.length, 'requiere el puesto', 'requieren los ' + sinPerfil.length + ' puestos').replace(/^\d+ /, '')} sin perfil`, c: sinPerfil.slice(0, 6).map((q) => q.nombre).join(', ') + (sinPerfil.length > 6 ? '…' : '') + '.', imp: 'Encaje valorable en todos los puestos', quien: 'Dirección', plazo: '2 meses' });
+    rc.push({ q: 'Conversaciones de desarrollo con cada persona', c: 'Treinta minutos con su perfil y una prioridad de entrenamiento.', imp: 'Cada persona con una prioridad de desarrollo acordada', quien: 'Cada responsable', plazo: '3 meses' }, { q: 'Revisión trimestral de personas y estructura', c: 'Actualizar este diagnóstico y comparar.', imp: 'Menos riesgos abiertos que en este diagnóstico', quien: 'Dirección', plazo: 'Cada trimestre' });
+    h += In.section('Recomendaciones', recos(rc), 'Por orden de prioridad.');
     h += In.foot(pie);
-    const sinH = ps.filter((p) => !p.disc).length, crit = s.est.avisos.filter((a) => a.st === 'stop');
-    R.abrirInforme({ titulo: 'Informe de personas y estructura', html: h, clave: 'org', ctx: { titulo: 'Personas y estructura', tipo: 'Auditoría de personas',
-      pasos: (sinH ? [{ q: 'Completar los cuestionarios pendientes', c: sinH + ' personas sin DISC: enviarlos por enlace desde «Test a distancia».', quien: 'Recursos humanos o dirección', s: 'Toda la plantilla con DISC' }] : [])
-        .concat(crit.slice(0, 3).map((a) => ({ q: 'Resolver: ' + a.t, c: 'Nombrar sucesor o cubrir el puesto y preparar el relevo con una tablilla.', quien: 'Dirección', s: 'El aviso desaparece de la estructura' })))
-        .concat(s.encBajo ? [{ q: 'Revisar las personas con encaje bajo', c: 'Conversación individual: ¿ajustar el puesto, entrenar la brecha o cambiar de puesto?', quien: 'Responsable directo', s: 'Plan acordado con cada persona' }] : [])
-        .concat(s.todo.faltan.length ? [{ q: 'Cubrir las aportaciones que nadie tiene', c: s.todo.faltan.map((k) => H.ROLES[k].n).join(', '), quien: 'Dirección', s: 'Aportación cubierta en algún equipo' }] : [])
-        .concat([{ q: 'Conversaciones de desarrollo con cada persona', c: 'Treinta minutos con su informe y una tablilla elegida.', quien: 'Cada responsable', s: 'Todas las personas con tablilla en curso' }, { q: 'Revisión trimestral de personas y estructura', c: 'Repetir este informe y comparar.', quien: 'Consultor', s: 'Menos alertas que en este informe' }]),
-      seguimiento: SEG_PERSONA,
-      datos: [['Personas', String(s.n)], ['DISC completados', s.disc + '/' + s.n], ['Encaje medio', pct(s.encMedio)], ['Niveles', String(s.est.niveles)], ['Alertas graves', String(crit.length)], ['Equipos', String(R.state.equipos.length)]] } });
+    const lim = [];
+    if (sinH) lim.push(s.disc ? `La valoración del estilo de comportamiento cubre a ${s.disc} de ${s.n} personas (${Math.round((s.disc / s.n) * 100)} %); las conclusiones sobre estilos y encaje se refieren a ese grupo.` : 'No se ha dispuesto de la valoración del estilo de comportamiento de la plantilla; el documento se limita a la estructura.');
+    if (s.roles < s.n && s.roles) lim.push(`La valoración de aportaciones al equipo cubre a ${s.roles} de ${s.n} personas.`);
+    if (sinPerfil.length) lim.push(`${pl(sinPerfil.length, 'puesto no tiene', 'puestos no tienen')} definido lo que requiere; el encaje de sus ocupantes no se valora.`);
+    if (!s.evaluados) lim.push('No se ha dispuesto de valoración de desempeño y potencial; el documento no incluye mapa de talento.');
+    lim.push('El análisis no incluye retribución, absentismo ni rotación.', LIM_BASE);
+    R.abrirInforme({ titulo: 'Diagnóstico de personas y estructura', html: h, clave: 'org', nota: sinH || sinPerfil.length ? `Para completar el diagnóstico: ${[sinH && pl(sinH, 'persona sin cuestionario de comportamiento', 'personas sin cuestionario de comportamiento'), sinPerfil.length && pl(sinPerfil.length, 'puesto sin perfil', 'puestos sin perfil')].filter(Boolean).join(' y ')}.` : '',
+      anexo: anexo([s.disc && MET.disc, s.roles && MET.roles, s.enc && MET.encaje, s.evaluados && MET.talento, ['Estructura', 'Niveles, mandos y dependencias según el organigrama. Un puesto es crítico cuando la dirección lo ha señalado como tal.'], MET.fuentes].filter(Boolean), lim),
+      ctx: { titulo: 'Personas y estructura', tipo: 'Diagnóstico de personas', pasos: pasosDe(rc), seguimiento: SEG_PERSONA,
+        datos: [['Personas', String(s.n)], ['Con estilo de comportamiento valorado', s.disc + ' de ' + s.n], ['Encaje medio', pct(s.encMedio)], ['Niveles', String(est.niveles)], ['Puestos críticos sin relevo', critSin.length + ' de ' + crit.length], ['Equipos', String(R.state.equipos.length)]] } });
   };
 })();

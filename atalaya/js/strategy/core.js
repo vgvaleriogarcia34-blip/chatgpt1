@@ -274,49 +274,203 @@
   S.show = show;
   S.GROUPS = GROUPS;
 
-  /* ---------- Informe de un módulo ---------- */
-  /* Piezas comunes de los informes: indicadores, riesgos, hallazgos y el análisis detallado del módulo en pantalla */
+  /* ---------- Informes: dossier empresarial ----------
+     Norma de los informes: el sujeto es la empresa, nunca la aplicación. El documento se ordena como un dossier de
+     consultoría (resumen ejecutivo con la conclusión primero, situación y diagnóstico, riesgos y oportunidades,
+     recomendaciones, hoja de ruta y anexo de metodología, fuentes y limitaciones). Lo que en pantalla es una
+     instrucción de uso, un estado de carga o un aviso de trabajo no pasa al documento: lo que no se puede analizar
+     se dice en una línea del anexo «Alcance y limitaciones». */
+  const INF = (S.inf = {});
+  const TITULOS = { tablero: 'Diagnóstico estratégico de la empresa', tiempos: 'Uso del tiempo y productividad', evolucion: 'Evolución del diagnóstico', auditoria: 'Auditoría estratégica' };
+  INF.titulo = (m) => TITULOS[m.id] || m.nombre;
+  INF.estado = (n) => (n == null ? null : n >= 70 ? 'ok' : n >= 50 ? 'warn' : 'stop');
+  INF.califica = (n) => (n >= 70 ? 'situación sólida' : n >= 50 ? 'con puntos que corregir' : 'situación frágil');
+  INF.fechaC = (d) => new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+  // Lenguaje de pantalla (nombres de la aplicación, instrucciones de uso, estados de carga) que no pasa al documento
+  const NO_NOM = /\b(m[oó]dulos?|simulador|atalaya|pesta[ñn]as?|este mundo|mundos|zona de origen|origen de datos|cabecera|rejilla|casilla|navegador|flotante|aterriz\w+|datos? de ejemplo|registros de ejemplo|caso de ejemplo|comprobaci[oó]n(es)?|sin responder|versi[oó]n de trabajo|versi[oó]n nueva|servidor|sistema estrat[eé]gico|cuadro de mando de atalaya|todav[ií]a no (hay|se)|sin an[aá]lisis todav[ií]a|sin datos que dibujar|sin datos|a mano|el agente|corte guardado|cortes guardados|se guarda)\b/i;
+  const NO_IMP = /(^|[.:;»] +|^\W+)(Pulse|Pulsa|Toque|Toca|Mueva|Mueve|Arrastre|Escriba|Escribe|Marque|Marca|Cargue|Carga|Suba|Sube|Complete|Completa|Añada|Añade|Úselo|Puntúa|Puntúe|Responde|Responda|Elija|Elige|Puede guardar|Para afinarla|Cámbielo|Ajústelos|Importe su)\b|ajústelos|cámbielo|reescríbalas|páselas|añada (las|importes)|tócal[ao]|toque para|marque si|anotar los valores/;
+  INF.sucio = (t) => NO_NOM.test(t) || NO_IMP.test(t);
+  // Giros de la aplicación que tienen equivalente empresarial
+  const NEG = [
+    [/\s*\((datos )?del simulador\)/gi, ''], [/\s*\(ver simulador\)/gi, ''], [/\s*\(vacío = sector\)/gi, ''], [/que cree realista conseguir/gi, 'que se considera realista conseguir'], [/del simulador · escenario/gi, 'escenario'], [/La inversión del simulador/g, 'La inversión prevista'],
+    [/lleve la desviación al simulador para ver el efecto en la inversión/gi, 'recalcule el plan de inversión con la desviación'],
+    [/en cada escenario del simulador/gi, 'en cada escenario'], [/los datos del simulador/gi, 'las cifras de la empresa'], [/Veredicto del simulador/g, 'Viabilidad de la inversión'],
+    [/Nota del sistema estratégico/g, 'Valoración global'], [/Atalaya marca lo que detecta en sus datos; cámbielo si no es así\.?/g, ''],
+    [/detectadas en todos los módulos/gi, 'identificadas en todas las áreas'], [/(en|con|de) todos los módulos/gi, '$1 todas las áreas'],
+    [/(en|con) el simulador/gi, '$1 el plan de inversión'], [/(del|al) simulador/gi, '$1 plan de inversión'], [/\s*\(empresa modelo\)/gi, ''],
+    [/; ajústelos a su experiencia/gi, ''], [/\s*\(ejemplo\)/gi, ''], [/^NaN$/, '—'], [/ · las sugerencias salen de sus datos/gi, ''], [/toque para ver qué significa/gi, '']
+  ];
+  INF.neg = (t) => NEG.reduce((s, [a, b]) => s.replace(a, b), String(t == null ? '' : t)).replace(/ {2,}/g, ' ');
+  // Texto listo para el documento: con el giro empresarial y sin las frases que hablan de la aplicación
+  INF.frases = (t) => { const s = INF.neg(t); if (!INF.sucio(s)) return s; return s.split(/(?<=[.!?])\s+/).filter((f) => !INF.sucio(f)).join(' ').trim(); };
+  /* Un bloque de la pantalla convertido en contenido de informe, sin lenguaje de la aplicación */
+  INF.limpiar = (html) => {
+    const d = document.createElement('div'); d.innerHTML = html;
+    d.querySelectorAll('[data-inf="no"], .solo-pantalla, .st-pide, details, .og-desfase').forEach((x) => x.remove());
+    d.querySelectorAll('svg [aria-label], svg title, svg[aria-label]').forEach((x) => { if (x.tagName.toLowerCase() === 'title') x.textContent = INF.neg(x.textContent); else x.setAttribute('aria-label', INF.neg(x.getAttribute('aria-label'))); });
+    // Texto: se limpia frase a frase; un párrafo con formato que mezcla instrucciones se retira entero
+    const W = document.createTreeWalker(d, NodeFilter.SHOW_TEXT), T = []; while (W.nextNode()) T.push(W.currentNode);
+    T.forEach((n) => {
+      if (!n.parentNode || !d.contains(n)) return;
+      const t0 = n.nodeValue; if (!t0.trim()) return;
+      const t1 = INF.neg(t0); if (t1 !== t0) n.nodeValue = t1;
+      if (n.parentElement && n.parentElement.closest('svg')) return; // en los gráficos solo se ajustan los nombres
+      if (!INF.sucio(t1)) return;
+      const caja = n.parentElement.closest('p, small, li, .note, .alert, td, th, h3, h4, label') || n.parentElement;
+      if (caja !== d && caja.children.length && !/^(TD|TH)$/.test(caja.tagName)) { caja.remove(); return; }
+      n.nodeValue = INF.frases(t1);
+    });
+    // Tablas: sin columnas de trabajo vacías; una tabla sin filas no dice nada
+    d.querySelectorAll('table').forEach((t) => {
+      const filas = Array.from(t.tBodies).flatMap((b) => Array.from(b.rows));
+      if (!filas.length || filas.every((r) => !r.textContent.trim())) { (t.closest('.rp-tw, .table-wrap') || t).remove(); return; }
+      const cab = t.tHead && t.tHead.rows[0]; if (!cab) return;
+      for (let i = cab.cells.length - 1; i >= 0; i--) { if (cab.cells[i].textContent.trim()) continue; if (filas.every((r) => !r.cells[i] || (!r.cells[i].textContent.trim() && !r.cells[i].querySelector('svg, img')))) { cab.deleteCell(i); filas.forEach((r) => r.cells[i] && r.deleteCell(i)); } }
+    });
+    d.querySelectorAll('table').forEach((t) => { const filas = Array.from(t.tBodies).flatMap((b) => Array.from(b.rows)), TOPE = 15; if (filas.length <= TOPE + 3) return; filas.slice(TOPE).forEach((r) => r.remove()); const p = document.createElement('p'); p.className = 'rp-muted'; p.textContent = `Se muestran las ${TOPE} primeras filas de un total de ${filas.length}.`; (t.closest('.rp-tw, .table-wrap') || t).insertAdjacentElement('afterend', p); });
+    // Lo que se queda vacío, fuera (dos pasadas: un contenedor puede vaciarse al quitar a sus hijos)
+    for (let k = 0; k < 3; k++) d.querySelectorAll('p, small, span, li, ul, ol, div, label, h3, h4').forEach((x) => { if (!x.textContent.trim() && !x.querySelector('svg, img, table, i, b') && !x.closest('svg') && !/\b(dotc|rp-bar)\b/.test(x.className || '')) x.remove(); });
+    return d.innerHTML;
+  };
+  // ¿Las cifras del área son las de una empresa tipo (cuenta que aún trabaja con cifras ilustrativas)?
+  INF.ilustrativo = (m) => {
+    const P = A.platform; if (S.real() || (P && P.modelo && P.modelo.activa && P.modelo.activa())) return false;
+    const st = m && S.state[m.clave || m.id];
+    return !!((st && st.ejemplo === true) || S.simEjemplo() || (S.sim.historico && S.sim.historico.ejemplo));
+  };
+  INF.periodo = () => {
+    const H = S.sim && S.sim.historico, an = H && H.anios && !(S.real() && H.ejemplo) ? H.anios.map((a) => +a.anio).filter(Boolean).sort() : [];
+    const f = A.informe.fecha();
+    return an.length >= 2 ? `Ejercicios ${an[0]}–${an[an.length - 1]} y situación a ${f}` : `Situación a ${f}`;
+  };
+  // Portada con ámbito y periodo analizado
+  INF.portada = (o) => { const h = A.informe.cover(Object.assign({ periodo: INF.periodo() }, o)); return /Periodo analizado/.test(h) ? h : h.replace('</dl>', `<div><dt>Ámbito</dt><dd>${esc(o.ambito || '')}</dd></div><div><dt>Periodo analizado</dt><dd>${esc(INF.periodo())}</dd></div></dl>`); };
+  // Nombre del área en los documentos
+  INF.area = (mod) => { const m = S.mod(mod); return m ? INF.titulo(m) : ''; };
+  INF.PIE = 'Las cifras son estimaciones elaboradas con la información facilitada por la empresa. La fiscalidad y las decisiones societarias deben validarse con sus asesores.';
+  INF.ESCALA = 'Nivel de riesgo = probabilidad × impacto, de 1 a 25: bajo por debajo de 8, medio hasta 14 y alto desde 15.';
+  INF.METODO = 'Cada indicador se compara con su umbral de referencia y se clasifica en nivel adecuado (verde), en vigilancia (ámbar) o crítico (rojo). La valoración sobre 100 pondera los indicadores, los riesgos altos, el cumplimiento de los objetivos y del plan, las prácticas de gestión y la disponibilidad de información: verde cuenta 1, ámbar 0,5 y rojo 0.';
+  /* Anexo: metodología, fuentes y limitaciones de la información */
+  INF.anexo = (o) => {
+    const I = A.informe, li = (l) => `<ul>${l.map((x) => `<li>${x}</li>`).join('')}</ul>`;
+    const lim = (o.limites || []).slice();
+    if (o.ilustrativo) lim.unshift('Las cifras de este documento son ilustrativas: corresponden a una empresa tipo del sector y no a la contabilidad ni a los registros de la sociedad. Sirven para mostrar el alcance del análisis, no para decidir.');
+    if (!lim.length) lim.push('El análisis se apoya en la información facilitada por la empresa, que no ha sido auditada.');
+    return `<section class="rp-sec rp-anx"><h2><span class="rp-n">A</span>Anexo: metodología, fuentes y limitaciones</h2><h3>Metodología</h3><p>${esc(o.metodo || INF.METODO)}</p>${o.riesgos ? `<p>${esc(INF.ESCALA)}</p>` : ''}`
+      + ((o.fuentes || []).length ? `<h3>Fuentes</h3>${li(o.fuentes)}` : '')
+      + `<h3>Alcance y limitaciones</h3>${li(lim)}</section>`;
+  };
+  /* Cierre del documento: el anexo es siempre lo último antes del pie. Los apartados que se añaden al informe
+     (hoja de ruta de implantación y seguimiento con el consultor) se insertan «antes del pie»: para que queden
+     antes del anexo y no después, se les deja un ancla invisible delante del anexo. */
+  INF.cierre = (o) => '<footer class="rp-foot" hidden style="display:none" aria-hidden="true"></footer>' + INF.anexo(o) + A.informe.foot(INF.PIE).replace('<footer class="rp-foot"', '<footer data-pie class="rp-foot"');
+  // ¿Se añade al informe la hoja de ruta de implantación con el consultor? (entonces no se repite aquí)
+  INF.conGuia = () => !!(A.consultorInf && A.consultorInf.esConsultora && A.consultorInf.esConsultora());
+  INF.min = (t) => { t = String(t || ''); return /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ ]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t; };
+  /* Mensajes clave del resumen ejecutivo: cada uno con su cifra */
+  INF.mensajes = (P, x) => {
+    x = x || {}; const M = [], con = (P.eval || P.tiles).filter((t) => t.st), r = con.filter((t) => t.st === 'stop'), a = con.filter((t) => t.st === 'warn'), v = con.filter((t) => t.st === 'ok');
+    const val = (t) => String(t.v).replace(/<[^>]+>/g, '').trim();
+    if (con.length) M.push(`<b>Indicadores.</b> De ${con.length === 1 ? 'un indicador evaluado' : `los ${con.length} indicadores evaluados`}, ${v.length} ${v.length === 1 ? 'está' : 'están'} en nivel adecuado, ${a.length} en vigilancia y ${r.length} en nivel crítico${r.length ? `: ${r.slice(0, 3).map((t) => `${esc(INF.min(t.k))} (${esc(val(t))})`).join(', ')}` : a.length ? `; a vigilar, ${a.slice(0, 2).map((t) => `${esc(INF.min(t.k))} (${esc(val(t))})`).join(' y ')}` : ''}.`);
+    if (P.R.length) { const altos = P.R.filter((q) => q.estado === 'stop').length; M.push(`<b>Riesgos.</b> ${P.R.length === 1 ? 'Un riesgo identificado' : `${P.R.length} riesgos identificados`}${altos ? `, ${altos} de nivel alto` : ''}. El principal: ${esc(P.R[0].nombre)} (nivel ${P.R[0].nivel} sobre 25).`); }
+    const imp = P.Fi.reduce((s, f) => s + (f.impactoEUR || 0), 0);
+    if (P.Fi.length && imp > 0) { let eb = 0; try { eb = S.simConDatos() ? S.baseYear().ebitda : 0; } catch (e) { eb = 0; } M.push(`<b>Oportunidades.</b> Las mejoras identificadas suman <b>${F.eur(imp)}</b> al año${eb > 0 ? `, el ${F.pct(S.pct(imp, eb))} del EBITDA actual` : ''}. La mayor: ${esc(P.Fi[0].hallazgo.replace(/\.$/, ''))} (${F.eur(P.Fi[0].impactoEUR || 0)}).`); }
+    (x.extra || []).forEach((t) => M.push(t));
+    if (x.primera) M.push(`<b>Primera actuación.</b> ${x.primera}`);
+    return M;
+  };
+  INF.resumen = (concl, M) => `<p>${concl}</p>${M.length ? `<ol class="rp-steps">${M.map((t) => `<li>${t}</li>`).join('')}</ol>` : ''}`;
+  // Título de la sección de situación: una conclusión, no una etiqueta
+  INF.titular = (P) => {
+    const con = (P.eval || P.tiles).filter((t) => t.st), r = con.filter((t) => t.st === 'stop'), a = con.filter((t) => t.st === 'warn'), val = (t) => String(t.v).replace(/<[^>]+>/g, '').trim();
+    if (r.length) return `Situación: ${r.length === 1 ? 'un indicador' : r.length + ' indicadores'} en nivel crítico, ${INF.min(r[0].k)} en ${val(r[0])}`;
+    if (a.length) return `Situación: sin indicadores críticos; ${INF.min(a[0].k)} (${val(a[0])}) pide vigilancia`;
+    if (con.length) return `Situación: ${con.length === 1 ? 'el indicador evaluado está' : `los ${con.length} indicadores evaluados están`} en nivel adecuado`;
+    if (P.tiles.length) return `Situación: ${INF.min(P.tiles[0].k)}, ${val(P.tiles[0])}`;
+    return 'Situación y diagnóstico';
+  };
+  INF.titularRiesgos = (P) => {
+    const imp = P.Fi.reduce((s, f) => s + (f.impactoEUR || 0), 0), altos = P.R.filter((q) => q.estado === 'stop').length;
+    const a = P.R.length ? `${P.R.length === 1 ? 'un riesgo' : P.R.length + ' riesgos'}${altos ? ` (${altos} de nivel alto)` : ''}` : '', b = imp > 0 ? `mejoras por ${F.eur(imp)} al año` : '';
+    return 'Riesgos y oportunidades' + (a || b ? ': ' + [a, b].filter(Boolean).join(' y ') : '');
+  };
+  INF.riesgosYmejoras = (P) => {
+    const I = A.informe;
+    const TOPE = 12, nota = (n, que) => (n > TOPE ? `<p class="rp-muted">Se muestran ${que} de un total de ${n}.</p>` : '');
+    return (P.R.length ? `<h3>Riesgos</h3>${I.table(['Riesgo', 'Prob.', 'Impacto', 'Nivel', 'Respuesta recomendada'], P.R.slice(0, TOPE).map((r) => [r.nombre, r.prob + '/5', r.impacto + '/5', { h: I.pill(r.estado, String(r.nivel)) }, r.mitigacion || '']), { num: [1, 2] })}${nota(P.R.length, `los ${TOPE} riesgos de mayor nivel`)}` : '<p>El análisis no identifica riesgos relevantes en este ámbito.</p>')
+      + (P.Fi.length ? `<h3>Oportunidades de mejora</h3>${I.table(['Hallazgo', 'Actuación recomendada', 'Impacto anual', 'Plazo'], P.Fi.slice(0, TOPE).map((f) => [f.hallazgo, f.accion, F.eur(f.impactoEUR || 0), (f.plazo || 90) + ' días']), { num: [2, 3] })}${nota(P.Fi.length, `las ${TOPE} mejoras de mayor impacto`)}` : '');
+  };
+  /* La empresa completa (cuadro de mando y auditoría): cifras clave, valoración por áreas y riesgos y mejoras de todas ellas */
+  INF.empresa = () => {
+    const I = A.informe, K = S.allKpis().filter((x) => x.mod !== 'origen' && !x.sinDato && String(x.v).replace(/<[^>]+>/g, '').trim() !== S.SIN_DATO);
+    if (!K.length) return { con: false };
+    const R = S.allRisks().map((r) => Object.assign({}, r, { nombre: `${r.nombre} (${INF.area(r.mod)})` })), Fi = S.allFindings().map((f) => Object.assign({}, f, { hallazgo: `${INF.area(f.mod)}: ${f.hallazgo}` }));
+    K.forEach((x) => { x.area = INF.area(x.mod) || x.area; });
+    const filas = Array.from(new Set(K.map((x) => x.area))).map((a) => { const l = K.filter((x) => x.area === a), s = l.some((x) => x.st) ? S.notaN([...new Set(l.map((x) => x.mod))], l) : null; return [a, { h: s === null ? '—' : I.pill(INF.estado(s), String(s)) }, { h: l.map((k) => `${esc(INF.neg(k.k))}: <b>${k.v}</b>`).join(' · ') }]; });
+    const tiles = [], c = S.cifras(), altos = R.filter((r) => r.estado === 'stop').length, imp = Fi.reduce((s, f) => s + (f.impactoEUR || 0), 0);
+    if (c && !c.sinDatos && A.cifras && A.cifras.CAMPOS) A.cifras.CAMPOS.forEach((x) => { if (c[x.k] != null) tiles.push({ k: x.n, v: esc(A.cifras.fmt(x.k, c[x.k])) }); });
+    tiles.push({ k: 'Riesgos de nivel alto', v: String(altos), d: `${R.length} riesgos identificados` });
+    if (Fi.length) tiles.push({ k: 'Mejora identificada', v: F.eur(imp), d: `${Fi.length} actuaciones con impacto anual` });
+    if (S.simConDatos() && S.invDefinida()) { const vr = S.analysis().verdict; tiles.push({ k: 'Viabilidad de la inversión prevista', v: esc(vr.titulo), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[vr.key] || null, d: 'escenario ' + (S.sim.escenario || 'base') }); }
+    return { tiles, eval: K, R, Fi, detalle: `<div class="rp-block"><h3>Valoración por áreas</h3>${I.table(['Área', 'Valoración sobre 100', 'Indicadores'], filas)}</div>` };
+  };
+  INF.HOR = ['Primeros 30 días', 'De 31 a 60 días', 'De 61 a 90 días', 'Más de 90 días'];
+  INF.horDe = (pl) => (pl <= 30 ? 0 : pl <= 60 ? 1 : pl <= 90 ? 2 : 3);
+  // Recomendaciones priorizadas: qué hacer, por qué, impacto esperado, responsable y plazo
+  INF.recomendaciones = (L) => A.informe.table(['Prioridad', 'Recomendación', 'Fundamento', 'Impacto esperado', 'Responsable', 'Plazo'], L.map((x) => [{ h: A.informe.pill(x.prio === 'Alta' ? 'stop' : x.prio === 'Media' ? 'warn' : 'ok', x.prio) }, x.accion, x.motivo || x.origen || '', x.impactoTxt || (x.impacto ? F.eur(x.impacto) + ' al año' : '—'), x.resp || 'Dirección', x.fecha ? new Date(x.fecha).toLocaleDateString('es-ES') : x.plazo + ' días']));
+  INF.hojaDeRuta = (L) => { const eur = L.some((x) => x.impacto); return A.informe.table(['Horizonte', 'Hitos'].concat(eur ? ['Impacto anual'] : []), INF.HOR.map((h, i) => { const l = L.filter((x) => INF.horDe(x.plazo) === i); if (!l.length) return null; const imp = l.reduce((s, x) => s + (x.impacto || 0), 0); return [h, { h: `<ul>${l.filter((x, j) => l.findIndex((y) => y.accion === x.accion) === j).map((x) => `<li>${esc(x.accion)}${x.resp ? ` <span class="rp-muted">· ${esc(x.resp)}</span>` : ''}</li>`).join('')}</ul>` }].concat(eur ? [imp ? F.eur(imp) : '—'] : []); }).filter(Boolean), eur ? { num: [2] } : {}); };
+
+  /* Piezas comunes de los informes: indicadores, riesgos, hallazgos y el análisis detallado del área */
   S.reportParts = function (m) {
     const I = A.informe, panel = $('#stPanel');
-    const tiles = $$('.kpi', panel).map((t) => ({ k: (t.querySelector('.k span') || {}).textContent || '', v: (t.querySelector('.v') || {}).innerHTML || '', st: (t.querySelector('.state') || { className: '' }).className.replace(/.*st-(\w+).*/, '$1') || null, d: (t.querySelector('.d') || {}).textContent || '' })).map((k) => Object.assign(k, { st: ['ok', 'warn', 'stop'].includes(k.st) ? k.st : null }));
-    let R = [], Fi = []; try { R = m.risks ? m.risks().map((r) => r) : []; } catch (e) { /* sin riesgos */ } try { Fi = m.findings ? m.findings() : []; } catch (e) { /* sin hallazgos */ }
+    // Un área puede dar su propio contenido de informe (o decir que no tiene con qué): si no, sale de su análisis en pantalla
+    const propio = S.conDatos(m) && m.informe ? m.informe() : null, con = S.conDatos(m) && !(propio && propio.con === false);
+    const global = m.id === 'tablero' || m.id === 'auditoria', ids = global ? null : m.id;
+    const bruto = propio ? (propio.tiles || []) : !con ? [] : $$('.kpi', panel).map((t) => ({ k: (t.querySelector('.k span') || {}).textContent || '', v: (t.querySelector('.v') || {}).innerHTML || '', st: (t.querySelector('.state') || { className: '' }).className.replace(/.*st-(\w+).*/, '$1') || null, d: (t.querySelector('.d') || {}).textContent || '' }));
+    const vacio = (t) => { const v = String(t.v).replace(/<[^>]+>/g, '').trim(); return !v || v === S.SIN_DATO || v === '—' || /^sin (nota|datos?)/i.test(v); };
+    const sinCalc = con ? bruto.filter(vacio).map((t) => t.k) : [];
+    const tiles = bruto.filter((t) => !vacio(t)).map((k) => Object.assign(k, { k: INF.neg(k.k), st: ['ok', 'warn', 'stop'].includes(k.st) ? k.st : null, d: INF.frases(k.d || '') }));
+    let R = [], Fi = []; try { R = (propio && propio.R ? propio.R : m.risks ? m.risks() : []).map((r) => Object.assign({}, r, { nombre: INF.frases(r.nombre), mitigacion: INF.frases(r.mitigacion || '') })); } catch (e) { /* sin riesgos */ } try { Fi = (propio && propio.Fi ? propio.Fi : m.findings ? m.findings() : []).map((f) => Object.assign({}, f, { hallazgo: INF.frases(f.hallazgo), accion: INF.frases(f.accion) })); } catch (e) { /* sin hallazgos */ }
     R.sort((a, b) => b.nivel - a.nivel); Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0));
     const lede = ($('.lede', panel) || {}).textContent || '';
-    const sc = S.notaN(m.id === 'tablero' ? null : m.id, tiles);
-    const st = sc === null ? null : sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop';
-    const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360'));
-    const detalle = blocks.map((g) => { const t = (g.querySelector('h4') || {}).textContent || ''; const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); const body = I.fromDom(c).trim(); return body.replace(/<[^>]+>/g, '').trim() ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
-    return { tiles, R, Fi, lede, sc, st, detalle };
+    const sc = con && (tiles.some((t) => t.st) || (propio && propio.eval)) ? S.notaN(ids, tiles) : null;
+    const st = INF.estado(sc);
+    let detalle = '';
+    if (propio) detalle = INF.limpiar(propio.detalle || '');
+    else if (con) {
+      const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360') && g.dataset.inf !== 'no');
+      detalle = blocks.map((g) => { const t = INF.frases((g.querySelector('h4') || {}).textContent || ''); const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); c.querySelectorAll('label').forEach((l) => { const i = l.querySelector('input:not([type=checkbox]):not([type=range]), textarea'); if (i && !String(i.value || '').trim()) l.remove(); }); const body = INF.limpiar(I.fromDom(c)).trim(); return body.replace(/<[^>]+>/g, '').trim() || /<svg/.test(body) ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
+    }
+    return { conRiesgos: !!(m.risks || m.findings || (propio && (propio.R || propio.Fi))), tiles, eval: propio && propio.eval ? propio.eval.map((k) => Object.assign({}, k, { k: INF.neg(k.k) })) : null, R, Fi, lede, sc, st, detalle, con, sinCalc, ids, limite: propio && propio.limite, ilustrativo: con && INF.ilustrativo(global ? null : m) };
   };
+  /* Informe de área (áreas sin marco de diagnóstico propio) */
   S.moduleReport = function (m) {
-    const I = A.informe, panel = $('#stPanel');
+    const I = A.informe;
     I.reset();
-    const tiles = $$('.kpi', panel).map((t) => ({ k: (t.querySelector('.k span') || {}).textContent || '', v: (t.querySelector('.v') || {}).innerHTML || '', st: (t.querySelector('.state') || { className: '' }).className.replace(/.*st-(\w+).*/, '$1') || null, d: (t.querySelector('.d') || {}).textContent || '' })).map((k) => Object.assign(k, { st: ['ok', 'warn', 'stop'].includes(k.st) ? k.st : null }));
-    let R = [], Fi = []; try { R = m.risks ? m.risks().map((r) => r) : []; } catch (e) { /* sin riesgos */ } try { Fi = m.findings ? m.findings() : []; } catch (e) { /* sin hallazgos */ }
-    R.sort((a, b) => b.nivel - a.nivel); Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0));
-    const lede = ($('.lede', panel) || {}).textContent || '';
-    const sc = S.notaN(m.id === 'tablero' ? null : m.id, tiles);
-    const st = sc === null ? null : sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : 'stop';
-    const impacto = Fi.reduce((a, f) => a + (f.impactoEUR || 0), 0);
-    const rojos = tiles.filter((t) => t.st === 'stop').map((t) => t.k.toLowerCase());
-    const resumen = `<p><b>${esc(m.nombre)}${sc === null ? '' : `: ${sc}/100 ${I.pill(st)}`}.</b> ${m.id === 'tablero' ? 'Nota del sistema estratégico completo, la misma de «Este mundo» en la cabecera.' : `Nota de este módulo con el criterio común de Atalaya${S.notaN(null) != null ? `; la del sistema estratégico completo es ${S.notaN(null)}/100` : ''}.`} ${tiles.length} indicadores analizados${rojos.length ? `, ${rojos.length} en rojo (${esc(rojos.join(', '))})` : ', ninguno en rojo'}. ${R.length ? `${R.length} riesgo${R.length > 1 ? 's' : ''} identificado${R.length > 1 ? 's' : ''}, el principal: ${esc(R[0].nombre.toLowerCase())}.` : 'Sin riesgos relevantes.'} ${Fi.length ? `Las mejoras detectadas suman <b>${F.eur(impacto)}</b> al año.` : ''}</p>${Fi[0] ? `<p><b>Prioridad:</b> ${esc(Fi[0].accion)}</p>` : R[0] ? `<p><b>Prioridad:</b> ${esc(R[0].mitigacion || '')}</p>` : ''}`;
-    // Detalle: cada bloque del módulo convertido en contenido de informe
-    const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360'));
-    const detalle = blocks.map((g) => { const t = (g.querySelector('h4') || {}).textContent || ''; const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); const body = I.fromDom(c).trim(); return body.replace(/<[^>]+>/g, '').trim() ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
-    const pasos = Fi.slice(0, 3).map((f) => `<li><b>${esc(f.accion)}</b> <span class="rp-muted">${esc(f.hallazgo)} · ${F.eur(f.impactoEUR || 0)} al año · ${f.plazo || 90} días</span></li>`).concat(R.slice(0, 3).map((r) => `<li><b>${esc(r.mitigacion || '')}</b> <span class="rp-muted">Riesgo: ${esc(r.nombre)}</span></li>`));
-    const html = I.cover({ tipo: 'Informe de área', kicker: 'Sistema estratégico · ' + S.grupoN(m.grupo), titulo: m.nombre, subtitulo: lede, empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre })
-      + I.summary('Resumen ejecutivo', resumen, st)
-      + (tiles.length ? I.section('Indicadores', I.kpis(tiles)) : '')
-      + (detalle ? I.section('Análisis detallado', detalle) : '')
-      + I.section('Riesgos', I.risks(R), 'Nivel = probabilidad × impacto (de 1 a 25). Verde por debajo de 8, ámbar hasta 14, rojo desde 15.')
-      + I.section('Hallazgos y mejoras', I.findings(Fi, F.eur))
-      + (pasos.length ? I.section('Próximos pasos', `<ol class="rp-steps">${pasos.join('')}</ol>`) : '')
-      + I.foot();
+    const P = S.reportParts(m), titulo = INF.titulo(m), emp = S.sim.empresaNombre;
+    const impacto = P.Fi.reduce((a, f) => a + (f.impactoEUR || 0), 0);
+    const PL = P.Fi.map((f) => ({ accion: f.accion, motivo: f.hallazgo, prio: (f.impactoEUR || 0) > 20000 ? 'Alta' : 'Media', plazo: f.plazo || 90, impacto: f.impactoEUR || 0 }))
+      .concat(P.R.filter((r) => r.estado !== 'ok' && r.mitigacion).map((r) => ({ accion: r.mitigacion, motivo: 'Riesgo: ' + r.nombre, prio: r.estado === 'stop' ? 'Alta' : 'Media', plazo: r.estado === 'stop' ? 30 : 60, impactoTxt: `Riesgo de nivel ${r.nivel}/25 mitigado` })))
+      .filter((x, i, l) => x.accion && l.findIndex((y) => y.accion === x.accion) === i).sort((a, b) => INF.horDe(a.plazo) - INF.horDe(b.plazo) || (b.impacto || 0) - (a.impacto || 0));
+    const concl = !P.con ? `No se ha dispuesto de información suficiente para analizar «${esc(titulo)}» en ${esc(emp || 'la empresa')}. Este documento delimita el alcance del análisis.`
+      : P.sc === null ? `Este documento analiza «${esc(titulo)}» en ${esc(emp || 'la empresa')} a partir de ${P.tiles.length} indicadores.`
+        : `La valoración de «${esc(titulo)}» en ${esc(emp || 'la empresa')} es de <b>${P.sc} sobre 100</b> ${I.pill(P.st)}: ${INF.califica(P.sc)}.`;
+    const M = INF.mensajes(P, { primera: PL[0] ? `${esc(PL[0].accion)} (${PL[0].plazo} días).` : '' });
+    const limites = [];
+    if (!P.con) limites.push(`No se ha dispuesto de la información necesaria para analizar «${esc(titulo)}»; el documento no incluye cifras de esta área.`);
+    if (P.sinCalc.length) limites.push(`No se han podido calcular por falta de información: ${esc(P.sinCalc.join(', ').toLowerCase())}.`);
+    if (P.limite) limites.push(esc(P.limite));
+    const html = INF.portada({ tipo: 'Informe de área', kicker: S.grupoN(m.grupo) + (P.ilustrativo ? ' · caso ilustrativo' : ''), titulo, subtitulo: INF.frases(P.lede), empresa: emp, sector: A.SECTORS[S.sim.sector].nombre, ambito: titulo })
+      + I.summary('Resumen ejecutivo', INF.resumen(concl, M), P.st)
+      + (P.tiles.length || P.detalle ? I.section(INF.titular(P), (P.tiles.length ? I.kpis(P.tiles) : '') + P.detalle) : '')
+      + (P.con && P.conRiesgos ? I.section(INF.titularRiesgos(P), INF.riesgosYmejoras(P)) : '')
+      + (PL.length ? I.section('Recomendaciones priorizadas', INF.recomendaciones(PL)) + (INF.conGuia() ? '' : I.section('Hoja de ruta', INF.hojaDeRuta(PL))) : I.section('Hoja de ruta', `<p>${P.con ? 'El análisis no identifica actuaciones con impacto cuantificable en este ámbito. Se recomienda revisarlo de nuevo en el próximo cierre trimestral.' : 'El primer hito es reunir la información de gestión del área para cuantificar el diagnóstico y fijar las actuaciones.'}</p>`))
+      + INF.cierre({ riesgos: P.R.length, limites, ilustrativo: P.ilustrativo });
     const abrir = A.consultorInf ? A.consultorInf.abrir : I.open;
-    abrir({ titulo: 'Informe · ' + m.nombre, html, clave: 'mod:' + m.id, ctx: {
-      titulo: m.nombre, tipo: 'Informe de área', empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre,
-      pasos: Fi.slice(0, 5).map((f) => ({ q: f.accion, c: f.hallazgo, cuando: new Date(Date.now() + (f.plazo || 90) * 864e5).toISOString().slice(0, 10), s: 'Impacto medido: ' + F.eur(f.impactoEUR || 0) + ' al año' })).concat(R.slice(0, 4).map((r) => ({ q: r.mitigacion || 'Mitigar: ' + r.nombre, c: 'Riesgo: ' + r.nombre + ' (nivel ' + r.nivel + ')', s: 'El riesgo baja de nivel en la siguiente revisión' }))),
-      datos: [['Nota del área', sc === null ? '—' : sc + '/100'], ['Indicadores', String(tiles.length)], ['En rojo', rojos.join(', ') || 'Ninguno'], ['Riesgos', String(R.length)], ['Mejora identificada', F.eur(impacto) + ' al año']]
+    abrir({ titulo: 'Informe · ' + titulo, html, clave: 'mod:' + m.id, ctx: {
+      titulo, tipo: 'Informe de área', empresa: emp, sector: A.SECTORS[S.sim.sector].nombre,
+      pasos: PL.slice(0, 9).map((x) => ({ q: x.accion, c: x.motivo, cuando: new Date(Date.now() + x.plazo * 864e5).toISOString().slice(0, 10), s: x.impacto ? 'Impacto medido: ' + F.eur(x.impacto) + ' al año' : 'El riesgo baja de nivel en la siguiente revisión' })),
+      datos: [['Valoración del área', P.sc === null ? '—' : P.sc + '/100'], ['Indicadores evaluados', String(P.tiles.filter((t) => t.st).length)], ['En nivel crítico', P.tiles.filter((t) => t.st === 'stop').map((t) => INF.min(t.k)).join(', ') || 'Ninguno'], ['Riesgos identificados', String(P.R.length)], ['Mejora identificada', F.eur(impacto) + ' al año']]
     } });
   };
   S.current = () => current;
@@ -372,6 +526,7 @@
 
   S.register({
     id: 'tablero', nombre: 'Cuadro de mando', grupo: 'Visión', portada: true,
+    informe() { return S.inf.empresa(); },
     render(host) {
       const k = S.allKpis(), R = S.allRisks(), Fi = S.allFindings();
       const areas = Array.from(new Set(k.map((x) => x.area)));

@@ -83,7 +83,7 @@
     if (!d) return { st: 'ok', t: 'Ajustado: el estilo que usa es el que toca.' };
     const st = Math.abs(d) >= 2 ? 'stop' : 'warn';
     if (d < 0) return { st, tipo: 'mas', t: toca === 4 ? 'Dirige de más a una persona autónoma en esta tarea: riesgo de desmotivarla y de que deje de proponer.' : toca === 3 ? 'Le dice cómo hacerlo a quien ya sabe: necesita confianza y que se le escuche, no instrucciones.' : 'Más dirección de la que hace falta: frena su avance.' };
-    return { st, tipo: 'menos', t: toca === 1 ? 'Delega en alguien que empieza: riesgo de errores y de que se queme.' : toca === 2 ? 'Le suelta demasiado pronto: todavía necesita dirección y ánimo.' : 'Menos apoyo del que necesita ahora mismo.' };
+    return { st, tipo: 'menos', t: toca === 1 ? 'Delega en alguien que empieza: riesgo de errores y de desgaste.' : toca === 2 ? 'Le suelta demasiado pronto: todavía necesita dirección y ánimo.' : 'Menos apoyo del que necesita ahora mismo.' };
   };
   /* Mapa de mando de un líder: sus colaboradores (del organigrama) y sus tareas */
   R.mapaMando = (lider) => {
@@ -102,12 +102,12 @@
     const out = [], add = (id, motivo, prio) => { const t = tab(id); if (!t) return; const ya = out.find((x) => x.t.id === id); if (ya) { if (!ya.motivos.includes(motivo)) ya.motivos.push(motivo); return; } out.push({ t, motivos: [motivo], prio }); };
     const c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp);
     if (c) {
-      c.menos.forEach((k) => add('l-' + { 1: 'marcar', 2: 'entrenar', 3: 'acompanar', 4: 'confiar' }[k], `En el test casi no usa el estilo ${E[k].n} (${c.uso[k]} de ${L.SITUACIONES.length} situaciones).`, 1));
+      c.menos.forEach((k) => add('l-' + { 1: 'marcar', 2: 'entrenar', 3: 'acompanar', 4: 'confiar' }[k], `Apenas recurre al estilo ${E[k].n.toLowerCase()} (${c.uso[k]} de ${L.SITUACIONES.length} situaciones de dirección).`, 1));
       if (c.flex < 50) add('l-flexibilidad', `Flexibilidad del ${c.flex} %: tiende a dirigir a todos igual.`, 1);
-      const pe = R.lidPercibido(p); if (pe && pe.pri !== c.pri) add('l-contraste', `Cree usar sobre todo ${E[c.pri].n}, pero su equipo le percibe ${E[pe.pri].n}.`, 1);
+      const pe = R.lidPercibido(p); if (pe && pe.pri !== c.pri) add('l-contraste', `Se atribuye sobre todo el estilo ${E[c.pri].n.toLowerCase()} y su equipo percibe ${E[pe.pri].n.toLowerCase()}.`, 1);
     }
-    if (p.disc) { const tnd = L.DISC_TENDENCIA[R.discEstilo(p.disc).pri]; if (R.state.personas.some((x) => x.responsable === p.id)) add('l-' + { 1: 'marcar', 2: 'entrenar', 3: 'acompanar', 4: 'confiar' }[tnd.cuesta], `Por su estilo DISC le suele costar ${E[tnd.cuesta].n}.`, 2); }
-    R.mapaMando(p).filter((f) => f.des && f.des.st !== 'ok').forEach((f) => add('l-' + { 1: 'marcar', 2: 'entrenar', 3: 'acompanar', 4: 'confiar' }[f.toca], `Con ${f.c.nombre} en «${f.t.nombre}» toca ${E[f.toca].n}.`, 1));
+    if (p.disc) { const tnd = L.DISC_TENDENCIA[R.discEstilo(p.disc).pri]; if (R.state.personas.some((x) => x.responsable === p.id)) add('l-' + { 1: 'marcar', 2: 'entrenar', 3: 'acompanar', 4: 'confiar' }[tnd.cuesta], `Por su estilo de comportamiento, le suele costar ${E[tnd.cuesta].n.toLowerCase()}.`, 2); }
+    R.mapaMando(p).filter((f) => f.des && f.des.st !== 'ok').forEach((f) => add('l-' + { 1: 'marcar', 2: 'entrenar', 3: 'acompanar', 4: 'confiar' }[f.toca], `Con ${f.c.nombre} en «${f.t.nombre}» corresponde ${E[f.toca].n.toLowerCase()}.`, 1));
     (p.tareas || []).forEach((t) => { const nv = R.tareaNivel(t); if (nv) add('p-' + (nv.nivel === 4 ? '4' : nv.nivel + '' + (nv.nivel + 1)), `En «${t.nombre}» está en nivel ${N[nv.nivel].n.toLowerCase()}.`, 2); });
     return out.sort((a, b) => a.prio - b.prio);
   };
@@ -373,82 +373,177 @@
   });
 
   /* ================= INFORMES ================= */
-  const SEG_LID = [['Según el acuerdo (diario a mensual)', 'Cada colaborador con su responsable, en el ritmo pactado para cada tarea', 'Responsable', 'Señales del siguiente nivel', 'Mantener o cambiar el estilo'], ['Mensual (con el consultor)', 'Mapa de mando: desajustes y acuerdos', 'Líder y consultor', 'Desajustes abiertos', 'Ajustar los acuerdos'], ['A las seis semanas', 'Repetir la valoración de las tareas', 'Líder y colaborador', 'Nivel de preparación', 'Nuevo estilo para la tarea'], ['Trimestral', 'Repetir el estilo percibido', 'Consultor', 'Propio frente a percibido', 'Nuevo plan de desarrollo del líder']];
-  const pie = 'Herramienta orientativa para conversar sobre cómo se dirige cada tarea. El nivel de preparación es de una tarea, no de la persona. Datos tratados con el consentimiento de cada persona.';
-  const cover = (o) => { const e = R.empresa(); return I().cover(Object.assign({ empresa: e.nombre, sector: e.sector, tipo: 'Liderazgo a medida' }, o)); };
-  const mapaTabla = (In, filas) => In.table(['Colaborador', 'Tarea', 'Nivel', 'Toca', 'Usa', 'Ajuste'], filas.filter((f) => f.t).map((f) => [f.c.nombre, f.t.nombre, f.nv ? N[f.nv.nivel].n : 'Sin valorar', f.toca ? E[f.toca].n : '—', f.usa ? E[f.usa.e].n : '—', f.des ? { h: In.pill(f.des.st, f.des.st === 'ok' ? 'Ajustado' : f.des.tipo === 'mas' ? 'Dirige de más' : 'Suelta de más') } : '—']));
+  const SEG_LID = [['Según el acuerdo (diario a mensual)', 'Cada colaborador con su responsable, en el ritmo pactado para cada tarea', 'Responsable', 'Señales del siguiente nivel de preparación', 'Mantener o cambiar el estilo'], ['Mensual (con el consultor)', 'Dirección por tarea: desajustes y acuerdos', 'Responsable y consultor', 'Desajustes abiertos', 'Ajustar los acuerdos'], ['A las seis semanas', 'Nueva valoración de las tareas clave', 'Responsable y colaborador', 'Nivel de preparación', 'Nuevo estilo para la tarea'], ['Trimestral', 'Contraste con la percepción del equipo', 'Consultor', 'Estilo propio frente a percibido', 'Nuevo plan de desarrollo del responsable']];
+  const pie = 'Documento orientativo para conversar sobre cómo se dirige cada tarea. El nivel de preparación es de una tarea, no de la persona. Información tratada con el consentimiento de cada persona.';
+  const cover = (o) => { const e = R.empresa(); return I().cover(Object.assign({ empresa: e.nombre, sector: e.sector, tipo: 'Liderazgo y dirección de personas' }, o)); };
+  const Fi = () => R.inf, pl = (n, a, b) => R.inf.pl(n, a, b);
+  const ajuste = (In, f) => (f.des ? { h: In.pill(f.des.st, f.des.st === 'ok' ? 'Ajustado' : f.des.tipo === 'mas' ? 'Dirige de más' : 'Dirige de menos') } : '—');
+  const mapaTabla = (In, filas) => In.table(['Colaborador', 'Tarea', 'Preparación', 'Estilo que corresponde', 'Estilo que aplica', 'Ajuste'], filas.filter((f) => f.t && f.nv).map((f) => [f.c.nombre, f.t.nombre, N[f.nv.nivel].n, f.toca ? E[f.toca].n : '—', f.usa ? E[f.usa.e].n : '—', ajuste(In, f)]));
   const acuerdosTabla = (In, filas) => In.table(['Colaborador', 'Tarea', 'Estilo pactado', 'Seguimiento', 'Siguiente nivel', 'Revisión'], filas.filter((f) => f.t && f.t.acuerdo).map((f) => { const a = f.t.acuerdo; return [f.c.nombre, f.t.nombre, (E[+a.estilo] || {}).n || '—', L.FRECUENCIAS[a.freq] || '—', N[a.siguiente] ? N[a.siguiente].n : '—', R.fechaES(a.revision)]; }));
+  const MET_LID = {
+    estilo: ['Estilo de dirección', `Cuestionario de ${L.SITUACIONES.length} situaciones de dirección con cuatro respuestas posibles, una por estilo (de más a menos dirección: ${[1, 2, 3, 4].map((k) => E[k].n.toLowerCase()).join(', ')}). Eficacia: grado de acierto con el estilo que corresponde a cada situación. Flexibilidad: reparto del uso entre los cuatro estilos.`],
+    percibido: ['Estilo percibido', `El mismo cuestionario, respondido de forma anónima por el equipo. Solo se presenta agregado y a partir de ${LID_MIN} respuestas.`],
+    tareas: ['Preparación por tarea', 'Cada tarea clave se valora en capacidad y disposición por el responsable y por la propia persona, y se sitúa en uno de cuatro niveles. A cada nivel le corresponde un estilo de dirección.'],
+    fuentes: ['Fuentes', 'Organigrama y tareas clave aportados por la empresa, y cuestionarios respondidos por los responsables y sus equipos.']
+  };
+  /* Lectura del liderazgo de una persona (para el informe, la hoja de ruta y el cuaderno del consultor) */
+  const lecturaLider = (p) => {
+    const c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp), pe = R.lidPercibido(p), filas = R.mapaMando(p);
+    const tareas = filas.filter((f) => f.t), val = tareas.filter((f) => f.nv), des = val.filter((f) => f.des && f.des.st !== 'ok'), acu = tareas.filter((f) => f.t.acuerdo);
+    return { c, pe, filas, tareas, val, des, acu, nCol: new Set(filas.map((f) => f.c.id)).size, sesgo: c ? (c.demas > c.demenos + 1 ? 'mas' : c.demenos > c.demas + 1 ? 'menos' : '') : '' };
+  };
+  R.recosLider = (p) => {
+    const x = lecturaLider(p), n1 = String(p.nombre || '').split(' ')[0], rc = [];
+    if (!x.c) rc.push({ q: 'Valorar su estilo de dirección', c: `Cuestionario de ${L.SITUACIONES.length} situaciones, tras una explicación del modelo de diez minutos.`, imp: 'Estilo de referencia, eficacia y flexibilidad conocidos', quien: p.nombre, plazo: '2 semanas' });
+    if (x.nCol && !x.val.length) rc.push({ q: x.tareas.length ? 'Valorar la preparación de cada colaborador en sus tareas clave' : 'Identificar y valorar las tareas clave de cada colaborador', c: 'Dos o tres tareas por persona, valoradas por el responsable y por la propia persona.', imp: 'Estilo de dirección que corresponde a cada tarea', quien: p.nombre, plazo: '1 mes' });
+    x.des.slice().sort((a, b) => (a.des.st === 'stop' ? 0 : 1) - (b.des.st === 'stop' ? 0 : 1)).slice(0, 3).forEach((f) => rc.push({ q: `Ajustar el estilo con ${f.c.nombre} en «${f.t.nombre}»`, c: `Corresponde ${E[f.toca].n.toLowerCase()}. ${E[f.toca].que}`, imp: 'Estilo ajustado a la preparación de la persona en esa tarea', quien: p.nombre, plazo: '1 mes' }));
+    if (x.c && x.pe && x.pe.pri !== x.c.pri) rc.push({ q: 'Contrastar con el equipo la diferencia entre el estilo propio y el percibido', c: 'Compartir el resultado y pedir ejemplos concretos.', imp: 'Percepción del equipo alineada con el estilo que quiere aplicar', quien: p.nombre, plazo: '1 mes' });
+    if (!x.pe && x.nCol >= LID_MIN) rc.push({ q: 'Recoger cómo percibe el equipo su estilo de dirección', c: `Cuestionario anónimo; hacen falta al menos ${LID_MIN} respuestas para preservar la confidencialidad.`, imp: 'Contraste entre el estilo propio y el percibido', quien: 'Recursos humanos o consultor', plazo: '1 mes' });
+    if (x.val.length && x.acu.length < x.tareas.length) rc.push({ q: 'Formalizar los acuerdos de dirección por tarea', c: 'Con cada colaborador: estilo, frecuencia de seguimiento y qué hace falta para ganar autonomía (20 minutos por persona).', imp: `Tareas clave con acuerdo escrito: de ${x.acu.length} a ${x.tareas.length}`, quien: p.nombre, plazo: '6 semanas' });
+    R.tablillasLid(p).slice(0, 2).forEach((t) => rc.push({ q: 'Entrenar: ' + t.t.titulo, c: t.t.objetivo, imp: t.t.senal, quien: p.nombre, plazo: t.t.duracion }));
+    if (x.val.length) rc.push({ q: 'Revisión a las seis semanas', c: 'Volver a valorar las tareas clave y comprobar si la preparación ha subido; ajustar los acuerdos.', imp: 'Al menos una tarea sube de nivel por colaborador', quien: n1 + ' y cada colaborador', plazo: '6 semanas' });
+    return rc;
+  };
+  /* Datos y pasos del responsable para el cuaderno del consultor */
+  R.datosLider = (p) => { const x = lecturaLider(p); return [['Estilo de referencia', x.c ? E[x.c.pri].n : 'Sin valorar'], ['Eficacia / flexibilidad', x.c ? x.c.eficacia + ' % / ' + x.c.flex + ' %' : '—'], ['Percibido por el equipo', x.pe ? E[x.pe.pri].n + ' (' + x.pe.n + ' respuestas)' : 'Sin contraste'], ['Tareas clave valoradas', String(x.val.length)], ['Tareas con el estilo desajustado', String(x.des.length)], ['Acuerdos por escrito', String(x.acu.length)]]; };
+  R.pasosLider = (p) => Fi().pasosDe(R.recosLider(p));
+  const limLider = (p, x) => {
+    const n1 = String(p.nombre || '').split(' ')[0], lim = [];
+    if (!x.c) lim.push(`No se ha dispuesto de la valoración del estilo de dirección de ${n1}; el documento no describe su estilo de referencia, su eficacia ni su flexibilidad.`);
+    if (!x.pe) lim.push(`No se dispone de la percepción del equipo (menos de ${LID_MIN} respuestas); no se contrasta el estilo propio con el percibido.`);
+    if (!x.val.length) lim.push('Las tareas clave de sus colaboradores no están valoradas; no se analiza el ajuste del estilo por tarea.');
+    else if (x.val.length < x.tareas.length) lim.push(`${x.val.length} de ${x.tareas.length} tareas clave tienen valorada la preparación; el análisis por tarea se refiere a ellas.`);
+    lim.push('El nivel de preparación es de cada tarea, no de la persona. El documento orienta la conversación entre responsable y colaborador; no evalúa el desempeño.');
+    return lim;
+  };
+  const notaLider = (x) => { const f = [!x.c && 'el cuestionario de estilo del responsable', !x.pe && 'respuestas del equipo sobre el estilo percibido', !x.val.length && 'la valoración de las tareas clave'].filter(Boolean); return f.length ? 'Para completar este informe falta: ' + f.join(', ') + '.' : ''; };
 
   R.informeLider = (p) => {
-    if (!p) return; const In = I(); In.reset();
-    const c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp), pe = R.lidPercibido(p), filas = R.mapaMando(p), des = filas.filter((f) => f.des && f.des.st !== 'ok');
+    if (!p) return; const In = I(); In.reset(); const F = Fi();
+    const x = lecturaLider(p), c = x.c, pe = x.pe, des = x.des, pu = R.puestoDe(p);
     const de = p.disc && R.discEstilo(p.disc), tnd = de && L.DISC_TENDENCIA[de.pri];
-    let h = cover({ kicker: 'Informe del líder', titulo: p.nombre, subtitulo: ((R.puestoDe(p) || {}).nombre || 'Sin puesto asignado') + ` · ${new Set(filas.map((f) => f.c.id)).size} colaboradores` });
-    h += In.summary('Resumen', `<p>${c ? `Estilo principal <b>${esc(E[c.pri].n)}</b>${c.sec ? ' y secundario ' + esc(E[c.sec].n) : ''}; eficacia del ${c.eficacia} % y flexibilidad del ${c.flex} %.` : 'Sin test de estilo.'}${pe ? ` Su equipo le percibe como <b>${esc(E[pe.pri].n)}</b> (${pe.n} respuesta${pe.n > 1 ? 's' : ''}).` : ''} ${filas.filter((f) => f.nv).length} tareas valoradas con ${des.length} desajuste${des.length === 1 ? '' : 's'}.</p>`, des.some((f) => f.des.st === 'stop') ? 'stop' : des.length || (c && c.flex < 40) ? 'warn' : 'ok');
+    let h = cover({ kicker: 'Perfil de dirección', titulo: p.nombre, subtitulo: [pu && pu.nombre, pl(x.nCol, 'colaborador', 'colaboradores')].filter(Boolean).join(' · ') });
+    const lead = des.length ? `<b>${esc(p.nombre)}</b> aplica un estilo de dirección distinto del que corresponde en <b>${des.length} de ${pl(x.val.length, 'tarea clave valorada', 'tareas clave valoradas')}</b> de su equipo.`
+      : x.val.length ? `<b>${esc(p.nombre)}</b> ajusta su estilo de dirección a la preparación de cada persona en ${x.val.length === 1 ? 'la tarea clave valorada' : 'las <b>' + x.val.length + ' tareas clave valoradas</b>'} de su equipo.`
+        : c ? `El estilo de dirección de referencia de <b>${esc(p.nombre)}</b> es <b>${esc(E[c.pri].n.toLowerCase())}</b>, con una eficacia del ${c.eficacia} % y una flexibilidad del ${c.flex} %.`
+          : `<b>${esc(p.nombre)}</b>${pu ? ', ' + esc(pu.nombre) + ',' : ''} dirige a ${pl(x.nCol, 'persona', 'personas')}.`;
+    h += In.summary('Resumen ejecutivo', `<p>${lead}</p>` + F.claves([
+      c && x.val.length ? `Estilo de referencia: <b>${esc(E[c.pri].n.toLowerCase())}</b>${c.sec ? ', con ' + esc(E[c.sec].n.toLowerCase()) + ' como secundario' : ''}. Eficacia del ${c.eficacia} % y flexibilidad del ${c.flex} %.` : c && c.sec ? `Estilo secundario: ${esc(E[c.sec].n.toLowerCase())}.` : '',
+      x.sesgo === 'mas' ? 'Tiende a dirigir más de lo que la situación requiere.' : x.sesgo === 'menos' ? 'Tiende a dar autonomía antes de que la persona esté preparada.' : '',
+      pe ? `Su equipo percibe un estilo de ${esc(E[pe.pri].n.toLowerCase())} (${pl(pe.n, 'respuesta', 'respuestas')})${c ? (pe.pri !== c.pri ? ', distinto del que se atribuye' : ', coincidente con el propio') : ''}.` : '',
+      x.val.length ? `${pl(x.val.length, 'tarea clave valorada', 'tareas clave valoradas')} en ${pl(new Set(x.val.map((f) => f.c.id)).size, 'colaborador', 'colaboradores')}; ${x.val.filter((f) => f.nv.nivel === 4).length} en nivel autónomo.` : '',
+      x.tareas.length ? `Acuerdos de dirección por escrito: ${x.acu.length} de ${pl(x.tareas.length, 'tarea clave', 'tareas clave')}.` : ''
+    ]), des.some((f) => f.des.st === 'stop') ? 'stop' : des.length || (c && c.flex < 40) ? 'warn' : c || x.val.length ? 'ok' : null);
     if (c) {
-      h += In.section('Estilo propio', In.kpis([{ k: 'Principal', v: E[c.pri].n }, { k: 'Eficacia', v: c.eficacia + ' %', st: c.eficacia >= 75 ? 'ok' : c.eficacia >= 55 ? 'warn' : 'stop' }, { k: 'Flexibilidad', v: c.flex + ' %', st: c.flex >= 65 ? 'ok' : c.flex >= 40 ? 'warn' : 'stop' }]) +
-        In.table(['Estilo', 'Situaciones en que lo eligió', 'Percibido por el equipo', 'Qué es'], [1, 2, 3, 4].map((k) => [E[k].n, c.uso[k] + ' de 12', pe ? pe.pct[k] + ' %' : '—', E[k].que]), { num: [1, 2] }) +
-        In.table(['Con quien está…', 'Toca', 'Acierto'], [1, 2, 3, 4].map((k) => [N[k].n, E[k].n, c.porNivel[k][0] + ' de ' + c.porNivel[k][1]]), { num: [2] }),
-        `Test del ${R.fechaES(p.lid.estilo.fecha)}. ${c.demas > c.demenos + 1 ? 'Tiende a dirigir de más.' : c.demenos > c.demas + 1 ? 'Tiende a soltar demasiado pronto.' : 'Sin sesgo claro hacia más o menos dirección.'}`);
+      h += In.section('Estilo de dirección: ' + E[c.pri].n.toLowerCase(), In.kpis([{ k: 'Estilo de referencia', v: E[c.pri].n }, { k: 'Eficacia', v: c.eficacia + ' %', st: c.eficacia >= 75 ? 'ok' : c.eficacia >= 55 ? 'warn' : 'stop' }, { k: 'Flexibilidad', v: c.flex + ' %', st: c.flex >= 65 ? 'ok' : c.flex >= 40 ? 'warn' : 'stop' }]) +
+        In.table(['Estilo', 'Situaciones en que lo elige', 'Percibido por el equipo', 'En qué consiste'], [1, 2, 3, 4].map((k) => [E[k].n, c.uso[k] + ' de ' + L.SITUACIONES.length, pe ? pe.pct[k] + ' %' : '—', E[k].que]), { num: [1, 2] }) +
+        In.table(['Preparación de la persona', 'Estilo que corresponde', 'Acierto'], [1, 2, 3, 4].map((k) => [N[k].n, E[k].n, c.porNivel[k][0] + ' de ' + c.porNivel[k][1]]), { num: [2] }),
+        `Valoración del ${R.fechaES(p.lid.estilo.fecha)}. ${x.sesgo === 'mas' ? 'Tiende a dirigir de más.' : x.sesgo === 'menos' ? 'Tiende a dar autonomía demasiado pronto.' : 'Sin inclinación clara hacia más o menos dirección.'}`);
     }
-    if (pe && c && pe.pri !== c.pri) h += In.callout(`Se ve como <b>${esc(E[c.pri].n)}</b> y su equipo le vive como <b>${esc(E[pe.pri].n)}</b>. Conviene compartir el resultado con el equipo y pedir ejemplos concretos.`, 'warn');
-    if (tnd) h += In.section('Cruce con su estilo DISC', `<p>${esc(de.nombre)}. ${esc(tnd.txt)}</p>`);
-    if (filas.some((f) => f.t)) h += In.section('Mapa de mando', mapaTabla(In, filas) + (des.length ? In.table(['Colaborador · tarea', 'Qué pasa', 'Qué toca'], des.map((f) => [f.c.nombre + ' · ' + f.t.nombre, f.des.t, E[f.toca].n + ': ' + E[f.toca].que])) : ''));
-    if (filas.some((f) => f.t && f.t.acuerdo)) h += In.section('Acuerdos de liderazgo', acuerdosTabla(In, filas));
+    if (pe && c && pe.pri !== c.pri) h += In.callout(`Se atribuye un estilo de <b>${esc(E[c.pri].n.toLowerCase())}</b> y su equipo percibe <b>${esc(E[pe.pri].n.toLowerCase())}</b>. Conviene compartir el resultado con el equipo y pedir ejemplos concretos.`, 'warn');
+    if (tnd) h += In.section('Relación con su estilo de comportamiento', `<p>${esc(de.nombre)}. ${esc(tnd.txt)}</p>`);
+    if (x.val.length) h += In.section(des.length ? `Dirección por tarea: ${des.length} de ${x.val.length} con el estilo desajustado` : 'Dirección por tarea: estilo ajustado en todas las valoradas', mapaTabla(In, x.filas) + (des.length ? In.table(['Colaborador · tarea', 'Qué ocurre', 'Qué corresponde'], des.map((f) => [f.c.nombre + ' · ' + f.t.nombre, f.des.t, E[f.toca].n + ': ' + E[f.toca].que])) : ''));
+    if (x.acu.length) h += In.section('Acuerdos de dirección', acuerdosTabla(In, x.filas));
+    const ri = des.map((f) => [`${f.c.nombre} · ${f.t.nombre}: ${f.des.t}`, f.des.tipo === 'mas' ? 'Frena la autonomía de la persona y ocupa tiempo del responsable.' : 'La tarea puede resentirse por falta de apoyo.']);
+    if (c && c.flex < 40) ri.push([`Flexibilidad del ${c.flex} %: recurre casi siempre al mismo estilo.`, 'Dirige igual a personas con una preparación distinta.']);
+    if (pe && c && pe.pri !== c.pri) ri.push(['El equipo percibe un estilo distinto del que el responsable se atribuye.', 'Lo que el responsable cree transmitir no es lo que el equipo recibe.']);
+    const aut = x.val.filter((f) => f.nv.nivel === 4), op = [];
+    if (aut.length) op.push([`${pl(aut.length, 'tarea', 'tareas')} en nivel autónomo: ${aut.slice(0, 4).map((f) => f.c.nombre + ' · ' + f.t.nombre).join('; ')}${aut.length > 4 ? '…' : ''}.`, 'Margen para delegar y liberar tiempo de dirección.']);
+    if (c && c.eficacia >= 75) op.push([`Eficacia del ${c.eficacia} %: elige con acierto el estilo que corresponde.`, 'Base sólida para desarrollar a su equipo.']);
+    if (ri.length || op.length) h += In.section('Riesgos y oportunidades', F.ryo(ri, op));
+    const rc = R.recosLider(p);
+    if (rc.length) h += In.section('Recomendaciones', F.recos(rc), 'Por orden de prioridad.');
     const tabs = R.tablillasLid(p).slice(0, 5);
-    if (tabs.length) h += In.section('Plan de desarrollo', In.table(['Tablilla', 'Objetivo', 'Pasos', 'Por qué'], tabs.map((x) => [x.t.titulo, x.t.objetivo, x.t.pasos.join(' · '), x.motivos.join(' ')])));
+    if (tabs.length) h += In.section('Plan de desarrollo', In.table(['Ficha de entrenamiento', 'Objetivo', 'Pasos', 'Motivo'], tabs.map((t) => [t.t.titulo, t.t.objetivo, t.t.pasos.join(' · '), t.motivos.join(' ')])));
     h += In.foot(pie);
-    R.abrirInforme({ titulo: 'Informe del líder · ' + p.nombre, html: h, clave: 'lid-lider:' + p.id, ctx: { titulo: 'Liderazgo de ' + p.nombre, tipo: 'Informe del líder', datos: R.datosLider(p), pasos: R.pasosLider(p), seguimiento: SEG_LID } });
+    R.abrirInforme({ titulo: 'Perfil de dirección · ' + p.nombre, html: h, clave: 'lid-lider:' + p.id, nota: notaLider(x),
+      anexo: F.anexo([c && MET_LID.estilo, pe && MET_LID.percibido, x.val.length && MET_LID.tareas, MET_LID.fuentes].filter(Boolean), limLider(p, x)),
+      ctx: { titulo: 'Dirección de personas de ' + p.nombre, tipo: 'Perfil de dirección', datos: R.datosLider(p), pasos: F.pasosDe(rc), seguimiento: SEG_LID } });
   };
 
   R.informeLidEquipo = (p) => {
-    if (!p) return; const In = I(); In.reset(); const filas = R.mapaMando(p);
-    let h = cover({ kicker: 'Acuerdos de liderazgo', titulo: 'Equipo de ' + p.nombre, subtitulo: `${new Set(filas.map((f) => f.c.id)).size} colaboradores · ${filas.filter((f) => f.t).length} tareas clave` });
-    h += In.summary('Para qué sirve', '<p>Cada persona del equipo sabe, para cada una de sus tareas clave, cómo le va a dirigir su responsable, cada cuánto se revisa y qué hace falta para ganar autonomía. El nivel es de la tarea, no de la persona.</p>');
+    if (!p) return; const In = I(); In.reset(); const F = Fi(), x = lecturaLider(p), filas = x.filas;
+    let h = cover({ kicker: 'Acuerdos de dirección', titulo: 'Equipo de ' + p.nombre, subtitulo: `${pl(x.nCol, 'colaborador', 'colaboradores')} · ${pl(x.tareas.length, 'tarea clave', 'tareas clave')}` });
+    const lead = x.tareas.length ? `El equipo de ${esc(p.nombre)} tiene <b>${x.acu.length} de ${pl(x.tareas.length, 'tarea clave', 'tareas clave')}</b> con un acuerdo de dirección por escrito.` : `El equipo de ${esc(p.nombre)} lo forman ${pl(x.nCol, 'persona', 'personas')}. Sus tareas clave están por identificar.`;
+    h += In.summary('Resumen ejecutivo', `<p>${lead}</p>` + F.claves([
+      x.val.length ? `Preparación por tarea: ${[1, 2, 3, 4].map((k) => `${x.val.filter((f) => f.nv.nivel === k).length} en nivel ${esc(N[k].n.toLowerCase())}`).join(', ')}.` : '',
+      x.val.length ? (x.des.length ? `${pl(x.des.length, 'tarea', 'tareas')} con un estilo de dirección distinto del que corresponde.` : 'El estilo de dirección corresponde a la preparación en todas las tareas valoradas.') : '',
+      x.tareas.length ? 'Cada persona sabe, para cada tarea clave, cómo la va a dirigir su responsable, cada cuánto se revisa y qué hace falta para ganar autonomía.' : ''
+    ]));
     const porC = {}; filas.filter((f) => f.t).forEach((f) => (porC[f.c.id] = porC[f.c.id] || []).push(f));
     Object.keys(porC).forEach((id) => {
       const fs = porC[id], col = R.persona(id);
-      h += In.section(col.nombre, In.table(['Tarea', 'Nivel', 'Estilo pactado', 'Seguimiento', 'Qué hará el responsable', 'Qué hará la persona', 'Siguiente nivel', 'Revisión'], fs.map((f) => { const a = f.t.acuerdo || {}; const est = a.estilo || f.toca; return [f.t.nombre, f.nv ? N[f.nv.nivel].n : 'Sin valorar', E[+est] ? E[+est].n : '—', L.FRECUENCIAS[a.freq] || (E[+est] ? E[+est].seguimiento : '—'), a.lider || '—', a.colab || '—', a.siguiente ? N[a.siguiente].n : '—', a.revision ? R.fechaES(a.revision) : '—']; })));
+      h += In.section(col.nombre, In.table(['Tarea', 'Preparación', 'Estilo pactado', 'Seguimiento', 'Qué hará el responsable', 'Qué hará la persona', 'Siguiente nivel', 'Revisión'], fs.map((f) => { const a = f.t.acuerdo || {}; const est = a.estilo || f.toca; return [f.t.nombre, f.nv ? N[f.nv.nivel].n : 'Por valorar', E[+est] ? E[+est].n : '—', L.FRECUENCIAS[a.freq] || (E[+est] ? E[+est].seguimiento : '—'), a.lider || '—', a.colab || '—', a.siguiente ? N[a.siguiente].n : '—', a.revision ? R.fechaES(a.revision) : '—']; })));
     });
-    h += In.section('Los cuatro estilos', In.table(['Estilo', 'Qué significa', 'Seguimiento habitual'], [1, 2, 3, 4].map((k) => [E[k].n, E[k].que, E[k].seguimiento])));
+    h += In.section('Los cuatro estilos de dirección', In.table(['Estilo', 'En qué consiste', 'Seguimiento habitual'], [1, 2, 3, 4].map((k) => [E[k].n, E[k].que, E[k].seguimiento])));
+    const rc = R.recosLider(p).filter((r) => !/^Entrenar|^Valorar su estilo|^Contrastar|^Recoger/.test(r.q));
+    if (rc.length) h += In.section('Próximos pasos', F.recos(rc));
     h += In.foot(pie);
-    R.abrirInforme({ titulo: 'Acuerdos del equipo de ' + p.nombre, html: h, clave: 'lid-eq:' + p.id, ctx: { titulo: 'Acuerdos del equipo de ' + p.nombre, tipo: 'Acuerdos de liderazgo', datos: R.datosLider(p), pasos: R.pasosLider(p).slice(-3), seguimiento: SEG_LID } });
+    const lim = [];
+    if (!x.tareas.length) lim.push('La empresa no ha identificado las tareas clave de este equipo; el documento no incluye acuerdos por tarea.');
+    else if (x.val.length < x.tareas.length) lim.push(`${x.val.length} de ${x.tareas.length} tareas clave tienen valorada la preparación; en el resto, el estilo queda por determinar.`);
+    lim.push('El nivel de preparación es de cada tarea, no de la persona. Los acuerdos se revisan en la fecha pactada.');
+    R.abrirInforme({ titulo: 'Acuerdos de dirección · equipo de ' + p.nombre, html: h, clave: 'lid-eq:' + p.id, nota: !x.tareas.length ? 'Para elaborar los acuerdos faltan las tareas clave de cada colaborador y su valoración.' : '',
+      anexo: F.anexo([x.val.length && MET_LID.tareas, MET_LID.fuentes].filter(Boolean), lim),
+      ctx: { titulo: 'Acuerdos del equipo de ' + p.nombre, tipo: 'Acuerdos de dirección', datos: R.datosLider(p), pasos: F.pasosDe(rc), seguimiento: SEG_LID } });
   };
 
   R.informeLidOrg = () => {
-    const In = I(); In.reset(); const ls = R.lideres();
-    let h = cover({ kicker: 'Liderazgo en la organización', titulo: 'Liderazgo a medida', subtitulo: `${ls.length} líderes` });
-    if (!ls.length) { In.open({ titulo: 'Informe de liderazgo', html: h + '<p class="rp-muted">Todavía no hay líderes: indique en la plantilla de quién depende cada persona.</p>' + In.foot(pie) }); return; }
-    const datos = ls.map((p) => { const c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp), pe = R.lidPercibido(p), f = R.mapaMando(p); return { p, c, pe, f, des: f.filter((x) => x.des && x.des.st !== 'ok') }; });
-    const conC = datos.filter((d) => d.c), todas = datos.flatMap((d) => d.f.filter((x) => x.nv));
+    const In = I(); In.reset(); const F = Fi(), ls = R.lideres(), emp = R.empresa().nombre;
+    let h = cover({ kicker: 'Diagnóstico de liderazgo', titulo: 'Liderazgo y dirección de personas', subtitulo: pl(ls.length, 'responsable de equipo', 'responsables de equipo') });
+    if (!ls.length) { In.open({ titulo: 'Diagnóstico de liderazgo', html: h + In.summary('Alcance', '<p>La empresa no ha aportado su organigrama: no consta quién dirige a quién. El diagnóstico de liderazgo queda fuera del alcance de este documento.</p>') + In.foot(pie), after: (paper) => R.notaTrabajo(paper, 'Indique en la plantilla de quién depende cada persona para elaborar este diagnóstico.') }); return; }
+    const datos = ls.map((p) => Object.assign({ p }, lecturaLider(p)));
+    const conC = datos.filter((d) => d.c), todas = datos.flatMap((d) => d.val), nT = datos.reduce((a, d) => a + d.tareas.length, 0), nAc = datos.reduce((a, d) => a + d.acu.length, 0);
     const efM = conC.length ? r0(conC.reduce((a, d) => a + d.c.eficacia, 0) / conC.length) : null, flM = conC.length ? r0(conC.reduce((a, d) => a + d.c.flex, 0) / conC.length) : null;
-    const nDes = datos.reduce((a, d) => a + d.des.length, 0), dist = { 1: 0, 2: 0, 3: 0, 4: 0 }; todas.forEach((x) => dist[x.nv.nivel]++);
+    const nDes = datos.reduce((a, d) => a + d.des.length, 0), dist = { 1: 0, 2: 0, 3: 0, 4: 0 }; todas.forEach((f) => dist[f.nv.nivel]++);
     const estD = { 1: 0, 2: 0, 3: 0, 4: 0 }; conC.forEach((d) => estD[d.c.pri]++);
-    h += In.summary('Resumen ejecutivo', `<p>${conC.length} de ${ls.length} líderes tienen su test de estilo${efM != null ? `, con una eficacia media del ${efM} % y una flexibilidad media del ${flM} %` : ''}. Hay ${todas.length} tareas valoradas y ${nDes} desajuste${nDes === 1 ? '' : 's'} entre el estilo que toca y el que se usa.${todas.length ? ` El ${r0((dist[4] / todas.length) * 100)} % de las tareas están en nivel autónomo.` : ''}</p>`, nDes > 3 ? 'stop' : nDes ? 'warn' : 'ok');
-    h += In.kpis([{ k: 'Líderes', v: String(ls.length) }, { k: 'Eficacia media', v: efM != null ? efM + ' %' : '—' }, { k: 'Flexibilidad media', v: flM != null ? flM + ' %' : '—' }, { k: 'Desajustes', v: String(nDes), st: nDes ? 'warn' : 'ok' }]);
-    h += In.section('Líderes', In.table(['Líder', 'Colaboradores', 'Estilo principal', 'Percibido', 'Eficacia', 'Flexibilidad', 'Desajustes'], datos.map((d) => [d.p.nombre, String(new Set(d.f.map((x) => x.c.id)).size), d.c ? E[d.c.pri].n : '—', d.pe ? E[d.pe.pri].n : '—', d.c ? d.c.eficacia + ' %' : '—', d.c ? d.c.flex + ' %' : '—', String(d.des.length)]), { num: [1, 4, 5, 6] }));
-    if (conC.length) h += In.section('Estilos predominantes', In.table(['Estilo', 'Líderes con ese estilo principal'], [1, 2, 3, 4].map((k) => [E[k].n, String(estD[k])]), { num: [1] }) + (Object.values(estD).filter(Boolean).length === 1 && conC.length > 2 ? In.callout(`Todos los líderes comparten el estilo ${esc(E[conC[0].c.pri].n)}: la organización dirige a todos igual.`, 'warn') : ''));
-    if (todas.length) h += In.section('Preparación de las personas por tarea', In.table(['Nivel', 'Tareas', 'Estilo que toca'], [1, 2, 3, 4].map((k) => [N[k].n, String(dist[k]), E[k].n]), { num: [1] }));
-    const tDes = datos.flatMap((d) => d.des.map((x) => ({ d, x })));
-    if (tDes.length) h += In.section('Desajustes que corregir', In.table(['Líder', 'Colaborador · tarea', 'Qué pasa', 'Toca'], tDes.sort((a, b) => (a.x.des.st === 'stop' ? -1 : 1) - (b.x.des.st === 'stop' ? -1 : 1)).map(({ d, x }) => [d.p.nombre, x.c.nombre + ' · ' + x.t.nombre, x.des.t, E[x.toca].n])));
+    const topE = conC.length ? [1, 2, 3, 4].sort((a, b) => estD[b] - estD[a])[0] : null, unico = conC.length > 2 && Object.values(estD).filter(Boolean).length === 1;
+    const nCol = datos.reduce((a, d) => a + d.nCol, 0), pAut = todas.length ? r0((dist[4] / todas.length) * 100) : null;
+    const lead = nDes ? `En ${esc(emp)}, <b>${nDes} de ${pl(todas.length, 'tarea clave valorada', 'tareas clave valoradas')}</b> se ${nDes === 1 ? 'dirige' : 'dirigen'} con un estilo distinto del que corresponde a la preparación de la persona.`
+      : todas.length ? `Los responsables de ${esc(emp)} ajustan su estilo de dirección a la preparación de cada persona en las <b>${todas.length} tareas clave valoradas</b>.`
+        : conC.length ? `Los responsables de ${esc(emp)} dirigen con una eficacia media del <b>${efM} %</b> y una flexibilidad media del ${flM} %.`
+          : `${esc(emp)} cuenta con ${pl(ls.length, 'responsable de equipo', 'responsables de equipo')}, que ${ls.length === 1 ? 'dirige' : 'dirigen'} a ${pl(nCol, 'persona', 'personas')}.`;
+    h += In.summary('Resumen ejecutivo', `<p>${lead}</p>` + F.claves([
+      conC.length || todas.length ? `${pl(ls.length, 'responsable de equipo', 'responsables de equipo')} y ${pl(nCol, 'colaborador directo', 'colaboradores directos')}.` : '',
+      conC.length && (nDes || todas.length) ? `Eficacia media del ${efM} % y flexibilidad media del ${flM} % (${pl(conC.length, 'responsable valorado', 'responsables valorados')}).` : '',
+      topE ? `Estilo de referencia más frecuente: ${esc(E[topE].n.toLowerCase())} (${estD[topE]} de ${conC.length}).${unico ? ' Todos comparten el mismo estilo: la organización dirige a todos igual.' : ''}` : '',
+      pAut != null ? `El ${pAut} % de las tareas valoradas está en nivel autónomo.` : '',
+      nT ? `Acuerdos de dirección por escrito: ${nAc} de ${pl(nT, 'tarea clave', 'tareas clave')}.` : ''
+    ]), nDes > 3 ? 'stop' : nDes ? 'warn' : conC.length || todas.length ? 'ok' : null);
+    h += In.kpis([{ k: 'Responsables de equipo', v: String(ls.length) }].concat(conC.length ? [{ k: 'Eficacia media', v: efM + ' %', st: efM >= 75 ? 'ok' : efM >= 55 ? 'warn' : 'stop' }, { k: 'Flexibilidad media', v: flM + ' %', st: flM >= 65 ? 'ok' : flM >= 40 ? 'warn' : 'stop' }] : [], todas.length ? [{ k: 'Tareas con el estilo desajustado', v: `${nDes} de ${todas.length}`, st: nDes > 3 ? 'stop' : nDes ? 'warn' : 'ok' }] : []));
+    h += In.section('Responsables de equipo', conC.length || todas.length ? In.table(['Responsable', 'Colaboradores', 'Estilo de referencia', 'Percibido por el equipo', 'Eficacia', 'Flexibilidad', 'Tareas desajustadas'], datos.map((d) => [d.p.nombre, String(d.nCol), d.c ? E[d.c.pri].n : '—', d.pe ? E[d.pe.pri].n : '—', d.c ? d.c.eficacia + ' %' : '—', d.c ? d.c.flex + ' %' : '—', d.val.length ? String(d.des.length) : '—']), { num: [1, 4, 5, 6] }) : In.table(['Responsable', 'Puesto', 'Colaboradores directos'], datos.map((d) => [d.p.nombre, (R.puestoDe(d.p) || {}).nombre || '—', String(d.nCol)]), { num: [2] }));
+    if (conC.length) h += In.section(`Estilos de dirección: predomina ${E[topE].n.toLowerCase()}`, In.table(['Estilo', 'Responsables con ese estilo de referencia', 'En qué consiste'], [1, 2, 3, 4].map((k) => [E[k].n, String(estD[k]), E[k].que]), { num: [1] }) + (unico ? In.callout(`Todos los responsables comparten el estilo ${esc(E[conC[0].c.pri].n.toLowerCase())}: la organización dirige a todos igual.`, 'warn') : ''));
+    if (todas.length) h += In.section(`Preparación por tarea: el ${pAut} % en nivel autónomo`, In.table(['Nivel de preparación', 'Tareas', 'Estilo que corresponde'], [1, 2, 3, 4].map((k) => [N[k].n, String(dist[k]), E[k].n]), { num: [1] }));
+    const tDes = datos.flatMap((d) => d.des.map((f) => ({ d, x: f }))).sort((a, b) => (a.x.des.st === 'stop' ? 0 : 1) - (b.x.des.st === 'stop' ? 0 : 1));
+    if (tDes.length) h += In.section(`Desajustes de estilo que corregir: ${tDes.length}`, In.table(['Responsable', 'Colaborador · tarea', 'Qué ocurre', 'Estilo que corresponde'], tDes.map(({ d, x }) => [d.p.nombre, x.c.nombre + ' · ' + x.t.nombre, x.des.t, E[x.toca].n])));
+    const demas = tDes.filter((o) => o.x.des.tipo === 'mas').length, ri = [], op = [];
+    if (demas) ri.push([`${pl(demas, 'tarea se dirige', 'tareas se dirigen')} con más control del que corresponde.`, 'Frena la autonomía de las personas y consume tiempo de los responsables.']);
+    if (tDes.length - demas) ri.push([`${pl(tDes.length - demas, 'tarea se dirige', 'tareas se dirigen')} con menos apoyo del que corresponde.`, 'Riesgo de errores y de desgaste de quien aún no domina la tarea.']);
+    if (unico) ri.push([`Todos los responsables valorados comparten el estilo ${E[conC[0].c.pri].n.toLowerCase()}.`, 'Las personas con otra preparación no reciben la dirección que necesitan.']);
+    if (flM != null && flM < 40) ri.push([`Flexibilidad media del ${flM} %.`, 'Los responsables recurren casi siempre al mismo estilo.']);
+    if (nT && nAc < nT) ri.push([`${nT - nAc} de ${pl(nT, 'tarea clave', 'tareas clave')} sin acuerdo de dirección por escrito.`, 'El estilo y el seguimiento dependen de la costumbre de cada responsable.']);
+    if (dist[4]) op.push([`${pl(dist[4], 'tarea', 'tareas')} en nivel autónomo.`, 'Margen para delegar y liberar tiempo de dirección.']);
+    const buenos = conC.filter((d) => d.c.eficacia >= 75);
+    if (buenos.length) op.push([`${pl(buenos.length, 'responsable', 'responsables')} con eficacia del 75 % o más: ${buenos.map((d) => d.p.nombre).join(', ')}.`, 'Referencia interna para el resto de responsables.']);
+    if (ri.length || op.length) h += In.section('Riesgos y oportunidades', F.ryo(ri, op));
+    const sinC = ls.length - conC.length, sinT = datos.filter((d) => d.nCol && !d.val.length), rc = [];
+    tDes.slice(0, 4).forEach(({ d, x }) => rc.push({ q: `Corregir el estilo de ${d.p.nombre} con ${x.c.nombre} en «${x.t.nombre}»`, c: `Corresponde ${E[x.toca].n.toLowerCase()}. ${x.des.t}`, imp: `Tareas desajustadas: de ${nDes} a ${Math.max(0, nDes - 1)}`, quien: d.p.nombre, plazo: '1 mes' }));
+    if (sinC) rc.push({ q: `Valorar el estilo de dirección de ${sinC === ls.length ? 'los responsables de equipo' : pl(sinC, 'responsable', 'responsables') + ' más'}`, c: `Cuestionario de ${L.SITUACIONES.length} situaciones, tras una sesión de 60 minutos sobre estilos y niveles de preparación.`, imp: `Responsables con estilo valorado: de ${conC.length} a ${ls.length}`, quien: 'Dirección', plazo: '1 mes' });
+    if (sinT.length) rc.push({ q: 'Identificar y valorar las tareas clave de cada colaborador', c: `Dos o tres tareas por persona, valoradas por el responsable y por la propia persona. Equipos de: ${sinT.slice(0, 6).map((d) => d.p.nombre).join(', ')}${sinT.length > 6 ? '…' : ''}.`, imp: 'Estilo de dirección que corresponde a cada tarea', quien: 'Cada responsable', plazo: '6 semanas' });
+    if (datos.some((d) => !d.pe && d.nCol >= LID_MIN)) rc.push({ q: 'Recoger cómo percibe cada equipo el estilo de su responsable', c: `Cuestionario anónimo, con un mínimo de ${LID_MIN} respuestas por responsable.`, imp: 'Contraste entre el estilo propio y el percibido', quien: 'Recursos humanos o consultor', plazo: '6 semanas' });
+    if (nT && nAc < nT) rc.push({ q: 'Formalizar los acuerdos de dirección por tarea', c: 'Cada responsable con cada colaborador: estilo, seguimiento y siguiente nivel.', imp: `Tareas clave con acuerdo escrito: de ${nAc} a ${nT}`, quien: 'Cada responsable', plazo: '2 meses' });
+    if (todas.length) rc.push({ q: 'Revisión a las seis semanas', c: 'Volver a valorar las tareas clave y comparar niveles de preparación.', imp: 'Al menos una tarea sube de nivel por equipo', quien: 'Dirección', plazo: '6 semanas' });
+    if (rc.length) h += In.section('Recomendaciones', F.recos(rc), 'Por orden de prioridad.');
     h += In.foot(pie);
-    R.abrirInforme({ titulo: 'Informe de liderazgo de la organización', html: h, clave: 'lid-org', ctx: { titulo: 'Liderazgo en la organización', tipo: 'Informe de liderazgo', seguimiento: SEG_LID,
-      datos: [['Líderes', String(ls.length)], ['Con test de estilo', String(conC.length)], ['Eficacia media', efM != null ? efM + ' %' : '—'], ['Flexibilidad media', flM != null ? flM + ' %' : '—'], ['Tareas valoradas', String(todas.length)], ['Desajustes', String(nDes)]],
-      pasos: [{ q: 'Presentar el modelo a los líderes', c: 'Sesión de 60 minutos: estilos, niveles y por qué el nivel es de la tarea, no de la persona.', quien: 'Consultor', s: 'Todos los líderes conocen el modelo' }, { q: 'Test de estilo de cada líder', c: (ls.length - conC.length) + ' pendientes; se pueden enviar por enlace.', quien: 'Cada líder', s: 'Todos los líderes con test' }, { q: 'Estilo percibido', c: 'Enviar el test a cada equipo; mínimo tres respuestas por líder.', quien: 'Recursos humanos o consultor', s: 'Cada líder con su estilo percibido' }, { q: 'Valorar las tareas clave de cada colaborador', c: 'Dos o tres tareas por persona, valoradas por el líder y por la persona.', quien: 'Cada líder', s: 'Mapa de mando completo' }]
-        .concat(tDes.slice(0, 4).map(({ d, x }) => ({ q: 'Corregir el desajuste de ' + d.p.nombre + ' con ' + x.c.nombre + ' en «' + x.t.nombre + '»', c: 'Toca ' + E[x.toca].n + ': ' + x.des.t, quien: d.p.nombre, s: 'Acuerdo firmado con el estilo que toca' })))
-        .concat([{ q: 'Acuerdos de liderazgo por escrito', c: 'Cada líder con cada colaborador: estilo, seguimiento y siguiente nivel.', quien: 'Cada líder', s: 'Un acuerdo por tarea clave' }, { q: 'Revisión a las seis semanas', c: 'Repetir la valoración de las tareas y comparar niveles.', quien: 'Consultor', s: 'Al menos un nivel subido por equipo' }]) } });
-  };
-
-  /* Datos y pasos del líder para el cuaderno del consultor */
-  R.datosLider = (p) => { const c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp), pe = R.lidPercibido(p), f = R.mapaMando(p); return [['Estilo principal', c ? E[c.pri].n : 'Sin test'], ['Eficacia / flexibilidad', c ? c.eficacia + ' % / ' + c.flex + ' %' : '—'], ['Percibido por el equipo', pe ? E[pe.pri].n + ' (' + pe.n + ')' : 'Sin respuestas'], ['Tareas valoradas', String(f.filter((x) => x.nv).length)], ['Desajustes', String(f.filter((x) => x.des && x.des.st !== 'ok').length)], ['Acuerdos firmados', String(f.filter((x) => x.t && x.t.acuerdo).length)]]; };
-  R.pasosLider = (p) => {
-    const c = p.lid && p.lid.estilo && R.lidCalc(p.lid.estilo.resp), f = R.mapaMando(p), out = [];
-    if (!c) out.push({ q: 'Test de estilo del líder', c: 'Que responda las 12 situaciones; el consultor explica el modelo antes, en 10 minutos.', s: 'Test completado' });
-    if (!R.lidPercibido(p)) out.push({ q: 'Estilo percibido', c: 'Enviar el test a su equipo por enlace o código; mínimo tres respuestas: hasta entonces no se muestra, para preservar la confidencialidad.', s: 'Tres respuestas o más' });
-    if (f.some((x) => x.t && !x.nv) || !f.some((x) => x.t)) out.push({ q: 'Tareas clave de cada colaborador', c: 'Dos o tres tareas por persona, valoradas por el líder y por la persona.', s: 'Todas las tareas con nivel' });
-    out.push({ q: 'Revisar el mapa de mando con el líder', c: 'Sesión de 60 minutos: recorrer cada desajuste y decidir el estilo que va a usar.', s: 'Desajustes con decisión tomada' });
-    out.push({ q: 'Acuerdos de liderazgo', c: 'El líder pacta con cada colaborador el estilo, el seguimiento y el siguiente nivel (20 minutos por persona).', s: 'Un acuerdo por tarea clave' });
-    out.push({ q: 'Revisión a las seis semanas', c: 'Repetir la valoración de las tareas y comprobar si algún nivel ha subido; ajustar los acuerdos.', s: 'Al menos un nivel subido por colaborador' });
-    return out;
+    const lim = [];
+    if (sinC) lim.push(conC.length ? `La valoración del estilo de dirección cubre a ${conC.length} de ${ls.length} responsables; las medias se refieren a ese grupo.` : 'No se ha dispuesto de la valoración del estilo de dirección de los responsables; el documento no describe estilos, eficacia ni flexibilidad.');
+    if (!todas.length) lim.push('Las tareas clave de los colaboradores no están valoradas; no se analiza el ajuste del estilo por tarea.');
+    else if (todas.length < nT) lim.push(`${todas.length} de ${nT} tareas clave tienen valorada la preparación; el análisis por tarea se refiere a ellas.`);
+    if (datos.some((d) => !d.pe)) lim.push(`La percepción del equipo solo se presenta con ${LID_MIN} respuestas o más por responsable, para preservar la confidencialidad.`);
+    lim.push('El nivel de preparación es de cada tarea, no de la persona. El documento no evalúa el desempeño de los responsables.');
+    R.abrirInforme({ titulo: 'Diagnóstico de liderazgo', html: h, clave: 'lid-org', nota: sinC || sinT.length ? `Para completar el diagnóstico: ${[sinC && pl(sinC, 'responsable sin cuestionario de estilo', 'responsables sin cuestionario de estilo'), sinT.length && pl(sinT.length, 'equipo sin tareas clave valoradas', 'equipos sin tareas clave valoradas')].filter(Boolean).join(' y ')}.` : '',
+      anexo: F.anexo([conC.length && MET_LID.estilo, datos.some((d) => d.pe) && MET_LID.percibido, todas.length && MET_LID.tareas, MET_LID.fuentes].filter(Boolean), lim),
+      ctx: { titulo: 'Liderazgo y dirección de personas', tipo: 'Diagnóstico de liderazgo', seguimiento: SEG_LID, pasos: F.pasosDe(rc),
+        datos: [['Responsables de equipo', String(ls.length)], ['Con estilo de dirección valorado', conC.length + ' de ' + ls.length], ['Eficacia media', efM != null ? efM + ' %' : '—'], ['Flexibilidad media', flM != null ? flM + ' %' : '—'], ['Tareas clave valoradas', String(todas.length)], ['Tareas con el estilo desajustado', String(nDes)]] } });
   };
 })();

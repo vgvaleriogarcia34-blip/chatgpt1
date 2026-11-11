@@ -85,23 +85,37 @@
     const alVolver = () => { const k = location.hash.replace('#', ''); if (esMod(k) && k !== mod) { volviendo = true; try { mostrar(k); } finally { volviendo = false; } } };
     addEventListener('popstate', alVolver); addEventListener('hashchange', alVolver);
   }
-  /* Capítulo del libro corporativo: el tablero en formato de informe (lo recoge js/libro-comun.js) */
+  /* Informe de situación general (capítulo del libro corporativo; lo recoge js/libro-comun.js). Es un documento de
+     dirección: habla de la empresa con sus cifras e indicadores, no del tablero. La síntesis (conclusión, mensajes
+     clave, diagnóstico, asuntos prioritarios, recomendaciones y limitaciones) sale de A.libro.sintesis. Sin
+     información propia de la empresa no hay informe. */
   let ultimo = null;
   const informe = () => {
-    const I = A.informe, r = ultimo; if (!I || !r) return '';
+    const I = A.informe, r = ultimo, L = A.libro; if (!I || !r || !L || !L.sintesis) return '';
+    const emp = (P.empresas && P.empresas.activa && P.empresas.activa()) || {}, s = L.sintesis(r, emp.nombre || '');
+    if (!s || s.vacio) return '';
     I.reset();
-    const emp = (P.empresas && P.empresas.activa && P.empresas.activa()) || {}, nt = r.nota, f10 = (n) => (n == null ? 'Sin nota' : fmt(n) + '/10');
-    const pill = (st, t) => (st ? I.pill(st, t || ST[st]) : esc(t || 'Sin datos'));
-    let h = I.cover({ tipo: 'Tablero general', titulo: 'La empresa, de un vistazo', empresa: emp.nombre || '' });
-    h += I.summary('En pocas palabras', `<p><b>Nota de la empresa: ${esc(f10(nt.global))}.</b> ${esc(r.equilibrio.t)}. ${esc(r.equilibrio.d)}</p><p class="rp-muted">Calculada con los datos guardados de cada mundo${nt.fecha ? ' el ' + esc(new Date(nt.fecha).toLocaleString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })) : ''}.</p>`, r.equilibrio.st || null);
-    h += I.section('Nota de cada mundo', I.table(['Mundo', 'Nota', 'Comprobaciones', 'Calculada'], Object.values(nt.mundos).map((m) => [m.n, { h: pill(stN(m.nota), f10(m.nota)) }, m.nota == null ? (m.motivo ? 'Sin nota: ' + m.motivo : '—') : A.nota.desglose(A.nota.puntuar(m.puntos)), A.nota.fechaTxt ? A.nota.fechaTxt(m) : fecha(m.fecha)])));
-    h += I.section('Las capas de la empresa', I.table(['Capa', 'Estado', 'Rojos', 'Ámbar', 'Verdes'], r.capas.map((c) => [c.n, { h: pill(c.st) }, String(c.rojos), String(c.ambar), String(c.verdes)]), { num: [2, 3, 4] }));
-    if (r.cifras && !r.cifras.sinDatos && A.cifras) h += I.section('Cifras clave', I.table(['Cifra', 'Valor', 'Origen'], A.cifras.CAMPOS.map((c) => [c.n, A.cifras.fmt(c.k, r.cifras[c.k]), r.cifras[c.k] == null ? 'Sin dato' : r.cifras.origen[c.k] + ' · ' + A.cifras.fechaTxt(r.cifras.fecha[c.k])])));
-    if (r.triaje && r.triaje.areas.length) h += I.section('Triaje del consultor', I.table(['Área', 'Nivel'], ['stop', 'warn', 'ok'].flatMap((st) => r.triaje.areas.filter((a) => a.st === st)).map((a) => [a.n, { h: I.pill(a.st, NIV[a.st]) }])));
-    h += I.section('Prioridades de la empresa', r.pend.length ? I.table(['N.º', 'Qué tratar', 'Mundo', 'Capa'], r.pend.slice(0, 15).map((x) => [String(x.rango), x.t, x.mundoN, x.capaN]), { num: [0] }) : '<p class="rp-muted">Nada en rojo ni en ámbar.</p>');
-    const objs = r.objetivos || [];
-    if (objs.length) h += I.section('Objetivos del empresario', I.table(['Objetivo', 'Origen', 'Estado'], objs.map((o) => [o.t, o.fuente, { h: o.cumplido ? I.pill('ok', 'Cumplido') : pill(o.st, 'Capa ' + ((r.capas.find((c) => c.id === o.capa) || {}).n || '').toLowerCase()) }])));
-    h += I.foot('Tablero general: las prioridades siguen la regla liquidez, rentabilidad y crecimiento. Las notas se calculan con los datos guardados de cada mundo.');
+    const NV = L.NIVEL_T, pill = (st) => (st ? I.pill(st, NV[st]) : '—'), C = A.cifras, cf = s.cf;
+    let h = I.cover({ tipo: 'Informe de situación', kicker: 'Informe de situación' + (cf && cf.anio ? ' · cuentas de ' + cf.anio : ''), titulo: 'Situación general de la empresa', subtitulo: s.eq.t || 'Liquidez, rentabilidad, estructura y crecimiento', empresa: emp.nombre || '' });
+    h += I.summary('Resumen ejecutivo', L.resumenHTML(s), s.eq.st || null);
+    if (cf && C) {
+      const filas = C.CAMPOS.filter((c) => cf[c.k] != null).map((c) => [c.n, C.fmt(c.k, cf[c.k]), L.fuenteCifra(cf.origen[c.k]) + (cf.fecha[c.k] ? ' · ' + C.fechaTxt(cf.fecha[c.k]) : '')]);
+      [['ebitdaPct', 'Beneficio del negocio sobre ventas'], ['deudaNeta', 'Deuda neta (deuda bancaria menos caja)'], ['deudaEbitda', 'Deuda neta sobre EBITDA'], ['mesesCaja', 'Caja en meses de costes de estructura']].forEach(([k, n]) => { if (cf[k] != null) filas.push([n, k === 'deudaNeta' ? C.eur(cf[k]) : k === 'mesesCaja' ? fmt(cf[k]) + ' meses' : C.fmt(k, cf[k]), 'Cálculo sobre las cuentas']); });
+      h += I.section(cf.ventas != null && cf.ebitdaPct != null ? `La empresa factura ${C.fmt('ventas', cf.ventas)} y convierte en beneficio del negocio el ${C.fmt('ebitdaPct', cf.ebitdaPct)}` : 'Cifras clave de la empresa', I.table(['Magnitud', 'Valor', 'Fuente'], filas, { num: [1] }));
+    }
+    if (s.pts.length) {
+      const peor = s.capas.find((c) => c.st === 'stop') || s.capas.find((c) => c.st === 'warn');
+      h += I.section(peor ? `El área de ${peor.n.toLowerCase()} es la primera que hay que corregir: ${peor.st === 'stop' ? `${peor.rojos} ${peor.rojos === 1 ? 'indicador crítico' : 'indicadores críticos'}` : `${peor.ambar} ${peor.ambar === 1 ? 'indicador a vigilar' : 'indicadores a vigilar'}`}` : 'Las cuatro áreas de la empresa están en niveles correctos',
+        I.table(['Área', 'Qué valora', 'Situación', 'Críticos', 'A vigilar', 'Correctos'], s.capas.filter((c) => c.total).map((c) => [c.n, c.q, { h: pill(c.st) }, String(c.rojos), String(c.ambar), String(c.verdes)]), { num: [3, 4, 5] }),
+        'Las áreas se ordenan según se sostienen: la liquidez permite la rentabilidad y la rentabilidad financia el crecimiento. Un área en nivel crítico condiciona a las siguientes.');
+    }
+    if (s.ambitos.length && s.global != null) h += I.section(`Valoración global de la empresa: ${fmt(s.global)} sobre 10`, I.table(['Ámbito', 'Valoración', 'Indicadores evaluados'], s.ambitos.map((m) => [m.n, { h: I.pill(stN(m.nota), fmt(m.nota) + ' / 10') }, m.r && m.r.total ? `${m.r.total}: ${m.r.verdes} ${m.r.verdes === 1 ? 'correcto' : 'correctos'}, ${m.r.ambar} a vigilar y ${m.r.rojos} ${m.r.rojos === 1 ? 'crítico' : 'críticos'}` : '—'])));
+    if (s.triaje.length) h += I.section('Diagnóstico del consultor: prioridad de actuación por áreas', I.table(['Área', 'Prioridad de actuación'], s.triaje.map((a) => [a.n, { h: I.pill(a.st, a.t) }])), 'Inmediata: de 0 a 14 días. Preferente: durante el trimestre. Programable: sin urgencia.');
+    if (s.pend.length) h += I.section(`${s.pend.length === 1 ? 'Un asunto requiere' : s.pend.length + ' asuntos requieren'} actuación${s.pend.length > 15 ? ': los quince primeros' : ''}`, I.table(['N.º', 'Asunto', 'Evidencia', 'Ámbito', 'Área', 'Nivel'], s.pend.slice(0, 15).map((x, i) => [String(i + 1), x.t, x.ev || '—', x.area, x.capaN, { h: pill(x.st) }]), { num: [0] }), 'Ordenados por el área a la que afectan, su gravedad y su relación con los objetivos de la dirección.');
+    if (s.objs.length) h += I.section('Objetivos de la dirección', I.table(['Objetivo', 'Fecha', 'Situación'], s.objs.map((o) => [o.t, o.fecha ? new Date(o.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', { h: o.cumplido ? I.pill('ok', 'Cumplido') : o.st ? I.pill(o.st, o.st === 'stop' ? `Condicionado: ${o.capaN.toLowerCase()} en nivel crítico` : o.st === 'warn' ? `${o.capaN} a vigilar` : `${o.capaN} en nivel correcto`) : '—' }])), 'Cada objetivo se valora por el área de la que depende.');
+    if (s.recs.length) h += I.section('Recomendaciones, por orden de prioridad', `<ol class="rp-steps">${s.recs.map((x) => `<li><b>${esc(x.t)}.</b> ${esc(x.d)}</li>`).join('')}</ol>`);
+    h += I.section('Alcance y limitaciones', `<p>El informe valora la empresa en cuatro áreas —liquidez, rentabilidad, estructura y gestión, y crecimiento— a partir de sus cuentas, de los indicadores de gestión disponibles${s.triaje.length ? ' y del diagnóstico del consultor' : ''}. Cada indicador se clasifica como correcto, a vigilar o crítico${s.global != null ? '; la valoración global es la proporción de indicadores correctos, ponderada, sobre 10' : ''}.</p>${s.lim.length ? `<ul>${s.lim.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`);
+    h += I.foot(`Informe de situación${emp.nombre ? ' de ' + emp.nombre.replace(/\.$/, '') : ''}. Las valoraciones se apoyan en la información facilitada por la empresa; las decisiones fiscales y societarias deben contrastarse con sus asesores.`);
     return h;
   };
   A.tablero = { informe, areasArch, get listo() { return !!ultimo; } };

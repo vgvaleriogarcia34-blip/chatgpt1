@@ -376,7 +376,7 @@
 
   /* ---------- Cuaderno del consultor y libro ---------- */
   const consultor = () => ({ modelo: true, ficha: { nombre: 'Elena Ríos', firma: 'Consultora de ejemplo', contacto: '' }, cuadernos: {} });
-  const libro = () => ({ v: 1, modelo: true, titulo: 'Libro corporativo de Valdenorte', intro: 'Quiénes somos, cómo trabajamos y hacia dónde vamos: el libro que reúne los informes de todos los mundos de Atalaya para la familia, el equipo directivo y los nuevos mandos.', secciones: [{ id: 'intervencion', t: 'Diagnóstico e intervención' }, { id: 'simulador', t: 'Inversión y crecimiento' }, { id: 'estrategia', t: 'Estrategia y gestión' }, { id: 'personas', t: 'Personas y equipos' }, { id: 'mesa', t: 'Cómo nos organizamos' }], caps: [] });
+  const libro = () => ({ v: 1, modelo: true, titulo: 'Libro corporativo de Valdenorte', intro: 'Quiénes somos, cómo trabajamos y hacia dónde vamos: el documento que reúne los análisis de la empresa para la familia, el equipo directivo y los nuevos mandos.', secciones: [{ id: 'intervencion', t: 'Diagnóstico e intervención' }, { id: 'simulador', t: 'Inversión y crecimiento' }, { id: 'estrategia', t: 'Estrategia y gestión' }, { id: 'personas', t: 'Personas y equipos' }, { id: 'mesa', t: 'Cómo nos organizamos' }], caps: [] });
 
   /* ---------- Auditoría integral ---------- */
   // Las conversaciones se guardan en texto y la propia auditoría las lee al abrirla (síntomas, constantes y guion)

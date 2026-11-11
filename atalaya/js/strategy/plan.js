@@ -101,6 +101,8 @@
 
   S.register({
     id: 'plan', nombre: 'Plan de empresa', grupo: 'Visión',
+    // Para el informe: lo que la empresa ha definido (identidad, valores, DAFO, CAME y objetivos), no la pantalla de trabajo
+    informe() { const o = S.planObjetivosHTML(), e = S.planReportHTML(); return { tiles: this.kpis(), detalle: (e ? `<div class="rp-block">${e}</div>` : '') + (o ? `<div class="rp-block"><h3>Objetivos generales y su despliegue por áreas</h3>${o}</div>` : '') }; },
     datos: () => { const p = PL(); return !!(String(p.mision || '').trim() || String(p.vision || '').trim() || String(p.propuesta || '').trim() || (p.valores || []).length || ['d', 'a', 'f', 'o'].some((k) => (p.dafoItems[k] || []).length) || (p.came || []).length || (p.objetivos || []).length || (p.acciones || []).length); },
     render(host) {
       const p = PL();
@@ -191,15 +193,22 @@
     findings() { return []; }
   });
 
-  /* Sección del informe de auditoría */
+  /* Objetivos generales con su despliegue por áreas y acciones */
+  S.planObjetivosHTML = function () {
+    const p = PL(), I = A.informe, fd = (x) => { const d = new Date(x); return isNaN(d) ? String(x) : d.toLocaleDateString('es-ES'); };
+    return (p.objetivos || []).filter((o) => String(o.nombre || '').trim()).map((o) => { const ar = (p.areas || []).filter((a) => a.macro === o.id);
+      return `<h3>${esc(o.nombre)} · ${esc(o.indicador)}: de ${esc(o.actual)} a ${esc(o.meta)}${o.fecha ? ' (' + esc(fd(o.fecha)) + ')' : ''}</h3>` + (ar.length ? I.table(['Área', 'Objetivo', 'Indicador', 'Acciones'], ar.map((a) => [a.area, a.objetivo, `${a.kpi}: de ${a.actual} a ${a.meta}`, (p.acciones || []).filter((x) => x.area === a.area).map((x) => `${x.accion} (${x.responsable || 'responsable por designar'}, ${String(x.estado || '').toLowerCase()})`).join('; ') || '—'])) : ''); }).join('');
+  };
+  /* Apartado de estrategia del informe de auditoría (solo lo que la empresa ha definido) */
   S.planReportHTML = function () {
-    const p = PL();
-    const li = (l) => l.map((x) => `<li>${esc(x.t)} <span style="color:#888">(impacto ${x.i})</span></li>`).join('');
-    return `<h2>Estrategia: valores, DAFO y CAME</h2>
-      <p><b>Misión.</b> ${esc(p.mision)}<br><b>Visión.</b> ${esc(p.vision)}<br><b>Propuesta de valor.</b> ${esc(p.propuesta)}</p>
-      ${p.valores.length ? `<table><thead><tr><th style="text-align:left">Valor</th><th style="text-align:left">Conducta</th><th>Peso</th></tr></thead><tbody>${p.valores.map((v) => `<tr><td style="text-align:left">${esc(v.valor)}</td><td style="text-align:left;white-space:normal">${esc(v.conducta)}</td><td>${v.peso}</td></tr>`).join('')}</tbody></table>` : ''}
-      <table><tbody><tr><td style="text-align:left;vertical-align:top;white-space:normal"><b>Debilidades</b><ul>${li(p.dafoItems.d)}</ul></td><td style="text-align:left;vertical-align:top;white-space:normal"><b>Amenazas</b><ul>${li(p.dafoItems.a)}</ul></td></tr>
-      <tr><td style="text-align:left;vertical-align:top;white-space:normal"><b>Fortalezas</b><ul>${li(p.dafoItems.f)}</ul></td><td style="text-align:left;vertical-align:top;white-space:normal"><b>Oportunidades</b><ul>${li(p.dafoItems.o)}</ul></td></tr></tbody></table>
-      ${p.came.length ? `<table><thead><tr><th>Tipo</th><th style="text-align:left">Acción</th><th>Impacto</th><th>Encaje con valores</th></tr></thead><tbody>${p.came.map((x) => { const e = encaje(x); return `<tr><td>${esc(x.tipo)}</td><td style="text-align:left;white-space:normal">${esc(x.accion)}</td><td>${x.impacto}</td><td>${e.sc}${e.choques.length ? ' · choca con ' + esc(e.choques.join(', ')) : ''}</td></tr>`; }).join('')}</tbody></table>` : '<p>Sin acciones CAME definidas todavía.</p>'}`;
+    const p = PL(), I = A.informe, t = (x) => String(x || '').trim();
+    const li = (l) => (l || []).map((x) => `<li>${esc(x.t)} <span class="rp-muted">(impacto ${x.i} sobre 5)</span></li>`).join('') || '<li class="rp-muted">—</li>';
+    const D = p.dafoItems || {}, hayDafo = ['d', 'a', 'f', 'o'].some((k) => (D[k] || []).length);
+    const idea = [['Misión', p.mision], ['Visión', p.vision], ['Propuesta de valor', p.propuesta]].filter((x) => t(x[1]));
+    if (!idea.length && !(p.valores || []).length && !hayDafo && !(p.came || []).length) return '';
+    return (idea.length ? `<p>${idea.map((x) => `<b>${x[0]}.</b> ${esc(x[1])}`).join('<br>')}</p>` : '')
+      + ((p.valores || []).length ? `<h3>Valores</h3>${I.table(['Valor', 'Conducta que lo demuestra', 'Peso (1-5)'], p.valores.map((v) => [v.valor, v.conducta, String(v.peso)]), { num: [2] })}` : '')
+      + (hayDafo ? `<h3>DAFO</h3>${I.table(['Internas', 'Externas'], [[{ h: `<b>Debilidades</b><ul>${li(D.d)}</ul>` }, { h: `<b>Amenazas</b><ul>${li(D.a)}</ul>` }], [{ h: `<b>Fortalezas</b><ul>${li(D.f)}</ul>` }, { h: `<b>Oportunidades</b><ul>${li(D.o)}</ul>` }]])}` : '')
+      + ((p.came || []).length ? `<h3>Acciones estratégicas (CAME)</h3>${I.table(['Tipo', 'Acción', 'Impacto', 'Encaje con los valores'], p.came.map((x) => { const e = encaje(x); return [x.tipo, x.accion, String(x.impacto), e.sc + (e.choques.length ? ' · choca con ' + e.choques.join(', ') : '')]; }), { num: [2] })}` : '');
   };
 })();

@@ -58,7 +58,7 @@
     const out = [];
     const add = (x) => { if (!x.accion || out.some((y) => y.accion === x.accion)) return; out.push(Object.assign({ resp: d.resp, prio: 'Media', plazo: 60 }, x)); };
     // 1. Datos que faltan: sin ellos el diagnóstico es parcial
-    S.needStatus(id).filter((n) => !n.ok).forEach((n) => add({ id: 'd:' + n.i, accion: `Aterrizar el dato: ${n.t}`, origen: 'Datos que faltan', prio: 'Alta', plazo: 15, resp: 'Administración', kpi: 'Datos del módulo completos' }));
+    S.needStatus(id).filter((n) => !n.ok).forEach((n) => add({ id: 'd:' + n.i, accion: `Reunir la información: ${n.t}`, origen: 'Información de gestión', prio: 'Alta', plazo: 15, resp: 'Administración', kpi: 'Información disponible y al día' }));
     // 2. Respuestas del empresario
     d.preguntas.forEach((q) => {
       const v = c.r[q.id]; if (v == null || v === '') return;
@@ -176,48 +176,82 @@
   }
   S.onShowExtra = (S.onShowExtra || []).concat([(id) => { if (D(id)) panel(id); }]);
 
-  /* ---------- Informe 360 ---------- */
+  /* ---------- Informe 360 ----------
+     Dossier del área: resumen ejecutivo (la conclusión primero), situación y diagnóstico, prácticas de gestión,
+     objetivos, riesgos y oportunidades, recomendaciones priorizadas, hoja de ruta y anexo de metodología, fuentes y
+     limitaciones. Habla de la empresa: lo que no se ha podido analizar va en una línea del anexo. */
+  const fuenteDe = (via) => { const v = S.inf.neg(via || ''); const m = /^Cargado desde (.+)$/.exec(v); return m ? `fichero «${m[1].trim()}»` : /a mano/.test(v) ? 'información facilitada por la dirección' : 'cuentas y registros facilitados por la empresa'; };
   S.report360 = function (m) {
-    const I = A.informe, d = D(m.id); if (!d) return S.moduleReport(m);
+    const I = A.informe, N = S.inf, d = D(m.id); if (!d) return S.moduleReport(m);
     I.reset();
-    const P = S.reportParts(m), c = st360(m.id), mz = madurez(m.id), need = S.needStatus(m.id), falta = need.filter((n) => !n.ok), PL = plan(m.id);
+    const P = S.reportParts(m), c = st360(m.id), mz = madurez(m.id), need = S.needStatus(m.id), falta = need.filter((n) => !n.ok);
+    const titulo = N.titulo(m), emp = S.sim.empresaNombre, fd = (x) => new Date(x).toLocaleDateString('es-ES');
     const o = S.origen ? S.origen() : { docs: [], archivos: [] };
     const docs = (o.docs || []).filter((x) => !x.temas || !x.temas.length || x.temas.includes(m.id));
     const objs = c.obj.filter((x) => x.meta !== '' && x.meta != null);
-    const altas = PL.filter((x) => x.prio === 'Alta' && x.estado !== 'Hecha');
-    const nRes = S.notaRes(m.id), nota = nRes ? nRes.n100 : P.sc;
-    const stG = nota === null ? null : nota >= 70 ? 'ok' : nota >= 50 ? 'warn' : 'stop';
-    const resumen = `<p><b>${esc(m.nombre)}${nota === null ? '' : `: ${nota}/100 ${I.pill(stG)}`}.</b> Es la nota de este módulo con el criterio común de Atalaya (la misma de su tarjeta en el cuadro de mando): ${esc(A.nota && A.nota.desglose ? A.nota.desglose(nRes) : '')}${S.notaN(null) != null ? `. La nota del sistema estratégico completo, la de «Este mundo» en la cabecera, es ${S.notaN(null)}/100; la de la empresa es la media de todos los mundos` : ''}${mz.score !== null ? `, entre ellas la madurez de la gestión, ${mz.score}/100 (${mz.resp} de ${mz.total} preguntas respondidas)` : '; el diagnóstico de madurez aún no se ha respondido y no cuenta'}. ${falta.length ? `${falta.length === 1 ? 'Falta 1 dato' : `Faltan ${falta.length} datos`} por aterrizar, así que parte del análisis usa datos de ejemplo o estimados.` : 'Los datos necesarios están cargados.'} ${objs.length ? `El empresario ha fijado ${objs.length} objetivo${objs.length > 1 ? 's' : ''}.` : ''}</p>
-      <p><b>${pl(PL.length, 'acción', 'acciones')}</b> en el plan, ${altas.length} de prioridad alta.${altas[0] ? ` Lo primero: ${esc(altas[0].accion)}` : ''}</p>`;
-    const needT = I.table(['Dato', 'Estado', 'Fuente'], need.map((n) => [n.t, { h: I.pill(n.ok ? 'ok' : 'warn', n.ok ? 'Aterrizado' : 'Falta') }, n.ok ? n.via : (A.C360_TIPOS[n.tipo] || {}).d || '']));
-    const dimT = mz.dims.length ? `<div class="rp-bars">${mz.dims.map((x) => `<div class="rp-bar"><span>${esc(x.dim)}</span><i><b style="width:${x.v}%"></b></i><em>${x.v}</em></div>`).join('')}</div>` : '';
+    // Recomendaciones: el plan del área, sin lo ya hecho, con su fundamento y su impacto esperado
+    const PL = plan(m.id).filter((x) => x.estado !== 'Hecha').map((x) => {
+      const t = x.id[0], r = t === 'r' ? P.R.find((y) => y.nombre === N.frases(x.motivo)) : null, ob = t === 'o' ? c.obj[x.pos] : null;
+      return Object.assign({}, x, { accion: N.frases(x.accion) + (x.estado === 'En curso' ? ' (en curso)' : ''),
+        motivo: t === 'd' ? 'Sin esta información el análisis del área es parcial' : t === 'q' ? 'Práctica de gestión a reforzar: ' + x.motivo : t === 'o' ? 'Objetivo fijado por la dirección' : t === 'r' ? 'Riesgo: ' + N.frases(x.motivo) : N.frases(x.motivo || ''),
+        impactoTxt: x.impacto ? F.eur(x.impacto) + ' al año' : t === 'r' ? (r ? `Riesgo de nivel ${r.nivel}/25 mitigado` : 'Riesgo mitigado') : t === 'o' && ob ? `${ob.k}: ${fmtV(+ob.meta, ob.u)}` : t === 'd' ? 'Diagnóstico completo del área' : x.kpi ? 'Se mide con: ' + x.kpi.replace(/^./, (ch) => ch.toLowerCase()) : '—' });
+    });
+    // Empresa completa: las recomendaciones recogen además las mejoras de mayor impacto de todas las áreas
+    if (P.ids === null) P.Fi.slice(0, 8).forEach((f) => { if (PL.some((y) => y.accion === f.accion)) return; const pz = f.plazo || 90; PL.push({ id: 'f:g', accion: f.accion, motivo: f.hallazgo, prio: (f.impactoEUR || 0) > 20000 ? 'Alta' : 'Media', plazo: pz, h: N.horDe(pz), impacto: f.impactoEUR || 0, impactoTxt: F.eur(f.impactoEUR || 0) + ' al año', resp: (D(f.mod) || {}).resp || d.resp, estado: 'Pendiente' }); });
+    PL.sort((a, b) => N.horDe(a.plazo) - N.horDe(b.plazo) || PRI[a.prio] - PRI[b.prio] || (b.impacto || 0) - (a.impacto || 0));
+    const altas = PL.filter((x) => x.prio === 'Alta');
+    const nRes = S.notaRes(P.ids), nota = !P.con || !(P.eval || P.tiles).some((t) => t.st) ? null : nRes ? nRes.n100 : P.sc;
+    const stG = N.estado(nota);
+    const mzOk = mz && mz.score !== null && isFinite(mz.score), debil = mzOk && mz.dims.length ? mz.dims.slice().sort((a, b) => a.v - b.v)[0] : null;
+    // Resumen ejecutivo: la conclusión primero y los mensajes clave con su cifra
+    const concl = !P.con ? `No se ha dispuesto de información suficiente para analizar «${esc(titulo)}» en ${esc(emp || 'la empresa')}. Este documento delimita el alcance del análisis${PL.length ? ' y fija las primeras actuaciones' : ''}.`
+      : nota === null ? `Este documento analiza «${esc(titulo)}» en ${esc(emp || 'la empresa')}${P.tiles.length ? ` a partir de ${pl(P.tiles.length, 'indicador', 'indicadores')}` : ''}.`
+        : P.ids === null ? `La valoración global de ${esc(emp || 'la empresa')} es de <b>${nota} sobre 100</b> ${I.pill(stG)}: ${N.califica(nota)}.`
+          : `La valoración de «${esc(titulo)}» en ${esc(emp || 'la empresa')} es de <b>${nota} sobre 100</b> ${I.pill(stG)}: ${N.califica(nota)}.`;
+    const extra = [];
+    if (mzOk) extra.push(`<b>Gestión.</b> Las prácticas de gestión del área alcanzan ${mz.score} sobre 100${debil && mz.dims.length > 1 ? `; el punto más débil es «${esc(debil.dim.toLowerCase())}», con ${debil.v}` : ''}.`);
+    if (objs.length) { const x = objs[0]; extra.push(`<b>Objetivos.</b> La dirección ha fijado ${pl(objs.length, 'objetivo', 'objetivos')}${`: ${esc(N.min(x.k))}, de ${fmtV(x.actual === '' ? null : x.actual, x.u)} a ${fmtV(+x.meta, x.u)}${x.fecha ? ' antes del ' + fd(x.fecha) : ''}`}.`); }
+    const p0 = altas[0] || PL[0];
+    const M = N.mensajes(P, { extra, primera: p0 ? `${esc(p0.accion.replace(/\.$/, ''))} (${esc(p0.resp || d.resp)}, ${p0.fecha ? 'antes del ' + fd(p0.fecha) : p0.plazo + ' días'}).` : '' });
+    // Situación
+    const ev = P.con && S.evolucionDe ? S.evolucionDe(m.id) : null;
+    if (ev) ev.rows = ev.rows.filter((r) => r.ta !== r.tb || r.sa !== r.sb);
+    const evH = ev && ev.rows.length ? `<h3>Evolución de los indicadores</h3><p class="rp-lede">Del ${esc(fd(ev.a.fecha))} al ${esc(fd(ev.b.fecha))}.</p>` + I.table(['Indicador', fd(ev.a.fecha), fd(ev.b.fecha)], ev.rows.map((r) => [r.k, { h: `${esc(r.ta)} ${r.sa ? I.pill(r.sa, S.stName[r.sa]) : ''}` }, { h: `${esc(r.tb)} ${r.sb ? I.pill(r.sb, S.stName[r.sb]) : ''}` }])) : '';
+    const situacion = P.tiles.length || P.detalle ? I.section(N.titular(P), `<p>${esc(d.proposito)}</p>` + (P.tiles.length ? I.kpis(P.tiles) : '') + P.detalle + evH) : '';
+    // Prácticas de gestión: solo lo que la dirección ha valorado
     const ESC = ['1 · Nada', '2 · Poco', '3 · A medias', '4 · Bastante', '5 · Sistemático'];
-    const qT = I.table(['Área', 'Pregunta', 'Respuesta', 'Lectura'], d.preguntas.map((q) => { const v = c.r[q.id]; const has = v != null && v !== ''; const bad = has && (q.tipo === 'escala' ? v <= 3 : v === q.malo); return [q.dim, q.q, has ? (q.tipo === 'escala' ? ESC[v - 1] : v === 'si' ? 'Sí' : 'No') : 'Sin responder', { h: has ? I.pill(bad ? (q.tipo === 'escala' && v <= 2 || q.tipo === 'sino' ? 'stop' : 'warn') : 'ok', bad ? 'Genera acción' : 'Bien') : '<span class="rp-muted">—</span>' }]; }));
-    const objT = objs.length ? I.table(['Indicador', 'Actual', 'Meta', 'Brecha', 'Fecha', 'Responsable'], objs.map((x) => { const a = +x.actual, mt = +x.meta; const gap = isFinite(a) && x.actual !== '' ? mt - a : null; return [x.k, fmtV(x.actual === '' ? null : x.actual, x.u), fmtV(mt, x.u), gap == null ? '—' : (gap > 0 ? '+' : '') + fmtV(gap, x.u), x.fecha ? new Date(x.fecha).toLocaleDateString('es-ES') : '—', x.resp || d.resp]; }), { num: [1, 2, 3] }) : I.callout('Todavía no se han fijado objetivos. En el panel «Llevar a la operativa» → Objetivos tiene los sugeridos para este módulo.', 'warn');
-    const planH = PL.length ? HOR.map((h, hi) => { const L = PL.filter((x) => x.h === hi); return L.length ? `<h3>${h}</h3>` + I.table(['Prioridad', 'Acción', 'Por qué', 'Responsable', 'Se mide con', 'Estado'], L.map((x) => [{ h: I.pill(x.prio === 'Alta' ? 'stop' : x.prio === 'Media' ? 'warn' : 'ok', x.prio) }, x.accion, x.origen + (x.motivo ? ': ' + x.motivo : '') + (x.impacto ? ` (${F.eur(x.impacto)} al año)` : ''), x.resp || '', x.kpi || '—', x.estado])) : ''; }).join('') : '<p class="rp-muted">Sin acciones todavía.</p>';
-    const cadT = I.table(['Frecuencia', 'Qué se revisa', 'Quién'], d.cadencia);
-    const html = I.cover({ tipo: 'Informe 360', kicker: 'Sistema estratégico · ' + S.grupoN(m.grupo), titulo: m.nombre, subtitulo: d.pregunta, empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre })
-      + I.summary('Resumen ejecutivo', resumen, stG)
-      + I.section('Qué pretendemos trabajar', `<p>${esc(d.proposito)}</p><h3>El módulo a su máxima expresión</h3><ul>${d.maxima.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`)
-      + I.section('Datos de partida', needT + (docs.length ? `<h3>Documentación de contexto</h3><ul>${docs.map((x) => `<li><b>${esc(x.nombre)}</b> <span class="rp-muted">· ${F.num(x.chars)} caracteres</span></li>`).join('')}</ul>` : '') + (falta.length ? I.callout(`<b>Para completar el diagnóstico:</b> ${falta.map((n) => esc(n.t)).join(' · ')}. Súbalo en la zona de origen y vuelva a generar el informe.`, 'warn') : ''), 'Lo que este módulo necesita y de dónde ha salido cada dato.')
-      + I.section('Foto actual', (P.tiles.length ? I.kpis(P.tiles) : '') + (P.detalle || '<p class="rp-muted">Sin análisis disponible.</p>'))
-      + (() => { const ev = S.evolucionDe && S.evolucionDe(m.id); if (!ev || !ev.rows.length) return ''; const fd = (x) => new Date(x.fecha).toLocaleDateString('es-ES'); const sp = (st) => (st ? I.pill(st, S.stName[st]) : ''); return I.section('Evolución', I.table(['Indicador', fd(ev.a), fd(ev.b)], ev.rows.map((r) => [r.k, { h: `${esc(r.ta)} ${sp(r.sa)}` }, { h: `${esc(r.tb)} ${sp(r.sb)}` }])), `Del primer corte del diagnóstico guardado (${esc(ev.a.etiqueta)}) al último (${esc(ev.b.etiqueta)}).`); })()
-      + I.section('Madurez de la gestión', (mz.score !== null ? `<p>Madurez global: <b>${mz.score}/100</b>. Por áreas de gestión:</p>${dimT}` : I.callout('El diagnóstico está sin responder: el plan de acción se apoya solo en los datos. Responda las preguntas del panel para completarlo.', 'warn')) + qT, 'Cómo se gestiona hoy, según las respuestas del empresario. Cada respuesta débil genera una acción.')
-      + I.section('Objetivos', objT)
-      + I.section('Riesgos', I.risks(P.R), 'Nivel = probabilidad × impacto (de 1 a 25). Verde por debajo de 8, ámbar hasta 14, rojo desde 15.')
-      + I.section('Hallazgos y mejoras', I.findings(P.Fi, F.eur))
-      + I.section('Plan de acción', planH, 'Ordenado por plazo y prioridad. Cada acción indica de dónde sale y con qué indicador se medirá.')
-      + I.section('Cómo llevarlo a la operativa', `<h3>Lo que añadiría un consultor</h3><ul>${d.consultor.map((x) => `<li>${esc(x)}</li>`).join('')}</ul><h3>Cadencia de seguimiento</h3>${cadT}`)
-      + (c.notas ? I.section('Notas del empresario', `<p>${esc(c.notas).replace(/\n/g, '<br>')}</p>`) : '')
-      + I.section('Próximos pasos', `<ol class="rp-steps">${(altas.length ? altas : PL).slice(0, 5).map((x) => `<li><b>${esc(x.accion)}</b> <span class="rp-muted">${esc(x.resp || '')} · ${x.fecha ? new Date(x.fecha).toLocaleDateString('es-ES') : 'en ' + x.plazo + ' días'}</span></li>`).join('') || '<li>Responder el diagnóstico y fijar objetivos.</li>'}</ol>`)
-      + I.foot();
-    const ordenados = (altas.length ? altas.concat(PL.filter((x) => !altas.includes(x))) : PL).filter((x) => x.estado !== 'Hecha');
+    const resp = d.preguntas.map((q) => { const v = c.r[q.id]; if (v == null || v === '') return null; if (q.tipo === 'escala' ? !(+v >= 1 && +v <= 5) : !/^(si|no)$/.test(v)) return null; const bad = q.tipo === 'escala' ? v <= 3 : v === q.malo; return [q.dim, q.q, q.tipo === 'escala' ? ESC[v - 1] : v === 'si' ? 'Sí' : 'No', { h: I.pill(bad ? (q.tipo === 'escala' && v <= 2 || q.tipo === 'sino' ? 'stop' : 'warn') : 'ok', bad ? 'A reforzar' : 'Adecuada') }]; }).filter(Boolean);
+    const dimT = mzOk && mz.dims.length ? `<div class="rp-bars">${mz.dims.filter((x) => isFinite(x.v)).map((x) => `<div class="rp-bar"><span>${esc(x.dim)}</span><i><b style="width:${x.v}%"></b></i><em>${x.v}</em></div>`).join('')}</div>` : '';
+    const gestion = resp.length ? I.section(mzOk ? `Las prácticas de gestión alcanzan ${mz.score} sobre 100${debil && mz.dims.length > 1 ? `; el punto débil es «${debil.dim.toLowerCase()}»` : ''}` : 'Prácticas de gestión', dimT + I.table(['Ámbito', 'Práctica valorada', 'Valoración de la dirección', 'Lectura'], resp) + `<h3>Nivel de gestión de referencia</h3><ul>${d.maxima.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`, 'Cómo se gestiona hoy el área, según la valoración de la dirección, frente al nivel de referencia.') : '';
+    const objT = objs.length ? I.section(`La dirección ha fijado ${pl(objs.length, 'objetivo', 'objetivos')} para el área`, I.table(['Indicador', 'Actual', 'Meta', 'Brecha', 'Fecha', 'Responsable'], objs.map((x) => { const a = +x.actual, mt = +x.meta; const gap = isFinite(a) && x.actual !== '' ? mt - a : null; return [x.k, fmtV(x.actual === '' ? null : x.actual, x.u), fmtV(mt, x.u), gap == null ? '—' : (gap > 0 ? '+' : '') + fmtV(gap, x.u), x.fecha ? fd(x.fecha) : '—', x.resp || d.resp]; }), { num: [1, 2, 3] })) : '';
+    // Hoja de ruta: hitos por horizonte, seguimiento y líneas de trabajo de mayor alcance
+    const guia = N.conGuia() && PL.length > 0; // la hoja de ruta de implantación y el seguimiento van a continuación, con el consultor
+    const ruta = () => I.section(guia ? 'Líneas de trabajo de mayor alcance' : 'Hoja de ruta', (guia ? '' : (PL.length ? N.hojaDeRuta(PL) : '') + `<h3>Seguimiento</h3>${I.table(['Frecuencia', 'Qué se revisa', 'Quién'], d.cadencia)}<h3>Líneas de trabajo de mayor alcance</h3>`) + `<ul>${d.consultor.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>${!resp.length ? `<h3>Nivel de gestión de referencia</h3><ul>${d.maxima.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`, guia ? 'Trabajos de fondo que consolidan las recomendaciones anteriores.' : PL.length ? 'Hitos por horizonte, con su responsable, y ritmo de seguimiento.' : '');
+    // Anexo: fuentes y limitaciones de la información
+    const fuentes = need.filter((n) => n.ok).map((n) => `${esc(n.t)}: ${esc(fuenteDe(n.via))}.`).concat(docs.map((x) => `Documento de contexto: «${esc(x.nombre)}».`)).concat(resp.length ? ['Valoración de las prácticas de gestión por la dirección de la empresa.'] : []);
+    const limites = [];
+    if (falta.length) limites.push(`No se ha dispuesto de: ${falta.map((n) => esc(n.t.replace(/\.$/, '').replace(/^./, (ch) => ch.toLowerCase()))).join('; ')}.${P.con ? ' Las conclusiones se apoyan en el resto de la información.' : ' El documento no incluye cifras de esta área.'}`);
+    else if (!P.con && !P.limite) limites.push('No se ha dispuesto de la información necesaria para cuantificar esta área; el documento no incluye sus cifras.');
+    if (P.sinCalc.length) limites.push(`No se han podido calcular por falta de información: ${esc(P.sinCalc.join(', ').toLowerCase())}.`);
+    if (P.limite) limites.push(esc(P.limite));
+    if (!resp.length) limites.push('Las prácticas de gestión del área no se han valorado con la dirección; las recomendaciones se apoyan en las cifras.');
+    else if (resp.length < d.preguntas.length) limites.push(`La dirección ha valorado ${resp.length} de las ${d.preguntas.length} prácticas de gestión consideradas.`);
+    if (!objs.length) limites.push('La dirección no ha fijado objetivos cuantificados para esta área.');
+    const html = N.portada({ tipo: 'Informe 360', kicker: S.grupoN(m.grupo) + (P.ilustrativo ? ' · caso ilustrativo' : ''), titulo, subtitulo: d.pregunta, empresa: emp, sector: A.SECTORS[S.sim.sector].nombre, ambito: titulo })
+      + I.summary('Resumen ejecutivo', N.resumen(concl, M), stG)
+      + situacion + gestion + objT
+      + (P.con && P.conRiesgos ? I.section(N.titularRiesgos(P), N.riesgosYmejoras(P)) : '')
+      + (PL.length ? I.section(`Recomendaciones: ${pl(PL.length, 'actuación', 'actuaciones')}, ${altas.length} de prioridad alta`, N.recomendaciones(PL), 'Ordenadas por plazo y prioridad. Cada una indica su fundamento, el impacto esperado, quién responde y cuándo.') : '')
+      + ruta()
+      + (c.notas ? I.section('Consideraciones de la dirección', `<p>${esc(c.notas).replace(/\n/g, '<br>')}</p>`) : '')
+      + N.cierre({ riesgos: P.R.length, fuentes, limites, ilustrativo: P.ilustrativo });
+    const ordenados = altas.concat(PL.filter((x) => !altas.includes(x)));
     const abrir = A.consultorInf ? A.consultorInf.abrir : I.open;
-    abrir({ titulo: 'Informe 360 · ' + m.nombre, html, clave: 'est:' + m.id, ctx: {
-      titulo: m.nombre, tipo: 'Informe 360', empresa: S.sim.empresaNombre, sector: A.SECTORS[S.sim.sector].nombre,
-      pasos: ordenados.slice(0, 10).map((x) => ({ q: x.accion, c: x.origen + (x.motivo ? ': ' + x.motivo : ''), quien: x.resp, cuando: x.fecha || new Date(Date.now() + (x.plazo || 60) * 864e5).toISOString().slice(0, 10), s: x.kpi && x.kpi !== '—' ? x.kpi : 'Acción cerrada en el plan de empresa' })),
+    abrir({ titulo: 'Informe 360 · ' + titulo, html, clave: 'est:' + m.id, ctx: {
+      titulo, tipo: 'Informe 360', empresa: emp, sector: A.SECTORS[S.sim.sector].nombre,
+      pasos: ordenados.slice(0, 10).map((x) => ({ q: x.accion, c: x.motivo, quien: x.resp, cuando: x.fecha || new Date(Date.now() + (x.plazo || 60) * 864e5).toISOString().slice(0, 10), s: x.impacto ? 'Impacto medido: ' + F.eur(x.impacto) + ' al año' : x.kpi && x.kpi !== '—' ? x.kpi : 'Actuación ejecutada y resultado comprobado' })),
       seguimiento: d.cadencia.map((r) => [r[0], r[1], r[2]]),
-      datos: [['Nota del área', nota === null ? '—' : nota + '/100'], ['Indicadores', P.sc === null ? '—' : P.sc + '/100'], ['Madurez de la gestión', mz.score === null ? 'Sin responder' : mz.score + '/100'], ['Datos que faltan', String(falta.length)], ['Riesgos', String(P.R.length)], ['Acciones en el plan', PL.length + ' (' + altas.length + ' de prioridad alta)'], ['Notas del empresario', c.notas ? c.notas.slice(0, 200) : '—']]
+      datos: [['Valoración del área', nota === null ? '—' : nota + '/100'], ['Indicadores en nivel crítico', (P.eval || P.tiles).filter((t) => t.st === 'stop').map((t) => N.min(t.k)).join(', ') || 'Ninguno'], ['Prácticas de gestión', mzOk ? mz.score + '/100' : 'Por valorar con la dirección'], ['Información por obtener', falta.map((n) => n.t).join('; ') || 'Ninguna'], ['Riesgos identificados', String(P.R.length)], ['Recomendaciones', PL.length + ' (' + altas.length + ' de prioridad alta)'], ['Consideraciones de la dirección', c.notas ? c.notas.slice(0, 200) : '—']]
     } });
   };
 })();

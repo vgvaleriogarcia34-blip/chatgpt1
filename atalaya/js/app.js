@@ -1704,24 +1704,29 @@
       ctx.structs = A.compareStructures(state, ctx.mods); ctx.plan = A.correctionPlan(state, ctx.mods);
     }
   }
+  // Opciones del informe: el caso de ejemplo se presenta como caso ilustrativo, nunca como cifras de la empresa
+  const repOpts = () => ({ scenarios: repSc, ejemplo: esEjemplo(), nombreEjemplo: NOMBRE_EJEMPLO });
   function openReport() {
+    // Sin cifras de la empresa no hay nada que informar: aviso de trabajo en pantalla, no un documento
+    if (sinDatosEmp()) { toast('El informe se emite cuando estén las cifras de la empresa: ventas, márgenes, caja y deuda.'); return; }
     ensureHeavy();
     repSc = repSc || A.SCENARIOS.map((s) => s.key);
     const ov = $('#report');
     ov.hidden = false; document.body.style.overflow = 'hidden';
+    const nota = esEjemplo() ? 'Las cifras son las de la empresa de ejemplo: el documento se emite como caso ilustrativo. Cargue las cuentas de la empresa para emitirlo a su nombre.' : sinInversion() ? 'Sin una inversión definida, el documento recoge solo la situación de partida de la empresa y su proyección.' : '';
     ov.innerHTML = `<div class="report-bar"><b style="font-family:var(--font-display);font-size:1.1rem;color:var(--gold-soft)">Informe</b>
       ${A.SCENARIOS.map((s) => `<label><input type="checkbox" data-rs="${s.key}" ${repSc.indexOf(s.key) >= 0 ? 'checked' : ''}>${s.nombre}</label>`).join('')}
-      <span class="spacer"></span><button class="btn" id="repPdf">Descargar PDF</button><button class="btn ghost" id="repCopy">Copiar texto</button><button class="btn solid" id="repClose">Cerrar</button></div><article class="paper rp" id="paper"></article>`;
+      <span class="spacer"></span><button class="btn" id="repPdf">Descargar PDF</button><button class="btn ghost" id="repCopy">Copiar texto</button><button class="btn solid" id="repClose">Cerrar</button></div>${nota ? `<p class="rp-hint" role="note">${nota}</p>` : ''}<article class="paper rp" id="paper"></article>`;
     drawPaper();
-    $$('[data-rs]', ov).forEach((c) => c.onchange = () => { repSc = $$('[data-rs]', ov).filter((x) => x.checked).map((x) => x.dataset.rs); drawPaper(); });
+    $$('[data-rs]', ov).forEach((c) => c.onchange = () => { const sel = $$('[data-rs]', ov).filter((x) => x.checked).map((x) => x.dataset.rs); if (!sel.length) { c.checked = true; return; } repSc = sel; drawPaper(); });
     $('#repClose').onclick = closeReport;
-    $('#repCopy').onclick = () => copy(A.report.text(state, ctx), 'Resumen copiado');
-    $('#repPdf').onclick = (e) => A.informe && A.informe.pdf($('#paper'), { titulo: 'Informe de decisión · ' + (state.proyecto || 'inversión'), boton: e.currentTarget });
+    $('#repCopy').onclick = () => copy(A.report.text(state, ctx, repOpts()), 'Resumen copiado');
+    $('#repPdf').onclick = (e) => A.informe && A.informe.pdf($('#paper'), { titulo: (sinInversion() ? 'Situación de partida · ' + (state.empresaNombre || 'empresa') : 'Informe de decisión · ' + (state.proyecto || 'inversión')), boton: e.currentTarget });
   }
   function drawPaper() {
-    $('#paper').innerHTML = A.report.build(state, ctx, { scenarios: repSc });
+    $('#paper').innerHTML = A.report.build(state, ctx, repOpts());
     const series = ctx.all.filter((x) => repSc.indexOf(x.key) >= 0).map((x) => ({ name: x.nombre, data: x.r.w.liquidez, color: A.scenarioColor(x.key), active: x.key === state.escenario }));
-    if (series.length) C.cash($('#repCash'), null, series, { target: state.meta.cajaMin, start: ctx.active.start });
+    if (series.length) C.cash($('#repCash'), null, sinInversion() ? series.filter((x) => x.active) : series, { target: state.meta.cajaMin, start: sinInversion() ? 0 : ctx.active.start });
   }
   function closeReport() { const ov = $('#report'); if (ov && !ov.hidden) { ov.hidden = true; document.body.style.overflow = ''; } }
 
@@ -1784,7 +1789,7 @@
       $$('[data-shock]', card).forEach((b) => b.onclick = () => { addHyp(b.dataset.shock); card.hidden = true; });
     });
     $('#openReport').addEventListener('click', openReport);
-    $('#copySummary').addEventListener('click', () => { ensureHeavy(); copy(A.report.text(state, ctx), 'Resumen ejecutivo copiado'); });
+    $('#copySummary').addEventListener('click', () => { if (sinDatosEmp()) { toast('El resumen se emite cuando estén las cifras de la empresa.'); return; } ensureHeavy(); copy(A.report.text(state, ctx, { ejemplo: esEjemplo(), nombreEjemplo: NOMBRE_EJEMPLO }), 'Resumen ejecutivo copiado'); });
     $('#glossSearch').addEventListener('input', renderGloss);
     setupFin();
     renderGloss();

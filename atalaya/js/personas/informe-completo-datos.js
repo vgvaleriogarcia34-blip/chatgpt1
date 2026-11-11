@@ -43,7 +43,7 @@
     D: {
       entorno: ['Retos y metas ambiciosas', 'Autonomía para decidir el cómo', 'Resultados visibles y medibles', 'Variedad de responsabilidades', 'Poco control sobre los detalles'],
       motiv: ['Superar retos', 'Lograr resultados', 'Poder de decisión', 'Reconocimiento por lo conseguido', 'Oportunidades de crecimiento'],
-      estilo: [['Método de control', 'Dirigir y decidir'], ['Evalúa a los demás', 'Por sus resultados'], ['Reacción bajo presión', 'Puede volverse autoritario'], ['Posible temor', 'Perder el control'], ['Emoción predominante', 'Impaciencia'], ['Cómo influye', 'Con determinación'], ['Área a trabajar', 'Escuchar antes de decidir']],
+      estilo: [['Método de control', 'Dirigir y decidir'], ['Evalúa a los demás', 'Por sus resultados'], ['Reacción bajo presión', 'Puede imponer su criterio en exceso'], ['Posible temor', 'Perder el control'], ['Emoción predominante', 'Impaciencia'], ['Cómo influye', 'Con determinación'], ['Área a trabajar', 'Escuchar antes de decidir']],
       relaciona: ['Toma la iniciativa en la conversación', 'Va directo al asunto', 'Plantea retos a los demás', 'Puede parecer brusco o impaciente', 'Respeta a quien le habla claro', 'Defiende sus posiciones con fuerza'],
       prefiere: ['Ir al grano y con brevedad', 'Presentar opciones y sus consecuencias', 'Hablar de resultados, no de procesos', 'Dejarle decidir el cómo', 'Cumplir lo que se promete', 'Argumentos sólidos sin rodeos'],
       evitar: ['Divagar o dar rodeos', 'Controlar de cerca su trabajo', 'Hacerle perder el tiempo', 'Decidir sin consultarle', 'Cuestionar su autoridad en público', 'Promesas vagas'],
@@ -153,5 +153,5 @@
   ];
   X.calc = (w, d) => Math.round(Object.keys(w).reduce((a, k) => a + w[k] * (k[0] === '-' ? 100 - d[k.slice(1)] : d[k]), 0));
 
-  X.AVISO = 'Este informe describe tendencias de comportamiento, aportación al equipo y motivación a partir de las respuestas de la persona. No mide la inteligencia, los valores ni la capacidad, y no debe ser el único criterio para ninguna decisión sobre ella. Cada persona es única y más compleja que cualquier herramienta: si algún apartado no le describe, coméntelo con alguien que le conozca bien.';
+  X.AVISO = 'Este informe describe tendencias de comportamiento, aportación al equipo y motivación a partir de las respuestas de la persona. No mide la inteligencia, los valores ni la capacidad, y no debe ser el único criterio para ninguna decisión sobre ella. Cada persona es única y más compleja que cualquier cuestionario: si algún apartado no le describe, coméntelo con alguien que le conozca bien.';
 })();

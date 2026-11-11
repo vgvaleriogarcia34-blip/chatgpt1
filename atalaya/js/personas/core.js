@@ -89,7 +89,7 @@
       const dif = ['D', 'I', 'S', 'C'].map((k) => ({ k, d: (pu.disc[k] || 0) - p.disc[k] }));
       const media = dif.reduce((a, x) => a + Math.abs(x.d), 0) / 4;
       out.disc = r0(clamp(100 - media * 1.4, 0, 100));
-      dif.filter((x) => Math.abs(x.d) >= 25).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).forEach((x) => out.brechas.push({ tipo: 'disc', k: x.k, d: x.d, txt: x.d > 0 ? `El puesto pide más ${H.DISC[x.k].n.toLowerCase()} (${pu.disc[x.k]} frente a ${p.disc[x.k]}).` : `Tiene bastante más ${H.DISC[x.k].n.toLowerCase()} de la que pide el puesto (${p.disc[x.k]} frente a ${pu.disc[x.k]}): riesgo de que se aburra o choque.` }));
+      dif.filter((x) => Math.abs(x.d) >= 25).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).forEach((x) => out.brechas.push({ tipo: 'disc', k: x.k, d: x.d, txt: x.d > 0 ? `El puesto pide más ${H.DISC[x.k].n.toLowerCase()} (${pu.disc[x.k]} frente a ${p.disc[x.k]}).` : `Tiene bastante más ${H.DISC[x.k].n.toLowerCase()} de la que pide el puesto (${p.disc[x.k]} frente a ${pu.disc[x.k]}): conviene ampliar el contenido del puesto o dar cauce a esa capacidad.` }));
     }
     if (p.roles && p.roles.scores && pu.roles && pu.roles.length) {
       const v = pu.roles.map((k) => ({ k, v: p.roles.scores[k] || 0 }));
@@ -140,7 +140,7 @@
     }
     if (out.faltan.length) out.avisos.push({ st: out.faltan.length > 2 ? 'stop' : 'warn', t: `Aportaciones sin cubrir: ${out.faltan.map((k) => H.ROLES[k].n.toLowerCase()).join(', ')}. ${H.ROLES[out.faltan[0]].falta}` });
     if (out.tensiones.length) out.avisos.push({ st: 'warn', t: `${out.tensiones.length} posible${out.tensiones.length > 1 ? 's' : ''} punto${out.tensiones.length > 1 ? 's' : ''} de fricción entre estilos. No son conflictos: son diferencias que conviene pactar.` });
-    if (miembros.length && conDisc.length < miembros.length) out.avisos.push({ st: 'info', t: `${miembros.length - conDisc.length} de ${miembros.length} personas no tienen aún su DISC: el análisis es parcial.` });
+    if (miembros.length && conDisc.length < miembros.length) out.avisos.push({ st: 'info', t: `La valoración del estilo de comportamiento cubre a ${conDisc.length} de ${miembros.length} personas: las conclusiones sobre estilos se refieren a ese grupo.` });
     // Próxima incorporación: el rol que más falta y el estilo menos presente
     if (conRoles.length || conDisc.length) {
       const rolF = out.faltan[0] || (conRoles.length ? out.cobertura.slice().sort((a, b) => (a.best ? a.best.v : 0) - (b.best ? b.best.v : 0))[0].k : null);
@@ -160,7 +160,7 @@
     const niveles = ps.length ? Math.max(...ps.map(nivel)) + 1 : 0;
     const ocupantes = (id) => ps.filter((p) => p.puestoId === id);
     const avisos = [];
-    if (ps.length > 1 && raices.length > 1) avisos.push({ st: 'warn', t: `${raices.length} personas no dependen de nadie (${raices.slice(0, 4).map((p) => p.nombre).join(', ')}${raices.length > 4 ? '…' : ''}). Lo normal es una sola cabecera: revise de quién depende cada una.` });
+    if (ps.length > 1 && raices.length > 1) avisos.push({ st: 'warn', t: `${raices.length} personas no dependen de nadie (${raices.slice(0, 4).map((p) => p.nombre).join(', ')}${raices.length > 4 ? '…' : ''}). Lo habitual es una sola cabecera: conviene aclarar la línea de dependencia de cada una.` });
     mandos.filter((m) => m.n > 8).forEach((m) => avisos.push({ st: 'warn', t: `${m.p.nombre} tiene ${m.n} personas a su cargo: más de 8 suele significar poco tiempo para cada una. Valore un mando intermedio.` }));
     mandos.filter((m) => m.n === 1 && ps.length > 4).forEach((m) => avisos.push({ st: 'info', t: `${m.p.nombre} tiene una sola persona a su cargo: un nivel que quizá no hace falta.` }));
     if (niveles > 4 && ps.length < 50) avisos.push({ st: 'warn', t: `${niveles} niveles jerárquicos para ${ps.length} personas: demasiadas capas para una pyme; la información tarda en subir y bajar.` });
@@ -169,9 +169,9 @@
       if (!occ.length) avisos.push({ st: 'stop', t: `El puesto crítico «${x.nombre}» está sin cubrir.` });
       else if (!x.sucesor || !R.persona(x.sucesor)) avisos.push({ st: 'stop', t: `El puesto crítico «${x.nombre}» no tiene sucesor: si ${occ[0].nombre} falta, nadie puede asumirlo.` });
     });
-    pu.filter((x) => !x.critico && !ocupantes(x.id).length).forEach((x) => avisos.push({ st: 'info', t: `El puesto «${x.nombre}» está definido pero sin persona asignada.` }));
+    pu.filter((x) => !x.critico && !ocupantes(x.id).length).forEach((x) => avisos.push({ st: 'info', t: `El puesto «${x.nombre}» está vacante.` }));
     const sinPuesto = ps.filter((p) => !R.puestoDe(p));
-    if (sinPuesto.length) avisos.push({ st: 'info', t: `${sinPuesto.length} persona${sinPuesto.length > 1 ? 's' : ''} sin puesto asignado: sin puesto no se puede medir el encaje.` });
+    if (sinPuesto.length) avisos.push({ st: 'info', t: `${sinPuesto.length} persona${sinPuesto.length > 1 ? 's no tienen' : ' no tiene'} un puesto definido en el organigrama: su encaje con el puesto queda sin valorar.` });
     // Áreas que dependen de una sola persona
     const areas = {}; ps.forEach((p) => { const a = p.area || (R.puestoDe(p) || {}).area; if (a) (areas[a] = areas[a] || []).push(p); });
     Object.keys(areas).filter((a) => areas[a].length === 1 && ps.length > 3).forEach((a) => avisos.push({ st: 'warn', t: `El área de ${a} depende de una sola persona (${areas[a][0].nombre}).` }));
@@ -186,7 +186,7 @@
     '2-1': { n: 'Por ajustar', a: 'Objetivos claros y acompañamiento; revise el encaje con el puesto.' },
     '2-2': { n: 'Pilar', a: 'Base estable del equipo: reconozca su aportación y desarróllela en su puesto.' },
     '2-3': { n: 'Alto desempeño', a: 'Reconozca su trabajo, amplíe sus responsabilidades y valore si puede crecer más.' },
-    '1-1': { n: 'Situación de riesgo', a: 'Conversación franca, plan de mejora concreto y revise si el puesto es el adecuado.' },
+    '1-1': { n: 'A reconducir', a: 'Conversación franca, plan de mejora concreto y revise si el puesto es el adecuado.' },
     '1-2': { n: 'Eficaz', a: 'Cumple en su puesto: mantenga la motivación y el reconocimiento.' },
     '1-3': { n: 'Experto de confianza', a: 'Aproveche su conocimiento: que forme a otros y documente lo que sabe.' }
   };
@@ -199,11 +199,11 @@
     const out = [], add = (id, motivo, prio) => { const t = tab(id); if (!t) return; const ya = out.find((x) => x.t.id === id); if (ya) { if (!ya.motivos.includes(motivo)) ya.motivos.push(motivo); ya.prio = Math.min(ya.prio, prio); return; } out.push({ t, motivos: [motivo], prio }); };
     const pu = R.puestoDe(p), enc = R.encaje(p, pu);
     if (enc) enc.brechas.forEach((b) => { if (b.tipo === 'rol') add('r-' + b.k, `Su puesto (${pu.nombre}) pide la aportación de ${H.ROLES[b.k].n.toLowerCase()}.`, 1); else if (b.d > 0) add(MAS_DISC[b.k], `Su puesto pide más ${H.DISC[b.k].n.toLowerCase()}.`, 1); });
-    if (p.disc) { const e = R.discEstilo(p.disc); if (p.disc[e.pri] >= 65) H.TABLILLAS.filter((t) => t.cuando.disc === e.pri).forEach((t) => add(t.id, `Su estilo principal es ${H.DISC[e.pri].n.toLowerCase()} (${p.disc[e.pri]}): entrena sus excesos.`, 2)); }
-    if (p.enea && p.enea.tipo) add('e-' + p.enea.tipo, `Eneatipo ${p.enea.tipo} · ${H.ENEA[p.enea.tipo].n}.`, 3);
+    if (p.disc) { const e = R.discEstilo(p.disc); if (p.disc[e.pri] >= 65) H.TABLILLAS.filter((t) => t.cuando.disc === e.pri).forEach((t) => add(t.id, `Su estilo principal es ${H.DISC[e.pri].n.toLowerCase()} (${p.disc[e.pri]} sobre 100): le ayuda a modular su intensidad.`, 2)); }
+    if (p.enea && p.enea.tipo) add('e-' + p.enea.tipo, `Responde a su motivación principal: ${H.ENEA[p.enea.tipo].motivacion.charAt(0).toLowerCase() + H.ENEA[p.enea.tipo].motivacion.slice(1)}`, 3);
     R.state.equipos.filter((q) => q.miembros.includes(p.id)).forEach((q) => {
       const an = R.analizarEquipo(q.miembros);
-      an.faltan.forEach((k) => { if (p.roles && p.roles.scores && p.roles.scores[k] >= 45) add('r-' + k, `Al equipo ${q.nombre} le falta la aportación de ${H.ROLES[k].n.toLowerCase()} y es quien más cerca está de cubrirlo.`, 1); });
+      an.faltan.forEach((k) => { if (p.roles && p.roles.scores && p.roles.scores[k] >= 45) add('r-' + k, `Al equipo ${q.nombre} le falta la aportación de ${H.ROLES[k].n.toLowerCase()} y es quien más cerca está de cubrirla.`, 1); });
     });
     return out.sort((a, b) => a.prio - b.prio);
   };

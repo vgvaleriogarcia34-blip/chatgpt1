@@ -44,7 +44,7 @@
         q('p3', 'Proceso', '¿Las acciones del plan tienen responsable, fecha y seguimiento?', 'Revisar el plan de acción cada mes en la reunión de dirección: ninguna acción sin responsable ni fecha.', 'Dirección general', 30, 'Acciones del plan hechas'),
         q('p4', 'Personas', '¿El equipo sabe cómo contribuye su trabajo a los objetivos?', 'Traducir los objetivos en dos o tres metas por área y explicarlas en una reunión general.', 'Dirección y mandos', 60, 'Áreas con metas'),
         s('p5', 'Estrategia', '¿Hay un plan de relevo para los puestos clave, incluida la dirección?', 'no', 'Identificar los puestos críticos y nombrar un relevo para cada uno con su plan de preparación.', 'Propiedad', 120, 'Puestos críticos con relevo'),
-        q('p6', 'Datos', '¿El DAFO se apoya en datos (márgenes, clientes, mercado) o en opiniones?', 'Revisar el DAFO cada semestre con los datos de Atalaya y cerrar cada punto con su CAME.', 'Dirección general', 60, 'Puntos del DAFO con dato')
+        q('p6', 'Datos', '¿El DAFO se apoya en datos (márgenes, clientes, mercado) o en opiniones?', 'Revisar el DAFO cada semestre con los datos de gestión y cerrar cada punto con su CAME.', 'Dirección general', 60, 'Puntos del DAFO con dato')
       ],
       objetivos: [{ k: 'Acciones del plan hechas', u: '%', dir: 'subir', sug: 80, kpi: 'Acciones del plan hechas' }],
       cadencia: [['Mensual', 'Avance de las acciones y bloqueos', 'Comité de dirección'], ['Trimestral', 'Objetivos, DAFO y CAME', 'Dirección general'], ['Anual', 'Visión, valores, plan a tres años y presupuesto', 'Propiedad y dirección']]
@@ -57,7 +57,7 @@
       consultor: ['Entrevistas estructuradas a la propiedad, la dirección y los mandos.', 'Revisión documental y cuadre de los datos de gestión con la contabilidad.', 'Presentación a la propiedad con una hoja de ruta de doce meses.', 'Revisión trimestral del avance de las recomendaciones.'],
       datos: [{ t: 'Balances y cuentas de resultados', tipo: 'cuentas' }, { t: 'Ventas por cliente', tipo: 'ventas' }, { t: 'Compras por proveedor', tipo: 'compras' }, { t: 'Plantilla', tipo: 'plantilla' }, { t: 'Informes o documentos de trabajo recientes', tipo: 'documentos' }],
       preguntas: [
-        q('a1', 'Datos', '¿Están cargados y revisados los datos de todas las áreas?', 'Completar en la zona de origen la carga de los listados que faltan (ver «Lo que falta» en cada módulo).', 'Administración', 30, 'Módulos con datos completos'),
+        q('a1', 'Datos', '¿Dispone de datos completos y revisados de todas las áreas?', 'Reunir y revisar los listados de gestión que faltan: ventas, compras, plantilla y cuentas.', 'Administración', 30, 'Áreas con información completa'),
         s('a2', 'Proceso', '¿Se hizo un diagnóstico de la empresa en los últimos doce meses?', 'no', 'Fijar un diagnóstico anual con fecha y comparar siempre con el anterior.', 'Dirección general', 60, 'Diagnósticos anuales'),
         q('a3', 'Estrategia', '¿Se aplicaron las recomendaciones de diagnósticos anteriores?', 'Crear el registro de recomendaciones: estado, responsable y fecha, revisado cada trimestre.', 'Dirección general', 60, 'Recomendaciones cerradas'),
         q('a4', 'Personas', '¿La propiedad y la dirección están alineadas sobre las prioridades?', 'Sesión de alineamiento entre propiedad y dirección sobre las cinco prioridades del informe.', 'Propiedad', 30, 'Prioridades acordadas'),
@@ -79,7 +79,7 @@
         q('d3', 'Proceso', '¿Se reclaman los cobros vencidos de forma sistemática?', 'Rutina semanal de cobros: listado de vencidos, llamada a los 7 días y bloqueo de pedidos a los 30.', 'Administración', 15, 'Saldo vencido'),
         q('d4', 'Estrategia', '¿Los dividendos y las retiradas de los socios se deciden mirando la caja y las inversiones?', 'Política de reparto: porcentaje máximo del beneficio y caja mínima previa al reparto.', 'Propiedad', 90, 'Reparto sobre beneficio'),
         s('d5', 'Herramientas', '¿Controla las existencias con un inventario fiable al menos cada trimestre?', 'no', 'Inventario trimestral y lista de existencias lentas para liquidar.', 'Operaciones', 60, 'Existencias sin movimiento'),
-        q('d6', 'Estrategia', '¿Sabe cuánta caja consumirá el circulante si la empresa crece?', 'Medir en el simulador la caja que consume crecer y negociar la financiación antes de necesitarla.', 'Dirección financiera', 30, 'Necesidad de circulante prevista')
+        q('d6', 'Estrategia', '¿Sabe cuánta caja consumirá el circulante si la empresa crece?', 'Medir con un modelo financiero la caja que consume crecer y negociar la financiación antes de necesitarla.', 'Dirección financiera', 30, 'Necesidad de circulante prevista')
       ],
       objetivos: [{ k: 'Beneficio que llega a caja', u: '%', dir: 'subir', sug: 60, kpi: 'Beneficio que llega a caja' }, { k: 'Atrapado en circulante', u: '€', dir: 'bajar', kpi: 'Atrapado en circulante' }],
       cadencia: [['Semanal', 'Cobros vencidos y acciones', 'Administración'], ['Mensual', 'Días de cobro, existencias y pago', 'Dirección financiera'], ['Anual', 'Reparto, reinversión y conversión en caja', 'Propiedad y dirección']]
@@ -246,9 +246,9 @@
       consultor: ['Categorías de tiempo comunes a toda la empresa.', 'Registro ligero durante cuatro semanas en los puestos clave.', 'Análisis de causas de esperas y retrabajos.', 'Liberación de capacidad y estándares de trabajo.'],
       datos: [{ t: 'Partes de trabajo o registros de horas por persona y tarea', tipo: 'tiempos' }, { t: 'Plantilla con coste', tipo: 'plantilla' }],
       preguntas: [
-        q('h1', 'Datos', '¿Se registran las horas por tarea o por proyecto?', 'Usar el reloj de tareas durante cuatro semanas en los puestos clave.', 'Mandos', 30, 'Horas registradas'),
+        q('h1', 'Datos', '¿Se registran las horas por tarea o por proyecto?', 'Registrar las horas por tarea durante cuatro semanas en los puestos clave.', 'Mandos', 30, 'Horas registradas'),
         q('h2', 'Proceso', '¿Se analizan las causas de las esperas y los retrabajos?', 'Reunión quincenal de causas: las tres principales esperas y retrabajos y su solución.', 'Producción', 30, 'Horas de esperas y retrabajos'),
-        s('h3', 'Estrategia', '¿Sabe cuántas horas libres tiene para crecer sin contratar?', 'no', 'Calcular la capacidad libre por equipo y usarla en el simulador.', 'Dirección general', 60, 'Capacidad libre'),
+        s('h3', 'Estrategia', '¿Sabe cuántas horas libres tiene para crecer sin contratar?', 'no', 'Calcular la capacidad libre por equipo y usarla en la planificación del crecimiento.', 'Dirección general', 60, 'Capacidad libre'),
         q('h4', 'Personas', '¿El equipo entiende por qué se mide el tiempo?', 'Explicar el objetivo (quitar esperas, no vigilar) y compartir los resultados.', 'Dirección general', 15, 'Participación en el registro'),
         s('h5', 'Proceso', '¿Hay tiempos estándar para las tareas repetitivas?', 'no', 'Definir el tiempo estándar de las diez tareas más frecuentes.', 'Producción', 90, 'Tareas con estándar')
       ],
@@ -294,7 +294,7 @@
     expansion: {
       pregunta: '¿Dónde y cómo crecer?', resp: 'Dirección general',
       proposito: 'Elegir dónde y cómo crecer fuera de su zona con números: mercado, competencia, inversión y plazo de recuperación.',
-      maxima: ['Comparativa de zonas con los mismos criterios.', 'Modelo de entrada decidido (propio, socio o distribuidor).', 'Piloto con presupuesto, rampa e hitos de seguir o salir.', 'La inversión ensayada en el simulador antes de decidir.'],
+      maxima: ['Comparativa de zonas con los mismos criterios.', 'Modelo de entrada decidido (propio, socio o distribuidor).', 'Piloto con presupuesto, rampa e hitos de seguir o salir.', 'La inversión ensayada con escenarios antes de decidir.'],
       consultor: ['Estudio de mercado de las zonas candidatas.', 'Entrevistas a clientes potenciales.', 'Comparación de modelos de entrada por inversión, control y riesgo.', 'Plan piloto con hitos y criterio de salida.'],
       datos: [{ t: 'Estudios de mercado o datos de las zonas candidatas', tipo: 'documentos' }, { t: 'Ventas por cliente (zona actual)', tipo: 'ventas' }],
       preguntas: [
@@ -312,7 +312,7 @@
       pregunta: '¿Qué pasa fuera que me afecta?', resp: 'Dirección general',
       proposito: 'Entender lo que pasa fuera (tipos, inflación, demanda, competencia, regulación) y cómo afecta a la empresa, para anticiparse.',
       maxima: ['Panel de indicadores externos clave vigilado cada trimestre.', 'Sensibilidad al ciclo medida y plan de contingencia.', 'Mapa de competidores con precios y posicionamiento.', 'Riesgos externos con responsable y plan.', 'Vigilancia regulatoria y tecnológica.'],
-      consultor: ['Análisis PESTEL y de las cinco fuerzas del sector.', 'Ficha de los principales competidores.', 'Escenarios macro trasladados al simulador.', 'Plan de contingencia ante una caída de la demanda.'],
+      consultor: ['Análisis PESTEL y de las cinco fuerzas del sector.', 'Ficha de los principales competidores.', 'Escenarios macro trasladados a las previsiones de la empresa.', 'Plan de contingencia ante una caída de la demanda.'],
       datos: [{ t: 'Estudios sectoriales, informes de mercado o de competencia', tipo: 'documentos' }, { t: 'Ventas por cliente', tipo: 'ventas' }],
       preguntas: [
         q('r1', 'Datos', '¿Sigue con regularidad los indicadores externos que afectan a su negocio?', 'Panel trimestral con cinco indicadores externos clave.', 'Dirección general', 30, 'Indicadores vigilados'),
@@ -328,16 +328,16 @@
     evolucion: {
       pregunta: '¿La empresa mejora o empeora?', resp: 'Dirección general',
       proposito: 'Pasar de la foto a la película: comparar el diagnóstico de hoy con el de hace un mes, un trimestre o un año para saber si las decisiones están funcionando.',
-      maxima: ['Un corte del diagnóstico cada mes, guardado y comparable.', 'Cada cambio relevante (cargar cuentas, una inversión, un cambio de política) con su corte antes y después para medir su efecto.', 'Revisión trimestral de qué semáforos mejoran y cuáles empeoran, con su explicación.', 'La propiedad ve la tendencia, no solo el dato del mes.'],
+      maxima: ['Una medición del diagnóstico cada mes, comparable con las anteriores.', 'Cada cambio relevante (una inversión, un cambio de política, un nuevo cliente clave) con su medición antes y después para conocer su efecto.', 'Revisión trimestral de qué semáforos mejoran y cuáles empeoran, con su explicación.', 'La propiedad ve la tendencia, no solo el dato del mes.'],
       consultor: ['Fijar el corte de referencia (punto cero) con datos reales antes de empezar a mejorar.', 'Lectura de tendencias: separar lo que mejora por decisiones propias de lo que mejora por el mercado.', 'Informe trimestral de evolución para la propiedad o el consejo.'],
       datos: [{ t: 'Balances y cuentas de resultados de los dos últimos años (punto de partida)', tipo: 'cuentas', alt: 'historico' }],
       preguntas: [
         s('v1', 'Proceso', '¿Tiene una foto de referencia de la empresa (punto cero) con la que comparar?', 'no', 'Guardar ahora un corte de referencia con los datos reales cargados.', 'Dirección general', 7, 'Cortes guardados'),
         q('v2', 'Proceso', '¿Revisa de forma periódica si los indicadores mejoran o empeoran?', 'Revisión trimestral de la evolución: qué mejora, qué empeora y por qué.', 'Dirección general', 90, 'Revisiones trimestrales hechas'),
-        q('v3', 'Estrategia', '¿Mide el efecto de las decisiones importantes (antes y después)?', 'Guardar un corte antes y otro después de cada decisión relevante.', 'Dirección general', 30, 'Decisiones con corte antes y después')
+        q('v3', 'Estrategia', '¿Mide el efecto de las decisiones importantes (antes y después)?', 'Medir los indicadores antes y después de cada decisión relevante.', 'Dirección general', 30, 'Decisiones con medición antes y después')
       ],
       objetivos: [{ k: 'Salud global', u: '/100', dir: 'subir', sug: 75, fn: 'salud' }],
-      cadencia: [['Mensual', 'Corte automático del diagnóstico', 'Atalaya'], ['Trimestral', 'Lectura de la evolución con la dirección', 'Dirección general'], ['Anual', 'Evolución del año para la propiedad', 'Propiedad']]
+      cadencia: [['Mensual', 'Corte mensual del diagnóstico', 'Administración'], ['Trimestral', 'Lectura de la evolución con la dirección', 'Dirección general'], ['Anual', 'Evolución del año para la propiedad', 'Propiedad']]
     },
 
     cobros: {

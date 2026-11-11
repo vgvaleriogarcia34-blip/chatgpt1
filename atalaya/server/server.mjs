@@ -1218,7 +1218,8 @@ const SYSTEM_CHAT = `Eres el asistente de Atalaya, un simulador de inversión y 
 Habla en español claro, con frases cortas y sin jerga; si usas un término técnico, explícalo en una frase.
 Antes de opinar sobre la situación de la empresa, consulta la herramienta ver_situacion. No inventes cifras: usa las del simulador.
 Cuando el usuario pida cambiar algo, hazlo con las herramientas y después explica qué ha cambiado (antes → ahora) y qué significa.
-Si expresa una preocupación, identifica qué semáforos y variables la afectan y propone de una a tres acciones concretas con cifras, empezando por las más sencillas.
+Si expresa una preocupación, identifica qué indicadores y variables de la empresa la afectan y propone de una a tres acciones concretas con cifras, empezando por las más sencillas.
+Cuando analices o valores la empresa, redacta como un consultor de dirección que informa a su cliente. El sujeto es la empresa, nunca la aplicación. Empieza por la conclusión; apóyala en la cifra con su unidad y su periodo y, si existe, en la comparación con el año anterior o con el objetivo; di qué significa para la empresa y termina con la recomendación: qué hacer, impacto esperado y plazo. No presentes como hallazgo nada del funcionamiento de la aplicación (módulos, pasos, pantallas, documentos cargados o datos por introducir): si falta información para un análisis, di en una frase qué dato de la empresa no se ha podido analizar y sigue con lo que sí hay. Voz activa, sin superlativos ni adjetivos vacíos.
 Para estructuras societarias y relaciones entre sociedades de un grupo, explica cómo funcionan con ejemplos y recuerda que la fiscalidad la debe confirmar su asesor.
 Responde en 3-8 frases salvo que pidan detalle. Tus respuestas pueden leerse en voz alta: no uses tablas, asteriscos ni símbolos.
 También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (inicio, simulador de inversión, sistema estratégico, personas y equipos, mesa de trabajo y vista de grupo), a cualquier módulo, capítulo o pestaña, cierras ventanas, mapas e informes y abres el manual en el apartado que necesite. Usa donde_estoy para saber dónde está y qué hay, e ir_a_mundo, ir_a_zona, cerrar y abrir_manual para moverle. Cuando pida ir a un sitio, hazlo directamente y di en una o dos frases qué va a encontrar y qué conviene mirar primero.`;
@@ -1246,12 +1247,14 @@ Busca en fuentes oficiales los datos más recientes y devuelve SOLO un objeto JS
 "porCliente":[{"target","riesgo","oportunidad","nivel":1-5}], "porProducto":[{"tipologia","riesgo","oportunidad","nivel":1-5}],
 "implicaciones":[{"plan":"financiero|comercial|compras|personas|expansion|operaciones|fiscal","accion","prioridad":"alta|media|baja"}],
 "ajustesEscenario":{"ventasF":número entre 0.5 y 1.3 o null,"tipoDelta":puntos o null,"margenDelta":puntos o null,"dsoDelta":días o null,"justificacion"}}
-Incluye al menos: crecimiento del PIB mundial y de la zona euro, tipos del BCE y Euríbor, inflación (IPC) de España, paro, PIB de España, y los indicadores del sector. Cita fecha y fuente de cada dato. No inventes valores: si no encuentras uno, omítelo.`, FUENTES_OFICIALES);
+Incluye al menos: crecimiento del PIB mundial y de la zona euro, tipos del BCE y Euríbor, inflación (IPC) de España, paro, PIB de España, y los indicadores del sector. Cita fecha y fuente de cada dato. No inventes valores: si no encuentras uno, omítelo.
+Redacción: los textos se incorporan tal cual a un informe de mercado para la dirección de la empresa, escrito como lo haría una consultora de estrategia. En español de España, frases cortas, voz activa, sin superlativos ni adjetivos vacíos, cifras con unidad y periodo. El sujeto es la empresa, su sector y su mercado; no menciones aplicaciones, herramientas, simuladores, búsquedas ni el proceso seguido. "resumen" empieza por la conclusión para esta empresa (qué cambia en su mercado y cuánto le afecta) y la apoya en dos o tres cifras. Cada "impacto" dice qué supone el dato para las ventas, el margen, la financiación o los cobros de esta empresa, no una definición del indicador. "situacion", "riesgos" y "oportunidades" son afirmaciones con su evidencia, cuantificadas cuando la fuente lo permite. Cada "accion" empieza por un verbo en infinitivo y es una recomendación ejecutable por la dirección, con el efecto esperado y el plazo cuando se puedan sostener con los datos. "justificacion" explica con cifras por qué se proponen esos ajustes.`, FUENTES_OFICIALES);
   let comp = { competencia: [] };
   try {
     comp = await pedir(`Fecha de hoy: ${today()}. Empresa: ${ctx}.
 Identifica sus principales competidores en España en su sector y tipologías de producto. Prioriza registros oficiales, informes sectoriales y webs de las propias empresas.
-Devuelve SOLO un JSON: {"competencia":[{"nombre","posicion":"líder|retador|nicho|nuevo entrante","fortalezas","amenaza":1-5,"fuente","url"}]}`);
+Devuelve SOLO un JSON: {"competencia":[{"nombre","posicion":"líder|retador|nicho|nuevo entrante","fortalezas","amenaza":1-5,"fuente","url"}]}
+Redacción de "fortalezas": una o dos frases de informe de consultoría, con hechos comprobables (tamaño, implantación, gama, precio) y lo que suponen para esta empresa; sin adjetivos vacíos y sin mencionar el proceso de búsqueda. No inventes competidores ni cifras.`);
   } catch { /* la competencia es opcional */ }
   return Object.assign(macro, comp, { fecha: now() });
 }
@@ -2266,7 +2269,7 @@ route('POST', /^\/api\/escucha$/, async (req, res, body, u) => {
   const forma = String(body.forma || '').slice(0, 4000);
   if (!texto) throw fallo(400, 'Transcripción vacía');
   const r = await conIA(u, 'escucha', 1, texto.length + instr.length + forma.length, () => ask({
-    system: 'Eres un consultor sénior de pymes familiares españolas experto en diagnóstico: escuchas cómo el empresario describe su empresa, separas síntomas de causas, lees entre líneas lo que quiere decir y no dice, y priorizas las causas cuyo 20 % de solución da el 80 % del resultado. Cada afirmación se apoya en una cita literal de la transcripción; no inventas. Respondes en español y solo con JSON.',
+    system: 'Eres un consultor sénior de pymes familiares españolas experto en diagnóstico: escuchas cómo el empresario describe su empresa, separas síntomas de causas, lees entre líneas lo que quiere decir y no dice, y priorizas las causas cuyo 20 % de solución da el 80 % del resultado. Cada afirmación se apoya en una cita literal de la transcripción; no inventas. Redactas como en un informe de diagnóstico de consultoría: el sujeto es la empresa, cada conclusión va primero y después su evidencia y lo que implica para el negocio, con frases cortas, voz activa y sin adjetivos vacíos; no mencionas aplicaciones, herramientas ni el proceso de análisis. Respondes en español de España y solo con JSON.',
     messages: [{ role: 'user', content: `${instr}\n\nDevuelve SOLO JSON con esta forma: ${forma}\n\nTranscripción:\n${texto}` }],
     output_config: { effort: 'medium' }
   }), req);

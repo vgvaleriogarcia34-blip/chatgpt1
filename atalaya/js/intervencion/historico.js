@@ -53,7 +53,7 @@
     const F = C().FASE_N, f = empresa ? H.filas.filter((x) => x.fase !== 'comercial') : H.filas; if (!f.length) return '<p class="small muted" style="margin:0">Aún no hay transcripciones.</p>';
     const tab = (cab, filas) => `<div class="table-wrap"><table class="ms-tab"><thead><tr>${cab.map((c, i) => `<th${i === 0 ? ' style="text-align:left"' : ''}>${esc(c)}</th>`).join('')}</tr></thead><tbody>${filas.map((r) => `<tr>${r.map((c, i) => `<td${i === 0 ? ' style="text-align:left"' : ''}>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     if (empresa) return htmlEmpresa(H, f, tab, F);
-    let h = `<div class="eyebrow">Secuencia</div>` + tab(['#', 'Fecha', 'Fase', 'Transcripción', 'Habla el empresario', 'Yo/nos', 'Huecos', 'Tensión', 'Temas'], f.map((x) => [String(x.i + 1), fCorta(x.tr.fecha), esc(F[x.fase] || x.fase), esc(x.tr.nombre), x.pct + ' %', `${x.yo}/${x.nos}`, String(x.huecos), String(x.tension || '—'), esc(x.temas.join(', ') || '—')]));
+    let h = `<div class="eyebrow">Secuencia</div>` + tab(['#', 'Fecha', 'Fase', 'Entrevista', 'Habla el empresario', 'Yo/nos', 'Huecos', 'Tensión', 'Temas'], f.map((x) => [String(x.i + 1), fCorta(x.tr.fecha), esc(F[x.fase] || x.fase), esc(String(x.tr.nombre).replace(/\.(txt|md|srt|vtt|docx|pdf|json)$/i, '')), x.pct + ' %', `${x.yo}/${x.nos}`, String(x.huecos), String(x.tension || '—'), esc(x.temas.join(', ') || '—')]));
     const td = tendencia(H); if (td.length) h += `<div class="eyebrow">De la primera a la última</div>` + tab(['Lenguaje', 'Primera', 'Última', 'Tendencia'], td.map((r) => r.map(esc)));
     if (!compacto) {
       const temasT = TEMAS.map(([n]) => n).filter((n) => f.some((x) => x.temas.includes(n)));
@@ -61,7 +61,7 @@
     }
     if (H.objs.length) h += `<div class="eyebrow">Alineamiento con sus objetivos</div><p class="small muted" style="margin:0">Si cada objetivo sigue apareciendo en lo que dice la empresa. Un objetivo que desaparece del lenguaje en las sesiones de trabajo conviene revisarlo con él.</p>` + tab(['Objetivo'].concat(f.map((x) => String(x.i + 1))).concat(['Sesiones de trabajo']), H.objs.map((o, k) => { const tr = f.filter((x) => x.fase === 'intervencion'); const n = tr.filter((x) => x.alin[k]).length; return [esc(o.especifica || o.dice)].concat(f.map((x) => (x.alin[k] ? '●' : '·'))).concat([tr.length ? `${n}/${tr.length}${n === 0 ? ' · revisar' : ''}` : '—']); }));
     const bs = f.flatMap((x) => x.benef.map((b) => ({ x, b })));
-    h += `<div class="eyebrow">Beneficios detectados en el lenguaje</div>` + (bs.length ? tab(['Lo que dijo la empresa', 'Fecha', 'Fase'], bs.slice(0, compacto ? 5 : 20).map(({ x, b }) => [`«${esc(b)}»`, fCorta(x.tr.fecha), esc(F[x.fase] || x.fase)])) : '<p class="small muted" style="margin:0">Todavía no hay logros contados por la empresa en las transcripciones.</p>');
+    h += `<div class="eyebrow">Beneficios detectados en el lenguaje</div>` + (bs.length ? tab(['Lo que dijo la empresa', 'Fecha', 'Fase'], bs.slice(0, compacto ? 5 : 20).map(({ x, b }) => [`«${esc(b)}»`, fCorta(x.tr.fecha), esc(F[x.fase] || x.fase)])) : '<p class="small muted" style="margin:0">La empresa no ha contado todavía logros en las sesiones.</p>');
     return h;
   };
   // Versión para la empresa: sin métricas de lenguaje ni la conversación comercial; sus temas, sus objetivos y sus logros
@@ -100,8 +100,7 @@
     };
   };
 
-  // En los informes de seguimiento e integral
-  const anadir = (k, titulo, nota) => { const o = V.informes[k]; if (!o) return; V.informes[k] = (...a) => { const In = I(), op = In.open; In.open = (cfg) => { In.open = op; try { if (S().transcripciones.length) cfg.html = cfg.html.replace(/<footer class="rp-foot"/, In.section(titulo, htmlHistorico(calcular(), true, true), nota) + '<footer class="rp-foot"'); } catch (e) { console.error(e); } return op(cfg); }; try { return o(...a); } finally { /* In.open se restaura al usarse */ } }; };
+  // En el informe de seguimiento (el de diagnóstico cita las entrevistas en su anexo de fuentes)
+  const anadir = (k, titulo, nota) => { const o = V.informes[k]; if (!o) return; V.informes[k] = (...a) => { const In = I(), op = In.open; const mia = (cfg) => { In.open = op; try { if (S().transcripciones.some((t) => (t.momento || 'primera') !== 'comercial')) cfg.html = cfg.html.replace(/<footer class="rp-foot"/, In.section(titulo, htmlHistorico(calcular(), true, true), nota) + '<footer class="rp-foot"'); } catch (e) { console.error(e); } return op(cfg); }; In.open = mia; const soltar = () => { if (In.open === mia) In.open = op; }; let r; try { r = o(...a); } catch (e) { soltar(); throw e; } if (r && typeof r.then === 'function') return r.finally(soltar); soltar(); return r; }; };
   anadir('seguimiento', 'Nuestras conversaciones', 'De qué hemos hablado en cada sesión, qué objetivos han estado presentes y los logros que usted nos ha contado.');
-  anadir('auditoria', 'Nuestras conversaciones', 'De qué hemos hablado en cada sesión, qué objetivos han estado presentes y los logros que usted nos ha contado.');
 })();

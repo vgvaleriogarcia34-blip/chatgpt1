@@ -12,7 +12,7 @@
   const MUNDO = { 'app.html': 'simulador', 'estrategia.html': 'estrategia', 'personas.html': 'personas', 'mesa.html': 'mesa', 'intervencion.html': 'intervencion', 'tablero.html': 'tablero', 'grupo.html': 'cartera' };
   const SECCION = { intervencion: 'Auditoría integral', simulador: 'Inversión y crecimiento', estrategia: 'Sistema estratégico', personas: 'Personas y equipos', mesa: 'Plan de trabajo' };
   // Capítulos opcionales: su sección se crea al añadir el primero
-  const SECCION_EXTRA = { tablero: 'Tablero general', cartera: 'Cartera de clientes' };
+  const SECCION_EXTRA = { tablero: 'Situación general', cartera: 'Cartera de clientes' };
   const URL = { simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html', intervencion: 'intervencion.html', tablero: 'tablero.html', cartera: 'grupo.html' };
   const LIMITE = 3.6e6; // el servidor admite peticiones de hasta 4 MB
   const L = (A.libro = A.libro || {});
@@ -79,6 +79,93 @@
     return c;
   };
 
+  /* ---------- Síntesis de la situación de la empresa ----------
+     Convierte el cálculo de prioridades (js/prioridad.js) en el contenido de un informe de dirección: conclusión,
+     mensajes clave con su cifra, diagnóstico por áreas, asuntos prioritarios, recomendaciones y limitaciones. La usan el
+     informe de situación general (js/tablero.js) y el resumen ejecutivo del libro (js/libro.js). Solo cuenta lo que
+     describe a la empresa: quedan fuera los avisos de uso de la aplicación y todo lo que no sale de sus datos propios. */
+  const escS = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const AMBITO = { simulador: 'Inversión y financiación', estrategia: 'Gestión del negocio', personas: 'Personas y organización', mesa: 'Ejecución del plan', cifras: 'Cuentas de la empresa', auditoria: 'Diagnóstico del consultor' };
+  const AREA_G = { 'Gestor de tiempos': 'Uso del tiempo', 'Cuadro de mando': 'Indicadores de dirección', 'Procesos sin desperdicio (Lean)': 'Procesos', 'ABC y concentración': 'Concentración de clientes', 'Flujo del dinero': 'Generación de caja', 'Ventas en camino': 'Cartera comercial', 'Personas': 'Personas', 'Informe de auditoría': 'Control interno' };
+  const CAPA_T = { liquidez: 'Liquidez', rentabilidad: 'Rentabilidad', estructura: 'Estructura y gestión', crecimiento: 'Crecimiento' };
+  const CAPA_Q = { liquidez: 'Caja, cobros, pagos y deuda', rentabilidad: 'Margen, precios, costes y clientes', estructura: 'Organización, procesos, plan y riesgos', crecimiento: 'Ventas, mercado e inversión' };
+  const NIVEL_T = { stop: 'Crítico', warn: 'A vigilar', ok: 'Correcto' };
+  const ACTUA = { urgencias: 'inmediata', preferente: 'preferente', programable: 'programable' };
+  const RUIDO = /(ejemplo|sin gestionar|datos? pendientes?|sin dar de alta|sin cuentas|incomplet|aterriz|archivos cargados|datos de la empresa cargados|\bhecho$|meta smart)/i;
+  const INSTR = /^(toque|toca|pulse|pulsa|abra|entre|cargue|revise el triaje|div[ií]dalas)/i;
+  const plu = (n, a, b) => `${n} ${n === 1 ? a : b}`;
+  const dec1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
+  // Minúscula inicial para citar un asunto dentro de una frase (las siglas se respetan)
+  const minus = (t) => (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t);
+  const lista = (l) => (l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' y ' + l[l.length - 1]);
+  L.AMBITO = AMBITO; L.NIVEL_T = NIVEL_T;
+  // Fuente de una cifra, en palabras de la empresa
+  L.fuenteCifra = (o) => String(o || '').replace(/^Simulador · /, '').replace(/^cuentas de/, 'Cuentas de').replace(/^datos introducidos/, 'Datos facilitados por la empresa').replace(/^Calculado con las cifras de la empresa$/, 'Cálculo sobre las cuentas').replace(/^Ficha de la empresa$/, 'Datos societarios').replace(/^Personas y equipos · personas dadas de alta$/, 'Relación de personal').replace(/^Cuentas · /, 'Cuentas · ');
+  L.sintesis = (r, empresa) => {
+    if (!r || !r.nota) return null;
+    const nt = r.nota, M = nt.mundos || {};
+    const C = A.cifras, cf = C && r.cifras && !r.cifras.sinDatos && !r.cifras.ejemplo ? r.cifras : null;
+    // Solo cuenta lo que sale de información propia de la empresa: sus cuentas, el diagnóstico del consultor y los ámbitos valorados
+    const conNota = (k) => (k === 'cifras' ? !!cf : k === 'auditoria') || ((k === 'simulador' || k === 'estrategia') && M[k] && M[k].nota != null);
+    const asunto = (x) => {
+      let t = String(x.t || '').replace(/^En (rojo|ámbar): /, ''), area = '', ev = x.d && !INSTR.test(x.d) ? String(x.d) : '';
+      const tri = /^Triaje del consultor: (.+) en (urgencias|preferente|programable)$/.exec(t);
+      if (tri) return { t: `${tri[1]}, con actuación ${ACTUA[tri[2]]} según el diagnóstico`, area: AMBITO.auditoria, ev: tri[2] === 'urgencias' ? 'Plazo de 0 a 14 días.' : tri[2] === 'preferente' ? 'Durante el trimestre en curso.' : '' };
+      const m = /^(.*?) \((.+)\)$/.exec(t);
+      if (m && x.mundo === 'estrategia') { t = m[1]; area = AREA_G[m[2]] || m[2]; }
+      else if (m && x.mundo === 'simulador' && !ev) { t = m[1]; ev = m[2]; } // el valor del indicador es su evidencia
+      t = t.replace(/^Veredicto de la inversión: (.+)$/, (a, c) => `Inversión prevista (valoración: ${c.charAt(0).toLowerCase() + c.slice(1)})`).replace(/^Riesgo alto: /, '');
+      return { t, area: area || AMBITO[x.mundo] || '', ev };
+    };
+    const pts = (r.puntos || []).filter((x) => x.capa !== 'datos' && CAPA_T[x.capa] && conNota(x.mundo) && !RUIDO.test(x.t + ' ' + (x.d || ''))).map((x) => Object.assign({}, x, asunto(x)));
+    const capas = Object.keys(CAPA_T).map((id) => { const l = pts.filter((x) => x.capa === id), rj = l.filter((x) => x.st === 'stop').length, am = l.filter((x) => x.st === 'warn').length; return { id, n: CAPA_T[id], q: CAPA_Q[id], total: l.length, rojos: rj, ambar: am, verdes: l.length - rj - am, st: !l.length ? '' : rj ? 'stop' : am ? 'warn' : 'ok' }; });
+    const cp = (id) => capas.find((c) => c.id === id) || { total: 0, rojos: 0, ambar: 0, st: '' };
+    const pend = pts.filter((x) => x.st !== 'ok').sort((a, b) => (b.score || 0) - (a.score || 0));
+    const li = cp('liquidez'), re = cp('rentabilidad'), es = cp('estructura');
+    const estan = (n) => (n === 1 ? 'está' : 'están');
+    const eq = !li.total && !re.total ? { st: '', t: '', d: '' }
+      : li.rojos ? { st: 'stop', t: 'La liquidez es la primera prioridad', d: `${plu(li.rojos, 'indicador', 'indicadores')} de caja, cobros o deuda ${estan(li.rojos)} en nivel crítico. Hasta que la empresa pague con holgura, las decisiones de crecimiento deben esperar.` }
+        : re.rojos ? { st: 'warn', t: 'La caja se sostiene, pero la rentabilidad es insuficiente', d: `${plu(re.rojos, 'indicador', 'indicadores')} de margen, precios o costes ${estan(re.rojos)} en nivel crítico. La prioridad es que la actividad deje más margen antes de crecer.` }
+          : li.ambar || re.ambar ? { st: 'warn', t: 'La empresa mantiene el equilibrio entre liquidez y rentabilidad, con puntos a vigilar', d: `${plu(li.ambar + re.ambar, 'indicador requiere', 'indicadores requieren')} vigilancia. Conviene corregirlos antes de asumir nuevos compromisos de crecimiento.` }
+            : !li.total || !re.total ? { st: '', t: `${li.total ? 'La liquidez' : 'La rentabilidad'} no presenta asuntos críticos`, d: `No se dispone de indicadores de ${li.total ? 'rentabilidad' : 'liquidez'} para completar la valoración.` }
+              : { st: 'ok', t: 'Liquidez y rentabilidad están en niveles correctos', d: 'La empresa puede dedicar recursos a reforzar su estructura y a crecer.' };
+    const objs = (r.objetivos || []).map((o) => Object.assign({}, o, { st: o.cumplido ? 'ok' : cp(o.capa).st || '', capaN: CAPA_T[o.capa] || '' }));
+    const abiertos = objs.filter((o) => !o.cumplido), cond = abiertos.filter((o) => o.st === 'stop');
+    // Mensajes clave, cada uno con su cifra
+    const msgs = [];
+    if (cf) {
+      if (cf.ventas != null) msgs.push(`<b>Ventas de ${escS(C.fmt('ventas', cf.ventas))}${cf.anio ? ' en ' + cf.anio : ''}</b>${cf.ebitda != null ? `, con un beneficio del negocio (EBITDA) de ${escS(C.fmt('ebitda', cf.ebitda))}${cf.ebitdaPct != null ? `, el ${escS(C.fmt('ebitdaPct', cf.ebitdaPct))} de las ventas` : ''}` : ''}.`);
+      if (cf.deuda && cf.deudaNeta != null) msgs.push(`<b>Deuda neta de ${escS(C.eur(cf.deudaNeta))}</b>${cf.deudaEbitda != null ? `, ${escS(C.fmt('deudaEbitda', cf.deudaEbitda))} el EBITDA` : ''}${cf.caja != null ? `; la caja de ${escS(C.eur(cf.caja))}${cf.mesesCaja != null ? ` cubre ${dec1(cf.mesesCaja)} meses de costes de estructura` : ''}` : ''}.`);
+      else if (cf.caja != null) msgs.push(`<b>Caja de ${escS(C.eur(cf.caja))}</b>${cf.mesesCaja != null ? `, que cubre ${dec1(cf.mesesCaja)} meses de costes de estructura` : ''}.`);
+    }
+    const rj = pts.filter((x) => x.st === 'stop').length, am = pts.filter((x) => x.st === 'warn').length;
+    if (pts.length) msgs.push(`<b>${rj ? `${rj} de los ${pts.length} indicadores evaluados ${estan(rj)} en nivel crítico` : `Ninguno de los ${pts.length} indicadores evaluados está en nivel crítico`}</b>${am ? ` y ${am} ${am === 1 ? 'requiere' : 'requieren'} vigilancia` : ''}${rj ? `. Por áreas: ${capas.filter((c) => c.rojos).map((c) => `${c.n.toLowerCase()}, ${c.rojos}`).join('; ')}` : ''}.`);
+    if (pend[0]) msgs.push(`<b>Primer asunto a resolver: ${escS(minus(pend[0].t))}</b>${pend[0].ev && pend[0].ev.length < 40 ? ` (${escS(pend[0].ev)})` : ''}, en el área de ${escS(CAPA_T[pend[0].capa].toLowerCase())}.`);
+    if (abiertos.length) msgs.push(`<b>La dirección mantiene ${plu(abiertos.length, 'objetivo abierto', 'objetivos abiertos')}</b>${cond.length ? `; ${cond.length === abiertos.length && cond.length > 1 ? 'todos dependen' : cond.length === 1 ? 'uno depende' : cond.length + ' dependen'} de un área en nivel crítico` : ''}.`);
+    // Recomendaciones, en el orden en que se sostienen las áreas
+    const nombres = (id, st) => pend.filter((x) => x.capa === id && x.st === st).slice(0, 3).map((x) => minus(x.t) + (x.ev && x.ev.length < 25 && !/\.$/.test(x.ev) ? ` (${x.ev})` : '')).join('; ');
+    const recs = [];
+    if (li.rojos) recs.push({ t: 'Asegurar la liquidez antes de cualquier otra decisión', d: `Resolver ${plu(li.rojos, 'asunto crítico', 'asuntos críticos')}${li.rojos > 3 ? ', entre ellos' : ''}: ${nombres('liquidez', 'stop')}. Aplazar las decisiones de crecimiento hasta cerrarlos.` });
+    else if (li.ambar) recs.push({ t: 'Reforzar la liquidez', d: `Corregir ${plu(li.ambar, 'indicador a vigilar', 'indicadores a vigilar')}: ${nombres('liquidez', 'warn')}.` });
+    if (re.rojos) recs.push({ t: 'Recuperar la rentabilidad', d: `Revisar precios, costes y cartera de clientes en ${plu(re.rojos, 'asunto crítico', 'asuntos críticos')}${re.rojos > 3 ? ', entre ellos' : ''}: ${nombres('rentabilidad', 'stop')}.` });
+    else if (re.ambar) recs.push({ t: 'Proteger la rentabilidad', d: `Corregir ${plu(re.ambar, 'indicador a vigilar', 'indicadores a vigilar')}: ${nombres('rentabilidad', 'warn')}.` });
+    if (es.rojos) recs.push({ t: 'Reducir los riesgos de estructura y gestión', d: `Atender ${plu(es.rojos, 'asunto crítico', 'asuntos críticos')}${es.rojos > 3 ? ', entre ellos' : ''}: ${nombres('estructura', 'stop')}.${li.rojos ? ' Se pueden abordar en paralelo si no detraen caja.' : ''}` });
+    if (cond.length) recs.push({ t: 'Reordenar los objetivos de la dirección', d: (() => { const ar = [...new Set(cond.map((o) => o.capaN.toLowerCase()))]; return `${cond.length === 1 ? 'Un objetivo depende' : cond.length + ' objetivos dependen'} de ${ar.length === 1 ? 'un área' : 'áreas'} en nivel crítico (${lista(ar)}). Conviene condicionar su calendario a la corrección de ${ar.length === 1 ? 'esa área' : 'esas áreas'}.`; })() });
+    if (!li.rojos && !re.rojos && cp('crecimiento').total && cp('crecimiento').st !== 'ok') recs.push({ t: 'Abordar el crecimiento con la base actual', d: `Con liquidez y rentabilidad sin asuntos críticos, la empresa puede trabajar ${nombres('crecimiento', cp('crecimiento').rojos ? 'stop' : 'warn')}.` });
+    // Alcance y limitaciones, en palabras de la empresa
+    const lim = [];
+    if (!cf) lim.push('No se ha dispuesto de las cuentas de la empresa: el análisis no incluye cifras de ventas, resultado, deuda ni caja.');
+    const sinInd = capas.filter((c) => !c.total).map((c) => c.n.toLowerCase());
+    if (sinInd.length) lim.push(`No se ha dispuesto de indicadores de ${lista(sinInd)}: ${sinInd.length === 1 ? 'esa área queda' : 'esas áreas quedan'} fuera de la valoración.`);
+    ['simulador', 'estrategia'].filter((k) => M[k] && M[k].nota == null).forEach((k) => lim.push(`La información disponible sobre ${AMBITO[k].toLowerCase()} no es suficiente para valorarla; no se incluye en el análisis.`));
+    const ambitos = Object.keys(M).filter((k) => M[k].nota != null).map((k) => ({ k, n: AMBITO[k] || M[k].n, nota: M[k].nota, r: A.nota && A.nota.puntuar ? A.nota.puntuar(M[k].puntos) : null }));
+    const global = nt.global != null && (conNota('simulador') || conNota('estrategia')) ? nt.global : null;
+    const tri = r.triaje && r.triaje.areas && r.triaje.areas.length ? ['stop', 'warn', 'ok'].flatMap((st) => r.triaje.areas.filter((a) => a.st === st)).map((a) => ({ n: a.n, st: a.st, t: { stop: 'Inmediata', warn: 'Preferente', ok: 'Programable' }[a.st] })) : [];
+    return { empresa: empresa || '', eq, msgs, capas, pts, pend, cf, objs, abiertos, recs, lim, ambitos, global, triaje: tri, vacio: !pts.length && !cf && !objs.length && !tri.length };
+  };
+  // Resumen ejecutivo de la situación, listo para un informe (I.summary)
+  L.resumenHTML = (s) => (s && !s.vacio ? `${s.eq.t ? `<p><b>${escS(s.eq.t)}.</b> ${escS(s.eq.d)}</p>` : ''}${s.msgs.length ? `<ul>${s.msgs.map((m) => `<li>${m}</li>`).join('')}</ul>` : ''}` : '');
+
   /* ---------- Botón «Añadir al libro» en cualquier informe abierto ---------- */
   const enLibro = new Set();
   const boton = (ov) => {
@@ -138,7 +225,10 @@
       // Solo los módulos con datos; el cuadro de mando y la auditoría, si algún módulo los tiene; la evolución, con dos cortes
       const conD = (m) => (S.conDatos ? S.conDatos(m) : true), alguno = S.modules.some((m) => m.datos && conD(m));
       const util = (m) => (m.datos ? conD(m) : m.id === 'evolucion' ? ((S.state.evolucion || {}).cortes || []).length >= 2 : alguno);
-      const todos = S.modules.filter((m) => m.id !== 'origen'), mods = todos.filter(util);
+      // Sin información propia de la empresa (solo las cifras de muestra) el libro no lleva estos informes: nada de cifras que no son suyas
+      const propios = !S.datosPropios || S.datosPropios();
+      const todos = S.modules.filter((m) => m.id !== 'origen'), mods = propios ? todos.filter(util) : [];
+      if (!propios) quitar(todos.flatMap((m) => ['est:' + m.id, 'mod:' + m.id]));
       quitar(todos.filter((m) => !util(m)).flatMap((m) => ['est:' + m.id, 'mod:' + m.id]));
       for (let i = 0; i < mods.length; i++) {
         const m = mods[i]; progreso(`Sistema estratégico · ${m.nombre} (${i + 1} de ${mods.length})`);
@@ -172,7 +262,8 @@
       await hasta(() => A.tablero && A.tablero.informe && A.tablero.listo, 120);
       progreso('Tablero general · la empresa de un vistazo');
       const html = A.tablero && A.tablero.informe ? A.tablero.informe() : '';
-      if (html) await meter([{ t: 'Tablero general', clave: 'tablero:general', html, cls: '' }]);
+      // Sin información propia de la empresa no hay informe de situación: sin capítulo
+      if (html) await meter([{ t: 'Situación general de la empresa', clave: 'tablero:general', html, cls: '' }]); else quitar(['tablero:general']);
     } else if (mundo === 'cartera') {
       await hasta(() => document.getElementById('gRep'), 120);
       const b = document.getElementById('gRep'); if (!b) return 0;
@@ -181,7 +272,7 @@
     } else if (mundo === 'simulador') {
       await hasta(() => document.getElementById('openReport') && A.appApi, 120);
       const st = A.appApi.getState ? A.appApi.getState() : null;
-      if (st && st.empresa && !(+st.empresa.ventas > 0)) { quitar(['simulador:informe']); await L.guardar(lib); return 0; } // sin cifras de la empresa: sin capítulo
+      if (st && st.empresa && (!(+st.empresa.ventas > 0) || (A.simEsEjemplo && A.simEsEjemplo(st)))) { quitar(['simulador:informe']); await L.guardar(lib); return 0; } // sin cifras propias de la empresa: sin capítulo
       progreso('Simulador · informe de la inversión');
       document.getElementById('openReport').click();
       await hasta(() => { const p = document.querySelector('#report .paper, #report #paper'); return p && p.innerHTML.length > 2000; }, 80); await espera(400);

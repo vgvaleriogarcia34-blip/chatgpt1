@@ -15,6 +15,13 @@
   const URL = { intervencion: 'intervencion.html', simulador: 'app.html', estrategia: 'estrategia.html', personas: 'personas.html', mesa: 'mesa.html', tablero: 'tablero.html', cartera: 'grupo.html' };
   const fCorta = (s) => (s ? new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
   let lib = null, sel = null, empresa = 'Mi empresa', firmas = {};
+  // Síntesis de la situación de la empresa (A.libro.sintesis sobre js/prioridad.js): resumen ejecutivo del libro
+  let sit = null, sitP = null;
+  /* Lo que responde cada sección del libro, en palabras de la empresa (si la sección no lleva su propia entradilla),
+     y cómo se nombra en el anexo cuando el libro no la incluye */
+  const SEC_INTRO = { intervencion: 'Qué le ocurre a la empresa, por qué le ocurre y qué plan se ha acordado para corregirlo.', simulador: 'Si la inversión prevista es viable y qué efecto tiene en la caja, la deuda y la rentabilidad de la empresa.', estrategia: 'Cómo funciona cada área del negocio —finanzas, comercial, operaciones y personas— y dónde están sus riesgos.', personas: 'Si las personas, los puestos y los equipos responden a lo que la empresa necesita.', mesa: 'Qué va a hacer la dirección, quién lo hace y cuándo: prioridades, objetivos y agenda.', tablero: 'La situación de conjunto de la empresa y el orden en que conviene actuar.', cartera: 'La situación de las empresas de la cartera y los riesgos que comparten.' };
+  const SEC_FALTA = { intervencion: 'el diagnóstico de la empresa y su plan de intervención', simulador: 'el análisis de la inversión y de su financiación', estrategia: 'el análisis de la gestión por áreas', personas: 'el análisis de personas y equipos', mesa: 'el plan de trabajo de la dirección' };
+  const enumerar = (l) => (l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' y ' + l[l.length - 1]);
   /* Archivador común (js/archivador.js): un área «Secciones» cuyos módulos son las secciones del libro (las de defecto,
      las que cree o renombre el usuario y, si se recogieron, el tablero y la cartera). La columna de la izquierda ya no
      repite la lista de secciones: es la ficha de la sección abierta, con sus capítulos (las vistas del módulo) y las
@@ -66,19 +73,37 @@
     const secs = lib.secciones.filter((s) => (!soloSec || s.id === soloSec) && capsDe(s.id).some((c) => c.incl));
     const num = numeracion(), n = secs.reduce((a, s) => a + capsDe(s.id).filter((c) => c.incl).length, 0);
     const titulo = soloSec ? (lib.secciones.find((s) => s.id === soloSec) || {}).t : (lib.titulo || 'Libro corporativo');
-    let h = I.cover({ tipo: 'Libro corporativo', kicker: soloSec ? 'Libro corporativo · sección' : 'Libro corporativo', titulo, subtitulo: `${n} capítulo${n === 1 ? '' : 's'} en ${secs.length} sección${secs.length === 1 ? '' : 'es'}`, empresa });
-    if (!soloSec && (lib.intro || '').trim()) h += `<section class="lb-intro"><h2>Introducción</h2>${lib.intro.split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}</section>`;
-    h += `<section class="lb-indice"><h2>Índice</h2><ol>${secs.map((s) => `<li><b>${esc(s.t)}</b><ol>${capsDe(s.id).filter((c) => c.incl).map((c) => `<li><a href="#lbc-${c.id}"><span>${num[c.id]}</span>${esc(c.t)}</a><em>${esc(MUNDO_N[c.mundo] || '')} · ${fCorta(c.fecha)}</em></li>`).join('')}</ol></li>`).join('')}</ol></section>`;
+    const caps = secs.flatMap((s) => capsDe(s.id).filter((c) => c.incl)), fs = caps.filter(fechaOk).map((c) => c.fecha).sort();
+    const periodo = !fs.length ? '' : fCorta(fs[0]) === fCorta(fs[fs.length - 1]) ? `información a ${fCorta(fs[0])}` : `información del ${fCorta(fs[0])} al ${fCorta(fs[fs.length - 1])}`;
+    const emp = empresa.replace(/\.$/, '');
+    let h = I.cover({ tipo: 'Libro corporativo', kicker: soloSec ? 'Libro corporativo · ' + (lib.titulo || empresa) : 'Dossier de dirección', titulo, subtitulo: `${soloSec || !sit || sit.vacio ? '' : 'Situación, diagnóstico y plan de actuación de la empresa. '}${n} ${n === 1 ? 'informe' : 'informes'}${soloSec ? '' : ` en ${secs.length} ${secs.length === 1 ? 'sección' : 'secciones'}`}${periodo ? '; ' + periodo : ''}.`, empresa });
+    if (!soloSec && (lib.intro || '').trim()) h += `<section class="lb-intro"><h2>Presentación</h2>${lib.intro.split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}</section>`;
+    // Resumen ejecutivo: la conclusión primero y los mensajes clave con su cifra (situación actual de la empresa)
+    if (!soloSec && sit && !sit.vacio && L.resumenHTML) h += `<section class="lb-intro lb-resumen">${I.summary('Resumen ejecutivo', L.resumenHTML(sit) + (sit.recs.length ? `<p><b>Recomendación principal: ${esc(sit.recs[0].t.charAt(0).toLowerCase() + sit.recs[0].t.slice(1))}.</b> ${esc(sit.recs[0].d)}</p>` : ''), sit.eq.st || null)}</section>`;
+    h += `<section class="lb-indice"><h2>Contenido</h2><ol>${secs.map((s) => `<li><b>${esc(s.t)}</b><ol>${capsDe(s.id).filter((c) => c.incl).map((c) => `<li><a href="#lbc-${c.id}"><span>${num[c.id]}</span>${esc(c.t)}</a><em>${fechaOk(c) ? 'Situación a ' + fCorta(c.fecha) : ''}</em></li>`).join('')}</ol></li>`).join('')}</ol></section>`;
     secs.forEach((s) => {
-      const i = secNum()[s.id];
-      h += `<section class="lb-secp"><span>Sección ${i}</span><h2>${esc(s.t)}</h2>${(s.intro || '').trim() ? `<p>${esc(s.intro)}</p>` : ''}<ol>${capsDe(s.id).filter((c) => c.incl).map((c) => `<li>${num[c.id]} · ${esc(c.t)}</li>`).join('')}</ol></section>`;
+      const i = secNum()[s.id], entra = (s.intro || '').trim() || SEC_INTRO[s.id] || '';
+      h += `<section class="lb-secp"><span>Sección ${i}</span><h2>${esc(s.t)}</h2>${entra ? `<p>${esc(entra)}</p>` : ''}<ol>${capsDe(s.id).filter((c) => c.incl).map((c) => `<li>${num[c.id]} · ${esc(c.t)}</li>`).join('')}</ol></section>`;
       capsDe(s.id).filter((c) => c.incl).forEach((c) => { h += `<section class="lb-cap ${esc(c.cls || '')}" id="lbc-${c.id}"><div class="lb-caph"><span>${num[c.id]}</span>${esc(c.t)}</div>${encajar(I.remarcar(c.html), c.cls)}</section>`; });
     });
-    h += I.foot('Libro corporativo de ' + empresa + '. Cada capítulo es el informe de su mundo en la fecha indicada en el índice.');
+    // Anexo: alcance, fuentes y limitaciones de la información, en palabras de la empresa
+    const lim = [];
+    if (!soloSec) {
+      const faltan = Object.keys(SEC_FALTA).filter((k) => !lib.caps.some((c) => c.incl && c.mundo === k)).map((k) => SEC_FALTA[k]);
+      if (faltan.length) lim.push(`No se ha dispuesto de información para ${enumerar(faltan)}: el libro no ${faltan.length === 1 ? 'lo' : 'los'} incluye.`);
+    }
+    const camb = caps.filter(cambiado), ant = caps.filter((c) => !cambiado(c) && fechaOk(c) && viejo(c));
+    if (camb.length) lim.push(`${camb.length === 1 ? 'El capítulo' : 'Los capítulos'} ${enumerar(camb.map((c) => num[c.id]))} ${camb.length === 1 ? 'recoge' : 'recogen'} la situación a su fecha; la información de la empresa se ha actualizado después.`);
+    if (ant.length) lim.push(`${ant.length === 1 ? 'El capítulo' : 'Los capítulos'} ${enumerar(ant.map((c) => num[c.id]))} ${ant.length === 1 ? 'tiene' : 'tienen'} más de un mes: conviene contrastar sus cifras con las últimas disponibles.`);
+    if (!soloSec && sit && !sit.vacio) sit.lim.forEach((x) => lim.push(x));
+    h += `<section class="lb-intro lb-anexo"><h2>Alcance y limitaciones</h2><p>${soloSec ? 'Esta sección' : 'Este libro'} reúne ${n === 1 ? 'un informe elaborado' : n + ' informes elaborados'} con la información facilitada por ${esc(periodo ? empresa : emp)}${periodo ? ' (' + periodo + ')' : ''}. Cada capítulo recoge la situación de la empresa en la fecha que figura en el contenido${!soloSec && sit && !sit.vacio ? '; el resumen ejecutivo, la situación a la fecha de este documento' : ''}. Las cifras proceden de las cuentas y de los registros de gestión de la empresa; las previsiones son estimaciones y las decisiones fiscales y societarias deben contrastarse con sus asesores.</p>${lim.length ? `<ul>${lim.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</section>`;
+    h += I.foot((soloSec ? 'Sección del libro corporativo de ' : 'Libro corporativo de ') + emp + '. Cada capítulo recoge la situación de la empresa en la fecha indicada en el contenido.');
     return { h, titulo };
   };
-  const verLibro = (soloSec) => {
+  const verLibro = async (soloSec) => {
     if (!incluidos().length) return toast('El libro no tiene capítulos incluidos. Añada informes desde cada mundo o pulse «Recoger todos los informes».');
+    // El resumen ejecutivo necesita la situación de la empresa: se espera a su cálculo (unos segundos como mucho)
+    if (sitP && !sit) await Promise.race([sitP, new Promise((ok) => setTimeout(ok, 8000))]);
     const { h, titulo } = componer(soloSec);
     A.informe.open({ titulo: (soloSec ? 'Sección · ' : '') + titulo, barra: (soloSec ? 'Sección · ' + titulo : 'Libro corporativo · ' + empresa), html: h,
       after(paper) { paper.classList.add('lb-doc'); paper.querySelectorAll('.lb-indice a').forEach((a) => (a.onclick = (e) => { e.preventDefault(); const t = paper.querySelector(a.getAttribute('href')); if (t) t.scrollIntoView({ behavior: 'smooth' }); })); } });
@@ -103,7 +128,7 @@
         <p class="small muted" style="margin:0">Marque los capítulos que van al libro y ordénelos con ↑ ↓. En la cabecera de la sección, ↑ ↓ la mueven en el libro y ⤓ la abre sola para verla o descargarla. Las secciones están en el archivador.</p>
         <details class="lb-ajustes"${ajustes ? ' open' : ''}><summary>Ajustes del libro</summary><div class="stack">
           <label class="small">Título<input class="input" id="lbTit" value="${esc(lib.titulo)}" placeholder="Libro corporativo de ${esc(empresa)}"></label>
-          <label class="small">Introducción (sus palabras, va antes del índice)<textarea class="input" id="lbIntro" rows="3" placeholder="Para qué sirve este libro, a quién va dirigido y cómo usarlo.">${esc(lib.intro)}</textarea></label>
+          <label class="small">Presentación (sus palabras, va antes del resumen ejecutivo)<textarea class="input" id="lbIntro" rows="3" placeholder="Para qué sirve este libro, a quién va dirigido y cómo usarlo.">${esc(lib.intro)}</textarea></label>
           <div class="row"><button class="btn ghost small" id="lbSecN">Nueva sección</button></div>
           <div class="stack lb-extra"><div class="eyebrow">Al recoger, incluir también</div>${extrasPosibles().map((k) => `<label class="small row" style="gap:8px"><input type="checkbox" data-extra="${k}" ${(lib.recogerExtra || {})[k] ? 'checked' : ''}> ${esc(MUNDO_N[k])}</label>`).join('')}</div>
         </div></details>
@@ -165,9 +190,9 @@
     const malos = inc.filter((c) => estadoCap(c) !== 'ok'), camb = inc.filter(cambiado).length;
     // Franja: primero los capítulos del libro y luego los que están fuera; como mucho 40
     const orden = inc.concat(lib.caps.filter((c) => !c.incl)), vis = orden.slice(0, 40);
-    const hc = { kicker: 'Libro corporativo', titulo: 'El libro de <em>la empresa</em>', lede: 'Todos los informes del ecosistema reunidos en un solo documento: con su portada, su índice y sus secciones, para consultarlo, compartirlo y guardarlo como el manual de la empresa.',
+    const hc = { kicker: 'Libro corporativo', titulo: 'El libro de <em>la empresa</em>', lede: 'Todos los informes de la empresa reunidos en un solo documento: con su portada, su índice y sus secciones, para consultarlo, compartirlo y guardarlo como el manual de la empresa.',
       empresa, datos: [['Capítulos', String(lib.caps.length)], ['En el libro', String(inc.length)], ['Secciones', String(lib.secciones.length)], ['Actualizado', ult ? fCorta(ult) : '—']],
-      acciones: [{ t: 'Recoger todos los informes', cls: 'solid', fn: recoger }, { t: 'Ver el libro completo', fn: () => verLibro() }, { t: 'Descargar en PDF', cls: 'ghost', fn: () => { verLibro(); setTimeout(() => { const b = document.getElementById('rpPdf'); if (b) b.click(); }, 400); } }],
+      acciones: [{ t: 'Recoger todos los informes', cls: 'solid', fn: recoger }, { t: 'Ver el libro completo', fn: () => verLibro() }, { t: 'Descargar en PDF', cls: 'ghost', fn: async () => { await verLibro(); setTimeout(() => { const b = document.getElementById('rpPdf'); if (b) b.click(); }, 400); } }],
       // Libro vacío: «Sin empezar», en gris (no es un fallo)
       veredicto: { kicker: 'Estado del libro', st: !inc.length ? null : malos.length ? 'warn' : 'ok', nulo: 'fuera del libro',
         titulo: !inc.length ? 'Sin empezar' : camb ? `${camb} capítulo${camb === 1 ? '' : 's'} desactualizado${camb === 1 ? '' : 's'}` : malos.length ? `${malos.length} capítulo${malos.length === 1 ? '' : 's'} de hace más de un mes` : 'Libro al día',
@@ -196,6 +221,8 @@
       // Atrás y adelante del navegador recorren las secciones visitadas; un # en la misma página abre su sección
       const alVolver = () => { const k = location.hash.replace('#', ''); if (esSec(k) && k !== secAct) { volviendo = true; try { irSec(k); } finally { volviendo = false; } } };
       addEventListener('popstate', alVolver); addEventListener('hashchange', alVolver);
+      // Situación actual de la empresa, para el resumen ejecutivo del libro
+      sitP = (async () => { try { if (A.prioridad && L.sintesis) sit = L.sintesis(await A.prioridad.calcular(), empresa); } catch (e) { sit = null; } })();
       // Firma actual de los datos de cada mundo: marca los capítulos desactualizados
       await calcFirmas(); pintar();
     }

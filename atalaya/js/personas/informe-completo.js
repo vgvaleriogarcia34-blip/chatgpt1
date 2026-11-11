@@ -113,9 +113,16 @@
     const indice = { titulo: o.pages[0] ? o.pages[0].titulo : 'Informe', sub: 'Índice', html: `<ol class="pp-indice">${idx.map((x2) => `<li><span>${esc(x2.t)}</span><i></i><b>${x2.n}</b></li>`).join('')}</ol>` };
     const ordenadas = primeras.concat([indice], resto);
     const html = o.portada + ordenadas.map((pg, i) => hoja(pg, i + 2)).join('');
-    In.open({ titulo: o.titulo, html, paginado: true, after: (paper) => { paper.classList.add('pp-doc'); zPaper = paper; paper.style.zoom = Math.min(1, (innerWidth - 24) / 794); } });
+    In.open({ titulo: o.titulo, html, paginado: true, after: (paper) => { if (R.notaTrabajo) R.notaTrabajo(paper, o.nota); paper.classList.add('pp-doc'); zPaper = paper; paper.style.zoom = Math.min(1, (innerWidth - 24) / 794); } });
   };
-  R.pp = { esc, lista, banda, barras, cajas, gotas, filaBar, mapa, tendenciaDe, portada, montar, discBadges };
+  const tablaPp = (heads, rows) => `<table class="pp-t"><thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c && typeof c === 'object' ? c.h : esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  /* Páginas comunes a los informes paginados: resumen ejecutivo, riesgos y oportunidades, recomendaciones y anexo */
+  const resumenPp = (lead, cl) => `<p class="pp-lead">${lead}</p>${cl.filter(Boolean).length ? `${banda('Mensajes clave')}<ul class="pp-list pp-claves">${cl.filter(Boolean).map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}`;
+  const ryoPp = (ri, op) => tablaPp(['Tipo', 'Descripción', 'Qué significa para la empresa'], ri.map((x) => [{ h: '<span class="pp-pill warn">Riesgo</span>' }, x[0], x[1]]).concat(op.map((x) => [{ h: '<span class="pp-pill ok">Oportunidad</span>' }, x[0], x[1]])));
+  const recosPp = (rc) => tablaPp(['N.º', 'Qué hacer', 'Impacto esperado', 'Responsable', 'Plazo'], rc.map((r, i) => [String(i + 1), { h: `<b>${esc(r.q)}</b>${r.c ? '<br>' + esc(r.c) : ''}` }, r.imp, r.quien, r.plazo]));
+  const anexoPp = (metodo, lim) => `${banda('Metodología y fuentes')}${tablaPp(['Aspecto', 'Cómo se ha obtenido'], metodo)}${banda('Alcance y limitaciones de la información')}${lista(lim)}`;
+  const firma = () => { const In = A.informe, e = R.empresa(); return `<div class="pp-firma"><div><span>Preparado por</span><b>${esc(In.marcaTxt())}</b></div><div><span>Para</span><b>${esc(e.nombre)}</b></div><div><span>Fecha</span><b>${esc(In.fecha())}</b></div></div>`; };
+  R.pp = { esc, lista, banda, barras, cajas, gotas, filaBar, mapa, tendenciaDe, portada, montar, discBadges, tablaPp, resumenPp, ryoPp, recosPp, anexoPp, firma };
 
   /* ---------- Informe ---------- */
   R.informeCompleto = (p) => {
@@ -126,13 +133,11 @@
     const pages = [];
     const pag = (titulo, sub, html, enIndice) => pages.push({ titulo, sub, html, idx: enIndice !== false });
 
-    /* 2 · Metodología */
-    pag('Perfil personal', 'Introducción a la metodología', `
-      <p>Este informe reúne, en un solo documento, lo que las herramientas de Atalaya 360° dicen de <b>${esc(p.nombre)}</b>: su <b>estilo de comportamiento</b> (DISC), su <b>aportación natural al equipo</b>, su <b>motivación</b>, ${R.identidadActiva && R.identidadActiva() ? 'su <b>perfil de identidad</b>, ' : ''}su <b>estilo de liderazgo</b> y sus <b>competencias conductuales</b>, cruzados con lo que pide su puesto. Su objetivo es contribuir al autoconocimiento y al desarrollo.</p>
-      <p>El DISC es el lenguaje del comportamiento: no mide la inteligencia, los valores ni las aptitudes, sino cómo actuamos en distintos entornos, situaciones y frente a otras personas.</p>
-      <div class="pp-mide"><b>El DISC mide</b><div>${F4.map((k) => `<div style="--c:${H.DISC[k].c}"><h4>${esc(H.DISC[k].n)}</h4><p>${esc(X.VARIABLE[k].c)}</p><i>${k}</i></div>`).join('')}</div></div>
-      <p>Actuamos de acuerdo con la combinación de estos cuatro factores, que cada persona tiene en distinta intensidad. Conocer el propio perfil facilita adaptar el comportamiento a cada situación y mejora la comunicación con los demás.</p>
-      <div class="pp-nota"><b>Uso responsable.</b> ${esc(X.AVISO)}</div>`, false);
+    /* 2 · Resumen ejecutivo: la conclusión y sus cifras */
+    const lec = R.lecPersona(p), Fm = R.inf;
+    pag('Perfil profesional', 'Resumen ejecutivo', `
+      ${R.pp.resumenPp(lec.lead, lec.claves)}
+      <div class="pp-nota"><b>Uso responsable.</b> ${esc(X.AVISO)}</div>`);
 
     if (d) {
       /* Características */
@@ -142,9 +147,9 @@
         <div class="pp-resumen"><b>${esc(est.nombre)}.</b> ${esc(H.DISC[est.pri].resumen)}</div>`);
       /* Gráficos */
       pag('Perfil personal', 'Gráficos de perfil conductual', `
-        <p class="pp-intro">Los gráficos se basan en las respuestas al cuestionario. El primero muestra el perfil natural; el segundo, si su puesto tiene definido el comportamiento que pide, compara ambos.</p>
-        <div class="pp-two">${banda('Perfil natural')}<div class="pp-row"><p>Su respuesta conductual natural: la forma instintiva en la que responde a los cuatro factores del DISC.${d.fecha ? ` Cuestionario del ${esc(R.fechaES(d.fecha))}${d.origen === 'externo' ? ' (test externo)' : ''}.` : ''}</p>${barras(d, 'Natural')}</div></div>
-        ${ideal ? `<div class="pp-two">${banda('Lo que pide su puesto · ' + pu.nombre)}<div class="pp-row"><p>La raya negra marca el comportamiento que pide el puesto. Cuanto más lejos esté de su perfil natural, más esfuerzo de adaptación necesita para desempeñarlo, y más difícil es mantenerlo en el tiempo.${R.encaje(p, pu) && R.encaje(p, pu).disc != null ? ` Encaje de comportamiento: <b>${R.encaje(p, pu).disc} %</b>.` : ''}</p>${barras(d, 'Natural frente al puesto', ideal)}</div></div>` : `<div class="pp-nota">Defina el perfil de su puesto en «Puestos» para comparar su comportamiento natural con lo que el puesto pide.</div>`}`);
+        <p class="pp-intro">El primer gráfico muestra su perfil natural${ideal ? '; el segundo lo compara con el comportamiento que requiere su puesto' : ''}.</p>
+        <div class="pp-two">${banda('Perfil natural')}<div class="pp-row"><p>Su respuesta conductual natural: la forma instintiva en la que responde a los cuatro factores del DISC.${d.fecha ? ` Valoración del ${esc(R.fechaES(d.fecha))}${d.origen === 'externo' ? ', aportada por la empresa' : ''}.` : ''}</p>${barras(d, 'Natural')}</div></div>
+        ${ideal ? `<div class="pp-two">${banda('Lo que pide su puesto · ' + pu.nombre)}<div class="pp-row"><p>La raya negra marca el comportamiento que pide el puesto. Cuanto más lejos esté de su perfil natural, más esfuerzo de adaptación necesita para desempeñarlo, y más difícil es mantenerlo en el tiempo.${R.encaje(p, pu) && R.encaje(p, pu).disc != null ? ` Encaje de comportamiento: <b>${R.encaje(p, pu).disc} %</b>.` : ''}</p>${barras(d, 'Natural frente al puesto', ideal)}</div></div>` : ''}`);
       /* Estilo personal */
       pag('Perfil personal', 'Estilo personal', `
         <p class="pp-intro">Las características de su estilo que le ayudarán, y ayudarán a los demás, a entender su forma de actuar.</p>
@@ -171,7 +176,7 @@
       /* Mapa */
       const td = tendenciaDe(d);
       pag('Perfil personal', 'Mapa conductual', `
-        <p class="pp-intro">El mapa muestra dónde se sitúa respecto a las ocho tendencias de comportamiento que agrupan las combinaciones del DISC.${ideal ? ' Si el puesto tiene perfil, aparece también, para ver el esfuerzo de adaptación entre su forma natural y la que pide el puesto.' : ''}</p>
+        <p class="pp-intro">El mapa muestra dónde se sitúa respecto a las ocho tendencias de comportamiento que agrupan las combinaciones del DISC.${ideal ? ' El punto P marca lo que requiere su puesto: la distancia entre ambos puntos indica el esfuerzo de adaptación.' : ''}</p>
         <div class="pp-mapa-w">${mapa(d, ideal, p.nombre)}</div>
         <div class="pp-resumen">Tendencia principal: <b>${esc(td.n)}</b> (${esc(td.d.toLowerCase())}).</div>`);
       /* Mejora */
@@ -199,7 +204,7 @@
         <div class="pp-cols"><div>${banda('Lo más sobresaliente')}${lista(L.fuertes)}</div><div>${banda('Lo que podría restar eficacia')}${lista(L.riesgos)}</div></div>
         ${banda('Aspectos a mejorar')}${lista(L.mejorar)}
         ${sec.length ? `<div class="pp-sec"><span>Estilos de liderazgo secundarios</span><b>${esc(sec.join(' y '))}</b></div>` : ''}
-        ${lc && LE ? `<div class="pp-resumen">Liderazgo a medida: con su test de situaciones, su estilo de referencia es <b>${esc(LE[lc.pri].n)}</b>, con una eficacia del ${lc.eficacia} % y una flexibilidad del ${lc.flex} %.</div>` : ''}`);
+        ${lc && LE ? `<div class="pp-resumen">En las situaciones de dirección planteadas, su estilo de referencia es <b>${esc(LE[lc.pri].n.toLowerCase())}</b>, con una eficacia del ${lc.eficacia} % y una flexibilidad del ${lc.flex} %.</div>` : ''}`);
       /* Competencias */
       const ar = X.AREAS.map((a) => ({ n: a.n, v: X.calc(a.w, d), p: ideal ? X.calc(a.w, ideal) : null }));
       pag('Competencias ejecutivas', 'Áreas competenciales conductuales', `
@@ -211,8 +216,6 @@
         <p class="pp-intro">Dieciséis competencias relacionadas con el comportamiento. Fíjese en las tres a seis que son clave para su puesto. No limita lo que ${esc(n1)} puede desarrollar: indica dónde le resulta natural y dónde le exige más energía.</p>
         <div class="pp-leg"><i class="n"></i>Natural${ideal ? '<i class="p"></i>Lo que pide el puesto' : ''}</div>
         <div class="pp-comp">${cp.map((x) => filaBar(x.n, x.v, x.p)).join('')}</div>`);
-    } else {
-      pag('Perfil personal', 'Estilo de comportamiento', `<div class="pp-nota">${esc(p.nombre)} todavía no tiene su cuestionario DISC. Envíelo por enlace desde «Test a distancia» o rellénelo en «DISC» para completar las páginas de comportamiento, comunicación, liderazgo y competencias.</div>`);
     }
     /* Aportaciones al equipo */
     if (p.roles && p.roles.scores) {
@@ -227,10 +230,10 @@
     /* Motivación profunda */
     if (p.enea && p.enea.tipo) {
       const En = H.ENEA[p.enea.tipo];
-      pag('Motivación', 'Lo que le mueve y lo que teme', `
+      pag('Motivación', 'Lo que le mueve y lo que conviene cuidar', `
         <p class="pp-intro">La motivación de fondo explica por qué una persona hace lo que hace. Conocerla ayuda a acompañarla y a evitar lo que la desmotiva.</p>
-        ${banda(En.n)}
-        <div class="pp-kvs">${[['Le mueve', En.motivacion], ['Teme', En.miedo], ['Su fortaleza', En.fortaleza], ['Cómo liderarle', En.liderar], ['Riesgo a vigilar', En.riesgo], ['Centro', En.centro]].map(([k, v]) => `<div><span>${esc(k)}</span><p>${esc(v)}</p></div>`).join('')}</div>`);
+        ${banda('Le mueve ' + En.motivacion.charAt(0).toLowerCase() + En.motivacion.slice(1).replace(/\.$/, ''))}
+        <div class="pp-kvs">${[['Le mueve', En.motivacion], ['Le incomoda', En.miedo], ['Su fortaleza', En.fortaleza], ['Cómo dirigirle', En.liderar], ['A cuidar', En.riesgo]].map(([k, v]) => `<div><span>${esc(k)}</span><p>${esc(v)}</p></div>`).join('')}</div>`);
     }
     /* Perfil de identidad */
     const x = R.identidad && R.identidad(p), DI = A.identidadDatos;
@@ -244,15 +247,25 @@
         <div class="pp-cols"><div>${banda('Fortalezas')}${lista(Ee.fortalezas)}</div><div>${banda('A vigilar')}${lista(Ee.retos)}</div></div>
         <div class="pp-nota">${esc(DI.AVISO)}</div>`);
     }
-    /* Plan de desarrollo */
-    const tabs = R.tablillasDe(p).slice(0, 4), jefe = R.persona(p.responsable);
-    pag('Plan de desarrollo', 'Próximos pasos', `
-      <p class="pp-intro">Lo que conviene trabajar, con fichas breves de entrenamiento elegidas para ${esc(n1)} según su perfil, su puesto y su equipo.</p>
-      ${tabs.length ? `<div class="pp-tabs">${tabs.map((t) => `<div class="pp-tab"><b>${esc(t.t.titulo)}</b><p>${esc(t.t.objetivo)}</p><ol>${t.t.pasos.slice(0, 3).map((s) => `<li>${esc(s)}</li>`).join('')}</ol><small>${esc(t.t.duracion)} · Señal de avance: ${esc(t.t.senal)}</small></div>`).join('')}</div>` : '<div class="pp-nota">Complete el DISC y asigne un puesto para recibir fichas de entrenamiento personalizadas.</div>'}
-      ${banda('Cómo usar este informe')}<ol class="pp-list pp-ol"><li>Conversación de devolución de 30 minutos entre ${esc(jefe ? jefe.nombre : 'su responsable')} y ${esc(n1)}: leer juntos el informe y contrastarlo con ejemplos.</li><li>Elegir tres claves de «Dirección efectiva» y una ficha de entrenamiento.</li><li>Fijar una fecha de revisión a las seis semanas.</li></ol>
-      <div class="pp-firma"><div><span>Preparado por</span><b>${esc(In.marcaTxt())}</b></div><div><span>Para</span><b>${esc(e.nombre)}</b></div><div><span>Fecha</span><b>${esc(In.fecha())}</b></div></div>`);
+    /* Riesgos y oportunidades, recomendaciones y plan */
+    if (lec.ri.length || lec.op.length) pag('Diagnóstico', 'Riesgos y oportunidades', `
+      <p class="pp-intro">Lo que conviene vigilar y lo que conviene aprovechar, según su perfil y su posición en la empresa.</p>
+      ${R.pp.ryoPp(lec.ri, lec.op)}`);
+    const tabs = lec.tabs.slice(0, 4), jefe = lec.jefe;
+    pag('Plan de desarrollo', 'Recomendaciones y próximos pasos', `
+      <p class="pp-intro">Acciones por orden de prioridad, con su impacto esperado, responsable y plazo.</p>
+      ${R.pp.recosPp(lec.rc)}
+      ${tabs.length ? `${banda('Fichas de entrenamiento elegidas para ' + n1)}<div class="pp-tabs">${tabs.map((t) => `<div class="pp-tab"><b>${esc(t.t.titulo)}</b><p>${esc(t.t.objetivo)}</p><ol>${t.t.pasos.slice(0, 3).map((s2) => `<li>${esc(s2)}</li>`).join('')}</ol><small>${esc(t.t.duracion)} · Señal de avance: ${esc(t.t.senal)}</small></div>`).join('')}</div>` : ''}
+      ${lec.hay ? `${banda('Hitos')}<ol class="pp-list pp-ol"><li>Semana 2: conversación de devolución de 30 minutos entre ${esc(jefe ? jefe.nombre : 'el consultor')} y ${esc(n1)}, con ejemplos concretos.</li>${d ? '<li>Semana 2: acordar tres claves de «Dirección efectiva» y una ficha de entrenamiento.</li>' : ''}<li>Semana 6: revisión del avance y siguiente prioridad.</li></ol>` : ''}
+      ${R.pp.firma()}`);
+    /* Anexo */
+    pag('Anexo', 'Metodología, fuentes y limitaciones', `
+      <p>Este documento reúne el perfil profesional de <b>${esc(p.nombre)}</b>: su estilo de comportamiento, su aportación al equipo, su motivación${R.identidadActiva && R.identidadActiva() && x ? ', su perfil de identidad' : ''}, su estilo de liderazgo y sus competencias conductuales, contrastados con lo que requiere su puesto. Su finalidad es el autoconocimiento y el desarrollo.</p>
+      ${d ? `<p>El modelo DISC describe el comportamiento: no mide la inteligencia, los valores ni las aptitudes, sino cómo actúa la persona en distintos entornos y frente a otras personas.</p>
+      <div class="pp-mide"><b>Los cuatro factores</b><div>${F4.map((k) => `<div style="--c:${H.DISC[k].c}"><h4>${esc(H.DISC[k].n)}</h4><p>${esc(X.VARIABLE[k].c)}</p><i>${k}</i></div>`).join('')}</div></div>` : ''}
+      ${R.pp.anexoPp([d && Fm.MET.disc, lec.s && Fm.MET.roles, lec.En && Fm.MET.enea, lec.encOk && Fm.MET.encaje, d && ['Competencias conductuales', 'Estimación de la facilidad natural en cada competencia a partir de los cuatro factores de comportamiento. No valora el desempeño.'], Fm.MET.fuentes].filter(Boolean), lec.lim)}`);
 
-    R.pp.montar({ pages, pie: `${esc(In.marcaTxt())} · Informe de ${esc(p.nombre)} · ${esc(e.nombre)}${In.elaborado() ? ' · ' + esc(In.elaborado()) : ''}`, titulo: 'Informe de perfil completo · ' + p.nombre,
-      portada: R.pp.portada({ kicker: 'Personas y equipos', titulo: 'Informe de perfil completo', nombre: p.nombre, linea: `${pu ? pu.nombre : 'Sin puesto asignado'}${p.area ? ' · ' + p.area : ''} · ${e.nombre}`, incl: ['Comportamiento', 'Aportación al equipo', 'Motivación'].concat(R.identidadActiva && R.identidadActiva() ? ['Identidad'] : [], ['Liderazgo', 'Competencias']) }) });
+    R.pp.montar({ pages, nota: lec.falta.length ? 'Para completar este perfil falta: ' + lec.falta.join(', ') + '.' : '', pie: `${esc(In.marcaTxt())} · Perfil profesional de ${esc(p.nombre)} · ${esc(e.nombre)}${In.elaborado() ? ' · ' + esc(In.elaborado()) : ''}`, titulo: 'Perfil profesional completo · ' + p.nombre,
+      portada: R.pp.portada({ kicker: 'Personas y organización', titulo: 'Perfil profesional completo', nombre: p.nombre, linea: [pu && pu.nombre, p.area, e.nombre].filter(Boolean).join(' · '), incl: ['Comportamiento', 'Aportación al equipo', 'Motivación'].concat(R.identidadActiva && R.identidadActiva() ? ['Identidad'] : [], ['Liderazgo', 'Competencias']) }) });
   };
 })();
