@@ -43,6 +43,12 @@ Las marcadas como secreto se crean en Coolify como «Secret» o «Locked» y se 
 | `ATALAYA_SECRETO` | 64 caracteres aleatorios, para enlaces, segundo factor y códigos de recuperación; no cambiarlo una vez en marcha | sí |
 | `ANTHROPIC_API_KEY` | clave de la API de Claude (la IA) | sí |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | correo de salida (más adelante) | `SMTP_PASS` sí |
+| `ADMIN_EMAIL` | correo de la administración para el «Código por correo» al entrar (necesita `SMTP_*`; también se puede poner desde «Seguridad») | |
+| `ADMIN_TELEFONO` | teléfono de la administración para el «Código por SMS», con prefijo: `+34600111222` (opcional) | |
+| `TWILIO_ACCOUNT_SID` | cuenta de Twilio, para el «Código por SMS» (opcional) | |
+| `TWILIO_AUTH_TOKEN` | token de Twilio | sí |
+| `TWILIO_FROM` o `TWILIO_MESSAGING_SERVICE_SID` | número remitente de Twilio (`+1…`, en E.164) o servicio de mensajería (`MG…`) | |
+| `ADMIN_2FA_RESET` | solo en una emergencia: una palabra nueva quita todos los métodos de acceso de la administración (ver «Acceso a la administración») | |
 | `INTEGRACION_TOKEN` | el mismo valor que en el asistente telefónico (más adelante) | sí |
 | `IA_DIARIA_PRUEBA` (20), `IA_DIARIA_PAGO` (200) | consultas de IA al día por cuenta, en prueba y con el acceso pagado (opcionales) | |
 | `IA_MENSUAL_EMPRESA` (300), `IA_DIARIA_EMPRESA` (40) | en Consultora y Grupos, consultas de IA de cada empresa al mes y al día, además de la diaria de la cuenta; el agente de mercado cuenta como 5 (opcionales). La administración amplía la mensual de una cuenta desde su ficha | |
@@ -72,6 +78,13 @@ Para generar `ATALAYA_SECRETO`, en la terminal de Coolify o en cualquier ordenad
 openssl rand -hex 32
 ```
 
+**Acceso a la administración.** Se puede entrar de varias formas, para que si una falla quede otra: con una **llave de acceso** (Face ID, huella o PIN del dispositivo, sin contraseña) o con la contraseña y un segundo factor a elegir (aplicación de autenticación, código por correo, código por SMS o código de recuperación). Las llaves de acceso **solo funcionan con HTTPS y en el dominio exacto `app.businessavance.es`** (el de `APP_URL`): una llave creada en otro dominio no sirve aquí.
+
+- Registrar las llaves: entre en `https://app.businessavance.es/admin.html` desde el **teléfono** (Safari o Chrome), pulse «Seguridad», ponga un nombre («iPhone») y «Añadir una llave en este dispositivo»; confirme con Face ID o la huella. Repita desde el **portátil** («Portátil del despacho», con Touch ID, Windows Hello o el PIN). Guarde los 10 códigos de recuperación que aparecen con la primera llave.
+- Código por correo: necesita `SMTP_*` y `ADMIN_EMAIL` (o el correo escrito en «Seguridad»); se activa en «Seguridad» con un código de prueba.
+- Código por SMS (opcional): cree una cuenta en Twilio, compre o verifique un número remitente y ponga `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (secreto), `TWILIO_FROM` y `ADMIN_TELEFONO`; despliegue y actívelo en «Seguridad» con un código de prueba.
+- **Si pierde todos los métodos**: en las variables de la aplicación ponga un valor nuevo en `ADMIN_PASSWORD` (si no recuerda la contraseña) y `ADMIN_2FA_RESET` con una palabra que no haya usado antes, y vuelva a desplegar. Se quitan las llaves, la aplicación, el correo, el SMS y los códigos de recuperación; se entra solo con la contraseña y se vuelven a configurar en «Seguridad». Detalle en `atalaya/PUESTA-EN-MARCHA.md`, «Formas de entrar a la administración».
+
 ## 5. DNS en IONOS
 
 En el dominio businessavance.es → DNS → añadir un registro:
@@ -93,6 +106,6 @@ Si Hetzner le ha dado también una dirección IPv6, añada un registro AAAA con 
 ## 7. Comprobación
 
 1. `https://app.businessavance.es/api/health` responde `{"atalaya":true,...}`.
-2. `https://app.businessavance.es/admin.html`: entrar con `ADMIN_PASSWORD`, cambiarla y activar el segundo factor en «Seguridad».
+2. `https://app.businessavance.es/admin.html`: entrar con `ADMIN_PASSWORD`, cambiarla y, en «Seguridad», registrar una llave de acceso en el teléfono y otra en el portátil, guardar los códigos de recuperación y, si se quiere, activar otro método (aplicación o correo).
 3. «Revisión del sistema» en la administración, sin nada por corregir salvo lo pendiente: copia externa, correo, Stripe y HubSpot.
 4. Hacer un nuevo despliegue en Coolify y comprobar que las cuentas siguen ahí. Así se confirma que el volumen persiste.

@@ -360,51 +360,149 @@
     $('#apForm', el).onsubmit = async (e) => { e.preventDefault(); const f = e.target; try { await P.adminAuth.change(f.actual.value, f.nueva.value); $('#apMsg', el).innerHTML = '<span style="color:var(--go)">Contraseña cambiada.</span>'; f.reset(); } catch (x) { $('#apMsg', el).innerHTML = `<span style="color:var(--stop)">${esc(x.message)}</span>`; } };
   }
 
-  /* ---------- Segundo factor de la administración (TOTP) ---------- */
-  const codigosHtml = (cs) => `<p class="small"><b>Códigos de recuperación.</b> Cada uno sirve una vez para entrar si no tiene el teléfono. Guárdelos ahora en un sitio seguro (gestor de contraseñas o papel): no se volverán a mostrar.</p>
-    <pre class="mono" id="rcT" style="user-select:all;white-space:pre-wrap;padding:10px;border:1px solid var(--line);border-radius:8px">${cs.map(esc).join('\n')}</pre><div class="row"><button type="button" class="btn" id="rcC">Copiar los códigos</button><button type="button" class="btn ghost" id="rcD">Descargar (.txt)</button></div>`;
+  /* ---------- Llaves de acceso (WebAuthn) en el navegador ---------- */
+  const b64aBuf = (s) => { s = String(s).replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
+  const bufAb64 = (buf) => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  const hayWebAuthn = () => !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+  const conIds = (l) => (l || []).map((c) => Object.assign({}, c, { id: b64aBuf(c.id) }));
+  async function crearLlave(o) {
+    const c = await navigator.credentials.create({ publicKey: Object.assign({}, o, { challenge: b64aBuf(o.challenge), user: Object.assign({}, o.user, { id: b64aBuf(o.user.id) }), excludeCredentials: conIds(o.excludeCredentials) }) });
+    return { id: c.id, rawId: bufAb64(c.rawId), type: c.type, response: { clientDataJSON: bufAb64(c.response.clientDataJSON), attestationObject: bufAb64(c.response.attestationObject), transports: c.response.getTransports ? c.response.getTransports() : [] } };
+  }
+  async function usarLlave(o) {
+    const c = await navigator.credentials.get({ publicKey: Object.assign({}, o, { challenge: b64aBuf(o.challenge), allowCredentials: conIds(o.allowCredentials) }) });
+    const r = c.response;
+    return { id: c.id, rawId: bufAb64(c.rawId), type: c.type, response: { clientDataJSON: bufAb64(r.clientDataJSON), authenticatorData: bufAb64(r.authenticatorData), signature: bufAb64(r.signature), userHandle: r.userHandle ? bufAb64(r.userHandle) : null } };
+  }
+  const errorLlave = (e) => (e && e.name === 'NotAllowedError' ? 'Se ha cancelado o ha pasado el tiempo. Vuelva a intentarlo.'
+    : e && e.name === 'InvalidStateError' ? 'Este dispositivo ya tiene una llave de acceso registrada para la administración.'
+    : e && e.name === 'SecurityError' ? 'El navegador no permite llaves de acceso en esta dirección: hace falta HTTPS y el dominio exacto de la aplicación.'
+    : (e && e.message) || 'No se ha podido usar la llave de acceso.');
+  const SIN_WEBAUTHN = 'Este navegador no puede usar llaves de acceso aquí: hace falta HTTPS en el dominio de la aplicación y un navegador actual.';
+
+  /* ---------- Seguridad: formas de entrar a la administración ---------- */
+  const codigosHtml = (cs) => `<p class="small"><b>Códigos de recuperación.</b> Cada uno sirve una vez para entrar, con la contraseña, si fallan los demás métodos. Guárdelos ahora en un sitio seguro (gestor de contraseñas o papel): no se volverán a mostrar.</p>
+    <pre class="mono" id="rcT" style="user-select:all;white-space:pre-wrap;padding:10px;border:1px solid var(--line);border-radius:8px">${cs.map(esc).join('\n')}</pre><div class="row" style="flex-wrap:wrap"><button type="button" class="btn" id="rcC">Copiar los códigos</button><button type="button" class="btn ghost" id="rcD">Descargar (.txt)</button></div>`;
   const wireCodigos = (el, cs) => {
     $('#rcC', el).onclick = () => (navigator.clipboard ? navigator.clipboard.writeText(cs.join('\n')) : Promise.reject()).then(() => { $('#rcC', el).textContent = 'Copiados'; }, () => {});
     $('#rcD', el).onclick = () => descargar('atalaya-codigos-recuperacion.txt', 'Atalaya 360° · códigos de recuperación de la administración\r\n' + cs.join('\r\n') + '\r\n', 'text/plain');
   };
-  async function seguridadDialog() {
-    estado = await P.adminAuth.status().catch(() => estado);
-    if (!estado.dosPasos) {
-      const el = openModal(`<div class="eyebrow">Seguridad</div><h2 style="font-size:1.6rem">Segundo factor para entrar</h2>
-        <p class="small muted">Además de la contraseña, se pedirá un código de 6 cifras de una aplicación de autenticación del teléfono (Google Authenticator, Microsoft Authenticator, 1Password…). Si alguien conoce la contraseña, no podrá entrar sin el teléfono.</p>
-        <button class="btn solid" id="sgIni">Activar el segundo factor</button><div id="sgOut" class="stack mt"></div>`);
-      $('#sgIni', el).onclick = async () => {
-        try {
-          const r = await api('/admin/2fa/iniciar', 'POST');
-          $('#sgIni', el).hidden = true;
-          $('#sgOut', el).innerHTML = `<p class="small"><b>1.</b> En la aplicación, añada una cuenta «con clave» (o «introducir clave de configuración») y escriba esta clave. Tipo: basada en tiempo.</p>
-            <p class="mono" style="font-size:1.05rem;letter-spacing:.06em;user-select:all;word-break:break-all">${esc(r.secretoAgrupado)}</p>
-            <details class="small"><summary>Dirección otpauth (para gestores de contraseñas que la aceptan)</summary><textarea class="input" rows="3" readonly style="width:100%">${esc(r.uri)}</textarea></details>
-            <form class="stack" id="sgF"><label class="small"><b>2.</b> Escriba el código de 6 cifras que muestra la aplicación<input class="input" id="sgC" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required style="max-width:140px;letter-spacing:.2em"></label><button class="btn solid">Comprobar y activar</button><p class="small" id="sgM"></p></form>`;
-          $('#sgF', el).onsubmit = async (e) => {
-            e.preventDefault();
-            try { const a = await api('/admin/2fa/activar', 'POST', { codigo: $('#sgC', el).value.trim() }); $('#sgOut', el).innerHTML = '<p class="alert info">Segundo factor activado. Las demás sesiones de administración se han cerrado.</p>' + codigosHtml(a.codigos); wireCodigos(el, a.codigos); estado.dosPasos = true; }
-            catch (x) { msgEn($('#sgM', el), x.message); }
-          };
-        } catch (x) { $('#sgOut', el).innerHTML = `<p class="alert stop">${esc(x.message)}</p>`; }
-      };
-      return;
-    }
-    const el = openModal(`<div class="eyebrow">Seguridad</div><h2 style="font-size:1.6rem">Segundo factor activado</h2>
-      <p class="small muted">Para entrar hacen falta la contraseña y el código del teléfono. Quedan <b>${estado.recuperacion != null ? estado.recuperacion : '—'}</b> códigos de recuperación sin usar.</p>
-      <form class="stack mt" id="sgF2"><label class="small">Contraseña de administración<input class="input" type="password" id="sgP" autocomplete="current-password" required></label>
-        <label class="small">Código del teléfono (o uno de recuperación)<input class="input" id="sgC2" autocomplete="one-time-code" required style="max-width:180px"></label>
-        <div class="row" style="flex-wrap:wrap"><button class="btn" data-acc="recuperacion">Generar códigos de recuperación nuevos</button><button class="btn ghost" data-acc="desactivar" style="color:var(--stop)">Desactivar el segundo factor</button></div><p class="small" id="sgM2"></p></form><div id="sgOut2" class="stack"></div>`);
-    let acc = null; $$('[data-acc]', el).forEach((b) => b.onclick = () => { acc = b.dataset.acc; });
-    $('#sgF2', el).onsubmit = async (e) => {
+  // Tras activar algo: si el servidor ha creado los primeros códigos de recuperación, se enseñan antes de volver
+  function hecho(texto, codigos) {
+    if (!codigos) return seguridadDialog(texto);
+    const el = openModal(`<div class="eyebrow">Seguridad</div><h2 style="font-size:1.6rem">${esc(texto)}</h2>${codigosHtml(codigos)}<button class="btn solid mt" id="sgVolver">Ya los he guardado</button>`);
+    wireCodigos(el, codigos); $('#sgVolver', el).onclick = () => seguridadDialog();
+  }
+  /* Quitar un método o generar códigos: contraseña de administración y, si es el último método, una segunda confirmación */
+  function conContrasena(cont, o) {
+    cont.innerHTML = `<form class="seg-conf"><p class="small" data-t>${esc(o.texto)}</p><label class="small">Contraseña de administración<input class="input" type="password" autocomplete="current-password" required></label>
+      <div class="row" style="flex-wrap:wrap"><button class="btn solid" ${o.peligro ? 'style="background:var(--stop);border-color:var(--stop)"' : ''} data-ok>${esc(o.boton)}</button><button type="button" class="btn ghost" data-no>Cancelar</button></div><p class="small" data-m role="status"></p></form>`;
+    const f = $('form', cont); let confirmar = false;
+    $('[data-no]', f).onclick = () => { cont.innerHTML = ''; };
+    $('input', f).focus();
+    f.onsubmit = async (e) => {
       e.preventDefault();
-      try {
-        const r = await api('/admin/2fa/' + acc, 'POST', { password: $('#sgP', el).value, codigo: $('#sgC2', el).value.trim() });
-        if (acc === 'desactivar') { estado.dosPasos = false; $('#sgOut2', el).innerHTML = '<p class="alert warn">Segundo factor desactivado: para entrar basta la contraseña.</p>'; }
-        else { $('#sgOut2', el).innerHTML = codigosHtml(r.codigos); wireCodigos(el, r.codigos); }
-        $('#sgF2', el).hidden = true;
-      } catch (x) { msgEn($('#sgM2', el), x.message); }
+      try { await o.hacer($('input', f).value, confirmar); }
+      catch (x) {
+        if (x.body && x.body.ultimo) { confirmar = true; $('[data-t]', f).innerHTML = `<span class="alert warn" style="display:block">${esc(x.message)}</span>`; $('[data-ok]', f).textContent = 'Sí, quitarlo'; return; }
+        msgEn($('[data-m]', f), x.message);
+      }
     };
+  }
+  const fechaCorta = (d) => (d ? fhora(d) : 'nunca');
+  async function seguridadDialog(aviso) {
+    estado = await P.adminAuth.status().catch(() => estado);
+    if (estado.sesion && SRV()) notaPanel();
+    const ac = estado.acceso || { llaves: [], totp: {}, correo: {}, sms: {} }, wa = hayWebAuthn();
+    const est = (on) => `<span class="state st-${on ? 'ok' : 'off'}">${on ? 'Activado' : 'Sin activar'}</span>`;
+    const el = openModal(`<div class="eyebrow">Seguridad</div><h2 style="font-size:1.6rem">Formas de entrar <em>a la administración</em></h2>
+      <p class="small muted">Tenga al menos dos, por si una falla: una llave de acceso en el teléfono y otra en el portátil, y los códigos de recuperación guardados fuera del servidor. Si las pierde todas, la salida de emergencia está en Coolify (al final).</p>
+      ${aviso ? `<p class="alert info">${esc(aviso)}</p>` : ''}
+      ${ac.hayFactor ? '' : '<p class="alert warn"><b>Ahora se entra solo con la contraseña.</b> Registre una llave de acceso o active un segundo factor: así, quien conozca la contraseña no podrá entrar.</p>'}
+      <section class="seg-sec" id="sgLl"><div class="seg-cab"><h4>Llaves de acceso</h4><span class="state st-${ac.llaves.length ? 'ok' : 'off'}">${ac.llaves.length ? (ac.llaves.length === 1 ? '1 registrada' : ac.llaves.length + ' registradas') : 'Ninguna'}</span></div>
+        <p class="small muted">Entrar con Face ID, la huella o el PIN del dispositivo, sin contraseña ni códigos. Registre una en cada dispositivo que use. Solo funcionan en <span class="mono">${esc(ac.origen || location.origin)}</span>: una llave creada en otra dirección no sirve aquí.</p>
+        ${ac.llaves.length ? `<ul class="seg-llaves">${ac.llaves.map((l) => `<li data-id="${esc(l.id)}"><div><b>${esc(l.nombre)}</b><span class="small muted">Creada ${fechaCorta(l.creada)} · último uso ${fechaCorta(l.usada)}</span></div><div class="row"><button class="btn ghost small" data-ren>Cambiar el nombre</button><button class="btn ghost small" data-del style="color:var(--stop)">Quitar</button></div><div class="seg-in" data-in></div></li>`).join('')}</ul>` : ''}
+        ${wa ? `<form class="seg-fila" id="sgLlF"><input class="input" id="sgLlN" maxlength="60" placeholder="Nombre: iPhone, portátil del despacho…" aria-label="Nombre de la llave"><button class="btn solid">Añadir una llave en este dispositivo</button></form>` : `<p class="small" style="color:var(--warn)">${esc(SIN_WEBAUTHN)}</p>`}
+        <p class="small" id="sgLlM" role="status"></p></section>
+      <section class="seg-sec" id="sgTo"><div class="seg-cab"><h4>Aplicación de autenticación</h4>${est(ac.totp.activo)}</div>
+        <p class="small muted">Un código de 6 cifras que cambia cada 30 segundos en el teléfono (Google Authenticator, Microsoft Authenticator, 1Password…).</p>
+        <div class="row"><button class="btn ${ac.totp.activo ? 'ghost" data-off style="color:var(--stop)">Desactivar' : 'solid" data-on>Activar'}</button></div><div class="seg-in" data-in></div></section>
+      ${['correo', 'sms'].map((via) => { const c = ac[via] || {}; return `<section class="seg-sec" id="sg-${via}"><div class="seg-cab"><h4>${via === 'correo' ? 'Código por correo' : 'Código por SMS'}</h4>${est(c.activo)}</div>
+        <p class="small muted">${via === 'correo' ? `Un código de 6 cifras, válido 10 minutos, enviado a ${c.destino ? `<b>${esc(c.destino)}</b>${c.propio ? ' (puesto aquí)' : ' (ADMIN_EMAIL)'}` : 'su correo'}.` : `Un código de 6 cifras por SMS, válido 10 minutos, al teléfono ${c.destino ? `<b>${esc(c.destino)}</b> (ADMIN_TELEFONO)` : 'de ADMIN_TELEFONO'}. Envío con Twilio: <b>${c.twilio ? 'configurado' : 'sin configurar'}</b>.`}</p>
+        ${c.motivo ? `<p class="small" style="color:var(--warn)">${c.activo ? 'Ahora no se puede usar: ' : 'No disponible: '}${esc(c.motivo)}</p>` : ''}
+        ${c.activo ? '<div class="row"><button class="btn ghost" data-off style="color:var(--stop)">Desactivar</button></div>'
+          : via === 'correo' ? `<form class="seg-fila" data-probar>${c.motivo && !/dirección/.test(c.motivo) ? '' : `<input class="input" type="email" name="email" maxlength="120" placeholder="${esc(c.destino ? 'Otro correo (opcional)' : 'Correo para los códigos')}" aria-label="Correo para los códigos">`}<button class="btn solid" ${c.motivo && !/dirección/.test(c.motivo) ? 'disabled' : ''}>Enviar un código de prueba</button></form>`
+          : `<form class="seg-fila" data-probar><button class="btn solid" ${c.listo ? '' : 'disabled'}>Enviar un código de prueba</button></form>`}
+        <div class="seg-in" data-in></div></section>`; }).join('')}
+      <section class="seg-sec" id="sgRc"><div class="seg-cab"><h4>Códigos de recuperación</h4>${ac.recuperacion != null ? `<span class="state st-${ac.recuperacion >= 3 ? 'ok' : 'warn'}">Quedan ${ac.recuperacion}</span>` : '<span class="state st-off">Sin códigos</span>'}</div>
+        <p class="small muted">Diez códigos de un solo uso para entrar con la contraseña si fallan los demás métodos. Se crean al configurar el primer método. Al generar otros, los anteriores dejan de valer.</p>
+        <div class="row"><button class="btn" data-gen ${ac.hayFactor ? '' : 'disabled'}>Generar códigos nuevos</button></div><div class="seg-in" data-in></div></section>
+      <details class="small seg-emerg"><summary>Si pierde todos los métodos</summary><p>En Coolify, en las variables de la aplicación: ponga un valor nuevo en <span class="mono">ADMIN_PASSWORD</span> si no recuerda la contraseña, y <span class="mono">ADMIN_2FA_RESET</span> con una palabra que no haya usado antes. Reinicie la aplicación: se quitan las llaves, la aplicación, el correo, el SMS y los códigos de recuperación, y se entra solo con la contraseña. Después, vuelva a configurarlos aquí.</p></details>`);
+
+    // Llaves de acceso
+    const llM = $('#sgLlM', el), lf = $('#sgLlF', el);
+    if (lf) lf.onsubmit = async (e) => {
+      e.preventDefault(); const b = $('button', lf); b.disabled = true; msgEn(llM, 'Siga las indicaciones del dispositivo (Face ID, huella o PIN)…', true);
+      try {
+        const o = await api('/admin/acceso/llaves/opciones', 'POST');
+        const credencial = await crearLlave(o);
+        const r = await api('/admin/acceso/llaves', 'POST', { nombre: $('#sgLlN', el).value.trim(), credencial });
+        hecho(`Llave de acceso «${r.llave.nombre}» añadida.`, r.codigos);
+      } catch (x) { b.disabled = false; msgEn(llM, x.status ? x.message : errorLlave(x)); }
+    };
+    $$('.seg-llaves li', el).forEach((li) => {
+      const id = li.dataset.id, l = ac.llaves.find((k) => k.id === id), cont = $('[data-in]', li);
+      $('[data-ren]', li).onclick = () => {
+        cont.innerHTML = `<form class="seg-fila"><input class="input" maxlength="60" value="${esc(l.nombre)}" aria-label="Nombre nuevo" required><button class="btn solid">Guardar</button><button type="button" class="btn ghost" data-no>Cancelar</button></form><p class="small" data-m></p>`;
+        const f = $('form', cont); $('input', f).focus(); $('[data-no]', f).onclick = () => { cont.innerHTML = ''; };
+        f.onsubmit = async (e) => { e.preventDefault(); try { await api('/admin/acceso/llaves/nombre', 'POST', { id, nombre: $('input', f).value.trim() }); seguridadDialog('Nombre cambiado.'); } catch (x) { msgEn($('[data-m]', cont), x.message); } };
+      };
+      $('[data-del]', li).onclick = () => conContrasena(cont, { texto: `Se quita la llave «${l.nombre}»: ese dispositivo ya no podrá entrar con ella. Bórrela también del dispositivo (Ajustes › Contraseñas).`, boton: 'Quitar la llave', peligro: true,
+        hacer: async (password, confirmar) => { await api('/admin/acceso/llaves/quitar', 'POST', { id, password, confirmar }); seguridadDialog(`Llave «${l.nombre}» quitada.`); } });
+    });
+
+    // Aplicación de autenticación
+    const to = $('#sgTo', el), toIn = $('[data-in]', to);
+    if ($('[data-off]', to)) $('[data-off]', to).onclick = () => conContrasena(toIn, { texto: 'Se desactiva la aplicación de autenticación: sus códigos dejan de valer para entrar.', boton: 'Desactivar', peligro: true,
+      hacer: async (password, confirmar) => { await api('/admin/2fa/desactivar', 'POST', { password, confirmar }); seguridadDialog('Aplicación de autenticación desactivada.'); } });
+    if ($('[data-on]', to)) $('[data-on]', to).onclick = async () => {
+      try {
+        const r = await api('/admin/2fa/iniciar', 'POST');
+        $('[data-on]', to).hidden = true;
+        toIn.innerHTML = `<p class="small"><b>1.</b> En la aplicación, añada una cuenta «con clave» (o «introducir clave de configuración») y escriba esta clave. Tipo: basada en tiempo.</p>
+          <p class="mono" style="font-size:1.05rem;letter-spacing:.06em;user-select:all;word-break:break-all">${esc(r.secretoAgrupado)}</p>
+          <details class="small"><summary>Dirección otpauth (para gestores de contraseñas que la aceptan)</summary><textarea class="input" rows="3" readonly style="width:100%">${esc(r.uri)}</textarea></details>
+          <form class="stack" id="sgF"><label class="small"><b>2.</b> Escriba el código de 6 cifras que muestra la aplicación<input class="input" id="sgC" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required style="max-width:140px;letter-spacing:.2em"></label><button class="btn solid">Comprobar y activar</button><p class="small" id="sgM"></p></form>`;
+        $('#sgF', el).onsubmit = async (e) => {
+          e.preventDefault();
+          try { const a = await api('/admin/2fa/activar', 'POST', { codigo: $('#sgC', el).value.trim() }); hecho('Aplicación de autenticación activada.', a.codigos); }
+          catch (x) { msgEn($('#sgM', el), x.message); }
+        };
+      } catch (x) { toIn.innerHTML = `<p class="alert stop">${esc(x.message)}</p>`; }
+    };
+
+    // Código por correo y por SMS: se activan comprobando que llega un código de prueba
+    ['correo', 'sms'].forEach((via) => {
+      const sec = $('#sg-' + via, el), cont = $('[data-in]', sec), nom = via === 'correo' ? 'el código por correo' : 'el código por SMS';
+      if ($('[data-off]', sec)) $('[data-off]', sec).onclick = () => conContrasena(cont, { texto: `Se desactiva ${nom}: ya no se ofrecerá al entrar.`, boton: 'Desactivar', peligro: true,
+        hacer: async (password, confirmar) => { await api(`/admin/acceso/${via}/desactivar`, 'POST', { password, confirmar }); seguridadDialog(`${via === 'correo' ? 'Código por correo' : 'Código por SMS'} desactivado.`); } });
+      const fp = $('[data-probar]', sec);
+      if (fp) fp.onsubmit = async (e) => {
+        e.preventDefault(); const b = $('button', fp); b.disabled = true;
+        try {
+          const r = await api(`/admin/acceso/${via}/probar`, 'POST', fp.email ? { email: fp.email.value.trim() } : {});
+          cont.innerHTML = `<form class="seg-fila"><label class="small">Código enviado a ${esc(r.destino)} (vale ${r.minutos} minutos)<input class="input" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required style="max-width:140px;letter-spacing:.2em"></label><button class="btn solid">Comprobar y activar</button></form><p class="small" data-m role="status"></p>`;
+          const f = $('form', cont); $('input', f).focus();
+          f.onsubmit = async (ev) => { ev.preventDefault(); try { const a = await api(`/admin/acceso/${via}/activar`, 'POST', { codigo: $('input', f).value.trim() }); hecho(`${via === 'correo' ? 'Código por correo' : 'Código por SMS'} activado.`, a.codigos); } catch (x) { msgEn($('[data-m]', cont), x.message); } };
+        } catch (x) { cont.innerHTML = `<p class="small" style="color:var(--stop)">${esc(x.message)}</p>`; }
+        b.disabled = false;
+      };
+    });
+
+    // Códigos de recuperación
+    const rc = $('#sgRc', el);
+    $('[data-gen]', rc).onclick = () => conContrasena($('[data-in]', rc), { texto: 'Se crean diez códigos nuevos; los anteriores dejan de valer.', boton: 'Generar códigos nuevos',
+      hacer: async (password) => { const r = await api('/admin/2fa/recuperacion', 'POST', { password }); hecho('Códigos de recuperación nuevos.', r.codigos); } });
   }
 
   /* ---------- CSV descargable: «;» como separador, BOM UTF-8 (Excel lee bien las tildes) y sin fórmulas ----------
@@ -488,8 +586,8 @@
   }
 
   /* ---------- Registro de actividad ---------- */
-  const ACCIONES = { 'cuenta.': 'Cuentas', 'plan.': 'Planes', 'pago.': 'Pagos', 'prueba.': 'Pruebas', 'solicitud.': 'Solicitudes', 'stripe.': 'Stripe', 'admin.': 'Accesos de administración', 'dospasos.': 'Segundo factor', 'demo.': 'Cuenta de demostración', 'codigo.': 'Códigos de prueba' };
-  const NOMBRE_ACC = { 'cuenta.alta': 'Alta (el cliente)', 'cuenta.crear': 'Cuenta creada', 'cuenta.modificar': 'Cuenta modificada', 'cuenta.bloquear': 'Bloqueo', 'cuenta.desbloquear': 'Desbloqueo', 'cuenta.borrar': 'Cuenta eliminada', 'cuenta.contrasena': 'Contraseña cambiada', 'cuenta.enlace-contrasena': 'Enlace de contraseña', 'plan.cambio': 'Cambio de plan', 'plan.solicitud': 'Pide cambio de plan', 'plan.conceder': 'Plan a medida concedido', 'pago.registrar': 'Pago registrado', 'pago.corregir': 'Pago corregido', 'pago.anular': 'Pago anulado', 'pago.solicitud': 'Pide activar', 'pago.checkout': 'Va a pagar con tarjeta', 'pago.stripe': 'Cobro de Stripe', 'pago.fallido': 'Cobro fallido', 'prueba.ampliar': 'Prueba ampliada', 'solicitud.cerrar': 'Solicitud cerrada', 'solicitud.reabrir': 'Solicitud reabierta', 'stripe.checkout': 'Pago con tarjeta completado', 'stripe.suscripcion': 'Suscripción actualizada', 'stripe.baja': 'Suscripción cancelada', 'stripe.prueba': 'Prueba con tarjeta empezada', 'stripe.finprueba': 'Aviso del final de la prueba', 'stripe.precio': 'Precio de Stripe cambiado en la prueba', 'admin.entrar': 'Entrada a la administración', 'admin.entrar.fallido': 'Código de segundo factor erróneo', 'admin.salir': 'Salida', 'admin.contrasena': 'Contraseña de administración cambiada', 'admin.configurar': 'Administración configurada', 'dospasos.activar': 'Segundo factor activado', 'dospasos.desactivar': 'Segundo factor desactivado', 'dospasos.recuperacion': 'Códigos de recuperación nuevos', 'dospasos.quitar': 'Segundo factor quitado', 'demo.crear': 'Demostración creada', 'demo.configurar': 'Demostración configurada', 'demo.desactivar': 'Demostración desactivada', 'demo.restablecer': 'Demostración restablecida', 'codigo.crear': 'Código de prueba creado', 'codigo.revocar': 'Código de prueba revocado', 'codigo.aviso': 'Aviso del final de la prueba con código' };
+  const ACCIONES = { 'cuenta.': 'Cuentas', 'plan.': 'Planes', 'pago.': 'Pagos', 'prueba.': 'Pruebas', 'solicitud.': 'Solicitudes', 'stripe.': 'Stripe', 'admin.': 'Accesos de administración', 'acceso.': 'Métodos de acceso', 'dospasos.': 'Segundo factor', 'demo.': 'Cuenta de demostración', 'codigo.': 'Códigos de prueba' };
+  const NOMBRE_ACC = { 'cuenta.alta': 'Alta (el cliente)', 'cuenta.crear': 'Cuenta creada', 'cuenta.modificar': 'Cuenta modificada', 'cuenta.bloquear': 'Bloqueo', 'cuenta.desbloquear': 'Desbloqueo', 'cuenta.borrar': 'Cuenta eliminada', 'cuenta.contrasena': 'Contraseña cambiada', 'cuenta.enlace-contrasena': 'Enlace de contraseña', 'plan.cambio': 'Cambio de plan', 'plan.solicitud': 'Pide cambio de plan', 'plan.conceder': 'Plan a medida concedido', 'pago.registrar': 'Pago registrado', 'pago.corregir': 'Pago corregido', 'pago.anular': 'Pago anulado', 'pago.solicitud': 'Pide activar', 'pago.checkout': 'Va a pagar con tarjeta', 'pago.stripe': 'Cobro de Stripe', 'pago.fallido': 'Cobro fallido', 'prueba.ampliar': 'Prueba ampliada', 'solicitud.cerrar': 'Solicitud cerrada', 'solicitud.reabrir': 'Solicitud reabierta', 'stripe.checkout': 'Pago con tarjeta completado', 'stripe.suscripcion': 'Suscripción actualizada', 'stripe.baja': 'Suscripción cancelada', 'stripe.prueba': 'Prueba con tarjeta empezada', 'stripe.finprueba': 'Aviso del final de la prueba', 'stripe.precio': 'Precio de Stripe cambiado en la prueba', 'admin.entrar': 'Entrada a la administración', 'admin.entrar.fallido': 'Intento de entrada fallido', 'admin.codigo': 'Código de entrada enviado', 'acceso.llave.alta': 'Llave de acceso añadida', 'acceso.llave.nombre': 'Llave de acceso renombrada', 'acceso.llave.quitar': 'Llave de acceso quitada', 'acceso.correo.activar': 'Código por correo activado', 'acceso.correo.desactivar': 'Código por correo desactivado', 'acceso.sms.activar': 'Código por SMS activado', 'acceso.sms.desactivar': 'Código por SMS desactivado', 'admin.salir': 'Salida', 'admin.contrasena': 'Contraseña de administración cambiada', 'admin.configurar': 'Administración configurada', 'dospasos.activar': 'Segundo factor activado', 'dospasos.desactivar': 'Segundo factor desactivado', 'dospasos.recuperacion': 'Códigos de recuperación nuevos', 'dospasos.quitar': 'Segundo factor quitado', 'demo.crear': 'Demostración creada', 'demo.configurar': 'Demostración configurada', 'demo.desactivar': 'Demostración desactivada', 'demo.restablecer': 'Demostración restablecida', 'codigo.crear': 'Código de prueba creado', 'codigo.revocar': 'Código de prueba revocado', 'codigo.aviso': 'Aviso del final de la prueba con código' };
   const valor = (v) => (v == null ? '—' : typeof v === 'boolean' ? (v ? 'sí' : 'no') : typeof v === 'object' ? (v.importe != null ? `${v.importe} € · ${v.meses} m${v.referencia ? ' · ' + v.referencia : ''}${v.anulado ? ' · anulado' : ''}` : v.plan ? `${planN(v.plan)}${v.periodo ? ' · ' + v.periodo : ''}` : JSON.stringify(v)) : /^\d{4}-\d{2}-\d{2}T/.test(v) ? fdate(v) : String(v));
   const cambiosTxt = (a) => { const ks = Array.from(new Set(Object.keys(a.antes || {}).concat(Object.keys(a.despues || {})))); return ks.map((k) => `${k}: ${a.antes && k in a.antes ? valor(a.antes[k]) + ' → ' : ''}${valor((a.despues || {})[k])}`).join(' · '); };
   let actividad = [], actT = null;
@@ -507,6 +605,90 @@
     descargar(`atalaya-actividad-${hoy()}.csv`, aCsv([head].concat(actividad.map((a) => [a.fecha, a.quien, a.accion, NOMBRE_ACC[a.accion] || '', a.cuenta, a.email, a.antes ? JSON.stringify(a.antes) : '', a.despues ? JSON.stringify(a.despues) : '', a.nota, a.ip]))));
   }
 
+  /* Entrada con el servidor: llave de acceso (sin contraseña) o contraseña y, si hay alguno configurado, un segundo factor a elegir */
+  const AYUDA_ENTRAR = '<details class="small muted"><summary>¿No puede entrar?</summary><p>Si ha olvidado la contraseña, en Coolify ponga un valor nuevo en <span class="mono">ADMIN_PASSWORD</span> y reinicie la aplicación. Si además ha perdido todos los métodos (llaves de acceso, teléfono, correo y códigos de recuperación), ponga también <span class="mono">ADMIN_2FA_RESET</span> con una palabra que no haya usado antes: al reiniciar se quitan todos y se entra solo con la contraseña.</p></details>';
+  const nombreGuardado = () => { try { return localStorage.getItem('atalaya.admin.nombre') || ''; } catch (e) { return ''; } };
+  const guardarNombre = (n) => { try { localStorage.setItem('atalaya.admin.nombre', n); } catch (e) { /* sin almacenamiento */ } };
+  const trasEntrar = (r) => { gate().then(() => { if (r && r.recuperacion != null) alertBox2(`Ha entrado con un código de recuperación. Le quedan ${r.recuperacion}.${r.recuperacion < 4 ? ' Genere códigos nuevos desde «Seguridad».' : ''}`); }); };
+  async function entrarConLlave(nombre, msg, boton) {
+    if (boton) boton.disabled = true;
+    msgEn(msg, 'Siga las indicaciones del dispositivo (Face ID, huella o PIN)…', true);
+    try {
+      const o = await api('/admin/llave/opciones', 'POST');
+      const credencial = await usarLlave(o);
+      trasEntrar(await api('/admin/llave/entrar', 'POST', { credencial, nombre }));
+    } catch (x) { msgEn(msg, x.status ? x.message : errorLlave(x)); if (boton) boton.disabled = false; }
+  }
+  function pantallaEntrar(st, aviso) {
+    const card = $('#gateCard'), llave = st.llaves && hayWebAuthn();
+    card.innerHTML = `<div class="eyebrow">Administración</div><h1>Gestor <em>de usuarios</em></h1>
+      ${aviso ? `<p class="alert warn">${esc(aviso)}</p>` : ''}
+      <label class="acc-nombre">Su nombre (firma lo que haga en el registro de actividad)<input class="input" id="gNom" maxlength="60" autocomplete="name" value="${esc(nombreGuardado())}"></label>
+      ${llave ? `<div class="acc-llave"><button class="btn solid acc-grande" type="button" id="gLlave">Entrar con llave de acceso</button><p class="small muted">Face ID, huella o el PIN de este dispositivo. No hace falta contraseña.</p><p class="small" id="gLMsg" role="status"></p></div><div class="acc-o"><span>o con la contraseña</span></div>`
+        : st.llaves ? `<p class="small muted">${esc(SIN_WEBAUTHN)} Entre con la contraseña.</p>` : ''}
+      <form id="gForm"><label>Contraseña de administración<input class="input" type="password" name="pw" autocomplete="current-password" required ${llave ? '' : 'autofocus'}></label>
+        <button class="btn ${llave ? '' : 'solid'}">Continuar</button><p class="small" id="gMsg" role="status"></p></form>${AYUDA_ENTRAR}`;
+    const nombre = () => { const n = $('#gNom').value.trim(); guardarNombre(n); return n; };
+    if (llave) $('#gLlave').onclick = () => entrarConLlave(nombre(), $('#gLMsg'), $('#gLlave'));
+    $('#gForm').onsubmit = async (e) => {
+      e.preventDefault(); const f = e.target, n = nombre();
+      try {
+        const r = await api('/admin/login', 'POST', { password: f.pw.value, nombre: n });
+        if (r && r.segundoFactor) return pantallaFactor(st, r, n);
+        trasEntrar(r);
+      } catch (x) { msgEn($('#gMsg'), x.message); }
+    };
+  }
+  // Paso 2: el segundo factor, a elegir. Si uno falla se elige otro con el mismo acceso pendiente (sin volver a la contraseña).
+  function pantallaFactor(st, r, nombre) {
+    const card = $('#gateCard'), ms = r.metodos || [], enviados = {};
+    let ultimo = ''; try { ultimo = localStorage.getItem('atalaya.admin.metodo') || ''; } catch (e) { /* sin almacenamiento */ }
+    const usables = ms.filter((m) => m.disponible);
+    let sel = (usables.find((m) => m.via === ultimo) || usables[0] || {}).via;
+    const sinCorte = (t) => String(t || '').replace(/ /g, '\u00a0');
+    const desc = (m) => (!m.disponible ? m.motivo : m.via === 'totp' ? 'El código de 6 cifras de su aplicación de autenticación.' : m.via === 'correo' ? `Le enviamos un código a ${sinCorte(m.destino)}.` : m.via === 'sms' ? `Le enviamos un SMS a ${sinCorte(m.destino)}.` : `Uno de los códigos que guardó (quedan ${m.quedan}).`);
+    card.innerHTML = `<div class="eyebrow">Administración · paso 2 de 2</div><h1>Confirme <em>que es usted</em></h1>
+      <p class="small muted">Contraseña correcta. Elija cómo confirmarlo. Tiene ${r.minutos || 5} minutos; si un método falla, elija otro sin volver a escribir la contraseña.</p>
+      ${ms.length ? `<div class="acc-metodos" role="radiogroup" aria-label="Cómo confirmar">${ms.map((m) => `<button type="button" class="acc-metodo" role="radio" data-via="${m.via}" aria-checked="false" ${m.disponible ? '' : 'disabled'}><b>${esc(m.nombre)}</b><span>${esc(desc(m))}</span></button>`).join('')}</div>`
+        : '<p class="alert warn">No hay ningún segundo factor activado ni códigos de recuperación: con contraseña no se puede entrar. Use la llave de acceso o la salida de emergencia de abajo.</p>'}
+      <div id="gPaso"></div>
+      <div class="row" style="flex-wrap:wrap">${r.llaves && hayWebAuthn() ? '<button type="button" class="btn ghost" id="gLlave2">Usar la llave de acceso</button>' : ''}<button type="button" class="btn ghost" id="gVolver">Volver a la contraseña</button></div>
+      <p class="small" id="gMsg" role="status"></p>${AYUDA_ENTRAR}`;
+    const msg = $('#gMsg');
+    $('#gVolver').onclick = () => pantallaEntrar(st);
+    if ($('#gLlave2')) $('#gLlave2').onclick = () => entrarConLlave(nombre, msg, $('#gLlave2'));
+    const fallo = (x) => { if (x.body && x.body.caducado) return pantallaEntrar(st, x.message); msgEn(msg, x.message); };
+    function paso() {
+      $$('.acc-metodo', card).forEach((b) => b.setAttribute('aria-checked', String(b.dataset.via === sel)));
+      const m = ms.find((x) => x.via === sel), cont = $('#gPaso'); msg.textContent = '';
+      if (!m) { cont.innerHTML = ''; return; }
+      const conEnvio = m.via === 'correo' || m.via === 'sms';
+      if (conEnvio && !enviados[m.via]) {
+        cont.innerHTML = `<button class="btn solid" type="button" id="gEnv">${m.via === 'sms' ? 'Enviar el SMS' : 'Enviar el código'}</button>`;
+        $('#gEnv').onclick = async () => {
+          $('#gEnv').disabled = true;
+          try { enviados[m.via] = await api('/admin/login/enviar', 'POST', { pendiente: r.pendiente, via: m.via }); paso(); msgEn(msg, `Código enviado a ${enviados[m.via].destino}. Vale ${enviados[m.via].minutos} minutos.`, true); }
+          catch (x) { $('#gEnv').disabled = false; fallo(x); }
+        };
+        return;
+      }
+      const rec = m.via === 'recuperacion';
+      cont.innerHTML = `<form id="gFac"><label>${rec ? 'Código de recuperación' : 'Código de 6 cifras'}<input class="input" name="codigo" autocomplete="one-time-code" ${rec ? 'maxlength="11" placeholder="XXXXX-XXXXX" autocapitalize="characters"' : 'inputmode="numeric" pattern="[0-9]{6}" maxlength="6"'} required style="letter-spacing:.15em"></label>
+        <div class="row" style="flex-wrap:wrap"><button class="btn solid">Entrar</button>${conEnvio ? '<button type="button" class="btn ghost" id="gReenv">Enviar otro código</button>' : ''}</div></form>`;
+      $('#gFac').codigo.focus();
+      if ($('#gReenv')) $('#gReenv').onclick = () => { delete enviados[m.via]; paso(); };
+      $('#gFac').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+          const x = await api('/admin/login/factor', 'POST', { pendiente: r.pendiente, via: m.via, codigo: e.target.codigo.value.trim() });
+          try { localStorage.setItem('atalaya.admin.metodo', m.via); } catch (z) { /* sin almacenamiento */ }
+          trasEntrar(x);
+        } catch (x) { fallo(x); }
+      };
+    }
+    $$('.acc-metodo', card).forEach((b) => { b.onclick = () => { sel = b.dataset.via; paso(); }; });
+    paso();
+  }
   /* Puerta de administración: contraseña propia, que no pertenece a ninguna cuenta de usuario; con el servidor,
      nombre de quien entra (firma el registro de actividad) y segundo factor si está activado */
   async function gate() {
@@ -531,7 +713,8 @@
           gate();
         } catch (x) { $('#gMsg').innerHTML = `<span style="color:var(--stop)">${esc(x.message)}</span>`; }
       };
-    } else {
+    } else if (P.mode === 'server') pantallaEntrar(st);
+    else {
       let guardado = ''; try { guardado = localStorage.getItem('atalaya.admin.nombre') || ''; } catch (e) { /* sin almacenamiento */ }
       card.innerHTML = `<div class="eyebrow">Administración</div><h1>Gestor <em>de usuarios</em></h1>
         <p class="small muted">Acceso exclusivo con la contraseña de administración${st.dosPasos ? ' y el código de su aplicación de autenticación' : ''}.</p>
@@ -580,15 +763,20 @@
     } catch (e) { $('#revInf').innerHTML = `<p class="alert stop">${esc(e.message)}</p>`; }
     b.disabled = false;
   }
+  // Avisos del panel (se repintan al volver de «Seguridad»)
+  function notaPanel() {
+    const avisos = [];
+    const sinFactor = !(estado.acceso && estado.acceso.hayFactor);
+    if (estado.stripe && !estado.stripe.webhook) avisos.push('Stripe está configurado sin STRIPE_WEBHOOK_SECRET: los pagos no activarán el acceso solos.');
+    $('#modeNote').innerHTML = (sinFactor ? '<div class="alert warn seg-aviso" style="margin-bottom:8px"><span><b>La administración entra solo con contraseña.</b> Registre una llave de acceso (Face ID, huella o PIN) o active un segundo factor: así, quien conozca la contraseña no podrá entrar.</span><button class="btn solid small" type="button" id="segIr">Configurar ahora</button></div>' : '') + avisos.map((t) => `<div class="alert warn" style="margin-bottom:8px">${esc(t)}</div>`).join('') + `<p class="small muted" style="margin:0">${estado.nombre ? `Ha entrado como <b>${esc(estado.nombre)}</b>. ` : ''}Cobro: ${estado.stripe ? `Stripe (${estado.stripe.precios.length} precios)` : 'manual (enlaces de pago y «Registrar pago»)'} · Avisos al equipo por correo: ${estado.avisos ? 'sí' : 'no (AVISOS_EMAIL y SMTP)'}.</p>`;
+    if ($('#segIr')) $('#segIr').onclick = () => seguridadDialog();
+  }
   let wired = false;
   function openPanel() {
     $('#gate').hidden = true; $('#panel').hidden = false; $('#admBar').hidden = false;
     if (P.mode === 'local') $('#modeNote').innerHTML = '<div class="alert info">Modo demostración: solo se ven las cuentas creadas en este navegador. Con el servidor de Atalaya (carpeta <span class="mono">server/</span>) verá a todos sus clientes, sus pagos y sus horas de uso reales, con registro de actividad, segundo factor y cobro con Stripe.</div>';
     else {
-      const avisos = [];
-      if (!estado.dosPasos) avisos.push('La administración entra solo con contraseña. Active el segundo factor en «Seguridad».');
-      if (estado.stripe && !estado.stripe.webhook) avisos.push('Stripe está configurado sin STRIPE_WEBHOOK_SECRET: los pagos no activarán el acceso solos.');
-      $('#modeNote').innerHTML = avisos.map((t) => `<div class="alert warn" style="margin-bottom:8px">${esc(t)}</div>`).join('') + `<p class="small muted" style="margin:0">${estado.nombre ? `Ha entrado como <b>${esc(estado.nombre)}</b>. ` : ''}Cobro: ${estado.stripe ? `Stripe (${estado.stripe.precios.length} precios)` : 'manual (enlaces de pago y «Registrar pago»)'} · Avisos al equipo por correo: ${estado.avisos ? 'sí' : 'no (AVISOS_EMAIL y SMTP)'}.</p>`;
+      notaPanel();
     }
     $('#actBox').hidden = !SRV(); $('#nuevo').hidden = !SRV(); $('#admSeg').hidden = !SRV(); $('#codBox').hidden = !SRV();
     $('#revBox').hidden = !SRV(); if (SRV()) revisar();
@@ -598,7 +786,7 @@
       $('#nuevo').onclick = nuevoDialog;
       if (SRV()) prepararCodigos();
       $('#admPw').onclick = adminPwDialog;
-      $('#admSeg').onclick = seguridadDialog;
+      $('#admSeg').onclick = () => seguridadDialog();
       $('#admOut').onclick = async () => { await P.adminAuth.logout(); gate(); };
       const recargar = () => { clearTimeout(actT); actT = setTimeout(cargarActividad, 300); };
       $('#aq').addEventListener('input', recargar); ['#aAcc', '#aDesde', '#aHasta'].forEach((s) => $(s).addEventListener('change', cargarActividad));

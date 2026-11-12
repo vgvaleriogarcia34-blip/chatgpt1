@@ -37,7 +37,11 @@ Lo que hay que revisar el día que Atalaya pase de la demostración en el navega
 | `ALMACEN` (`sqlite`) | `json` mantiene la base en `db.json` como en la versión 2.1 (respaldo si `node:sqlite` diera problemas). |
 | `ACTIVIDAD_DIAS` (730) | Días que se conserva el registro de actividad del gestor de usuarios. |
 | `AVISOS_EMAIL` | Una o varias direcciones (separadas por comas) del equipo que reciben un correo en cada alta, contacto, solicitud de sesión, solicitud de activación o de cambio de plan, cobro, cobro fallido y baja de suscripción. Necesita `SMTP_HOST`. |
-| `ADMIN_2FA_RESET` | Quita el segundo factor de la administración (teléfono y códigos perdidos). Cada valor se aplica una sola vez, como `ADMIN_PASSWORD`. |
+| `ADMIN_2FA_RESET` | Salida de emergencia: quita **todos** los métodos de acceso de la administración (llaves de acceso, aplicación, código por correo, código por SMS y códigos de recuperación) y se entra solo con la contraseña. Cada valor se aplica una sola vez, como `ADMIN_PASSWORD`. |
+| `ADMIN_EMAIL` | Correo de la administración para el «Código por correo» (se puede poner otro desde «Seguridad»). Necesita `SMTP_*`. |
+| `ADMIN_TELEFONO` | Teléfono de la administración para el «Código por SMS», con prefijo internacional (E.164): `+34600111222`. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (**secreto**), `TWILIO_FROM` o `TWILIO_MESSAGING_SERVICE_SID` | Envío del «Código por SMS» con la API REST de Twilio (sin SDK). `TWILIO_FROM` es el número remitente de Twilio en E.164; con `TWILIO_MESSAGING_SERVICE_SID` se usa ese servicio de mensajería en su lugar. `TWILIO_API_URL` cambia la dirección base (solo pruebas). |
+| `ADMIN_ENVIOS_HORA` (5) | Códigos de entrada que se pueden enviar por hora y canal (correo y SMS, cada uno por su lado). |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRECIO_<PLAN>_<PERIODO>` o `STRIPE_PRECIOS`, `STRIPE_GRACIA_DIAS` (3), `STRIPE_IMPUESTOS`, `STRIPE_URL_OK`, `STRIPE_URL_CANCELAR`, `STRIPE_URL_PORTAL`, `STRIPE_PRUEBA_TARJETA` (1) | Cobro con Stripe Billing y prueba de 14 días con tarjeta (`0` la desactiva): ver los apartados 5 y 5.1. |
 
 **Base de datos (SQLite desde la versión 2.2)**
@@ -58,7 +62,7 @@ Lo que hay que revisar el día que Atalaya pase de la demostración en el navega
 
 **Contraseña de administración (`ADMIN_PASSWORD`)**: es para la primera configuración y para recuperar el acceso. El servidor guarda la huella del valor usado y solo vuelve a aplicarlo si cambia: una contraseña cambiada desde la administración ya no se pisa en cada reinicio. Para recuperar el acceso, arranca con un valor **nuevo**.
 
-**Límites de intentos** (en memoria, por ruta): entrar (30 fallos por IP y 10 por correo cada 15 min), comprobar la contraseña de la cuenta (10 por cuenta), alta de cuentas (`REGISTROS_HORA` por IP), códigos de prueba erróneos (`CODIGOS_INTENTOS_HORA` por IP y hora), contacto (6 por IP y hora), «he olvidado mi contraseña» (10 por IP y 3 por correo cada hora), restablecer (20 fallos por IP), administración (10 fallos por IP, contador propio) y test por enlace (300 por IP). Responden 429 con un mensaje en español.
+**Límites de intentos** (en memoria, por ruta): entrar (30 fallos por IP y 10 por correo cada 15 min), métodos de acceso de la administración (ver «Formas de entrar a la administración»), comprobar la contraseña de la cuenta (10 por cuenta), alta de cuentas (`REGISTROS_HORA` por IP), códigos de prueba erróneos (`CODIGOS_INTENTOS_HORA` por IP y hora), contacto (6 por IP y hora), «he olvidado mi contraseña» (10 por IP y 3 por correo cada hora), restablecer (20 fallos por IP), administración (10 fallos por IP, contador propio) y test por enlace (300 por IP). Responden 429 con un mensaje en español.
 
 **IA por plan y cuota**: el asistente (`/api/chat`) y la lectura de documentos (`/api/extract`) están en todos los planes; la lectura de la auditoría integral (`/api/escucha`) solo en Consultora; el agente de mercado (`/api/mercado/actualizar`) desde Profesional. Al pasar la cuota diaria se responde 429 («Has llegado al límite diario de IA…»). El uso queda en cada cuenta (`usoIA` por día, últimos 60 días, e `iaTotal`) y lo devuelve el listado de usuarios de la administración. La actualización automática del mercado (`MERCADO_AUTO_DIAS`) solo corre en cuentas pagadas con plan Profesional o superior. Los errores de la API de Claude no se reenvían al cliente (502/503 con mensaje genérico; el detalle va al registro).
 
@@ -75,10 +79,40 @@ Lo que hay que revisar el día que Atalaya pase de la demostración en el navega
 - **CSV descargable** (usuarios y actividad): separador «;», BOM UTF-8 y fin de línea CRLF para que Excel lo abra bien; los textos que empiezan por `=`, `+`, `-`, `@`, tabulador o retorno se prefijan con `'` para que la hoja de cálculo no los ejecute como fórmulas.
 - Indicador «Cobrado 30 días» con los pagos realmente registrados (además de las cuotas de catálogo).
 
-**Segundo factor (TOTP, RFC 6238)**, implementado con `node:crypto`, sin dependencias:
-- Administración: «Seguridad» → «Activar el segundo factor». Se muestra la clave en texto (grupos de 4) y la dirección `otpauth://` para añadirla a Google Authenticator, Microsoft Authenticator, 1Password…; se confirma con el primer código. Se entregan 10 códigos de recuperación de un solo uso (se guardan por su HMAC; no se vuelven a mostrar). Al activarlo se cierran las demás sesiones de administración. Desde entonces, entrar pide contraseña y código (o uno de recuperación); un código erróneo cuenta como intento fallido. Cada código vale una sola vez. Regenerar códigos o desactivar pide contraseña y código.
+**Formas de entrar a la administración** (`server.mjs`, apartado «Acceso a la administración»; pantalla en `admin.html`/`js/admin.js`). Hay varias para que, si una falla, quede otra:
+
+1. **Llave de acceso** («passkey», WebAuthn): «Entrar con llave de acceso» con Face ID, la huella o el PIN del dispositivo, **sin contraseña ni código**. La llave exige verificación del usuario (UV), así que es una entrada completa por sí sola y no se puede suplantar desde una web falsa. Se pueden registrar varias (teléfono, portátil…), cada una con su nombre, fecha de alta y de último uso.
+2. **Contraseña y un segundo factor a elegir** entre los configurados: «Aplicación» (TOTP), «Código por correo», «Código por SMS» o «Código de recuperación». Tras la contraseña correcta el servidor guarda un **acceso pendiente** (5 minutos, ligado a la IP, de un solo uso): si un método falla, se elige otro sin volver a escribir la contraseña. Cinco códigos erróneos anulan el acceso pendiente.
+
+Reglas:
+- Con cualquier método configurado (una llave o un segundo factor), **la contraseña sola nunca abre sesión**. Si no hay ninguno, se entra solo con la contraseña, como antes, y el panel muestra un aviso destacado para configurar uno.
+- Códigos por correo y SMS: 6 cifras, válidos 10 minutos y una sola vez, guardados por su HMAC (nunca en claro). Como mucho `ADMIN_ENVIOS_HORA` (5) envíos por hora y canal. El correo y el SMS se activan en «Seguridad» comprobando un código de prueba (así no se activa un destino que no recibe). Sin `SMTP_HOST` o sin Twilio, la opción aparece desactivada con el motivo.
+- Límites: contraseña 10 fallos por IP cada 15 minutos; códigos erróneos 10 en total cada 15 minutos (todas las IP); llaves 10 intentos fallidos por IP cada 15 minutos (y 30 peticiones de desafío).
+- Quitar una llave o desactivar un método pide la sesión abierta y la contraseña de administración; si es el último (después se entraría solo con la contraseña), además una confirmación expresa.
+- Al configurar el primer método se crean 10 **códigos de recuperación** (si no los hay) y se cierran las demás sesiones de administración. Los códigos sirven con la contraseña si fallan los demás métodos; se guardan por su HMAC y se regeneran en «Seguridad» con la contraseña.
+- Registro de actividad: cada entrada lleva el método («Con llave de acceso «iPhone»», «Con contraseña y código por SMS», «Solo con contraseña…»), igual que los intentos fallidos, los envíos de códigos (con el destino oculto) y las altas y bajas de métodos (acciones `acceso.*`).
+
+Verificación de las llaves, propia y sin dependencias (`node:crypto`): atestación `none` (no se comprueba el fabricante del dispositivo), claves ES256 (P-256) y RS256, desafío aleatorio de un solo uso (5 minutos, ligado a la IP), tipo y **origen exacto** (`APP_URL`), `rpId` = el dominio de `APP_URL`, presencia (UP) y verificación del usuario (UV) obligatorias, firma sobre `authenticatorData` + SHA-256 de `clientDataJSON` y contador de firmas (si la llave lo lleva y no sube, se rechaza como posible copia). Se guarda la clave pública (JWK), nunca nada secreto.
+
+**Las llaves de acceso necesitan HTTPS y el dominio exacto `app.businessavance.es`** (`APP_URL=https://app.businessavance.es`). Una llave creada en un dominio no sirve en otro: si algún día cambia `APP_URL`, hay que registrar llaves nuevas (entrando con la contraseña y un segundo factor). En local funcionan en `http://localhost`.
+
+**Registrar una llave de acceso**
+- **En el teléfono** (iPhone con Face ID o Android con huella): abra `https://app.businessavance.es/admin.html` en Safari o Chrome del teléfono, entre, pulse «Seguridad», escriba un nombre («iPhone de …») y pulse «Añadir una llave en este dispositivo». Confirme con Face ID o la huella. En iPhone la llave queda en el Llavero de iCloud; en Android, en el Gestor de contraseñas de Google.
+- **En el portátil**: igual, desde el navegador del portátil (Chrome, Safari o Edge), con Touch ID, Windows Hello o el PIN del equipo. Póngale otro nombre («Portátil del despacho»).
+- Guarde los códigos de recuperación que se muestran con la primera llave (gestor de contraseñas o papel). Conviene tener al menos dos llaves y, a ser posible, otro método (aplicación o correo).
+- Para entrar: «Entrar con llave de acceso» y confirmar con Face ID, huella o PIN. Si el navegador lo ofrece, se puede usar también la llave del teléfono desde el portátil con el código QR.
+
+**Aplicación de autenticación (TOTP, RFC 6238)**, implementada con `node:crypto`, sin dependencias:
+- «Seguridad» → «Aplicación de autenticación» → «Activar». Se muestra la clave en texto (grupos de 4) y la dirección `otpauth://` para Google Authenticator, Microsoft Authenticator, 1Password…; se confirma con el primer código. Cada código vale una sola vez.
 - El secreto se guarda cifrado con AES-256-GCM (clave derivada del secreto del servidor).
-- Sin teléfono ni códigos: arrancar con `ADMIN_2FA_RESET=una-palabra` (se aplica una vez por valor).
+
+**Si se pierden todos los métodos** (procedimiento de recuperación, en Coolify):
+1. Si no recuerda la contraseña, ponga un valor **nuevo** en `ADMIN_PASSWORD`.
+2. Ponga `ADMIN_2FA_RESET` con una palabra que no haya usado antes.
+3. Reinicie la aplicación. Se quitan las llaves, la aplicación, el correo, el SMS y los códigos de recuperación, y se cierran las sesiones de administración; se entra solo con la contraseña.
+4. Vuelva a configurar los métodos en «Seguridad». Puede dejar las variables puestas: cada valor se aplica una sola vez.
+Las llaves quitadas siguen guardadas en los dispositivos, pero ya no abren nada: bórrelas también allí (Ajustes › Contraseñas).
+
 - Clientes (opcional): `POST /api/me/2fa/iniciar`, `/api/me/2fa/activar {codigo}`, `/api/me/2fa/desactivar {password, codigo}`; con él activado, `POST /api/login` responde 401 `{segundoFactor: true}` hasta recibir `codigo`, y el enlace de nueva contraseña cambia la contraseña sin abrir sesión. **Falta la pantalla en `acceso.html` y en el menú de la cuenta** (no forma parte de esta versión).
 
 **Ficheros que se sirven**: solo `.html`, `.css`, `.js`, imágenes (`.png`, `.jpg`, `.jpeg`, `.svg`, `.webp`, `.gif`, `.ico`), vídeo (`.mp4`, `.webm`, `.vtt`, con rangos de bytes) y fuentes (`.woff`, `.woff2`). Nunca `server/`, `node_modules/`, ficheros o carpetas que empiezan por punto, ni `.md`, `.skill` o `.json`. Una dirección mal codificada responde 400 sin tumbar el servidor.

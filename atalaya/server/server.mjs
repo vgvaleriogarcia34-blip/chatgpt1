@@ -142,7 +142,7 @@ function cargarJson() {
 
 /* --- SQLite: esquema con migraciones numeradas (PRAGMA user_version) --- */
 const COLS = { // tabla → registros [clave, valor] de la base en memoria
-  meta: (d) => ['admin', 'adminEnv', 'adminTotp', 'admin2faReset', 'sesionesHash', 'hubspot', 'codigosPrueba'].filter((k) => d[k] != null).map((k) => [k, d[k]]),
+  meta: (d) => ['admin', 'adminEnv', 'adminTotp', 'adminAcceso', 'admin2faReset', 'sesionesHash', 'hubspot', 'codigosPrueba'].filter((k) => d[k] != null).map((k) => [k, d[k]]),
   usuarios: (d) => d.users.map((u) => [u.id, u]),
   sesiones: (d) => Object.entries(d.sessions),
   sesiones_admin: (d) => Object.entries(d.adminSessions),
@@ -447,7 +447,9 @@ function ipDe(req) {
 const LIMITES = { // [máximo, minutos]
   login_ip: [30, 15], login_email: [10, 15], login_demo: [num('DEMO_INTENTOS_HORA', 10), 60], login_demo_ip: [num('DEMO_INTENTOS_HORA', 10), 60], verificar: [10, 15], registro: [num('REGISTROS_HORA', 5), 60], codigo: [num('CODIGOS_INTENTOS_HORA', 5), 60],
   contacto: [6, 60], olvido_ip: [10, 60], olvido_email: [3, 60], restablecer: [20, 15], admin: [10, 15], test: [300, 15], dospasos: [10, 15],
-  integracion: [num('INTEGRACION_MINUTO', 60), 1], integracion_fallo: [10, 15]
+  integracion: [num('INTEGRACION_MINUTO', 60), 1], integracion_fallo: [10, 15],
+  // Acceso a la administración: envíos de códigos por correo o SMS (por canal), códigos erróneos (en total) y llaves de acceso (por IP)
+  admin_envio: [num('ADMIN_ENVIOS_HORA', 5), 60], admin_codigo: [10, 15], admin_llave: [10, 15], admin_llave_op: [30, 15]
 };
 const intentos = new Map();
 function bloqueado(tipo, clave) {
@@ -472,11 +474,13 @@ if (env.ADMIN_PASSWORD) {
     if (!usada) { const salt = crypto.randomBytes(16).toString('hex'); db.adminEnv = { salt, hash: hashPw(pw, salt) }; save(); }
   }
 }
-// Quien ha perdido el teléfono y los códigos de recuperación de la administración: arrancar con ADMIN_2FA_RESET=<palabra>.
+// Quien ha perdido todos los métodos de acceso de la administración (llaves, teléfono, correo y códigos de recuperación):
+// arrancar con ADMIN_2FA_RESET=<palabra>. Quita las llaves de acceso, la aplicación, el código por correo y por SMS y los códigos
+// de recuperación; se entra solo con la contraseña (ADMIN_PASSWORD) y se vuelven a configurar en «Seguridad».
 // Como ADMIN_PASSWORD, cada valor se aplica una sola vez (se guarda su huella): si la variable se queda puesta, no vuelve a quitarlo.
-if (env.ADMIN_2FA_RESET && db.adminTotp && db.admin2faReset !== sha('2fa:' + env.ADMIN_2FA_RESET)) {
-  delete db.adminTotp; db.adminSessions = {}; db.admin2faReset = sha('2fa:' + env.ADMIN_2FA_RESET); save();
-  console.warn('ADMIN_2FA_RESET: segundo factor de la administración desactivado. Vuelva a activarlo desde el gestor de usuarios.');
+if (env.ADMIN_2FA_RESET && (db.adminTotp || db.adminAcceso) && db.admin2faReset !== sha('2fa:' + env.ADMIN_2FA_RESET)) {
+  delete db.adminTotp; delete db.adminAcceso; db.adminSessions = {}; db.admin2faReset = sha('2fa:' + env.ADMIN_2FA_RESET); save();
+  console.warn('ADMIN_2FA_RESET: métodos de acceso de la administración quitados (llaves, aplicación, correo, SMS y códigos de recuperación). Vuelva a configurarlos en «Seguridad».');
 }
 // Sin contraseña de administración: código de configuración de un solo uso que solo ve quien arranca el servidor
 let setupCode = null;
@@ -1461,8 +1465,9 @@ route('POST', /^\/api\/password\/restablecer$/, async (req, res, body) => {
 
 // Acceso de administración (con su propio límite de intentos)
 route('GET', /^\/api\/admin\/estado$/, async (req) => {
-  const s = adminSesion(req), t = db.adminTotp;
-  return { configurado: !!db.admin, sesion: !!s, correo: !!env.SMTP_HOST, dosPasos: !!(t && t.activo), ...(s ? { nombre: s.nombre || null, recuperacion: t && t.activo ? (t.codigos || []).length : null, stripe: STRIPE ? { precios: Object.keys(STRIPE_PRECIOS), webhook: !!env.STRIPE_WEBHOOK_SECRET } : false, almacen: ALMACEN, avisos: !!(env.AVISOS_EMAIL && env.SMTP_HOST), demo: estadoDemo() } : {}) };
+  const s = adminSesion(req), t = db.adminTotp, ac = db.adminAcceso;
+  // Sin sesión solo se dice si hay llaves de acceso (para ofrecer «Entrar con llave de acceso»), no cuáles ni cuántas
+  return { configurado: !!db.admin, sesion: !!s, correo: !!env.SMTP_HOST, dosPasos: !!(t && t.activo), llaves: !!(ac && ac.llaves && ac.llaves.length), ...(s ? { nombre: s.nombre || null, recuperacion: ac && Array.isArray(ac.recuperacion) ? ac.recuperacion.length : null, acceso: estadoAcceso(), stripe: STRIPE ? { precios: Object.keys(STRIPE_PRECIOS), webhook: !!env.STRIPE_WEBHOOK_SECRET } : false, almacen: ALMACEN, avisos: !!(env.AVISOS_EMAIL && env.SMTP_HOST), demo: estadoDemo() } : {}) };
 }, { public: true });
 /* ---------- Revisión del sistema (administración) ----------
    GET  /api/admin/revision     comprobaciones automáticas del servidor, la base, las copias, la configuración y las cuentas.
@@ -1480,9 +1485,9 @@ function revisionSistema() {
   if (!/^https:\/\//.test(APP_URL)) pon(prod ? 'grave' : 'aviso', 'Servidor', `La dirección pública (${APP_URL}) no usa HTTPS.`, 'Ponga APP_URL=https://su-dominio y un proxy con certificado (Caddy).');
   if (!SECURE) pon(prod ? 'grave' : 'aviso', 'Servidor', 'Las cookies no van marcadas como seguras.', 'Ponga COOKIE_SECURE=1 cuando haya HTTPS.');
   if (prod && !TRUST_PROXY) pon('aviso', 'Servidor', 'No se indica el proxy de confianza: los límites de intentos ven la IP del proxy, no la del cliente.', 'Con Caddy en la misma máquina, TRUST_PROXY=1.');
-  const totp = db.adminTotp;
-  if (!(totp && totp.activo)) pon('grave', 'Seguridad', 'La administración no tiene segundo factor.', 'Actívelo en «Seguridad» y guarde los códigos de recuperación fuera del servidor.');
-  else if ((totp.codigos || []).length < 3) pon('aviso', 'Seguridad', `Quedan ${(totp.codigos || []).length} códigos de recuperación.`, 'Genere códigos nuevos en «Seguridad».');
+  const nRec = ((db.adminAcceso || {}).recuperacion || []).length;
+  if (!hayFactorAdmin()) pon('grave', 'Seguridad', 'La administración entra solo con contraseña: no hay llave de acceso ni segundo factor.', 'Registre una llave de acceso o active un segundo factor en «Seguridad» y guarde los códigos de recuperación fuera del servidor.');
+  else if (nRec < 3) pon('aviso', 'Seguridad', `Quedan ${nRec} códigos de recuperación.`, 'Genere códigos nuevos en «Seguridad».');
   if (!env.ATALAYA_SECRETO && !fs.existsSync(path.join(DATA_DIR, 'secreto.key'))) pon('grave', 'Seguridad', 'No hay secreto del servidor.', 'Revise los permisos de la carpeta de datos.');
 
   // Base de datos
@@ -1600,22 +1605,24 @@ route('POST', /^\/api\/admin\/configurar$/, async (req, res, body) => {
   anotarActividad(req, 'admin.configurar', null, { quien: String(body.nombre || '').trim().slice(0, 60) || 'administración' });
   return { ok: true };
 }, { public: true });
+/* Entrada con contraseña. Sin ningún método configurado (llave de acceso o segundo factor) basta la contraseña, como siempre.
+   Con alguno, la contraseña nunca basta: se devuelve un acceso pendiente (5 minutos, ligado a la IP, de un solo uso) y la lista
+   de métodos para completar la entrada con /api/admin/login/factor. Se admite también el código en la misma petición. */
 route('POST', /^\/api\/admin\/login$/, async (req, res, body) => {
   const ip = ipDe(req);
   if (bloqueado('admin', ip)) throw demasiados();
   const ref = db.admin || DUMMY;
   if (!safeEq(hashPw(String(body.password || ''), ref.salt), ref.hash) || !db.admin) { anotar('admin', ip); throw fallo(401, 'Contraseña de administración incorrecta'); }
-  const nombre = String(body.nombre || '').trim().slice(0, 60), quien = nombre ? `${nombre} (administración)` : 'administración';
-  // Segundo factor: con la contraseña correcta y sin código, se pide el código; un código erróneo cuenta como intento fallido
-  let via = null;
-  if (db.adminTotp && db.adminTotp.activo) {
-    if (!String(body.codigo || '').trim()) throw fallo(401, 'Escriba el código de su aplicación de autenticación (o un código de recuperación).', { segundoFactor: true });
-    via = comprobarSegundo(db.adminTotp, body.codigo);
-    if (!via) { anotar('admin', ip); anotarActividad(req, 'admin.entrar.fallido', null, { quien, nota: 'Contraseña correcta y código de segundo factor erróneo' }); throw fallo(401, 'El código no es correcto o ya se ha usado.', { segundoFactor: true }); }
+  const nombre = String(body.nombre || '').trim().slice(0, 60);
+  if (!hayFactorAdmin()) return entrarAdmin(req, res, nombre, 'password');
+  const c = String(body.codigo || '').trim();
+  if (c) {
+    const via = VIAS_CODIGO.includes(body.via) ? body.via : /^\d{6}$/.test(c) ? 'totp' : 'recuperacion';
+    if (bloqueado('admin_codigo', 'admin')) throw demasiados();
+    if (!comprobarFactorAdmin(via, c)) { anotar('admin', ip); anotar('admin_codigo', 'admin'); anotarActividad(req, 'admin.entrar.fallido', null, { quien: quienAdmin(nombre), nota: `Contraseña correcta y ${NOMBRE_VIA[via].toLowerCase()} erróneo` }); throw fallo(401, 'El código no es correcto o ya se ha usado.', { segundoFactor: true }); }
+    return entrarAdmin(req, res, nombre, via);
   }
-  startAdminSession(res, nombre);
-  anotarActividad(req, 'admin.entrar', null, { quien, nota: via === 'recuperacion' ? `Con un código de recuperación (quedan ${db.adminTotp.codigos.length})` : via ? 'Con segundo factor' : null });
-  return { ok: true, recuperacion: via === 'recuperacion' ? db.adminTotp.codigos.length : undefined };
+  return { segundoFactor: true, pendiente: nuevoPendiente(req, nombre), minutos: PENDIENTE_MIN, metodos: metodosAdmin(), llaves: acceso().llaves.length > 0 };
 }, { public: true });
 route('POST', /^\/api\/admin\/logout$/, async (req, res) => {
   const sid = cookies(req)[ADMIN_COOKIE]; if (sid && db.adminSessions[sha(sid)]) { anotarActividad(req, 'admin.salir', null); delete db.adminSessions[sha(sid)]; save(); }
@@ -2147,37 +2154,403 @@ route('GET', /^\/api\/admin\/actividad$/, async (req) => {
   return { actividad: ACT.listar({ cuenta: f('cuenta'), accion: f('accion', 40), q: f('q'), desde: fecha('desde'), hasta: fecha('hasta'), limite: Math.max(1, Math.min(5000, +q.get('limite') || 500)) }), dias: ACTIVIDAD_DIAS };
 }, { admin: true });
 
-/* ---------- Segundo factor de la administración ---------- */
+/* ---------- Acceso a la administración: llaves de acceso y segundo factor a elegir ----------
+   Formas de entrar, para que si una falla haya otra:
+   · Llave de acceso (WebAuthn, «passkey»): Face ID, huella o PIN del dispositivo. Exige verificación del usuario (UV), así que
+     es una entrada completa por sí sola, sin contraseña. Se pueden registrar varias (teléfono, portátil…), cada una con su nombre.
+   · Contraseña y un segundo factor, a elegir entre los configurados: aplicación de autenticación (TOTP), código por correo
+     (ADMIN_EMAIL o el correo puesto en «Seguridad», con SMTP), código por SMS (Twilio, ADMIN_TELEFONO) o código de recuperación.
+   Con la contraseña correcta se crea un acceso pendiente (5 minutos, ligado a la IP, de un solo uso): si un método falla se
+   puede elegir otro sin volver a escribir la contraseña. Los códigos por correo y SMS tienen 6 cifras, valen 10 minutos y una
+   sola vez, y se guardan por su HMAC. Con ningún método configurado se entra solo con la contraseña, como antes.
+   Verificación WebAuthn propia, sin dependencias: atestación «none» (no se comprueba el fabricante), ES256 y RS256, desafío de
+   un solo uso, origen (APP_URL), rpId (el dominio de APP_URL), presencia y verificación del usuario y contador de firmas.
+   Recuperación de emergencia: ADMIN_PASSWORD nueva (contraseña) y ADMIN_2FA_RESET (quita todos los métodos). */
+const PENDIENTE_MIN = num('ADMIN_PENDIENTE_MIN', 5), CODIGO_MIN = num('ADMIN_CODIGO_MIN', 10), DESAFIO_MIN = 5;
+const VIAS_CODIGO = ['totp', 'correo', 'sms', 'recuperacion'];
+const NOMBRE_VIA = { totp: 'Código de la aplicación', correo: 'Código por correo', sms: 'Código por SMS', recuperacion: 'Código de recuperación' };
+const RP = (() => { const u = new URL(APP_URL); return { id: u.hostname, origen: u.origin }; })();
+function acceso() {
+  if (!db.adminAcceso || typeof db.adminAcceso !== 'object') db.adminAcceso = {};
+  const a = db.adminAcceso;
+  if (!Array.isArray(a.llaves)) a.llaves = [];
+  if (!a.usuario) a.usuario = crypto.randomBytes(16).toString('base64url'); // identificador de la administración en las llaves
+  return a;
+}
+// Los códigos de recuperación eran parte del registro TOTP; ahora sirven con cualquier método y viven en adminAcceso
+if (db.adminTotp && Array.isArray(db.adminTotp.codigos)) {
+  const a = acceso(); if (!Array.isArray(a.recuperacion)) a.recuperacion = db.adminTotp.codigos;
+  delete db.adminTotp.codigos; save();
+}
+const totpAdminActivo = () => !!(db.adminTotp && db.adminTotp.activo);
+const correoAdmin = () => { const c = (db.adminAcceso || {}).correo; return (c && c.email) || String(env.ADMIN_EMAIL || '').trim() || null; };
+const telefonoAdmin = () => { const t = String(env.ADMIN_TELEFONO || '').replace(/[\s().-]/g, ''); return /^\+[1-9]\d{6,14}$/.test(t) ? t : null; };
+const twilioListo = () => !!(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && (env.TWILIO_FROM || env.TWILIO_MESSAGING_SERVICE_SID));
+const ocultarCorreo = (e) => { const [l, d] = String(e || '').split('@'); return d ? `${l.slice(0, Math.min(2, Math.max(1, l.length - 1)))}•••@${d}` : null; };
+const ocultarTelefono = (t) => (t ? `${t.slice(0, 3)} ••• ••• ${t.slice(-3)}` : null);
+// Si cada canal puede enviar ahora y, si no, por qué
+function canal(via) {
+  if (via === 'correo') {
+    const d = correoAdmin();
+    return { destino: ocultarCorreo(d), listo: !!(env.SMTP_HOST && d), motivo: !env.SMTP_HOST ? 'El servidor no tiene correo de salida configurado (SMTP_HOST).' : !d ? 'Falta la dirección: ADMIN_EMAIL o un correo puesto en «Seguridad».' : null };
+  }
+  const t = telefonoAdmin();
+  return { destino: ocultarTelefono(t), twilio: twilioListo(), listo: !!(twilioListo() && t), motivo: !twilioListo() ? 'Twilio no está configurado (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN y TWILIO_FROM o TWILIO_MESSAGING_SERVICE_SID).' : !t ? 'Falta el teléfono: ADMIN_TELEFONO con prefijo internacional (+34…).' : null };
+}
+const activo = (via) => !!(((db.adminAcceso || {})[via] || {}).activo);
+// ¿Hay algo además de la contraseña? Las llaves cuentan: con una registrada, la contraseña sola ya no basta
+const hayFactorAdmin = () => !!(((db.adminAcceso || {}).llaves || []).length || totpAdminActivo() || activo('correo') || activo('sms'));
+function estadoAcceso() {
+  const a = acceso();
+  return {
+    llaves: a.llaves.map((l) => ({ id: l.id, nombre: l.nombre, creada: l.creada, usada: l.usada || null, tipo: l.alg === -257 ? 'RS256' : 'ES256' })),
+    totp: { activo: totpAdminActivo() },
+    correo: { activo: activo('correo'), ...canal('correo'), propio: !!(a.correo && a.correo.email) },
+    sms: { activo: activo('sms'), ...canal('sms') },
+    recuperacion: Array.isArray(a.recuperacion) ? a.recuperacion.length : null,
+    hayFactor: hayFactorAdmin(), rpId: RP.id, origen: RP.origen, https: RP.origen.startsWith('https://') || RP.id === 'localhost'
+  };
+}
+// Métodos que se ofrecen tras la contraseña, en este orden; los que no pueden usarse ahora van con el motivo
+function metodosAdmin() {
+  const m = [], rec = (db.adminAcceso || {}).recuperacion;
+  if (totpAdminActivo()) m.push({ via: 'totp', nombre: 'Aplicación', disponible: true });
+  for (const via of ['correo', 'sms']) if (activo(via)) { const c = canal(via); m.push({ via, nombre: via === 'correo' ? 'Código por correo' : 'Código por SMS', disponible: c.listo, destino: c.destino, motivo: c.motivo }); }
+  if (Array.isArray(rec)) m.push({ via: 'recuperacion', nombre: 'Código de recuperación', disponible: rec.length > 0, quedan: rec.length, motivo: rec.length ? null : 'No quedan códigos de recuperación.' });
+  return m;
+}
+const quienAdmin = (nombre) => (nombre ? `${nombre} (administración)` : 'administración');
+
+/* Accesos pendientes (contraseña correcta, falta el segundo paso) y códigos enviados: en memoria, por su huella */
+const pendientes = new Map(), codigosEnviados = {};
+function nuevoPendiente(req, nombre) {
+  for (const [k, p] of pendientes) if (p.exp < Date.now()) pendientes.delete(k);
+  if (pendientes.size > 200) pendientes.delete(pendientes.keys().next().value);
+  const token = crypto.randomBytes(32).toString('base64url');
+  pendientes.set(sha('pend:' + token), { ip: ipDe(req), exp: Date.now() + PENDIENTE_MIN * 60e3, nombre, fallos: 0 });
+  return token;
+}
+function pendienteDe(req, token) {
+  const k = sha('pend:' + String(token || '')), p = pendientes.get(k);
+  if (!p || p.exp < Date.now()) { pendientes.delete(k); throw fallo(401, 'El acceso ha caducado. Escriba de nuevo la contraseña.', { caducado: true }); }
+  if (p.ip !== ipDe(req)) { pendientes.delete(k); throw fallo(401, 'Este acceso se empezó desde otra conexión. Escriba de nuevo la contraseña.', { caducado: true }); }
+  return [k, p];
+}
+const hashCodigo = (via, c) => crypto.createHmac('sha256', SECRETO).update(`adm-cod:${via}:${c}`).digest('hex');
+// Comprueba un código del método elegido; los de correo, SMS y recuperación se gastan al usarse
+function comprobarFactorAdmin(via, codigo) {
+  const c = String(codigo || '').trim();
+  if (!c) return false;
+  if (via === 'totp') return totpAdminActivo() && /^\d{6}$/.test(c) && comprobarSegundo(db.adminTotp, c) === 'totp';
+  if (via === 'correo' || via === 'sms') {
+    const e = codigosEnviados[via];
+    if (!activo(via) || !e || e.exp < Date.now() || !/^\d{6}$/.test(c) || !igualTexto(e.hash, hashCodigo(via, c))) return false;
+    delete codigosEnviados[via]; return true;
+  }
+  if (via === 'recuperacion') {
+    const rec = (db.adminAcceso || {}).recuperacion, i = Array.isArray(rec) ? rec.indexOf(hashRecuperacion(c)) : -1;
+    if (i < 0) return false;
+    rec.splice(i, 1); save(); return true;
+  }
+  return false;
+}
+// Entrada completa: sesión de administración y registro de actividad con el método usado
+function entrarAdmin(req, res, nombre, via, llave) {
+  startAdminSession(res, nombre);
+  const quedan = ((db.adminAcceso || {}).recuperacion || []).length;
+  const nota = { password: 'Solo con contraseña (no hay llave de acceso ni segundo factor configurado)', llave: `Con llave de acceso${llave ? ` «${llave}»` : ''}`, totp: 'Con contraseña y la aplicación de autenticación', correo: 'Con contraseña y código por correo', sms: 'Con contraseña y código por SMS', recuperacion: `Con contraseña y un código de recuperación (quedan ${quedan})` }[via];
+  anotarActividad(req, 'admin.entrar', null, { quien: quienAdmin(nombre), nota });
+  return { ok: true, via, recuperacion: via === 'recuperacion' ? quedan : undefined };
+}
+
+/* SMS con la API REST de Twilio (sin SDK). TWILIO_API_URL cambia la dirección base (pruebas). */
+async function enviarSms(a, texto) {
+  if (!twilioListo() || !a) return false;
+  const base = (env.TWILIO_API_URL || 'https://api.twilio.com').replace(/\/$/, ''), sid = env.TWILIO_ACCOUNT_SID;
+  const p = new URLSearchParams({ To: a, Body: texto });
+  if (env.TWILIO_MESSAGING_SERVICE_SID) p.set('MessagingServiceSid', env.TWILIO_MESSAGING_SERVICE_SID); else p.set('From', env.TWILIO_FROM);
+  try {
+    const r = await fetch(`${base}/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, { method: 'POST', body: p, signal: AbortSignal.timeout(15000), headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${env.TWILIO_AUTH_TOKEN}`).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' } });
+    if (!r.ok) { console.error(`SMS (Twilio): respuesta ${r.status}`, (await r.text().catch(() => '')).slice(0, 200)); return false; }
+    return true;
+  } catch (e) { console.error('SMS (Twilio):', e.message); return false; }
+}
+// Envía un código de 6 cifras por correo o SMS (como mucho ADMIN_ENVIOS_HORA por canal y hora) y guarda su HMAC
+async function enviarCodigo(via, destino, proposito) {
+  if (bloqueado('admin_envio', via)) throw demasiados(`Se han enviado demasiados códigos por ${via === 'sms' ? 'SMS' : 'correo'} en la última hora. Espere o use otro método.`);
+  anotar('admin_envio', via);
+  const codigo = String(crypto.randomInt(0, 1e6)).padStart(6, '0');
+  const enviado = via === 'correo'
+    ? await sendMail(destino, 'Atalaya 360° · Código para la administración', `Su código para ${proposito} es:\n\n${codigo}\n\nCaduca en ${CODIGO_MIN} minutos y sirve una sola vez. Si no lo ha pedido usted, alguien conoce la contraseña de administración: cámbiela desde el gestor de usuarios.\n\n${APP_URL}/admin.html`)
+    : await enviarSms(destino, `Atalaya: su código para ${proposito} es ${codigo}. Caduca en ${CODIGO_MIN} minutos. Si no lo ha pedido usted, cambie la contraseña de administración.\n\n@${RP.id} #${codigo}`);
+  if (!enviado) throw fallo(502, `No se ha podido enviar el código por ${via === 'sms' ? 'SMS' : 'correo'}. Inténtelo más tarde o use otro método.`);
+  return codigo;
+}
+
+route('POST', /^\/api\/admin\/login\/enviar$/, async (req, res, body) => {
+  const via = body.via;
+  if (via !== 'correo' && via !== 'sms') throw fallo(400, 'Método no válido');
+  const [, p] = pendienteDe(req, body.pendiente);
+  if (!activo(via)) throw fallo(409, 'Ese método no está activado.');
+  const c = canal(via); if (!c.listo) throw fallo(503, c.motivo);
+  const codigo = await enviarCodigo(via, via === 'correo' ? correoAdmin() : telefonoAdmin(), 'entrar en la administración');
+  codigosEnviados[via] = { hash: hashCodigo(via, codigo), exp: Date.now() + CODIGO_MIN * 60e3 };
+  anotarActividad(req, 'admin.codigo', null, { quien: quienAdmin(p.nombre), nota: `Código para entrar enviado por ${via === 'sms' ? 'SMS' : 'correo'} a ${c.destino}` });
+  return { ok: true, destino: c.destino, minutos: CODIGO_MIN };
+}, { public: true });
+route('POST', /^\/api\/admin\/login\/factor$/, async (req, res, body) => {
+  const [k, p] = pendienteDe(req, body.pendiente), via = body.via;
+  if (!VIAS_CODIGO.includes(via)) throw fallo(400, 'Método no válido');
+  if (bloqueado('admin_codigo', 'admin') || bloqueado('admin', ipDe(req))) throw demasiados();
+  if (!comprobarFactorAdmin(via, body.codigo)) {
+    anotar('admin_codigo', 'admin'); anotar('admin', ipDe(req)); p.fallos++;
+    if (p.fallos >= 5) pendientes.delete(k);
+    anotarActividad(req, 'admin.entrar.fallido', null, { quien: quienAdmin(p.nombre), nota: `Contraseña correcta y ${NOMBRE_VIA[via].toLowerCase()} erróneo` });
+    throw fallo(401, p.fallos >= 5 ? 'Demasiados códigos erróneos. Escriba de nuevo la contraseña.' : 'El código no es correcto, ha caducado o ya se ha usado. Puede probar otro método.', { caducado: p.fallos >= 5 });
+  }
+  pendientes.delete(k);
+  return entrarAdmin(req, res, p.nombre, via);
+}, { public: true });
+
+/* --- WebAuthn: CBOR mínimo (lo que usan attestationObject y las claves COSE) --- */
+function cbor(buf, inicio) {
+  let pos = inicio || 0;
+  const necesito = (n) => { if (pos + n > buf.length) throw new Error('CBOR truncado'); };
+  const leer = (prof) => {
+    if (prof > 16) throw new Error('CBOR demasiado anidado');
+    necesito(1);
+    const ib = buf[pos++], mt = ib >> 5, ai = ib & 31;
+    let n;
+    if (ai < 24) n = ai;
+    else if (ai === 24) { necesito(1); n = buf[pos]; pos += 1; }
+    else if (ai === 25) { necesito(2); n = buf.readUInt16BE(pos); pos += 2; }
+    else if (ai === 26) { necesito(4); n = buf.readUInt32BE(pos); pos += 4; }
+    else if (ai === 27) { necesito(8); n = Number(buf.readBigUInt64BE(pos)); pos += 8; }
+    else throw new Error('CBOR de longitud indefinida no admitido');
+    switch (mt) {
+      case 0: return n;
+      case 1: return -1 - n;
+      case 2: { necesito(n); const v = Buffer.from(buf.subarray(pos, pos + n)); pos += n; return v; }
+      case 3: { necesito(n); const v = buf.toString('utf8', pos, pos + n); pos += n; return v; }
+      case 4: { if (n > 1000) throw new Error('CBOR demasiado grande'); const v = []; for (let i = 0; i < n; i++) v.push(leer(prof + 1)); return v; }
+      case 5: { if (n > 1000) throw new Error('CBOR demasiado grande'); const m = new Map(); for (let i = 0; i < n; i++) { const k = leer(prof + 1); m.set(k, leer(prof + 1)); } return m; }
+      case 6: return leer(prof + 1); // etiqueta: se ignora
+      case 7: if (ai === 20) return false; if (ai === 21) return true; if (ai === 22 || ai === 23) return null; throw new Error('CBOR: valor no admitido');
+      default: throw new Error('CBOR no válido');
+    }
+  };
+  const valor = leer(0);
+  return { valor, fin: pos };
+}
+const b64u = (s) => Buffer.from(String(s || ''), 'base64url');
+const llaveMal = (m) => fallo(400, m || 'La respuesta de la llave de acceso no es válida.');
+function leerAuthData(b) {
+  if (!Buffer.isBuffer(b) || b.length < 37) throw llaveMal();
+  const f = b[32], r = { rpIdHash: b.subarray(0, 32), up: !!(f & 1), uv: !!(f & 4), at: !!(f & 64), contador: b.readUInt32BE(33) };
+  if (r.at) {
+    if (b.length < 55) throw llaveMal();
+    const L = b.readUInt16BE(53); if (b.length < 55 + L) throw llaveMal();
+    r.credId = b.subarray(55, 55 + L);
+    try { r.cose = cbor(b, 55 + L).valor; } catch { throw llaveMal(); }
+  }
+  return r;
+}
+// Clave pública COSE → JWK (ES256 con P-256, o RS256)
+function coseAJwk(m) {
+  if (!(m instanceof Map)) throw llaveMal();
+  const kty = m.get(1), alg = m.get(3), bin = (k) => { const v = m.get(k); if (!Buffer.isBuffer(v)) throw llaveMal(); return v.toString('base64url'); };
+  let jwk;
+  if (kty === 2 && alg === -7 && m.get(-1) === 1) jwk = { kty: 'EC', crv: 'P-256', x: bin(-2), y: bin(-3) };
+  else if (kty === 3 && alg === -257) jwk = { kty: 'RSA', n: bin(-1), e: bin(-2) };
+  else throw fallo(400, 'Este dispositivo usa un tipo de llave que Atalaya no admite (se admiten ES256 y RS256).');
+  try { crypto.createPublicKey({ key: jwk, format: 'jwk' }); } catch { throw llaveMal('La clave pública de la llave no es válida.'); }
+  return { alg, jwk };
+}
+// Desafíos de un solo uso (5 minutos), por tipo de ceremonia e IP
+const desafios = new Map();
+function nuevoDesafio(req, tipo) {
+  for (const [k, d] of desafios) if (d.exp < Date.now()) desafios.delete(k);
+  if (desafios.size > 500) desafios.delete(desafios.keys().next().value);
+  const ch = crypto.randomBytes(32).toString('base64url');
+  desafios.set(ch, { tipo, ip: ipDe(req), exp: Date.now() + DESAFIO_MIN * 60e3 });
+  return ch;
+}
+// clientDataJSON: tipo, desafío (se gasta), origen exacto de APP_URL y sin uso desde otro origen
+function comprobarClientData(req, b64, tipo) {
+  const raw = b64u(b64); let c;
+  try { c = JSON.parse(raw.toString('utf8')); } catch { throw llaveMal(); }
+  if (!c || c.type !== tipo) throw llaveMal();
+  const d = desafios.get(String(c.challenge || '')); desafios.delete(String(c.challenge || ''));
+  if (!d || d.exp < Date.now() || d.tipo !== tipo || d.ip !== ipDe(req)) throw llaveMal('El desafío de la llave no es válido o ha caducado. Vuelva a intentarlo.');
+  if (c.origin !== RP.origen || c.crossOrigin === true) throw llaveMal(`La llave se ha usado desde otra dirección (${String(c.origin || '').slice(0, 80)}); solo vale en ${RP.origen}.`);
+  return raw;
+}
+function comprobarAuthData(ad) {
+  if (!crypto.timingSafeEqual(ad.rpIdHash, crypto.createHash('sha256').update(RP.id).digest())) throw llaveMal(`La llave no es de este dominio (${RP.id}).`);
+  if (!ad.up) throw llaveMal('La llave no confirma la presencia del usuario.');
+  if (!ad.uv) throw llaveMal('La llave no ha comprobado su identidad (Face ID, huella o PIN). Active el bloqueo del dispositivo y vuelva a intentarlo.');
+}
+const nombreLlave = (s) => String(s || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 60);
+
+// Registro de una llave (con sesión de administración)
+route('POST', /^\/api\/admin\/acceso\/llaves\/opciones$/, async (req) => {
+  const a = acceso(); if (a.llaves.length >= 20) throw fallo(409, 'Ya hay 20 llaves de acceso: quite alguna antes de añadir otra.');
+  save();
+  return {
+    challenge: nuevoDesafio(req, 'webauthn.create'), rp: { id: RP.id, name: 'Atalaya 360° · Administración' },
+    user: { id: a.usuario, name: `administracion@${RP.id}`, displayName: 'Administración de Atalaya 360°' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { residentKey: 'preferred', requireResidentKey: false, userVerification: 'required' },
+    attestation: 'none', timeout: DESAFIO_MIN * 60e3,
+    excludeCredentials: a.llaves.map((l) => ({ type: 'public-key', id: l.id, transports: l.transportes || undefined }))
+  };
+}, { admin: true });
+route('POST', /^\/api\/admin\/acceso\/llaves$/, async (req, res, body) => {
+  const cr = body.credencial || {}, rp = cr.response || {}, a = acceso();
+  const nombre = nombreLlave(body.nombre) || `Llave ${a.llaves.length + 1}`;
+  comprobarClientData(req, rp.clientDataJSON, 'webauthn.create');
+  let att; try { att = cbor(b64u(rp.attestationObject)).valor; } catch { throw llaveMal(); }
+  if (!(att instanceof Map) || typeof att.get('fmt') !== 'string') throw llaveMal();
+  const ad = leerAuthData(att.get('authData'));
+  comprobarAuthData(ad);
+  if (!ad.at || !ad.credId || !ad.credId.length) throw llaveMal();
+  const id = ad.credId.toString('base64url');
+  if (cr.id && cr.id !== id) throw llaveMal();
+  if (a.llaves.some((l) => l.id === id)) throw fallo(409, 'Esta llave ya está registrada.');
+  const { alg, jwk } = coseAJwk(ad.cose);
+  const eraPrimero = !hayFactorAdmin();
+  const transportes = Array.isArray(rp.transports) ? rp.transports.filter((t) => typeof t === 'string' && /^[a-z-]{2,20}$/.test(t)).slice(0, 6) : [];
+  a.llaves.push({ id, nombre, creada: now(), usada: null, alg, jwk, contador: ad.contador, transportes, formato: att.get('fmt').slice(0, 20) });
+  const codigos = trasPrimerFactor(req, eraPrimero);
+  anotarActividad(req, 'acceso.llave.alta', null, { nota: `Llave de acceso «${nombre}» (${alg === -257 ? 'RS256' : 'ES256'})` });
+  save(); return { ok: true, llave: estadoAcceso().llaves.find((l) => l.id === id), codigos };
+}, { admin: true });
+route('POST', /^\/api\/admin\/acceso\/llaves\/nombre$/, async (req, res, body) => {
+  const l = acceso().llaves.find((x) => x.id === body.id); if (!l) throw fallo(404, 'Llave no encontrada');
+  const nombre = nombreLlave(body.nombre); if (!nombre) throw fallo(400, 'Escriba un nombre.');
+  anotarActividad(req, 'acceso.llave.nombre', null, { antes: { nombre: l.nombre }, despues: { nombre } });
+  l.nombre = nombre; save(); return { ok: true };
+}, { admin: true });
+route('POST', /^\/api\/admin\/acceso\/llaves\/quitar$/, async (req, res, body) => {
+  const a = acceso(), l = a.llaves.find((x) => x.id === body.id); if (!l) throw fallo(404, 'Llave no encontrada');
+  confirmarQuitar(req, body, () => { a.llaves = a.llaves.filter((x) => x !== l); });
+  anotarActividad(req, 'acceso.llave.quitar', null, { nota: `Llave de acceso «${l.nombre}»` });
+  save(); return { ok: true };
+}, { admin: true });
+
+// Entrada con llave de acceso (sin contraseña)
+route('POST', /^\/api\/admin\/llave\/opciones$/, async (req) => {
+  const ip = ipDe(req);
+  if (bloqueado('admin_llave_op', ip) || bloqueado('admin_llave', ip)) throw demasiados();
+  anotar('admin_llave_op', ip);
+  const ll = (db.adminAcceso || {}).llaves || [];
+  if (!db.admin || !ll.length) throw fallo(409, 'No hay ninguna llave de acceso registrada. Entre con la contraseña.');
+  return { challenge: nuevoDesafio(req, 'webauthn.get'), rpId: RP.id, timeout: DESAFIO_MIN * 60e3, userVerification: 'required', allowCredentials: ll.map((l) => ({ type: 'public-key', id: l.id, transports: l.transportes && l.transportes.length ? l.transportes : undefined })) };
+}, { public: true });
+route('POST', /^\/api\/admin\/llave\/entrar$/, async (req, res, body) => {
+  const ip = ipDe(req), nombre = String(body.nombre || '').trim().slice(0, 60);
+  if (bloqueado('admin_llave', ip)) throw demasiados();
+  const cr = body.credencial || {}, rp = cr.response || {};
+  const l = ((db.adminAcceso || {}).llaves || []).find((x) => x.id === cr.id);
+  try {
+    if (!l) throw llaveMal('Esta llave de acceso no está registrada en este servidor (o se quitó). Entre con la contraseña.');
+    const raw = comprobarClientData(req, rp.clientDataJSON, 'webauthn.get');
+    const authData = b64u(rp.authenticatorData), ad = leerAuthData(authData);
+    comprobarAuthData(ad);
+    if (rp.userHandle && rp.userHandle !== acceso().usuario) throw llaveMal();
+    const datos = Buffer.concat([authData, crypto.createHash('sha256').update(raw).digest()]);
+    let valida = false;
+    try { valida = crypto.verify('sha256', datos, crypto.createPublicKey({ key: l.jwk, format: 'jwk' }), b64u(rp.signature)); } catch { valida = false; }
+    if (!valida) throw llaveMal('La firma de la llave no es válida.');
+    // Contador de firmas: si la llave lo lleva, tiene que subir; si no sube, puede ser una llave copiada
+    if ((ad.contador || l.contador) && ad.contador <= l.contador) throw llaveMal('El contador de la llave no ha avanzado: podría ser una copia. Entre con otro método y revise sus llaves en «Seguridad».');
+    l.contador = ad.contador; l.usada = now(); save();
+  } catch (e) {
+    anotar('admin_llave', ip);
+    anotarActividad(req, 'admin.entrar.fallido', null, { quien: quienAdmin(nombre), nota: `Llave de acceso${l ? ` «${l.nombre}»` : ''} rechazada: ${String(e.message).slice(0, 160)}` });
+    throw e;
+  }
+  return entrarAdmin(req, res, nombre, 'llave', l.nombre);
+}, { public: true });
+
+/* --- Código por correo y por SMS: se activan comprobando que llega un código --- */
+const altasCanal = {};
+route('POST', /^\/api\/admin\/acceso\/(correo|sms)\/probar$/, async (req, res, body, u, m) => {
+  const via = m[1];
+  let destino;
+  if (via === 'correo') {
+    const e = String(body.email || '').trim().toLowerCase();
+    if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw fallo(400, 'El correo no es válido.');
+    destino = e || String(env.ADMIN_EMAIL || '').trim();
+    if (!env.SMTP_HOST) throw fallo(503, canal('correo').motivo);
+    if (!destino) throw fallo(400, 'Escriba el correo al que quiere recibir los códigos (o ponga ADMIN_EMAIL en el servidor).');
+  } else { const c = canal('sms'); if (!c.listo) throw fallo(503, c.motivo); destino = telefonoAdmin(); }
+  const codigo = await enviarCodigo(via, destino, 'activar este método en la administración');
+  altasCanal[via] = { hash: hashCodigo('alta-' + via, codigo), exp: Date.now() + CODIGO_MIN * 60e3, email: via === 'correo' && destino !== String(env.ADMIN_EMAIL || '').trim() ? destino : null };
+  return { ok: true, destino: via === 'correo' ? ocultarCorreo(destino) : ocultarTelefono(destino), minutos: CODIGO_MIN };
+}, { admin: true });
+route('POST', /^\/api\/admin\/acceso\/(correo|sms)\/activar$/, async (req, res, body, u, m) => {
+  const via = m[1], p = altasCanal[via], c = String(body.codigo || '').trim();
+  if (bloqueado('dospasos', 'admin')) throw demasiados();
+  if (!p || p.exp < Date.now() || !/^\d{6}$/.test(c) || !igualTexto(p.hash, hashCodigo('alta-' + via, c))) { anotar('dospasos', 'admin'); throw fallo(400, 'El código no es correcto o ha caducado. Pida otro.'); }
+  delete altasCanal[via];
+  const eraPrimero = !hayFactorAdmin(), a = acceso();
+  a[via] = { activo: true, alta: now(), ...(via === 'correo' && p.email ? { email: p.email } : {}) };
+  const codigos = trasPrimerFactor(req, eraPrimero);
+  anotarActividad(req, `acceso.${via}.activar`, null, { nota: `${NOMBRE_VIA[via]} activado (${via === 'correo' ? ocultarCorreo(correoAdmin()) : ocultarTelefono(telefonoAdmin())})` });
+  save(); return { ok: true, codigos };
+}, { admin: true });
+route('POST', /^\/api\/admin\/acceso\/(correo|sms)\/desactivar$/, async (req, res, body, u, m) => {
+  const via = m[1]; if (!activo(via)) throw fallo(409, 'Ese método no está activado.');
+  confirmarQuitar(req, body, () => { delete acceso()[via]; });
+  anotarActividad(req, `acceso.${via}.desactivar`, null, { nota: `${NOMBRE_VIA[via]} desactivado` });
+  save(); return { ok: true };
+}, { admin: true });
+// Al configurar el primer método: códigos de recuperación (si no los hay) y se cierran las demás sesiones de administración
+function trasPrimerFactor(req, eraPrimero) {
+  const a = acceso(); let codigos = null;
+  if (!Array.isArray(a.recuperacion) || !a.recuperacion.length) { const r = codigosRecuperacion(); a.recuperacion = r.hashes; codigos = r.codigos; }
+  if (eraPrimero) { const sid = cookies(req)[ADMIN_COOKIE], mia = sid ? sha(sid) : null; Object.keys(db.adminSessions).forEach((k) => { if (k !== mia) delete db.adminSessions[k]; }); }
+  return codigos;
+}
+/* Quitar un método: con la sesión abierta, la contraseña de administración y, si es el último (después se entraría solo
+   con la contraseña), una confirmación expresa (confirmar: true). */
+function confirmarQuitar(req, body, quitar) {
+  if (bloqueado('dospasos', 'admin')) throw demasiados();
+  if (!safeEq(hashPw(String(body.password || ''), db.admin.salt), db.admin.hash)) { anotar('dospasos', 'admin'); throw fallo(400, 'La contraseña de administración no es correcta.'); }
+  const copia = JSON.stringify(db.adminAcceso || {}), totp = db.adminTotp;
+  quitar();
+  if (!hayFactorAdmin() && body.confirmar !== true) {
+    db.adminAcceso = JSON.parse(copia); db.adminTotp = totp;
+    throw fallo(409, 'Es el último método además de la contraseña: después se entrará solo con la contraseña. Confirme que quiere quitarlo.', { ultimo: true });
+  }
+}
+
+/* ---------- Segundo factor de la administración: aplicación de autenticación (TOTP) ---------- */
 route('POST', /^\/api\/admin\/2fa\/iniciar$/, async (req) => {
-  if (db.adminTotp && db.adminTotp.activo) throw fallo(409, 'El segundo factor ya está activado. Para cambiar de teléfono, desactívelo y vuelva a activarlo.');
+  if (totpAdminActivo()) throw fallo(409, 'La aplicación de autenticación ya está activada. Para cambiar de teléfono, desactívela y vuelva a activarla.');
   return iniciarTotp('admin', 'administración');
 }, { admin: true });
 route('POST', /^\/api\/admin\/2fa\/activar$/, async (req, res, body) => {
   if (bloqueado('dospasos', 'admin')) throw demasiados();
   let r; try { r = confirmarTotp('admin', body.codigo); } catch (e) { anotar('dospasos', 'admin'); throw e; }
-  db.adminTotp = r.registro;
-  // Las demás sesiones de administración se cierran: a partir de ahora hace falta el código para entrar
-  const sid = cookies(req)[ADMIN_COOKIE], mia = sid ? sha(sid) : null;
-  Object.keys(db.adminSessions).forEach((k) => { if (k !== mia) delete db.adminSessions[k]; });
-  anotarActividad(req, 'dospasos.activar', null, { nota: 'Segundo factor de la administración' });
-  save(); return { ok: true, codigos: r.codigos };
+  const eraPrimero = !hayFactorAdmin();
+  delete r.registro.codigos; db.adminTotp = r.registro;
+  const codigos = trasPrimerFactor(req, eraPrimero);
+  anotarActividad(req, 'dospasos.activar', null, { nota: 'Aplicación de autenticación de la administración' });
+  save(); return { ok: true, codigos };
 }, { admin: true });
-const exigirPasswordAdmin = (req, body) => {
-  if (bloqueado('dospasos', 'admin')) throw demasiados();
-  const okPw = safeEq(hashPw(String(body.password || ''), db.admin.salt), db.admin.hash);
-  if (!okPw || !comprobarSegundo(db.adminTotp, body.codigo)) { anotar('dospasos', 'admin'); throw fallo(400, okPw ? 'El código no es correcto o ya se ha usado.' : 'La contraseña de administración no es correcta.'); }
-};
 route('POST', /^\/api\/admin\/2fa\/desactivar$/, async (req, res, body) => {
-  if (!db.adminTotp || !db.adminTotp.activo) throw fallo(409, 'El segundo factor no está activado');
-  exigirPasswordAdmin(req, body);
-  delete db.adminTotp;
-  anotarActividad(req, 'dospasos.desactivar', null, { nota: 'Segundo factor de la administración' });
+  if (!totpAdminActivo()) throw fallo(409, 'La aplicación de autenticación no está activada');
+  confirmarQuitar(req, body, () => { delete db.adminTotp; });
+  anotarActividad(req, 'dospasos.desactivar', null, { nota: 'Aplicación de autenticación de la administración' });
   save(); return { ok: true };
 }, { admin: true });
 route('POST', /^\/api\/admin\/2fa\/recuperacion$/, async (req, res, body) => {
-  if (!db.adminTotp || !db.adminTotp.activo) throw fallo(409, 'El segundo factor no está activado');
-  exigirPasswordAdmin(req, body);
-  const r = codigosRecuperacion(); db.adminTotp.codigos = r.hashes;
+  if (!hayFactorAdmin()) throw fallo(409, 'Configure antes una llave de acceso o un segundo factor.');
+  if (bloqueado('dospasos', 'admin')) throw demasiados();
+  if (!safeEq(hashPw(String(body.password || ''), db.admin.salt), db.admin.hash)) { anotar('dospasos', 'admin'); throw fallo(400, 'La contraseña de administración no es correcta.'); }
+  const r = codigosRecuperacion(); acceso().recuperacion = r.hashes;
   anotarActividad(req, 'dospasos.recuperacion', null, { nota: 'Códigos de recuperación nuevos (los anteriores dejan de valer)' });
   save(); return { ok: true, codigos: r.codigos };
 }, { admin: true });
