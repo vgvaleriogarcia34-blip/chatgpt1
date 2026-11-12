@@ -31,7 +31,7 @@
      Se lee y se guarda con A.firma (js/informe.js): marca blanca de los documentos. Sin nombre, los documentos llevan «Atalaya 360°». */
   const firma = () => {
     const u = (P() && P().user) || {};
-    return Object.assign({ nombre: '', lema: 'Consultoría para pymes', descripcion: 'Consultoría para la empresa: gobierno, finanzas, equipos y claridad en las decisiones que sostienen el negocio.', consultor: u.nombre || '', cargo: 'Director del proyecto', razon: '', cif: '', direccion: '', ciudad: '', email: u.email || '', tel: '', logo: '', color: '', elaborado: true }, A.firma ? A.firma.leer() : {});
+    return Object.assign({ nombre: '', lema: 'Consultoría para pymes', descripcion: 'Consultoría para la empresa: gobierno, finanzas, equipos y claridad en las decisiones que sostienen el negocio.', consultor: u.nombre || '', cargo: 'Director del proyecto', razon: '', cif: '', direccion: '', ciudad: '', email: u.email || '', tel: '', logo: '', portada: '', color: '', elaborado: true }, A.firma ? A.firma.leer() : {});
   };
   const ponFirma = (f) => (A.firma ? A.firma.guardar(f) : Promise.resolve(false));
   // Para el dossier: sin nombre de firma, la marca es Atalaya 360°; el logotipo y el color, solo si son válidos
@@ -46,6 +46,8 @@
       <div class="small stack" style="gap:6px"><b>Logotipo</b>${f.logo ? `<img src="${f.logo}" alt="Logotipo de la firma" style="max-height:56px;max-width:200px;object-fit:contain;background:#fff;border-radius:6px;padding:4px;border:1px solid var(--line, #ccc)">` : '<span class="muted">Sin logotipo: el membrete lleva el nombre.</span>'}
         <div class="row" style="gap:6px"><label class="btn ghost small">${f.logo ? 'Cambiar' : 'Subir logotipo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-flogo hidden></label>${f.logo ? '<button class="btn ghost small" data-flogo-x>Quitar</button>' : ''}</div><small class="muted">PNG, JPG, WebP o SVG. Se reduce a 600 px y hasta 200 KB.</small></div>
       <div class="small stack" style="gap:6px"><b>Color de los títulos</b><div class="row" style="gap:8px"><input type="color" data-fcolor value="${esc(ok ? c : '#6e7d14')}" style="width:46px;height:32px;padding:0;border:0;background:none">${ok ? `<span>${esc(c)} · contraste ${ratio}:1</span><button class="btn ghost small" data-fcolor-x>Por defecto</button>` : '<span class="muted">Por defecto (oliva)</span>'}</div><small class="muted">Debe leerse sobre blanco (contraste de 4,5:1 o más); si no, se usa el de por defecto.</small></div>
+      <div class="small stack" style="gap:6px"><b>Foto de portada de los informes</b>${f.portada ? `<img src="${f.portada}" alt="Foto de portada de la firma" style="max-height:70px;max-width:220px;object-fit:cover;border-radius:6px;border:1px solid var(--line, #ccc)">` : '<span class="muted">Sin foto: la apertura de cada informe lleva una composición abstracta con los colores de la marca.</span>'}
+        <div class="row" style="gap:6px"><label class="btn ghost small">${f.portada ? 'Cambiar' : 'Subir foto'}<input type="file" accept="image/png,image/jpeg,image/webp" data-fport hidden></label>${f.portada ? '<button class="btn ghost small" data-fport-x>Quitar</button>' : ''}</div><small class="muted">Foto propia de la firma (sin derechos de terceros). Se recorta a lo ancho y se reduce hasta 300 KB.</small></div>
       <label class="iv-inl small" style="align-self:start"><input type="checkbox" data-felab ${f.elaborado !== false ? 'checked' : ''}> Mostrar «Elaborado con Atalaya 360°» al pie de los documentos</label></div>`;
   };
   // La imagen se pasa por un lienzo: tamaño contenido, formato PNG (o JPG si pesa demasiado) y nada más que píxeles
@@ -68,10 +70,31 @@
     im.onerror = () => { URL.revokeObjectURL(url); ko(new Error('No se pudo leer la imagen.')); };
     im.src = url;
   });
+  // Foto de portada: apaisada (la banda de apertura de los informes), en JPG y como mucho 300 KB
+  const FOTO_MAX = 300 * 1024;
+  const fotoDe = (file) => new Promise((ok, ko) => {
+    if (!file || !/^image\/(png|jpeg|webp)$/.test(file.type)) return ko(new Error('La foto debe ser PNG, JPG o WebP.'));
+    if (file.size > 15 * 1024 * 1024) return ko(new Error('La foto pesa más de 15 MB.'));
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      URL.revokeObjectURL(url);
+      const w0 = im.naturalWidth || 1600, h0 = im.naturalHeight || 900, rel = 3.2, hc = Math.min(h0, w0 / rel), wc = hc * rel, x0 = (w0 - wc) / 2, y0 = (h0 - hc) / 2;
+      for (const W of [1800, 1400, 1100, 800]) {
+        const cv = document.createElement('canvas'); cv.width = Math.min(W, Math.round(wc)); cv.height = Math.round(cv.width / rel);
+        cv.getContext('2d').drawImage(im, x0, y0, wc, hc, 0, 0, cv.width, cv.height);
+        for (const q of [0.82, 0.7]) { const d = cv.toDataURL('image/jpeg', q); if (d.length <= FOTO_MAX) return ok(d); }
+      }
+      ko(new Error('La foto sigue pesando demasiado: pruebe con otra imagen.'));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); ko(new Error('No se pudo leer la imagen.')); };
+    im.src = url;
+  });
   const wireFirmaMarca = (host) => {
     const pon = (k, v) => { const ff = firma(); ff[k] = v; ponFirma(ff); render(); };
     const lf = $('[data-flogo]', host); if (lf) lf.onchange = async () => { try { pon('logo', await logoDe(lf.files[0])); toast('Logotipo guardado: aparece en el membrete de los informes.'); } catch (x) { toast(x.message); } };
     const lx = $('[data-flogo-x]', host); if (lx) lx.onclick = () => pon('logo', '');
+    const fp = $('[data-fport]', host); if (fp) fp.onchange = async () => { try { pon('portada', await fotoDe(fp.files[0])); toast('Foto de portada guardada: abre la primera sección de cada informe.'); } catch (x) { toast(x.message); } };
+    const fx = $('[data-fport-x]', host); if (fx) fx.onclick = () => pon('portada', '');
     const fc = $('[data-fcolor]', host); if (fc) fc.onchange = () => { const v = fc.value; if (A.informe.colorOk(v)) pon('color', v); else { toast(`Ese color tiene poco contraste sobre blanco (${A.informe.contraste(v).toLocaleString('es-ES', { maximumFractionDigits: 1 })}:1): se usa el de por defecto. Elija uno más oscuro.`); pon('color', ''); } };
     const cx = $('[data-fcolor-x]', host); if (cx) cx.onclick = () => pon('color', '');
     const fe = $('[data-felab]', host); if (fe) fe.onchange = () => pon('elaborado', fe.checked);

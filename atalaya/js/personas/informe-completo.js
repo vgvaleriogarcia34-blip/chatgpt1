@@ -135,8 +135,11 @@
 
     /* 2 · Resumen ejecutivo: la conclusión y sus cifras */
     const lec = R.lecPersona(p), Fm = R.inf;
+    const encP = pu && R.encaje(p, pu);
+    const grafEnc = encP && encP.total != null && In.barras ? In.barras([{ k: 'Encaje global', v: encP.total, st: encP.st, t: encP.total + ' %' }].concat(encP.disc != null ? [{ k: 'Comportamiento', v: encP.disc, c: '#4a5470', t: encP.disc + ' %' }] : [], encP.roles != null ? [{ k: 'Aportaciones al equipo', v: encP.roles, c: '#8e98b3', t: encP.roles + ' %' }] : []), { titulo: 'Encaje con el puesto · ' + pu.nombre, max: 100, meta: 75, metaTxt: 'Desde 75 %, encaje alto', fmt: (v) => v + ' %', nota: encP.disc != null && encP.roles != null ? 'El encaje global pondera un 60 % el comportamiento y un 40 % las aportaciones que pide el puesto.' : '' }) : '';
     pag('Perfil profesional', 'Resumen ejecutivo', `
       ${R.pp.resumenPp(lec.lead, lec.claves)}
+      ${grafEnc}
       <div class="pp-nota"><b>Uso responsable.</b> ${esc(X.AVISO)}</div>`);
 
     if (d) {

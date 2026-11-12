@@ -163,6 +163,18 @@
     const tri = r.triaje && r.triaje.areas && r.triaje.areas.length ? ['stop', 'warn', 'ok'].flatMap((st) => r.triaje.areas.filter((a) => a.st === st)).map((a) => ({ n: a.n, st: a.st, t: { stop: 'Inmediata', warn: 'Preferente', ok: 'Programable' }[a.st] })) : [];
     return { empresa: empresa || '', eq, msgs, capas, pts, pend, cf, objs, abiertos, recs, lim, ambitos, global, triaje: tri, vacio: !pts.length && !cf && !objs.length && !tri.length };
   };
+  // Gráficos de la situación (informe de situación y libro): indicadores por nivel y valoración de cada ámbito sobre 10
+  const stN10 = (n) => (n == null ? null : n >= 7 ? 'ok' : n >= 5 ? 'warn' : 'stop');
+  const n10 = (n) => String((Math.round(n * 10) / 10).toFixed(1)).replace('.', ',');
+  L.graficoNiveles = (s) => {
+    const I = A.informe, cs = (s && s.capas || []).filter((c) => c.total); if (!I || !I.donut || !cs.length) return '';
+    const t = cs.reduce((a, c) => ({ r: a.r + c.rojos, a: a.a + c.ambar, v: a.v + c.verdes }), { r: 0, a: 0, v: 0 });
+    return I.donut([{ k: 'Correctos', v: t.v, st: 'ok' }, { k: 'A vigilar', v: t.a, st: 'warn' }, { k: 'Críticos', v: t.r, st: 'stop' }], { titulo: 'Indicadores de la empresa por nivel', centro: String(t.r + t.a + t.v), centroTxt: 'indicadores', fmt: (v) => String(v), nota: 'Todos los indicadores evaluados en las cuatro áreas, clasificados frente a su umbral de referencia.' });
+  };
+  L.graficoAmbitos = (s) => {
+    const I = A.informe, am = (s && s.ambitos || []); if (!I || !I.barras || !am.length) return '';
+    return I.barras(am.map((m) => ({ k: m.n, v: m.nota, st: stN10(m.nota), t: n10(m.nota) + ' / 10' })), { titulo: 'Valoración por ámbito, sobre 10', max: 10, meta: 7, metaTxt: 'Desde 7, nivel correcto', nota: 'Cada ámbito pondera sus indicadores: correcto cuenta 1, a vigilar 0,5 y crítico 0.' });
+  };
   // Resumen ejecutivo de la situación, listo para un informe (I.summary)
   L.resumenHTML = (s) => (s && !s.vacio ? `${s.eq.t ? `<p><b>${escS(s.eq.t)}.</b> ${escS(s.eq.d)}</p>` : ''}${s.msgs.length ? `<ul>${s.msgs.map((m) => `<li>${m}</li>`).join('')}</ul>` : ''}` : '');
 

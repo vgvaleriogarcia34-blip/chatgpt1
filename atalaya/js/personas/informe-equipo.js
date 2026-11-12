@@ -27,6 +27,11 @@
     pag('Equipo', 'Composición', `
       <p class="pp-intro">Quién forma ${esc(lec.eq)} y el perfil de cada persona.</p>
       ${tabla(['Persona', 'Puesto', 'Estilo de comportamiento', 'Aportación natural'].concat(hayId ? ['Identidad'] : [], ['Encaje']), M.map((p) => { const est = p.disc && R.discEstilo(p.disc), enc = R.encaje(p, R.puestoDe(p)), a = arq(p); return [{ h: `<b>${esc(p.nombre)}</b>` }, (R.puestoDe(p) || {}).nombre || '—', est ? { h: `<span class="pp-dot" style="background:${H.DISC[est.pri].c}"></span>${esc(est.nombre)}` } : '—', p.roles && p.roles.scores ? H.ROLES[R.rolesOrden(p.roles.scores)[0]].n : '—'].concat(hayId ? [a ? a.e.n : '—'] : [], [enc && enc.total != null ? { h: pill(enc.st, enc.total + ' %') } : '—']); }))}`);
+    // Gráficos de la composición: reparto de estilos principales (colores del método) y encaje de cada persona con su puesto
+    const encs = M.map((p) => ({ p, e: R.encaje(p, R.puestoDe(p)) })).filter((x) => x.e && x.e.total != null).sort((a, b) => b.e.total - a.e.total);
+    const grafComp = (an.conDisc.length >= 2 && In.donut ? In.donut(F4.map((k) => ({ k: k + ' · ' + H.DISC[k].n, v: an.dist[k], c: H.DISC[k].c })), { titulo: 'Reparto de estilos principales', centro: String(an.conDisc.length), centroTxt: an.conDisc.length === 1 ? 'persona' : 'personas', fmt: (v) => String(v), nota: 'Cuántas personas tienen cada factor como estilo principal de comportamiento.' }) : '')
+      + (encs.length >= 2 && In.barras ? In.barras(encs.map((x) => ({ k: x.p.nombre, v: x.e.total, st: x.e.st, t: x.e.total + ' %' })), { titulo: 'Encaje de cada persona con su puesto', max: 100, meta: 75, metaTxt: 'Desde 75 %, encaje alto; por debajo de 55 %, bajo', fmt: (v) => v + ' %', nota: '60 % comportamiento y 40 % aportaciones clave del puesto.' }) : '');
+    if (grafComp) pag('Equipo', 'Estilos y encaje', `<p class="pp-intro">Cómo se reparten los estilos de comportamiento en ${esc(lec.eq)} y cómo encaja cada persona con lo que pide su puesto.</p>${grafComp}`);
     if (an.conDisc.length) {
       pag('Equipo', 'Mapa conductual del equipo', `
         <p class="pp-intro">Dónde se sitúa cada persona respecto a las ocho tendencias de comportamiento. Un equipo con puntos repartidos cubre más situaciones; uno concentrado comparte fortalezas y puntos ciegos.</p>
@@ -112,6 +117,7 @@
       <div class="pp-nota"><b>Uso responsable.</b> El encaje compara estilos de comportamiento y aportaciones con lo que requiere el puesto. Es una guía para conversar y desarrollar, no un criterio único para decidir sobre nadie.</div>`);
     pag('Encaje', 'Personas y puestos', `
       <p class="pp-intro">Encaje de cada persona con su puesto: 60 % comportamiento y 40 % aportaciones clave del puesto.</p>
+      ${con.length >= 2 && In.barras ? In.barras(con.slice().sort((a, b) => b.e.total - a.e.total).map((f) => ({ k: f.p.nombre, v: f.e.total, st: f.e.st, t: f.e.total + ' %' })), { titulo: 'Encaje persona-puesto', max: 100, meta: 75, metaTxt: 'Desde 75 %, encaje alto; por debajo de 55 %, bajo', fmt: (v) => v + ' %' }) : ''}
       ${tabla(['Persona', 'Puesto', 'Encaje', 'Comportamiento', 'Aportaciones', 'Principal diferencia'], filas.map((f) => [{ h: `<b>${esc(f.p.nombre)}</b>` }, f.q ? f.q.nombre : '—', f.e && f.e.total != null ? { h: pill(f.e.st, f.e.total + ' %') } : '—', f.e && f.e.disc != null ? f.e.disc + ' %' : '—', f.e && f.e.roles != null ? f.e.roles + ' %' : '—', f.e && f.e.brechas[0] ? f.e.brechas[0].txt : '—'])) }`);
     const pud = pu.filter((q) => q.disc || (q.roles && q.roles.length));
     if (pud.length) pag('Encaje', 'Puestos y candidatos', `

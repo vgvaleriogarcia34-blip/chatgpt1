@@ -4,6 +4,8 @@
    al preparar el documento (tablas anchas) sea lo mismo que se imprime. La página (@page: A4, márgenes, membrete y
    pie con la marca de la firma y el número de página) la escribe informe.js con los datos de cada documento. */
 html, body.pdf-print { margin: 0; padding: 0; background: #fff; }
+/* La hoja es clara: sin esto, el «color-scheme: dark» de la aplicación pinta de negro los márgenes de la página en el PDF */
+:root { color-scheme: light !important; }
 body.pdf-print { width: auto; min-height: 0; overflow: visible; }
 /* atalaya.css oculta al imprimir todo lo que no es el informe en pantalla: aquí el documento es lo único que hay */
 body.pdf-print > .pdf-sheet { display: block !important; }
@@ -72,3 +74,21 @@ body.pdf-print *, body.pdf-print *::before, body.pdf-print *::after { -webkit-pr
 
 /* Lo que es de pantalla no va al papel */
 .pdf-print button, .pdf-print .btn, .pdf-print .icon-btn, .pdf-print .ci-add, .pdf-print .ci-del, .pdf-print .rj, .pdf-print .rj-host { display: none !important; }
+
+/* Maquetación editorial (js/informe.js · I.maquetar): la rejilla de dos columnas en la hoja */
+.pdf-print .paper.rp .rp-g { padding-top: 8mm; }
+.pdf-print .paper.rp .rp-g.rp-abre { padding-top: 0; }
+.pdf-print .paper.rp .rp-col > h2, .pdf-print .paper.rp .rp-keep > h2 { margin-top: 0; font-size: 16pt; }
+.pdf-print .paper.rp .rp-banda { min-height: 44mm; padding-top: 16mm; padding-bottom: 5mm; break-inside: avoid; break-after: avoid; page-break-after: avoid; margin-bottom: 5mm; }
+.pdf-print .paper.rp .rp-banda h2 { font-size: 19pt; margin: 0; }
+.pdf-print .paper.rp .rp-col > .rp-nota, .pdf-print .paper.rp .rp-keep > .rp-nota { font-size: 7.6pt; }
+.pdf-print .paper.rp .rp-col > h3, .pdf-print .paper.rp .rp-keep > h3 { font-size: 8pt; }
+.pdf-print .rp-col > h2 + .rp-nota, .pdf-print .rp-col > h2 + .rp-vis, .pdf-print .rp-keep > h2 + .rp-nota, .pdf-print .rp-keep > h2 + .rp-vis { break-before: avoid; }
+.pdf-print .rp-fig, .pdf-print .rp-hb, .pdf-print .rp-donut, .pdf-print .rp-vis { break-inside: avoid; page-break-inside: avoid; }
+.pdf-print .rp-fig svg { max-height: none; }
+.pdf-print .rp-fig-t { break-after: avoid; }
+.pdf-print .paper.rp.rp-ed .rp-summary { padding-top: 6mm; }
+/* Título de sección con sus notas y su primer bloque: no se parte (lo agrupa informe.js al preparar el PDF) */
+.pdf-print .rp-keep { display: flow-root; break-inside: avoid; page-break-inside: avoid; }
+/* Un resumen con gráficos es largo: puede seguir en la hoja siguiente (si no, arrastra la portada) */
+.pdf-print .rp-summary:has(.rp-fig) { break-inside: auto; page-break-inside: auto; }

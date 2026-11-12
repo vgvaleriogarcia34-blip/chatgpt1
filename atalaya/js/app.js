@@ -1725,8 +1725,11 @@
   }
   function drawPaper() {
     $('#paper').innerHTML = A.report.build(state, ctx, repOpts());
-    const series = ctx.all.filter((x) => repSc.indexOf(x.key) >= 0).map((x) => ({ name: x.nombre, data: x.r.w.liquidez, color: A.scenarioColor(x.key), active: x.key === state.escenario }));
+    // En papel, los escenarios con la paleta de los informes (js/informe.js · I.PAL), legible al imprimir
+    const PAPEL = { estres: '#2b3040', pesimista: '#b8955a', base: '#6e7d14', optimista: '#a6c13a', custom: '#8e98b3', hipotesis: '#8e98b3' };
+    const series = ctx.all.filter((x) => repSc.indexOf(x.key) >= 0).map((x) => ({ name: x.nombre, data: x.r.w.liquidez, color: PAPEL[x.key] || A.scenarioColor(x.key), active: x.key === state.escenario }));
     if (series.length) C.cash($('#repCash'), null, sinInversion() ? series.filter((x) => x.active) : series, { target: state.meta.cajaMin, start: sinInversion() ? 0 : ctx.active.start });
+    if (A.informe && A.informe.maquetar) A.informe.maquetar($('#paper'));
   }
   function closeReport() { const ov = $('#report'); if (ov && !ov.hidden) { ov.hidden = true; document.body.style.overflow = ''; } }
 

@@ -218,7 +218,7 @@
         const pintar = (v) => {
           ov.querySelectorAll('.ci-seg [data-v]').forEach((b) => b.setAttribute('aria-selected', b.dataset.v === v));
           paper.classList.toggle('ci-interno', v === 'int');
-          if (v === 'ext') { In.setN((o.html.match(/class="rp-sec"/g) || []).length); const ex = CI.externo(ctx); paper.innerHTML = i >= 0 ? o.html.slice(0, i) + ex + o.html.slice(i) : o.html + ex; return; }
+          if (v === 'ext') { In.setN((o.html.match(/class="rp-sec"/g) || []).length); const ex = CI.externo(ctx); paper.innerHTML = i >= 0 ? o.html.slice(0, i) + ex + o.html.slice(i) : o.html + ex; if (In.maquetar) In.maquetar(paper); return; }
           paper.innerHTML = CI.cuadernoHTML(ctx); wireCuaderno(paper, ctx, () => pintar('int'));
         };
         ov.querySelectorAll('.ci-seg [data-v]').forEach((b) => (b.onclick = () => { pintar(b.dataset.v); ov.scrollTop = 0; }));

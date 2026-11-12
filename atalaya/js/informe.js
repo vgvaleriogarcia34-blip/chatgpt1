@@ -47,7 +47,8 @@
   A.firma = () => {
     const f = leerFirma(), nombre = String(f.nombre || '').trim();
     return { propia: !!nombre, nombre: nombre || AT, lema: f.lema || '', consultor: f.consultor || '', cargo: f.cargo || '', razonSocial: f.razon || '', cif: f.cif || '', direccion: f.direccion || '', ciudad: f.ciudad || '', email: f.email || '', tel: f.tel || '',
-      contacto: [f.email, f.tel].filter(Boolean).join(' · '), descripcion: f.descripcion || '', logo: /^data:image\/(png|jpe?g|webp);base64,/.test(f.logo || '') ? f.logo : '', color: I.colorOk(f.color) ? f.color : '', elaborado: f.elaborado !== false };
+      contacto: [f.email, f.tel].filter(Boolean).join(' · '), descripcion: f.descripcion || '', logo: /^data:image\/(png|jpe?g|webp);base64,/.test(f.logo || '') ? f.logo : '', color: I.colorOk(f.color) ? f.color : '', elaborado: f.elaborado !== false,
+      portada: /^data:image\/(png|jpe?g|webp);base64,/.test(f.portada || '') ? f.portada : '' };
   };
   A.firma.leer = leerFirma;
   A.firma.guardar = guardarFirma;
@@ -59,7 +60,7 @@
     const c = A.firma().color; let st = document.getElementById('rpFirmaCss');
     if (!c) { if (st) st.remove(); return; }
     if (!st) { st = document.createElement('style'); st.id = 'rpFirmaCss'; document.head.appendChild(st); }
-    const css = `.paper.rp .rp-kicker,.paper.rp .lb-secp span{color:${c}}.paper.rp h2 .rp-n{background:${c}}.paper.rp h2,.paper.rp .rp-foot{border-top-color:${c}}.pp-f{background:${c}!important}.pp-f b{color:#fff!important}.pp-band{border-left-color:${c}!important}`;
+    const css = `.paper.rp .rp-kicker,.paper.rp .lb-secp span,.paper.rp .rp-sec:not(.rp-abre)>h2 .rp-n,.paper.rp .rp-fig-t,.pp-hl b{color:${c}}.paper.rp thead th,.pp-t thead th{background:${c}!important;color:#fff!important}.paper.rp .rp-foot{border-top-color:${c}}.pp-f{background:${c}!important}.pp-f b{color:#fff!important}.pp-band{border-left-color:${c}!important}`;
     if (st.textContent !== css) st.textContent = css;
   };
   /* Membrete: la firma (con su logotipo si lo tiene) o, sin ficha, Atalaya 360° */
@@ -117,6 +118,178 @@
   I.foot = (txt) => `<footer class="rp-foot"><span>${esc(I.marcaTxt())} · ${esc(I.fecha())}</span><span>${esc(txt || 'Las cifras son estimaciones elaboradas con la información facilitada por la empresa. La fiscalidad y las decisiones societarias deben validarse con sus asesores.')}</span>${I.elab()}</footer>`;
   // Coletilla del pie (en su propia línea, más pequeña)
   I.elab = () => (I.elaborado() ? `<span class="rp-elab" style="font-size:0.64rem;letter-spacing:0.04em;opacity:0.75">${esc(I.elaborado())}</span>` : '');
+
+  /* ---------- Maquetación editorial: rejilla de dos columnas, notas al margen, gráficos e imágenes ----------
+     Cada sección (.rp-sec) se compone en dos columnas: una estrecha a la izquierda (24 %) con las notas al margen
+     y la principal (73 %) con el texto, las tablas y los gráficos, separadas por un filete vertical. El rótulo de la
+     sección («SECCIÓN 01») va sobre el título. La primera sección de cada documento abre con una banda de imagen y el
+     título encima; algunas de las siguientes llevan una pequeña imagen en el margen. Las imágenes son composiciones
+     abstractas en SVG con la paleta de la marca, generadas de forma determinista a partir del título (sin archivos ni
+     fotos externas); si la firma ha subido una foto de portada (ficha de la firma), la banda de apertura la usa.
+     Todo lo hace I.maquetar sobre el documento ya pintado, así que vale para todos los informes sin tocar su contenido:
+     las entradillas (.rp-lede) pasan al margen y las tablas que no caben en la columna principal toman el ancho entero.
+     Notas propias: I.nota(texto) delante del bloque al que acompaña, o la opción «nota» de I.donut, I.barras e
+     I.columnas. En pantallas estrechas el margen se apila encima de su bloque. */
+  // Paleta de gráficos para papel, derivada de la marca: oliva, pizarra, lima, arena y sus tonos. Los colores de estado
+  // (verde, ámbar, rojo) se reservan para estados. Todas las cifras van además escritas junto al gráfico.
+  I.PAL = ['#6e7d14', '#4a5470', '#a6c13a', '#b8955a', '#2b3040', '#8e98b3', '#cfdc86', '#dcc69f'];
+  I.ST_C = { ok: '#2e8a45', go: '#2e8a45', warn: '#c48a00', stop: '#c0392f' };
+  const colorDe = (d, i, o) => d.c || (d.st && I.ST_C[d.st]) || (o && o.color) || I.PAL[i % I.PAL.length];
+  const numTxt = (v) => (Math.round(v * 10) / 10).toLocaleString('es-ES');
+  I.nota = (t, o) => `<aside class="rp-nota">${o && o.html ? t : esc(t)}</aside>`;
+  const figura = (o, cuerpo, alt) => `${o.nota ? I.nota(o.nota) : ''}<figure class="rp-fig${o.ancho ? ' rp-ancho' : ''}">${o.titulo ? `<figcaption class="rp-fig-t">${esc(o.titulo)}</figcaption>` : ''}${cuerpo}${alt ? `<p class="rp-alt">${esc(alt)}</p>` : ''}${o.pie ? `<p class="rp-fig-pie">${esc(o.pie)}</p>` : ''}</figure>`;
+  /* Anillo con leyenda. datos: [{ k, v, c?, st?, t? (cifra ya formateada) }]; o: { titulo, nota, pie, fmt, centro, centroTxt } */
+  I.donut = (datos, o) => {
+    o = o || {}; const L = (datos || []).filter((d) => d && +d.v > 0); if (L.length < 2) return '';
+    const tot = L.reduce((s, d) => s + +d.v, 0), fmt = o.fmt || numTxt, R = 78, r = 50, C = 80;
+    const pt = (a, rr) => `${(C + rr * Math.cos(a)).toFixed(2)} ${(C + rr * Math.sin(a)).toFixed(2)}`;
+    let a = -Math.PI / 2;
+    const arcos = L.map((d, i) => { const f = d.v / tot, a1 = a + f * 2 * Math.PI, g = f > 0.5 ? 1 : 0;
+      const p = `<path d="M${pt(a, R)} A${R} ${R} 0 ${g} 1 ${pt(a1, R)} L${pt(a1, r)} A${r} ${r} 0 ${g} 0 ${pt(a, r)} Z" fill="${colorDe(d, i, o)}" stroke="#fff" stroke-width="1.5"/>`; a = a1; return p; }).join('');
+    const pct = (v) => Math.round((v / tot) * 1000) / 10;
+    return figura(o, `<div class="rp-donut"><div class="rp-donut-g"><svg viewBox="0 0 160 160" width="150" height="150" role="img" aria-label="${esc((o.titulo || 'Distribución') + ': ' + L.map((d) => d.k + ' ' + (d.t || fmt(+d.v))).join(', '))}">${arcos}</svg>${o.centro != null ? `<span class="rp-donut-c"><b>${esc(o.centro)}</b>${o.centroTxt ? `<small>${esc(o.centroTxt)}</small>` : ''}</span>` : ''}</div>
+      <ul class="rp-leg${L.length > 5 ? ' rp-leg-2' : ''}">${L.map((d, i) => `<li><i style="background:${colorDe(d, i, o)}"></i><span>${esc(d.k)}<i class="rp-dp">:</i></span> <b>${esc(d.t || fmt(+d.v))}</b> <em><i class="rp-dp">(</i>${numTxt(pct(+d.v))} %<i class="rp-dp">)</i></em></li>`).join('')}</ul></div>`);
+  };
+  /* Barras horizontales. datos: [{ k, v, c?, st?, t? }]; o: { titulo, nota, pie, fmt, fmtEje, max, meta, metaTxt, color, eje } */
+  const pasos = (mn, mx) => { const sp = mx - mn || 1, e = Math.pow(10, Math.floor(Math.log10(sp / 4))), m = [1, 2, 2.5, 5, 10].find((k) => sp / (k * e) <= 5) || 10, st = m * e; const t = [], hi = Math.ceil(mx / st - 1e-9) * st; for (let v = Math.floor(mn / st + 1e-9) * st; v <= hi + 1e-9; v += st) t.push((Math.round(v * 1e6) / 1e6) || 0); return t; };
+  const corto = (v) => { const a = Math.abs(v); return a >= 1e6 ? numTxt(v / 1e6) + ' M' : a >= 1e4 ? numTxt(v / 1e3) + ' k' : numTxt(v); };
+  I.barras = (datos, o) => {
+    o = o || {}; const L = (datos || []).filter((d) => d && d.v != null && isFinite(+d.v)); if (!L.length) return '';
+    const fmt = o.fmt || numTxt, vs = L.map((d) => +d.v), mn = Math.min(0, ...vs), mx = Math.max(0, o.max || 0, o.meta || 0, ...vs);
+    const tk = o.eje === false ? [] : pasos(mn, mx), lo = Math.min(mn, tk[0] != null ? tk[0] : mn), hi = Math.max(mx, tk.length ? tk[tk.length - 1] : mx), sp = hi - lo || 1, X = (v) => ((v - lo) / sp) * 100;
+    const rejilla = tk.map((t) => `<line x1="${X(t).toFixed(2)}" x2="${X(t).toFixed(2)}" y1="0" y2="10" stroke="${t === 0 ? '#9a9688' : '#e2dfd5'}" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('');
+    const meta = o.meta != null ? `<line x1="${X(o.meta).toFixed(2)}" x2="${X(o.meta).toFixed(2)}" y1="0" y2="10" stroke="#0b0d13" stroke-width="1.5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>` : '';
+    const filas = L.map((d, i) => { const v = +d.v, x0 = X(Math.min(0, v)), w = Math.max(0.4, Math.abs(X(v) - X(0)));
+      return `<div class="rp-hb"><span class="rp-hb-k">${esc(d.k)}<i class="rp-dp">:</i></span> <span class="rp-hb-t"><svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">${rejilla}<rect x="${x0.toFixed(2)}" y="1.5" width="${w.toFixed(2)}" height="7" fill="${colorDe(d, i, o)}"/>${meta}</svg></span> <b class="rp-hb-v">${esc(d.t || fmt(v))}</b></div>`; }).join('');
+    const eje = tk.length ? `<div class="rp-hb rp-hb-ax" aria-hidden="true"><span></span><span class="rp-hb-t">${tk.map((t) => `<i style="left:${X(t).toFixed(2)}%">${esc((o.fmtEje || corto)(t))}</i>`).join('')}</span><b></b></div>` : '';
+    return figura(o, `<div class="rp-hbars">${filas}${eje}</div>${o.meta != null && o.metaTxt ? `<p class="rp-fig-pie"><i class="rp-meta-l"></i>${esc(o.metaTxt)}</p>` : ''}`);
+  };
+  /* Columnas agrupadas (evolución por años). cats: ['2022', …]; series: [{ n, v: [..], c? }]; o: { titulo, nota, pie, fmt, fmtEje } */
+  I.columnas = (cats, series, o) => {
+    o = o || {}; const S = (series || []).filter((s) => s && s.v && s.v.some((x) => x != null && isFinite(x))); if (!S.length || !cats || !cats.length) return '';
+    const fmt = o.fmt || numTxt, W = 560, H = 210, top = 18, bot = 26, l = 48, all = S.flatMap((s) => s.v.filter((x) => x != null && isFinite(x)));
+    const tk = pasos(Math.min(0, ...all), Math.max(0, ...all)), lo = tk[0], hi = tk[tk.length - 1], Y = (v) => top + (1 - (v - lo) / (hi - lo || 1)) * (H - top - bot);
+    const gw = (W - l - 8) / cats.length, bw = Math.min(26, (gw * 0.72) / S.length);
+    const ejes = tk.map((t) => `<line x1="${l}" x2="${W - 4}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}" stroke="${t === 0 ? '#9a9688' : '#e2dfd5'}" stroke-width="${t === 0 ? 1 : 0.7}"/><text x="${l - 6}" y="${(Y(t) + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#6e7480">${esc((o.fmtEje || corto)(t))}</text>`).join('');
+    const barras = cats.map((c, i) => { const x0 = l + i * gw + (gw - bw * S.length) / 2;
+      return S.map((s, j) => { const v = s.v[i]; if (v == null || !isFinite(v)) return ''; const y = Y(Math.max(0, v)), h = Math.max(0.8, Math.abs(Y(v) - Y(0))), col = s.c || I.PAL[j % I.PAL.length];
+        return `<rect x="${(x0 + j * bw + 1).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${h.toFixed(1)}" fill="${col}"/>`; }).join('') + `<text x="${(l + i * gw + gw / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="#4f5560">${esc(c)}</text>`; }).join('');
+    const alt = S.map((s) => `${s.n}: ${cats.map((c, i) => `${c} ${s.v[i] == null ? '—' : fmt(s.v[i])}`).join(', ')}`).join('. ') + '.';
+    return figura(o, `<svg class="rp-cols" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc((o.titulo || 'Evolución') + '. ' + alt)}">${ejes}${barras}</svg><ul class="rp-leg rp-leg-h">${S.map((s, j) => `<li><i style="background:${s.c || I.PAL[j % I.PAL.length]}"></i><span>${esc(s.n)}</span></li>`).join('')}</ul>`, alt);
+  };
+
+  /* Imágenes de apertura: composiciones abstractas deterministas (curvas de nivel, ondas o geometría) */
+  const hashS = (s) => { let h = 2166136261; for (const ch of String(s)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const azar = (sd) => () => { sd = (sd + 0x6d2b79f5) | 0; let t = Math.imul(sd ^ (sd >>> 15), 1 | sd); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const curva = (ps) => { const n = ps.length; let d = `M${ps[0][0].toFixed(1)} ${ps[0][1].toFixed(1)}`; for (let i = 0; i < n; i++) { const p0 = ps[(i - 1 + n) % n], p1 = ps[i], p2 = ps[(i + 1) % n], p3 = ps[(i + 2) % n]; d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`; } return d + 'Z'; };
+  I.visual = (semilla, o) => {
+    o = o || {}; const W = o.w || 640, H = o.h || 220, osc = !!o.oscuro, h = hashS(semilla), R = azar(h), tipo = o.tipo || ['topo', 'ondas', 'geo'][h % 3];
+    const fondo = osc ? '#10131a' : '#ecebe3', l1 = osc ? '#c9f24d' : '#6e7d14', l2 = osc ? '#8a9a2a' : '#4a5470', acento = osc ? '#c9f24d' : '#a6c13a';
+    let g = '';
+    if (tipo === 'topo') {
+      const cs = [[W * (0.74 + R() * 0.18), H * (0.14 + R() * 0.3)], [W * (0.12 + R() * 0.3), H * (0.65 + R() * 0.5)]];
+      cs.forEach(([cx, cy], k) => { const f0 = R() * 6.3, f1 = R() * 6.3, f2 = R() * 6.3, n = k ? 9 : 16, paso = H * (k ? 0.11 : 0.075);
+        for (let j = 1; j <= n; j++) { const rr = paso * j, ps = [];
+          for (let q = 0; q < 24; q++) { const a = (q / 24) * Math.PI * 2, f = 1 + 0.2 * Math.sin(a * 2 + f0 + j * 0.22) + 0.09 * Math.sin(a * 3 + f1 - j * 0.1) + 0.05 * Math.sin(a * 5 + f2 - j * 0.35); ps.push([cx + Math.cos(a) * rr * f * 1.7, cy + Math.sin(a) * rr * f]); }
+          const fuerte = j % 5 === 0;
+          g += `<path d="${curva(ps)}" fill="none" stroke="${fuerte ? l1 : l2}" stroke-width="${fuerte ? 1.3 : 0.75}" opacity="${osc ? (fuerte ? 0.9 : 0.55) : (fuerte ? 0.75 : 0.45)}"/>`; } });
+      const [ax, ay] = cs[0]; g += `<circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="${(H * 0.045).toFixed(1)}" fill="${acento}"/><circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="${(H * 0.09).toFixed(1)}" fill="none" stroke="${acento}" stroke-width="1" opacity="0.7"/>`;
+    } else if (tipo === 'ondas') {
+      const n = 22, amp = H * (0.05 + R() * 0.06), fr = 1.2 + R() * 2.2, fa = R() * 6.3;
+      for (let j = 0; j < n; j++) { const y0 = (j / (n - 1)) * H * 1.1 - H * 0.05; let d = `M0 ${y0.toFixed(1)}`;
+        for (let x = 0; x <= W; x += W / 40) d += ` L${x.toFixed(1)} ${(y0 + Math.sin((x / W) * Math.PI * fr + fa + j * 0.35) * amp * (0.4 + j / n)).toFixed(1)}`;
+        g += `<path d="${d}" fill="none" stroke="${j % 5 === 2 ? l1 : l2}" stroke-width="${j % 5 === 2 ? 1.6 : 0.8}" opacity="${j % 5 === 2 ? 0.85 : 0.42}"/>`; }
+      g += `<circle cx="${(W * (0.8 + R() * 0.12)).toFixed(1)}" cy="${(H * (0.16 + R() * 0.14)).toFixed(1)}" r="${(H * 0.12).toFixed(1)}" fill="${acento}" opacity="${osc ? 0.9 : 0.75}"/>`;
+    } else {
+      const t = Math.max(H / 3, 46), cols = Math.ceil(W / t), fil = Math.ceil(H / t), pal = osc ? ['#c9f24d', '#8a9a2a', '#2b3040', '#4a5470', '#1b1f2a'] : ['#6e7d14', '#a6c13a', '#4a5470', '#dcc69f', '#d9d6cc'];
+      for (let i = 0; i < cols; i++) for (let j = 0; j < fil; j++) { const x = i * t, y = j * t, k = Math.floor(R() * 6), c = pal[Math.floor(R() * pal.length)], op = osc ? 0.75 : 0.8;
+        if (R() < 0.38) continue;
+        if (k === 0) g += `<circle cx="${(x + t / 2).toFixed(1)}" cy="${(y + t / 2).toFixed(1)}" r="${(t * 0.4).toFixed(1)}" fill="${c}" opacity="${op}"/>`;
+        else if (k === 1) g += `<path d="M${x} ${y + t} A${t} ${t} 0 0 1 ${x + t} ${y}L${x + t} ${y + t}Z" fill="${c}" opacity="${op}"/>`;
+        else if (k === 2) g += `<path d="M${x} ${y}L${x + t} ${y}L${x} ${y + t}Z" fill="${c}" opacity="${op}"/>`;
+        else if (k === 3) g += `<circle cx="${(x + t / 2).toFixed(1)}" cy="${(y + t / 2).toFixed(1)}" r="${(t * 0.32).toFixed(1)}" fill="none" stroke="${c}" stroke-width="2" opacity="${op}"/>`;
+        else if (k === 4) g += `<rect x="${x + t * 0.15}" y="${y + t * 0.42}" width="${t * 0.7}" height="${t * 0.16}" fill="${c}" opacity="${op}"/>`;
+        else g += `<path d="M${x} ${y} A${t} ${t} 0 0 0 ${x + t} ${y + t}L${x} ${y + t}Z" fill="${c}" opacity="${op}"/>`; }
+    }
+    return `<svg class="rp-visual" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><rect width="${W}" height="${H}" fill="${fondo}"/>${g}</svg>`;
+  };
+  // Cifras: celdas que son un número (con su unidad) se alinean a la derecha con dígitos tabulares
+  const NUM_RE = /^[−\-+]?\s?\d[\d.,\s]*\s?(€|k€|M€|%|x|×|veces|días|meses|años|pts|h|ud\.?|\/\d+)?$/i;
+  const alinearCifras = (t) => {
+    if (t.closest('.pp-page') || t.dataset.rpNum) return; t.dataset.rpNum = '1';
+    const filas = Array.from(t.tBodies).flatMap((b) => Array.from(b.rows)); if (!filas.length) return;
+    const n = Math.max(...filas.map((r) => r.cells.length));
+    for (let i = 1; i < n; i++) {
+      const cs = filas.map((r) => r.cells[i]).filter((c) => c && c.colSpan === 1 && c.textContent.trim() && c.textContent.trim() !== '—');
+      if (!cs.length || cs.some((c) => c.querySelector('.rp-pill, .pill, ul, ol'))) continue;
+      if (cs.filter((c) => NUM_RE.test(c.textContent.trim())).length / cs.length < 0.8) continue;
+      filas.forEach((r) => { const c = r.cells[i]; if (c && c.colSpan === 1) c.classList.add('rp-num'); });
+      const hr = t.tHead && t.tHead.rows[0]; if (hr && hr.cells[i] && hr.cells.length === n) hr.cells[i].classList.add('rp-num');
+    }
+  };
+  /* Compone un documento ya pintado (pantalla o marco de impresión). Se puede llamar varias veces: lo ya hecho no se repite
+     y el ancho de las tablas se vuelve a medir. */
+  I.maquetar = (root) => {
+    if (!root || !root.querySelectorAll) return root;
+    const doc = root.ownerDocument || document, F = A.firma();
+    root.classList.add('rp-ed');
+    root.querySelectorAll('table').forEach(alinearCifras);
+    // Las secciones de cada documento (un libro reúne varios): la primera abre con la banda de imagen
+    let orden = 0;
+    root.querySelectorAll('.rp-cover, .rp-sec').forEach((s) => {
+      if (s.closest('.pp-page')) return;
+      if (s.classList.contains('rp-cover')) { orden = 0; return; }
+      if (s.parentElement && s.parentElement.closest('.rp-sec')) return;
+      orden++;
+      if (s.classList.contains('rp-g')) return;
+      s.classList.add('rp-g');
+      const h2 = Array.from(s.children).find((x) => x.tagName === 'H2'); if (!h2) return;
+      const nEl = h2.querySelector('.rp-n'), nTxt = nEl ? nEl.textContent.trim() : '';
+      if (nEl) nEl.dataset.k = /^\d+$/.test(nTxt) ? 'Sección ' : /anexo/i.test(h2.textContent) || s.classList.contains('rp-anexo') ? 'Anexo ' : 'Sección ';
+      const semilla = (h2.textContent || '') + orden;
+      // El contenido va a la columna principal; las entradillas, al margen
+      const col = doc.createElement('div'); col.className = 'rp-col';
+      while (s.firstChild) col.appendChild(s.firstChild);
+      s.appendChild(col);
+      Array.from(col.children).forEach((x) => { if (x.classList.contains('rp-lede') && x.tagName === 'P') x.classList.add('rp-nota'); });
+      if (orden === 1 && !s.classList.contains('rp-anexo')) {
+        s.classList.add('rp-abre');
+        const b = doc.createElement('div'); b.className = 'rp-banda';
+        b.innerHTML = F.portada ? `<img class="rp-visual" src="${F.portada}" alt="">` : I.visual(semilla, { oscuro: true, w: 900, h: 240, tipo: ['topo', 'ondas'][hashS(semilla) % 2] });
+        const tinte = doc.createElement('span'); tinte.className = 'rp-tinte'; tinte.setAttribute('aria-hidden', 'true'); b.appendChild(tinte);
+        b.appendChild(h2); s.insertBefore(b, col);
+      } else if (orden % 2 === 1 && !s.classList.contains('rp-anexo')) {
+        const v = doc.createElement('div'); v.className = 'rp-nota rp-vis'; v.setAttribute('aria-hidden', 'true');
+        v.innerHTML = I.visual(semilla, { w: 300, h: 220 });
+        h2.after(v);
+      }
+    });
+    root.querySelectorAll('.lb-secp').forEach((s) => {
+      if (s.querySelector(':scope > .lb-vis')) return;
+      const v = doc.createElement('div'); v.className = 'lb-vis'; v.setAttribute('aria-hidden', 'true');
+      v.innerHTML = I.visual('libro' + (s.textContent || '').slice(0, 60), { oscuro: true, w: 900, h: 320, tipo: 'topo' }); s.prepend(v);
+    });
+    I.anchos(root);
+    return root;
+  };
+  // Tablas y bloques que no caben en la columna principal pasan a todo el ancho (y su nota, encima)
+  I.anchos = (root) => {
+    const bloqueTablas = Array.from(root.querySelectorAll('.rp-col > .rp-block .rp-tw, .rp-col > .rp-block .table-wrap')).filter((w) => { const bl = w.closest('.rp-block'); return w.parentElement === bl || Math.abs(w.parentElement.clientWidth - bl.clientWidth) < 3; });
+    Array.from(root.querySelectorAll('.rp-col > .rp-tw, .rp-col > .table-wrap, .rp-col > table, .rp-col > .rp-block, .rp-col > .chart')).concat(bloqueTablas).forEach((w) => {
+      if (w.classList.contains('rp-ancho-fijo')) return;
+      w.classList.remove('rp-ancho'); const pv = w.previousElementSibling; if (pv) pv.classList.remove('rp-nota-arriba');
+      for (let x = w.previousElementSibling; x && x.classList.contains('rp-nota'); x = x.previousElementSibling) x.classList.remove('rp-vis-fuera');
+      const t = w.tagName === 'TABLE' ? w : w.querySelector('table, svg');
+      const cols = t && t.tagName === 'TABLE' && t.rows[0] ? t.rows[0].cells.length : 0;
+      const bloque = w.classList.contains('rp-block');
+      const ancho = bloque ? !w.querySelector('.rp-tw, .table-wrap') && w.scrollWidth > w.clientWidth + 2 : (cols >= 7) || (t && t.scrollWidth > w.clientWidth + 2) || w.scrollWidth > w.clientWidth + 2;
+      if (!ancho) return;
+      w.classList.add('rp-ancho');
+      const prev = w.previousElementSibling; if (prev && prev.classList.contains('rp-nota') && !prev.classList.contains('rp-vis')) prev.classList.add('rp-nota-arriba');
+      // Si el bloque ancho abre la sección, la imagen del margen dejaría un hueco: se retira
+      for (let x = w.previousElementSibling; x && x.classList.contains('rp-nota'); x = x.previousElementSibling) if (x.classList.contains('rp-vis')) x.classList.add('rp-vis-fuera');
+    });
+  };
 
   /* Convierte un bloque de la aplicación en contenido de informe: valores en lugar de campos, sin botones */
   I.fromDom = (node) => {
@@ -183,7 +356,8 @@
       const filas = t.rows.length;
       if (filas <= 16) t.classList.add('pdf-keep');
       t.querySelectorAll('td').forEach((c) => { const x = c.textContent.trim(); if (x.length <= 14 && !c.querySelector('.rp-pill, .pill')) c.classList.add('pdf-nw'); });
-      const cabe = () => t.offsetWidth <= ancho + 1;
+      const caja0 = t.closest('.rp-tw, .table-wrap') || t.parentElement, lim = Math.min(ancho, (caja0 && caja0.clientWidth) || ancho);
+      const cabe = () => t.offsetWidth <= lim + 1;
       if (cabe()) return;
       t.classList.add('pdf-estrecha');
       // Si aún no cabe, las cifras cortas también pueden partirse
@@ -193,7 +367,7 @@
       const anchos = Array.from(t.rows[0].cells).map((c) => c.getBoundingClientRect().width), primera = anchos[0];
       // Grupos de columnas que caben junto a la primera
       const grupos = []; let g = [], w = primera;
-      for (let i = 1; i < n; i++) { if (g.length && w + anchos[i] > ancho * 0.97) { grupos.push(g); g = []; w = primera; } g.push(i); w += anchos[i]; }
+      for (let i = 1; i < n; i++) { if (g.length && w + anchos[i] > lim * 0.97) { grupos.push(g); g = []; w = primera; } g.push(i); w += anchos[i]; }
       if (g.length) grupos.push(g);
       if (grupos.length < 2) return;
       const caja = t.parentElement && /\b(rp-tw|table-wrap)\b/.test(t.parentElement.className) ? t.parentElement : t;
@@ -206,6 +380,31 @@
         env.appendChild(tt); env.appendChild(c); frag.appendChild(env);
       });
       caja.replaceWith(frag);
+    });
+  };
+  /* El título de una sección no se queda solo al pie de la hoja: se agrupa con sus notas y con el primer bloque que
+     le sigue (si ese bloque cabe en media hoja) en un contenedor que no se parte. */
+  const cabeceras = (root) => {
+    root.querySelectorAll('.rp-col').forEach((col) => {
+      if (col.querySelector(':scope > .rp-keep')) return;
+      Array.from(col.children).filter((h, i) => (h.tagName === 'H2' && i === 0) || h.tagName === 'H3' || h.tagName === 'H4').forEach((h) => {
+        const grupo = [h]; let x = h.nextElementSibling;
+        while (x && x.classList.contains('rp-nota')) { grupo.push(x); x = x.nextElementSibling; }
+        if (x && !/^H[234]$/.test(x.tagName) && x.offsetHeight < 520) grupo.push(x);
+        if (grupo.length < 2) return;
+        const k = root.ownerDocument.createElement('div'); k.className = 'rp-keep';
+        col.insertBefore(k, h); grupo.forEach((y) => k.appendChild(y));
+      });
+      // Las notas al margen van en la misma hoja que el gráfico o la tabla que explican
+      Array.from(col.children).forEach((n) => {
+        if (!n.isConnected || n.parentElement !== col || !n.classList.contains('rp-nota') || n.classList.contains('rp-vis') || (n.previousElementSibling && n.previousElementSibling.classList.contains('rp-nota'))) return;
+        const grupo = [n]; let x = n.nextElementSibling;
+        while (x && x.classList.contains('rp-nota')) { grupo.push(x); x = x.nextElementSibling; }
+        if (!x || /^H[234]$/.test(x.tagName) || x.offsetHeight > 520) return;
+        grupo.push(x);
+        const k = root.ownerDocument.createElement('div'); k.className = 'rp-keep';
+        col.insertBefore(k, n); grupo.forEach((y) => k.appendChild(y));
+      });
     });
   };
   /* Prepara el documento para imprimir y devuelve el marco con él cargado. o: { titulo, paginado } */
@@ -244,7 +443,7 @@ ${estilos}
     await Promise.all(Array.from(d.querySelectorAll('link[rel="stylesheet"]')).map((l) => (l.sheet ? 0 : new Promise((ok) => { l.onload = l.onerror = ok; setTimeout(ok, 4000); }))));
     if (d.fonts && d.fonts.ready) await Promise.race([d.fonts.ready, esperar(4000)]);
     await Promise.all(Array.from(d.images).map((im) => (im.complete ? 0 : new Promise((ok) => { im.onload = im.onerror = ok; setTimeout(ok, 4000); }))));
-    if (!pag) ajustarTablas(d.querySelector('.paper'), ANCHO);
+    if (!pag) { I.maquetar(d.querySelector('.paper')); ajustarTablas(d.querySelector('.paper'), ANCHO); cabeceras(d.querySelector('.paper')); }
     return fr;
   };
   // Aviso con los pasos para guardar el PDF, encima del documento en pantalla
@@ -288,11 +487,12 @@ ${estilos}
     const pr = ov.querySelector('#rpPrint'); if (pr) pr.onclick = (e) => I.pdf(ov.querySelector('#paper'), { titulo: o.barra || o.titulo, boton: e.currentTarget, paginado: o.paginado });
     ov.querySelector('#rpPdf').onclick = (e) => I.pdf(ov.querySelector('#paper'), { titulo: o.barra || o.titulo, boton: e.currentTarget, paginado: o.paginado });
     ov.querySelector('#rpCopy').onclick = (e) => {
-      const sinNotas = (p) => { const ocultas = Array.from(p.querySelectorAll('.no-print')).map((x) => [x, x.style.display]); ocultas.forEach(([x]) => { x.style.display = 'none'; }); const tx = p.innerText; ocultas.forEach(([x, d]) => { x.style.display = d; }); return tx; };
+      const sinNotas = (p) => { p.classList.add('rp-copiando'); setTimeout(() => p.classList.remove('rp-copiando'), 0); const ocultas = Array.from(p.querySelectorAll('.no-print, .rp-vis, .rp-banda > .rp-visual, .rp-fig svg, .rp-hb-ax, .rp-donut-c')).map((x) => [x, x.style.display]); ocultas.forEach(([x]) => { x.style.display = 'none'; }); const tx = p.innerText; ocultas.forEach(([x, d]) => { x.style.display = d; }); return tx; };
       const t = o.texto || sinNotas(ov.querySelector('#paper'));
       (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { e.target.textContent = 'Copiado'; }, () => { e.target.textContent = 'No se pudo copiar'; });
     };
     if (o.after) o.after(ov.querySelector('#paper'));
+    if (!o.paginado) I.maquetar(ov.querySelector('#paper'));
     ov.scrollTop = 0;
     return ov;
   };

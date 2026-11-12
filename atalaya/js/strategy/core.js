@@ -394,11 +394,26 @@
     const a = P.R.length ? `${P.R.length === 1 ? 'un riesgo' : P.R.length + ' riesgos'}${altos ? ` (${altos} de nivel alto)` : ''}` : '', b = imp > 0 ? `mejoras por ${F.eur(imp)} al año` : '';
     return 'Riesgos y oportunidades' + (a || b ? ': ' + [a, b].filter(Boolean).join(' y ') : '');
   };
+  // Gráficos del informe: indicadores por nivel, nivel de los riesgos e impacto de las mejoras (con las cifras del propio análisis)
+  const corta = (t, n) => { t = String(t || '').replace(/\.$/, ''); return t.length > (n || 64) ? t.slice(0, (n || 64) - 1).replace(/\s+\S*$/, '') + '…' : t; };
+  INF.graficoEstados = (P) => {
+    const I = A.informe, con = (P.eval || P.tiles || []).filter((t) => t.st); if (!I.donut || con.length < 3) return '';
+    const n = { ok: 0, warn: 0, stop: 0 }; con.forEach((t) => { const k = t.st === 'go' ? 'ok' : t.st; if (k in n) n[k]++; });
+    return I.donut([{ k: 'Nivel adecuado', v: n.ok, st: 'ok' }, { k: 'En vigilancia', v: n.warn, st: 'warn' }, { k: 'Nivel crítico', v: n.stop, st: 'stop' }], { titulo: 'Indicadores por nivel', centro: String(con.length), centroTxt: 'indicadores', fmt: (v) => String(v), nota: 'Cada indicador se compara con su umbral de referencia: nivel adecuado, en vigilancia o crítico.' });
+  };
+  INF.graficoRiesgos = (P) => {
+    const I = A.informe, L = P.R.slice(0, 8); if (!I.barras || L.length < 2 || L.every((r) => r.nivel === L[0].nivel)) return '';
+    return I.barras(L.map((r) => ({ k: corta(r.nombre, 58), v: +r.nivel || 0, st: r.estado, t: r.nivel + ' / 25' })), { titulo: 'Nivel de los riesgos principales', max: 25, meta: 15, metaTxt: 'Desde 15, riesgo de nivel alto', nota: 'Nivel = probabilidad × impacto, de 1 a 25.' });
+  };
+  INF.graficoMejoras = (P) => {
+    const I = A.informe, L = P.Fi.filter((f) => (f.impactoEUR || 0) > 0).slice(0, 8); if (!I.barras || L.length < 2) return '';
+    return I.barras(L.map((f) => ({ k: corta(f.accion || f.hallazgo, 58), v: f.impactoEUR, t: F.eur(f.impactoEUR) })), { titulo: 'Impacto anual de las mejoras', color: '#6e7d14', fmt: (v) => F.eur(v), nota: 'Estimación del efecto anual de cada actuación sobre el resultado o la caja.' });
+  };
   INF.riesgosYmejoras = (P) => {
     const I = A.informe;
     const TOPE = 12, nota = (n, que) => (n > TOPE ? `<p class="rp-muted">Se muestran ${que} de un total de ${n}.</p>` : '');
-    return (P.R.length ? `<h3>Riesgos</h3>${I.table(['Riesgo', 'Prob.', 'Impacto', 'Nivel', 'Respuesta recomendada'], P.R.slice(0, TOPE).map((r) => [r.nombre, r.prob + '/5', r.impacto + '/5', { h: I.pill(r.estado, String(r.nivel)) }, r.mitigacion || '']), { num: [1, 2] })}${nota(P.R.length, `los ${TOPE} riesgos de mayor nivel`)}` : '<p>El análisis no identifica riesgos relevantes en este ámbito.</p>')
-      + (P.Fi.length ? `<h3>Oportunidades de mejora</h3>${I.table(['Hallazgo', 'Actuación recomendada', 'Impacto anual', 'Plazo'], P.Fi.slice(0, TOPE).map((f) => [f.hallazgo, f.accion, F.eur(f.impactoEUR || 0), (f.plazo || 90) + ' días']), { num: [2, 3] })}${nota(P.Fi.length, `las ${TOPE} mejoras de mayor impacto`)}` : '');
+    return (P.R.length ? `<h3>Riesgos</h3>${INF.graficoRiesgos(P)}${I.table(['Riesgo', 'Prob.', 'Impacto', 'Nivel', 'Respuesta recomendada'], P.R.slice(0, TOPE).map((r) => [r.nombre, r.prob + '/5', r.impacto + '/5', { h: I.pill(r.estado, String(r.nivel)) }, r.mitigacion || '']), { num: [1, 2] })}${nota(P.R.length, `los ${TOPE} riesgos de mayor nivel`)}` : '<p>El análisis no identifica riesgos relevantes en este ámbito.</p>')
+      + (P.Fi.length ? `<h3>Oportunidades de mejora</h3>${INF.graficoMejoras(P)}${I.table(['Hallazgo', 'Actuación recomendada', 'Impacto anual', 'Plazo'], P.Fi.slice(0, TOPE).map((f) => [f.hallazgo, f.accion, F.eur(f.impactoEUR || 0), (f.plazo || 90) + ' días']), { num: [2, 3] })}${nota(P.Fi.length, `las ${TOPE} mejoras de mayor impacto`)}` : '');
   };
   /* La empresa completa (cuadro de mando y auditoría): cifras clave, valoración por áreas y riesgos y mejoras de todas ellas */
   INF.empresa = () => {
@@ -412,7 +427,9 @@
     tiles.push({ k: 'Riesgos de nivel alto', v: String(altos), d: `${R.length} riesgos identificados` });
     if (Fi.length) tiles.push({ k: 'Mejora identificada', v: F.eur(imp), d: `${Fi.length} actuaciones con impacto anual` });
     if (S.simConDatos() && S.invDefinida()) { const vr = S.analysis().verdict; tiles.push({ k: 'Viabilidad de la inversión prevista', v: esc(vr.titulo), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[vr.key] || null, d: 'escenario ' + (S.sim.escenario || 'base') }); }
-    return { tiles, eval: K, R, Fi, detalle: `<div class="rp-block"><h3>Valoración por áreas</h3>${I.table(['Área', 'Valoración sobre 100', 'Indicadores'], filas)}</div>` };
+    const notas = Array.from(new Set(K.map((x) => x.area))).map((a) => { const l = K.filter((x) => x.area === a); return { k: a, v: l.some((x) => x.st) ? S.notaN([...new Set(l.map((x) => x.mod))], l) : null }; }).filter((x) => x.v != null);
+    const graf = notas.length >= 2 && I.barras ? I.barras(notas.map((x) => ({ k: x.k, v: x.v, st: INF.estado(x.v), t: x.v + ' / 100' })), { titulo: 'Valoración por áreas, sobre 100', max: 100, meta: 70, metaTxt: 'Desde 70, situación sólida', nota: 'Cada área pondera sus indicadores: verde cuenta 1, ámbar 0,5 y rojo 0. Por debajo de 50, situación frágil.' }) : '';
+    return { tiles, eval: K, R, Fi, detalle: graf + `<div class="rp-block"><h3>Valoración por áreas</h3>${I.table(['Área', 'Valoración sobre 100', 'Indicadores'], filas)}</div>` };
   };
   INF.HOR = ['Primeros 30 días', 'De 31 a 60 días', 'De 61 a 90 días', 'Más de 90 días'];
   INF.horDe = (pl) => (pl <= 30 ? 0 : pl <= 60 ? 1 : pl <= 90 ? 2 : 3);
@@ -462,7 +479,7 @@
     if (P.limite) limites.push(esc(P.limite));
     const html = INF.portada({ tipo: 'Informe de área', kicker: S.grupoN(m.grupo) + (P.ilustrativo ? ' · caso ilustrativo' : ''), titulo, subtitulo: INF.frases(P.lede), empresa: emp, sector: A.SECTORS[S.sim.sector].nombre, ambito: titulo })
       + I.summary('Resumen ejecutivo', INF.resumen(concl, M), P.st)
-      + (P.tiles.length || P.detalle ? I.section(INF.titular(P), (P.tiles.length ? I.kpis(P.tiles) : '') + P.detalle) : '')
+      + (P.tiles.length || P.detalle ? I.section(INF.titular(P), (P.tiles.length ? I.kpis(P.tiles) : '') + INF.graficoEstados(P) + P.detalle) : '')
       + (P.con && P.conRiesgos ? I.section(INF.titularRiesgos(P), INF.riesgosYmejoras(P)) : '')
       + (PL.length ? I.section('Recomendaciones priorizadas', INF.recomendaciones(PL)) + (INF.conGuia() ? '' : I.section('Hoja de ruta', INF.hojaDeRuta(PL))) : I.section('Hoja de ruta', `<p>${P.con ? 'El análisis no identifica actuaciones con impacto cuantificable en este ámbito. Se recomienda revisarlo de nuevo en el próximo cierre trimestral.' : 'El primer hito es reunir la información de gestión del área para cuantificar el diagnóstico y fijar las actuaciones.'}</p>`))
       + INF.cierre({ riesgos: P.R.length, limites, ilustrativo: P.ilustrativo });
