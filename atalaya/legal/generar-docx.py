@@ -189,7 +189,7 @@ def portada(doc, version):
         doc.add_paragraph()
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run('FAMILIAS EMPRESARIAS, S.L. · Business Avance International Consulting')
+    r = p.add_run('FAMILIAS EMPRESARIAS, S.L.')
     r.font.size = Pt(11)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER

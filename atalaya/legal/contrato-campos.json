@@ -76,6 +76,7 @@
   },
   "condiciones": {
     "consultor.registro": "consta la inscripción registral del Consultor",
+    "consultor.marca": "el Consultor usa un nombre comercial",
     "cliente.registro": "consta la inscripción registral del Cliente",
     "cliente.representante_doc": "se indica el documento de identidad del representante",
     "variable.on": "se pacta un componente de honorarios por objetivos",

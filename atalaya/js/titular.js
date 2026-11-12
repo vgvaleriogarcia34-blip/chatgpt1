@@ -12,7 +12,7 @@
   'use strict';
   const T = {
     razonSocial: 'FAMILIAS EMPRESARIAS, S.L.',
-    nombreComercial: 'Business Avance International Consulting',
+    nombreComercial: '',  // nombre comercial de la sociedad, solo si lo tiene (Business Avance es marca de AKOMPANO GROUP, S.L.); vacío: el contrato no lo menciona
     nif: '',              // NIF de la sociedad, p. ej. «B12345678»
     domicilio: '',        // domicilio social completo: calle, número, código postal, localidad y provincia
     registro: '',         // inscripción: «Registro Mercantil de …, tomo …, folio …, hoja …, inscripción …»

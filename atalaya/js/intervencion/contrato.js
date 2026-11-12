@@ -258,7 +258,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
   // js/titular.js, el único sitio donde se escriben. Mientras estén vacíos, salen en «Lo que falta» (no se inventan).
   const TIT = A.titular || {}, tt = (k) => String((TIT.valor ? TIT.valor(k) : TIT[k]) || '').trim();
   const DEF_CONSULTOR = { razon: tt('razonSocial') || 'FAMILIAS EMPRESARIAS, S.L.', cif: tt('nif'), domicilio: tt('domicilio'), email: tt('email') || tt('emailPrivacidad'),
-    marca: tt('nombreComercial') || 'Business Avance International Consulting', representante: 'Valerio García', cargo: tt('firmanteCargo'), registro: tt('registro'), seguro: tt('seguroRC') };
+    marca: tt('nombreComercial'), representante: 'Valerio García', cargo: tt('firmanteCargo'), registro: tt('registro'), seguro: tt('seguroRC') };
   const DEF_SUB = [
     { id: 'sb-aloj', n: 'Hetzner Online GmbH', servicio: 'alojamiento de la aplicación, sus datos y sus copias de seguridad', ubicacion: 'UE (Helsinki, Finlandia)' },
     { id: 'sb-ia', n: 'Anthropic, PBC', servicio: 'análisis con inteligencia artificial', ubicacion: 'EE. UU. (Marco de Privacidad de Datos UE-EE. UU. o cláusulas contractuales tipo)' },
@@ -372,7 +372,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
   /* ---------- Lo que falta para generar el contrato ---------- */
   const CAMPOS_CLI = [['razon', 'Razón social', 'Metalúrgica del Sureste, S.L.', 1], ['nif', 'NIF', 'B12345678', 1], ['domicilio', 'Domicilio social', 'Calle, número, código postal y localidad', 1], ['actividad', 'Actividad', 'fabricación de estructuras metálicas', 1],
     ['representante', 'Representante (nombre y apellidos)', 'Nombre de quien firma', 1], ['cargo', 'Cargo del representante', 'administrador único', 1], ['representante_doc', 'Documento de identidad del representante (opcional)', '12345678Z', 0], ['email', 'Correo electrónico para las comunicaciones', 'direccion@empresa.es', 1], ['registro', 'Datos registrales (opcional)', 'el Registro Mercantil de Murcia, tomo …, folio …, hoja MU-…', 0]];
-  const CAMPOS_CON = [['razon', 'Razón social', 1], ['cif', 'NIF', 1], ['domicilio', 'Domicilio social', 1], ['email', 'Correo electrónico', 1], ['marca', 'Nombre comercial', 1], ['representante', 'Quien firma (nombre y apellidos)', 1], ['cargo', 'Cargo de quien firma', 1], ['registro', 'Datos del Registro Mercantil (tomo, folio, hoja)', 1], ['seguro', 'Seguro de responsabilidad civil (compañía y póliza)', 0]];
+  const CAMPOS_CON = [['razon', 'Razón social', 1], ['cif', 'NIF', 1], ['domicilio', 'Domicilio social', 1], ['email', 'Correo electrónico', 1], ['marca', 'Nombre comercial (opcional)', 0], ['representante', 'Quien firma (nombre y apellidos)', 1], ['cargo', 'Cargo de quien firma', 1], ['registro', 'Datos del Registro Mercantil (tomo, folio, hoja)', 1], ['seguro', 'Seguro de responsabilidad civil (compañía y póliza)', 0]];
   const conVal = (cs, k) => (k === 'cif' ? cs.nif : cs[k]);
   function faltas(x) {
     x = x || datos(); const out = [], cs = consultor(), cl = x.d.cliente, r = R();

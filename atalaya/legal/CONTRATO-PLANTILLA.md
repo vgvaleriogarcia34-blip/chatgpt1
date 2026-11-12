@@ -22,7 +22,7 @@ En {{contrato.lugar}}, a {{contrato.fecha_larga}}.
 
 ## REUNIDOS
 
-**De una parte**, {{consultor.razon}}, sociedad de nacionalidad española con domicilio social en {{consultor.domicilio}}, provista de NIF {{consultor.nif}}{{#si consultor.registro}}, inscrita en {{consultor.registro}}{{/si}}, que opera con el nombre comercial «{{consultor.marca}}». Interviene en su nombre y representación {{consultor.representante}}, en su condición de {{consultor.cargo}}, con facultades suficientes para este acto. En adelante, **«el Consultor»**.
+**De una parte**, {{consultor.razon}}, sociedad de nacionalidad española con domicilio social en {{consultor.domicilio}}, provista de NIF {{consultor.nif}}{{#si consultor.registro}}, inscrita en {{consultor.registro}}{{/si}}{{#si consultor.marca}}, que opera con el nombre comercial «{{consultor.marca}}»{{/si}}. Interviene en su nombre y representación {{consultor.representante}}, en su condición de {{consultor.cargo}}, con facultades suficientes para este acto. En adelante, **«el Consultor»**.
 
 **De otra parte**, {{cliente.razon}}, con domicilio social en {{cliente.domicilio}} y NIF {{cliente.nif}}{{#si cliente.registro}}, inscrita en {{cliente.registro}}{{/si}}. Interviene en su nombre y representación {{cliente.representante}}{{#si cliente.representante_doc}}, con documento de identidad {{cliente.representante_doc}}{{/si}}, en su condición de {{cliente.cargo}}, con facultades suficientes para este acto. En adelante, **«el Cliente»**.
 

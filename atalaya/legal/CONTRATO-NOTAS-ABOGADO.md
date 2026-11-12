@@ -4,15 +4,17 @@ Documento interno. Acompaña a `CONTRATO-PLANTILLA.md` y a `CONTRATO-PARA-REVISI
 
 **Situación.** Por decisión de FAMILIAS EMPRESARIAS, S.L. (Valerio García, 12 de noviembre de 2026), todos estos textos están **en vigor como versión 1.0 desde el 12 de noviembre de 2026**. Se han cerrado con la redacción más prudente que permite la normativa (RGPD, LOPDGDD, LSSI, Ley 7/1998 de condiciones generales, Ley 3/2004 de morosidad, eIDAS y Ley 6/2020). La revisión del abogado es posterior: cualquier cambio que proponga se publicará como una **versión nueva**, con su fecha. Abajo se recoge cada decisión tomada y su motivo, para que pueda validarla o cambiarla.
 
-**Qué es el contrato.** Es la plantilla que Atalaya 360° genera cuando un cliente acepta la propuesta de consultoría de FAMILIAS EMPRESARIAS, S.L. (nombre comercial Business Avance International Consulting), que figura como el Consultor y como única parte contratante. Los campos entre llaves los rellena la aplicación con los datos de la propuesta aceptada, de la ficha del cliente y de la ficha de la firma. Los bloques condicionales solo aparecen cuando el cliente ha contratado ese servicio o esa modalidad.
+**Qué es el contrato.** Es la plantilla que Atalaya 360° genera cuando un cliente acepta la propuesta de consultoría de FAMILIAS EMPRESARIAS, S.L., propietaria de Atalaya 360°, que figura como el Consultor y como única parte contratante. Los campos entre llaves los rellena la aplicación con los datos de la propuesta aceptada, de la ficha del cliente y de la ficha de la firma. Los bloques condicionales solo aparecen cuando el cliente ha contratado ese servicio o esa modalidad.
 
 **Cliente tipo.** Sociedades mercantiles y empresarios, no consumidores. Por eso no se aplica el texto refundido de la Ley General para la Defensa de los Consumidores, y la sumisión expresa a fuero es válida (artículo 55 de la LEC). Si un día se contratara con un consumidor, esta plantilla no sirve.
 
-## Titularidad y marcas asociadas
+## Titularidad y relación con Business Avance
 
-- **Decisión:** FAMILIAS EMPRESARIAS, S.L. es la única titular del sitio y del servicio, la única parte de los contratos y la única responsable del tratamiento (Atalaya 360° y asistente telefónico y de WhatsApp). Akompano Group y DM Focus Global Business aparecen solo como **marcas asociadas** de Business Avance, sin ser titulares, sin ser parte de los contratos y sin responsabilidad sobre el servicio ni sobre los datos.
-- **Motivo:** evita que el cliente o el interesado entiendan que hay corresponsables (artículo 26 del RGPD) o varios prestadores (artículo 10 de la LSSI). Ya no queda ninguna referencia a AKOMPANO GROUP, S.L. como titular, responsable ni contacto.
-- **A comprobar:** si existe algún acuerdo entre las tres firmas que obligue a otra redacción (por ejemplo, un acuerdo de colaboración con reparto de clientes o de datos). La política de privacidad publicada en businessavance.es (y el aviso de su formulario) debe nombrar también a FAMILIAS EMPRESARIAS, S.L.
+- **Decisión (12 de noviembre de 2026):** FAMILIAS EMPRESARIAS, S.L. es la única titular del sitio y del servicio Atalaya 360°, la única parte de los contratos y la única responsable del tratamiento (Atalaya 360° y asistente telefónico y de WhatsApp). Business Avance ya no figura como nombre comercial de FAMILIAS EMPRESARIAS, S.L.: es la marca, y businessavance.es el sitio web, de AKOMPANO GROUP, S.L., grupo al que pertenece FAMILIAS EMPRESARIAS, S.L. El aviso legal dice que Atalaya 360° se comercializa también a través de Business Avance y que ni Business Avance ni AKOMPANO GROUP, S.L. son titulares de Atalaya 360°, parte de los contratos de uso ni tratan los datos de la aplicación. DM Focus Global Business deja de mencionarse en los textos legales.
+- **Motivo:** evita que el cliente o el interesado entiendan que hay corresponsables (artículo 26 del RGPD) o varios prestadores (artículo 10 de la LSSI).
+- **Contrato del Consultor:** el nombre comercial ya no sale por defecto. Solo aparece la frase «que opera con el nombre comercial…» si se rellena `nombreComercial` en `js/titular.js` o el campo en la ficha de la firma o del contrato.
+- **A formalizar:** la relación entre AKOMPANO GROUP, S.L. (Business Avance) y FAMILIAS EMPRESARIAS, S.L. para vender Atalaya 360°, mediante un contrato de distribución o de agencia comercial entre las dos sociedades: quién contrata con el cliente (siempre FAMILIAS EMPRESARIAS, S.L.), remuneración, uso de la marca Business Avance, y si AKOMPANO GROUP, S.L. recibe datos de posibles clientes (solicitudes de contacto en businessavance.es, CRM) y con qué papel (responsable propio que los comunica, o encargado de FAMILIAS EMPRESARIAS, S.L.).
+- **A comprobar:** a nombre de quién está la cuenta de HubSpot que los textos llaman «CRM de Familias Empresarias»; si es de AKOMPANO GROUP, S.L., hace falta un contrato de encargo o recoger la comunicación de datos. La política de privacidad de businessavance.es debe explicar que las solicitudes sobre Atalaya 360° se pasan a FAMILIAS EMPRESARIAS, S.L.
 
 ## Contrato: calificación y estructura
 
@@ -78,7 +80,7 @@ Documento interno. Acompaña a `CONTRATO-PLANTILLA.md` y a `CONTRATO-PARA-REVISI
 - Forma de pago: tarjeta mediante Stripe; planes a medida, por el medio acordado por escrito.
 - Facturas: una por cobro, descargables en «Gestionar el pago».
 - Renovación automática por periodos iguales; cambios de precio con 30 días de preaviso; impago con días de gracia y acceso en pausa.
-- Reembolsos: no se reembolsa lo cobrado (tampoco la parte no consumida del pago anual), salvo incumplimiento de Business Avance o mandato legal.
+- Reembolsos: no se reembolsa lo cobrado (tampoco la parte no consumida del pago anual), salvo incumplimiento de Familias Empresarias o mandato legal.
 - Exportación: «Descargar todos mis datos» o, a petición, en un mes.
 - Encargo del tratamiento: nuevo apartado 14 con el contenido del artículo 28.3 (subencargados con aviso de 30 días y derecho de oposición, brechas en 48 horas).
 - Disponibilidad: no se compromete nivel de servicio.
