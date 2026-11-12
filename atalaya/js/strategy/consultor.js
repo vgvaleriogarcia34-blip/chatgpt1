@@ -181,8 +181,9 @@
      objetivos, riesgos y oportunidades, recomendaciones priorizadas, hoja de ruta y anexo de metodología, fuentes y
      limitaciones. Habla de la empresa: lo que no se ha podido analizar va en una línea del anexo. */
   const fuenteDe = (via) => { const v = S.inf.neg(via || ''); const m = /^Cargado desde (.+)$/.exec(v); return m ? `fichero «${m[1].trim()}»` : /a mano/.test(v) ? 'información facilitada por la dirección' : 'cuentas y registros facilitados por la empresa'; };
-  S.report360 = function (m) {
-    const I = A.informe, N = S.inf, d = D(m.id); if (!d) return S.moduleReport(m);
+  S.report360 = function (m) { return S.inf.conPropios(() => informe360(m)); };
+  function informe360(m) {
+    const I = A.informe, N = S.inf, d = D(m.id); if (!d) return S.moduleReport(m, 'Informe 360');
     I.reset();
     const P = S.reportParts(m), c = st360(m.id), mz = madurez(m.id), need = S.needStatus(m.id), falta = need.filter((n) => !n.ok);
     const titulo = N.titulo(m), emp = S.sim.empresaNombre, fd = (x) => new Date(x).toLocaleDateString('es-ES');
@@ -198,13 +199,18 @@
     });
     // Empresa completa: las recomendaciones recogen además las mejoras de mayor impacto de todas las áreas
     if (P.ids === null) P.Fi.slice(0, 8).forEach((f) => { if (PL.some((y) => y.accion === f.accion)) return; const pz = f.plazo || 90; PL.push({ id: 'f:g', accion: f.accion, motivo: f.hallazgo, prio: (f.impactoEUR || 0) > 20000 ? 'Alta' : 'Media', plazo: pz, h: N.horDe(pz), impacto: f.impactoEUR || 0, impactoTxt: F.eur(f.impactoEUR || 0) + ' al año', resp: (D(f.mod) || {}).resp || d.resp, estado: 'Pendiente' }); });
+    // Un área que no aplica al sector no genera actuaciones
+    if (P.noAplica) PL.length = 0;
     PL.sort((a, b) => N.horDe(a.plazo) - N.horDe(b.plazo) || PRI[a.prio] - PRI[b.prio] || (b.impacto || 0) - (a.impacto || 0));
     const altas = PL.filter((x) => x.prio === 'Alta');
-    const nRes = S.notaRes(P.ids), nota = !P.con || !(P.eval || P.tiles).some((t) => t.st) ? null : nRes ? nRes.n100 : P.sc;
+    // Empresa completa: la media de las áreas aplicables; un área sin documentación vale 0; la que no aplica al sector no se valora
+    const nRes = S.notaRes(P.ids), nota = P.ids === null && P.global !== undefined ? P.global : P.sinDoc ? 0 : P.noAplica ? null : !P.con || !(P.eval || P.tiles).some((t) => t.st) ? null : nRes ? nRes.n100 : P.sc;
     const stG = N.estado(nota);
     const mzOk = mz && mz.score !== null && isFinite(mz.score), debil = mzOk && mz.dims.length ? mz.dims.slice().sort((a, b) => a.v - b.v)[0] : null;
     // Resumen ejecutivo: la conclusión primero y los mensajes clave con su cifra
-    const concl = !P.con ? `No se ha dispuesto de información suficiente para analizar «${esc(titulo)}» en ${esc(emp || 'la empresa')}. Este documento delimita el alcance del análisis${PL.length ? ' y fija las primeras actuaciones' : ''}.`
+    const concl = P.noAplica ? `«${esc(titulo)}» no aplica a la actividad de ${esc(emp || 'la empresa')} (${esc(N.sectorTxt().toLowerCase())}): el área no se valora y no genera riesgos ni actuaciones.`
+      : P.sinDoc ? `«${esc(titulo)}» no se puede evaluar en ${esc(emp || 'la empresa')}: ${esc(N.min(P.falta))}. Sin esa documentación la valoración del área es <b>0 sobre 100</b> ${I.pill('stop')}.`
+      : !P.con ? `No se ha dispuesto de información suficiente para analizar «${esc(titulo)}» en ${esc(emp || 'la empresa')}. Este documento delimita el alcance del análisis${PL.length ? ' y fija las primeras actuaciones' : ''}.`
       : nota === null ? `Este documento analiza «${esc(titulo)}» en ${esc(emp || 'la empresa')}${P.tiles.length ? ` a partir de ${pl(P.tiles.length, 'indicador', 'indicadores')}` : ''}.`
         : P.ids === null ? `La valoración global de ${esc(emp || 'la empresa')} es de <b>${nota} sobre 100</b> ${I.pill(stG)}: ${N.califica(nota)}.`
           : `La valoración de «${esc(titulo)}» en ${esc(emp || 'la empresa')} es de <b>${nota} sobre 100</b> ${I.pill(stG)}: ${N.califica(nota)}.`;
@@ -230,6 +236,8 @@
     // Anexo: fuentes y limitaciones de la información
     const fuentes = need.filter((n) => n.ok).map((n) => `${esc(n.t)}: ${esc(fuenteDe(n.via))}.`).concat(docs.map((x) => `Documento de contexto: «${esc(x.nombre)}».`)).concat(resp.length ? ['Valoración de las prácticas de gestión por la dirección de la empresa.'] : []);
     const limites = [];
+    if (P.sinDoc) limites.push(`${esc(P.falta)}; el área no se ha podido evaluar y su valoración es 0.`);
+    if (P.noAplica) limites.push(`El área no aplica al sector de la empresa (${esc(N.sectorTxt().toLowerCase())}).`);
     if (falta.length) limites.push(`No se ha dispuesto de: ${falta.map((n) => esc(n.t.replace(/\.$/, '').replace(/^./, (ch) => ch.toLowerCase()))).join('; ')}.${P.con ? ' Las conclusiones se apoyan en el resto de la información.' : ' El documento no incluye cifras de esta área.'}`);
     else if (!P.con && !P.limite) limites.push('No se ha dispuesto de la información necesaria para cuantificar esta área; el documento no incluye sus cifras.');
     if (P.sinCalc.length) limites.push(`No se han podido calcular por falta de información: ${esc(P.sinCalc.join(', ').toLowerCase())}.`);
@@ -237,9 +245,11 @@
     if (!resp.length) limites.push('Las prácticas de gestión del área no se han valorado con la dirección; las recomendaciones se apoyan en las cifras.');
     else if (resp.length < d.preguntas.length) limites.push(`La dirección ha valorado ${resp.length} de las ${d.preguntas.length} prácticas de gestión consideradas.`);
     if (!objs.length) limites.push('La dirección no ha fijado objetivos cuantificados para esta área.');
-    const html = N.portada({ tipo: 'Informe 360', kicker: S.grupoN(m.grupo) + (P.ilustrativo ? ' · caso ilustrativo' : ''), titulo, subtitulo: d.pregunta, empresa: emp, sector: A.SECTORS[S.sim.sector].nombre, ambito: titulo })
+    // El documento nombra siempre su asunto: barra, nombre del archivo, rótulo de portada y capítulo del libro
+    const tipoI = 'Informe 360 · ' + titulo;
+    const html = N.portada({ tipo: tipoI, kicker: tipoI + (P.ilustrativo ? ' · caso ilustrativo' : ''), titulo, subtitulo: d.pregunta, empresa: emp, sector: N.sectorTxt(), ambito: P.ids === null && N.noAplican().length ? `Empresa completa, salvo lo que no aplica a su sector: ${N.noAplican().join(', ')}` : titulo })
       + I.summary('Resumen ejecutivo', N.resumen(concl, M), stG)
-      + situacion + gestion + objT
+      + situacion + (P.cruces.length && P.ids !== null ? I.section('Cruces de información', N.crucesHTML(P.cruces), 'Contraste de una fuente con otra. Si no se puede hacer, se indica qué documento falta.') : '') + gestion + objT
       + (P.con && P.conRiesgos ? I.section(N.titularRiesgos(P), N.riesgosYmejoras(P)) : '')
       + (PL.length ? I.section(`Recomendaciones: ${pl(PL.length, 'actuación', 'actuaciones')}, ${altas.length} de prioridad alta`, N.recomendaciones(PL), 'Ordenadas por plazo y prioridad. Cada una indica su fundamento, el impacto esperado, quién responde y cuándo.') : '')
       + ruta()
@@ -247,11 +257,11 @@
       + N.cierre({ riesgos: P.R.length, fuentes, limites, ilustrativo: P.ilustrativo });
     const ordenados = altas.concat(PL.filter((x) => !altas.includes(x)));
     const abrir = A.consultorInf ? A.consultorInf.abrir : I.open;
-    abrir({ titulo: 'Informe 360 · ' + titulo, html, clave: 'est:' + m.id, ctx: {
-      titulo, tipo: 'Informe 360', empresa: emp, sector: A.SECTORS[S.sim.sector].nombre,
+    abrir({ titulo: tipoI, html, clave: 'est:' + m.id, ctx: {
+      titulo, tipo: 'Informe 360', empresa: emp, sector: N.sectorTxt(),
       pasos: ordenados.slice(0, 10).map((x) => ({ q: x.accion, c: x.motivo, quien: x.resp, cuando: x.fecha || new Date(Date.now() + (x.plazo || 60) * 864e5).toISOString().slice(0, 10), s: x.impacto ? 'Impacto medido: ' + F.eur(x.impacto) + ' al año' : x.kpi && x.kpi !== '—' ? x.kpi : 'Actuación ejecutada y resultado comprobado' })),
       seguimiento: d.cadencia.map((r) => [r[0], r[1], r[2]]),
       datos: [['Valoración del área', nota === null ? '—' : nota + '/100'], ['Indicadores en nivel crítico', (P.eval || P.tiles).filter((t) => t.st === 'stop').map((t) => N.min(t.k)).join(', ') || 'Ninguno'], ['Prácticas de gestión', mzOk ? mz.score + '/100' : 'Por valorar con la dirección'], ['Información por obtener', falta.map((n) => n.t).join('; ') || 'Ninguna'], ['Riesgos identificados', String(P.R.length)], ['Recomendaciones', PL.length + ' (' + altas.length + ' de prioridad alta)'], ['Consideraciones de la dirección', c.notas ? c.notas.slice(0, 200) : '—']]
     } });
-  };
+  }
 })();

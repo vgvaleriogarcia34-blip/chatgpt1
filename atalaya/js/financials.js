@@ -127,6 +127,22 @@
     return { anio: +y, k, v };
   };
 
+  /* ---------- Ejercicios que cuentan como cuentas anuales ----------
+     Solo un año con cuenta de resultados (ventas o beneficio) es un ejercicio. La serie es la más reciente sin huecos de
+     más de un año: un año suelto muy anterior (el de constitución leído de un documento, por ejemplo) no forma serie.
+     Cerrado = anterior al año en curso; el año en curso y los siguientes son previsiones y se presentan como tales. */
+  FIN.ejercicios = function (hist, hoy) {
+    const y0 = (hoy || new Date()).getFullYear();
+    const filas = ((hist && hist.anios) || []).filter((a) => a && isFinite(+a.anio) && +a.anio > 1900 && +a.anio <= y0 + 10);
+    const conPyg = filas.filter((a) => (isFinite(a.ventas) && a.ventas > 0) || isFinite(a.beneficio)).sort((a, b) => a.anio - b.anio);
+    const serie = [];
+    for (let i = conPyg.length - 1; i >= 0; i--) { if (serie.length && serie[0].anio - conPyg[i].anio > 2) break; if (!serie.length || serie[0].anio !== conPyg[i].anio) serie.unshift(conPyg[i]); }
+    const fuera = filas.filter((a) => !serie.includes(a)).map((a) => +a.anio).filter((x, i, l) => l.indexOf(x) === i).sort((a, b) => a - b);
+    return { serie, cerrados: serie.filter((a) => a.anio < y0), prevision: serie.filter((a) => a.anio >= y0), fuera };
+  };
+  // El histórico con solo los ejercicios cerrados de la serie (para los análisis que hablan de lo que ya ha pasado)
+  FIN.histCerrado = (hist, hoy) => (hist && hist.anios ? Object.assign({}, hist, { anios: FIN.ejercicios(hist, hoy).cerrados }) : hist);
+
   /* ---------- Auditoría del flujo del dinero: dónde está cada euro del beneficio ---------- */
   FIN.moneyFlow = function (hist, idx) {
     const Y = (hist && hist.anios) || [];
@@ -176,7 +192,7 @@
     const atrapado = Math.max(0, d('clientes')) + Math.max(0, d('existencias')) - Math.max(0, d('proveedores'));
     const lectura = [];
     lectura.push(`En ${a.anio} la empresa ganó ${A.fmt.eur(bn)} y generó ${A.fmt.eur(recursos)} de recursos (beneficio más amortización), pero la caja ${cajaReal >= 0 ? 'solo subió' : 'bajó'} ${A.fmt.eur(Math.abs(cajaReal))}.`);
-    if (atrapado > 0) lectura.push(`${A.fmt.eur(atrapado)} se quedaron atrapados en clientes y almacén: es el primer sitio donde buscar el dinero.`);
+    if (Math.round(atrapado) > 0) lectura.push(`${A.fmt.eur(atrapado)} se quedaron atrapados en clientes y almacén: es el primer sitio donde buscar el dinero.`);
     if (capex > 0) lectura.push(`${A.fmt.eur(capex)} se invirtieron en activos.`);
     if (deuda < 0) lectura.push(`${A.fmt.eur(-deuda)} se usaron para devolver préstamos.`);
     if (div > 0) lectura.push(`${A.fmt.eur(div)} salieron como dividendos.`);
@@ -292,9 +308,14 @@
   };
 
   /* Traslada el último año al punto de partida del simulador */
+  /* Solo un ejercicio cerrado es punto de partida: el año en curso y las previsiones no son cuentas (una fila de 2027
+     ponía en el simulador la caja y la deuda previstas como si fueran las de hoy). Cada cifra que se traslada queda
+     anotada como dada por las cuentas (state.dados), para distinguirla de una casilla que nadie ha rellenado. */
   FIN.applyToState = function (state, an) {
-    const a = an.last.raw, r = an.last;
-    const e = state.empresa;
+    const cerr = FIN.ejercicios({ anios: an.rows.map((x) => x.raw) }).cerrados;
+    if (!cerr.length) return state;
+    const r = an.rows.find((x) => x.raw === cerr[cerr.length - 1]) || an.last, a = r.raw;
+    const e = state.empresa, antes = Object.assign({}, e);
     if (r.ventas) e.ventas = Math.round(r.ventas);
     if (r.margenPct) e.margen = Math.round(r.margenPct * 10) / 10;
     if (a.personal) e.personal = Math.round(a.personal);
@@ -307,6 +328,7 @@
     if (r.dio) e.dio = Math.round(r.dio);
     if (r.dpo) e.dpo = Math.round(r.dpo);
     if (an.rows.length > 1) e.crecimiento = Math.round(Math.max(-10, Math.min(30, an.cagr)) * 10) / 10;
+    Object.keys(e).forEach((k) => { if (e[k] !== antes[k]) state.dados = Object.assign({}, state.dados, { ['empresa.' + k]: 'cuentas' }); });
     return state;
   };
 

@@ -82,31 +82,34 @@
     // ¿Tiene datos el módulo? Los de resumen (cuadro de mando, auditoría, evolución) los tienen si los tiene algún módulo
     const real = realX == null ? realActiva() : realX, alguno = S.modules.some((m) => m.datos && S.conDatos && S.conDatos(m));
     const conD = (id) => { const m = typeof id === 'string' ? mod(id) : id; return !S.conDatos || !m ? true : m.datos ? S.conDatos(m) : alguno; };
-    S.allKpis().forEach((k) => { if (k.sinDato) { out.push({ st: 'nd', peso: 1, t: k.k + ' (' + k.area + '): sin datos', zona: k.mod }); return; } if (!k.st) return; out.push({ st: k.st, peso: 1, t: (k.st === 'stop' ? 'En rojo: ' : k.st === 'warn' ? 'En ámbar: ' : '') + k.k + ' (' + k.area + ')', d: k.st !== 'ok' ? String(k.v || '') : '', zona: k.mod }); });
+    S.allKpis().forEach((k) => { if (k.sinDato) { out.push({ st: 'nd', peso: 1, t: k.k + ' (' + k.area + '): sin datos', zona: k.mod }); return; } if (!k.st) return; out.push({ st: k.st, peso: 1, t: (k.st === 'stop' ? 'En rojo: ' : k.st === 'warn' ? 'En ámbar: ' : '') + k.k + ' (' + k.area + ')', d: k.st !== 'ok' ? String(k.v || '') : '', zona: k.mod, kpi: k.k }); });
     // Datos pendientes: en un módulo con datos es un aviso; en uno sin datos es solo «sin datos» (no puntúa)
-    if (S.needStatus) S.modules.forEach((m) => { const f = S.needStatus(m.id).filter((x) => !x.ok); if (f.length) out.push({ st: conD(m) ? 'warn' : 'nd', peso: 1, t: `«${m.nombre}» sin gestionar del todo: ${pl(f.length, 'dato pendiente', 'datos pendientes')}`, d: f.slice(0, 2).map((x) => x.t).join(' · '), zona: m.id }); });
-    if (!real) S.modules.forEach((m) => { const d = S.state[m.id]; if (d && d.ejemplo === true) out.push({ st: 'warn', peso: 1, t: `«${m.nombre}» con datos de ejemplo`, d: 'Sustitúyalos por los de la empresa.', zona: m.id }); });
+    if (S.needStatus) S.modules.forEach((m) => { const f = S.needStatus(m.id).filter((x) => !x.ok); if (f.length) out.push({ st: conD(m) ? 'warn' : 'nd', peso: 1, t: `«${m.nombre}» sin gestionar del todo: ${pl(f.length, 'dato pendiente', 'datos pendientes')}`, d: f.slice(0, 2).map((x) => x.t).join(' · '), zona: m.id, inf: `Información sin facilitar: ${f.slice(0, 2).map((x) => String(x.t || '').replace(/^\w/, (c) => c.toLowerCase())).join('; ')}${f.length > 2 ? ` y ${f.length - 2} más` : ''}` }); });
+    if (!real) S.modules.forEach((m) => { const d = S.state[m.id]; if (d && d.ejemplo === true) out.push({ st: 'warn', peso: 1, t: `«${m.nombre}» con datos de ejemplo`, d: 'Sustitúyalos por los de la empresa.', zona: m.id, inf: 'Cifras no propias de la empresa' }); });
     const com = S.state.comercial;
     if (com) {
       const ej = com.ejemplo === true, np = (com.productos || []).length, nc = (com.clientes || []).length;
       if (!ej && !np && !nc) out.push({ st: 'nd', peso: 2, t: 'ABC de clientes y productos sin datos', d: 'Cargue las ventas por cliente y por producto.', zona: 'ventas' });
-      else out.push({ st: ej ? 'stop' : np < 3 || nc < 5 ? 'warn' : 'ok', peso: 2, t: ej ? 'El ABC de clientes y productos usa datos de ejemplo' : np < 3 || nc < 5 ? 'ABC de clientes y productos incompleto' : 'ABC de clientes y productos hecho', d: ej ? 'Sin un ABC real no se sabe qué clientes y productos dan el margen.' : np < 3 || nc < 5 ? `${pl(nc, 'cliente', 'clientes')} y ${pl(np, 'producto', 'productos')} cargados.` : '', zona: 'ventas' });
+      else out.push({ st: ej ? 'stop' : np < 3 || nc < 5 ? 'warn' : 'ok', peso: 2, t: ej ? 'El ABC de clientes y productos usa datos de ejemplo' : np < 3 || nc < 5 ? 'ABC de clientes y productos incompleto' : 'ABC de clientes y productos hecho', d: ej ? 'Sin un ABC real no se sabe qué clientes y productos dan el margen.' : np < 3 || nc < 5 ? `${pl(nc, 'cliente', 'clientes')} y ${pl(np, 'producto', 'productos')} cargados.` : '', zona: 'ventas', inf: ej ? 'Análisis ABC sin cifras propias de la empresa' : np < 3 || nc < 5 ? 'Análisis ABC de clientes y productos incompleto' : 'Análisis ABC de clientes y productos completo' });
     }
     const plan = S.state.plan;
     if (plan) {
       const acc = (plan.acciones || []).filter((a) => a.accion), venc = acc.filter((a) => a.estado !== 'Hecha' && a.fin && a.fin < h), sinR = acc.filter((a) => a.estado !== 'Hecha' && (!a.responsable || !a.fin));
-      if (!acc.length) out.push({ st: conD('plan') ? 'warn' : 'nd', peso: 2, t: 'El plan de empresa no tiene acciones', d: 'Sin acciones con responsable y fecha, los objetivos no bajan a la operativa.', zona: 'plan' });
-      else out.push({ st: venc.length > 2 ? 'stop' : venc.length ? 'warn' : 'ok', peso: 2, t: venc.length ? `${pl(venc.length, 'acción vencida', 'acciones vencidas')} en el plan de empresa` : 'Plan de empresa al día', zona: 'plan' });
-      if (sinR.length) out.push({ st: 'warn', peso: 1, t: `${pl(sinR.length, 'acción', 'acciones')} del plan sin responsable o sin fecha`, zona: 'plan' });
+      if (!acc.length) out.push({ st: conD('plan') ? 'warn' : 'nd', peso: 2, t: 'El plan de empresa no tiene acciones', d: 'Sin acciones con responsable y fecha, los objetivos no bajan a la operativa.', zona: 'plan', inf: 'Plan sin acciones con responsable y fecha' });
+      else out.push({ st: venc.length > 2 ? 'stop' : venc.length ? 'warn' : 'ok', peso: 2, t: venc.length ? `${pl(venc.length, 'acción vencida', 'acciones vencidas')} en el plan de empresa` : 'Plan de empresa al día', zona: 'plan', inf: venc.length ? `${pl(venc.length, 'acción vencida', 'acciones vencidas')} en el plan` : 'Acciones del plan al día' });
+      if (sinR.length) out.push({ st: 'warn', peso: 1, t: `${pl(sinR.length, 'acción', 'acciones')} del plan sin responsable o sin fecha`, zona: 'plan', inf: `${pl(sinR.length, 'acción', 'acciones')} del plan sin responsable o sin fecha` });
     }
     const c360 = S.state.c360 || {};
     Object.keys(c360).forEach((id) => { const ob = (c360[id].obj || []).filter((o) => o.meta !== '' && o.meta != null); const mal = ob.filter((o) => !o.fecha || !o.resp); const venc = ob.filter((o) => o.fecha && o.fecha < h); const m = mod(id); if (!m) return;
-      if (mal.length) out.push({ st: 'warn', peso: 1, t: `Objetivos de «${m.nombre}» sin fecha o sin responsable (${mal.length})`, d: 'Un objetivo sin fecha ni responsable no se cumple.', zona: id });
-      if (venc.length) out.push({ st: 'stop', peso: 1, t: `Objetivos de «${m.nombre}» con la fecha vencida (${venc.length})`, zona: id }); });
-    if (S.madurez360 && A.C360) Object.keys(A.C360).forEach((id) => { const m = mod(id); if (!m) return; let z = null; try { z = S.madurez360(id); } catch (e) { z = null; } if (z && z.score != null) out.push({ st: z.score >= 70 ? 'ok' : z.score >= 50 ? 'warn' : 'stop', peso: 1, t: `Madurez de la gestión en «${m.nombre}»: ${z.score}/100`, zona: id }); });
-    S.allRisks().filter((r) => r.nivel >= 15).slice(0, 5).forEach((r) => out.push({ st: 'stop', peso: 1, t: 'Riesgo alto: ' + r.nombre, d: r.mitigacion || '', zona: r.mod }));
-    return out;
+      if (mal.length) out.push({ st: 'warn', peso: 1, t: `Objetivos de «${m.nombre}» sin fecha o sin responsable (${mal.length})`, d: 'Un objetivo sin fecha ni responsable no se cumple.', zona: id, inf: `Objetivos sin fecha o sin responsable (${mal.length})` });
+      if (venc.length) out.push({ st: 'stop', peso: 1, t: `Objetivos de «${m.nombre}» con la fecha vencida (${venc.length})`, zona: id, inf: `Objetivos con la fecha vencida (${venc.length})` }); });
+    if (S.madurez360 && A.C360) Object.keys(A.C360).forEach((id) => { const m = mod(id); if (!m) return; let z = null; try { z = S.madurez360(id); } catch (e) { z = null; } if (z && z.score != null) out.push({ st: z.score >= 70 ? 'ok' : z.score >= 50 ? 'warn' : 'stop', peso: 1, t: `Madurez de la gestión en «${m.nombre}»: ${z.score}/100`, zona: id, inf: `Prácticas de gestión: ${z.score}/100` }); });
+    S.allRisks().filter((r) => r.nivel >= 15).slice(0, 5).forEach((r) => out.push({ st: 'stop', peso: 1, t: 'Riesgo alto: ' + r.nombre, d: r.mitigacion || '', zona: r.mod, inf: 'Riesgo alto: ' + r.nombre }));
+    // Las áreas que no aplican al sector de la empresa no puntúan (ni 0 ni rojo)
+    return S.noAplica ? out.filter((x) => !S.noAplica(x.zona)) : out;
   };
+  // La nota de una empresa con datos propios se calcula solo con ellos (como sus informes): lo de ejemplo no puntúa
+  const propiosDe = (S, real) => { try { if (S && S.inf && S.inf.conPropios) return S.inf.conPropios(() => estDesdeMotor(real)); } catch (e) { /* sin contexto de datos propios */ } return estDesdeMotor(real); };
   // Personas y equipos: plantilla, perfiles, puestos, equipos y acuerdos de liderazgo
   const evalPersonas = (st) => {
     const out = [], h = hoy(), ps = (st && st.personas) || [];
@@ -206,11 +209,11 @@
         if (k === 'simulador' || k === 'estrategia') {
           const c0 = cache[k], vale = c0 && c0.firma === firma[k] && Array.isArray(c0.puntos);
           if (k === 'simulador' && enApp) { puntos = simDe(A.appApi.getState(), real); vivo = true; }
-          else if (k === 'estrategia' && enEst && A.strat && A.strat.state && A.strat.allKpis) { puntos = estDesdeMotor(real); vivo = true; if (A.strat.datosPropios && !A.strat.datosPropios()) motivo = real ? 'faltan los datos de la empresa' : 'datos de ejemplo'; }
+          else if (k === 'estrategia' && enEst && A.strat && A.strat.state && A.strat.allKpis) { puntos = propiosDe(A.strat, real); vivo = true; if (A.strat.datosPropios && !A.strat.datosPropios()) motivo = real ? 'faltan los datos de la empresa' : 'datos de ejemplo'; }
           else if (k === 'estrategia' && enEst) { if (c0) { puntos = c0.puntos; motivo = c0.motivo || ''; fecha = c0.fecha; } } // su página aún está cargando
           else if (vale) { puntos = c0.puntos; motivo = c0.motivo || ''; fecha = c0.fecha; }
           else if (k === 'simulador') { await C.cargar('simulador'); puntos = simDe(C.estadoSim(sim), real); }
-          else { const r = await C.estrategia(sim, est, { ficha, real, modelo }, (S) => ({ puntos: estDesdeMotor(real), propios: S.datosPropios ? S.datosPropios() : true })); puntos = r.puntos; if (!r.propios) motivo = real ? 'faltan los datos de la empresa' : 'datos de ejemplo'; }
+          else { const r = await C.estrategia(sim, est, { ficha, real, modelo }, (S) => ({ puntos: propiosDe(S, real), propios: S.datosPropios ? S.datosPropios() : true })); puntos = r.puntos; if (!r.propios) motivo = real ? 'faltan los datos de la empresa' : 'datos de ejemplo'; }
           if (puntos && !fecha) { fecha = new Date().toISOString(); cache[k] = { puntos, fecha, motivo, firma: firma[k] }; }
         }
         if (k === 'personas') { puntos = evalPersonas((activa && A.personas && A.personas.state) || (await datos('personas', 'atalaya.personas.v1', id))); vivo = true; }

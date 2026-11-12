@@ -21,6 +21,8 @@ body.pdf-print *, body.pdf-print *::before, body.pdf-print *::after { -webkit-pr
 
 /* Saltos de página: los rótulos no se quedan solos al pie y los bloques no se parten */
 .pdf-print h1, .pdf-print h2, .pdf-print h3, .pdf-print h4, .pdf-print .rp-kicker, .pdf-print .lb-caph { break-after: avoid; page-break-after: avoid; }
+/* El rótulo («SECCIÓN 04», «ANEXO A») va dentro del título como bloque: el título no se parte entre los dos */
+.pdf-print h1, .pdf-print h2, .pdf-print h3 { break-inside: avoid; page-break-inside: avoid; }
 .pdf-print p { orphans: 3; widows: 3; }
 .pdf-print h2 + p, .pdf-print h3 + p, .pdf-print .rp-lede { break-after: avoid; page-break-after: avoid; }
 .pdf-print tr, .pdf-print li, .pdf-print svg, .pdf-print .chart, .pdf-print figure, .pdf-print .rp-kpi, .pdf-print .rp-callout, .pdf-print .rp-summary,

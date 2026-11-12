@@ -164,7 +164,7 @@
       host.innerHTML = `${S.section('Informe de auditoría', 'Un informe completo con el diagnóstico 360 de todas las áreas, la auditoría del dinero, los impuestos, la tesorería, el mercado y los riesgos, y dos planes de trabajo: de los objetivos generales a las acciones (macro → micro) y de los hallazgos concretos a su impacto en la cuenta de resultados (micro → macro).')}
         <div class="glass pad stack" data-inf="no"><div class="row"><button class="btn solid" id="auGen">Generar el informe</button><button class="btn ghost" id="auCopy">Copiar texto</button></div><p class="small muted">El informe usa los datos de todos los módulos y del simulador. Cuanto más completos, más preciso.</p></div>`;
       $('#auGen', host).onclick = openReport;
-      $('#auCopy', host).onclick = () => { const t = reportText(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { $('#auCopy', host).textContent = 'Copiado'; }, () => { const ta = document.createElement('textarea'); ta.value = t; host.appendChild(ta); ta.select(); }); };
+      $('#auCopy', host).onclick = () => { const t = S.inf.conPropios(reportText); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { $('#auCopy', host).textContent = 'Copiado'; }, () => { const ta = document.createElement('textarea'); ta.value = t; host.appendChild(ta); ta.select(); }); };
     }
   });
   function reportData() {
@@ -177,10 +177,13 @@
     const ebitda = con ? S.baseYear().ebitda : 0;
     const imp = {}; Fi.forEach((f) => { imp[f.area] = (imp[f.area] || 0) + (f.impactoEUR || 0); });
     const totImp = Object.values(imp).reduce((a, b) => a + b, 0);
-    const porArea = areas.map((a) => { const l = K.filter((k) => k.area === a); return { a, l, s: l.some((k) => k.st) ? sc(l) : null }; });
-    // Áreas con marco de análisis de las que no se ha dispuesto de información
-    const sinInfo = S.modules.filter((m) => m.datos && !S.conDatos(m) && !['auditoria', 'evolucion', 'tablero', 'origen'].includes(m.id)).map((m) => N.titulo(m));
-    return { K, R, Fi, areas, porArea, sc, p, con, ebitda, imp, totImp, sinInfo, global: K.some((k) => k.st) ? sc(K) : null };
+    // Cada área con lo que sostiene su valoración (indicadores y demás comprobaciones que puntúan, rojas y ámbar primero)
+    // Todas las áreas: con documentación (nota y lo que la sostiene), sin ella (0 y el documento que falta) y las que no aplican al sector
+    const porArea = N.areas(K);
+    const sinDoc = porArea.filter((x) => x.estado === 'sindoc'), noAplica = porArea.filter((x) => x.estado === 'noaplica');
+    const sinInfo = sinDoc.map((x) => x.a);
+    // Global: la media de las áreas aplicables, con las que no tienen documentación a 0
+    return { K, R, Fi, areas, porArea, sinDoc, noAplica, sc, p, con, ebitda, imp, totImp, sinInfo, cruces: N.cruces(), global: N.notaGlobal(porArea) };
   }
   /* Informe de auditoría: dossier de la empresa completa. Cada apartado solo aparece si hay información para sostenerlo;
      lo que no se ha podido analizar se dice en el anexo «Alcance y limitaciones». */
@@ -189,57 +192,70 @@
     const pill = (st, t) => I.pill(st, t), stOf = (v) => N.estado(v);
     const con = d.con, ilus = N.ilustrativo(null);
     const ok = (id) => S.conDatos(id);
-    const mf = ok('dinero') ? A.fin.moneyFlow(S.sim.historico) : null;
+    // Del beneficio a la caja: solo con ejercicios cerrados (las previsiones no son lo que ha pasado)
+    const mf = ok('dinero') && S.mfCerrado ? S.mfCerrado() : null;
     const tc = con && ok('impuestos') ? S.taxCalc() : null, cw = ok('tesoreria') ? S.cashWeeks() : null, b = ok('presupuesto') ? S.budget() : null;
     const esc0 = b ? A.SCENARIOS.find((s) => s.key === b.escEq) : null;
     const vr = con && S.invDefinida() ? S.analysis().verdict : null;
     const altos = d.R.filter((x) => x.estado === 'stop');
-    const criticas = d.porArea.filter((x) => x.s !== null && x.s < 50), vigil = d.porArea.filter((x) => x.s !== null && x.s >= 50 && x.s < 70);
+    const valoradas = d.porArea.filter((x) => x.estado === 'ok' && x.s !== null), criticas = valoradas.filter((x) => x.s < 50), vigil = valoradas.filter((x) => x.s >= 50 && x.s < 70), aplican = d.porArea.filter((x) => x.estado !== 'noaplica' && x.s !== null);
     const minW = cw && cw.weeks.length ? cw.weeks.reduce((a, x) => (x.fin < a.fin ? x : a)) : null, tensas = cw ? cw.weeks.filter((x) => x.st !== 'ok').length : 0;
     const plazos = [30, 90, 180, 365];
     const fd = (x) => new Date(x).toLocaleDateString('es-ES');
     I.reset();
     // Resumen ejecutivo: la conclusión primero y los mensajes clave con su cifra
     const concl = d.global === null ? `No se ha dispuesto de información suficiente para valorar la situación de ${esc(emp || 'la empresa')}. Este documento delimita el alcance de la auditoría.`
-      : `La valoración global de ${esc(emp || 'la empresa')} es de <b>${d.global} sobre 100</b> ${pill(stOf(d.global))}: ${N.califica(d.global)}.`;
+      : `La valoración global de ${esc(emp || 'la empresa')} es de <b>${d.global} sobre 100</b> ${pill(stOf(d.global))}: ${N.califica(d.global)}${!d.sinDoc.length ? '' : d.sinDoc.length === aplican.length ? `. Ninguna de las ${aplican.length} áreas que aplican se ha podido evaluar: falta la documentación de todas ellas y cada una cuenta 0` : `. ${d.sinDoc.length === 1 ? 'Un área no se ha podido evaluar' : d.sinDoc.length + ' de las ' + aplican.length + ' áreas no se han podido evaluar'} por falta de documentación y ${d.sinDoc.length === 1 ? 'cuenta' : 'cuentan'} 0`}.`;
     const M = [];
-    if (d.porArea.some((x) => x.s !== null)) M.push(`<b>Áreas.</b> De las ${d.porArea.filter((x) => x.s !== null).length} áreas valoradas, ${criticas.length} ${criticas.length === 1 ? 'está' : 'están'} en nivel crítico${criticas.length ? ` (${criticas.slice(0, 4).map((x) => `${esc(x.a)}, ${x.s}`).join('; ')})` : ''} y ${vigil.length} en vigilancia.`);
-    if (d.R.length) M.push(`<b>Riesgos.</b> ${d.R.length} riesgos identificados, ${altos.length} de nivel alto. El principal: ${esc(d.R[0].nombre)} (nivel ${d.R[0].nivel} sobre 25).`);
-    if (d.totImp > 0) M.push(`<b>Oportunidades.</b> ${d.Fi.length} mejoras con un impacto conjunto de <b>${F.eur(d.totImp)}</b> al año${d.ebitda > 0 ? `, el ${F.pct(S.pct(d.totImp, d.ebitda))} del EBITDA actual (${F.eur(d.ebitda)})` : ''}.`);
-    if (minW && tensas) M.push(`<b>Tesorería.</b> ${tensas} ${tensas === 1 ? 'semana' : 'semanas'} por debajo del colchón de ${F.eur(cw.colchon)}; la más tensa, la del ${fd(minW.a)}, con ${F.eur(minW.fin)}.`);
+    if (aplican.length) M.push(`<b>Áreas.</b> ${valoradas.length ? `De las ${aplican.length} áreas que aplican al sector, ${valoradas.length} con documentación: ${criticas.length} en nivel crítico${criticas.length ? ` (${criticas.slice(0, 4).map((x) => `${esc(x.a)}, ${x.s}`).join('; ')})` : ''} y ${vigil.length} en vigilancia.` : `Ninguna de las ${aplican.length} áreas que aplican al sector tiene documentación propia.`}${d.sinDoc.length ? ` Sin documentación, valoradas con 0: ${esc(d.sinDoc.slice(0, 5).map((x) => x.a).join(', '))}${d.sinDoc.length > 5 ? ` y ${d.sinDoc.length - 5} más` : ''}.` : ''}`);
+    if (d.R.length) M.push(`<b>Riesgos.</b> ${d.R.length === 1 ? 'Un riesgo identificado' : d.R.length + ' riesgos identificados'}, ${altos.length} de nivel alto. El principal: ${esc(d.R[0].nombre)} (nivel ${d.R[0].nivel} sobre 25).`);
+    if (d.totImp > 0) M.push(`<b>Oportunidades.</b> ${d.Fi.length === 1 ? 'Una mejora' : d.Fi.length + ' mejoras'} con un impacto${d.Fi.length === 1 ? '' : ' conjunto'} de <b>${F.eur(d.totImp)}</b> al año${d.ebitda > 0 ? `, el ${F.pct(S.pct(d.totImp, d.ebitda))} del EBITDA actual (${F.eur(d.ebitda)})` : ''}.`);
+    // Colchón: los días de gastos fijos y de personal que se quieren tener en caja; si no hay esos gastos, lo que cuenta es el saldo negativo
+    const colchon = cw && cw.colchon > 0 ? cw.colchon : 0, bajoTxt = (n) => `${n === 1 ? 'una semana' : n + ' semanas'} ${colchon ? `por debajo del colchón de ${F.eur(colchon)}` : 'con saldo negativo'}`;
+    if (minW && tensas) M.push(`<b>Tesorería.</b> ${bajoTxt(tensas).replace(/^u/, 'U')}; la más tensa, la del ${fd(minW.a)}, con ${F.eur(minW.fin)}.`);
     if (vr) M.push(`<b>Inversión.</b> El proyecto «${esc(S.sim.proyecto)}» se valora como: <b>${esc(vr.titulo)}</b>.`);
     if (d.Fi[0]) M.push(`<b>Primera actuación.</b> ${esc(d.Fi[0].accion.replace(/\.$/, ''))} (${F.eur(d.Fi[0].impactoEUR || 0)} al año, ${d.Fi[0].plazo || 90} días).`);
     else if (altos[0] && altos[0].mitigacion) M.push(`<b>Primera actuación.</b> ${esc(altos[0].mitigacion)}`);
-    let h = N.portada({ tipo: 'Informe de auditoría', kicker: 'Auditoría estratégica' + (ilus ? ' · caso ilustrativo' : ''), titulo: emp || 'Auditoría estratégica', subtitulo: A.SECTORS[S.sim.sector].nombre + (con ? ` · ventas ${F.eur(e.ventas)} · ${e.plantilla} personas` : ''), empresa: emp, sector: A.SECTORS[S.sim.sector].nombre, ambito: 'Empresa completa: finanzas, comercial, operaciones, personas y entorno' })
+    let h = N.portada({ tipo: 'Informe de auditoría', kicker: 'Auditoría estratégica' + (ilus ? ' · caso ilustrativo' : ''), titulo: emp || 'Auditoría estratégica', subtitulo: N.sectorTxt() + (con ? ` · ventas ${F.eur(e.ventas)}${S.num(e.plantilla) > 0 ? ` · ${e.plantilla} ${+e.plantilla === 1 ? 'persona' : 'personas'}` : ''}` : ''), empresa: emp, sector: N.sectorTxt(), ambito: d.noAplica.length ? `Empresa completa salvo lo que no aplica a su sector (${d.noAplica.map((x) => x.a).join(', ')})` : 'Empresa completa: finanzas, comercial, operaciones, personas y entorno' })
       + I.summary('Resumen ejecutivo', N.resumen(concl, M), stOf(d.global));
-    if (d.porArea.length) h += I.section(criticas.length ? `Diagnóstico por áreas: ${criticas.length} de ${d.porArea.filter((x) => x.s !== null).length} en nivel crítico` : 'Diagnóstico por áreas: ninguna en nivel crítico',
-      I.table(['Área', 'Valoración', 'Indicadores'], d.porArea.map((x) => [x.a, { h: x.s === null ? '—' : pill(stOf(x.s), String(x.s)) }, { h: x.l.map((k) => `${esc(N.neg(k.k))}: <b>${k.v}</b>`).join(' · ') }])), 'Valoración sobre 100 de cada área y los indicadores que la sostienen.');
-    if (mf) h += I.section(`Del beneficio a la caja: ${mf.cajaReal >= 0 ? 'la caja sube' : 'la caja baja'} ${F.eur(Math.abs(mf.cajaReal))} en ${mf.anio} con ${F.eur(mf.beneficio)} de beneficio`, `<p>${mf.lectura.map((t) => esc(N.frases(t))).join(' ')}</p>` + I.table(['Destino de cada 100 € generados', 'Importe'], mf.destinos.map((x) => [x.n, Math.round(x.pct) + ' €']), { num: [1] }));
+    if (d.porArea.length) h += I.section(`Diagnóstico por áreas: ${[criticas.length ? `${criticas.length} en nivel crítico` : 'ninguna en nivel crítico', d.sinDoc.length ? `${d.sinDoc.length} sin documentación` : ''].filter(Boolean).join(' y ')}`,
+      I.table(['Área', 'Valoración', 'Lo que sostiene la valoración'], d.porArea.map((x) => [x.a, { h: N.celdaNota(x) }, { h: N.celdaSosten(x) }])), 'Valoración sobre 100 de cada área y lo que la sostiene, primero lo que está en nivel crítico o en vigilancia. Un área sin documentación vale 0 y se indica qué falta; las que no aplican al sector no se valoran.');
+    // Con un año incompleto el reparto de cada 100 € no se puede hacer (faltan destinos): solo la lectura, que lo dice
+    const sinStock = S.SIN_STOCK.includes(S.sectorEmpresa().k), dest = mf && !mf.falta.length ? mf.destinos.filter((x) => Math.round(x.pct) >= 1 && !(sinStock && /stock/i.test(x.n))) : [];
+    const crCaja = d.cruces.find((c) => c.mods.includes('dinero'));
+    // Sin el cruce del beneficio con la caja, la sección lo dice y nombra el documento que falta
+    if (!mf && crCaja) h += I.section('Del beneficio a la caja: el cruce no se puede hacer', `<p>${esc(crCaja.t)}</p>`);
+    if (mf) h += I.section(`Del beneficio a la caja: ${mf.cajaReal >= 0 ? 'la caja sube' : 'la caja baja'} ${F.eur(Math.abs(mf.cajaReal))} en ${mf.anio} con ${F.eur(mf.beneficio)} de beneficio`, `<p>${mf.lectura.map((t) => esc(N.frases(t))).join(' ')}</p>` + (dest.length >= 2 ? I.table(['Destino de cada 100 € generados', 'Importe'], dest.map((x) => [x.n, Math.round(x.pct) + ' €']), { num: [1] }) : ''));
     if (tc && tc.anual > 0) h += I.section(`Impuestos y cotizaciones: ${F.eur(tc.anual)} en los próximos doce meses, el ${F.pct(S.pct(tc.anual, tc.ventas12))} de las ventas`, I.table(['Fecha', 'Modelo', 'Concepto', 'Importe'], tc.pagos.filter((p) => p.importe).map((p) => [fd(p.fecha), p.modelo, p.concepto, F.eurFull(p.importe)]), { num: [3] }), 'Calendario estimado de pagos a Hacienda y a la Seguridad Social.');
-    if (minW) h += I.section(tensas ? `Tesorería: ${tensas} ${tensas === 1 ? 'semana' : 'semanas'} por debajo del colchón de ${F.eur(cw.colchon)}` : `Tesorería: ninguna semana por debajo del colchón de ${F.eur(cw.colchon)}`, `<p>La previsión parte de un saldo de ${F.eur(cw.weeks[0].ini)} y cubre ${cw.weeks.length} semanas. La semana más tensa es la del ${fd(minW.a)}, con un saldo de ${F.eur(minW.fin)}.</p>`);
+    if (minW) h += I.section(tensas ? `Tesorería: ${bajoTxt(tensas)}` : colchon ? `Tesorería: ninguna semana por debajo del colchón de ${F.eur(colchon)}` : `Tesorería: el saldo previsto no baja de ${F.eur(minW.fin)} en ${cw.weeks.length} semanas`, `<p>La previsión parte de un saldo de ${F.eur(cw.weeks[0].ini)} y cubre ${cw.weeks.length} semanas. La semana más tensa es la del ${fd(minW.a)}, con un saldo de ${F.eur(minW.fin)}.</p>`);
     if (b && esc0 && b.ventasAnual > 0) h += I.section(`Presupuesto: las ventas acumuladas van al ${Math.round(b.ratio * 100)} % de lo previsto`, `<p>La evolución real se corresponde con el escenario <b>${esc(esc0.nombre.toLowerCase())}</b>. El cierre proyectado es de ${F.eur(b.cierreVentas)}, frente a ${F.eur(b.ventasAnual)} presupuestados.</p>`);
     const an = S.state.mercado.analisis;
-    if (d.R.length || (an && an.resumen)) h += I.section(d.R.length ? `Riesgos y entorno: ${d.R.length} riesgos, ${altos.length} de nivel alto` : 'Riesgos y entorno',
+    if (d.R.length || (an && an.resumen)) h += I.section(d.R.length ? `Riesgos y entorno: ${d.R.length === 1 ? 'un riesgo' : d.R.length + ' riesgos'}, ${altos.length} de nivel alto` : 'Riesgos y entorno',
       (d.R.length ? I.table(['Riesgo', 'Área', 'Nivel', 'Respuesta recomendada'], d.R.slice(0, 15).map((x) => [x.nombre, x.fuente, { h: pill(x.estado, String(x.nivel)) }, x.mitigacion || ''])) + (d.R.length > 15 ? `<p class="rp-muted">Se muestran los 15 riesgos de mayor nivel de un total de ${d.R.length}.</p>` : '') : '')
       + (an && an.resumen ? `<h3>Contexto de mercado a ${fd(an.fecha)}</h3><p>${esc(N.frases(an.resumen))}</p>` : ''));
+    // Cruces entre fuentes (los demás: cuentas y cartera de clientes, presupuesto y realidad)
+    const otrosCr = d.cruces.filter((c) => !c.mods.includes('dinero'));
+    if (otrosCr.length) h += I.section(otrosCr.every((c) => c.ok) ? 'Cruces de información: las fuentes se corresponden' : `Cruces de información: ${otrosCr.filter((c) => !c.ok).length === 1 ? 'uno no se puede hacer' : otrosCr.filter((c) => !c.ok).length + ' no se pueden hacer'} sin la documentación que falta`, N.crucesHTML(otrosCr), 'Contraste de una fuente con otra. Si no se puede hacer, se indica qué documento falta.');
     const est = S.planReportHTML ? S.planReportHTML() : '';
     if (est) h += I.section('Estrategia: valores, DAFO y CAME', est);
     // De los objetivos a las acciones
     const p = d.p, objs = (p.objetivos || []).filter((o) => String(o.nombre || '').trim());
     if (objs.length && S.planObjetivosHTML) h += I.section(`Objetivos de la dirección: ${objs.length === 1 ? 'un objetivo general' : objs.length + ' objetivos generales'} desplegados por áreas`, S.planObjetivosHTML());
     // Recomendaciones: de los hallazgos al resultado
-    if (d.Fi.length) h += I.section(`Recomendaciones: ${d.Fi.length} actuaciones por ${F.eur(d.totImp)} al año`, `<p>Cada mejora se suma por área hasta su efecto total en la empresa: <b>${F.eur(d.totImp)}</b> al año${d.ebitda > 0 ? `, el ${F.pct(S.pct(d.totImp, d.ebitda))} del EBITDA actual (${F.eur(d.ebitda)})` : ''}.</p>`
+    if (d.Fi.length) h += I.section(`Recomendaciones: ${d.Fi.length === 1 ? 'una actuación' : d.Fi.length + ' actuaciones'} por ${F.eur(d.totImp)} al año`, `<p>Cada mejora se suma por área hasta su efecto total en la empresa: <b>${F.eur(d.totImp)}</b> al año${d.ebitda > 0 ? `, el ${F.pct(S.pct(d.totImp, d.ebitda))} del EBITDA actual (${F.eur(d.ebitda)})` : ''}.</p>`
       + I.table(['Área', 'Impacto anual', 'Peso'], Object.keys(d.imp).sort((x, y) => d.imp[y] - d.imp[x]).map((a) => [a, F.eur(d.imp[a]), F.pct(S.pct(d.imp[a], d.totImp))]), { num: [1, 2] })
       + I.table(['Área', 'Hallazgo', 'Actuación recomendada', 'Impacto anual', 'Responsable', 'Plazo'], d.Fi.map((f) => [f.area, f.hallazgo, f.accion, F.eur(f.impactoEUR || 0), f.resp, (f.plazo || 90) + ' días']), { num: [3] }));
     if (d.Fi.length) h += I.section('Hoja de ruta', I.table(['Horizonte', 'Hitos', 'Impacto anual'], plazos.map((pz, i) => { const l = d.Fi.filter((f) => (f.plazo || 90) <= pz && (i === 0 || (f.plazo || 90) > plazos[i - 1])); return l.length ? [`De ${i === 0 ? 0 : plazos[i - 1]} a ${pz} días`, { h: `<ul>${l.filter((f, j) => l.findIndex((y) => y.accion === f.accion) === j).map((f) => `<li>${esc(f.accion)} <span class="rp-muted">· ${esc(f.resp)}</span></li>`).join('')}</ul>` }, F.eur(l.reduce((a, f) => a + (f.impactoEUR || 0), 0))] : null; }).filter(Boolean), { num: [2] }), 'Las actuaciones, ordenadas por su plazo de ejecución.');
-    else h += I.section('Hoja de ruta', `<p>El primer hito es reunir la información de gestión que permite cuantificar el diagnóstico${d.sinInfo.length ? `: ${esc(d.sinInfo.slice(0, 6).join(', '))}` : ''}. Con ella se fijan las actuaciones, su impacto y sus plazos.</p>`);
-    const H = S.sim.historico, an2 = H && H.anios && !(S.real() && H.ejemplo) ? H.anios.map((a) => a.anio).filter(Boolean) : [];
-    const fuentes = (an2.length ? [`Cuentas anuales de ${an2.length === 1 ? an2[0] : an2[0] + ' a ' + an2[an2.length - 1]}.`] : []).concat(d.areas.length ? [`Registros de gestión de las áreas analizadas: ${esc(d.areas.join(', '))}.`] : []).concat(an && an.resumen ? [`Análisis de mercado a ${fd(an.fecha)}.`] : []);
+    else h += I.section('Hoja de ruta', `<p>El primer hito es reunir la documentación que permite evaluar las áreas${d.sinDoc.length ? `: ${esc(d.sinDoc.slice(0, 4).map((x) => N.min(x.falta)).join('; '))}${d.sinDoc.length > 4 ? `, y la de ${d.sinDoc.length - 4} áreas más` : ''}` : ''}. Con ella se fijan las actuaciones, su impacto y sus plazos.</p>`);
+    const fuentes = N.fuenteCuentas().concat(d.areas.length ? [`Registros de gestión de las áreas analizadas: ${esc(d.areas.join(', '))}.`] : []).concat(an && an.resumen ? [`Análisis de mercado a ${fd(an.fecha)}.`] : []);
     const limites = [];
-    if (d.sinInfo.length) limites.push(`No se ha dispuesto de información para analizar: ${esc(d.sinInfo.join(', '))}. Estas áreas no entran en la valoración.`);
-    if (!mf) limites.push('No se ha dispuesto de cuentas de al menos dos ejercicios; el documento no incluye el análisis del paso del beneficio a la caja.');
+    if (d.sinDoc.length) limites.push(`Áreas sin documentación, que cuentan 0 en la valoración global: ${esc(d.sinDoc.map((x) => x.a).join(', '))}.`);
+    if (d.noAplica.length) limites.push(`No aplican al sector de la empresa (${esc(N.sectorTxt().toLowerCase())}) y no se valoran: ${esc(d.noAplica.map((x) => x.a).join(', '))}.`);
+    if (!mf) limites.push('No se ha dispuesto de las cuentas de dos ejercicios cerrados consecutivos; el documento no incluye el análisis del paso del beneficio a la caja.');
+    else if (mf.falta.length) limites.push(`Las cuentas de ${mf.previo} y ${mf.anio} no detallan todas las partidas del balance; el paso del beneficio a la caja se analiza solo con las disponibles.`);
+    N.limiteCuentas().forEach((t) => limites.push(t));
     limites.push('Los importes de impuestos, tesorería y cierre del ejercicio son previsiones; no sustituyen a la contabilidad ni a las liquidaciones oficiales.');
-    h += N.cierre({ riesgos: d.R.length, fuentes, limites, ilustrativo: ilus });
+    h += N.cierre({ riesgos: d.R.length, fuentes, limites, ilustrativo: ilus, metodo: N.METODO + ' ' + N.METODO_GLOBAL });
     return h;
   }
   function reportText() {
@@ -247,6 +263,7 @@
     return `AUDITORÍA ESTRATÉGICA · ${S.sim.empresaNombre}\n${d.global === null ? '' : `Valoración global: ${d.global} sobre 100. `}${d.totImp > 0 ? `Impacto anual de las mejoras: ${F.eur(d.totImp)}.` : ''}\n\nRiesgos principales:\n${d.R.slice(0, 8).map((r) => `- ${r.nombre} (nivel ${r.nivel} sobre 25)`).join('\n') || '- Sin riesgos relevantes identificados'}\n\nRecomendaciones:\n${d.Fi.slice(0, 12).map((f) => `- [${f.area}] ${f.hallazgo} → ${f.accion} (${F.eur(f.impactoEUR || 0)} al año, ${f.plazo || 90} días)`).join('\n') || '- Reunir la información de gestión para cuantificar el diagnóstico'}`;
   }
   S.auditReport = () => openReport();
-  function openReport() { A.informe.open({ titulo: 'Informe de auditoría', html: reportHTML(), texto: reportText() }); }
+  // Siempre con los datos propios de la empresa (S.inf.conPropios): nada de ejemplo en el informe de una empresa con datos
+  function openReport() { S.inf.conPropios(() => A.informe.open({ titulo: 'Informe de auditoría', html: reportHTML(), texto: reportText() })); }
 
 })();

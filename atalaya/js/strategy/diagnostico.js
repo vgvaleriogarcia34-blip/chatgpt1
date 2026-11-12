@@ -128,9 +128,10 @@
   };
   S.register({
     id: 'valoracion', nombre: 'Valoración de la empresa', grupo: 'Estrategia',
-    datosSim: true, datos: () => S.simConDatos(),
+    // Valorar exige un beneficio: con solo las ventas no hay EBITDA ni valor que estimar
+    datosSim: true, datos: () => S.simPyg(),
     render(host) {
-      if (!S.simConDatos()) return S.vacioSim(host, 'Cuánto vale la empresa y cuánto puede valer', 'Valoración orientativa por múltiplo del beneficio antes de intereses e impuestos (EBITDA) y por descuento de la caja futura, y cuánto sube con las mejoras detectadas, menos riesgo y la inversión.');
+      if (!S.simPyg()) return S.vacioSim(host, 'Cuánto vale la empresa y cuánto puede valer', 'Valoración orientativa por múltiplo del beneficio antes de intereses e impuestos (EBITDA) y por descuento de la caja futura, y cuánto sube con las mejoras detectadas, menos riesgo y la inversión.');
       const v = V(), R = S.valoracionCalc();
       const puente = [['Valor hoy', R.central, 'base'], ['Mejoras de margen detectadas', R.pasoMejora, 'paso'], ['Menos riesgo para un comprador', R.pasoRiesgo, 'paso'], ['La inversión del simulador', R.pasoInv, 'paso'], ['Valor con el plan', R.final, 'base']];
       // Cascada real: cada paso parte de donde terminó el anterior; los totales parten de cero

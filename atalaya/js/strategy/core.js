@@ -23,8 +23,18 @@
   /* Sin dato no es cero: un módulo con «datos()» que devuelve false no tiene indicadores con estado, ni riesgos ni hallazgos.
      Sus indicadores salen como «Sin datos» (st null, sinDato) y quedan fuera de la nota, del DAFO, de las prioridades y del tablero. */
   // Datos reales de una empresa del usuario (la empresa modelo es una demostración: conserva su contenido completo)
-  S.real = () => !!(A.platform && A.platform.modoReal && A.platform.modoReal() && !(A.platform.modelo && A.platform.modelo.activa && A.platform.modelo.activa()));
+  // Dentro de un informe de una empresa con datos propios (S._propios, ver S.inf.conPropios) se calcula como con datos reales
+  S.real = () => !!(S._propios || (A.platform && A.platform.modoReal && A.platform.modoReal() && !(A.platform.modelo && A.platform.modelo.activa && A.platform.modelo.activa())));
   S.simConDatos = () => { const e = S.sim && S.sim.empresa; return !!(e && S.num(e.ventas) > 0 && !(S.real() && A.simEsEjemplo && A.simEsEjemplo(S.sim))); };
+  // Cuenta de resultados con algo más que las ventas (margen, personal o gastos fijos): sin ella no hay beneficio que valorar ni impuestos que prever
+  S.simPyg = () => { const e = S.sim && S.sim.empresa; return !!(S.simConDatos() && e && (S.num(e.margen) > 0 || S.num(e.personal) > 0 || S.num(e.fijos) > 0)); };
+  /* ¿La cuenta de resultados del simulador sigue siendo la del ejemplo aunque se hayan cambiado las ventas? (con «datos de
+     ejemplo permitidos» lo que no se toca conserva el valor de ejemplo, también el que el sector ajusta) */
+  S.simPygEjemplo = () => {
+    const e = S.sim && S.sim.empresa; if (!e || !A.defaultState) return false;
+    const d = A.defaultState(), ds = A.applySector ? A.applySector(A.defaultState(), S.sim.sector) : d;
+    return ['margen', 'personal', 'fijos', 'plantilla'].filter((k) => S.num(e[k]) !== 0 && (S.num(e[k]) === S.num(d.empresa[k]) || S.num(e[k]) === S.num(ds.empresa[k]))).length >= 3;
+  };
   // Preguntas del equipo respondidas: las de la simulación a cero (A.simVacio) no pueden estar todas a cero
   S.humanoConDatos = () => { const h = S.sim && S.sim.humano; return !!(h && (A.simVacio ? Object.keys(A.simVacio().humano) : Object.keys(h)).some((k) => S.num(h[k]) > 0)); };
   S.invDefinida = () => { const v = S.sim && S.sim.inversion; return !!(v && (S.num(v.importe) > 0 || (v.lineas || []).some((l) => S.num(l.importe) > 0))); };
@@ -33,6 +43,7 @@
   const envolver = (m) => {
     ['kpis', 'risks', 'findings'].forEach((f) => { const o = m[f]; if (typeof o !== 'function') return;
       m[f] = function () {
+        if (S.noAplica && S.noAplica(m.id)) return [];
         if (S.conDatos(m)) { const r = o.apply(this, arguments) || []; return f === 'kpis' ? r.map((k) => (k && k.sinDato ? Object.assign({}, k, { st: null }) : k)) : r; }
         if (f !== 'kpis') return [];
         let l = []; try { l = o.apply(this, arguments) || []; } catch (e) { l = []; }
@@ -261,8 +272,10 @@
       const rb = $('#stReport', panel); if (rb) rb.onclick = () => (r360 ? S.report360(m) : S.moduleReport(m));
       const ab = $('#stAudit', panel); if (ab) ab.onclick = () => S.auditReport();
     }
+    // Área que no aplica al sector de la empresa: se dice arriba y no cuenta
+    if (S.noAplica(id)) { const head = panel.querySelector('.st-head'), av = `<div class="alert info st-pide st-noaplica"><b>No aplica al sector de la empresa (${esc(INF.sectorTxt().toLowerCase())}).</b> Esta área no se valora, no genera riesgos ni actuaciones y no entra en los informes. El sector se toma de la ficha de la empresa.</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
     // Cuenta con datos reales: el módulo sin datos lo dice y pide la subida
-    if (vacio) { const head = panel.querySelector('.st-head'), sim = m.datosSim; const av = `<div class="alert ${S.real() ? 'warn' : 'info'} st-pide st-sindatos"><b>Sin datos en este módulo.</b> ${S.real() ? 'Esta empresa trabaja con datos reales: aquí no hay datos de ejemplo. ' : ''}Los indicadores quedan «Sin datos» y no cuentan en la nota, en el DAFO ni en las prioridades hasta que haya datos propios. ${sim ? 'Cargue las cuentas en el <a href="app.html#empresa">simulador</a> o en <a href="#origen">Origen de datos</a>.' : 'Súbalos en <a href="#origen">Origen de datos</a> (Excel, CSV o PDF) o escríbalos en las tablas.'}</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
+    else if (vacio) { const head = panel.querySelector('.st-head'), sim = m.datosSim; const av = `<div class="alert ${S.real() ? 'warn' : 'info'} st-pide st-sindatos"><b>Sin datos en este módulo.</b> ${S.real() ? 'Esta empresa trabaja con datos reales: aquí no hay datos de ejemplo. ' : ''}Los indicadores quedan «Sin datos» y no cuentan en la nota, en el DAFO ni en las prioridades hasta que haya datos propios. ${sim ? 'Cargue las cuentas en el <a href="app.html#empresa">simulador</a> o en <a href="#origen">Origen de datos</a>.' : 'Súbalos en <a href="#origen">Origen de datos</a> (Excel, CSV o PDF) o escríbalos en las tablas.'}</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
     else if (id === 'tablero' && A.simEsEjemplo && S.sim && S.sim.sinDatos && !(S.sim.empresa && S.sim.empresa.ventas > 0)) panel.insertAdjacentHTML('afterbegin', '<div class="alert warn st-pide"><b>Faltan las cuentas de la empresa.</b> Esta empresa trabaja con datos reales y el simulador está a cero: suba el balance y la cuenta de resultados en <a href="#origen">Origen de datos</a> o en el <a href="app.html#empresa">simulador</a>.</div>');
     // Historial: cada módulo abierto es una entrada (atrás y adelante recorren lo visitado); la primera se sustituye
     if (location.hash !== '#' + id) { try { if (S._hist && !S._volviendo) history.pushState(null, '', '#' + id); else history.replaceState(null, '', '#' + id); } catch (e) { /* sin historial */ } }
@@ -338,11 +351,22 @@
     const st = m && S.state[m.clave || m.id];
     return !!((st && st.ejemplo === true) || S.simEjemplo() || (S.sim.historico && S.sim.historico.ejemplo));
   };
-  INF.periodo = () => {
-    const H = S.sim && S.sim.historico, an = H && H.anios && !(S.real() && H.ejemplo) ? H.anios.map((a) => +a.anio).filter(Boolean).sort() : [];
-    const f = A.informe.fecha();
-    return an.length >= 2 ? `Ejercicios ${an[0]}–${an[an.length - 1]} y situación a ${f}` : `Situación a ${f}`;
+  /* Ejercicios de las cuentas: los cerrados son el periodo analizado; el año en curso y los siguientes, previsiones */
+  INF.ejercicios = () => {
+    const H = S.sim && S.sim.historico, vacio = { cerrados: [], prevision: [], fuera: [] };
+    if (!H || !H.anios || (S.real() && H.ejemplo) || !A.fin.ejercicios) return vacio;
+    const e = A.fin.ejercicios(H); return { cerrados: e.cerrados.map((a) => +a.anio), prevision: e.prevision.map((a) => +a.anio), fuera: e.fuera };
   };
+  const tramo = (l) => (l.length === 1 ? String(l[0]) : `${l[0]}–${l[l.length - 1]}`);
+  INF.periodo = () => {
+    const E = INF.ejercicios(), f = A.informe.fecha();
+    const ej = E.cerrados.length ? `${E.cerrados.length === 1 ? 'Ejercicio' : 'Ejercicios'} ${tramo(E.cerrados)}` : '';
+    const pv = E.prevision.length ? `previsión ${tramo(E.prevision)}` : '';
+    return ej ? `${ej}, situación a ${f}${pv ? ' y ' + pv : ''}` : `Situación a ${f}${pv ? ' y ' + pv : ''}`;
+  };
+  // Fuentes y limitaciones que dependen de los ejercicios disponibles
+  INF.fuenteCuentas = () => { const E = INF.ejercicios(); return (E.cerrados.length ? [`Cuentas anuales ${E.cerrados.length === 1 ? 'del ejercicio ' + E.cerrados[0] : 'de los ejercicios ' + tramo(E.cerrados).replace('–', ' a ')}.`] : []).concat(E.prevision.length ? [`Previsiones de la empresa ${E.prevision.length === 1 ? 'para ' + E.prevision[0] : 'de ' + tramo(E.prevision).replace('–', ' a ')}.`] : []); };
+  INF.limiteCuentas = () => { const E = INF.ejercicios(); return E.fuera.length ? [`Las cifras registradas como ${E.fuera.length === 1 ? 'ejercicio ' + E.fuera[0] : 'ejercicios ' + E.fuera.join(', ')} no forman serie con el resto de las cuentas y no se han tenido en cuenta.`] : []; };
   // Portada con ámbito y periodo analizado
   INF.portada = (o) => { const h = A.informe.cover(Object.assign({ periodo: INF.periodo() }, o)); return /Periodo analizado/.test(h) ? h : h.replace('</dl>', `<div><dt>Ámbito</dt><dd>${esc(o.ambito || '')}</dd></div><div><dt>Periodo analizado</dt><dd>${esc(INF.periodo())}</dd></div></dl>`); };
   // Nombre del área en los documentos
@@ -415,21 +439,151 @@
     return (P.R.length ? `<h3>Riesgos</h3>${INF.graficoRiesgos(P)}${I.table(['Riesgo', 'Prob.', 'Impacto', 'Nivel', 'Respuesta recomendada'], P.R.slice(0, TOPE).map((r) => [r.nombre, r.prob + '/5', r.impacto + '/5', { h: I.pill(r.estado, String(r.nivel)) }, r.mitigacion || '']), { num: [1, 2] })}${nota(P.R.length, `los ${TOPE} riesgos de mayor nivel`)}` : '<p>El análisis no identifica riesgos relevantes en este ámbito.</p>')
       + (P.Fi.length ? `<h3>Oportunidades de mejora</h3>${INF.graficoMejoras(P)}${I.table(['Hallazgo', 'Actuación recomendada', 'Impacto anual', 'Plazo'], P.Fi.slice(0, TOPE).map((f) => [f.hallazgo, f.accion, F.eur(f.impactoEUR || 0), (f.plazo || 90) + ' días']), { num: [2, 3] })}${nota(P.Fi.length, `las ${TOPE} mejoras de mayor impacto`)}` : '');
   };
+  /* Lo que sostiene la valoración de un área: sus indicadores con su valor y el resto de comprobaciones que puntúan
+     (prácticas de gestión, objetivos, plan, riesgos altos, información incompleta), con las rojas y las ámbar primero.
+     Es exactamente lo que entra en la nota del área (A.nota): lo que no tiene datos propios no puntúa ni se muestra. */
+  const ORD_ST = { stop: 0, warn: 1, ok: 2 };
+  INF.sostenes = (mods, K) => {
+    const P = (A.nota && A.nota.estrategia ? A.nota.estrategia() : null) || [];
+    const kp = K.filter((k) => mods.includes(k.mod)).map((k) => ({ st: ORD_ST[k.st] != null ? k.st : null, h: `${esc(INF.neg(k.k))}: <b>${k.v}</b>` }));
+    const txt = (p) => INF.frases(p.inf || String(p.t || '').replace(/^En (rojo|ámbar): /, '').replace(/ (en|de|del) «[^»]*»/g, '').replace(/«[^»]*» ?/g, ''));
+    const ot = P.filter((p) => mods.includes(p.zona) && !p.kpi && ORD_ST[p.st] != null).map((p) => ({ st: p.st, h: esc(txt(p)) }));
+    return kp.concat(ot).filter((x, i, l) => x.h && l.findIndex((y) => y.h === x.h) === i).map((x, i) => Object.assign(x, { i })).sort((a, b) => (ORD_ST[a.st] != null ? ORD_ST[a.st] : 3) - (ORD_ST[b.st] != null ? ORD_ST[b.st] : 3) || a.i - b.i);
+  };
+  // En la tabla: cada elemento con su marca de nivel; los de nivel adecuado, como mucho los que quepan hasta seis
+  INF.sostenHTML = (l) => {
+    const malos = l.filter((x) => x.st === 'stop' || x.st === 'warn'), resto = l.filter((x) => !malos.includes(x)), ver = malos.concat(resto.slice(0, Math.max(0, 6 - malos.length))), mas = l.length - ver.length;
+    return ver.map((x) => `<span class="rp-sosten${x.st ? ' rp-so-' + x.st : ''}">${x.h}</span>`).join(' · ') + (mas ? ` <span class="rp-muted">· ${mas === 1 ? 'otro aspecto' : mas + ' aspectos más'} en nivel adecuado</span>` : '');
+  };
+  /* ---------- Sector: qué áreas aplican ----------
+     Una sola tabla: por sector, las áreas que no aplican. Un área que no aplica no se valora (ni 0 ni rojo), no genera
+     riesgos ni actuaciones y se cita como «No aplica al sector». Para ampliarla basta con añadir el sector (clave de
+     A.SECTORS, js/sectors.js) y los identificadores de las áreas. SIN_STOCK: sectores sin almacén (sin la partida de stock). */
+  S.NO_APLICA = {
+    servicios: ['logistica', 'lean'],     // sin planta (OEE, kaizen, Lean de producción) ni rutas de reparto (OTIF)
+    tecnologia: ['logistica', 'lean'],
+    inmobiliaria: ['logistica', 'lean'],
+    salud: ['logistica']
+  };
+  S.SIN_STOCK = ['servicios', 'tecnologia', 'inmobiliaria'];
+  /* Sector de la empresa: el de su ficha; si no lo tiene, el del simulador; si este es el de partida («industria») y las
+     cifras propias dicen otra cosa (sin stock y con margen bruto de servicios), se deduce de ellas. */
+  S.sectorEmpresa = () => {
+    const P = A.platform, ea = P && P.empresas && P.empresas.activa ? P.empresas.activa() : null, SE = A.SECTORS || {};
+    if (ea && ea.sector && SE[ea.sector]) return { k: ea.sector, origen: 'ficha' };
+    const k = S.sim && S.sim.sector;
+    if (k && SE[k] && k !== 'industria') return { k, origen: 'simulador' };
+    try {
+      const e = S.sim && S.sim.empresa, H = S.sim && S.sim.historico && !S.sim.historico.ejemplo && A.fin.ejercicios ? A.fin.ejercicios(S.sim.historico).cerrados : [];
+      const sinStock = e && S.num(e.dio) === 0 && !H.some((a) => S.num(a.existencias) > S.num(a.ventas) * 0.01);
+      if (sinStock && S.simConDatos() && S.num(e.margen) >= 50 && SE.servicios) return { k: 'servicios', origen: 'datos' };
+    } catch (x) { /* sin cifras */ }
+    return { k: k && SE[k] ? k : 'industria', origen: 'simulador' };
+  };
+  S.noAplica = (id) => { if (!S.sim) return false; const l = S.NO_APLICA[S.sectorEmpresa().k]; return !!(l && l.includes(typeof id === 'string' ? id : id && id.id)); };
+  INF.sectorTxt = () => { const s = S.sectorEmpresa(), n = (A.SECTORS[s.k] || {}).nombre || ''; return n + (s.origen === 'datos' ? ' (deducido de sus cifras)' : ''); };
+  INF.noAplican = () => S.modules.filter((m) => m.datos && S.noAplica(m.id)).map((m) => INF.titulo(m));
+
+  /* ---------- La documentación que falta, en lenguaje de empresa ----------
+     Un área sin los documentos propios de la empresa no se puede evaluar: vale 0 y el informe dice qué documento falta. */
+  const ANIO = () => new Date().getFullYear();
+  const lista = (l) => (l.length <= 1 ? l.join('') : l.slice(0, -1).join(', ') + ' y ' + l[l.length - 1]);
+  INF.FALTA = {
+    dinero: () => { const y = ANIO(), E = INF.ejercicios(), f = [y - 2, y - 1].filter((a) => !E.cerrados.includes(a)); return `Faltan el balance y la cuenta de resultados de ${lista((f.length ? f : [y - 2, y - 1]).map(String))}`; },
+    impuestos: 'Falta la cuenta de resultados con la base imponible y la cuota del impuesto',
+    tesoreria: 'Faltan el saldo de caja de hoy y los movimientos bancarios recientes',
+    presupuesto: () => `Faltan el presupuesto de ${ANIO()} y las ventas reales de los meses cerrados`,
+    ventas: 'Faltan las ventas del último año por cliente y por producto',
+    margen: 'Faltan los productos o servicios con precio, coste variable y unidades vendidas',
+    comercial: 'Falta la relación de oportunidades abiertas con importe y probabilidad',
+    marketing: 'Faltan la inversión, los contactos y los clientes captados por canal',
+    expansion: 'Faltan los datos de mercado de las zonas candidatas',
+    compras: 'Faltan las compras del último año por proveedor',
+    logistica: 'Faltan los pedidos, los costes de transporte y almacén y el servicio por ruta',
+    tiempos: 'Faltan los partes de horas por persona y tarea',
+    lean: 'Faltan los partes de producción o de horas por proceso',
+    personas: 'Falta la plantilla con área, puesto y coste',
+    plan: 'Faltan la misión, los objetivos y el plan de acción de la dirección',
+    mercado: 'Faltan los estudios de mercado o sectoriales y el análisis de la competencia',
+    cobros: 'Falta la antigüedad de saldos de clientes (facturas pendientes a la fecha de corte)',
+    valoracion: 'Falta la cuenta de resultados con margen, personal y gastos fijos'
+  };
+  // Las cifras clave que no se han facilitado: qué documento falta
+  INF.FALTA_CIFRA = { ventas: 'faltan las ventas del último ejercicio', ebitda: 'falta la cuenta de resultados (margen, personal y gastos)', deuda: 'falta el balance (deuda bancaria)', caja: 'falta el saldo de caja de hoy', plantilla: 'falta la plantilla' };
+  INF.falta = (m) => { const f = INF.FALTA[m.id]; if (f) return typeof f === 'function' ? f() : f; const D = A.C360 && A.C360[m.id]; return D && D.datos && D.datos[0] ? 'Falta: ' + INF.min(D.datos[0].t) : 'Falta la información de gestión del área'; };
+
+  /* ---------- Áreas de la empresa con su valoración ----------
+     Cada área aplicable: con documentación, su nota y lo que la sostiene; sin ella, 0 y el documento que falta; las que no
+     aplican al sector, aparte. La valoración global es la media de las áreas aplicables: las que no tienen documentación
+     cuentan 0, así que la nota refleja también lo completa que está la información. */
+  const RESUMEN = ['tablero', 'auditoria', 'evolucion', 'origen'];
+  INF.areas = (K) => S.modules.filter((m) => m.datos && !RESUMEN.includes(m.id)).map((m) => {
+    const a = INF.titulo(m);
+    if (S.noAplica(m.id)) return { m, id: m.id, a, estado: 'noaplica', s: null, l: [], sost: [] };
+    const l = K.filter((k) => k.mod === m.id);
+    if (!S.conDatos(m) || !l.length) return { m, id: m.id, a, estado: 'sindoc', s: 0, l: [], sost: [], falta: INF.falta(m) };
+    const sost = INF.sostenes([m.id], K);
+    return { m, id: m.id, a, estado: 'ok', l, sost, s: sost.some((x) => x.st) ? S.notaN([m.id], l) : null };
+  });
+  INF.notaGlobal = (areas) => { const v = areas.filter((x) => x.estado !== 'noaplica' && x.s !== null); return v.length ? Math.round(v.reduce((t, x) => t + x.s, 0) / v.length) : null; };
+  INF.celdaNota = (x) => (x.estado === 'noaplica' ? '<span class="rp-muted">No aplica al sector</span>' : x.estado === 'sindoc' ? `${A.informe.pill('stop', '0')} <span class="rp-muted">· sin documentación</span>` : x.s === null ? '—' : A.informe.pill(INF.estado(x.s), String(x.s)));
+  INF.celdaSosten = (x) => (x.estado === 'noaplica' ? '<span class="rp-muted">No se valora: no forma parte de la actividad de la empresa.</span>' : x.estado === 'sindoc' ? `<span class="rp-sosten rp-so-stop">${esc(x.falta)}</span>` : INF.sostenHTML(x.sost));
+  INF.METODO_GLOBAL = 'La valoración global es la media de las áreas que aplican al sector de la empresa. Un área sin la documentación necesaria no se puede evaluar y cuenta 0; las que no aplican al sector no se valoran.';
+
+  /* ---------- Cruces entre fuentes ----------
+     Beneficio y caja, cuentas y cartera de clientes, presupuesto y realidad. Si un cruce no se puede hacer, se dice qué
+     documento falta en lugar de dar una cifra. mods: las áreas a las que pertenece (para los informes 360). */
+  INF.cruces = () => {
+    const out = [], y = ANIO(), E = INF.ejercicios(), H = (S.sim && S.sim.historico && S.sim.historico.anios) || [];
+    const fila = (a) => H.find((x) => +x.anio === a);
+    const cuentasDe = (a) => { const r = fila(a); return !r || !E.cerrados.includes(a) ? `las cuentas anuales de ${a}` : !isFinite(r.tesoreria) ? `el balance de ${a}` : ''; };
+    if (!S.noAplica('dinero')) {
+      const mf = S.mfCerrado ? S.mfCerrado() : null;
+      if (!mf) {
+        const yy = [y - 2, y - 1], sinCuentas = yy.filter((a) => /^las/.test(cuentasDe(a))), sinBalance = yy.filter((a) => /^el/.test(cuentasDe(a)));
+        const f = (sinCuentas.length ? [`las cuentas anuales de ${lista(sinCuentas.map(String))}`] : []).concat(sinBalance.length ? [`el balance de ${lista(sinBalance.map(String))}`] : []);
+        if (!f.length) f.push(`las cuentas anuales de ${y - 1}`);
+        out.push({ mods: ['dinero'], k: 'Beneficio y caja', ok: false, t: `No se puede cruzar el beneficio con la caja: ${f.length > 1 || /^las/.test(f[0]) ? 'faltan' : 'falta'} ${lista(f)}.` });
+      }
+      else if (mf.falta.length) { const n = mf.falta.map((k) => ((A.fin.CONCEPTS.find((c) => c.k === k) || {}).l || k).replace(/ \(.*\)$/, '').toLowerCase()); out.push({ mods: ['dinero'], k: 'Beneficio y caja', ok: false, parcial: true, t: `El beneficio solo se cruza en parte con la caja: faltan en los balances de ${mf.previo} y ${mf.anio} ${lista(n)}.` }); }
+      else out.push({ mods: ['dinero'], k: 'Beneficio y caja', ok: true, t: `En ${mf.anio} la empresa ganó ${F.eur(mf.beneficio)} y la caja ${mf.cajaReal >= 0 ? 'subió' : 'bajó'} ${F.eur(Math.abs(mf.cajaReal))}.` });
+    }
+    if (!S.noAplica('cobros')) {
+      const ult = E.cerrados.length ? fila(E.cerrados[E.cerrados.length - 1]) : null;
+      const dsoCuentas = ult && isFinite(ult.clientes) && S.num(ult.ventas) > 0 ? Math.round(ult.clientes / ult.ventas * 365) : S.simConDatos() && S.num(S.sim.empresa.dso) > 0 ? Math.round(S.num(S.sim.empresa.dso)) : null;
+      const cartera = S.conDatos('cobros');
+      if (!cartera) out.push({ mods: ['cobros'], k: 'Cuentas y cartera de clientes', ok: false, t: 'No se puede cruzar el saldo de clientes de las cuentas con la cartera pendiente de cobro: falta la antigüedad de saldos de clientes.' });
+      else if (dsoCuentas === null) out.push({ mods: ['cobros'], k: 'Cuentas y cartera de clientes', ok: false, t: `No se puede cruzar la cartera pendiente de cobro con las cuentas: falta el balance de ${y - 1} con el saldo de clientes.` });
+      else { let a = null; try { a = S.cobrosAnalisis(); } catch (x) { a = null; } const real = a ? Math.round(a.realMedio != null ? a.realMedio : a.dsoReal) : null; out.push(real === null ? { mods: ['cobros'], k: 'Cuentas y cartera de clientes', ok: false, t: 'No se puede cruzar la cartera con las cuentas: falta la antigüedad de saldos de clientes.' } : { mods: ['cobros'], k: 'Cuentas y cartera de clientes', ok: true, t: `Según la cartera, los clientes pagan a ${real} días; según las cuentas, a ${dsoCuentas} días.` }); }
+    }
+    if (!S.noAplica('presupuesto')) {
+      let b = null; if (S.conDatos('presupuesto') && S.simPyg() && S.budget) { try { b = S.budget(); } catch (x) { b = null; } }
+      if (!b) out.push({ mods: ['presupuesto'], k: 'Presupuesto y realidad', ok: false, t: `No se puede comparar el presupuesto con la realidad: falta el presupuesto de ${y} o la cuenta de resultados de la que se obtiene.` });
+      else if (b.ratio == null) out.push({ mods: ['presupuesto'], k: 'Presupuesto y realidad', ok: false, t: `No se puede comparar el presupuesto con la realidad: faltan las ventas reales de los meses cerrados de ${y}.` });
+      else out.push({ mods: ['presupuesto'], k: 'Presupuesto y realidad', ok: true, t: `Las ventas reales acumuladas van al ${Math.round(b.ratio * 100)} % de lo presupuestado.` });
+    }
+    return out;
+  };
+  INF.crucesHTML = (L) => (L.length ? A.informe.table(['Cruce', 'Resultado'], L.map((c) => [c.k, { h: `<span class="rp-sosten rp-so-${c.ok ? 'ok' : c.parcial ? 'warn' : 'stop'}">${esc(c.t)}</span>` }])) : '');
+
   /* La empresa completa (cuadro de mando y auditoría): cifras clave, valoración por áreas y riesgos y mejoras de todas ellas */
   INF.empresa = () => {
     const I = A.informe, K = S.allKpis().filter((x) => x.mod !== 'origen' && !x.sinDato && String(x.v).replace(/<[^>]+>/g, '').trim() !== S.SIN_DATO);
-    if (!K.length) return { con: false };
     const R = S.allRisks().map((r) => Object.assign({}, r, { nombre: `${r.nombre} (${INF.area(r.mod)})` })), Fi = S.allFindings().map((f) => Object.assign({}, f, { hallazgo: `${INF.area(f.mod)}: ${f.hallazgo}` }));
     K.forEach((x) => { x.area = INF.area(x.mod) || x.area; });
-    const filas = Array.from(new Set(K.map((x) => x.area))).map((a) => { const l = K.filter((x) => x.area === a), s = l.some((x) => x.st) ? S.notaN([...new Set(l.map((x) => x.mod))], l) : null; return [a, { h: s === null ? '—' : I.pill(INF.estado(s), String(s)) }, { h: l.map((k) => `${esc(INF.neg(k.k))}: <b>${k.v}</b>`).join(' · ') }]; });
+    const AR = INF.areas(K), filas = AR.map((x) => [x.a, { h: INF.celdaNota(x) }, { h: INF.celdaSosten(x) }]);
     const tiles = [], c = S.cifras(), altos = R.filter((r) => r.estado === 'stop').length, imp = Fi.reduce((s, f) => s + (f.impactoEUR || 0), 0);
-    if (c && !c.sinDatos && A.cifras && A.cifras.CAMPOS) A.cifras.CAMPOS.forEach((x) => { if (c[x.k] != null) tiles.push({ k: x.n, v: esc(A.cifras.fmt(x.k, c[x.k])) }); });
+    // Cifras clave: solo las facilitadas; las que faltan se dicen con el documento que falta
+    const faltanCifras = [];
+    if (c && !c.sinDatos && A.cifras && A.cifras.CAMPOS) A.cifras.CAMPOS.forEach((x) => { if (c[x.k] != null) tiles.push({ k: x.n, v: esc(A.cifras.fmt(x.k, c[x.k])) }); else faltanCifras.push(`${x.n.replace(/ \(.*\)$/, '').toLowerCase()} (${INF.FALTA_CIFRA[x.k]})`); });
     tiles.push({ k: 'Riesgos de nivel alto', v: String(altos), d: `${R.length} riesgos identificados` });
     if (Fi.length) tiles.push({ k: 'Mejora identificada', v: F.eur(imp), d: `${Fi.length} actuaciones con impacto anual` });
     if (S.simConDatos() && S.invDefinida()) { const vr = S.analysis().verdict; tiles.push({ k: 'Viabilidad de la inversión prevista', v: esc(vr.titulo), st: { go: 'ok', ok: 'ok', warn: 'warn', stop: 'stop' }[vr.key] || null, d: 'escenario ' + (S.sim.escenario || 'base') }); }
-    const notas = Array.from(new Set(K.map((x) => x.area))).map((a) => { const l = K.filter((x) => x.area === a); return { k: a, v: l.some((x) => x.st) ? S.notaN([...new Set(l.map((x) => x.mod))], l) : null }; }).filter((x) => x.v != null);
+    const notas = AR.filter((x) => x.estado !== 'noaplica' && x.s != null).map((x) => ({ k: x.a, v: x.s }));
     const graf = notas.length >= 2 && I.barras ? I.barras(notas.map((x) => ({ k: x.k, v: x.v, st: INF.estado(x.v), t: x.v + ' / 100' })), { titulo: 'Valoración por áreas, sobre 100', max: 100, meta: 70, metaTxt: 'Desde 70, situación sólida', nota: 'Cada área pondera sus indicadores: verde cuenta 1, ámbar 0,5 y rojo 0. Por debajo de 50, situación frágil.' }) : '';
-    return { tiles, eval: K, R, Fi, detalle: graf + `<div class="rp-block"><h3>Valoración por áreas</h3>${I.table(['Área', 'Valoración sobre 100', 'Indicadores'], filas)}</div>` };
+    const cr = INF.cruces();
+    return { tiles, eval: K, R, Fi, global: INF.notaGlobal(AR), areas: AR, limite: [faltanCifras.length ? `Cifras clave sin facilitar: ${faltanCifras.join('; ')}.` : '', AR.some((x) => x.estado === 'sindoc') ? `Áreas sin documentación, que cuentan 0 en la valoración global: ${AR.filter((x) => x.estado === 'sindoc').map((x) => x.a).join(', ')}.` : '', INF.noAplican().length ? `No aplican al sector (${INF.sectorTxt().toLowerCase()}) y no se valoran: ${INF.noAplican().join(', ')}.` : ''].filter(Boolean).join(' '),
+      detalle: graf + `<div class="rp-block"><h3>Valoración por áreas</h3>${I.table(['Área', 'Valoración sobre 100', 'Lo que sostiene la valoración'], filas)}</div>` + (cr.length ? `<div class="rp-block"><h3>Cruces de información</h3>${INF.crucesHTML(cr)}</div>` : '') };
   };
   INF.HOR = ['Primeros 30 días', 'De 31 a 60 días', 'De 61 a 90 días', 'Más de 90 días'];
   INF.horDe = (pl) => (pl <= 30 ? 0 : pl <= 60 ? 1 : pl <= 90 ? 2 : 3);
@@ -450,7 +604,8 @@
     let R = [], Fi = []; try { R = (propio && propio.R ? propio.R : m.risks ? m.risks() : []).map((r) => Object.assign({}, r, { nombre: INF.frases(r.nombre), mitigacion: INF.frases(r.mitigacion || '') })); } catch (e) { /* sin riesgos */ } try { Fi = (propio && propio.Fi ? propio.Fi : m.findings ? m.findings() : []).map((f) => Object.assign({}, f, { hallazgo: INF.frases(f.hallazgo), accion: INF.frases(f.accion) })); } catch (e) { /* sin hallazgos */ }
     R.sort((a, b) => b.nivel - a.nivel); Fi.sort((a, b) => (b.impactoEUR || 0) - (a.impactoEUR || 0));
     const lede = ($('.lede', panel) || {}).textContent || '';
-    const sc = con && (tiles.some((t) => t.st) || (propio && propio.eval)) ? S.notaN(ids, tiles) : null;
+    // La empresa completa: la media de las áreas aplicables (las que no tienen documentación cuentan 0)
+    const sc = propio && propio.global !== undefined ? propio.global : con && (tiles.some((t) => t.st) || (propio && propio.eval)) ? S.notaN(ids, tiles) : null;
     const st = INF.estado(sc);
     let detalle = '';
     if (propio) detalle = INF.limpiar(propio.detalle || '');
@@ -458,10 +613,17 @@
       const blocks = $$('.glass', panel).filter((g) => !g.parentElement.closest('.glass') && !g.closest('.c360') && g.dataset.inf !== 'no');
       detalle = blocks.map((g) => { const t = INF.frases((g.querySelector('h4') || {}).textContent || ''); const c = g.cloneNode(true); const h = c.querySelector('h4'); if (h) h.remove(); c.querySelectorAll('label').forEach((l) => { const i = l.querySelector('input:not([type=checkbox]):not([type=range]), textarea'); if (i && !String(i.value || '').trim()) l.remove(); }); const body = INF.limpiar(I.fromDom(c)).trim(); return body.replace(/<[^>]+>/g, '').trim() || /<svg/.test(body) ? `<div class="rp-block">${t ? `<h3>${esc(t)}</h3>` : ''}${body}</div>` : ''; }).join('');
     }
-    return { conRiesgos: !!(m.risks || m.findings || (propio && (propio.R || propio.Fi))), tiles, eval: propio && propio.eval ? propio.eval.map((k) => Object.assign({}, k, { k: INF.neg(k.k) })) : null, R, Fi, lede, sc, st, detalle, con, sinCalc, ids, limite: propio && propio.limite, ilustrativo: con && INF.ilustrativo(global ? null : m) };
+    // Un área concreta: no aplica al sector, o no tiene documentación (vale 0 y se dice qué falta)
+    // Sin documentación: sin datos propios, o con datos pero sin ningún indicador que se pueda medir con ellos (las cuentas
+    // sin dos ejercicios cerrados, el presupuesto sin reales). Entonces no se toma nada de la pantalla
+    const medibles = (() => { try { return m.kpis ? m.kpis().some((k) => !k.sinDato && String(k.v).replace(/<[^>]+>/g, '').trim() !== S.SIN_DATO) : tiles.length > 0; } catch (e) { return tiles.length > 0; } })();
+    const noAplica = !global && S.noAplica(m.id), sinDoc = !global && !noAplica && !!m.datos && (!con || !tiles.length || !medibles);
+    if (sinDoc || noAplica) { tiles.length = 0; detalle = ''; R = []; Fi = []; }
+    return { noAplica, sinDoc, falta: sinDoc ? INF.falta(m) : '', global: propio && propio.global !== undefined ? propio.global : undefined, cruces: INF.cruces().filter((c) => global || c.mods.includes(m.id)), conRiesgos: !!(m.risks || m.findings || (propio && (propio.R || propio.Fi))), tiles, eval: propio && propio.eval ? propio.eval.map((k) => Object.assign({}, k, { k: INF.neg(k.k) })) : null, R, Fi, lede, sc: sinDoc ? 0 : noAplica ? null : sc, st: sinDoc ? 'stop' : noAplica ? null : st, detalle, con, sinCalc, ids, limite: propio && propio.limite, ilustrativo: con && INF.ilustrativo(global ? null : m) };
   };
   /* Informe de área (áreas sin marco de diagnóstico propio) */
-  S.moduleReport = function (m) {
+  S.moduleReport = function (m, tipo) { return INF.conPropios(() => informeArea(m, tipo)); };
+  function informeArea(m, tipo) {
     const I = A.informe;
     I.reset();
     const P = S.reportParts(m), titulo = INF.titulo(m), emp = S.sim.empresaNombre;
@@ -469,7 +631,9 @@
     const PL = P.Fi.map((f) => ({ accion: f.accion, motivo: f.hallazgo, prio: (f.impactoEUR || 0) > 20000 ? 'Alta' : 'Media', plazo: f.plazo || 90, impacto: f.impactoEUR || 0 }))
       .concat(P.R.filter((r) => r.estado !== 'ok' && r.mitigacion).map((r) => ({ accion: r.mitigacion, motivo: 'Riesgo: ' + r.nombre, prio: r.estado === 'stop' ? 'Alta' : 'Media', plazo: r.estado === 'stop' ? 30 : 60, impactoTxt: `Riesgo de nivel ${r.nivel}/25 mitigado` })))
       .filter((x, i, l) => x.accion && l.findIndex((y) => y.accion === x.accion) === i).sort((a, b) => INF.horDe(a.plazo) - INF.horDe(b.plazo) || (b.impacto || 0) - (a.impacto || 0));
-    const concl = !P.con ? `No se ha dispuesto de información suficiente para analizar «${esc(titulo)}» en ${esc(emp || 'la empresa')}. Este documento delimita el alcance del análisis.`
+    const concl = P.noAplica ? `«${esc(titulo)}» no aplica a la actividad de ${esc(emp || 'la empresa')} (${esc(INF.sectorTxt().toLowerCase())}): el área no se valora y no genera riesgos ni actuaciones.`
+      : P.sinDoc ? `«${esc(titulo)}» no se puede evaluar en ${esc(emp || 'la empresa')}: ${esc(INF.min(P.falta))}. Sin esa documentación la valoración del área es <b>0 sobre 100</b> ${I.pill('stop')}.`
+      : !P.con ? `No se ha dispuesto de información suficiente para analizar «${esc(titulo)}» en ${esc(emp || 'la empresa')}. Este documento delimita el alcance del análisis.`
       : P.sc === null ? `Este documento analiza «${esc(titulo)}» en ${esc(emp || 'la empresa')} a partir de ${P.tiles.length} indicadores.`
         : `La valoración de «${esc(titulo)}» en ${esc(emp || 'la empresa')} es de <b>${P.sc} sobre 100</b> ${I.pill(P.st)}: ${INF.califica(P.sc)}.`;
     const M = INF.mensajes(P, { primera: PL[0] ? `${esc(PL[0].accion)} (${PL[0].plazo} días).` : '' });
@@ -477,19 +641,24 @@
     if (!P.con) limites.push(`No se ha dispuesto de la información necesaria para analizar «${esc(titulo)}»; el documento no incluye cifras de esta área.`);
     if (P.sinCalc.length) limites.push(`No se han podido calcular por falta de información: ${esc(P.sinCalc.join(', ').toLowerCase())}.`);
     if (P.limite) limites.push(esc(P.limite));
-    const html = INF.portada({ tipo: 'Informe de área', kicker: S.grupoN(m.grupo) + (P.ilustrativo ? ' · caso ilustrativo' : ''), titulo, subtitulo: INF.frases(P.lede), empresa: emp, sector: A.SECTORS[S.sim.sector].nombre, ambito: titulo })
+    if (P.sinDoc) limites.unshift(`${esc(P.falta)}; el área no se ha podido evaluar y su valoración es 0.`);
+    if (P.noAplica) limites.unshift(`El área no aplica al sector de la empresa (${esc(INF.sectorTxt().toLowerCase())}).`);
+    // El documento nombra siempre su asunto: en la barra, el nombre del archivo, el rótulo de portada y el capítulo del libro
+    const tipoI = (tipo || 'Informe de área') + ' · ' + titulo;
+    const html = INF.portada({ tipo: tipoI, kicker: tipoI + (P.ilustrativo ? ' · caso ilustrativo' : ''), titulo, subtitulo: INF.frases(P.lede), empresa: emp, sector: INF.sectorTxt(), ambito: titulo })
       + I.summary('Resumen ejecutivo', INF.resumen(concl, M), P.st)
       + (P.tiles.length || P.detalle ? I.section(INF.titular(P), (P.tiles.length ? I.kpis(P.tiles) : '') + INF.graficoEstados(P) + P.detalle) : '')
+      + (P.cruces.length && P.ids !== null ? I.section('Cruces de información', INF.crucesHTML(P.cruces)) : '')
       + (P.con && P.conRiesgos ? I.section(INF.titularRiesgos(P), INF.riesgosYmejoras(P)) : '')
       + (PL.length ? I.section('Recomendaciones priorizadas', INF.recomendaciones(PL)) + (INF.conGuia() ? '' : I.section('Hoja de ruta', INF.hojaDeRuta(PL))) : I.section('Hoja de ruta', `<p>${P.con ? 'El análisis no identifica actuaciones con impacto cuantificable en este ámbito. Se recomienda revisarlo de nuevo en el próximo cierre trimestral.' : 'El primer hito es reunir la información de gestión del área para cuantificar el diagnóstico y fijar las actuaciones.'}</p>`))
       + INF.cierre({ riesgos: P.R.length, limites, ilustrativo: P.ilustrativo });
     const abrir = A.consultorInf ? A.consultorInf.abrir : I.open;
-    abrir({ titulo: 'Informe · ' + titulo, html, clave: 'mod:' + m.id, ctx: {
-      titulo, tipo: 'Informe de área', empresa: emp, sector: A.SECTORS[S.sim.sector].nombre,
+    abrir({ titulo: tipoI, html, clave: 'mod:' + m.id, ctx: {
+      titulo, tipo: tipo || 'Informe de área', empresa: emp, sector: INF.sectorTxt(),
       pasos: PL.slice(0, 9).map((x) => ({ q: x.accion, c: x.motivo, cuando: new Date(Date.now() + x.plazo * 864e5).toISOString().slice(0, 10), s: x.impacto ? 'Impacto medido: ' + F.eur(x.impacto) + ' al año' : 'El riesgo baja de nivel en la siguiente revisión' })),
       datos: [['Valoración del área', P.sc === null ? '—' : P.sc + '/100'], ['Indicadores evaluados', String(P.tiles.filter((t) => t.st).length)], ['En nivel crítico', P.tiles.filter((t) => t.st === 'stop').map((t) => INF.min(t.k)).join(', ') || 'Ninguno'], ['Riesgos identificados', String(P.R.length)], ['Mejora identificada', F.eur(impacto) + ' al año']]
     } });
-  };
+  }
   S.current = () => current;
 
   /* ---------- Reloj de tareas: flotante en la aplicación o fuera del navegador ---------- */
@@ -544,7 +713,9 @@
   S.register({
     id: 'tablero', nombre: 'Cuadro de mando', grupo: 'Visión', portada: true,
     informe() { return S.inf.empresa(); },
-    render(host) {
+    // Las cifras, los riesgos, las mejoras y la nota del cuadro de mando: solo con los datos propios de la empresa (como los informes)
+    render(host) { return S.inf.conPropios(() => this.pintar(host)); },
+    pintar(host) {
       const k = S.allKpis(), R = S.allRisks(), Fi = S.allFindings();
       const areas = Array.from(new Set(k.map((x) => x.area)));
       const score = (list) => S.notaN([...new Set(list.map((x) => x.mod))], list);
@@ -563,7 +734,7 @@
         titulo: '¿Funciona la empresa <em>como un sistema</em>, área a área?',
         lede: 'Veintidós módulos sobre los mismos datos: finanzas, clientes, operaciones y entorno. Cada indicador con su semáforo, cada riesgo con su nivel y cada mejora con lo que vale al año.',
         empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
-        datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]].concat((() => { const c = S.cifras(); return c && !c.sinDatos ? A.cifras.CAMPOS.map((x) => [x.n, A.cifras.fmt(x.k, c[x.k])]) : []; })()),
+        datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]].concat((() => { const c = S.cifras(); return c && !c.sinDatos ? A.cifras.CAMPOS.map((x) => [x.n, c[x.k] == null ? 'Sin dato · ' + INF.FALTA_CIFRA[x.k] : A.cifras.fmt(x.k, c[x.k])]) : []; })()),
         acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
         veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes || A.nota.puntuar(compr, true)).replace(/^s/, 'S') + ' (indicadores, datos pendientes, plan, objetivos, madurez y riesgos). ' : ''}${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
           // Una franja por comprobación de la nota: el recuento de debajo es el mismo que el del texto
@@ -664,6 +835,37 @@
     return Object.keys(S.state || {}).some((k) => { const ms = S.modules.filter((m) => m.datos && !m.datosSim && (m.clave || m.id) === k), ant = S.state[k]; if (!ms.length || !ant || ant.ejemplo === true) return false;
       // «propios()» decide en los módulos que se generan solos a partir de las cifras (presupuesto, tesorería, Lean)
       try { S.state[k] = S.quitarEjemplo(k, ant); return ms.some((m) => (m.propios ? !!m.propios() : S.conDatos(m))); } catch (e) { return false; } finally { S.state[k] = ant; } });
+  };
+  /* Informes de una empresa con datos propios: nunca con datos de ejemplo.
+     Con «datos de ejemplo permitidos», cada módulo que no se ha trabajado conserva el contenido de ejemplo (una empresa
+     industrial: OEE, rutas, Distribuciones Norte, el DAFO del fundador…). En pantalla sirve para enseñar la herramienta;
+     en el informe de una empresa que ya tiene datos propios se presentaría como suyo. El informe se calcula, por eso,
+     igual que con datos reales: sobre una copia del estado sin lo que coincide con el ejemplo (S.quitarEjemplo, lo mismo
+     que S.aDatosReales), sin guardar nada. Los módulos que se quedan sin datos salen de la valoración, los riesgos, las
+     recomendaciones y el DAFO, y se citan en una línea del anexo. Sin datos propios en ninguna parte el informe es el del
+     caso ilustrativo (se dice en portada y anexo); la empresa modelo conserva su contenido completo. */
+  const NO_LIMPIAR = ['origen', 'evolucion', 'c360', 'inversores'];
+  S.inf.conPropios = (fn) => {
+    const P = A.platform;
+    if (S._propios || !S.state || !S.sim || S.real() || (P && P.modelo && P.modelo.activa && P.modelo.activa()) || !S.datosPropios()) return fn();
+    const st0 = S.state, sim0 = S.sim, save0 = S.save, saveSim0 = S.saveSim, st = Object.assign({}, st0);
+    Object.keys(S.defaults).concat(Object.keys(S.alVaciar)).filter((k, i, a) => a.indexOf(k) === i && !NO_LIMPIAR.includes(k)).forEach((k) => { const v = S.quitarEjemplo(k, st0[k]); if (v !== undefined) st[k] = v; });
+    let sim = sim0;
+    // Simulación de ejemplo (o con la cuenta de resultados del ejemplo y solo las ventas propias): a cero, con las ventas que haya dado la empresa
+    const pygEj = !S.simEjemplo() && S.simPygEjemplo();
+    if (S.simEjemplo() || pygEj) { sim = Object.assign(A.defaultState(), A.simVacio(sim0.empresaNombre || '', sim0.sector)); sim.empresa = Object.assign(A.defaultState().empresa, A.simVacio().empresa); if (pygEj) { sim.empresa.ventas = S.num(sim0.empresa.ventas); sim.sinDatos = false; if (sim0.historico && !sim0.historico.ejemplo) sim.historico = sim0.historico; } else delete sim.historico; }
+    else {
+      // Simulación con cifras propias pero con partes del ejemplo sin tocar: la inversión de ejemplo, las respuestas del equipo y el histórico
+      const def = A.defaultState(), vac = A.simVacio(), igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+      sim = Object.assign({}, sim0);
+      // La inversión de ejemplo (el sector cambia algunos de sus parámetros): el mismo proyecto con el mismo importe y las mismas contrataciones
+      const inv = sim0.inversion || {};
+      if (igual(inv, def.inversion) || (sim0.proyecto === def.proyecto && S.num(inv.importe) === def.inversion.importe && S.num(inv.contrataciones) === def.inversion.contrataciones && !(inv.lineas || []).length)) { sim.inversion = Object.assign(A.clone(inv), A.clone(vac.inversion)); sim.proyecto = ''; } // sin importes; los parámetros del cálculo se conservan
+      if (igual(sim0.humano, def.humano)) sim.humano = Object.assign(A.clone(sim0.humano), A.clone(vac.humano));
+      if (sim0.historico && sim0.historico.ejemplo) delete sim.historico;
+    }
+    S._propios = true; S.state = st; S.sim = sim; S.save = () => {}; S.saveSim = () => {};
+    try { return fn(); } finally { S._propios = false; S.state = st0; S.sim = sim0; S.save = save0; S.saveSim = saveSim0; }
   };
   S.start = async function () {
     S.__vivo = true; // estado de su página (no el cálculo sin pantalla de js/calculo-mundos.js)

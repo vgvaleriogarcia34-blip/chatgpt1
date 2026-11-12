@@ -1426,6 +1426,9 @@ body.arch-on .ar-cab + :is(#ivHero, #msHero, #lbHero):not(.ar-plegada) { margin-
 .paper.rp .rp-col > .rp-vis.rp-vis-fuera, .paper.rp .rp-keep > .rp-vis.rp-vis-fuera { display: none; }
 .paper.rp .rp-col > .rp-vis, .paper.rp .rp-keep > .rp-vis { margin-top: 4px; }
 .rp-vis .rp-visual { display: block; width: 100%; height: auto; aspect-ratio: 300 / 220; border-radius: 2px; }
+/* Lo que sostiene la valoración de un área: cada elemento con la marca de su nivel */
+.rp-sosten::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin: 0 5px 1px 0; vertical-align: middle; background: #b9b6aa; }
+.rp-sosten.rp-so-ok::before { background: #2e8a45; } .rp-sosten.rp-so-warn::before { background: #c48a00; } .rp-sosten.rp-so-stop::before { background: #c0392f; }
 .paper.rp .rp-col .rp-ancho { position: relative; clear: left; margin-left: -36.986%; width: 136.986%; max-width: none; box-sizing: border-box; background: #f5f3ee; }
 .pdf-print .paper.rp .rp-col .rp-ancho { background: #fff; }
 /* Apertura: banda de imagen a todo el ancho con el título encima, abajo a la izquierda */

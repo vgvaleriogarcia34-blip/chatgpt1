@@ -289,6 +289,23 @@
       // Si el bloque ancho abre la sección, la imagen del margen dejaría un hueco: se retira
       for (let x = w.previousElementSibling; x && x.classList.contains('rp-nota'); x = x.previousElementSibling) if (x.classList.contains('rp-vis')) x.classList.add('rp-vis-fuera');
     });
+    I.sinHuecos(root);
+  };
+
+  /* La imagen del margen es decoración: nunca empuja la columna principal. Hay hueco si, con la imagen, algo del texto
+     principal (o el final de la sección) baja respecto a sin ella: un bloque ancho que tiene que dejarla atrás, un
+     contenedor que no se parte y la abraza (al preparar el PDF) o una sección más corta que la imagen. Primero se saca
+     del contenedor; si aun así empuja, se retira. Solo con la imagen al margen (en pantallas estrechas va apilada). */
+  I.sinHuecos = (root) => {
+    root.querySelectorAll('.rp-col .rp-vis:not(.rp-vis-fuera)').forEach((v) => {
+      const col = v.closest('.rp-col'), view = v.ownerDocument.defaultView;
+      if (!col || !view || view.getComputedStyle(v).float === 'none' || !v.offsetHeight) return;
+      const marca = () => Array.from(col.querySelectorAll(':scope > *, :scope > .rp-keep > *')).filter((x) => !x.classList.contains('rp-nota') && !x.classList.contains('rp-keep')).map((x) => Math.round(x.getBoundingClientRect().top)).concat(Math.round(col.getBoundingClientRect().height)).join(',');
+      const empuja = () => { const con = marca(); v.style.display = 'none'; const sin = marca(); v.style.display = ''; return con !== sin; };
+      if (!empuja()) return;
+      const k = v.parentElement; if (k.classList.contains('rp-keep')) { k.after(v); if (!empuja()) return; }
+      v.classList.add('rp-vis-fuera');
+    });
   };
 
   /* Convierte un bloque de la aplicación en contenido de informe: valores en lugar de campos, sin botones */
@@ -388,8 +405,11 @@
     root.querySelectorAll('.rp-col').forEach((col) => {
       if (col.querySelector(':scope > .rp-keep')) return;
       Array.from(col.children).filter((h, i) => (h.tagName === 'H2' && i === 0) || h.tagName === 'H3' || h.tagName === 'H4').forEach((h) => {
+        if (h.parentElement !== col) return; // ya va con el título de la sección
         const grupo = [h]; let x = h.nextElementSibling;
         while (x && x.classList.contains('rp-nota')) { grupo.push(x); x = x.nextElementSibling; }
+        // El título de la sección arrastra el primer apartado (su rótulo y su primer bloque): así nunca queda solo al pie
+        if (h.tagName === 'H2' && x && /^H[34]$/.test(x.tagName)) { grupo.push(x); x = x.nextElementSibling; while (x && x.classList.contains('rp-nota')) { grupo.push(x); x = x.nextElementSibling; } }
         if (x && !/^H[234]$/.test(x.tagName) && x.offsetHeight < 520) grupo.push(x);
         if (grupo.length < 2) return;
         const k = root.ownerDocument.createElement('div'); k.className = 'rp-keep';
@@ -406,6 +426,7 @@
         col.insertBefore(k, n); grupo.forEach((y) => k.appendChild(y));
       });
     });
+    I.sinHuecos(root);
   };
   /* Prepara el documento para imprimir y devuelve el marco con él cargado. o: { titulo, paginado } */
   I.pdfMarco = async (paper, o) => {

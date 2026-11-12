@@ -57,18 +57,24 @@
       let armed = false;
       $('#mfClear', host).onclick = (ev) => { if (!armed) { armed = true; ev.target.textContent = 'Pulse otra vez para borrar'; return; } S.sim.historico = null; S.saveSim(); S.rerender(); };
     },
+    /* Indicadores, riesgos y hallazgos: sobre los ejercicios cerrados (las previsiones no son lo que ha pasado).
+       Lo que no se puede medir porque falta una partida en alguno de los dos años no se presenta como cero: queda sin dato. */
     kpis() {
-      const mf = A.fin.moneyFlow(S.sim.historico); if (!mf) return [];
-      return [{ k: 'Beneficio que llega a caja', v: Math.round(S.pct(mf.cajaReal, mf.beneficio)) + ' %', st: mf.cajaReal < mf.beneficio * 0.25 ? 'warn' : 'ok' }, { k: 'Atrapado en circulante', v: F.eur(mf.atrapado), st: mf.atrapado > mf.beneficio * 0.4 ? 'warn' : 'ok' }];
+      const mf = mfCerrado(); if (!mf) return [];
+      const sinCaja = mf.falta.includes('tesoreria'), sinCirc = ['clientes', 'existencias', 'proveedores'].some((k) => mf.falta.includes(k));
+      return [sinCaja ? { k: 'Beneficio que llega a caja', v: S.SIN_DATO, sinDato: true } : { k: 'Beneficio que llega a caja', v: Math.round(S.pct(mf.cajaReal, mf.beneficio)) + ' %', st: mf.cajaReal < mf.beneficio * 0.25 ? 'warn' : 'ok' },
+        sinCirc ? { k: 'Atrapado en circulante', v: S.SIN_DATO, sinDato: true } : { k: 'Atrapado en circulante', v: F.eur(mf.atrapado), st: mf.atrapado > mf.beneficio * 0.4 ? 'warn' : 'ok' }];
     },
     risks() {
-      const an = A.fin.analyze(S.sim.historico); if (!an) return [];
+      const an = A.fin.analyze(A.fin.histCerrado(S.sim.historico)); if (!an) return [];
       return an.politicas.filter((p) => p.estado !== 'ok').map((p) => S.mkRisk(p.nombre, p.estado === 'stop' ? 4 : 3, 3, p.recomendacion));
     },
     findings: () => findingsDinero()
   });
+  const mfCerrado = () => A.fin.moneyFlow(A.fin.histCerrado(S.sim.historico));
+  S.mfCerrado = mfCerrado;
   function findingsDinero() {
-    const mf = A.fin.moneyFlow(S.sim.historico); if (!mf) return [];
+    const mf = mfCerrado(); if (!mf) return [];
     const out = [];
     const cli = mf.items.find((x) => x.k === 'clientes').v, ex = mf.items.find((x) => x.k === 'existencias').v;
     if (cli < -mf.beneficio * 0.15) out.push({ hallazgo: `Los clientes retienen ${F.eur(-cli)} más que el año anterior.`, accion: 'Revisar plazos y límites de crédito, y reclamar los vencidos.', impactoEUR: -cli * 0.5, tipo: 'caja', plazo: 90 });
@@ -245,7 +251,8 @@
 
   S.register({
     id: 'impuestos', nombre: 'Impuestos', grupo: 'Finanzas',
-    datosSim: true, datos: () => S.simConDatos(),
+    // Sin cuenta de resultados (solo las ventas) no hay base para prever impuestos: se piden los datos
+    datosSim: true, datos: () => S.simPyg(),
     render(host) {
       if (!S.simConDatos()) return S.vacioSim(host, 'Impuestos: calendario y presión fiscal', 'Calendario de pagos de los próximos doce meses (IVA, retenciones, Seguridad Social y pagos a cuenta) y movimientos para reducir la factura fiscal.');
       const T = S.state.impuestos;
@@ -310,7 +317,7 @@
     },
     findings() {
       const c = levelCtx('base');
-      return LEVERS_FISCALES.filter((l) => l.tipo === 'Ahorro definitivo').map((l) => ({ l, v: l.est(c) })).filter((x) => x.v > 1000).map((x) => ({ hallazgo: `Movimiento fiscal disponible: ${x.l.nombre}.`, accion: x.l.como.split('.')[0] + '. Validar con el asesor.', impactoEUR: x.v, tipo: 'ebitda', plazo: 180 }));
+      return LEVERS_FISCALES.filter((l) => l.tipo === 'Ahorro definitivo').map((l) => ({ l, v: l.est(c) })).filter((x) => x.v > 1000).map((x) => ({ hallazgo: `Movimiento fiscal disponible: ${x.l.nombre}.`, accion: `Aplicar con el asesor: ${x.l.nombre.replace(/^\w/, (c) => c.toLowerCase())}. ${x.l.como.split('.')[0]}.`, impactoEUR: x.v, tipo: 'ebitda', plazo: 180 }));
     }
   });
 
@@ -371,7 +378,8 @@
   S.register({
     id: 'tesoreria', nombre: 'Tesorería semanal', grupo: 'Finanzas',
     propios: () => (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
-    datos: () => S.simConDatos() || (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
+    // La previsión parte de la caja de hoy: sin caja (ni saldo inicial) ni movimientos propios, no hay previsión que hacer
+    datos: () => (S.simConDatos() && (S.num(S.sim.empresa.caja) > 0 || (S.state.tesoreria.saldoInicial !== null && S.state.tesoreria.saldoInicial !== ''))) || (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
     render(host) {
       const Ts = S.state.tesoreria, e = S.sim.empresa;
       const { weeks, colchon } = cashWeeks();
@@ -429,7 +437,7 @@
       });
     },
     kpis() { const { weeks } = cashWeeks(); const mn = weeks.reduce((a, b) => (b.fin < a.fin ? b : a)); return [{ k: `Saldo mínimo ${weeks.length} semanas`, v: F.eur(mn.fin), st: mn.st }]; },
-    risks() { const { weeks } = cashWeeks(); const neg = weeks.filter((w) => w.st !== 'ok'); return neg.length ? [S.mkRisk(`${neg.length} semanas con tesorería por debajo del colchón`, 4, neg.some((w) => w.st === 'stop') ? 5 : 3, 'Adelante cobros, negocie fechas de pago o amplíe la póliza antes de esas semanas.')] : []; }
+    risks() { const { weeks, colchon } = cashWeeks(); const neg = weeks.filter((w) => w.st !== 'ok'); return neg.length ? [S.mkRisk(`${neg.length === 1 ? 'Una semana' : neg.length + ' semanas'} con tesorería ${colchon > 0 ? 'por debajo del colchón' : 'en negativo'}`, 4, neg.some((w) => w.st === 'stop') ? 5 : 3, 'Adelante cobros, negocie fechas de pago o amplíe la póliza antes de esas semanas.')] : []; }
   });
 
   /* =========================================================
@@ -538,10 +546,11 @@
   function presupuestoConReales() { const B = S.state.presupuesto; return !!(B && B.reales && !Array.isArray(B.reales) && !B.ejemplo && Object.values(B.reales).some((l) => (l || []).some((v) => v !== null && v !== undefined && v !== ''))); }
   // Con datos reales, un presupuesto generado desde la empresa de ejemplo (con reales de ejemplo) se descarta y se rehace desde las cifras propias
   S.alVaciar = S.alVaciar || {};
-  S.alVaciar.presupuesto = (B) => {
+  // ej: el presupuesto venía marcado como de ejemplo (S.quitarEjemplo ya ha quitado la marca al llamar aquí)
+  S.alVaciar.presupuesto = (B, ej) => {
     const ea = A.platform && A.platform.empresas && A.platform.empresas.activa && A.platform.empresas.activa(), desde = (ea && ea.datosRealesTs) || '';
     const inicial = B && B.versiones && B.versiones.length === 1 && /^Presupuesto inicial/.test(B.versiones[0].nombre || '') && String(B.versiones[0].creada || '') < desde && !presupuestoConReales();
-    return B && (B.ejemplo || inicial) ? Object.assign(B, { versiones: null, activa: null, reales: null, ejemplo: false }) : B;
+    return B && (ej || B.ejemplo || inicial) ? Object.assign(B, { versiones: null, activa: null, reales: null, ejemplo: false }) : B;
   };
   const fmt0 = (v) => (v === null || v === undefined || v === '' ? '' : new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(v));
   const pctTxt = (v) => (isFinite(v) ? (Math.round(v * 10) / 10).toLocaleString('es-ES') + ' %' : '—');

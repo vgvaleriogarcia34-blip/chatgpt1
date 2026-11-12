@@ -36,7 +36,8 @@
   const desdeSim = (sim, ficha, extra) => {
     extra = extra || {}; ficha = ficha || {};
     const e = (sim && sim.empresa) || {}, H = sim && sim.historico && Array.isArray(sim.historico.anios) && !sim.historico.ejemplo ? sim.historico.anios.slice().sort((a, b) => (+a.anio || 0) - (+b.anio || 0)) : [];
-    const u = H[H.length - 1] || null, anio = u && +u.anio ? +u.anio : null;
+    // El último ejercicio cerrado (el año en curso y las previsiones no son las cifras de la empresa)
+    const Hc = H.filter((a) => +a.anio < new Date().getFullYear()), u = Hc[Hc.length - 1] || null, anio = u && +u.anio ? +u.anio : null;
     const real = ficha.id ? !!ficha.datosReales : P() && P().modoReal ? P().modoReal() : false;
     const ejemplo = !!(sim && sim.empresa && (A.simEsEjemplo ? A.simEsEjemplo(sim) : sim.ejemplo !== false));
     const conSim = !!(sim && sim.empresa && n(e.ventas) > 0 && !(real && ejemplo));
@@ -51,12 +52,20 @@
     const oHist = anio ? 'Cuentas cargadas · ejercicio ' + anio : '';
     const pon = (k, v, origen, fecha) => { out[k] = v == null || !isFinite(v) ? null : v; out.origen = out.origen || {}; out.fecha = out.fecha || {}; out.origen[k] = out[k] == null ? '' : origen; out.fecha[k] = out[k] == null ? null : fecha || null; };
     if (conSim) {
-      const ventas = n(e.ventas), margen = n(e.margen), personal = n(e.personal) || 0, fijos = n(e.fijos) || 0;
+      /* Sin dato no es cero. Una casilla a 0 que nadie ha contestado (sim.dados guarda lo que dio la persona o las cuentas)
+         no es un 0: es un dato que falta. Sin margen, personal ni gastos fijos no hay beneficio que calcular. La caja o la
+         deuda iguales a las de un año de previsión (copiadas de una fila de 2027, por ejemplo) tampoco son las de hoy. */
+      const dados = sim.dados && typeof sim.dados === 'object' ? sim.dados : null, y0 = new Date().getFullYear();
+      const prev = H.filter((a) => +a.anio >= y0), dePrevision = (v, f) => v != null && v !== 0 && prev.some((a) => { const x = f(a); return x != null && isFinite(x) && Math.round(x) === Math.round(v); });
+      const dado = (k, v) => (v == null || (v === 0 && dados && !dados['empresa.' + k]) ? null : v);
+      const ventas = n(e.ventas), margen = dado('margen', n(e.margen)), personal = dado('personal', n(e.personal)), fijos = dado('fijos', n(e.fijos));
+      const pyg = !!(margen || personal || fijos);
       pon('ventas', ventas, oSim, fechaEj);
       pon('margen', margen, oSim, fechaEj); pon('personal', personal, oSim, fechaEj); pon('fijos', fijos, oSim, fechaEj);
-      pon('ebitda', margen == null ? null : ventas * margen / 100 - personal - fijos, oSim, fechaEj);
-      pon('caja', n(e.caja), oSim, fechaEj);
-      pon('deuda', n(e.deudaViva), oSim, fechaEj);
+      pon('ebitda', !pyg || margen == null ? null : ventas * margen / 100 - (personal || 0) - (fijos || 0), oSim, fechaEj);
+      const caja = dado('caja', n(e.caja)), deuda = dado('deudaViva', n(e.deudaViva));
+      pon('caja', dePrevision(caja, (a) => n(a.tesoreria)) && !(dados && dados['empresa.caja'] && dados['empresa.caja'] !== 'cuentas') ? null : caja, oSim, fechaEj);
+      pon('deuda', dePrevision(deuda, (a) => (a.deudaLP == null && a.deudaCP == null ? null : (n(a.deudaLP) || 0) + (n(a.deudaCP) || 0))) && !(dados && dados['empresa.deudaViva'] && dados['empresa.deudaViva'] !== 'cuentas') ? null : deuda, oSim, fechaEj);
       pon('dso', n(e.dso) || null, oSim, fechaEj);
       pon('plantilla', n(e.plantilla) || null, oSim, fechaEj);
     } else if (conHist) {
