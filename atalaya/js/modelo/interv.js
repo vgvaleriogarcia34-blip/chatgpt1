@@ -14,6 +14,8 @@
       const nuevas = pend.textos.map((t) => C.nuevaTr(t.nombre, t.texto, t.fecha, t.momento)).filter(Boolean);
       if (nuevas.length) C.procesar(nuevas);
       st.sintomas.filter((s) => !s.causa).forEach((s) => { const c = I.sugerirCausa(s); if (c) s.causa = I.asegurarCausa(c).id; });
+      // Se descartan las causas que las cifras de la empresa contradicen (su deuda neta es de 1,6 veces el EBITDA, en verde)
+      st.causas.filter((c) => c.ref === 'fin-carga').forEach((c) => { c.estado = 'descartada'; c.nota = 'Descartada: la deuda neta equivale a 1,6 veces el EBITDA y el resultado operativo cubre las cuotas con holgura.'; });
       I.causasOrdenadas().slice(0, 3).forEach((x) => { x.c.estado = 'confirmada'; });
       I.ruta().forEach((x) => { const v = (st.verifica[x.a.id] = st.verifica[x.a.id] || {}); (I.D.VERIFICA[x.a.id] || []).forEach((q, i) => { if (i % 2 === 0) v[i] = { e: i % 4 === 0 ? 'desv' : 'ok', nota: '' }; }); });
       Object.keys((st.sesion && st.sesion.respuestas) || {}).forEach((k) => { st.sesion.hechas[k] = true; });

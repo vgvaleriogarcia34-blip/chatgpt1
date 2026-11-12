@@ -30,6 +30,8 @@ body.pdf-print *, body.pdf-print *::before, body.pdf-print *::after { -webkit-pr
 .pdf-print .chart { width: 100% !important; max-width: 100%; }
 .pdf-print .chart svg { width: 100% !important; height: auto !important; max-height: 120mm; }
 .pdf-print svg { max-width: 100%; }
+/* El organigrama lleva un ancho mínimo para la pantalla: en papel se ajusta al ancho de la hoja */
+.pdf-print svg.og { min-width: 0 !important; width: 100% !important; height: auto !important; }
 .pdf-print .chart-legend button { pointer-events: none; }
 
 /* Tablas: nada de barras de desplazamiento (en papel cortan la tabla), cabecera repetida en cada hoja y filas enteras */

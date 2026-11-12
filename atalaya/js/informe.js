@@ -186,6 +186,8 @@
       const cabe = () => t.offsetWidth <= ancho + 1;
       if (cabe()) return;
       t.classList.add('pdf-estrecha');
+      // Si aún no cabe, las cifras cortas también pueden partirse
+      if (!cabe()) t.querySelectorAll('td.pdf-nw').forEach((c) => c.classList.remove('pdf-nw'));
       if (cabe() || t.querySelector('[colspan], [rowspan]')) return;
       const n = t.rows[0] ? t.rows[0].cells.length : 0; if (n < 4) return;
       const anchos = Array.from(t.rows[0].cells).map((c) => c.getBoundingClientRect().width), primera = anchos[0];
