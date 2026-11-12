@@ -1,6 +1,6 @@
 # Atalaya 360° · Protección de datos (RGPD)
 
-> **Borrador pendiente de validación jurídica.** Este documento describe lo que hace hoy el código de Atalaya 360° (octubre de 2026) para que un abogado lo revise. No es un dictamen. Responsable: **FAMILIAS EMPRESARIAS, S.L.**, nombre comercial Business Avance International Consulting (decisión de noviembre de 2026; la cuenta de alojamiento en Hetzner y su contrato de encargado del tratamiento están a su nombre). Es también la responsable del asistente telefónico y de WhatsApp de Familias Empresarias. Akompano Group y DM Focus Global Business figuran como marcas o firmas asociadas. Siguen pendientes: [PENDIENTE: NIF de Familias Empresarias, S.L.], [PENDIENTE: domicilio social], [PENDIENTE: datos registrales], [PENDIENTE: correo de privacidad], [PENDIENTE: delegado de protección de datos, si procede], [PROVEEDOR DE ALOJAMIENTO], [PROVEEDOR DE CORREO], [PROVEEDOR DE PAGOS].
+> **Versión 1.0 en vigor desde el 12 de noviembre de 2026; revisión jurídica posterior.** Documento interno. Describe lo que hace el código de Atalaya 360° y las decisiones de protección de datos tomadas para la versión 1.0, por decisión de FAMILIAS EMPRESARIAS, S.L.; el abogado las revisará después y cualquier cambio será una versión nueva (decisiones y motivos en `legal/CONTRATO-NOTAS-ABOGADO.md`). Responsable único: **FAMILIAS EMPRESARIAS, S.L.**, nombre comercial Business Avance International Consulting (la cuenta de alojamiento en Hetzner y su contrato de encargado del tratamiento están a su nombre). Es también la responsable del asistente telefónico y de WhatsApp de Familias Empresarias. Akompano Group y DM Focus Global Business son solo marcas asociadas, sin papel en el tratamiento. Los datos identificativos (NIF, domicilio social, datos registrales, correos de contacto y de privacidad, delegado de protección de datos si se designa, proveedor de correo) se escriben en un solo sitio, `js/titular.js`; mientras estén vacíos, las páginas muestran «(en trámite de publicación)».
 
 Páginas públicas relacionadas: `aviso-legal.html`, `privacidad.html`, `cookies.html`, `condiciones.html`.
 
@@ -16,11 +16,11 @@ Páginas públicas relacionadas: `aviso-legal.html`, `privacidad.html`, `cookies
 | Personas y equipos: plantilla de una empresa cliente de una consultora (plan Consultora) | La empresa cliente (empleadora) | La firma consultora titular de la cuenta | Business Avance (proveedor de la aplicación) y, por debajo, alojamiento y correo |
 | Personas y equipos cuando la propia empresa usa la aplicación sin consultor | La empresa | Business Avance | Alojamiento, correo |
 
-Con clave de API propia del cliente (configurada en el navegador, `js/conexiones.js`), la petición va del navegador del cliente a Anthropic directamente: Anthropic no es entonces subencargado de Business Avance sino proveedor del cliente. **[VALIDAR]**
+Con clave de API propia del cliente (configurada en el navegador, `js/conexiones.js`), la petición va del navegador del cliente a Anthropic directamente: Anthropic no es entonces subencargado de Business Avance sino proveedor del cliente, con su propio contrato. Decisión: así se informa en `privacidad.html#ia`.
 
 ---
 
-## 2. Registro de actividades de tratamiento (art. 30) · borrador
+## 2. Registro de actividades de tratamiento (art. 30)
 
 ### 2.1 Como responsable (art. 30.1)
 
@@ -28,44 +28,44 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 - Finalidad: alta y gestión de la cuenta, prueba de 14 días, control de acceso pagado, cambios de plan, soporte, cuota diaria de IA.
 - Base: ejecución del contrato (6.1.b).
 - Interesados: clientes (personas de contacto de empresas y consultoras).
-- Datos (`server/server.mjs`, `POST /api/register` y gestor de usuarios): nombre, correo, empresa, teléfono, hash scrypt de la contraseña con sal, plan, periodo, estado, fecha de alta, fin de la prueba ampliada (`pruebaHasta`), último acceso, número de sesiones, `uso` (latidos por día), `usoIA` (últimos 60 días) e `iaTotal`, pagos registrados (fecha, importe, meses, referencia, quién lo registró, correcciones y anulaciones), notas de la administración, solicitudes de pago o de cambio de plan. Con Stripe: identificadores de cliente y de suscripción de Stripe, estado de la suscripción, número y enlace de cada factura, fecha de un cobro fallido (no se guardan datos de tarjeta: los trata Stripe). Si el cliente activa el segundo factor: su secreto TOTP cifrado y el HMAC de sus códigos de recuperación. Si se dio de alta con un código de prueba: el código usado y sus días (`pruebaCodigo`) y la fecha de fin del último recordatorio enviado (`avisoFinCodigo`). Los códigos de prueba (`codigosPrueba`, gestor de usuarios) no guardan datos de clientes: el código en claro, plan, días, usos, fechas y una nota interna de la administración (por ejemplo, la feria o el comercial); las cuentas creadas con cada código se sacan de las propias cuentas. En la nota no deben escribirse datos del cliente. **[VALIDAR]**
+- Datos (`server/server.mjs`, `POST /api/register` y gestor de usuarios): nombre, correo, empresa, teléfono, hash scrypt de la contraseña con sal, plan, periodo, estado, fecha de alta, fin de la prueba ampliada (`pruebaHasta`), último acceso, número de sesiones, `uso` (latidos por día), `usoIA` (últimos 60 días) e `iaTotal`, pagos registrados (fecha, importe, meses, referencia, quién lo registró, correcciones y anulaciones), notas de la administración, solicitudes de pago o de cambio de plan. Con Stripe: identificadores de cliente y de suscripción de Stripe, estado de la suscripción, número y enlace de cada factura, fecha de un cobro fallido (no se guardan datos de tarjeta: los trata Stripe). Si el cliente activa el segundo factor: su secreto TOTP cifrado y el HMAC de sus códigos de recuperación. Si se dio de alta con un código de prueba: el código usado y sus días (`pruebaCodigo`) y la fecha de fin del último recordatorio enviado (`avisoFinCodigo`). Los códigos de prueba (`codigosPrueba`, gestor de usuarios) no guardan datos de clientes: el código en claro, plan, días, usos, fechas y una nota interna de la administración (por ejemplo, la feria o el comercial); las cuentas creadas con cada código se sacan de las propias cuentas. En la nota no deben escribirse datos del cliente.
 - Destinatarios: alojamiento, correo (enlaces de contraseña y de acceso concedido; recordatorio del final de la prueba con tarjeta, con la fecha y el importe del primer cargo; recordatorio del final de la prueba con código, con la fecha y cómo seguir; avisos al equipo de Business Avance con nombre, correo, teléfono, empresa y mensaje en altas, contactos y pagos si se configura `AVISOS_EMAIL`), Stripe (correo de la cuenta, su identificador interno, plan y periodo al pagar con tarjeta o al empezar la prueba con tarjeta).
-- Transferencias: ninguna por este tratamiento salvo la ubicación del alojamiento o del correo. **[CONFIRMAR]**
-- Plazo: mientras exista la cuenta. No hay borrado automático de cuentas de prueba caducadas ni de cuentas inactivas. **[PENDIENTE: fijar plazo]**
+- Transferencias: ninguna fuera del EEE por el alojamiento (Hetzner, UE). Stripe y el proveedor de correo, según el apartado 3; si están fuera del EEE, con DPF o cláusulas contractuales tipo.
+- Plazo: mientras exista la cuenta. Cuentas de prueba no activadas: 12 meses desde el fin de la prueba; después pueden borrarse con aviso previo por correo (publicado en privacidad y condiciones). El borrado se hace hoy desde la administración: falta automatizarlo (tarea técnica). Datos de facturación: bloqueados 6 años (art. 30 CCom) y 4 años (LGT).
 - Medidas: ver 2.3.
 
 **B. Solicitudes de contacto** (formulario de sesión y del plan Grupos, `POST /api/contacto`)
 - Finalidad: responder a la solicitud.
-- Base: medidas precontractuales a petición del interesado (6.1.b). **[VALIDAR]**
+- Base: medidas precontractuales a petición del interesado (6.1.b) para responder; interés legítimo (6.1.f) para su seguimiento en el CRM, con derecho de oposición.
 - Datos: nombre, correo, teléfono, empresa, nº de personas o de sociedades, mensaje, origen, fecha.
-- Plazo implementado: se guardan las 500 más recientes (`db.contactos.slice(0, 500)`); se borran con la cuenta asociada. **[PENDIENTE: plazo máximo, p. ej. 12 meses sin relación]**
+- Plazo implementado: se guardan las 500 más recientes (`db.contactos.slice(0, 500)`); se borran con la cuenta asociada. Plazo publicado: 12 meses desde la última comunicación si no hay relación contractual (purga hoy manual desde la administración; falta automatizarla).
 
 **B ter. Envío al CRM (HubSpot)** (`aHubspot` en `server/server.mjs`; solo con `HUBSPOT_TOKEN`)
 - Finalidad: una sola bandeja de interesados y clientes: cada alta, solicitud de contacto, de sesión estratégica, de activación o de cambio de plan, e invitación de alta, crea o actualiza el contacto en HubSpot, lo asocia a su empresa y deja una nota con el origen y una tarea para el propietario.
-- Base: la del tratamiento de origen (A o B: contrato o medidas precontractuales). **[VALIDAR]**
+- Base: la del tratamiento de origen (A o B: contrato o medidas precontractuales) y, para el seguimiento comercial, interés legítimo (6.1.f) con derecho de oposición.
 - Datos enviados: nombre (separado en nombre y apellidos), correo, teléfono, empresa, dominio del correo (si no es de un proveedor genérico), mensaje de la solicitud, página de origen, plan, id de la cuenta de Atalaya 360°. En la base de Atalaya quedan los ids de HubSpot (`hubspotContactId`, `hubspotCompanyId`) en la cuenta y en la solicitud, y en `meta.hubspot` la clave de cada envío con los ids creados (máximo 3.000 entradas), para no duplicar un reenvío.
-- Destinatario: HubSpot, Inc. (encargado; apartado 3). Al borrar una cuenta en Atalaya **no** se borra en HubSpot: hay que hacerlo allí. **[PENDIENTE: procedimiento de supresión coordinado]**
+- Destinatario: HubSpot, Inc. (encargado; apartado 3). Al borrar una cuenta en Atalaya **no** se borra en HubSpot. Procedimiento: quien borra la cuenta en la administración borra o anonimiza también el contacto en HubSpot el mismo día, salvo que siga siendo cliente o tenga una baja que deba respetarse (en ese caso se conserva solo la baja).
 
 **B quater. Integración con el asistente de Familias Empresarias** (`/api/integracion/reunion` e `/api/integracion/invitar`; solo con `INTEGRACION_TOKEN`)
 - Reunión: el asistente envía la sesión estratégica agendada (id, inicio, fin, enlace, nombre, correo, teléfono, empresa, ids de HubSpot). Atalaya la anota como tarea en la mesa de trabajo de la empresa (dato de la cuenta del cliente: Atalaya actúa por cuenta del cliente para el contenido de la mesa, apartado D). Se guarda nombre, teléfono y correo del contacto en el campo `contacto` de la tarea.
-- Invitación: desde HubSpot o el panel del asistente se crea la cuenta en prueba con nombre, empresa, teléfono e id de empresa de HubSpot, y se envía el enlace de alta (7 días). Base: medidas precontractuales a petición del interesado (6.1.b). **[VALIDAR que la invitación se envía solo a quien la ha pedido o aceptado]**
+- Invitación: desde HubSpot o el panel del asistente se crea la cuenta en prueba con nombre, empresa, teléfono e id de empresa de HubSpot, y se envía el enlace de alta (7 días). Base: medidas precontractuales a petición del interesado (6.1.b). Regla: la invitación solo se envía a quien la ha pedido o aceptado en la conversación.
 - Las dos acciones quedan en el registro de actividad (B bis) con autor «asistente»; si una reunión no encuentra cuenta se anota el correo recibido.
 - Comunicación entre dos sistemas del mismo responsable (FAMILIAS EMPRESARIAS, S.L.); autenticación con secreto compartido, comparación en tiempo constante y límite de peticiones.
 
 **B quinquies. Asistente telefónico y de WhatsApp** (código en `asistente-fe/`; detalle en `asistente-fe/CUMPLIMIENTO.md`)
 - Finalidades: atención de llamadas y mensajes, cualificación, agenda de la sesión estratégica (60 minutos con Valerio García, sin coste), seguimiento comercial con base legal registrada, gestión de la lista de exclusión.
-- Bases: 6.1.b (atención y agenda), 6.1.a o 6.1.f con art. 66 LGT (seguimiento comercial; nunca sin base registrada), 6.1.c y art. 23 LOPDGDD (exclusiones y Robinson). **[VALIDAR]**
+- Bases: 6.1.b (atención y agenda), 6.1.a o 6.1.f con art. 66 LGT (seguimiento comercial; nunca sin base registrada), 6.1.c y art. 23 LOPDGDD (exclusiones y Robinson); grabación, si se activa, 6.1.f con aviso previo y oposición.
 - Datos: teléfono, nombre, empresa, cargo, correo, transcripción y resumen de cada conversación, mensajes de WhatsApp, grabación de audio solo si se activa (`GRABAR_LLAMADAS`, desactivada por defecto, con aviso al inicio), base legal con fecha y origen, bajas.
 - Encargados: Twilio, Deepgram, ElevenLabs, Anthropic, Meta (WhatsApp), HubSpot, Google y el alojamiento del asistente.
-- Plazos propuestos: transcripciones y mensajes de no clientes 12 meses desde la última interacción; grabaciones 3 meses; ficha en el CRM de clientes, la relación más los plazos legales; prueba de la base legal, el uso más 3 años; bajas sin plazo (solo teléfono o correo y fecha). **[VALIDAR; pendiente técnico en el asistente: purga automática]**
+- Plazos propuestos: transcripciones y mensajes de no clientes 12 meses desde la última interacción; grabaciones 3 meses; ficha en el CRM de clientes, la relación más los plazos legales; prueba de la base legal, el uso más 3 años; bajas sin plazo (solo teléfono o correo y fecha). Purga automática implantada en el asistente (`src/conservacion.js`, variables `CONSERVAR_*`).
 - Información: apartado `privacidad.html#asistente`, que el asistente cita y puede enviar por WhatsApp o correo.
 
 **B bis. Registro de actividad del gestor de usuarios** (`ACT` en `server/server.mjs`, tabla `actividad`; `GET /api/admin/actividad`)
 - Finalidad: rendir cuentas de quién cambió qué en las cuentas de clientes (planes, bloqueos, pagos, pruebas, cuentas creadas o eliminadas, solicitudes cerradas, cobros de Stripe), detectar errores o abusos del personal y atender reclamaciones sobre cobros y accesos.
-- Base: interés legítimo (6.1.f) y, para los pagos, obligaciones contables (6.1.c). **[VALIDAR]**
+- Base: interés legítimo (6.1.f) y, para los pagos, obligaciones contables (6.1.c).
 - Interesados: clientes y personal de Business Avance que usa la administración.
 - Datos: fecha y hora, autor (nombre que escribe quien entra a la administración, o «cliente», «stripe», «sistema»), acción, identificador y correo de la cuenta afectada, valores antes y después de los campos cambiados (plan, periodo, estado, pagado, vencimiento, fin de prueba, plan pedido, cuota pactada, nota interna y, en las altas o creaciones de cuenta, nombre, empresa y teléfono), importe y referencia de los pagos, motivo escrito por la administración, dirección IP de quien hizo la acción. No guarda contraseñas, datos de empresa del cliente ni respuestas de test.
-- Al borrar una cuenta, el registro **se conserva** con la constancia del borrado (correo, plan, estado, fecha de alta y número de pagos) y las entradas anteriores de esa cuenta, hasta cumplir el plazo. **[VALIDAR: si basta el interés legítimo o conviene seudonimizar el correo al borrar la cuenta]**
+- Al borrar una cuenta, el registro **se conserva** con la constancia del borrado (correo, plan, estado, fecha de alta y número de pagos) y las entradas anteriores de esa cuenta, hasta cumplir el plazo. Decisión: basta el interés legítimo (rendición de cuentas y reclamaciones) con el plazo de 24 meses; seudonimizar el correo al borrar la cuenta es una mejora técnica recomendada.
 - Plazo: `ACTIVIDAD_DIAS`, 730 días (24 meses) por defecto; la purga se revisa cada 6 horas. Se puede descargar en CSV desde el gestor (quien lo descarga debe custodiarlo).
 - Acceso: solo la administración (contraseña propia y segundo factor).
 
@@ -79,14 +79,14 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 **D. Datos de empresa del cliente**
 - Categorías: datos económicos y financieros, ficha societaria (CIF, socios y participaciones), organigrama, agenda, notas, libro corporativo, auditoría integral (incluye transcripciones de sesiones con el empresario y documentos adjuntos).
 - Tratamientos: almacenamiento (`/api/data/:clave`), cálculo en el navegador, envío a Anthropic cuando el usuario usa funciones de IA (`/api/chat`, `/api/extract`, `/api/escucha`, `/api/mercado/actualizar`, y desde el navegador `A.ia.texto/json` en `js/intervencion/*` y `js/mesa.js`).
-- Transferencias: Anthropic, PBC (EE. UU.). **[MECANISMO: DPF o cláusulas contractuales tipo; revisar el DPA de Anthropic y su política de conservación de la API]**
+- Transferencias: Anthropic, PBC (EE. UU.), con el Marco de Privacidad de Datos UE-EE. UU. o, en su defecto, cláusulas contractuales tipo, y su contrato de encargo (incluido en sus condiciones comerciales de la API, que excluyen el entrenamiento con el contenido enviado). Acción: aceptar el DPA en la consola de Anthropic y guardar copia.
 
 **E. Personas y equipos (plan Consultora)**
 - Interesados: empleados de la empresa cliente.
 - Datos en el estado `personas` (por empresa): nombre, puesto, área, responsable, correo (opcional), resultados y respuestas de DISC, aportaciones, eneagrama, estilo de liderazgo, estilo percibido (`lid.percibido`, con `de` opcional en la entrada manual), preparación por tarea, consentimiento y su fecha, envíos por código. Solo con la lectura de identidad activada: fecha de nacimiento y nombre completo.
 - Datos en el servidor por invitación (`db.invitaciones`): empresa, nombre, correo, test, tarea, líder, estado, fechas (creado, abierto, actualizado, completado, importada), respuestas, `consent` (fecha), `ip` de la última respuesta guardada (se borra al importar), `identidad` (si la empresa tiene activada la lectura de identidad) y `nacimiento` (solo se acepta si `identidad` está activado). En «Cómo le ve su equipo» (lid360), al completarse, las respuestas pasan a una bolsa sin nombres por persona evaluada (`db.lid360`) y se borran de la invitación `resp`, `de` e `ip`.
 - No se envían a la IA (comprobado: ningún módulo de `js/personas/` llama a `A.ia`; el asistente no lee los datos de este mundo).
-- Base: la decide la empresa responsable; la aplicación recoge el consentimiento de cada persona. **[VALIDAR: el consentimiento del trabajador frente a su empleador puede no ser libre (Considerando 43 RGPD, Directrices 05/2020 del CEPD); valorar interés legítimo con evaluación de impacto o que la participación sea realmente voluntaria y sin consecuencias]**
+- Base: la decide la empresa responsable. Decisión publicada: los resultados se tratan como datos ordinarios (no son categorías especiales); se recomienda a la empresa el interés legítimo (6.1.f) en lugar del consentimiento, que en el ámbito laboral puede no ser libre (Considerando 43 RGPD, Directrices 05/2020 del CEPD); participación voluntaria y sin consecuencias; información reforzada antes de responder; sin decisiones automatizadas. La casilla del cuestionario funciona como confirmación de que se ha leído la información y se quiere participar.
 
 ### 2.3 Medidas de seguridad implementadas (art. 32)
 - Contraseñas con scrypt y sal; comparación en tiempo constante.
@@ -99,7 +99,8 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 - Carpeta de datos fuera de la web, permisos 0700 y fichero 0600; escritura atómica; 2 copias mensuales rotatorias en el disco (la tercera se escribe sobre la más antigua).
 - Política de contenidos (CSP), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, HSTS con `COOKIE_SECURE=1`.
 - Límites de intentos y de tamaño de datos por cuenta; cuota diaria de IA.
-- Pendiente: cifrado en reposo del disco (depende del alojamiento), procedimiento de brechas (arts. 33-34). **[PENDIENTE]** (El registro de accesos y acciones del personal de administración está en 2.1.B bis.)
+- Copias externas diarias cifradas con restic antes de salir del servidor (14 diarias, 8 semanales y 12 mensuales; `despliegue/copia-seguridad.sh`).
+- Mejoras técnicas previstas: cifrado en reposo del disco del servidor y procedimiento escrito de brechas (arts. 33-34: evaluar, notificar a la AEPD en 72 horas si hay riesgo y a los clientes responsables en 48 horas). (El registro de accesos y acciones del personal de administración está en 2.1.B bis.)
 
 ---
 
@@ -108,14 +109,14 @@ Con clave de API propia del cliente (configurada en el navegador, `js/conexiones
 | Subencargado | Servicio | Datos | Ubicación | Garantía |
 |---|---|---|---|---|
 | Hetzner Online GmbH | Servidor, disco y copias de seguridad | Todos | UE (Helsinki, Finlandia) | Contrato de encargado firmado el 5/11/2026 a nombre de Familias Empresarias SL |
-| Anthropic, PBC | API de Claude (asistente, extracción, escucha, agente de mercado con búsqueda web, propuestas) | Texto enviado a esas funciones | EE. UU. | [DPF / CCT] |
-| [PROVEEDOR DE CORREO] (SMTP configurado con `SMTP_HOST`) | Correos de contraseña, acceso e invitaciones a test | Correo, nombre, enlace, nombre de la empresa | [PAÍS] | [DPA] |
-| Stripe (Stripe Payments Europe, Ltd., si se configura `STRIPE_SECRET_KEY`; `PUESTA-EN-MARCHA.md` apartado 5) | Cobro de suscripciones, facturas y portal de cliente | Correo, identificador interno de la cuenta, plan y periodo; Stripe recoge directamente tarjeta, nombre, dirección de facturación y NIF | UE/EE. UU. | [DPA de Stripe; para los datos de pago Stripe actúa también como responsable] **[VALIDAR]** |
-| HubSpot, Inc. (si se configura `HUBSPOT_TOKEN`) | CRM: contactos, empresas, notas y tareas de las solicitudes y altas | Nombre, correo, teléfono, empresa, mensaje, origen, id de la cuenta | UE/EE. UU. | [DPA de HubSpot; DPF / CCT] **[VALIDAR]** |
+| Anthropic, PBC | API de Claude (asistente, extracción, escucha, agente de mercado con búsqueda web, propuestas) | Texto enviado a esas funciones | EE. UU. | DPA de Anthropic; DPF o CCT |
+| Proveedor de correo (SMTP configurado con `SMTP_HOST`; nombre y ubicación en `js/titular.js`, campos `correoProveedor` y `correoUbicacion`) | Correos de contraseña, acceso e invitaciones a test | Correo, nombre, enlace, nombre de la empresa | La que conste en `js/titular.js` | Contrato de encargo del proveedor; DPF o CCT si está fuera del EEE |
+| Stripe (Stripe Payments Europe, Ltd., si se configura `STRIPE_SECRET_KEY`; `PUESTA-EN-MARCHA.md` apartado 5) | Cobro de suscripciones, facturas y portal de cliente | Correo, identificador interno de la cuenta, plan y periodo; Stripe recoge directamente tarjeta, nombre, dirección de facturación y NIF | UE/EE. UU. | DPA de Stripe (incluido en sus condiciones); para los datos de pago Stripe actúa también como responsable |
+| HubSpot, Inc. (si se configura `HUBSPOT_TOKEN`) | CRM: contactos, empresas, notas y tareas de las solicitudes y altas | Nombre, correo, teléfono, empresa, mensaje, origen, id de la cuenta | UE/EE. UU. | DPA de HubSpot (incluido en sus condiciones); DPF o CCT |
 | Google (Google Fonts) | Tipografías | IP y agente de usuario de cada visitante | EE. UU./UE | Recomendado: alojar las fuentes en el servidor y eliminar esta transmisión |
 | Cloudflare (cdnjs) | Bibliotecas JS (Three.js, PDF.js, lectura de Excel, html2pdf) | IP y agente de usuario | EE. UU./UE | Recomendado: servirlas desde el propio servidor |
 
-Terceros que solo intervienen si el usuario pulsa un enlace: WhatsApp (`wa.me`), Google Calendar, Outlook. El dictado por voz usa el reconocimiento del navegador (en Chrome, servicio de Google). **[REVISAR si debe informarse en la pantalla del dictado]**
+Terceros que solo intervienen si el usuario pulsa un enlace: WhatsApp (`wa.me`), Google Calendar, Outlook. El dictado por voz usa el reconocimiento del navegador (en Chrome, servicio de Google). Decisión: se informa en `privacidad.html#ia`; un aviso breve en la pantalla del dictado es una mejora recomendada.
 
 ---
 
@@ -131,7 +132,7 @@ Terceros que solo intervienen si el usuario pulsa un enlace: WhatsApp (`wa.me`),
 | Uso diario de IA | Últimos 60 días | `usoIA` |
 | Contactos | Los 500 más recientes | `db.contactos.slice(0, 500)` |
 | Contadores de intentos | En memoria, 15-60 minutos | `LIMITES` |
-| Copias de seguridad | 2 copias mensuales rotatorias en el disco (`atalaya.db.1` y `.2`; la tercera se escribe sobre la más antigua); la copia `db.json.migrado-<fecha>` de la migración a SQLite se conserva hasta que se borre a mano **[PENDIENTE: borrarla tras comprobar la migración]** | `COPIAS = 2` |
+| Copias de seguridad | 2 copias mensuales rotatorias en el disco (`atalaya.db.1` y `.2`; la tercera se escribe sobre la más antigua); la copia `db.json.migrado-<fecha>` de la migración a SQLite se conserva hasta que se borre a mano (tarea de explotación: borrarla tras comprobar la migración). Copia externa cifrada: 14 diarias, 8 semanales y 12 mensuales, es decir, hasta 12 meses (publicado así en privacidad y condiciones) | `COPIAS = 2` |
 | Invitaciones a test | Se borran 30 días después de importarse, caducar o anularse; la IP se borra al importar. Revisión cada 6 horas | `INVITACIONES_DIAS`, `purgarInvitaciones` |
 | Respuestas de lid360 | Solo se entregan al consultor sin nombres y a partir de 3 respuestas; la bolsa se vacía al importarse | `MIN_LID360`, `POST /api/lid360/:pid/importado` |
 | Borrado de cuenta (administración) | Borra datos, mercado, sesiones, enlaces, invitaciones con respuestas, contactos y uso, en una transacción | `DELETE /api/admin/users/:id` |
@@ -141,8 +142,8 @@ Terceros que solo intervienen si el usuario pulsa un enlace: WhatsApp (`wa.me`),
 | Cuenta de demostración (presentaciones comerciales) | No contiene datos personales: empresas ficticias sin NIF. Lo que se escriba en ella (incluidas las invitaciones a test y sus respuestas, si alguien respondiera a un enlace de la demostración) se borra cada noche a las 04:00 y al restablecerla desde la administración. No envía correos a terceros ni pasa nada a HubSpot | `restablecerDemo`, `DEMO_PASSWORD` |
 
 ### Pendientes (no implementados)
-1. **Cuentas de prueba no activadas e inactivas**: sin plazo.
-2. **Contactos**: sin plazo temporal.
+1. **Cuentas de prueba no activadas e inactivas**: plazo publicado de 12 meses desde el fin de la prueba; falta el borrado automático (hoy, desde la administración).
+2. **Contactos**: plazo publicado de 12 meses sin relación contractual; falta la purga automática (hoy, desde la administración).
 3. **Exportación y borrado de autoservicio**: ver el estado en las condiciones de uso; el borrado de la cuenta se hace a petición, por la administración.
 4. **Copias en el navegador**: los datos de personas también se guardan en `localStorage` del equipo del consultor (`atalaya.personas.v1…`). Informar y recomendar no usar equipos compartidos (ya está en privacidad y cookies).
 5. **Modo de demostración sin servidor**: guarda cuentas y datos en el navegador; no debe usarse con datos reales.
@@ -156,7 +157,7 @@ Terceros que solo intervienen si el usuario pulsa un enlace: WhatsApp (`wa.me`),
 
 ## 5. Plantilla de contrato de encargo del tratamiento (art. 28 RGPD)
 
-*Para que la firma consultora (plan Consultora) lo firme con cada empresa cliente cuya plantilla evalúe. Borrador para revisión jurídica.*
+*Modelo para que la firma consultora (plan Consultora) lo firme con cada empresa cliente cuya plantilla evalúe. Versión 1.0. Los corchetes de este modelo son los datos de cada contrato concreto (partes, lugar, fecha), que se rellenan al firmarlo.*
 
 **CONTRATO DE ENCARGO DEL TRATAMIENTO**
 
@@ -168,7 +169,7 @@ En [LUGAR], a [FECHA].
 
 **1. Objeto.** El Encargado trata por cuenta del Responsable los datos personales necesarios para prestar el servicio de [DESCRIPCIÓN: análisis de perfiles de comportamiento, equipos, liderazgo y estructura organizativa] mediante la aplicación Atalaya 360°.
 
-**2. Duración.** La del contrato de servicios del que trae causa. [FECHA O REFERENCIA]
+**2. Duración.** La del contrato de servicios del que trae causa, identificado por su fecha o referencia: [REFERENCIA DEL CONTRATO DE SERVICIOS].
 
 **3. Naturaleza y finalidad.** Recogida de respuestas a cuestionarios por enlace o en sesión, cálculo de resultados, elaboración de informes y conservación mientras dure el servicio. Finalidad: conocer estilos de trabajo, equilibrar equipos, ajustar el liderazgo y ordenar la estructura. No se usarán como único criterio para decisiones de selección, promoción, retribución o despido.
 
@@ -178,19 +179,19 @@ En [LUGAR], a [FECHA].
 a) Tratar los datos solo siguiendo instrucciones documentadas del Responsable, incluidas las transferencias internacionales.
 b) Garantizar que las personas autorizadas se han comprometido a la confidencialidad.
 c) Aplicar las medidas de seguridad del art. 32 (anexo I).
-d) No recurrir a otro encargado sin autorización previa por escrito. El Responsable autoriza a los subencargados del anexo II; el Encargado informará de cualquier cambio con [PLAZO] de antelación para que el Responsable pueda oponerse.
-e) Asistir al Responsable en la respuesta a los derechos de los interesados. Si un interesado se dirige al Encargado, este lo comunicará al Responsable en [PLAZO, p. ej. 5 días hábiles].
-f) Asistir al Responsable en la seguridad, la notificación de brechas (comunicará cualquier brecha sin dilación indebida y en un máximo de [48] horas), la evaluación de impacto y la consulta previa.
-g) Al terminar el servicio, a elección del Responsable, suprimir o devolver los datos y suprimir las copias, salvo obligación legal de conservarlos. Las copias de seguridad de la aplicación se sobrescriben en un máximo de 7 días.
+d) No recurrir a otro encargado sin autorización previa por escrito. El Responsable autoriza a los subencargados del anexo II; el Encargado informará de cualquier cambio con al menos 15 días de antelación para que el Responsable pueda oponerse.
+e) Asistir al Responsable en la respuesta a los derechos de los interesados. Si un interesado se dirige al Encargado, este lo comunicará al Responsable en un plazo máximo de 5 días hábiles.
+f) Asistir al Responsable en la seguridad, la notificación de brechas (comunicará cualquier brecha sin dilación indebida y en un máximo de 48 horas), la evaluación de impacto y la consulta previa.
+g) Al terminar el servicio, a elección del Responsable, suprimir o devolver los datos y suprimir las copias, salvo obligación legal de conservarlos. Las copias de seguridad de la aplicación se sustituyen de forma rotatoria en un máximo de 12 meses.
 h) Poner a disposición del Responsable la información necesaria para demostrar el cumplimiento y permitir auditorías.
 
 **6. Obligaciones del Responsable.** Informar a los interesados (art. 13), contar con base jurídica, decidir si se activa la lectura complementaria de identidad, realizar la evaluación de impacto si procede y supervisar el tratamiento.
 
-**7. Lugar del tratamiento.** [UE/EEE]. Las respuestas de los cuestionarios no se envían a servicios de inteligencia artificial.
+**7. Lugar del tratamiento.** Unión Europea (alojamiento de Atalaya 360° en Hetzner, Helsinki). Las respuestas de los cuestionarios no se envían a servicios de inteligencia artificial.
 
-**Anexo I. Medidas de seguridad.** Las del apartado 2.3 de este documento y [MEDIDAS PROPIAS DE LA CONSULTORA].
+**Anexo I. Medidas de seguridad.** Las del apartado 2.3 de este documento y las propias de la consultora: [MEDIDAS PROPIAS DE LA CONSULTORA].
 
-**Anexo II. Subencargados autorizados.** Business Avance (FAMILIAS EMPRESARIAS, S.L., NIF [PENDIENTE: NIF de Familias Empresarias, S.L.]) como proveedor de Atalaya 360°; Hetzner Online GmbH (alojamiento y copias, UE); [PROVEEDOR DE CORREO].
+**Anexo II. Subencargados autorizados.** Business Avance (FAMILIAS EMPRESARIAS, S.L., con el NIF que figura en el aviso legal) como proveedor de Atalaya 360°; Hetzner Online GmbH (alojamiento y copias, UE); el proveedor de correo electrónico que figura en la política de privacidad.
 
 Firmas.
 
@@ -198,14 +199,14 @@ Firmas.
 
 ## 6. Notas para la evaluación de impacto (DPIA) de los cuestionarios psicométricos
 
-**Por qué puede ser obligatoria.** El tratamiento evalúa aspectos personales (comportamiento, motivación, estilo de liderazgo) de trabajadores, que son interesados en situación de desequilibrio respecto del empleador. Reúne al menos dos criterios de las Directrices WP248 (evaluación o puntuación; interesados vulnerables) y puede encajar en la lista de la AEPD de tratamientos que requieren evaluación de impacto. **[CONFIRMAR CON EL ABOGADO]**
+**Por qué puede ser obligatoria.** El tratamiento evalúa aspectos personales (comportamiento, motivación, estilo de liderazgo) de trabajadores, que son interesados en situación de desequilibrio respecto del empleador. Reúne al menos dos criterios de las Directrices WP248 (evaluación o puntuación; interesados vulnerables) y puede encajar en la lista de la AEPD de tratamientos que requieren evaluación de impacto. Decisión: la evaluación corresponde a la empresa responsable (empleadora); Business Avance le recomienda hacerla y le facilita estas notas como base.
 
 **Descripción sistemática.** Ver 2.2.E. Flujo: el consultor crea la invitación → la persona abre el enlace, lee la información del art. 13 y da su consentimiento → responde (se guarda en el servidor o va en un código) → la respuesta se incorpora a su ficha → informes de persona, equipo y líder.
 
 **Necesidad y proporcionalidad.**
 - Minimización: el correo es opcional; la fecha de nacimiento solo con la lectura de identidad activada y de forma opcional.
 - Exactitud: los resultados se presentan como orientativos; la persona puede ver un resumen de su resultado (configurable).
-- Conservación: ver apartado 4 (purga de invitaciones pendiente).
+- Conservación: ver apartado 4 (purga de invitaciones a los 30 días, implantada).
 - Información y derechos: capa informativa en `test.html` y `privacidad.html#personas`.
 
 **Riesgos y medidas.**
@@ -213,27 +214,22 @@ Firmas.
 | Riesgo | Medida implementada | Medida pendiente |
 |---|---|---|
 | Uso de los resultados para decisiones laborales (selección, despido) | Avisos en la aplicación, en el test y en los informes: no deben ser el único criterio | Cláusula en el contrato de encargo; formación al consultor |
-| Consentimiento no libre | Participación voluntaria, sin consecuencias por no responder, casilla obligatoria | Valorar otra base jurídica |
+| Consentimiento no libre | Participación voluntaria, sin consecuencias por no responder, casilla obligatoria; se recomienda a la empresa el interés legítimo (6.1.f) como base | Adaptar el texto de `test.html` para presentar la casilla como confirmación de lectura y participación |
 | Identificación de quién dijo qué en «Cómo le ve su equipo» | Solo agregado y con 3 o más respuestas, en pantalla e informes | Ver apartado 4, punto 7 |
 | Lectura de identidad (fecha de nacimiento, nombre): no es un instrumento científico; la fecha revela la edad (riesgo de discriminación) | Desactivada por defecto por empresa; activación expresa con aviso; no entra en ningún cálculo de encaje; botón para borrar las fechas | Valorar retirarla del producto o limitarla a uso personal de la propia persona |
 | Acceso no autorizado | Ver 2.3; enlaces de un solo uso que caducan a los 14 días | Cifrado en reposo; registro de accesos |
 | Copias locales en el equipo del consultor | Aviso en privacidad y cookies | Opción de no guardar copia local de personas |
 | Transferencias a EE. UU. | Los test no van a la IA | Revisar fuentes y bibliotecas de terceros (alojarlas en el servidor) |
 
-**Consulta a los interesados o a sus representantes.** [VALORAR informar al comité de empresa o a la representación legal de los trabajadores]
+**Consulta a los interesados o a sus representantes.** Se recomienda a la empresa informar a la representación legal de los trabajadores, si la hay, antes de pasar los cuestionarios (art. 64 del Estatuto de los Trabajadores y art. 87 LOPDGDD).
 
 ---
 
-## 7. Lista para la revisión jurídica
-- Completar todos los datos entre corchetes de las cuatro páginas y de este documento.
-- Confirmar los roles (responsable, encargado, subencargado) del apartado 1, en especial con clave de API propia.
-- Base jurídica de los cuestionarios a empleados y si procede la evaluación de impacto.
-- Mecanismo de transferencia con Anthropic y condiciones de conservación de su API.
-- Asistente de Familias Empresarias: apartado `privacidad.html#asistente` (finalidades, bases, encargados, plazos propuestos, oposición) y puntos del apartado 9 de `asistente-fe/CUMPLIMIENTO.md`.
-- HubSpot: DPA, transferencia y supresión coordinada al borrar una cuenta en Atalaya 360°.
-- Plazos de conservación pendientes (apartado 4).
-- Condiciones de uso: consumidores y desistimiento, renovación, reembolsos, límite de responsabilidad, fuero.
-- Si las cookies técnicas y el almacenamiento local descritos quedan exentos de consentimiento (art. 22.2 LSSI).
-- Texto del aviso legal sobre la titularidad: FAMILIAS EMPRESARIAS, S.L. es la titular y responsable; Akompano Group y DM Focus Global Business figuran como marcas o firmas asociadas. [CONFIRMAR CON EL ABOGADO LA RELACIÓN CONTRACTUAL CON LAS FIRMAS ASOCIADAS]
-- La política de privacidad publicada en businessavance.es (y el aviso del formulario de contacto de esa web) sigue nombrando a AKOMPANO GROUP, S.L. como responsable: debe cambiarse en la web para que coincida con estos textos.
+## 7. Revisión jurídica posterior (versión 1.0 en vigor)
+
+Todos los puntos que antes estaban abiertos se han cerrado para la versión 1.0; la decisión tomada en cada uno y su motivo están en `legal/CONTRATO-NOTAS-ABOGADO.md`. El abogado los revisará después; cualquier cambio será una versión nueva, con su fecha. Quedan:
+- **Datos del titular** en `js/titular.js`: NIF, domicilio social, datos registrales, correo de contacto y de privacidad, cargo de quien firma, seguro de responsabilidad civil (si existe), proveedor de correo y su ubicación, delegado de protección de datos (si se designa).
+- **Contratos de encargo** con cada proveedor (Anthropic, Stripe, HubSpot, proveedor de correo y los del asistente): aceptarlos en sus consolas y guardar copia con fecha.
+- **Tareas técnicas** que hacen cumplir los plazos publicados: borrado automático de cuentas de prueba no activadas y de solicitudes de contacto a los 12 meses, supresión coordinada en HubSpot al borrar una cuenta, cifrado en reposo y procedimiento escrito de brechas.
+- **Titularidad:** FAMILIAS EMPRESARIAS, S.L. es la única titular y responsable; Akompano Group y DM Focus Global Business son marcas asociadas sin papel legal. La política de privacidad publicada en businessavance.es (y el aviso de su formulario de contacto) debe nombrar también a FAMILIAS EMPRESARIAS, S.L. como responsable.
 - Marcas: «Método D.I.N.E.R.O.» se publica sin ™ hasta confirmar su registro.

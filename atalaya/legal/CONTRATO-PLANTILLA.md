@@ -1,8 +1,8 @@
 # Contrato de prestación de servicios de consultoría · plantilla
 
-Plantilla única del módulo «Contrato» de la Auditoría integral (fase 2, «Propuesta y contrato»). Atalaya la rellena con los datos de la propuesta aceptada y de la ficha de la empresa. El mismo texto se entrega al abogado para su validación (`CONTRATO-PARA-REVISION.docx`).
+Plantilla única del módulo «Contrato» de la Auditoría integral (fase 2, «Propuesta y contrato»). Atalaya la rellena con los datos de la propuesta aceptada y de la ficha de la empresa. El mismo texto se entrega al abogado para su revisión (`CONTRATO-PARA-REVISION.docx`).
 
-**Estado:** borrador completo pendiente de validación jurídica. No se usa con clientes hasta que el abogado lo apruebe y se anote aquí la fecha y la versión aprobada.
+**Estado:** versión 1.0, en vigor desde el 12 de noviembre de 2026 (aprobada por FAMILIAS EMPRESARIAS, S.L.). La revisión jurídica posterior se hará sobre esta versión; si cambia el texto, se publicará como una versión nueva (cambie `version` y `fecha` en `contrato-campos.json` y la marca `APROBADA` de `js/intervencion/contrato.js`). Las decisiones de redacción están en `CONTRATO-NOTAS-ABOGADO.md`.
 
 **Sintaxis de la plantilla** (la interpreta `js/intervencion/contrato.js`):
 - `{{campo}}`: dato que rellena Atalaya.
@@ -390,6 +390,7 @@ Este acuerdo dura lo mismo que el contrato. Al terminar, se aplicará el apartad
 - **Interesados:** personas de la plantilla del Responsable, socios y administradores, y personas de contacto de sus clientes y proveedores.
 - **Datos:** identificativos y de contacto; datos profesionales y de puesto; datos económicos vinculados a la relación con la empresa (por ejemplo, retribuciones agregadas o saldos de clientes y proveedores); y, en los servicios que incluyan cuestionarios de comportamiento o de equipo, las respuestas a esos cuestionarios.
 - El Encargado no tratará categorías especiales de datos (artículo 9 del RGPD), salvo instrucción expresa y documentada del Responsable con las garantías que procedan. El Responsable no facilitará esos datos si no son imprescindibles.
+- Los cuestionarios de comportamiento y de equipo recogen preferencias de comportamiento y de trabajo, no datos de salud, y se tratan como datos ordinarios. El Responsable informará a las personas de su plantilla, antes de que respondan, de quién trata sus datos, para qué, quién verá los resultados, cuánto tiempo se conservan, que su participación es voluntaria y sin consecuencias, y cómo ejercer sus derechos. Los resultados son orientativos: ninguna de las Partes tomará con ellos decisiones automatizadas sobre las personas ni los usará como único criterio para contratar, promocionar, retribuir o despedir.
 
 ### 4. Obligaciones del Encargado
 

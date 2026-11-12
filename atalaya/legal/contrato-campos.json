@@ -1,7 +1,7 @@
 {
   "_": "Nombres legibles de los campos, condiciones y listas de CONTRATO-PLANTILLA.md. Los usan el módulo «Contrato» (lista de lo que falta) y el documento para el abogado (CONTRATO-PARA-REVISION.docx). Se copian a js/intervencion/contrato-plantilla.js con legal/generar-plantilla.mjs.",
   "version": "1.0",
-  "fecha": "2026-11-05",
+  "fecha": "2026-11-12",
   "campos": {
     "contrato.ref": "Referencia del contrato",
     "contrato.lugar": "Lugar de firma",
@@ -55,7 +55,7 @@
     "s3.informe_periodicidad": "Periodicidad del informe de seguimiento",
     "s3.meses": "Meses de acompañamiento",
     "s3.honorarios": "Honorarios del Servicio 3",
-    "rgpd.dias_copias": "Días del ciclo de las copias de seguridad (90 por defecto)",
+    "rgpd.dias_copias": "Días del ciclo de las copias de seguridad (365 por defecto: 14 diarias, 8 semanales y 12 mensuales)",
     "servicios.nombre": "Nombre del servicio contratado",
     "s1.documentos.n": "Documento",
     "s1.documentos.d": "Descripción del documento",

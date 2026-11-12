@@ -248,21 +248,25 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
   const PT = () => A.contratoPlantilla || { texto: '', version: '', campos: {}, condiciones: {}, listas: {} };
   const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
   const num = (v) => { const t = String(v == null ? '' : v).trim().replace(/\s|€|%/g, ''); const n = /^-?\d+\.\d{1,2}$/.test(t) ? parseFloat(t) : parseFloat(t.replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : 0; };
-  // Marca de aprobación de la plantilla por el abogado: aquí o en la ficha de la firma (firma.contrato.aprobada). Por defecto, sin aprobar
-  const APROBADA = null; // p. ej. { version: '1.0', fecha: '2026-12-01', por: 'Nombre del abogado' }
+  // Marca de aprobación de la plantilla: aquí o en la ficha de la firma (firma.contrato.aprobada). Solo vale si su versión es la de
+  // la plantilla (contrato-campos.json): al subir de versión, el documento vuelve a salir como borrador hasta aprobar la nueva.
+  // Versión 1.0 en vigor por decisión del titular; la revisión jurídica posterior, si cambia algo, será una versión nueva.
+  const APROBADA = { version: '1.0', fecha: '2026-11-12', por: 'FAMILIAS EMPRESARIAS, S.L.' };
 
   /* ---------- Valores por defecto del consultor (si la ficha de la firma está vacía) ---------- */
-  // Titular: FAMILIAS EMPRESARIAS, S.L. NIF, domicilio social y correo, PENDIENTES: se dejan vacíos a propósito para que salgan
-  // en «Lo que falta» (no inventarlos). Rellénelos aquí, o en la ficha de la firma, cuando se conozcan.
-  const DEF_CONSULTOR = { razon: 'FAMILIAS EMPRESARIAS, S.L.', cif: '', domicilio: '', email: '', marca: 'Business Avance International Consulting', representante: 'Valerio García' };
+  // Titular: FAMILIAS EMPRESARIAS, S.L. Sus datos (NIF, domicilio social, correo, registro, cargo de quien firma, seguro) salen de
+  // js/titular.js, el único sitio donde se escriben. Mientras estén vacíos, salen en «Lo que falta» (no se inventan).
+  const TIT = A.titular || {}, tt = (k) => String((TIT.valor ? TIT.valor(k) : TIT[k]) || '').trim();
+  const DEF_CONSULTOR = { razon: tt('razonSocial') || 'FAMILIAS EMPRESARIAS, S.L.', cif: tt('nif'), domicilio: tt('domicilio'), email: tt('email') || tt('emailPrivacidad'),
+    marca: tt('nombreComercial') || 'Business Avance International Consulting', representante: 'Valerio García', cargo: tt('firmanteCargo'), registro: tt('registro'), seguro: tt('seguroRC') };
   const DEF_SUB = [
     { id: 'sb-aloj', n: 'Hetzner Online GmbH', servicio: 'alojamiento de la aplicación, sus datos y sus copias de seguridad', ubicacion: 'UE (Helsinki, Finlandia)' },
     { id: 'sb-ia', n: 'Anthropic, PBC', servicio: 'análisis con inteligencia artificial', ubicacion: 'EE. UU. (Marco de Privacidad de Datos UE-EE. UU. o cláusulas contractuales tipo)' },
-    { id: 'sb-correo', n: 'Proveedor de correo electrónico (pendiente de designar)', servicio: 'envío de comunicaciones', ubicacion: 'UE' },
+    { id: 'sb-correo', n: tt('correoProveedor') || 'Proveedor del servicio de correo electrónico del Consultor', servicio: 'envío de comunicaciones', ubicacion: tt('correoUbicacion') || 'UE' },
     { id: 'sb-crm', n: 'HubSpot, Inc.', servicio: 'gestión de la relación comercial (solo datos de contacto)', ubicacion: 'EE. UU. (Marco de Privacidad de Datos UE-EE. UU.)' }
   ];
   const PERIOD = { 7: 'semanal', 14: 'quincenal', 21: 'cada tres semanas', 28: 'mensual' };
-  const defP = () => ({ fecha: '', lugar: '', inicio: '', duracion: '', jurisdiccion: 'Murcia', iva: '21', pagoDias: '30', domiciliacion: false, gastos: false, ambitoGastos: 'la Región de Murcia', copias: '90',
+  const defP = () => ({ fecha: '', lugar: '', inicio: '', duracion: '', jurisdiccion: 'Murcia', iva: '21', pagoDias: '30', domiciliacion: false, gastos: false, ambitoGastos: 'la Región de Murcia', copias: '365',
     s1Ejercicios: '3 a 5', s1Plazo: '3 a 4 semanas', s1Imp: '', s2Plazo: '4 a 6 semanas', s2Dias: '15', s2Imp: '',
     s3Sesiones: '', s3Duracion: '90 minutos', s3Periodicidad: '', s3Modalidad: 'presenciales o por videoconferencia', s3Respuesta: '48', s3Informe: 'mensual', s3Prorroga: '3', s3Preaviso: '30', s3Imp: '' });
   // El estado del contrato: se completa sin sustituir el objeto (lo que ya está guardado se conserva)
@@ -289,7 +293,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
     const rep = pick('representante', f.consultor, DEF_CONSULTOR.representante);
     return { razon: t(f.razon) || DEF_CONSULTOR.razon, nif: t(f.cif) || (def ? DEF_CONSULTOR.cif : ''), domicilio: pick('domicilio', [t(f.direccion), t(f.ciudad)].filter(Boolean).join(', '), DEF_CONSULTOR.domicilio),
       email: pick('email', f.email, DEF_CONSULTOR.email), marca: pick('marca', f.nombre, DEF_CONSULTOR.marca), representante: rep, director: t(fc.director) || rep,
-      cargo: t(fc.cargo), registro: t(fc.registro), seguro: t(fc.seguro), ciudad: t(f.ciudad) || (def ? 'Murcia' : ''), def };
+      cargo: pick('cargo', '', DEF_CONSULTOR.cargo), registro: pick('registro', '', DEF_CONSULTOR.registro), seguro: pick('seguro', '', DEF_CONSULTOR.seguro), ciudad: t(f.ciudad) || (def ? 'Murcia' : ''), def };
   };
   const ficha = () => { const e = PL() && PL().empresas && PL().empresas.activa(); return e || {}; };
   // Razón social por defecto: el nombre de la empresa con la abreviatura de su forma jurídica
@@ -389,7 +393,8 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
   const completo = () => { try { return faltas().length === 0; } catch (e) { return false; } };
 
   /* ---------- Documento ---------- */
-  const AVISO = 'Borrador pendiente de validación jurídica: no lo use con clientes hasta que su abogado apruebe la plantilla.';
+  // Solo se ve si la plantilla cambia de versión y aún no se ha aprobado la nueva (ver APROBADA)
+  const AVISO = 'Borrador: esta versión de la plantilla aún no está aprobada. No la use con clientes hasta aprobarla.';
   const tituloDoc = () => 'Contrato de prestación de servicios · ' + empresa();
   const docHTML = (bls) => { const a = aprobada(); return (a ? '' : `<p class="ct-borr-doc" role="note">${esc(AVISO)}</p>`) + html(bls); };
   const slug = (t) => String(t || 'contrato').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 60);
@@ -447,7 +452,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
         <div class="ct-subs">${c.subencargados.map((s, i) => `<div class="ct-sub" data-sb="${i}">${inp('sb', 'n', s.n, { n: 'Proveedor' })}${inp('sb', 'servicio', s.servicio, { n: 'Servicio que presta' })}${inp('sb', 'ubicacion', s.ubicacion, { n: 'Ubicación y garantía' })}<button class="btn ghost small" data-sbx="${i}" aria-label="Quitar ${esc(s.n || 'subencargado')}">Quitar</button></div>`).join('')}</div>
         <div class="row"><button class="btn ghost small" id="ct-cs-nuevo">Añadir subencargado</button><button class="btn ghost small" id="ctSubDef">Volver a la lista de partida</button></div></section>
       <section class="glass pad stack ct-prev"><div class="row"><div><div class="eyebrow">Vista previa del contrato</div><small class="muted">Documento A4 con las cláusulas numeradas. Lo que falta sale resaltado en amarillo.</small></div></div>
-        ${a ? `<p class="small muted" style="margin:0">Plantilla ${esc(a.version)} aprobada por ${esc(a.por || 'su abogado')} el ${esc(fLarga(a.fecha))}.</p>` : `<div class="ct-borrador" role="note">${esc(AVISO)}</div>`}
+        ${a ? `<p class="small muted ct-aprobada" style="margin:0">Plantilla versión ${esc(a.version)}, en vigor desde el ${esc(fLarga(a.fecha))} (aprobada por ${esc(a.por || 'su abogado')}).</p>` : `<div class="ct-borrador" role="note">${esc(AVISO)}</div>`}
         <div class="ct-hoja-w"><article class="paper rp ct-doc" id="ctDoc">${docHTML(bls)}</article></div>
         <div class="row ct-acc"><button class="btn solid" id="ctPdf2">Imprimir o guardar en PDF</button><button class="btn" id="ctWord2">Descargar en Word</button></div>
       </section>
@@ -485,7 +490,7 @@ body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{fon
   Object.assign(V.pasoTxt, { contrato: 'Con la propuesta aceptada, genere el contrato de prestación de servicios: complete lo que falte del cliente y de su firma, revise las condiciones e imprímalo o descárguelo. Queda hecho al marcarlo como firmado.' });
   V.fichaExtra = Object.assign(V.fichaExtra || {}, {
     contrato: { donde: 'Convierte la propuesta aceptada en el contrato de prestación de servicios, con sus cuatro anexos.',
-      ves: () => { const f = faltas(), c = C(); return [f.length ? `Faltan ${f.length} ${f.length === 1 ? 'dato' : 'datos'} para generarlo.` : 'Datos completos.', c.firmado && c.firmado.fecha ? 'Firmado el ' + fLarga(c.firmado.fecha) + '.' : 'Sin firmar todavía.', aprobada() ? 'Plantilla aprobada por su abogado.' : 'Plantilla pendiente de validación jurídica: sale como borrador.']; },
+      ves: () => { const f = faltas(), c = C(); return [f.length ? `Faltan ${f.length} ${f.length === 1 ? 'dato' : 'datos'} para generarlo.` : 'Datos completos.', c.firmado && c.firmado.fecha ? 'Firmado el ' + fLarga(c.firmado.fecha) + '.' : 'Sin firmar todavía.', aprobada() ? `Plantilla versión ${aprobada().version}, en vigor.` : 'Plantilla pendiente de aprobación: sale como borrador.']; },
       sig: [{ f: 'con', t: 'Envíe el borrador al cliente unos días antes de la reunión de firma.' }, { f: 'coa', t: 'Repase con él qué le toca a cada parte.', q: '¿Quién de su equipo será nuestro interlocutor y podrá decidir?' }],
       pedir: ['Razón social, NIF y domicilio de la empresa', 'Nombre, cargo y documento de quien firma', 'Correo para las comunicaciones'], medir: ['Días entre la aceptación y la firma'], exp: 'Las cifras salen de la propuesta integral: si cambia el precio o la forma de pago, cámbielo allí y el contrato se rehace.' }
   });

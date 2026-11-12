@@ -28,7 +28,7 @@ from docx.shared import Cm, Pt, RGBColor
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SALIDA = os.path.join(RAIZ, 'legal', 'CONTRATO-PARA-REVISION.docx')
 NOTAS = os.path.join(RAIZ, 'legal', 'CONTRATO-NOTAS-ABOGADO.md')
-FECHA_TXT = '5 de noviembre de 2026'
+FECHA_TXT = '12 de noviembre de 2026'
 GRIS = RGBColor(0x55, 0x55, 0x55)
 
 # Bloques del contrato en modo revisión, con el mismo intérprete que la aplicación
@@ -102,7 +102,7 @@ def pie(doc, version):
     for sec in doc.sections:
         p = sec.footer.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = p.add_run('Contrato de consultoría · borrador para revisión jurídica · versión %s · página ' % version)
+        r = p.add_run('Contrato de consultoría · versión %s en vigor · documento para la revisión del abogado · página ' % version)
         r.font.size = Pt(9)
         r.font.color.rgb = GRIS
         campo_pagina(p, 'PAGE')
@@ -178,12 +178,12 @@ def portada(doc, version):
     r.font.size = Pt(24)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run('Borrador para revisión jurídica')
+    r = p.add_run('Versión en vigor · documento para la revisión del abogado')
     r.font.size = Pt(16)
-    r.font.color.rgb = RGBColor(0xb4, 0x23, 0x23)
+    r.font.color.rgb = GRIS
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run('Versión %s · %s' % (version, FECHA_TXT))
+    r = p.add_run('Versión %s · en vigor desde el %s' % (version, FECHA_TXT))
     r.font.size = Pt(13)
     for _ in range(4):
         doc.add_paragraph()
@@ -350,7 +350,7 @@ def main():
     notas(doc)
     contrato(doc, datos['bloques'])
     pie(doc, datos['version'])
-    doc.core_properties.title = 'Contrato de prestación de servicios de consultoría · borrador para revisión jurídica'
+    doc.core_properties.title = 'Contrato de prestación de servicios de consultoría · versión en vigor para la revisión del abogado'
     doc.core_properties.author = 'FAMILIAS EMPRESARIAS, S.L.'
     doc.core_properties.language = 'es-ES'
     doc.save(SALIDA)

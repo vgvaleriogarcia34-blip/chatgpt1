@@ -28,7 +28,8 @@ REPO=${REPO:-$(pregunta "Repositorio (SSH)" "git@github.com:vgvaleriogarcia34-bl
 RAMA=${RAMA:-$(pregunta "Rama que se publica" "main")}
 DOMINIO_APP=${DOMINIO_APP:-$(pregunta "Dominio de Atalaya (sin https://)" "app.businessavance.es")}
 DOMINIO_ASISTENTE=${DOMINIO_ASISTENTE:-$(pregunta "Dominio del asistente telefónico (vacío para no instalarlo)" "")}
-CORREO_CERTIFICADOS=${CORREO_CERTIFICADOS:-$(pregunta "Correo para avisos del certificado HTTPS" "servicios@akompanogroup.es")}
+CORREO_CERTIFICADOS=${CORREO_CERTIFICADOS:-$(pregunta "Correo de FAMILIAS EMPRESARIAS, S.L. para avisos del certificado HTTPS (obligatorio)" "")}
+[ -n "$CORREO_CERTIFICADOS" ] || { echo "Falta CORREO_CERTIFICADOS: indique el correo para los avisos del certificado HTTPS (variable CORREO_CERTIFICADOS)." >&2; exit 1; }
 echo
 echo "Copia de seguridad externa (restic). Ejemplos de destino:"
 echo "  Hetzner Storage Box:  sftp:u123456@u123456.your-storagebox.de:/atalaya"
