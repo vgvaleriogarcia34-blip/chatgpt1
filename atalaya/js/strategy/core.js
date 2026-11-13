@@ -272,8 +272,10 @@
       const rb = $('#stReport', panel); if (rb) rb.onclick = () => (r360 ? S.report360(m) : S.moduleReport(m));
       const ab = $('#stAudit', panel); if (ab) ab.onclick = () => S.auditReport();
     }
-    // Área que no aplica al sector de la empresa: se dice arriba y no cuenta
-    if (S.noAplica(id)) { const head = panel.querySelector('.st-head'), av = `<div class="alert info st-pide st-noaplica"><b>No aplica al sector de la empresa (${esc(INF.sectorTxt().toLowerCase())}).</b> Esta área no se valora, no genera riesgos ni actuaciones y no entra en los informes. El sector se toma de la ficha de la empresa.</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
+    // Exigencia del área para esta empresa (esencial, recomendada o no aplica) y la decisión de la propia empresa
+    const exH = S.AREAS_VALORABLES.includes(id) ? exigenciaHTML(id) : '';
+    if (exH) { const head = panel.querySelector('.st-head'); if (head) head.insertAdjacentHTML('afterend', exH); else panel.insertAdjacentHTML('afterbegin', exH); montarExigencia(panel, id); }
+    if (S.noAplica(id)) { /* no aplica: lo dice la franja de exigencia */ }
     // Cuenta con datos reales: el módulo sin datos lo dice y pide la subida
     else if (vacio) { const head = panel.querySelector('.st-head'), sim = m.datosSim; const av = `<div class="alert ${S.real() ? 'warn' : 'info'} st-pide st-sindatos"><b>Sin datos en este módulo.</b> ${S.real() ? 'Esta empresa trabaja con datos reales: aquí no hay datos de ejemplo. ' : ''}Los indicadores quedan «Sin datos» y no cuentan en la nota, en el DAFO ni en las prioridades hasta que haya datos propios. ${sim ? 'Cargue las cuentas en el <a href="app.html#empresa">simulador</a> o en <a href="#origen">Origen de datos</a>.' : 'Súbalos en <a href="#origen">Origen de datos</a> (Excel, CSV o PDF) o escríbalos en las tablas.'}</div>`; if (head) head.insertAdjacentHTML('afterend', av); else panel.insertAdjacentHTML('afterbegin', av); }
     else if (id === 'tablero' && A.simEsEjemplo && S.sim && S.sim.sinDatos && !(S.sim.empresa && S.sim.empresa.ventas > 0)) panel.insertAdjacentHTML('afterbegin', '<div class="alert warn st-pide"><b>Faltan las cuentas de la empresa.</b> Esta empresa trabaja con datos reales y el simulador está a cero: suba el balance y la cuenta de resultados en <a href="#origen">Origen de datos</a> o en el <a href="app.html#empresa">simulador</a>.</div>');
@@ -283,6 +285,36 @@
     // Al recalcular el mismo módulo se conserva la posición: solo se sube al cambiar de módulo
     if (keep) { const y = keep.y; scrollTo({ top: y }); requestAnimationFrame(() => scrollTo({ top: y })); } else scrollTo({ top: 0 });
     if (S.onShow) try { S.onShow(id, !!keep); } catch (e) { console.error(e); }
+  }
+  /* Franja de exigencia en la pantalla de cada área valorable. Es de trabajo (no va a los informes ni al papel):
+     dice si el área es esencial, recomendada o no aplica para la empresa y por qué, y permite a la empresa marcarla como
+     no aplicable (con motivo obligatorio) o volver a aplicarla. La empresa modelo y la demostración no se cambian. */
+  function exigenciaHTML(id) {
+    const ex = S.exigencia(id), ed = S.exigenciaEditable(), d = ex.decision;
+    const txt = ex.k === 'e' ? 'Para su empresa esta área es <b>esencial</b>: si falta su documentación, cuenta 0 en la nota del sistema estratégico.'
+      : ex.k === 'r' ? `Para su empresa esta área es <b>recomendada</b>: si no la entrega, no baja la nota; si la entrega, se valora como las demás.${ex.origen === 'empresa' ? ' ' + esc(ex.motivo) : ''}`
+        : `Esta área <b>no aplica</b> a su empresa y no cuenta en la nota. ${esc(ex.motivo)}`;
+    const quien = d && (d.quien || d.fecha) ? ` <span class="muted">(${esc([d.quien, d.fecha ? new Date(d.fecha).toLocaleDateString('es-ES') : ''].filter(Boolean).join(', '))})</span>` : '';
+    const botones = !ed ? '<span class="small muted">La empresa modelo y la cuenta de demostración no se pueden cambiar.</span>'
+      : ex.origen === 'empresa' ? `<button class="btn small" data-exig="quitar">${ex.k === 'n' ? 'Volver a aplicar esta área' : 'Deshacer: el área vuelve a no aplicar'}</button>`
+        : ex.k === 'n' ? '<button class="btn small" data-exig="aplica">Esta área sí aplica a mi empresa</button>'
+          : '<button class="btn small" data-exig="abrir">Esta área no aplica a mi empresa</button>';
+    return `<div class="alert info st-pide st-exig no-print" data-inf="no" data-exig-area="${esc(id)}"><div>${txt}${ex.origen === 'empresa' ? quien : ''}</div>
+      <div class="row" style="margin-top:6px;gap:8px;flex-wrap:wrap">${botones}</div>
+      <form class="st-exig-f row" hidden style="margin-top:8px;gap:8px;flex-wrap:wrap;align-items:flex-end"><label class="small" style="flex:1;min-width:220px">Motivo (obligatorio)<input class="input" name="motivo" required maxlength="200" placeholder="Por ejemplo: no tenemos almacén ni reparto propio"></label><button class="btn solid small" type="submit">Marcar como no aplicable</button><button class="btn ghost small" type="button" data-exig="cerrar">Cancelar</button></form></div>`;
+  }
+  function montarExigencia(panel, id) {
+    const box = panel.querySelector('.st-exig'); if (!box) return;
+    const f = box.querySelector('.st-exig-f');
+    box.querySelectorAll('[data-exig]').forEach((b) => b.onclick = () => {
+      const k = b.dataset.exig;
+      if (k === 'abrir') { f.hidden = false; f.motivo.focus(); return; }
+      if (k === 'cerrar') { f.hidden = true; return; }
+      if (k === 'quitar') S.marcarExigencia(id, null);
+      if (k === 'aplica') S.marcarExigencia(id, { aplica: true });
+      S.rerender();
+    });
+    f.onsubmit = (ev) => { ev.preventDefault(); const mo = f.motivo.value.trim(); if (!mo) { f.motivo.focus(); return; } if (S.marcarExigencia(id, { noAplica: true, motivo: mo })) S.rerender(); };
   }
   S.show = show;
   S.GROUPS = GROUPS;
@@ -455,21 +487,73 @@
     const malos = l.filter((x) => x.st === 'stop' || x.st === 'warn'), resto = l.filter((x) => !malos.includes(x)), ver = malos.concat(resto.slice(0, Math.max(0, 6 - malos.length))), mas = l.length - ver.length;
     return ver.map((x) => `<span class="rp-sosten${x.st ? ' rp-so-' + x.st : ''}">${x.h}</span>`).join(' · ') + (mas ? ` <span class="rp-muted">· ${mas === 1 ? 'otro aspecto' : mas + ' aspectos más'} en nivel adecuado</span>` : '');
   };
-  /* ---------- Sector: qué áreas aplican ----------
-     Una sola tabla: por sector, las áreas que no aplican. Un área que no aplica no se valora (ni 0 ni rojo), no genera
-     riesgos ni actuaciones y se cita como «No aplica al sector». Para ampliarla basta con añadir el sector (clave de
-     A.SECTORS, js/sectors.js) y los identificadores de las áreas. SIN_STOCK: sectores sin almacén (sin la partida de stock). */
-  S.NO_APLICA = {
-    servicios: ['logistica', 'lean'],     // sin planta (OEE, kaizen, Lean de producción) ni rutas de reparto (OTIF)
-    tecnologia: ['logistica', 'lean'],
-    inmobiliaria: ['logistica', 'lean'],
-    salud: ['logistica']
+  /* ---------- Exigencia de cada área para la empresa ----------
+     Cada área valorable es, para una empresa concreta, Esencial (si falta, vale 0 y se nombra el documento), Recomendada
+     (si falta no baja la nota: queda «Pendiente (recomendada)»; si se entrega, puntúa como las demás) o No aplica (fuera
+     de la nota, con su motivo). Una sola tabla por sector (claves de A.SECTORS, js/sectors.js) × área: 'e', 'r' o 'n'.
+     Base para todos los sectores: esenciales el flujo del dinero (cuentas), la tesorería, el margen, los cobros y el
+     plan de empresa; recomendadas las demás. Cada celda distinta de la base lleva su motivo al lado.
+     Sobre el ABC (módulo «ventas», ABC y concentración de clientes y productos): recomendado en todos los sectores. El
+     ABC por producto no se pide cuando la empresa vende una sola línea de producto o servicio (ver js/nota.js).
+     Después de la tabla se aplican las reglas de tamaño (con plantilla conocida de 2 personas o menos, personas y
+     tiempos no aplican) y la decisión de la propia empresa (S.state.exigencia), que manda sobre la tabla. */
+  const AREAS_VALORABLES = ['dinero', 'impuestos', 'tesoreria', 'presupuesto', 'ventas', 'margen', 'comercial', 'marketing', 'expansion', 'compras', 'logistica', 'tiempos', 'lean', 'personas', 'plan', 'mercado', 'cobros', 'valoracion'];
+  const BASE_E = ['dinero', 'tesoreria', 'margen', 'cobros', 'plan'];
+  const base = (cambios) => Object.assign(Object.fromEntries(AREAS_VALORABLES.map((k) => [k, BASE_E.includes(k) ? 'e' : 'r'])), cambios);
+  S.EXIGENCIA = {
+    industria: base({
+      logistica: 'e', // fabrica y expide mercancía: el servicio de entrega (OTIF) y el coste de mover y guardar son parte del negocio
+      lean: 'e', // tiene planta: la eficiencia de los procesos (OEE, desperdicio) decide el coste
+      compras: 'e' // compra materia prima: el coste y la dependencia de proveedores pesan en el margen
+    }),
+    distribucion: base({
+      logistica: 'e', // vive de almacenar y repartir
+      lean: 'e', // almacén y preparación de pedidos: procesos repetitivos donde el desperdicio cuesta margen
+      compras: 'e' // compra la mercancía que vende
+    }),
+    hosteleria: base({
+      compras: 'e' // compra producto perecedero cada día: el coste de materia prima es la primera partida
+    }),
+    retail: base({
+      compras: 'e' // compra la mercancía que vende
+    }),
+    construccion: base({
+      compras: 'e', // compra materiales para cada obra
+      tiempos: 'e' // vende horas de obra y de oficina técnica: los partes de horas son el coste de cada obra
+    }),
+    servicios: base({
+      logistica: 'n', // no reparte mercancía
+      lean: 'n', // no tiene planta de producción
+      tiempos: 'e' // vende horas: los partes de horas son su coste y su capacidad
+    }),
+    tecnologia: base({
+      logistica: 'n', // no reparte mercancía
+      lean: 'n', // no tiene planta de producción
+      tiempos: 'e' // vende horas de desarrollo y servicio
+    }),
+    agro: base({
+      logistica: 'e', // expide producto, a menudo perecedero
+      lean: 'e', // transforma o envasa en sus instalaciones
+      compras: 'e' // compra insumos (semillas, piensos, fertilizantes, envases)
+    }),
+    salud: base({}),
+    inmobiliaria: base({
+      logistica: 'n', // no reparte mercancía
+      lean: 'n', // no tiene planta de producción
+      tiempos: 'n' // no vende horas: vende o alquila inmuebles
+    }),
+    logistica: base({
+      logistica: 'e', // es su actividad
+      lean: 'e' // almacén y operaciones repetitivas donde el desperdicio cuesta margen
+    })
   };
+  S.AREAS_VALORABLES = AREAS_VALORABLES;
+  S.EXIG_N = { e: 'Esencial', r: 'Recomendada', n: 'No aplica' };
   S.SIN_STOCK = ['servicios', 'tecnologia', 'inmobiliaria'];
   /* Sector de la empresa: el de su ficha; si no lo tiene, el del simulador; si este es el de partida («industria») y las
      cifras propias dicen otra cosa (sin stock y con margen bruto de servicios), se deduce de ellas. */
   S.sectorEmpresa = () => {
-    const P = A.platform, ea = P && P.empresas && P.empresas.activa ? P.empresas.activa() : null, SE = A.SECTORS || {};
+    const P = A.platform, ea = S._ficha || (P && P.empresas && P.empresas.activa ? P.empresas.activa() : null), SE = A.SECTORS || {};
     if (ea && ea.sector && SE[ea.sector]) return { k: ea.sector, origen: 'ficha' };
     const k = S.sim && S.sim.sector;
     if (k && SE[k] && k !== 'industria') return { k, origen: 'simulador' };
@@ -480,9 +564,43 @@
     } catch (x) { /* sin cifras */ }
     return { k: k && SE[k] ? k : 'industria', origen: 'simulador' };
   };
-  S.noAplica = (id) => { if (!S.sim) return false; const l = S.NO_APLICA[S.sectorEmpresa().k]; return !!(l && l.includes(typeof id === 'string' ? id : id && id.id)); };
+  /* Exigencia de un área para esta empresa: { k: 'e' | 'r' | 'n', motivo, origen: 'sector' | 'tamano' | 'empresa' }.
+     Orden: la tabla del sector; después el tamaño (con plantilla conocida); al final, la decisión de la empresa. */
+  const plantillaConocida = () => { try { const c = S.cifras(); return c && !c.sinDatos && c.plantilla != null ? c.plantilla : null; } catch (e) { return null; } };
+  S.exigencia = (id) => {
+    id = typeof id === 'string' ? id : id && id.id;
+    if (!AREAS_VALORABLES.includes(id) || !S.sim) return { k: 'r', motivo: '', origen: 'sector' };
+    const sec = S.sectorEmpresa(), nombreSec = ((A.SECTORS[sec.k] || {}).nombre || '').toLowerCase();
+    let r = { k: ((S.EXIGENCIA[sec.k] || S.EXIGENCIA.industria)[id]) || 'r', origen: 'sector' };
+    if (r.k === 'n') r.motivo = `No aplica al sector: ${INF.MOTIVO_SECTOR[id] || 'no forma parte de la actividad de una empresa de ' + nombreSec}.`;
+    const pl = plantillaConocida();
+    if (pl != null && pl <= 2 && (id === 'personas' || id === 'tiempos')) r = { k: 'n', origen: 'tamano', motivo: `No aplica por tamaño: con ${pl === 1 ? 'una persona' : pl + ' personas'} en plantilla no hay ${id === 'personas' ? 'equipo que organizar' : 'partes de horas de un equipo que analizar'}.` };
+    const d = S.state && S.state.exigencia && S.state.exigencia[id];
+    if (d && d.noAplica) r = { k: 'n', origen: 'empresa', motivo: `Marcada como no aplicable por la empresa: ${String(d.motivo || '').trim() || 'sin motivo indicado'}.`, decision: d };
+    else if (d && d.aplica && r.k === 'n') r = { k: 'r', origen: 'empresa', motivo: 'La empresa ha indicado que el área sí aplica a su actividad.', decision: d };
+    return r;
+  };
+  S.noAplica = (id) => S.exigencia(id).k === 'n';
+  // Motivo corto de cada «no aplica al sector»
+  INF.MOTIVO_SECTOR = { logistica: 'la empresa no reparte mercancía ni tiene rutas de entrega', lean: 'la empresa no tiene planta de producción', tiempos: 'la empresa no vende horas de trabajo', compras: 'la empresa no compra mercancía ni materia prima' };
+  /* Decisión de la empresa sobre un área (se guarda con su estrategia, por empresa, y se sincroniza con el resto de sus datos).
+     La empresa modelo y la cuenta de demostración no se pueden cambiar. */
+  S.exigenciaEditable = () => { const P = A.platform; return !(P && ((P.modelo && P.modelo.activa && P.modelo.activa()) || (P.user && P.user.demo))); };
+  S.marcarExigencia = (id, d) => {
+    if (!S.exigenciaEditable() || !AREAS_VALORABLES.includes(id)) return false;
+    const P = A.platform, u = P && P.user;
+    S.state.exigencia = Object.assign({}, S.state.exigencia || {});
+    if (!d) delete S.state.exigencia[id];
+    else { if (d.noAplica && !String(d.motivo || '').trim()) return false; S.state.exigencia[id] = Object.assign({ fecha: new Date().toISOString(), quien: (u && (u.nombre || u.email)) || '' }, d); }
+    S.save(); return true;
+  };
+  /* ¿Ha entregado la empresa la documentación del área? Datos propios y al menos un indicador que se pueda medir con ellos */
+  S.entregada = (m) => {
+    m = typeof m === 'string' ? S.mod(m) : m; if (!m || !S.conDatos(m)) return false;
+    try { return m.kpis ? m.kpis().some((k) => !k.sinDato && String(k.v).replace(/<[^>]+>/g, '').trim() !== S.SIN_DATO) : true; } catch (e) { return false; }
+  };
   INF.sectorTxt = () => { const s = S.sectorEmpresa(), n = (A.SECTORS[s.k] || {}).nombre || ''; return n + (s.origen === 'datos' ? ' (deducido de sus cifras)' : ''); };
-  INF.noAplican = () => S.modules.filter((m) => m.datos && S.noAplica(m.id)).map((m) => INF.titulo(m));
+  INF.noAplican = () => S.modules.filter((m) => AREAS_VALORABLES.includes(m.id) && S.noAplica(m.id)).map((m) => INF.titulo(m));
 
   /* ---------- La documentación que falta, en lenguaje de empresa ----------
      Un área sin los documentos propios de la empresa no se puede evaluar: vale 0 y el informe dice qué documento falta. */
@@ -513,22 +631,38 @@
   INF.falta = (m) => { const f = INF.FALTA[m.id]; if (f) return typeof f === 'function' ? f() : f; const D = A.C360 && A.C360[m.id]; return D && D.datos && D.datos[0] ? 'Falta: ' + INF.min(D.datos[0].t) : 'Falta la información de gestión del área'; };
 
   /* ---------- Áreas de la empresa con su valoración ----------
-     Cada área aplicable: con documentación, su nota y lo que la sostiene; sin ella, 0 y el documento que falta; las que no
-     aplican al sector, aparte. La valoración global es la media de las áreas aplicables: las que no tienen documentación
-     cuentan 0, así que la nota refleja también lo completa que está la información. */
-  const RESUMEN = ['tablero', 'auditoria', 'evolucion', 'origen'];
-  INF.areas = (K) => S.modules.filter((m) => m.datos && !RESUMEN.includes(m.id)).map((m) => {
-    const a = INF.titulo(m);
-    if (S.noAplica(m.id)) return { m, id: m.id, a, estado: 'noaplica', s: null, l: [], sost: [] };
-    const l = K.filter((k) => k.mod === m.id);
-    if (!S.conDatos(m) || !l.length) return { m, id: m.id, a, estado: 'sindoc', s: 0, l: [], sost: [], falta: INF.falta(m) };
-    const sost = INF.sostenes([m.id], K);
-    return { m, id: m.id, a, estado: 'ok', l, sost, s: sost.some((x) => x.st) ? S.notaN([m.id], l) : null };
-  });
-  INF.notaGlobal = (areas) => { const v = areas.filter((x) => x.estado !== 'noaplica' && x.s !== null); return v.length ? Math.round(v.reduce((t, x) => t + x.s, 0) / v.length) : null; };
-  INF.celdaNota = (x) => (x.estado === 'noaplica' ? '<span class="rp-muted">No aplica al sector</span>' : x.estado === 'sindoc' ? `${A.informe.pill('stop', '0')} <span class="rp-muted">· sin documentación</span>` : x.s === null ? '—' : A.informe.pill(INF.estado(x.s), String(x.s)));
-  INF.celdaSosten = (x) => (x.estado === 'noaplica' ? '<span class="rp-muted">No se valora: no forma parte de la actividad de la empresa.</span>' : x.estado === 'sindoc' ? `<span class="rp-sosten rp-so-stop">${esc(x.falta)}</span>` : INF.sostenHTML(x.sost));
-  INF.METODO_GLOBAL = 'La valoración global es la media de las áreas que aplican al sector de la empresa. Un área sin la documentación necesaria no se puede evaluar y cuenta 0; las que no aplican al sector no se valoran.';
+     Una sola regla (A.nota.evaluacion, js/nota.js), la misma del cuadro de mando y de la nota de la empresa: cada área
+     valorable con su exigencia. Esencial sin documentación, 0 y el documento que falta; esencial o recomendada entregada,
+     su nota y lo que la sostiene; recomendada sin entregar, «Pendiente (recomendada)», fuera de la nota; no aplica, con su
+     motivo, fuera de la nota. La valoración global es la media de las que cuentan. */
+  INF.evaluacion = () => {
+    const E = A.nota && A.nota.evaluacion ? A.nota.evaluacion(A.nota.estrategia ? A.nota.estrategia() : null) : { areas: [], n100: null, esenciales: { total: 0, entregadas: 0 }, recomendadas: { total: 0, entregadas: 0 } };
+    return E;
+  };
+  INF.areas = (K) => {
+    const E = INF.evaluacion();
+    const out = E.areas.map((x) => { const m = S.mod(x.zona); const a = m ? INF.titulo(m) : x.n;
+      const r = { m, id: x.zona, a, estado: x.estado, exig: x.exig, origen: x.origen, motivo: x.motivo, s: x.s, l: [], sost: [], falta: x.falta };
+      if (x.estado === 'ok') { r.l = K.filter((k) => k.mod === x.zona); r.sost = INF.sostenes([x.zona], K); }
+      return r; });
+    out.global = E.n100; out.esenciales = E.esenciales; out.recomendadas = E.recomendadas;
+    return out;
+  };
+  // La nota global: la de la regla única (la lista de áreas la trae calculada)
+  INF.notaGlobal = (areas) => (areas && areas.global !== undefined ? areas.global : INF.evaluacion().n100);
+  INF.esencialesTxt = (areas) => { const e = areas && areas.esenciales; return e && e.total ? `Documentación esencial entregada: ${e.entregadas} de ${e.total}` : ''; };
+  INF.EXIG_TXT = { e: 'Esencial', r: 'Recomendada', n: 'No aplica' };
+  INF.celdaNota = (x) => (x.estado === 'noaplica' ? '<span class="rp-muted">No aplica</span>' : x.estado === 'sindoc' ? `${A.informe.pill('stop', '0')} <span class="rp-muted">· sin documentación</span>` : x.estado === 'pendiente' ? '<span class="rp-muted">Pendiente (recomendada)</span>' : x.s === null ? '—' : A.informe.pill(INF.estado(x.s), String(x.s)));
+  INF.celdaSosten = (x) => (x.estado === 'noaplica' ? `<span class="rp-muted">${esc(x.motivo || 'No aplica a la empresa.')}</span>` : x.estado === 'sindoc' ? `<span class="rp-sosten rp-so-stop">${esc(x.falta)}</span>` : x.estado === 'pendiente' ? `<span class="rp-sosten">${esc(x.falta)}. No baja la nota: es recomendada para su empresa.</span>` : INF.sostenHTML(x.sost));
+  // Filas de la tabla de áreas agrupadas por exigencia: esenciales, recomendadas y las que no aplican
+  INF.filasAreas = (AR) => ['e', 'r', 'n'].flatMap((k) => { const l = AR.filter((x) => x.exig === k); return l.length ? [[{ h: `<b>${{ e: 'Áreas esenciales', r: 'Áreas recomendadas', n: 'Áreas que no aplican' }[k]}</b>` }, '', '']].concat(l.map((x) => [x.a, { h: INF.celdaNota(x) }, { h: INF.celdaSosten(x) }])) : []; });
+  // Lo que falta, separado: esencial (baja la nota) y recomendada (no la baja)
+  INF.faltaHTML = (AR) => { const e = AR.filter((x) => x.estado === 'sindoc'), r = AR.filter((x) => x.estado === 'pendiente'), li = (l) => `<ul>${l.map((x) => `<li><b>${esc(x.a)}.</b> ${esc(x.falta)}.</li>`).join('')}</ul>`;
+    return (e.length ? `<h3>Documentación esencial pendiente</h3><p>Cada área de esta lista cuenta 0 en la valoración hasta que se entregue.</p>${li(e)}` : '') + (r.length ? `<h3>Documentación recomendada</h3><p>No baja la valoración; si se entrega, el área se valora como las demás.</p>${li(r)}` : ''); };
+  // Nota de método para el cliente: sector usado y cómo se forma la valoración
+  INF.metodoGlobal = () => { const s = S.sectorEmpresa(), n = ((A.SECTORS[s.k] || {}).nombre || '').toLowerCase();
+    return `Se ha aplicado la exigencia del sector ${n}${s.origen === 'datos' ? ', deducido de sus cifras porque la ficha de la empresa no indica sector' : s.origen === 'ficha' ? ', tomado de la ficha de la empresa' : ', tomado de sus datos económicos'}. Cada área es esencial, recomendada o no aplica a su empresa. La valoración global es la media de las áreas esenciales y de las recomendadas que usted ha entregado. Un área esencial sin documentación cuenta 0; una recomendada sin entregar no cuenta, y las que no aplican quedan fuera. Por eso se indica aparte cuánta documentación esencial se ha entregado: una valoración baja puede deberse a documentos pendientes y no a malos resultados.`; };
+  INF.METODO_GLOBAL = 'La valoración global es la media de las áreas esenciales y de las recomendadas entregadas; un área esencial sin documentación cuenta 0 y las recomendadas sin entregar y las que no aplican quedan fuera.';
 
   /* ---------- Cruces entre fuentes ----------
      Beneficio y caja, cuentas y cartera de clientes, presupuesto y realidad. Si un cruce no se puede hacer, se dice qué
@@ -571,7 +705,7 @@
     const I = A.informe, K = S.allKpis().filter((x) => x.mod !== 'origen' && !x.sinDato && String(x.v).replace(/<[^>]+>/g, '').trim() !== S.SIN_DATO);
     const R = S.allRisks().map((r) => Object.assign({}, r, { nombre: `${r.nombre} (${INF.area(r.mod)})` })), Fi = S.allFindings().map((f) => Object.assign({}, f, { hallazgo: `${INF.area(f.mod)}: ${f.hallazgo}` }));
     K.forEach((x) => { x.area = INF.area(x.mod) || x.area; });
-    const AR = INF.areas(K), filas = AR.map((x) => [x.a, { h: INF.celdaNota(x) }, { h: INF.celdaSosten(x) }]);
+    const AR = INF.areas(K), filas = INF.filasAreas(AR);
     const tiles = [], c = S.cifras(), altos = R.filter((r) => r.estado === 'stop').length, imp = Fi.reduce((s, f) => s + (f.impactoEUR || 0), 0);
     // Cifras clave: solo las facilitadas; las que faltan se dicen con el documento que falta
     const faltanCifras = [];
@@ -582,8 +716,9 @@
     const notas = AR.filter((x) => x.estado !== 'noaplica' && x.s != null).map((x) => ({ k: x.a, v: x.s }));
     const graf = notas.length >= 2 && I.barras ? I.barras(notas.map((x) => ({ k: x.k, v: x.v, st: INF.estado(x.v), t: x.v + ' / 100' })), { titulo: 'Valoración por áreas, sobre 100', max: 100, meta: 70, metaTxt: 'Desde 70, situación sólida', nota: 'Cada área pondera sus indicadores: verde cuenta 1, ámbar 0,5 y rojo 0. Por debajo de 50, situación frágil.' }) : '';
     const cr = INF.cruces();
-    return { tiles, eval: K, R, Fi, global: INF.notaGlobal(AR), areas: AR, limite: [faltanCifras.length ? `Cifras clave sin facilitar: ${faltanCifras.join('; ')}.` : '', AR.some((x) => x.estado === 'sindoc') ? `Áreas sin documentación, que cuentan 0 en la valoración global: ${AR.filter((x) => x.estado === 'sindoc').map((x) => x.a).join(', ')}.` : '', INF.noAplican().length ? `No aplican al sector (${INF.sectorTxt().toLowerCase()}) y no se valoran: ${INF.noAplican().join(', ')}.` : ''].filter(Boolean).join(' '),
-      detalle: graf + `<div class="rp-block"><h3>Valoración por áreas</h3>${I.table(['Área', 'Valoración sobre 100', 'Lo que sostiene la valoración'], filas)}</div>` + (cr.length ? `<div class="rp-block"><h3>Cruces de información</h3>${INF.crucesHTML(cr)}</div>` : '') };
+    return { tiles, eval: K, R, Fi, global: INF.notaGlobal(AR), areas: AR, limite: [faltanCifras.length ? `Cifras clave sin facilitar: ${faltanCifras.join('; ')}.` : '', AR.some((x) => x.estado === 'sindoc') ? `Áreas esenciales sin documentación, que cuentan 0 en la valoración global: ${AR.filter((x) => x.estado === 'sindoc').map((x) => x.a).join(', ')}.` : '', AR.some((x) => x.estado === 'pendiente') ? `Áreas recomendadas sin entregar, que no cuentan en la valoración: ${AR.filter((x) => x.estado === 'pendiente').map((x) => x.a).join(', ')}.` : '', INF.noAplican().length ? `No aplican a la empresa y no se valoran: ${INF.noAplican().join(', ')}.` : ''].filter(Boolean).join(' '),
+      esenciales: INF.esencialesTxt(AR), metodoGlobal: INF.metodoGlobal(),
+      detalle: graf + `<div class="rp-block"><h3>Valoración por áreas</h3>${AR.esenciales && AR.esenciales.total ? `<p><b>${esc(INF.esencialesTxt(AR))}.</b></p>` : ''}${I.table(['Área', 'Valoración sobre 100', 'Lo que sostiene la valoración'], filas)}</div>` + (AR.some((x) => x.estado === 'sindoc' || x.estado === 'pendiente') ? `<div class="rp-block">${INF.faltaHTML(AR)}</div>` : '') + (cr.length ? `<div class="rp-block"><h3>Cruces de información</h3>${INF.crucesHTML(cr)}</div>` : '') };
   };
   INF.HOR = ['Primeros 30 días', 'De 31 a 60 días', 'De 61 a 90 días', 'Más de 90 días'];
   INF.horDe = (pl) => (pl <= 30 ? 0 : pl <= 60 ? 1 : pl <= 90 ? 2 : 3);
@@ -617,9 +752,11 @@
     // Sin documentación: sin datos propios, o con datos pero sin ningún indicador que se pueda medir con ellos (las cuentas
     // sin dos ejercicios cerrados, el presupuesto sin reales). Entonces no se toma nada de la pantalla
     const medibles = (() => { try { return m.kpis ? m.kpis().some((k) => !k.sinDato && String(k.v).replace(/<[^>]+>/g, '').trim() !== S.SIN_DATO) : tiles.length > 0; } catch (e) { return tiles.length > 0; } })();
-    const noAplica = !global && S.noAplica(m.id), sinDoc = !global && !noAplica && !!m.datos && (!con || !tiles.length || !medibles);
-    if (sinDoc || noAplica) { tiles.length = 0; detalle = ''; R = []; Fi = []; }
-    return { noAplica, sinDoc, falta: sinDoc ? INF.falta(m) : '', global: propio && propio.global !== undefined ? propio.global : undefined, cruces: INF.cruces().filter((c) => global || c.mods.includes(m.id)), conRiesgos: !!(m.risks || m.findings || (propio && (propio.R || propio.Fi))), tiles, eval: propio && propio.eval ? propio.eval.map((k) => Object.assign({}, k, { k: INF.neg(k.k) })) : null, R, Fi, lede, sc: sinDoc ? 0 : noAplica ? null : sc, st: sinDoc ? 'stop' : noAplica ? null : st, detalle, con, sinCalc, ids, limite: propio && propio.limite, ilustrativo: con && INF.ilustrativo(global ? null : m) };
+    // Según su exigencia: esencial sin documentación (vale 0) o recomendada sin entregar (pendiente, no baja la nota)
+    const ex = S.exigencia(m.id), noAplica = !global && ex.k === 'n', faltaDoc = !global && !noAplica && !!m.datos && (!con || !tiles.length || !medibles);
+    const sinDoc = faltaDoc && ex.k === 'e', pendiente = faltaDoc && ex.k !== 'e';
+    if (faltaDoc || noAplica) { tiles.length = 0; detalle = ''; R = []; Fi = []; }
+    return { noAplica, sinDoc, pendiente, exig: ex, falta: faltaDoc ? INF.falta(m) : '', esenciales: propio && propio.esenciales, metodoGlobal: propio && propio.metodoGlobal, global: propio && propio.global !== undefined ? propio.global : undefined, cruces: INF.cruces().filter((c) => global || c.mods.includes(m.id)), conRiesgos: !!(m.risks || m.findings || (propio && (propio.R || propio.Fi))), tiles, eval: propio && propio.eval ? propio.eval.map((k) => Object.assign({}, k, { k: INF.neg(k.k) })) : null, R, Fi, lede, sc: sinDoc ? 0 : noAplica || pendiente ? null : sc, st: sinDoc ? 'stop' : noAplica || pendiente ? null : st, detalle, con, sinCalc, ids, limite: propio && propio.limite, ilustrativo: con && INF.ilustrativo(global ? null : m) };
   };
   /* Informe de área (áreas sin marco de diagnóstico propio) */
   S.moduleReport = function (m, tipo) { return INF.conPropios(() => informeArea(m, tipo)); };
@@ -631,18 +768,20 @@
     const PL = P.Fi.map((f) => ({ accion: f.accion, motivo: f.hallazgo, prio: (f.impactoEUR || 0) > 20000 ? 'Alta' : 'Media', plazo: f.plazo || 90, impacto: f.impactoEUR || 0 }))
       .concat(P.R.filter((r) => r.estado !== 'ok' && r.mitigacion).map((r) => ({ accion: r.mitigacion, motivo: 'Riesgo: ' + r.nombre, prio: r.estado === 'stop' ? 'Alta' : 'Media', plazo: r.estado === 'stop' ? 30 : 60, impactoTxt: `Riesgo de nivel ${r.nivel}/25 mitigado` })))
       .filter((x, i, l) => x.accion && l.findIndex((y) => y.accion === x.accion) === i).sort((a, b) => INF.horDe(a.plazo) - INF.horDe(b.plazo) || (b.impacto || 0) - (a.impacto || 0));
-    const concl = P.noAplica ? `«${esc(titulo)}» no aplica a la actividad de ${esc(emp || 'la empresa')} (${esc(INF.sectorTxt().toLowerCase())}): el área no se valora y no genera riesgos ni actuaciones.`
+    const concl = P.noAplica ? `«${esc(titulo)}» no aplica a ${esc(emp || 'la empresa')}. ${esc(P.exig.motivo)} El área no se valora y no genera riesgos ni actuaciones.`
+      : P.pendiente ? `«${esc(titulo)}» es un área recomendada para ${esc(emp || 'la empresa')} y no se ha entregado su documentación: ${esc(INF.min(P.falta))}. No baja la valoración global; si se entrega, se valora como las demás.`
       : P.sinDoc ? `«${esc(titulo)}» no se puede evaluar en ${esc(emp || 'la empresa')}: ${esc(INF.min(P.falta))}. Sin esa documentación la valoración del área es <b>0 sobre 100</b> ${I.pill('stop')}.`
       : !P.con ? `No se ha dispuesto de información suficiente para analizar «${esc(titulo)}» en ${esc(emp || 'la empresa')}. Este documento delimita el alcance del análisis.`
       : P.sc === null ? `Este documento analiza «${esc(titulo)}» en ${esc(emp || 'la empresa')} a partir de ${P.tiles.length} indicadores.`
-        : `La valoración de «${esc(titulo)}» en ${esc(emp || 'la empresa')} es de <b>${P.sc} sobre 100</b> ${I.pill(P.st)}: ${INF.califica(P.sc)}.`;
+        : `La valoración de «${esc(titulo)}» en ${esc(emp || 'la empresa')} es de <b>${P.sc} sobre 100</b> ${I.pill(P.st)}: ${INF.califica(P.sc)}.${P.ids === null && P.esenciales ? ` ${esc(P.esenciales)}.` : ''}`;
     const M = INF.mensajes(P, { primera: PL[0] ? `${esc(PL[0].accion)} (${PL[0].plazo} días).` : '' });
     const limites = [];
     if (!P.con) limites.push(`No se ha dispuesto de la información necesaria para analizar «${esc(titulo)}»; el documento no incluye cifras de esta área.`);
     if (P.sinCalc.length) limites.push(`No se han podido calcular por falta de información: ${esc(P.sinCalc.join(', ').toLowerCase())}.`);
     if (P.limite) limites.push(esc(P.limite));
     if (P.sinDoc) limites.unshift(`${esc(P.falta)}; el área no se ha podido evaluar y su valoración es 0.`);
-    if (P.noAplica) limites.unshift(`El área no aplica al sector de la empresa (${esc(INF.sectorTxt().toLowerCase())}).`);
+    if (P.noAplica) limites.unshift(esc(P.exig.motivo));
+    if (P.pendiente) limites.unshift(`${esc(P.falta)}; el área es recomendada para la empresa y no cuenta en la valoración global mientras no se entregue.`);
     // El documento nombra siempre su asunto: en la barra, el nombre del archivo, el rótulo de portada y el capítulo del libro
     const tipoI = (tipo || 'Informe de área') + ' · ' + titulo;
     const html = INF.portada({ tipo: tipoI, kicker: tipoI + (P.ilustrativo ? ' · caso ilustrativo' : ''), titulo, subtitulo: INF.frases(P.lede), empresa: emp, sector: INF.sectorTxt(), ambito: titulo })
@@ -651,7 +790,7 @@
       + (P.cruces.length && P.ids !== null ? I.section('Cruces de información', INF.crucesHTML(P.cruces)) : '')
       + (P.con && P.conRiesgos ? I.section(INF.titularRiesgos(P), INF.riesgosYmejoras(P)) : '')
       + (PL.length ? I.section('Recomendaciones priorizadas', INF.recomendaciones(PL)) + (INF.conGuia() ? '' : I.section('Hoja de ruta', INF.hojaDeRuta(PL))) : I.section('Hoja de ruta', `<p>${P.con ? 'El análisis no identifica actuaciones con impacto cuantificable en este ámbito. Se recomienda revisarlo de nuevo en el próximo cierre trimestral.' : 'El primer hito es reunir la información de gestión del área para cuantificar el diagnóstico y fijar las actuaciones.'}</p>`))
-      + INF.cierre({ riesgos: P.R.length, limites, ilustrativo: P.ilustrativo });
+      + INF.cierre({ riesgos: P.R.length, limites, ilustrativo: P.ilustrativo, metodo: P.ids === null && P.metodoGlobal ? INF.METODO + ' ' + P.metodoGlobal : undefined });
     const abrir = A.consultorInf ? A.consultorInf.abrir : I.open;
     abrir({ titulo: tipoI, html, clave: 'mod:' + m.id, ctx: {
       titulo, tipo: tipo || 'Informe de área', empresa: emp, sector: INF.sectorTxt(),
@@ -736,7 +875,7 @@
         empresa: S.sim.empresaNombre || (ea && ea.nombre), sector: A.SECTORS[S.sim.sector] && A.SECTORS[S.sim.sector].nombre,
         datos: [['Indicadores', String(k.length)], ['Módulos', String(areas.length)], ['Riesgos', String(R.length)], ['Hallazgos', String(Fi.length)]].concat((() => { const c = S.cifras(); return c && !c.sinDatos ? A.cifras.CAMPOS.map((x) => [x.n, c[x.k] == null ? 'Sin dato · ' + INF.FALTA_CIFRA[x.k] : A.cifras.fmt(x.k, c[x.k])]) : []; })()),
         acciones: [{ t: 'Informe 360', cls: 'solid', fn: () => (S.report360 ? S.report360(S.mod('tablero')) : S.moduleReport(S.mod('tablero'))) }, { t: 'Origen de datos', fn: () => show('origen') }, { t: 'Informe de auditoría', cls: 'ghost', fn: () => S.auditReport && S.auditReport() }],
-        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${A.nota && A.nota.desglose ? A.nota.desglose(gRes || A.nota.puntuar(compr, true)).replace(/^s/, 'S') + ' (indicadores, datos pendientes, plan, objetivos, madurez y riesgos). ' : ''}${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
+        veredicto: { kicker: 'Nota del sistema estratégico', st: stS(global), titulo: global === null ? 'Sin nota · ' + motivoSinNota : global + '/100 · ' + (global >= 70 ? 'en orden' : global >= 50 ? 'con puntos que corregir' : 'con alertas serias'), texto: `${gRes && gRes.eval && gRes.eval.esenciales.total ? `Documentación esencial entregada: ${gRes.eval.esenciales.entregadas} de ${gRes.eval.esenciales.total}. ` : ''}Media de las áreas esenciales y de las recomendadas entregadas; un área esencial sin documentación cuenta 0. ${A.nota && A.nota.desglose ? A.nota.desglose(gRes || A.nota.puntuar(compr, true)).replace(/^s/, 'S') + ' (indicadores, datos pendientes, plan, objetivos, madurez y riesgos). ' : ''}${R.filter((r) => r.estado === 'stop').length} riesgos altos. ${global === null ? (S.datosPropios() ? '' : 'Un mundo sin datos propios no tiene nota ni entra en la media de la empresa. ') : ''}Es la misma nota que «Este mundo» en la cabecera${global === null ? '' : ` (${String(global / 10).replace('.', ',')}/10)`}; la de la empresa es la media de todos los mundos. Cada franja es un indicador: tócala para ir a su módulo.`,
           // Una franja por comprobación de la nota: el recuento de debajo es el mismo que el del texto
           luces: compr.length ? compr.map((x) => ({ n: x.t, v: String(x.d || '').replace(/<[^>]+>/g, ''), st: x.st === 'nd' ? null : x.st, fn: S.mod(x.zona) ? () => show(x.zona) : null })) : k.slice(0, 40).map((x) => ({ n: x.area + ' · ' + x.k, v: String(x.v).replace(/<[^>]+>/g, ''), st: x.st, fn: () => show(x.mod) })), enlace: { t: 'Ver riesgos', fn: () => document.getElementById('tbRisk') && document.getElementById('tbRisk').scrollIntoView({ behavior: 'smooth', block: 'center' }) } },
         kpis: [
@@ -847,7 +986,8 @@
   const NO_LIMPIAR = ['origen', 'evolucion', 'c360', 'inversores'];
   S.inf.conPropios = (fn) => {
     const P = A.platform;
-    if (S._propios || !S.state || !S.sim || S.real() || (P && P.modelo && P.modelo.activa && P.modelo.activa()) || !S.datosPropios()) return fn();
+    const esModelo = S._ficha ? !!S._ficha.modelo : !!(P && P.modelo && P.modelo.activa && P.modelo.activa());
+    if (S._propios || !S.state || !S.sim || S.real() || esModelo || !S.datosPropios()) return fn();
     const st0 = S.state, sim0 = S.sim, save0 = S.save, saveSim0 = S.saveSim, st = Object.assign({}, st0);
     Object.keys(S.defaults).concat(Object.keys(S.alVaciar)).filter((k, i, a) => a.indexOf(k) === i && !NO_LIMPIAR.includes(k)).forEach((k) => { const v = S.quitarEjemplo(k, st0[k]); if (v !== undefined) st[k] = v; });
     let sim = sim0;

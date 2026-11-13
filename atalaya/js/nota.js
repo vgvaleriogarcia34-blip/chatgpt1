@@ -37,7 +37,24 @@
     const n100 = Math.round((v / w) * 100);
     return { n100, n10: n100 / 10, st: n100 >= 70 ? 'ok' : n100 >= 50 ? 'warn' : 'stop', verdes: l.filter((x) => x.st === 'ok').length, ambar: l.filter((x) => x.st === 'warn').length, rojos: l.filter((x) => x.st === 'stop').length, sinDatos: nd, total: l.length + nd };
   };
-  const notaDe = (puntos) => { const r = puntuar(puntos); return r ? r.n10 : null; };
+  const notaDe = (puntos) => { const r = puntuar(puntos); return r ? r.n100 / 10 : null; };
+  /* Regla única del sistema estratégico (cuadro de mando, nota de la empresa, cartera, informes de auditoría y 360):
+     cada área valorable tiene su exigencia para la empresa (marcas «area» que pone estDesdeMotor).
+     · Esencial sin documentación: cuenta 0. · Esencial o recomendada entregada: su nota (comprobaciones de la zona, verde 1,
+     ámbar 0,5, rojo 0); si no tiene ninguna comprobación con estado, no cuenta. · Recomendada sin entregar y no aplica: fuera.
+     Devuelve la nota sobre 100, las áreas y «documentación esencial entregada: X de Y». */
+  const tieneAreas = (p) => (p || []).some((x) => x.tipo === 'area');
+  const evalEst = (puntos) => {
+    const p = puntos || [], marcas = p.filter((x) => x.tipo === 'area');
+    const areas = marcas.map((m) => {
+      if (m.exig === 'n') return Object.assign({}, m, { estado: 'noaplica', s: null });
+      if (!m.entregada) return Object.assign({}, m, { estado: m.exig === 'e' ? 'sindoc' : 'pendiente', s: m.exig === 'e' ? 0 : null });
+      const r = puntuar(p.filter((x) => x.zona === m.zona && x.tipo !== 'area'));
+      return Object.assign({}, m, { estado: 'ok', s: r ? r.n100 : null });
+    });
+    const cuentan = areas.filter((x) => x.s != null), ess = areas.filter((x) => x.exig === 'e');
+    return { n100: cuentan.length ? Math.round(cuentan.reduce((t, x) => t + x.s, 0) / cuentan.length) : null, areas, esenciales: { total: ess.length, entregadas: ess.filter((x) => x.entregada).length }, recomendadas: { total: areas.filter((x) => x.exig === 'r').length, entregadas: areas.filter((x) => x.exig === 'r' && x.entregada).length } };
+  };
   const stDeNota = (n) => (n == null ? '' : n >= 7 ? 'ok' : n >= 5 ? 'warn' : 'stop');
   const fmt = (n) => (n == null ? '—' : String(n.toFixed(1)).replace('.', ','));
 
@@ -90,6 +107,8 @@
     if (com) {
       const ej = com.ejemplo === true, np = (com.productos || []).length, nc = (com.clientes || []).length;
       if (!ej && !np && !nc) out.push({ st: 'nd', peso: 2, t: 'ABC de clientes y productos sin datos', d: 'Cargue las ventas por cliente y por producto.', zona: 'ventas' });
+      // Con una sola línea de producto o servicio el ABC por producto no aplica: basta el de clientes
+      else if (!ej && np <= 1 && nc) out.push({ st: nc < 5 ? 'warn' : 'ok', peso: 2, t: nc < 5 ? 'ABC de clientes incompleto' : 'ABC de clientes hecho', zona: 'ventas', inf: nc < 5 ? 'Análisis ABC de clientes incompleto (una sola línea de producto o servicio: el ABC por producto no aplica)' : 'Análisis ABC de clientes completo (el ABC por producto no aplica: una sola línea)' });
       else out.push({ st: ej ? 'stop' : np < 3 || nc < 5 ? 'warn' : 'ok', peso: 2, t: ej ? 'El ABC de clientes y productos usa datos de ejemplo' : np < 3 || nc < 5 ? 'ABC de clientes y productos incompleto' : 'ABC de clientes y productos hecho', d: ej ? 'Sin un ABC real no se sabe qué clientes y productos dan el margen.' : np < 3 || nc < 5 ? `${pl(nc, 'cliente', 'clientes')} y ${pl(np, 'producto', 'productos')} cargados.` : '', zona: 'ventas', inf: ej ? 'Análisis ABC sin cifras propias de la empresa' : np < 3 || nc < 5 ? 'Análisis ABC de clientes y productos incompleto' : 'Análisis ABC de clientes y productos completo' });
     }
     const plan = S.state.plan;
@@ -105,8 +124,13 @@
       if (venc.length) out.push({ st: 'stop', peso: 1, t: `Objetivos de «${m.nombre}» con la fecha vencida (${venc.length})`, zona: id, inf: `Objetivos con la fecha vencida (${venc.length})` }); });
     if (S.madurez360 && A.C360) Object.keys(A.C360).forEach((id) => { const m = mod(id); if (!m) return; let z = null; try { z = S.madurez360(id); } catch (e) { z = null; } if (z && z.score != null) out.push({ st: z.score >= 70 ? 'ok' : z.score >= 50 ? 'warn' : 'stop', peso: 1, t: `Madurez de la gestión en «${m.nombre}»: ${z.score}/100`, zona: id, inf: `Prácticas de gestión: ${z.score}/100` }); });
     S.allRisks().filter((r) => r.nivel >= 15).slice(0, 5).forEach((r) => out.push({ st: 'stop', peso: 1, t: 'Riesgo alto: ' + r.nombre, d: r.mitigacion || '', zona: r.mod, inf: 'Riesgo alto: ' + r.nombre }));
-    // Las áreas que no aplican al sector de la empresa no puntúan (ni 0 ni rojo)
-    return S.noAplica ? out.filter((x) => !S.noAplica(x.zona)) : out;
+    // Las áreas que no aplican a la empresa no puntúan (ni 0 ni rojo)
+    const res = S.noAplica ? out.filter((x) => !S.noAplica(x.zona)) : out;
+    /* Una marca por área valorable con su exigencia (esencial, recomendada o no aplica) y si se ha entregado su documentación:
+       con ellas la nota del sistema estratégico se calcula igual aquí, con los puntos guardados, que en los informes */
+    if (S.AREAS_VALORABLES && S.exigencia && S.entregada) S.AREAS_VALORABLES.forEach((id) => { const m = mod(id); if (!m) return; const ex = S.exigencia(id), ent = ex.k !== 'n' && S.entregada(m);
+      res.push({ st: 'area', tipo: 'area', peso: 0, zona: id, n: S.inf && S.inf.titulo ? S.inf.titulo(m) : m.nombre, exig: ex.k, origen: ex.origen, motivo: ex.motivo || '', entregada: ent, falta: !ent && ex.k !== 'n' && S.inf && S.inf.falta ? S.inf.falta(m) : '' }); });
+    return res;
   };
   // La nota de una empresa con datos propios se calcula solo con ellos (como sus informes): lo de ejemplo no puntúa
   const propiosDe = (S, real) => { try { if (S && S.inf && S.inf.conPropios) return S.inf.conPropios(() => estDesdeMotor(real)); } catch (e) { /* sin contexto de datos propios */ } return estDesdeMotor(real); };
@@ -160,7 +184,7 @@
      Cada mundo se calcula con sus datos guardados, se esté en la página que se esté (js/calculo-mundos.js carga solo el motor
      que haga falta). El simulador y el sistema estratégico guardan su resultado en la clave «nota» con la firma de los datos
      con que se calcularon y la fecha: mientras la firma no cambia, se usa ese resultado sin volver a cargar el motor. */
-  const VER = 'n2'; // cambia si cambia la forma de calcular: las notas guardadas antes se recalculan
+  const VER = 'n3'; // cambia si cambia la forma de calcular: las notas guardadas antes se recalculan
   const memoCache = {};
   const actId = () => (P() && P().empresaId ? P().empresaId() : 'principal');
   const lsDe = (base, id) => (P() && P().k ? P().k(base, id) : base);
@@ -222,7 +246,8 @@
       if (!puntos && cache[k] && cache[k].puntos) { puntos = cache[k].puntos; motivo = cache[k].motivo || ''; fecha = cache[k].fecha; }
       if (vivo || (puntos && !fecha)) fecha = new Date().toISOString();
       const nd = (puntos || []).find((x) => x.st === 'nd' && x.peso >= 2);
-      let nota = motivo ? null : notaDe(puntos);
+      // El sistema estratégico, con su regla de áreas (esenciales y recomendadas entregadas); el resto de mundos, con sus comprobaciones
+      let nota = motivo ? null : k === 'estrategia' && tieneAreas(puntos) ? (() => { const e = evalEst(puntos); return e.n100 == null ? null : e.n100 / 10; })() : notaDe(puntos);
       if (nota == null && !motivo && puntos) motivo = nd ? nd.t.charAt(0).toLowerCase() + nd.t.slice(1) : puntos.length ? 'sin comprobaciones con datos' : '';
       mundos[k] = { n: MUNDOS[k].n, nota, puntos: puntos || [], vivo, fecha: puntos ? fecha : null, motivo: nota == null ? motivo : '' };
     }
@@ -235,7 +260,7 @@
   };
   let ultima = null;
   A.nota = A.nota || {};
-  A.nota.REGLA = 'Mismo criterio en toda Atalaya: cada comprobación (indicadores con semáforo, datos pendientes, objetivos, plan, riesgos altos y madurez de la gestión) vale verde 1, ámbar 0,5 y rojo 0 según su peso; la nota es esa proporción sobre 100, o sobre 10 con la misma cifra. Lo que no tiene datos no puntúa. La nota de la empresa es la media de los mundos de su plan que tienen nota.';
+  A.nota.REGLA = 'Mismo criterio en toda Atalaya: cada comprobación (indicadores con semáforo, datos pendientes, objetivos, plan, riesgos altos y madurez de la gestión) vale verde 1, ámbar 0,5 y rojo 0 según su peso; la nota es esa proporción sobre 100, o sobre 10 con la misma cifra. Lo que no tiene datos no puntúa. En el sistema estratégico la nota es la media de sus áreas: las esenciales para la empresa (sin documentación cuentan 0) y las recomendadas entregadas; las recomendadas sin entregar y las que no aplican quedan fuera. La nota de la empresa es la media de los mundos de su plan que tienen nota.';
   // La regla con la nota real del caso (en lugar de una cifra de ejemplo)
   A.nota.regla = (n100) => (n100 == null ? A.nota.REGLA : A.nota.REGLA.replace('con la misma cifra.', `con la misma cifra (aquí ${n100}/100 = ${String(n100 / 10).replace('.', ',')}/10).`));
   // Fecha en que se calculó la nota de un mundo
@@ -244,7 +269,13 @@
   A.nota.estrategia = () => estDesdeMotor();
   A.nota.personas = (st) => evalPersonas(st);
   // Nota de un conjunto de módulos del sistema estratégico (un área, un módulo o todos)
-  A.nota.modulos = (ids) => { if (!ids && A.strat && A.strat.datosPropios && A.strat.state && !A.strat.datosPropios()) return null; const p = estDesdeMotor(); if (!p) return null; const set = ids ? new Set([].concat(ids)) : null; return puntuar(set ? p.filter((x) => set.has(x.zona)) : p); };
+  // Sin lista: la nota del sistema estratégico completo, con la regla de áreas (la misma del cuadro de mando y de los informes)
+  A.nota.modulos = (ids) => { if (!ids && A.strat && A.strat.datosPropios && A.strat.state && !A.strat.datosPropios()) return null; const p = propiosDe(A.strat); if (!p) return null; if (!ids && tieneAreas(p)) { const r = puntuar(p, true) || {}; return Object.assign(r, { n100: evalEst(p).n100, n10: evalEst(p).n100 == null ? null : evalEst(p).n100 / 10, eval: evalEst(p) }); } const set = ids ? new Set([].concat(ids)) : null;
+    // Un área sola, con la misma regla: esencial sin documentación, 0; recomendada sin entregar o que no aplica, sin nota
+    if (set && set.size === 1) { const mk = p.find((x) => x.tipo === 'area' && set.has(x.zona)); if (mk && mk.exig === 'n') return null; if (mk && !mk.entregada) return mk.exig === 'e' ? { n100: 0, n10: 0, st: 'stop', verdes: 0, ambar: 0, rojos: 1, sinDatos: 0, total: 1 } : null; }
+    return puntuar(set ? p.filter((x) => set.has(x.zona)) : p); };
+  A.nota.evaluacion = (puntos) => evalEst(puntos || propiosDe(A.strat));
+  A.nota.REGLA_EST = 'La nota del sistema estratégico es la media de las áreas que su empresa debe entregar (esenciales) y de las recomendadas que ha entregado. Un área esencial sin documentación cuenta 0; una recomendada sin entregar no cuenta, y las que no aplican a su empresa quedan fuera. Cada área se valora con sus comprobaciones: verde 1, ámbar 0,5 y rojo 0.';
   // Un único recuento en toda Atalaya: «N comprobaciones: x verdes / y ámbar / z rojas / w sin datos»
   A.nota.desglose = (r) => (r && r.total ? `${pl(r.total, 'comprobación', 'comprobaciones')}: ${r.verdes} ${r.verdes === 1 ? 'verde' : 'verdes'} / ${r.ambar} ámbar / ${r.rojos} ${r.rojos === 1 ? 'roja' : 'rojas'} / ${r.sinDatos || 0} sin datos` : 'sin comprobaciones');
   // Un cálculo cada vez por empresa: las llamadas que llegan mientras tanto reciben el mismo resultado
@@ -275,11 +306,12 @@
     if (!panel || !ultima) return;
     const ks = Object.keys(ultima.mundos);
     const ORD = { stop: 0, warn: 1, nd: 2 };
-    const ptos = ks.filter((k) => !filtro || k === filtro).flatMap((k) => ultima.mundos[k].puntos.filter((x) => x.st !== 'ok').map((x) => Object.assign({ mundo: k }, x)))
+    // Del sistema estratégico, las áreas esenciales sin documentación se listan como puntos rojos con el documento que falta
+    const ptos = ks.filter((k) => !filtro || k === filtro).flatMap((k) => ultima.mundos[k].puntos.filter((x) => x.st !== 'ok' && (x.tipo !== 'area' || (x.exig === 'e' && !x.entregada))).map((x) => Object.assign({ mundo: k }, x, x.tipo === 'area' ? { st: 'stop', peso: 3, t: `Documentación esencial pendiente · ${x.n}: ${x.falta}` } : {})))
       .sort((a, b) => (a.st === b.st ? (b.peso || 1) - (a.peso || 1) : (ORD[a.st] || 0) - (ORD[b.st] || 0)));
     const rojos = ptos.filter((x) => x.st === 'stop').length, nds = ptos.filter((x) => x.st === 'nd').length;
     panel.innerHTML = `<div class="nt-head"><div><div class="nt-k">Nota de la empresa</div><div class="nt-big ${stDeNota(ultima.global)}">${ultima.global == null ? 'Sin nota' : fmt(ultima.global)}${ultima.global == null ? '' : '<small>/10</small>'}</div></div><span class="ml-sp"></span><button class="icon-btn" data-x aria-label="Cerrar">×</button></div>
-      <p class="nt-exp">Media de los mundos de su plan que tienen nota. Cada mundo puntúa sus comprobaciones: verde suma, ámbar suma la mitad y rojo no suma; lo que no tiene datos no puntúa, y un mundo sin datos propios no tiene nota.</p>
+      <p class="nt-exp">Media de los mundos de su plan que tienen nota. Cada mundo puntúa sus comprobaciones: verde suma, ámbar suma la mitad y rojo no suma; lo que no tiene datos no puntúa, y un mundo sin datos propios no tiene nota. En el sistema estratégico la nota es la media de las áreas esenciales para su empresa y de las recomendadas que ha entregado: un área esencial sin documentación cuenta 0.</p>
       <div class="nt-mundos">${ks.map((k) => { const m = ultima.mundos[k]; return `<button class="nt-m ${filtro === k ? 'on' : ''} ${k === ultima.actual ? 'aqui' : ''}" data-f="${k}"><b class="${stDeNota(m.nota)}">${m.nota == null ? '—' : fmt(m.nota)}</b><span>${esc(m.n)}</span><small>${m.nota == null ? (m.fecha ? 'Sin nota' + (m.motivo ? ': ' + esc(m.motivo) : '') + ' · ' + esc(A.nota.fechaTxt(m)) : 'Sin nota: sin datos con los que calcularla') : esc(A.nota.desglose(puntuar(m.puntos))) + ' · ' + esc(A.nota.fechaTxt(m))}</small></button>`; }).join('')}</div>
       <div class="nt-k">${filtro ? 'Puntos a tratar en ' + esc(ultima.mundos[filtro].n) : 'Puntos a tratar'} · ${pl(rojos, 'en rojo', 'en rojo')}, ${ptos.length - rojos - nds} en ámbar, ${nds} sin datos</div>
       <ol class="nt-list">${ptos.slice(0, 40).map((x, i) => `<li><button data-i="${i}" class="nt-p ${x.st}"><i${x.st === 'nd' ? ' style="background:var(--muted);opacity:.6"' : ''}></i><span><b>${esc(x.t)}</b>${x.d ? `<small>${esc(x.d)}</small>` : ''}<em>${esc(MUNDOS[x.mundo].n)}</em></span><span class="nt-go">→</span></button></li>`).join('') || '<li class="nt-vacio">Nada en rojo ni en ámbar.</li>'}</ol>

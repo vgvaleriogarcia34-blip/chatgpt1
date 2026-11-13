@@ -204,15 +204,16 @@
     PL.sort((a, b) => N.horDe(a.plazo) - N.horDe(b.plazo) || PRI[a.prio] - PRI[b.prio] || (b.impacto || 0) - (a.impacto || 0));
     const altas = PL.filter((x) => x.prio === 'Alta');
     // Empresa completa: la media de las áreas aplicables; un área sin documentación vale 0; la que no aplica al sector no se valora
-    const nRes = S.notaRes(P.ids), nota = P.ids === null && P.global !== undefined ? P.global : P.sinDoc ? 0 : P.noAplica ? null : !P.con || !(P.eval || P.tiles).some((t) => t.st) ? null : nRes ? nRes.n100 : P.sc;
+    const nRes = S.notaRes(P.ids), nota = P.ids === null && P.global !== undefined ? P.global : P.sinDoc ? 0 : P.noAplica || P.pendiente ? null : !P.con || !(P.eval || P.tiles).some((t) => t.st) ? null : nRes ? nRes.n100 : P.sc;
     const stG = N.estado(nota);
     const mzOk = mz && mz.score !== null && isFinite(mz.score), debil = mzOk && mz.dims.length ? mz.dims.slice().sort((a, b) => a.v - b.v)[0] : null;
     // Resumen ejecutivo: la conclusión primero y los mensajes clave con su cifra
-    const concl = P.noAplica ? `«${esc(titulo)}» no aplica a la actividad de ${esc(emp || 'la empresa')} (${esc(N.sectorTxt().toLowerCase())}): el área no se valora y no genera riesgos ni actuaciones.`
+    const concl = P.noAplica ? `«${esc(titulo)}» no aplica a ${esc(emp || 'la empresa')}. ${esc(P.exig.motivo)} El área no se valora y no genera riesgos ni actuaciones.`
+      : P.pendiente ? `«${esc(titulo)}» es un área recomendada para ${esc(emp || 'la empresa')} y no se ha entregado su documentación: ${esc(N.min(P.falta))}. No baja la valoración global; si se entrega, se valora como las demás.`
       : P.sinDoc ? `«${esc(titulo)}» no se puede evaluar en ${esc(emp || 'la empresa')}: ${esc(N.min(P.falta))}. Sin esa documentación la valoración del área es <b>0 sobre 100</b> ${I.pill('stop')}.`
       : !P.con ? `No se ha dispuesto de información suficiente para analizar «${esc(titulo)}» en ${esc(emp || 'la empresa')}. Este documento delimita el alcance del análisis${PL.length ? ' y fija las primeras actuaciones' : ''}.`
       : nota === null ? `Este documento analiza «${esc(titulo)}» en ${esc(emp || 'la empresa')}${P.tiles.length ? ` a partir de ${pl(P.tiles.length, 'indicador', 'indicadores')}` : ''}.`
-        : P.ids === null ? `La valoración global de ${esc(emp || 'la empresa')} es de <b>${nota} sobre 100</b> ${I.pill(stG)}: ${N.califica(nota)}.`
+        : P.ids === null ? `La valoración global de ${esc(emp || 'la empresa')} es de <b>${nota} sobre 100</b> ${I.pill(stG)}: ${N.califica(nota)}.${P.esenciales ? ` ${esc(P.esenciales)}.` : ''}`
           : `La valoración de «${esc(titulo)}» en ${esc(emp || 'la empresa')} es de <b>${nota} sobre 100</b> ${I.pill(stG)}: ${N.califica(nota)}.`;
     const extra = [];
     if (mzOk) extra.push(`<b>Gestión.</b> Las prácticas de gestión del área alcanzan ${mz.score} sobre 100${debil && mz.dims.length > 1 ? `; el punto más débil es «${esc(debil.dim.toLowerCase())}», con ${debil.v}` : ''}.`);
@@ -237,7 +238,8 @@
     const fuentes = need.filter((n) => n.ok).map((n) => `${esc(n.t)}: ${esc(fuenteDe(n.via))}.`).concat(docs.map((x) => `Documento de contexto: «${esc(x.nombre)}».`)).concat(resp.length ? ['Valoración de las prácticas de gestión por la dirección de la empresa.'] : []);
     const limites = [];
     if (P.sinDoc) limites.push(`${esc(P.falta)}; el área no se ha podido evaluar y su valoración es 0.`);
-    if (P.noAplica) limites.push(`El área no aplica al sector de la empresa (${esc(N.sectorTxt().toLowerCase())}).`);
+    if (P.noAplica) limites.push(esc(P.exig.motivo));
+    if (P.pendiente) limites.push(`${esc(P.falta)}; el área es recomendada para la empresa y no cuenta en la valoración global mientras no se entregue.`);
     if (falta.length) limites.push(`No se ha dispuesto de: ${falta.map((n) => esc(n.t.replace(/\.$/, '').replace(/^./, (ch) => ch.toLowerCase()))).join('; ')}.${P.con ? ' Las conclusiones se apoyan en el resto de la información.' : ' El documento no incluye cifras de esta área.'}`);
     else if (!P.con && !P.limite) limites.push('No se ha dispuesto de la información necesaria para cuantificar esta área; el documento no incluye sus cifras.');
     if (P.sinCalc.length) limites.push(`No se han podido calcular por falta de información: ${esc(P.sinCalc.join(', ').toLowerCase())}.`);
@@ -254,7 +256,7 @@
       + (PL.length ? I.section(`Recomendaciones: ${pl(PL.length, 'actuación', 'actuaciones')}, ${altas.length} de prioridad alta`, N.recomendaciones(PL), 'Ordenadas por plazo y prioridad. Cada una indica su fundamento, el impacto esperado, quién responde y cuándo.') : '')
       + ruta()
       + (c.notas ? I.section('Consideraciones de la dirección', `<p>${esc(c.notas).replace(/\n/g, '<br>')}</p>`) : '')
-      + N.cierre({ riesgos: P.R.length, fuentes, limites, ilustrativo: P.ilustrativo });
+      + N.cierre({ riesgos: P.R.length, fuentes, limites, ilustrativo: P.ilustrativo, metodo: P.ids === null && P.metodoGlobal ? N.METODO + ' ' + P.metodoGlobal : undefined });
     const ordenados = altas.concat(PL.filter((x) => !altas.includes(x)));
     const abrir = A.consultorInf ? A.consultorInf.abrir : I.open;
     abrir({ titulo: tipoI, html, clave: 'est:' + m.id, ctx: {

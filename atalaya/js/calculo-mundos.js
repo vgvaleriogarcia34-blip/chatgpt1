@@ -57,14 +57,17 @@
       if (ficha.nombre && ficha.nombre !== 'Mi empresa') S.sim.empresaNombre = ficha.nombre;
       S.state = Object.assign({}, A.clone(S.defaults), clone(est) || {});
       Object.keys(S.defaults).forEach((k) => { if (S.state[k] === undefined) S.state[k] = A.clone(S.defaults[k]); });
-      const real0 = S.real, cifras0 = S.cifras, save0 = S.save, saveSim0 = S.saveSim;
-      S.real = () => !!(ctx.real && !ctx.modelo);
+      const real0 = S.real, cifras0 = S.cifras, save0 = S.save, saveSim0 = S.saveSim, ficha0 = S._ficha;
+      // Dentro de un cálculo con solo datos propios (S._propios) se calcula como con datos reales
+      S.real = () => !!(S._propios || (ctx.real && !ctx.modelo));
+      // La ficha de la empresa que se calcula (su sector decide qué áreas se le exigen), no la de la empresa activa
+      S._ficha = ficha;
       S.cifras = () => (A.cifras ? A.cifras.desdeSim(S.sim, ficha) : null);
       S.save = () => {}; S.saveSim = () => {};
       try {
         if (S.real()) S.aDatosReales();
         return fn(S);
-      } finally { S.real = real0; S.cifras = cifras0; S.save = save0; S.saveSim = saveSim0; }
+      } finally { S.real = real0; S.cifras = cifras0; S.save = save0; S.saveSim = saveSim0; S._ficha = ficha0; }
     });
     cola = tarea.catch(() => {});
     return tarea;

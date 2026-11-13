@@ -379,7 +379,8 @@
     id: 'tesoreria', nombre: 'Tesorería semanal', grupo: 'Finanzas',
     propios: () => (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
     // La previsión parte de la caja de hoy: sin caja (ni saldo inicial) ni movimientos propios, no hay previsión que hacer
-    datos: () => (S.simConDatos() && (S.num(S.sim.empresa.caja) > 0 || (S.state.tesoreria.saldoInicial !== null && S.state.tesoreria.saldoInicial !== ''))) || (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
+    // (la caja, de las cifras clave: una caja copiada de un año de previsión o una casilla sin contestar no es la caja de hoy)
+    datos: () => (S.simConDatos() && ((() => { try { const c = S.cifras(); return !!(c && c.caja != null); } catch (e) { return S.num(S.sim.empresa.caja) > 0; } })() || (S.state.tesoreria.saldoInicial !== null && S.state.tesoreria.saldoInicial !== ''))) || (S.state.tesoreria.movimientos || []).some((m) => S.num(m.importe)),
     render(host) {
       const Ts = S.state.tesoreria, e = S.sim.empresa;
       const { weeks, colchon } = cashWeeks();
