@@ -21,7 +21,8 @@ Si expresa una preocupación, identifica qué indicadores y variables de la empr
 Cuando analices o valores la empresa, redacta como un consultor de dirección que informa a su cliente. El sujeto es la empresa, nunca la aplicación. Empieza por la conclusión; apóyala en la cifra con su unidad y su periodo y, si existe, en la comparación con el año anterior o con el objetivo; di qué significa para la empresa y termina con la recomendación: qué hacer, impacto esperado y plazo. No presentes como hallazgo nada del funcionamiento de la aplicación (módulos, pasos, pantallas, documentos cargados o datos por introducir): si falta información para un análisis, di en una frase qué dato de la empresa no se ha podido analizar y sigue con lo que sí hay. Voz activa, sin superlativos ni adjetivos vacíos.
 Para estructuras societarias y relaciones entre sociedades de un grupo (holding, filial, patrimonial, préstamos intragrupo, consolidación fiscal), explica cómo funcionan con ejemplos y recuerda que la fiscalidad la debe confirmar su asesor.
 Responde en 3-8 frases salvo que pidan detalle. Tus respuestas pueden leerse en voz alta: no uses tablas, asteriscos ni símbolos.
-También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (puesto de mando, simulador de inversión, sistema estratégico, personas y equipos, auditoría integral, mesa de trabajo, tablero general, libro corporativo y grupo empresarial o cartera de clientes), a cualquier módulo, capítulo o pestaña, cierras ventanas, mapas e informes y abres el manual en el apartado que necesite. Usa donde_estoy para saber dónde está y qué hay, e ir_a_mundo, ir_a_zona, cerrar y abrir_manual para moverle. Cuando pida ir a un sitio, hazlo directamente y di en una o dos frases qué va a encontrar y qué conviene mirar primero.`;
+También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (puesto de mando, simulador de inversión, sistema estratégico, personas y equipos, auditoría integral, mesa de trabajo, tablero general, libro corporativo y grupo empresarial o cartera de clientes), a cualquier módulo, capítulo o pestaña, cierras ventanas, mapas e informes y abres el manual en el apartado que necesite. Usa donde_estoy para saber dónde está y qué hay, e ir_a_mundo, ir_a_zona, cerrar y abrir_manual para moverle. Cuando pida ir a un sitio, hazlo directamente y di en una o dos frases qué va a encontrar y qué conviene mirar primero.
+Documentación de la empresa: cuando pregunte qué le falta, qué documentos tiene que subir, por dónde empezar o qué hacer después, consulta ver_plan_documentacion y responde con el siguiente documento, cómo se entrega, en qué pantalla y qué permitirá analizar; si quiere ir, usa ir_a_documento. Las esenciales que faltan cuentan 0 en la nota; las recomendadas no la bajan. Nunca marques un área como «no aplica» ni lo des por hecho: si cree que un área no corresponde a su actividad, explícale que puede marcarla la empresa con el botón «Esta área no aplica a mi empresa» de esa área, indicando el motivo.`;
 
   /* ---------- Herramientas (mismas para los tres cerebros) ---------- */
   let api = null, page = 'simulador';
@@ -123,6 +124,8 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
       { name: 'ir_a_mundo', description: 'Lleva al usuario a otro mundo de Atalaya 360°: inicio (puesto de mando), simulador, estrategia, personas, intervencion (auditoría integral), mesa, tablero, libro o grupo (grupo empresarial o cartera de clientes). Opcionalmente, a una zona concreta de ese mundo (nombre del módulo, capítulo o pestaña). La conversación continúa al llegar.', inputSchema: { type: 'object', properties: { mundo: { type: 'string', enum: Object.keys(MUNDOS) }, zona: { type: 'string' } }, required: ['mundo'] }, run: (i) => viajar(i.mundo, i.zona) },
       { name: 'ir_a_zona', description: 'Abre una zona del mundo actual: un módulo, un capítulo o una pestaña (por nombre). En el simulador también acepta la ruta de una variable para llevar a su campo.', inputSchema: { type: 'object', properties: { destino: { type: 'string' } }, required: ['destino'] }, run: (i) => { if (PG() === 'app.html' && api && api.goTo && /\./.test(i.destino)) return api.goTo(i.destino); const z = buscarZona(norm(i.destino)) || (destinos().find((d) => d.id === i.destino) ? { d: destinos().find((d) => d.id === i.destino) } : null); if (!z) return { ok: false, zonas: destinos().map((d) => d.n) }; irZona(z.d.id); return { ok: true, zona: z.d.n }; } },
       { name: 'cerrar', description: 'Cierra lo que está abierto: «ventanas» (informes, mapas, diálogos y el manual), «manual», o «mundo» (sale del mundo actual y vuelve al puesto de mando).', inputSchema: { type: 'object', properties: { que: { type: 'string', enum: ['ventanas', 'manual', 'mundo'] } }, required: ['que'] }, run: (i) => (i.que === 'mundo' ? viajar('inicio') : i.que === 'manual' ? (A.manualLateral && A.manualLateral.cerrar(), { ok: true }) : cerrarVentanas()) },
+      { name: 'ver_plan_documentacion', description: 'Plan de documentación de la empresa, calculado sin IA: documentación esencial entregada (X de Y), áreas esenciales que faltan ordenadas por lo que desbloquean (documento, cómo se entrega, pantalla y qué permitirá), entregadas incompletas, recomendadas pendientes, las que no aplican con su motivo y el siguiente paso. Úsala cuando pregunte qué le falta, qué documentos tiene que subir, por dónde empezar o qué hacer después.', inputSchema: { type: 'object', properties: {} }, run: async () => { const p = await planDoc(); if (!p) return { ok: false, motivo: 'El plan de documentación forma parte del sistema estratégico, que no está incluido en su plan.' }; const it = (a) => ({ id: a.id, area: a.n, documento: a.documento, como: a.como, donde: a.donde, permite: a.permite }); return { esenciales: p.esenciales, faltan: p.faltan.map(it), entregadas: p.entregadas.map((a) => ({ area: a.n, incompleto: a.incompleto })), recomendadasPendientes: p.recomendadas.map(it), noAplican: p.noAplican, siguiente: p.siguiente ? Object.assign(it(p.siguiente), { recomendada: p.siguiente.recomendada }) : null, noAplicaComoSeMarca: NOAPLICA_TXT, informativa: informativa() }; } },
+      { name: 'ir_a_documento', description: 'Lleva al usuario a la pantalla donde se entrega el documento de un área (clave o nombre: dinero o cuentas, tesoreria, margen, cobros, plan, ventas o ABC, compras, tiempos, logistica, lean, impuestos, presupuesto, valoracion, comercial, personas, marketing, mercado, expansion) o al siguiente paso del plan («siguiente»).', inputSchema: { type: 'object', properties: { area: { type: 'string' } }, required: ['area'] }, run: async (i) => { const p = await planDoc(); if (!p) return { ok: false, motivo: 'El sistema estratégico no está incluido en su plan.' }; const a = areaDe(p, i.area); if (!a) return { ok: false, areas: p.areas.map((x) => x.id + ': ' + x.n) }; return irADoc(a); } },
       { name: 'abrir_manual', description: 'Abre el manual en el lateral, en el apartado de un tema («metas SMART», «semáforos», «liderazgo») o, sin tema, en el de la zona actual.', inputSchema: { type: 'object', properties: { tema: { type: 'string' } } }, run: (i) => (A.manualLateral ? A.manualLateral.abrirTema(i.tema) : { ok: false }) }
     ];
   }
@@ -175,19 +178,215 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
     const l = SS.get('atalaya.guia.llegada'); if (!l || Date.now() - l.t > 120000 || l.mundo !== mundoActual()) return; SS.del('atalaya.guia.llegada');
     const w = MUNDOS[l.mundo];
     setTimeout(() => {
+      if (l.doc) { const S = A.strat; if (S && S.show && S.mod && S.mod(l.doc.id) && (!S.current || S.current() !== l.doc.id)) S.show(l.doc.id); const txt = `Está en «${l.doc.n}». ${l.doc.como}`; add('bot', txt); guardarLog('assistant', txt); hablar(txt).then(() => voz && escuchar()); return; }
       let z = null; if (l.zona) { z = buscarZona(norm(l.zona)); if (z) irZona(z.d.id); }
       const txt = `Ya está en ${w.n}${z ? ', en «' + z.d.n + '»' : ''}. ${w.primero || w.d}`;
       add('bot', txt); guardarLog('assistant', txt); hablar(txt).then(() => voz && escuchar());
     }, 1200);
   }
 
+  /* ---------- Guía de la documentación de la empresa ----------
+     El plan sale de S.planDocumentacion (js/strategy/core.js): local, sin IA y siempre igual. En el sistema estratégico se
+     calcula con su estado vivo; en cualquier otra página, con los datos guardados y el motor sin pantalla
+     (js/calculo-mundos.js), como la nota. La guía saluda una vez por sesión y empresa con una tarjeta (nunca encima de
+     un informe o de una ventana), lleva a la pantalla de cada documento y, al entregar un área, dice cómo cambian su
+     valoración y la nota global y cuál es el siguiente paso. Con la empresa modelo y la cuenta de demostración la tarjeta
+     es informativa: no se guarda nada. La guía nunca marca un área como «no aplica»: eso lo decide la empresa. */
+  const puedeEst = () => { const P = A.platform; return !(P && P.puede && !P.puede('estrategia')); };
+  const informativa = () => { const P = A.platform; return !!(P && ((P.modelo && P.modelo.activa && P.modelo.activa()) || (P.user && P.user.demo))); };
+  const cargarScript = (src) => new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ko(new Error('Sin ' + src)); document.head.appendChild(s); });
+  async function planDoc() {
+    if (!puedeEst()) return null;
+    const S = A.strat;
+    if (S && S.__vivo && S.state && S.planDocumentacion) return S.planDocumentacion();
+    const P = A.platform; if (!P || !P.loadData) return null;
+    if (!(A.calculo && A.calculo.estrategia)) await cargarScript('js/calculo-mundos.js');
+    const ficha = (P.empresas && P.empresas.activa && P.empresas.activa()) || {};
+    const leer = async (k, base) => { let st = null; try { st = JSON.parse(localStorage.getItem(P.k ? P.k(base) : base)); } catch (e) { /* local */ } try { const r = await P.loadData(k); if (r) st = r; } catch (e) { /* local */ } return st; };
+    const [sim, est] = await Promise.all([leer('simulador', 'atalaya.v1'), leer('estrategia', 'atalaya.estrategia.v1')]);
+    return A.calculo.estrategia(sim, est, { ficha, real: !!(P.modoReal && P.modoReal()), modelo: !!(P.modelo && P.modelo.activa && P.modelo.activa()) }, (X) => (X.planDocumentacion ? X.planDocumentacion() : null));
+  }
+  // Área por su clave, su nombre o una palabra de su documento («cuentas», «caja», «facturas»…); «siguiente» es el siguiente paso
+  const AREA_PAL = [['dinero', ['cuentas', 'balance', 'cuenta de resultados', 'flujo del dinero', 'cuentas anuales']], ['tesoreria', ['tesoreria', 'caja', 'banco', 'extracto', 'saldo']], ['margen', ['margen', 'productos', 'servicios', 'coste variable']], ['cobros', ['cobros', 'morosidad', 'facturas pendientes', 'clientes que deben']], ['plan', ['plan de empresa', 'mision', 'objetivos', 'dafo']], ['ventas', ['abc', 'concentracion', 'ventas por cliente', 'ventas']], ['compras', ['compras', 'proveedores']], ['tiempos', ['tiempos', 'horas', 'partes de horas']], ['logistica', ['logistica', 'rutas', 'transporte', 'almacen']], ['lean', ['lean', 'procesos', 'desperdicio']], ['impuestos', ['impuestos']], ['presupuesto', ['presupuesto']], ['valoracion', ['valoracion', 'valor de la empresa']], ['comercial', ['oportunidades', 'ventas en camino']], ['personas', ['plantilla', 'personas']], ['marketing', ['marketing', 'canales']], ['mercado', ['mercado', 'competencia']], ['expansion', ['expansion', 'zonas']]];
+  const areaDe = (plan, q) => {
+    const t = norm(q).trim(); if (!plan || !t) return null;
+    if (/^(siguiente|siguiente paso|siguiente documento|ahi|alli)$/.test(t)) return plan.siguiente;
+    const L = plan.areas || [];
+    const x = L.find((a) => a.id === t) || L.find((a) => norm(a.n) === t) || L.find((a) => t.includes(norm(a.n)));
+    if (x) return x;
+    let mejor = null, lg = 0; AREA_PAL.forEach(([id, ps]) => ps.forEach((p) => { if (t.includes(p) && p.length > lg) { lg = p.length; mejor = id; } }));
+    return mejor ? L.find((a) => a.id === mejor) || null : null;
+  };
+  /* Lleva a la pantalla donde se entrega el documento de un área. Ya en el sistema estratégico, abre el área; desde otro
+     mundo, viaja (al momento con «ahora», o al terminar la respuesta del asistente) y al llegar dice cómo se entrega. */
+  function irADoc(a, ahora) {
+    if (!a) return { ok: false };
+    const z = a.zona || a.id;
+    if (PG() === 'estrategia.html' && A.strat && A.strat.show && A.strat.mod && A.strat.mod(z)) { cerrarVentanas(true); A.strat.show(z); return { ok: true, area: a.n, como: a.como }; }
+    if (!disponible('estrategia')) return { ok: false, motivo: 'El sistema estratégico no está incluido en su plan.' };
+    try { SS.set('atalaya.guia.plan.' + A.platform.empresaId(), 1); } catch (e) { /* sin empresa */ }
+    SS.set('atalaya.guia.llegada', { mundo: 'estrategia', zona: '', doc: { id: z, n: a.zona && A.strat && A.strat.mod && A.strat.mod(z) ? A.strat.mod(z).nombre : a.donde.replace(/^Sistema estratégico › /, ''), como: a.como }, t: Date.now() });
+    if (ahora) { SS.set('atalaya.asistente.abierto', !$('#asPanel').hidden); location.href = a.url; } else viajePendiente = a.url;
+    return { ok: true, area: a.n, como: a.como, viaje: true };
+  }
+  const minus = (s) => String(s || '').replace(/^\w/, (c) => c.toLowerCase());
+  const conEsto = (a) => (a && a.permite ? `Con esta documentación ${a.permite}.` : '');
+  const ESENC = (p) => `Documentación esencial: ${p.esenciales.entregadas} de ${p.esenciales.total}`;
+  const NOAPLICA_TXT = 'Si un área no corresponde a la actividad de la empresa, puede marcarla en su pantalla con el botón «Esta área no aplica a mi empresa», indicando el motivo.';
+  // Texto del plan para el chat (puede leerse en voz alta: sin tablas ni símbolos)
+  function planTexto(p, corto) {
+    if (!p) return null;
+    const sig = p.siguiente;
+    if (corto) {
+      if (!sig) return `${ESENC(p)}. La documentación esencial y la recomendada están completas.`;
+      return `${ESENC(p)}. Siguiente paso: ${sig.n}${sig.recomendada ? ' (recomendada)' : ''}: ${sig.documento}. ${sig.como} ${conEsto(sig)} Diga «llévame ahí» y le llevo a esa pantalla.`;
+    }
+    const l = [`${ESENC(p)} entregadas.`];
+    if (p.faltan.length) { l.push('Falta:'); p.faltan.forEach((a, i) => l.push(`${i + 1}. ${a.n}: ${a.documento}.${a.incompleto.length ? ' ' + a.incompleto.join(' ') : ''} Se entrega en ${a.donde}. ${conEsto(a)}`)); }
+    else l.push('Las áreas esenciales están completas.');
+    p.entregadas.filter((a) => a.incompleto.length).forEach((a) => l.push(`${a.n}, para completarla: ${a.incompleto.join(' ')}`));
+    if (p.recomendadas.length) l.push(`Recomendadas pendientes, que no bajan la nota: ${listaY(p.recomendadas.map((a) => a.n))}.`);
+    if (sig) l.push(`Siguiente paso: ${sig.n}. ${sig.como} Diga «llévame ahí» y le llevo.`);
+    return l.join('\n');
+  }
+  // ¿Hay un informe, un mapa o una ventana abierta? La tarjeta de la guía nunca se pone encima
+  const hayVentana = () => {
+    const vis = (el) => { if (!el || el.hidden) return false; const c = getComputedStyle(el); return c.display !== 'none' && c.visibility !== 'hidden'; };
+    if (['#report', '#modal', '#rutaMap', '.nt-panel', '.paseo:not(.paseo-min)', '.vp-back'].some((s) => Array.from(document.querySelectorAll(s)).some(vis))) return true;
+    if (document.querySelector('.ef-back, .modal-back')) return true;
+    if (Array.from(document.querySelectorAll('[aria-modal="true"]')).some((el) => vis(el) && !el.closest('.assistant'))) return true;
+    return !!(A.manualLateral && A.manualLateral.abierto && A.manualLateral.abierto());
+  };
+  const sinVentanas = async (max) => { const t0 = Date.now(); while (hayVentana()) { if (Date.now() - t0 > (max || 60000)) return false; await new Promise((r) => setTimeout(r, 1500)); } return true; };
+  /* Tarjeta de la guía: flotando sobre el botón del asistente o, con el panel abierto, dentro de la conversación */
+  let tarjetaAct = null;
+  /* La tarjeta nunca tapa la página: se pliega en una marca junto al botón del asistente al desplazarse, al tocar la página
+     o a los 15 segundos, y se vuelve a abrir tocando la marca */
+  let plegarT = null, quitarOyentes = () => {};
+  function quitarTarjeta() { const f = $('#asGuia'); if (f) f.remove(); const d = $('#asGuiaDot'); if (d) d.remove(); clearTimeout(plegarT); quitarOyentes(); tarjetaAct = null; }
+  function plegarTarjeta() {
+    const f = $('#asGuia'); if (!f || !tarjetaAct) return;
+    f.remove(); clearTimeout(plegarT); quitarOyentes();
+    if ($('#asGuiaDot')) return;
+    const b = document.createElement('button'); b.type = 'button'; b.id = 'asGuiaDot'; b.className = 'as-guia-dot'; b.textContent = 'Guía';
+    b.title = 'Ver la guía de la documentación'; b.setAttribute('aria-label', 'Ver la guía de la documentación');
+    b.onclick = () => { const t = tarjetaAct; b.remove(); if (t) pintarTarjeta(t, false, true); };
+    const bar = $('.as-bar'); bar.insertBefore(b, $('#asFab'));
+  }
+  function vigilarPliegue() {
+    clearTimeout(plegarT); quitarOyentes();
+    plegarT = setTimeout(plegarTarjeta, 15000);
+    const enGuia = (e) => { const r = e.composedPath ? e.composedPath() : [e.target]; return r.some((x) => x && x.classList && x.classList.contains('assistant')); };
+    const clic = (e) => { if (!enGuia(e)) plegarTarjeta(); }, mover = () => plegarTarjeta();
+    document.addEventListener('pointerdown', clic, true); addEventListener('scroll', mover, { passive: true, capture: true }); addEventListener('wheel', mover, { passive: true });
+    quitarOyentes = () => { document.removeEventListener('pointerdown', clic, true); removeEventListener('scroll', mover, { capture: true }); removeEventListener('wheel', mover); quitarOyentes = () => {}; };
+  }
+  function pintarTarjeta(spec, enLog, reabierta) {
+    const html = `<p class="as-gt">${esc(spec.texto).replace(/\n/g, '<br>')}</p>${spec.nota ? `<p class="as-gn">${esc(spec.nota)}</p>` : ''}<div class="as-gb">${spec.botones.map((b, i) => `<button type="button" class="btn ${b.solid ? 'solid' : 'ghost'} small" data-gb="${i}">${esc(b.t)}</button>`).join('')}</div>`;
+    let el;
+    if (enLog) { el = document.createElement('div'); el.className = 'msg bot as-card'; el.innerHTML = html; $('#asLog').appendChild(el); $('#asLog').scrollTop = $('#asLog').scrollHeight; }
+    else { quitarTarjeta(); el = document.createElement('section'); el.id = 'asGuia'; el.className = 'as-guia'; el.setAttribute('role', 'status'); el.setAttribute('aria-label', 'Guía de la documentación'); el.innerHTML = `<header><b>${esc(spec.titulo || 'Guía de la documentación')}</b><button class="icon-btn" type="button" data-gx aria-label="Cerrar">×</button></header>` + html; $('.assistant').appendChild(el); tarjetaAct = spec; el.querySelector('[data-gx]').onclick = quitarTarjeta; if (!reabierta) vigilarPliegue(); else { clearTimeout(plegarT); quitarOyentes(); setTimeout(() => { if ($('#asGuia')) vigilarPliegue(); }, 400); } }
+    el.querySelectorAll('[data-gb]').forEach((b) => (b.onclick = () => { const x = spec.botones[+b.dataset.gb]; if (!enLog) quitarTarjeta(); else el.querySelectorAll('[data-gb]').forEach((y) => (y.disabled = true)); x.fn(); }));
+    return el;
+  }
+  function tarjeta(spec) { const p = $('#asPanel'); return pintarTarjeta(spec, p && !p.hidden); }
+  // Plan completo en la conversación, con el estado de cada área y un acceso a cada documento que falta
+  function verPlan(p) {
+    open(); quitarTarjeta();
+    if (!p) { add('bot', 'El plan de documentación forma parte del sistema estratégico, que no está incluido en su plan.'); return; }
+    const EST = (a) => (a.exig === 'n' ? ['na', 'No aplica'] : a.entregada ? ['ok', a.incompleto.length ? 'Entregada, incompleta' : 'Entregada'] : a.exig === 'e' ? ['falta', 'Falta'] : ['pend', 'Pendiente (recomendada)']);
+    const fila = (a) => { const [k, t] = EST(a); return `<li class="as-pl-${k}"><b>${esc(a.n)}</b> <span class="as-pl-st">${t}</span>${!a.entregada && a.exig !== 'n' ? `<br><small>${esc(a.documento)}.${a.incompleto.length ? ' ' + esc(a.incompleto.join(' ')) : ''} ${esc(a.como)}${a.permite ? ' ' + esc(conEsto(a)) : ''}</small> <button type="button" class="btn ghost small" data-ir="${a.id}">Llevarme ahí</button>` : a.incompleto.length ? `<br><small>${esc(a.incompleto.join(' '))}</small>` : a.exig === 'n' ? `<br><small>${esc(a.motivo)}</small>` : ''}</li>`; };
+    const ess = p.areas.filter((a) => a.exig === 'e'), rec = p.areas.filter((a) => a.exig === 'r'), na = p.areas.filter((a) => a.exig === 'n');
+    const el = document.createElement('div'); el.className = 'msg bot as-plan';
+    el.innerHTML = `<p class="as-gt"><b>Plan de documentación${p.empresa ? ' de ' + esc(p.empresa) : ''}</b><br>${esc(ESENC(p))} entregadas. Las esenciales que faltan cuentan 0 en la nota; las recomendadas no la bajan si no se entregan.</p>
+      <div class="as-pl-h">Esenciales</div><ol>${ess.map(fila).join('')}</ol>
+      ${rec.length ? `<div class="as-pl-h">Recomendadas</div><ul>${rec.map(fila).join('')}</ul>` : ''}${na.length ? `<div class="as-pl-h">No aplican</div><ul>${na.map(fila).join('')}</ul>` : ''}
+      <p class="as-gn">${esc(NOAPLICA_TXT)}${informativa() ? ' Con la empresa modelo o la cuenta de demostración esta ruta es informativa: no se guarda nada.' : ''}</p>`;
+    const lg = $('#asLog'); lg.appendChild(el); lg.scrollTop = el.getBoundingClientRect().top - lg.getBoundingClientRect().top + lg.scrollTop - 8;
+    el.querySelectorAll('[data-ir]').forEach((b) => (b.onclick = () => { const a = p.areas.find((x) => x.id === b.dataset.ir); const r = irADoc(a, true); if (r.ok && !r.viaje) note('Abierto «' + a.n + '».'); }));
+  }
+  const botonesPlan = (p, a) => [a ? { t: 'Llevarme ahí', solid: true, fn: () => { const r = irADoc(a, true); if (r.ok && !r.viaje) { const m = 'Está en «' + a.n + '». ' + a.como; add('bot', m); guardarLog('assistant', m); } } } : null, { t: 'Ver todo el plan', fn: () => verPlan(p) }, { t: 'Ahora no', fn: () => {} }].filter(Boolean);
+  const notaInf = () => (informativa() ? (A.platform.user && A.platform.user.demo ? 'Cuenta de demostración: la ruta es informativa y no se guarda nada.' : 'Empresa modelo: la ruta es informativa y no se guarda nada.') : '');
+  /* Saludo al entrar en el sistema estratégico o en el puesto de mando: una vez por sesión y empresa */
+  async function saludoPlan() {
+    // Empresa modelo y demostración: el plan solo a petición (chat, «¿Qué me falta?»), sin tarjeta automática
+    if (!['estrategia', 'inicio'].includes(page) || !puedeEst() || informativa()) return;
+    const P = A.platform; if (!P || !P.user || !P.empresaId) return;
+    const id = P.empresaId(), k = 'atalaya.guia.plan.' + id; if (SS.get(k)) return;
+    let p = null; try { p = await planDoc(); } catch (e) { p = null; }
+    if (!p || !p.esenciales.total || P.empresaId() !== id) return;
+    if (!(await sinVentanas(90000)) || SS.get(k)) return;
+    SS.set(k, 1);
+    if (!p.completo) { const s = p.siguiente; tarjeta({ titulo: 'Documentación de la empresa', texto: `${ESENC(p)}. Siguiente: ${s.documento}.${s.paso ? ' ' + s.paso : ''} ${conEsto(s)}`, nota: notaInf(), botones: botonesPlan(p, s) }); return; }
+    // Todo lo esencial entregado: se dice una vez (en la empresa modelo y la demostración, una vez por sesión)
+    const kc = 'atalaya.guia.completa'; const lsK = P.k ? P.k(kc) : kc;
+    if (!informativa()) { try { if (localStorage.getItem(lsK)) return; localStorage.setItem(lsK, new Date().toISOString()); } catch (e) { /* sin almacenamiento */ } }
+    const r = p.recomendadas[0];
+    tarjeta({ titulo: 'Documentación de la empresa', texto: `Documentación esencial completa: ${p.esenciales.total} de ${p.esenciales.total}. ${r ? `${p.recomendadas.length === 1 ? 'Queda un área recomendada, que no baja la nota y amplía el análisis: ' : `Quedan ${p.recomendadas.length} áreas recomendadas, que no bajan la nota y amplían el análisis. La primera: `}${r.n}, ${r.documento}.` : 'Las áreas recomendadas también están entregadas.'}`, nota: notaInf(), botones: botonesPlan(p, r) });
+  }
+  /* Después de una entrega: al guardar datos en el sistema estratégico se comprueba qué áreas han pasado a entregadas */
+  const notaArea = (id) => { try { const r = A.nota && A.nota.modulos ? A.nota.modulos([id]) : null; return r && r.n100 != null ? r.n100 : null; } catch (e) { return null; } };
+  /* Dos notas distintas, siempre con su nombre: la del sistema estratégico (la del cuadro de mando, regla de áreas, sobre 100;
+     en la cabecera, «Este mundo», la misma sobre 10) y la de la empresa (media de todos los mundos, la de la cabecera, sobre 10) */
+  const notaEst = () => { try { const r = A.nota && A.nota.modulos ? A.nota.modulos() : null; return r && r.n100 != null ? r.n100 : null; } catch (e) { return null; } };
+  const notaGlobal = async () => { try { const r = A.nota && A.nota.refrescar ? await A.nota.refrescar() : null; return r && r.global != null ? r.global : null; } catch (e) { return null; } };
+  const motivoEst = () => { try { const u = A.nota.ultima(), m = u && u.mundos && u.mundos.estrategia; return (m && m.motivo) || ''; } catch (e) { return ''; } };
+  const f10 = (n) => (n == null ? 'sin nota' : String(n.toFixed(1)).replace('.', ','));
+  let foto = null, fotoT = null;
+  async function tomarFoto() { const p = A.strat.planDocumentacion(); const u = A.nota && A.nota.ultima ? A.nota.ultima() : null; const g = informativa() ? (u && u.global != null ? u.global : null) : await notaGlobal(); return { p, g, e: notaEst(), ent: Object.fromEntries(p.areas.map((a) => [a.id, a.entregada])), inc: Object.fromEntries(p.areas.map((a) => [a.id, a.incompleto.join(' ')])), n: Object.fromEntries(p.areas.map((a) => [a.id, notaArea(a.id)])) }; }
+  async function revisarEntregas() {
+    if (!foto || !A.strat || !A.strat.planDocumentacion || informativa()) return;
+    const antes = foto, ahora = await tomarFoto(); foto = ahora;
+    const nuevas = ahora.p.areas.filter((a) => a.exig !== 'n' && a.entregada && !antes.ent[a.id]);
+    // Datos recibidos que aún no bastan para valorar el área (por ejemplo, cuentas con un solo ejercicio cerrado)
+    const parciales = ahora.p.areas.filter((a) => a.exig !== 'n' && !a.entregada && a.incompleto.length && a.incompleto.join(' ') !== antes.inc[a.id]);
+    if (!nuevas.length && !parciales.length) return;
+    const v = (x) => (x == null ? 'sin valorar' : x), v2 = (x) => (x == null ? 'sin nota' : x);
+    const lin = nuevas.length ? nuevas.map((a) => `${a.n}: ${v(antes.n[a.id] == null && a.exig === 'e' ? 0 : antes.n[a.id])} → ${v(ahora.n[a.id])}`).join(' · ') + '.' + (antes.e == null && ahora.e == null ? `\nNota del sistema estratégico: todavía sin nota${motivoEst() ? ' (' + motivoEst() + ')' : ''}.` : `\nNota del sistema estratégico: ${v2(antes.e)} → ${v2(ahora.e)} (sobre 100).`) + (antes.g == null && ahora.g == null ? '' : `\nNota de la empresa (todos los mundos): ${f10(antes.g)} → ${f10(ahora.g)} (sobre 10).`) : '';
+    const inc = nuevas.flatMap((a) => a.incompleto.map((t) => (nuevas.length > 1 ? a.n + ': ' : '') + t));
+    const par = parciales.map((a) => `${a.n}: datos recibidos, aún sin valorar. ${a.incompleto.join(' ')}`);
+    const s = ahora.p.siguiente;
+    const texto = `${lin}${inc.length ? '\nPara completarla: ' + inc.join(' ') : ''}${par.length ? '\n' + par.join(' ') : ''}\n${s ? `${ESENC(ahora.p)}. Siguiente paso: ${s.n}${s.recomendada ? ' (recomendada)' : ''}, ${s.documento}.` : 'La documentación esencial y la recomendada están completas.'}`;
+    await sinVentanas(120000);
+    tarjeta({ titulo: !nuevas.length ? 'Datos recibidos' : nuevas.length === 1 ? 'Área entregada' : 'Áreas entregadas', texto: texto.trim(), nota: notaInf(), botones: botonesPlan(ahora.p, s) });
+    guardarLog('assistant', texto);
+  }
+  function vigilarEntregas() {
+    if (page !== 'estrategia' || !A.strat || !A.strat.planDocumentacion || vigilarEntregas.on) return;
+    vigilarEntregas.on = true;
+    setTimeout(async () => { try { foto = await tomarFoto(); } catch (e) { foto = null; } }, 3000);
+    addEventListener('atalaya:datos', () => { clearTimeout(fotoT); fotoT = setTimeout(() => revisarEntregas().catch((e) => console.error(e)), 1500); });
+  }
+  /* Preguntas sobre la documentación (qué me falta, siguiente paso, por dónde empiezo…): se responden aquí, con el plan */
+  async function guiaDoc(text) {
+    const t = norm(text).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim();
+    const todo = /\b(que me falta|que (documentos?|documentacion|datos) (tengo|debo|hay|me falta|me faltan|necesito)|que documentacion falta|que documentos faltan|plan de documentacion|ver (todo )?el plan|documentacion esencial)\b/.test(t);
+    const paso = /\b(siguiente paso|por donde empiezo|por donde empezar|por donde sigo|que hago (ahora|primero)|cual es el siguiente)\b/.test(t);
+    const ir = /\b(llevame|lleva me|vamos|quiero ir|ir) (a |al |hasta )?(ahi|alli|el siguiente( paso| documento)?|la siguiente)\b/.test(t);
+    if (!todo && !paso && !ir) return null;
+    if (!puedeEst()) return null;
+    let p = null; try { p = await planDoc(); } catch (e) { p = null; }
+    if (!p) return null;
+    if (ir) { if (!p.siguiente) return 'La documentación está completa: no hay ningún documento pendiente.'; const r = irADoc(p.siguiente); return r.ok ? `${r.viaje ? 'Le llevo a' : 'Abro'} «${p.siguiente.n}». ${p.siguiente.como}` : r.motivo || 'No he podido abrir esa pantalla.'; }
+    return planTexto(p, !todo) + (informativa() ? ' ' + notaInf() : '');
+  }
+
   /* ---------- Cerebro 1: servidor con Claude ---------- */
+  /* ¿Es una petición de guía o navegación (ir a un sitio, qué falta, siguiente paso, cómo se sube algo)? Si pide analizar,
+     valorar, comparar, explicar o redactar, no lo es. */
+  const esGuia = (text) => {
+    const t = norm(text);
+    if (/(analiz|valora|redact|escrib|informe|por que|explica|compar|riesgo|recomiend|resum|opinas|deberia|conviene|simula|calcula|cuanto|cuanta|preocup|mejorar|que significa|que es )/.test(t)) return false;
+    return /(llevame|lleva me|ve a |vete a|vamos a|ir a |quiero ir|abre|abrir|ensename|muestrame|donde (esta|estoy|se |subo|cargo|meto|pongo|entrego)|que me falta|que documentos|que documentacion|siguiente paso|por donde (empiezo|empezar|sigo)|que hago (ahora|primero|despues)|como (subo|cargo|importo|meto|adjunto|entrego)|cierra|cerrar|manual|vuelve|volver)/.test(t);
+  };
   async function viaServer(history) {
     const tools = toolDefs();
     const defs = tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema }));
     const msgs = history.map((m) => ({ role: m.role, content: m.content }));
+    // Guía y navegación van al modelo ligero del servidor; el análisis y la redacción, al principal (el mismo en toda la consulta)
+    const ult = history.filter((m) => m.role === 'user').slice(-1)[0], modo = ult && esGuia(ult.content) ? 'guia' : 'analisis';
     for (let round = 0; round < 6; round++) {
-      const r = await A.platform.api('/chat', { method: 'POST', body: JSON.stringify({ messages: msgs, tools: defs, page }) });
+      const r = await A.platform.api('/chat', { method: 'POST', body: JSON.stringify({ messages: msgs, tools: defs, page, modo }) });
       if (r.stop_reason === 'refusal') return 'No puedo ayudarle con esa petición. Pruebe a formularla de otra manera.';
       msgs.push({ role: 'assistant', content: r.content });
       const uses = r.content.filter((b) => b.type === 'tool_use');
@@ -422,7 +621,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
   const history = [];
   let busy = false;
   function note(t) { add('note', t); }
-  function activity(name) { const m = { cambiar_variable: 'Ajustando el simulador…', cambiar_escenario: 'Cambiando de escenario…', anadir_hipotesis: 'Añadiendo la hipótesis…', cambiar_estructura: 'Cambiando la estructura…', aplicar_plan: 'Aplicando el plan…', ver_situacion: 'Revisando su situación…', comparar_estructuras: 'Comparando estructuras…', explicar_concepto: 'Buscando en el diccionario…', cambiar_palanca: 'Moviendo la palanca…', donde_estoy: 'Mirando dónde está…', ir_a_mundo: 'Preparando el viaje…', ir_a_zona: 'Abriendo…', cerrar: 'Cerrando…', abrir_manual: 'Abriendo el manual…' }[name]; if (m) { const t = $('#asThinking'); if (t) t.textContent = m; } }
+  function activity(name) { const m = { cambiar_variable: 'Ajustando el simulador…', cambiar_escenario: 'Cambiando de escenario…', anadir_hipotesis: 'Añadiendo la hipótesis…', cambiar_estructura: 'Cambiando la estructura…', aplicar_plan: 'Aplicando el plan…', ver_situacion: 'Revisando su situación…', comparar_estructuras: 'Comparando estructuras…', explicar_concepto: 'Buscando en el diccionario…', cambiar_palanca: 'Moviendo la palanca…', donde_estoy: 'Mirando dónde está…', ir_a_mundo: 'Preparando el viaje…', ir_a_zona: 'Abriendo…', cerrar: 'Cerrando…', abrir_manual: 'Abriendo el manual…', ver_plan_documentacion: 'Revisando la documentación…', ir_a_documento: 'Abriendo la pantalla del documento…' }[name]; if (m) { const t = $('#asThinking'); if (t) t.textContent = m; } }
   function add(role, text) {
     const box = $('#asLog'); if (!box) return null;
     const el = document.createElement('div');
@@ -445,7 +644,7 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
     bubble.innerHTML = '<span id="asThinking" class="thinking">Pensando…</span>';
     let answer = null;
     try {
-      answer = guiaLocal(text);
+      answer = (await guiaDoc(text)) || guiaLocal(text);
       if (!answer) {
         await A.platform.ready;
         if (A.platform.mode === 'server' && A.platform.serverInfo && A.platform.serverInfo.ia) {
@@ -466,12 +665,12 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
     await hablar(answer);
     if (voz) escuchar();
   }
-  function open() { const p = $('#asPanel'); if (p.hidden) { p.hidden = false; $('#asFab').setAttribute('aria-expanded', 'true'); setTimeout(() => $('#asInput').focus(), 50); } }
+  function open() { const p = $('#asPanel'); if (p.hidden) { p.hidden = false; $('#asFab').setAttribute('aria-expanded', 'true'); const t = tarjetaAct; if (t) { quitarTarjeta(); pintarTarjeta(t, true); } setTimeout(() => $('#asInput').focus(), 50); } }
   function close() { $('#asPanel').hidden = true; $('#asFab').setAttribute('aria-expanded', 'false'); if (window.speechSynthesis && !voz) speechSynthesis.cancel(); }
 
   const SUGS = {
     simulador: ['¿Me lo puedo permitir?', '¿Qué me debería preocupar?', '¿Cómo pongo en verde la liquidez?', 'Pon la financiación al 80 %', 'Llévame a la mesa de trabajo', '¿Dónde estoy?', 'Abre el manual'],
-    estrategia: ['¿Cómo va el presupuesto?', '¿Dónde está el mayor riesgo?', 'Sube el precio un 3 %', 'Abre impuestos', 'Llévame a personas y equipos', '¿Dónde estoy?', 'Abre el manual'],
+    estrategia: ['¿Qué me falta?', '¿Cómo va el presupuesto?', '¿Dónde está el mayor riesgo?', 'Sube el precio un 3 %', 'Abre impuestos', 'Llévame a personas y equipos', '¿Dónde estoy?', 'Abre el manual'],
     personas: ['¿Dónde estoy?', 'Abre liderazgo a medida', 'Abre el plan de desarrollo', 'Llévame a la mesa de trabajo', 'Abre el manual de liderazgo', 'Cierra el mundo'],
     intervencion: ['¿Dónde estoy?', 'Abre el guion de la sesión', 'Abre la escucha y transcripción', 'Abre el triaje y hoja de ruta', 'Abre el plan de intervención', 'Abre el manual de la auditoría integral'],
     mesa: ['¿Dónde estoy?', 'Abre las metas SMART', 'Abre la agenda semanal', 'Abre el manual de metas', 'Llévame al sistema estratégico', 'Cierra el mundo'],
@@ -531,6 +730,9 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
       marcar();
       alLlegar();
       if (voz && !SS.get('atalaya.guia.llegada')) setTimeout(escuchar, 900);
+      // Guía de la documentación: tarjeta de saludo (sistema estratégico y puesto de mando) y aviso después de cada entrega
+      setTimeout(() => { saludoPlan().catch((e) => console.error(e)); }, 3500);
+      vigilarEntregas();
       A.platform.ready.then(async () => {
         const m = $('#asMode');
         if (A.platform.mode === 'server' && A.platform.serverInfo && A.platform.serverInfo.ia) m.textContent = 'Con Claude';
@@ -540,7 +742,8 @@ También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (p
     ask(text) { send(text); },
     open,
     voz: (on) => setVoz(on),
-    guia: { destinos, mundoActual, irZona, viajar, cerrarVentanas }
+    guia: { destinos, mundoActual, irZona, viajar, cerrarVentanas },
+    plan: { calcular: planDoc, ver: () => planDoc().then(verPlan), texto: (corto) => planDoc().then((p) => planTexto(p, corto)), saludo: saludoPlan }
   };
   /* Puesto de mando, tablero, libro y cartera: el asistente hace de guía en cuanto la cuenta está en la barra */
   const AUTO = { 'portal.html': 'inicio', 'tablero.html': 'tablero', 'libro.html': 'libro', 'grupo.html': 'grupo' }[PG()];

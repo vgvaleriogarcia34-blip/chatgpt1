@@ -277,6 +277,12 @@
       // Las cuentas cargadas en el simulador cuentan para cualquier dato de tipo «cuentas»
       const alt = (d.alt === 'historico' || d.tipo === 'cuentas') && S.sim.historico && !S.sim.historico.ejemplo && S.sim.historico.anios && S.sim.historico.anios.length;
       const man = o.manual[modId + ':' + i];
+      /* En un área valorable, el dato de cuentas está completo cuando el área está entregada (S.entregada): la franja
+         «Falta por aterrizar» dice entonces lo mismo que la nota, y si falta un ejercicio lo nombra (INF.falta) */
+      if (d.tipo === 'cuentas' && !man && (c || alt) && S.AREAS_VALORABLES && S.AREAS_VALORABLES.includes(modId) && S.entregada && !S.noAplica(modId) && !S.entregada(modId)) {
+        const m = S.mod(modId), f = S.inf && S.inf.falta && m ? S.inf.falta(m) : '';
+        return Object.assign({}, d, { i, ok: false, t: f ? f.replace(/^Falta: /, '') : d.t, via: '', manual: false });
+      }
       return Object.assign({}, d, { i, ok: !!(c || alt || man), via: c ? `Cargado desde ${c.archivo}` : alt ? 'Introducido en el módulo' : man ? 'Marcado como introducido a mano' : '', manual: !!man });
     });
   };

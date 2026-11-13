@@ -24,6 +24,8 @@ const PORT = +env.PORT || 8080;
 const COOKIE = 'atalaya_sid';
 const SESSION_DAYS = 30;
 const MODEL = env.ATALAYA_MODEL || 'claude-opus-5-5';
+// Modelo ligero para la guía y la navegación del asistente (/api/chat con modo «guia»); el análisis y la redacción usan MODEL
+const MODEL_GUIA = env.ATALAYA_MODEL_GUIA || 'claude-haiku-5-5';
 const ADMIN_COOKIE = 'atalaya_adm';
 const ADMIN_HOURS = 12;
 const APP_URL = (env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
@@ -1102,26 +1104,52 @@ async function ask(params) {
     model: MODEL, max_tokens: 16000, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', ...params
   });
   // Coste de la llamada, para el tope en euros de la cuenta de demostración (conIA abre el contexto con IA_GASTO.run)
-  const g = IA_GASTO.getStore(); if (g) g.usd += costeLlamada(r, params);
+  const g = IA_GASTO.getStore(); if (g) g.usd += costeLlamada(r, Object.assign({ model: MODEL }, params));
   return r;
 }
-/* Coste estimado de una llamada a partir del uso que devuelve Anthropic: entrada a 4 $ por millón de tokens (también la que
-   se lee o escribe en la caché, contada como entrada normal para no quedarse cortos), salida a 20 $ por millón y búsquedas
+/* Guía y navegación: el modelo ligero (MODEL_GUIA) con esfuerzo bajo. No tiene reintento en otro modelo en el servidor:
+   sin betas ni fallbacks, y sin presupuesto de razonamiento (el razonamiento es adaptativo por defecto). Si la llamada falla
+   con un error que no se arregla reintentando (400, 401, 403, 404…), o un clasificador la rechaza, se repite una vez con
+   el modelo principal (ask). Los errores de saturación o de red los reintenta el propio SDK y, si persisten, se devuelven. */
+const reintentable = (e) => !e || !e.status || e.status === 408 || e.status === 409 || e.status === 429 || e.status >= 500;
+async function askGuia(params) {
+  const c = await claude();
+  if (!c) throw fallo(503, 'La IA no está configurada en el servidor');
+  const body = { model: MODEL_GUIA, max_tokens: 16000, ...params, output_config: { effort: 'low' } };
+  let r;
+  try { r = await c.messages.create(body); } catch (e) {
+    if (reintentable(e)) throw e;
+    console.error(`Modelo de guía (${MODEL_GUIA}) sin respuesta (${e.status}); se usa el principal.`);
+    return ask(params);
+  }
+  const g = IA_GASTO.getStore(); if (g) g.usd += costeLlamada(r, body);
+  return r.stop_reason === 'refusal' ? ask(params) : r;
+}
+/* Coste estimado de una llamada a partir del uso que devuelve Anthropic, con el precio del modelo pedido: el principal, a 4 $
+   por millón de tokens de entrada (también la que se lee o escribe en la caché, contada como entrada normal para no quedarse
+   cortos) y 20 $ por millón de salida; el de guía, a 0,10 $ y 0,50 $ (con más de 100.000 tokens de entrada, 0,50 $ y 2,50 $).
+   Un modelo que no está en la tabla (el de reserva de un rechazo, por ejemplo) se cuenta al precio del principal. Búsquedas
    web a 10 $ cada mil. Sin uso en la respuesta, una estimación prudente: un token por cada 3 caracteres enviados y la salida
    máxima pedida (max_tokens, 16.000 por defecto), más las búsquedas web que admita la herramienta. */
 const IA_PRECIO = { entrada: num('IA_USD_MTOK_ENTRADA', 4), salida: num('IA_USD_MTOK_SALIDA', 20), busqueda: num('IA_USD_BUSQUEDA', 0.01) };
+const IA_PRECIO_MODELO = {
+  [MODEL]: { entrada: IA_PRECIO.entrada, salida: IA_PRECIO.salida },
+  [MODEL_GUIA]: { entrada: num('IA_USD_MTOK_ENTRADA_GUIA', 0.1), salida: num('IA_USD_MTOK_SALIDA_GUIA', 0.5), largo: 100000, entradaLargo: num('IA_USD_MTOK_ENTRADA_GUIA_LARGO', 0.5), salidaLargo: num('IA_USD_MTOK_SALIDA_GUIA_LARGO', 2.5) }
+};
+const precioDe = (modelo, entrada) => { const p = IA_PRECIO_MODELO[modelo] || IA_PRECIO_MODELO[MODEL]; return p.largo && entrada > p.largo ? { entrada: p.entradaLargo, salida: p.salidaLargo } : p; };
 const EUR_USD = num('EUR_USD', 1.08); // dólares por euro: el coste en euros es el coste en dólares dividido entre EUR_USD
 const IA_GASTO = new AsyncLocalStorage();
 function costeLlamada(r, params) {
-  const us = r && r.usage;
+  const us = r && r.usage, pedido = (params && params.model) || MODEL;
   if (us && (us.input_tokens != null || us.output_tokens != null)) {
     const ent = (+us.input_tokens || 0) + (+us.cache_creation_input_tokens || 0) + (+us.cache_read_input_tokens || 0);
-    const bus = +((us.server_tool_use || {}).web_search_requests) || 0;
-    return ent * IA_PRECIO.entrada / 1e6 + (+us.output_tokens || 0) * IA_PRECIO.salida / 1e6 + bus * IA_PRECIO.busqueda;
+    const bus = +((us.server_tool_use || {}).web_search_requests) || 0, pr = precioDe(pedido === MODEL_GUIA ? MODEL_GUIA : (r.model && IA_PRECIO_MODELO[r.model] ? r.model : pedido), ent);
+    return ent * pr.entrada / 1e6 + (+us.output_tokens || 0) * pr.salida / 1e6 + bus * IA_PRECIO.busqueda;
   }
   const chars = JSON.stringify((params && (params.messages || [])) || []).length + String((params && params.system) || '').length;
   const busq = ((params && params.tools) || []).reduce((a, t) => a + (t && /^web_search/.test(t.type || '') ? +t.max_uses || 5 : 0), 0);
-  return (chars / 3) * IA_PRECIO.entrada / 1e6 + ((params && params.max_tokens) || 16000) * IA_PRECIO.salida / 1e6 + busq * IA_PRECIO.busqueda;
+  const pr = precioDe(pedido, chars / 3);
+  return (chars / 3) * pr.entrada / 1e6 + ((params && params.max_tokens) || 16000) * pr.salida / 1e6 + busq * IA_PRECIO.busqueda;
 }
 const textOf = (msg) => msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
 function jsonOf(text) {
@@ -1149,6 +1177,8 @@ const IA_PLAN = {
 };
 /* Cuota por empresa en los planes con varias empresas (Consultora y Grupos): además de la diaria de la cuenta, cada empresa
    tiene un máximo de consultas al mes (IA_MENSUAL_EMPRESA, 300) y al día (IA_DIARIA_EMPRESA, 40), con los mismos pesos.
+   Pesos: una consulta del asistente cuenta 1; una de guía o navegación (modo «guia», modelo ligero), PESO_GUIA (0,25); el
+   agente de mercado, PESO_MERCADO (5).
    La administración puede ampliar la mensual de una cuenta concreta (iaEmpresaMes). El navegador indica la empresa en la
    cabecera X-Atalaya-Empresa; si no viene o no es de la cuenta, cuenta como la principal.
    Uso: u.usoIAEmpresa[empresa]['AAAA-MM'] = {n, c} (mes) y ['AAAA-MM-DD'] = {n, c} (día); se guardan 13 meses y 7 días. */
@@ -1226,7 +1256,8 @@ Si expresa una preocupación, identifica qué indicadores y variables de la empr
 Cuando analices o valores la empresa, redacta como un consultor de dirección que informa a su cliente. El sujeto es la empresa, nunca la aplicación. Empieza por la conclusión; apóyala en la cifra con su unidad y su periodo y, si existe, en la comparación con el año anterior o con el objetivo; di qué significa para la empresa y termina con la recomendación: qué hacer, impacto esperado y plazo. No presentes como hallazgo nada del funcionamiento de la aplicación (módulos, pasos, pantallas, documentos cargados o datos por introducir): si falta información para un análisis, di en una frase qué dato de la empresa no se ha podido analizar y sigue con lo que sí hay. Voz activa, sin superlativos ni adjetivos vacíos.
 Para estructuras societarias y relaciones entre sociedades de un grupo, explica cómo funcionan con ejemplos y recuerda que la fiscalidad la debe confirmar su asesor.
 Responde en 3-8 frases salvo que pidan detalle. Tus respuestas pueden leerse en voz alta: no uses tablas, asteriscos ni símbolos.
-También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (inicio, simulador de inversión, sistema estratégico, personas y equipos, mesa de trabajo y vista de grupo), a cualquier módulo, capítulo o pestaña, cierras ventanas, mapas e informes y abres el manual en el apartado que necesite. Usa donde_estoy para saber dónde está y qué hay, e ir_a_mundo, ir_a_zona, cerrar y abrir_manual para moverle. Cuando pida ir a un sitio, hazlo directamente y di en una o dos frases qué va a encontrar y qué conviene mirar primero.`;
+También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (inicio, simulador de inversión, sistema estratégico, personas y equipos, mesa de trabajo y vista de grupo), a cualquier módulo, capítulo o pestaña, cierras ventanas, mapas e informes y abres el manual en el apartado que necesite. Usa donde_estoy para saber dónde está y qué hay, e ir_a_mundo, ir_a_zona, cerrar y abrir_manual para moverle. Cuando pida ir a un sitio, hazlo directamente y di en una o dos frases qué va a encontrar y qué conviene mirar primero.
+Documentación de la empresa: cuando pregunte qué le falta, qué documentos tiene que subir, por dónde empezar o qué hacer después, consulta ver_plan_documentacion y responde con el siguiente documento, cómo se entrega, en qué pantalla y qué permitirá analizar; si quiere ir, usa ir_a_documento. Las áreas esenciales que faltan cuentan 0 en la nota; las recomendadas no la bajan. Nunca marques un área como «no aplica» ni lo des por hecho: si cree que un área no corresponde a su actividad, explícale que puede marcarla la empresa con el botón «Esta área no aplica a mi empresa» de esa área, indicando el motivo.`;
 
 // Fuentes oficiales para el análisis de mercado
 const FUENTES_OFICIALES = ['ine.es', 'bde.es', 'ecb.europa.eu', 'ec.europa.eu', 'imf.org', 'oecd.org', 'worldbank.org', 'boe.es', 'agenciatributaria.es', 'seg-social.es', 'sepe.es', 'cnmc.es', 'economia.gob.es', 'mintur.gob.es', 'mapa.gob.es', 'transportes.gob.es', 'mites.gob.es', 'hacienda.gob.es', 'airef.es', 'cis.es', 'icex.es', 'camara.es', 'cepyme.es', 'ceoe.es'];
@@ -2631,7 +2662,10 @@ route('POST', /^\/api\/chat$/, async (req, res, body, u) => {
   const largo = JSON.stringify(messages).length;
   if (!messages.length || largo > 400000) throw fallo(400, 'Conversación no válida');
   const pagina = String(body.page || '').replace(/[^a-z]/g, '').slice(0, 20);
-  const r = await conIA(u, 'chat', 1, largo + JSON.stringify(tools).length, () => ask({ system: SYSTEM_CHAT + (pagina ? `\nEl usuario está ahora en: ${pagina}.` : ''), tools, messages, output_config: { effort: 'low' } }), req);
+  // Modo que indica el navegador: «guia» (guía y navegación) va al modelo ligero y pesa menos en la cuota; lo demás, al principal
+  const guia = body.modo === 'guia';
+  const params = { system: SYSTEM_CHAT + (pagina ? `\nEl usuario está ahora en: ${pagina}.` : ''), tools, messages, output_config: { effort: 'low' } };
+  const r = await conIA(u, 'chat', guia ? PESO_GUIA : 1, largo + JSON.stringify(tools).length, () => (guia ? askGuia(params) : ask(params)), req);
   return { content: r.content, stop_reason: r.stop_reason };
 });
 
@@ -2665,6 +2699,7 @@ route('POST', /^\/api\/extract$/, async (req, res, body, u) => {
 
 // Agente de mercado: análisis 360 con fuentes oficiales, guardado por usuario. Cuenta como 5 consultas (hace búsquedas web)
 const PESO_MERCADO = 5;
+const PESO_GUIA = 0.25; // consulta de guía o navegación del asistente (modelo ligero)
 route('GET', /^\/api\/mercado$/, async (req, res, body, u) => ({ analisis: D.mercado(u.id) }));
 route('POST', /^\/api\/mercado\/actualizar$/, async (req, res, body, u) => {
   const perfil = { sector: body.sector, actividad: body.actividad, region: body.region, productos: body.productos, clientes: body.clientes, ventas: body.ventas };

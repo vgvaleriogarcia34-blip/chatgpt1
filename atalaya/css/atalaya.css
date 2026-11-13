@@ -497,6 +497,26 @@ table.guide td:nth-child(n+3):not(:last-child) { font-size: 0.8rem; }
 .as-speak { display: flex; align-items: center; gap: 8px; font-size: var(--t-xs); color: var(--muted); }
 .switch[aria-pressed="true"] { background: rgba(201, 242, 77, 0.2); }
 .switch[aria-pressed="true"]::after { transform: translateX(16px); background: var(--gold); }
+/* Guía de la documentación: tarjeta sobre el botón del asistente (o dentro de la conversación) y plan completo */
+.assistant, .as-bar { pointer-events: none; }
+.as-bar > *, .as-panel, .as-guia { pointer-events: auto; }
+.as-guia-dot { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--gold); background: rgba(14, 17, 24, 0.95); color: var(--gold); font-size: var(--t-xs); font-weight: 700; }
+.as-guia { position: absolute; right: 0; bottom: 60px; width: min(360px, calc(100vw - 32px)); display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: rgba(14, 17, 24, 0.97); border: 1px solid var(--line-strong); box-shadow: 0 18px 50px -18px rgba(0, 0, 0, 0.7); }
+.as-guia header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.as-guia header b { font-size: var(--t-s); }
+.as-gt { margin: 0; font-size: var(--t-s); line-height: 1.5; }
+.as-gn { margin: 0; font-size: var(--t-xs); color: var(--muted); line-height: 1.45; }
+.as-gb { display: flex; flex-wrap: wrap; gap: 6px; }
+.msg.as-card, .msg.as-plan { display: grid; gap: 8px; max-width: 100%; }
+.as-plan ol, .as-plan ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: var(--t-xs); }
+.as-plan small { color: var(--muted); }
+.as-plan .btn { margin-top: 4px; }
+.as-pl-h { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.as-pl-st { font-size: var(--t-xs); padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.as-pl-ok .as-pl-st { color: var(--go); border-color: var(--go); }
+.as-pl-falta .as-pl-st { color: var(--stop); border-color: var(--stop); }
+.as-pl-pend .as-pl-st { color: var(--warn); border-color: var(--warn); }
+.as-pl-na .as-pl-st { color: var(--muted); }
 @media (max-width: 899px) { .assistant { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); right: 12px; } .as-fab span { display: none; } .as-fab { padding: 12px; } }
 
 @media print {

@@ -53,9 +53,11 @@
   S.register = (m) => { envolver(m); if (m.first) S.modules.unshift(m); else S.modules.push(m); };
   S.mod = (id) => S.modules.find((m) => m.id === id);
   S.defaults = {};
+  // Aviso de datos guardados en la página del sistema estratégico (el asistente comprueba si se ha entregado un área)
+  const avisarDatos = () => { if (!S.__vivo) return; try { dispatchEvent(new CustomEvent('atalaya:datos', { detail: { mundo: 'estrategia' } })); } catch (e) { /* sin eventos */ } };
   // Al guardar se recalcula también la nota (así la de este mundo no se queda con la foto de antes del cambio)
-  S.save = (() => { let t; return () => { LS.set(LSK, S.state); clearTimeout(t); t = setTimeout(() => { if (A.platform) A.platform.saveData('estrategia', S.state); if (A.nota && A.nota.refrescar) A.nota.refrescar(); }, 1200); S.refreshKpis(); }; })();
-  S.saveSim = () => { LS.set(SIMK, S.sim); A.platform && A.platform.saveData('simulador', S.sim); if (A.nota && A.nota.refrescar) setTimeout(() => A.nota.refrescar(), 600); };
+  S.save = (() => { let t; return () => { LS.set(LSK, S.state); clearTimeout(t); t = setTimeout(() => { if (A.platform) A.platform.saveData('estrategia', S.state); if (A.nota && A.nota.refrescar) A.nota.refrescar(); avisarDatos(); }, 1200); S.refreshKpis(); }; })();
+  S.saveSim = () => { LS.set(SIMK, S.sim); A.platform && A.platform.saveData('simulador', S.sim); if (A.nota && A.nota.refrescar) setTimeout(() => A.nota.refrescar(), 600); setTimeout(avisarDatos, 1200); };
 
   /* Datos de la empresa que vienen del simulador */
   S.empresa = () => S.sim.empresa;
@@ -493,8 +495,8 @@
      de la nota, con su motivo). Una sola tabla por sector (claves de A.SECTORS, js/sectors.js) × área: 'e', 'r' o 'n'.
      Base para todos los sectores: esenciales el flujo del dinero (cuentas), la tesorería, el margen, los cobros y el
      plan de empresa; recomendadas las demás. Cada celda distinta de la base lleva su motivo al lado.
-     Sobre el ABC (módulo «ventas», ABC y concentración de clientes y productos): recomendado en todos los sectores. El
-     ABC por producto no se pide cuando la empresa vende una sola línea de producto o servicio (ver js/nota.js).
+     Sobre el ABC (módulo «ventas», ABC y concentración de clientes y productos): esencial en industria, distribución y
+     retail, donde los márgenes se hallan por volumen, rotación y recursos invertidos; recomendado en los demás. El ABC por producto no se pide cuando la empresa vende una sola línea de producto o servicio (ver js/nota.js).
      Después de la tabla se aplican las reglas de tamaño (con plantilla conocida de 2 personas o menos, personas y
      tiempos no aplican) y la decisión de la propia empresa (S.state.exigencia), que manda sobre la tabla. */
   const AREAS_VALORABLES = ['dinero', 'impuestos', 'tesoreria', 'presupuesto', 'ventas', 'margen', 'comercial', 'marketing', 'expansion', 'compras', 'logistica', 'tiempos', 'lean', 'personas', 'plan', 'mercado', 'cobros', 'valoracion'];
@@ -502,11 +504,13 @@
   const base = (cambios) => Object.assign(Object.fromEntries(AREAS_VALORABLES.map((k) => [k, BASE_E.includes(k) ? 'e' : 'r'])), cambios);
   S.EXIGENCIA = {
     industria: base({
+      ventas: 'e', // ABC esencial: los márgenes se hallan por volumen, rotación y recursos invertidos en gestionar o fabricar cada línea
       logistica: 'e', // fabrica y expide mercancía: el servicio de entrega (OTIF) y el coste de mover y guardar son parte del negocio
       lean: 'e', // tiene planta: la eficiencia de los procesos (OEE, desperdicio) decide el coste
       compras: 'e' // compra materia prima: el coste y la dependencia de proveedores pesan en el margen
     }),
     distribucion: base({
+      ventas: 'e', // ABC esencial: los márgenes se hallan por volumen, rotación y recursos invertidos en gestionar o fabricar cada línea
       logistica: 'e', // vive de almacenar y repartir
       lean: 'e', // almacén y preparación de pedidos: procesos repetitivos donde el desperdicio cuesta margen
       compras: 'e' // compra la mercancía que vende
@@ -515,6 +519,7 @@
       compras: 'e' // compra producto perecedero cada día: el coste de materia prima es la primera partida
     }),
     retail: base({
+      ventas: 'e', // ABC esencial: los márgenes se hallan por volumen, rotación y recursos invertidos en gestionar o fabricar cada línea
       compras: 'e' // compra la mercancía que vende
     }),
     construccion: base({
@@ -629,6 +634,78 @@
   // Las cifras clave que no se han facilitado: qué documento falta
   INF.FALTA_CIFRA = { ventas: 'faltan las ventas del último ejercicio', ebitda: 'falta la cuenta de resultados (margen, personal y gastos)', deuda: 'falta el balance (deuda bancaria)', caja: 'falta el saldo de caja de hoy', plantilla: 'falta la plantilla' };
   INF.falta = (m) => { const f = INF.FALTA[m.id]; if (f) return typeof f === 'function' ? f() : f; const D = A.C360 && A.C360[m.id]; return D && D.datos && D.datos[0] ? 'Falta: ' + INF.min(D.datos[0].t) : 'Falta la información de gestión del área'; };
+
+  /* ---------- Plan de documentación ----------
+     Ruta guiada por la documentación de la empresa: las áreas esenciales entregadas y las que faltan, las recomendadas
+     pendientes y el siguiente paso. Se calcula aquí, sin IA y siempre igual, con los datos propios de la empresa
+     (S.inf.conPropios): lo de ejemplo no cuenta como entregado. Cada elemento dice el área, el documento que falta
+     (INF.falta), cómo se entrega, en qué pantalla y qué permitirá. Las esenciales que faltan se ordenan por lo que
+     desbloquean: primero las cuentas anuales (cruce del beneficio con la caja y valoración), después tesorería, margen,
+     cobros y plan de empresa, y al final las esenciales propias del sector. La exigencia la decide S.exigencia (sector,
+     tamaño y la propia empresa): el plan nunca marca un área como «no aplica». */
+  const ORDEN_DOC = ['dinero', 'tesoreria', 'margen', 'cobros', 'plan', 'ventas', 'compras', 'tiempos', 'logistica', 'lean', 'impuestos', 'presupuesto', 'valoracion', 'comercial', 'personas', 'marketing', 'mercado', 'expansion'];
+  const EN_TABLA = 'en la tabla del área con «Importar documento» (Excel, CSV, PDF o Word), con «Pegar» (filas copiadas de Excel) o a mano con «Añadir fila»';
+  S.DOC_GUIA = {
+    dinero: { zona: 'origen', paso: 'Se suben en «Origen de datos»: con una sola carga llegan al flujo del dinero y al punto de partida, y aparece la nota del sistema estratégico.', como: 'Suba las cuentas anuales (balance y cuenta de resultados) en PDF, Excel o Word en «Origen de datos»: llegan a la vez al flujo del dinero y al punto de partida de la empresa, y con una sola carga aparece la nota. También puede escribir las cifras de cada año en la rejilla de «Flujo del dinero».', permite: 'se valoran el flujo del dinero y la tesorería y se cruza el beneficio con la caja; también se calculan los impuestos y el valor de la empresa' },
+    tesoreria: { como: 'Escriba el saldo de caja de hoy en «Saldo inicial» y cargue los movimientos del banco ' + EN_TABLA + '.', permite: 'se ve semana a semana si la caja cubre los pagos y cuál será la semana más tensa' },
+    margen: { como: 'Cargue los productos o servicios con precio, coste variable y unidades vendidas ' + EN_TABLA + '.', permite: 'se sabe qué productos o servicios dejan margen, cuáles lo consumen y cuánto hay que vender para cubrir los gastos' },
+    cobros: { como: 'Cargue las facturas pendientes de cobro (cliente, factura, vencimiento e importe) en la tabla «Facturas pendientes de cobro», o suba el listado en «Origen de datos». Si los tiene, añada los cobros del último año.', permite: 'se mide cuánto está vencido, cuánto dinero espera en manos de los clientes y qué parte puede no cobrarse' },
+    plan: { como: 'Se escribe en la propia pantalla: misión, visión, valores, el análisis de debilidades, amenazas, fortalezas y oportunidades (DAFO), los objetivos y las acciones con responsable y fecha.', permite: 'los objetivos de la dirección bajan a acciones con responsable y fecha y se puede seguir su cumplimiento' },
+    ventas: { como: 'Cargue las ventas del último año por cliente y por producto ' + EN_TABLA + ', o suba el listado en «Origen de datos».', permite: 'se ve qué clientes y productos concentran la venta y el margen, y cuánto depende la empresa de unos pocos' },
+    compras: { como: 'Cargue las compras del último año por proveedor (importe y plazo de pago) ' + EN_TABLA + '.', permite: 'se ve cuánto depende la empresa de cada proveedor y cuánto pesan las compras en el margen' },
+    tiempos: { como: 'Cargue los partes de horas por persona y tarea en «Registros de tiempo» ' + EN_TABLA.replace('en la tabla del área ', '') + ', o regístrelos con el reloj.', permite: 'se conocen el coste real de cada hora vendida y la capacidad libre del equipo' },
+    logistica: { como: 'Escriba los pedidos al mes, los costes de transporte y almacén y las entregas a tiempo y completas, y cargue las rutas ' + EN_TABLA + '.', permite: 'se miden el servicio de entrega y el coste de mover y guardar la mercancía' },
+    lean: { como: 'Describa los pasos del proceso principal con sus tiempos en «Pasos del proceso», a partir de los partes de producción o de horas.', permite: 'se ve dónde se pierde tiempo en el proceso y cuánto cuesta ese desperdicio' },
+    impuestos: { como: 'Sale de la cuenta de resultados: con las cuentas anuales o con el margen, el personal y los gastos fijos cargados se calculan la base imponible y la cuota.', permite: 'se prevé lo que la empresa pagará de impuestos y cuándo' },
+    presupuesto: { como: 'Escriba el presupuesto del año y las ventas reales de cada mes cerrado en la pantalla del área.', permite: 'se compara cada mes lo previsto con lo real' },
+    valoracion: { como: 'Sale de la cuenta de resultados (margen, personal y gastos fijos), de las cuentas anuales o de lo escrito en el punto de partida.', permite: 'se estima cuánto vale la empresa y qué lo mueve' },
+    comercial: { como: 'Cargue las oportunidades abiertas con cliente, importe, etapa y probabilidad ' + EN_TABLA + '.', permite: 'se estima la venta que llegará en los próximos meses' },
+    personas: { como: 'Cargue la plantilla por área con número de personas y coste ' + EN_TABLA + '.', permite: 'se ven el coste y la carga de cada área' },
+    marketing: { como: 'Cargue la inversión, los contactos y los clientes captados por canal ' + EN_TABLA + '.', permite: 'se sabe cuánto cuesta captar un cliente en cada canal' },
+    mercado: { como: 'Escriba los indicadores del sector, la competencia y el riesgo por tipo de cliente y de producto en sus tablas, o suba estudios de mercado en «Origen de datos».', permite: 'se sitúa a la empresa frente a su mercado y su competencia' },
+    expansion: { como: 'Cargue los datos de mercado de las zonas candidatas ' + EN_TABLA + '.', permite: 'se comparan las zonas donde crecer' }
+  };
+  // Lo que falta en un área entregada, o con datos que aún no bastan para valorarla (datos que dejan el análisis a medias)
+  const docIncompleto = (id) => {
+    const l = [];
+    try {
+      if (id === 'dinero') {
+        const E = INF.ejercicios(), y = ANIO(), f = [y - 2, y - 1].filter((a) => !E.cerrados.includes(a));
+        if (E.cerrados.length < 2) l.push(E.cerrados.length ? `Solo hay un ejercicio cerrado (${E.cerrados[0]}): ${f.length > 1 ? 'faltan los de ' : 'falta el de '}${lista(f.map(String))} para comparar dos años.` : 'Las cuentas cargadas no tienen ningún ejercicio cerrado: faltan el balance y la cuenta de resultados de los dos últimos años.');
+      }
+      if (id === 'tesoreria') {
+        const Ts = S.state.tesoreria || {}, c = S.cifras(), ini = Ts.saldoInicial !== null && Ts.saldoInicial !== '' && Ts.saldoInicial != null;
+        if (!ini && S.num(S.sim.empresa.caja) > 0 && c && c.caja == null) l.push('La caja anotada coincide con la de un año de previsión: falta el saldo de caja de hoy.');
+        if (!(Ts.movimientos || []).some((m) => S.num(m.importe))) l.push('Faltan los movimientos recientes del banco: sin ellos la previsión semanal se calcula solo con los plazos medios de cobro y pago.');
+      }
+      if (id === 'cobros' && !((S.state.cobros || {}).historico || []).length) l.push('Faltan los cobros del último año con fecha de factura y de cobro: sin ellos no se miden los días reales de cobro.');
+      if (id === 'margen') { const sin = ((S.state.comercial || {}).productos || []).filter((p) => S.num(p.unidades) * S.num(p.precio) > 0 && !S.num(p.coste)).length; if (sin) l.push(`${sin === 1 ? 'Un producto no tiene' : sin + ' productos no tienen'} coste variable: su margen sale completo.`); }
+      if (id === 'ventas') { const C = S.state.comercial || {}, nc = (C.clientes || []).length, np = (C.productos || []).length; if (nc < 5 || (np > 1 && np < 3)) l.push(`El análisis tiene ${nc === 1 ? 'un cliente' : nc + ' clientes'} y ${np === 1 ? 'un producto' : np + ' productos'}: con menos de cinco clientes o de tres productos el reparto no es representativo.`); }
+      if (id === 'plan' && !(((S.state.plan || {}).acciones) || []).some((a) => a.accion)) l.push('El plan no tiene acciones con responsable y fecha.');
+    } catch (e) { /* sin comprobación */ }
+    return l;
+  };
+  S.planDocumentacion = () => INF.conPropios(() => {
+    const items = AREAS_VALORABLES.map((id) => {
+      const m = S.mod(id); if (!m) return null;
+      const ex = S.exigencia(id), ent = ex.k !== 'n' && S.entregada(m), g = S.DOC_GUIA[id] || {}, n = INF.titulo(m);
+      const falta = ent || ex.k === 'n' ? '' : INF.falta(m);
+      return { id, n, exig: ex.k, exigencia: S.EXIG_N[ex.k], origen: ex.origen, motivo: ex.motivo || '', entregada: ent, falta,
+        documento: falta ? falta.replace(/^Faltan? (la |el |los |las )?/i, (x, art) => (art || '')).replace(/^Falta: /, '') : '',
+        como: g.como || 'Se carga en la pantalla del área.', paso: g.paso || '', zona: g.zona || id, donde: 'Sistema estratégico › ' + (g.zona ? INF.titulo(S.mod(g.zona)) : n), url: 'estrategia.html#' + (g.zona || id),
+        permite: g.permite || '', incompleto: ex.k !== 'n' && (ent || S.conDatos(m)) ? docIncompleto(id) : [] };
+    }).filter(Boolean).sort((a, b) => ORDEN_DOC.indexOf(a.id) - ORDEN_DOC.indexOf(b.id));
+    const ess = items.filter((x) => x.exig === 'e'), rec = items.filter((x) => x.exig === 'r');
+    const faltan = ess.filter((x) => !x.entregada), pend = rec.filter((x) => !x.entregada);
+    const sig = faltan[0] || pend[0] || null;
+    return {
+      empresa: (S.sim && S.sim.empresaNombre) || '', sector: INF.sectorTxt(),
+      esenciales: { total: ess.length, entregadas: ess.length - faltan.length },
+      entregadas: ess.filter((x) => x.entregada), faltan, recomendadas: pend, recomendadasEntregadas: rec.filter((x) => x.entregada),
+      noAplican: items.filter((x) => x.exig === 'n').map((x) => ({ id: x.id, n: x.n, motivo: x.motivo })),
+      completo: !faltan.length, siguiente: sig ? Object.assign({ recomendada: !faltan.length }, sig) : null, areas: items
+    };
+  });
 
   /* ---------- Áreas de la empresa con su valoración ----------
      Una sola regla (A.nota.evaluacion, js/nota.js), la misma del cuadro de mando y de la nota de la empresa: cada área
