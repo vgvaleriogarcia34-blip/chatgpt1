@@ -707,6 +707,72 @@
     };
   });
 
+  /* ---------- Informes disponibles ----------
+     Qué informe tiene sentido sacar ya, calculado aquí sin IA con las mismas reglas de la nota (S.exigencia, S.entregada,
+     INF.falta): «listo», «incompleto» (saldrá con áreas esenciales a «0 · sin documentación», que se nombran) o
+     «sin_sentido» (no hay documentación propia con la que hacerlo). Así la guía nunca recomienda un informe que saldría casi
+     a ceros sin decirlo antes. Los informes de otros mundos (personas y equipos, auditoría integral) los añade el asistente
+     con sus propios datos. */
+  S.ESTADO_INF = { listo: 'Listo', incompleto: 'Saldrá incompleto', sin_sentido: 'No tiene sentido todavía' };
+  S.informesDisponibles = () => INF.conPropios(() => {
+    const p = S.planDocumentacion(), propios = !!(S.datosPropios && S.datosPropios()), alguna = p.areas.some((a) => a.entregada);
+    const ceros = p.faltan.length, essN = p.faltan.map((a) => a.n);
+    const global = (id, tipo, titulo, como) => {
+      if (!propios && !alguna) return { id, tipo, titulo, mundo: 'estrategia', estado: 'sin_sentido', motivo: `La empresa no ha aportado todavía documentación propia: el informe saldría con las ${p.esenciales.total} áreas esenciales a «0 · sin documentación».`, faltan: essN, ceros: p.esenciales.total, como };
+      if (ceros) return { id, tipo, titulo, mundo: 'estrategia', estado: 'incompleto', motivo: `${ceros === 1 ? 'Un área esencial saldrá' : ceros + ' de ' + p.esenciales.total + ' áreas esenciales saldrán'} con «0 · sin documentación»: ${lista(essN)}.`, faltan: essN, ceros, como };
+      return { id, tipo, titulo, mundo: 'estrategia', estado: 'listo', motivo: `La documentación esencial está completa (${p.esenciales.total} de ${p.esenciales.total}).`, faltan: [], ceros: 0, como };
+    };
+    const out = [global('auditoria', 'auditoria', 'Informe de auditoría', 'Sistema estratégico › Informe de auditoría'), global('tablero', '360', 'Informe 360 · ' + INF.titulo(S.mod('tablero')), 'Sistema estratégico › Cuadro de mando › Informe 360')];
+    p.areas.forEach((a) => {
+      const r360 = !!(A.C360 && A.C360[a.id] && S.report360), base = { id: a.id, tipo: r360 ? '360' : 'area', titulo: (r360 ? 'Informe 360 · ' : 'Informe · ') + a.n, mundo: 'estrategia', area: a.n, como: 'Sistema estratégico › ' + a.n + ' › ' + (r360 ? 'Informe 360' : 'Generar informe') };
+      if (a.exig === 'n') out.push(Object.assign(base, { estado: 'sin_sentido', noAplica: true, motivo: a.motivo || 'El área no aplica a la empresa.', faltan: [], ceros: 0 }));
+      else if (!a.entregada) out.push(Object.assign(base, { estado: 'sin_sentido', motivo: `${a.falta}: ${a.exig === 'e' ? 'el área saldría con «0 · sin documentación»' : 'el área saldría sin datos'}.`, faltan: [a.n], ceros: a.exig === 'e' ? 1 : 0 }));
+      else if (a.incompleto.length) out.push(Object.assign(base, { estado: 'incompleto', motivo: a.incompleto.join(' '), faltan: [], ceros: 0 }));
+      else out.push(Object.assign(base, { estado: 'listo', motivo: 'El área tiene su documentación entregada.', faltan: [], ceros: 0 }));
+    });
+    const simOk = S.simConDatos();
+    out.push({ id: 'simulador', tipo: 'simulador', titulo: 'Informe del simulador de inversión', mundo: 'simulador', como: 'Simulador de inversión › Generar informe', estado: !simOk ? 'sin_sentido' : S.invDefinida() ? 'listo' : 'incompleto', motivo: !simOk ? 'Faltan las cifras de la empresa en el punto de partida del simulador.' : S.invDefinida() ? 'La empresa y la inversión están definidas.' : 'Sin una inversión definida, el informe recoge solo la situación de la empresa, sin veredicto.', faltan: [], ceros: 0 });
+    const au = out[0];
+    out.push({ id: 'libro', tipo: 'libro', titulo: 'Libro corporativo', mundo: 'libro', como: 'Libro corporativo › Recoger todos los informes', estado: au.estado, motivo: au.estado === 'listo' ? 'Recoge los informes de todos los mundos del plan.' : au.motivo, faltan: au.faltan, ceros: au.ceros });
+    return out;
+  });
+  /* Acciones del plan de empresa vencidas o que vencen en los próximos 14 días (sin hacer), con su responsable */
+  S.accionesPlan = (dias) => {
+    const d = new Date(), h = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10), lim = new Date(Date.parse(h + 'T12:00:00Z') + (dias || 14) * 864e5).toISOString().slice(0, 10);
+    const acc = (((S.state || {}).plan || {}).acciones || []).filter((a) => a && String(a.accion || '').trim() && a.estado !== 'Hecha');
+    const fx = (a) => ({ accion: String(a.accion).trim(), responsable: String(a.responsable || '').trim(), fin: a.fin || '', area: a.area || '' });
+    return { vencidas: acc.filter((a) => a.fin && a.fin < h).sort((a, b) => a.fin.localeCompare(b.fin)).map(fx), proximas: acc.filter((a) => a.fin && a.fin >= h && a.fin <= lim).sort((a, b) => a.fin.localeCompare(b.fin)).map(fx) };
+  };
+  /* Orden del día de la próxima reunión, sin IA: la documentación esencial que falta, las áreas en rojo con su cifra, las
+     acciones del plan vencidas o que vencen en 14 días, los acuerdos pendientes de la última reunión de la mesa de trabajo
+     (mesa: su estado, js/mesa-comun.js) y el informe que conviene revisar. De 5 a 7 puntos, cada uno con su responsable
+     si se conoce y la cifra o el documento en que se apoya. */
+  S.ordenDelDia = (mesa) => INF.conPropios(() => {
+    const p = S.planDocumentacion(), inf = S.informesDisponibles(), ac = S.accionesPlan(14), items = [];
+    const fC = (s) => (s ? new Date(s + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '');
+    const txt = (v) => String(v == null ? '' : v).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    if (p.faltan.length) items.push({ tipo: 'documentacion', tema: `Documentación esencial pendiente: ${p.esenciales.entregadas} de ${p.esenciales.total} entregadas`, base: p.faltan.slice(0, 3).map((a) => `${a.n}: ${a.documento}`).join(' · '), resp: '' });
+    // Áreas entregadas con indicadores en rojo: la primera cifra en rojo de cada una (como mucho dos áreas)
+    p.areas.filter((a) => a.entregada).map((a) => { const m = S.mod(a.id); let k = null; try { k = (m.kpis ? m.kpis() : []).find((x) => x && x.st === 'stop' && !x.sinDato); } catch (e) { k = null; } return k ? { a, k } : null; }).filter(Boolean).slice(0, 2)
+      .forEach(({ a, k }) => items.push({ tipo: 'rojo', tema: `${a.n}, en rojo`, base: `${txt(k.k)}: ${txt(k.v)}${k.d ? ' (' + txt(k.d) + ')' : ''}`, resp: '' }));
+    ac.vencidas.slice(0, 2).forEach((x) => items.push({ tipo: 'vencida', tema: `Acción del plan vencida: ${x.accion}`, base: `Debía estar hecha el ${fC(x.fin)}${x.area ? ' · ' + x.area : ''}`, resp: x.responsable }));
+    if (ac.vencidas.length > 2) items.push({ tipo: 'vencida', tema: `Otras ${ac.vencidas.length - 2} acciones del plan vencidas`, base: ac.vencidas.slice(2, 5).map((x) => x.accion).join(' · '), resp: '' });
+    if (ac.proximas.length) items.push({ tipo: 'proxima', tema: `${ac.proximas.length === 1 ? 'Acción del plan que vence' : ac.proximas.length + ' acciones del plan que vencen'} en los próximos 14 días`, base: ac.proximas.slice(0, 3).map((x) => `${x.accion} (${fC(x.fin)}${x.responsable && ac.proximas.length > 1 ? ', ' + x.responsable : ''})`).join(' · '), resp: ac.proximas.length === 1 ? ac.proximas[0].responsable : '' });
+    // Acuerdos pendientes de la última reunión celebrada en la mesa de trabajo
+    const h = new Date().toISOString().slice(0, 10), reus = ((mesa && mesa.reuniones) || []).filter((r) => r && r.fecha && r.fecha <= h).sort((a, b) => b.fecha.localeCompare(a.fecha));
+    const ult = reus[0];
+    if (ult) {
+      const hecha = (i) => ((mesa.tareas || []).find((t) => t.oid === 'reu:' + ult.id + ':' + i) || {}).estado === 'hecha';
+      const pend = (ult.acta || []).map((x, i) => ({ x, i })).filter((o) => String(o.x.t || '').trim() && !hecha(o.i));
+      if (pend.length) items.push({ tipo: 'acuerdo', tema: `Acuerdos pendientes de la reunión del ${fC(ult.fecha)}${ult.titulo && ult.titulo !== 'Reunión' ? ' («' + ult.titulo + '»)' : ''}`, base: pend.slice(0, 3).map((o) => o.x.t + (o.x.resp && pend.length > 1 ? ' (' + o.x.resp + ')' : '')).join(' · '), resp: pend.length === 1 ? pend[0].x.resp || '' : '' });
+    }
+    // Informe a revisar: el de auditoría si está listo; si no, el último informe de área listo
+    const rec = inf.find((x) => x.id === 'auditoria' && x.estado === 'listo') || inf.filter((x) => (x.tipo === '360' || x.tipo === 'area') && x.id !== 'tablero' && x.estado === 'listo').pop();
+    if (rec) items.push({ tipo: 'informe', tema: `Revisar el ${rec.titulo}`, base: rec.motivo, resp: '', informe: { id: rec.id, tipo: rec.tipo } });
+    if (!items.length) items.push({ tipo: 'seguimiento', tema: 'Seguimiento general de la empresa', base: `Documentación esencial: ${p.esenciales.entregadas} de ${p.esenciales.total}`, resp: '' });
+    return { titulo: 'Reunión de seguimiento' + (p.empresa ? ' · ' + p.empresa : ''), proposito: 'Revisar la documentación pendiente, las áreas en rojo y las acciones del plan, y fijar responsables y fechas.', items: items.slice(0, 7) };
+  });
+
   /* ---------- Áreas de la empresa con su valoración ----------
      Una sola regla (A.nota.evaluacion, js/nota.js), la misma del cuadro de mando y de la nota de la empresa: cada área
      valorable con su exigencia. Esencial sin documentación, 0 y el documento que falta; esencial o recomendada entregada,

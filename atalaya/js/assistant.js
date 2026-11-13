@@ -22,7 +22,8 @@ Cuando analices o valores la empresa, redacta como un consultor de dirección qu
 Para estructuras societarias y relaciones entre sociedades de un grupo (holding, filial, patrimonial, préstamos intragrupo, consolidación fiscal), explica cómo funcionan con ejemplos y recuerda que la fiscalidad la debe confirmar su asesor.
 Responde en 3-8 frases salvo que pidan detalle. Tus respuestas pueden leerse en voz alta: no uses tablas, asteriscos ni símbolos.
 También eres el guía de Atalaya 360°: llevas al usuario de un mundo a otro (puesto de mando, simulador de inversión, sistema estratégico, personas y equipos, auditoría integral, mesa de trabajo, tablero general, libro corporativo y grupo empresarial o cartera de clientes), a cualquier módulo, capítulo o pestaña, cierras ventanas, mapas e informes y abres el manual en el apartado que necesite. Usa donde_estoy para saber dónde está y qué hay, e ir_a_mundo, ir_a_zona, cerrar y abrir_manual para moverle. Cuando pida ir a un sitio, hazlo directamente y di en una o dos frases qué va a encontrar y qué conviene mirar primero.
-Documentación de la empresa: cuando pregunte qué le falta, qué documentos tiene que subir, por dónde empezar o qué hacer después, consulta ver_plan_documentacion y responde con el siguiente documento, cómo se entrega, en qué pantalla y qué permitirá analizar; si quiere ir, usa ir_a_documento. Las esenciales que faltan cuentan 0 en la nota; las recomendadas no la bajan. Nunca marques un área como «no aplica» ni lo des por hecho: si cree que un área no corresponde a su actividad, explícale que puede marcarla la empresa con el botón «Esta área no aplica a mi empresa» de esa área, indicando el motivo.`;
+Documentación de la empresa: cuando pregunte qué le falta, qué documentos tiene que subir, por dónde empezar o qué hacer después, consulta ver_plan_documentacion y responde con el siguiente documento, cómo se entrega, en qué pantalla y qué permitirá analizar; si quiere ir, usa ir_a_documento. Las esenciales que faltan cuentan 0 en la nota; las recomendadas no la bajan. Nunca marques un área como «no aplica» ni lo des por hecho: si cree que un área no corresponde a su actividad, explícale que puede marcarla la empresa con el botón «Esta área no aplica a mi empresa» de esa área, indicando el motivo.
+Informes y reuniones: antes de recomendar o abrir un informe, consulta ver_informes; si saldrá incompleto o no tiene sentido todavía, dilo en una frase y ofrece abrirlo igualmente o ir a lo que falta. Ábrelo con abrir_informe. Para preparar una reunión usa preparar_orden_del_dia: el borrador no se guarda hasta que el usuario pulse «Guardar en la mesa de trabajo».`;
 
   /* ---------- Herramientas (mismas para los tres cerebros) ---------- */
   let api = null, page = 'simulador';
@@ -126,6 +127,9 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
       { name: 'cerrar', description: 'Cierra lo que está abierto: «ventanas» (informes, mapas, diálogos y el manual), «manual», o «mundo» (sale del mundo actual y vuelve al puesto de mando).', inputSchema: { type: 'object', properties: { que: { type: 'string', enum: ['ventanas', 'manual', 'mundo'] } }, required: ['que'] }, run: (i) => (i.que === 'mundo' ? viajar('inicio') : i.que === 'manual' ? (A.manualLateral && A.manualLateral.cerrar(), { ok: true }) : cerrarVentanas()) },
       { name: 'ver_plan_documentacion', description: 'Plan de documentación de la empresa, calculado sin IA: documentación esencial entregada (X de Y), áreas esenciales que faltan ordenadas por lo que desbloquean (documento, cómo se entrega, pantalla y qué permitirá), entregadas incompletas, recomendadas pendientes, las que no aplican con su motivo y el siguiente paso. Úsala cuando pregunte qué le falta, qué documentos tiene que subir, por dónde empezar o qué hacer después.', inputSchema: { type: 'object', properties: {} }, run: async () => { const p = await planDoc(); if (!p) return { ok: false, motivo: 'El plan de documentación forma parte del sistema estratégico, que no está incluido en su plan.' }; const it = (a) => ({ id: a.id, area: a.n, documento: a.documento, como: a.como, donde: a.donde, permite: a.permite }); return { esenciales: p.esenciales, faltan: p.faltan.map(it), entregadas: p.entregadas.map((a) => ({ area: a.n, incompleto: a.incompleto })), recomendadasPendientes: p.recomendadas.map(it), noAplican: p.noAplican, siguiente: p.siguiente ? Object.assign(it(p.siguiente), { recomendada: p.siguiente.recomendada }) : null, noAplicaComoSeMarca: NOAPLICA_TXT, informativa: informativa() }; } },
       { name: 'ir_a_documento', description: 'Lleva al usuario a la pantalla donde se entrega el documento de un área (clave o nombre: dinero o cuentas, tesoreria, margen, cobros, plan, ventas o ABC, compras, tiempos, logistica, lean, impuestos, presupuesto, valoracion, comercial, personas, marketing, mercado, expansion) o al siguiente paso del plan («siguiente»).', inputSchema: { type: 'object', properties: { area: { type: 'string' } }, required: ['area'] }, run: async (i) => { const p = await planDoc(); if (!p) return { ok: false, motivo: 'El sistema estratégico no está incluido en su plan.' }; const a = areaDe(p, i.area); if (!a) return { ok: false, areas: p.areas.map((x) => x.id + ': ' + x.n) }; return irADoc(a); } },
+      { name: 'ver_informes', description: 'Informes de la empresa y su estado, calculado sin IA: «listo», «saldrá incompleto» (con las áreas esenciales que saldrán a «0 · sin documentación») o «no tiene sentido todavía», con el motivo, dónde se abre y el informe recomendado. Úsala antes de recomendar o abrir un informe.', inputSchema: { type: 'object', properties: {} }, run: async () => { const l = await informes(); if (!l) return { ok: false, motivo: 'Los informes del sistema estratégico no están incluidos en su plan.' }; const r = recomendado(l); return { informes: l.map((x) => ({ id: x.id, informe: x.titulo, estado: ESTADO_TXT(x), motivo: x.motivo, ceros: x.ceros, donde: x.como })), recomendado: r ? r.id : null }; } },
+      { name: 'abrir_informe', description: 'Abre un informe con su función de siempre (sin IA). tipo: auditoria, diagnostico (Informe 360 de la empresa), area (con «area»: clave o nombre, por ejemplo dinero, tesoreria o cobros), simulador, libro, personas o integral. Si saldrá incompleto o no tiene sentido todavía, no lo abre y devuelve el aviso: dígaselo en una frase y ofrezca abrirlo igualmente (forzar: true) o ir a lo que falta (ir_a_documento).', inputSchema: { type: 'object', properties: { tipo: { type: 'string', enum: ['auditoria', 'diagnostico', 'area', 'simulador', 'libro', 'personas', 'integral'] }, area: { type: 'string' }, forzar: { type: 'boolean' } }, required: ['tipo'] }, run: async (i) => { const l = await informes(); if (!l) return { ok: false, motivo: 'Los informes del sistema estratégico no están incluidos en su plan.' }; const q = i.tipo === 'area' ? i.area || '' : { diagnostico: 'tablero', integral: 'intervencion' }[i.tipo] || i.tipo; const x = informeDe(l, q); if (!x) return { ok: false, informes: l.map((y) => y.id + ': ' + y.titulo) }; if (x.estado !== 'listo' && !i.forzar) return { ok: false, abierto: false, informe: x.titulo, estado: ESTADO_TXT(x), aviso: x.motivo }; return Object.assign({ estado: ESTADO_TXT(x) }, abrirInf(x)); } },
+      { name: 'preparar_orden_del_dia', description: 'Prepara sin IA el borrador del orden del día de la próxima reunión (de 5 a 7 puntos con responsable y cifra o documento): documentación esencial que falta, áreas en rojo, acciones del plan vencidas o que vencen en 14 días, acuerdos pendientes de la última reunión e informe a revisar. Lo muestra en el panel con «Guardar en la mesa de trabajo», «Copiar» y «Redactar mejor»; no guarda nada por sí solo.', inputSchema: { type: 'object', properties: {} }, run: async () => { const od = await ordenDia(); if (!od) return { ok: false, motivo: 'El orden del día se prepara con el sistema estratégico, que no está incluido en su plan.' }; setTimeout(() => verOrdenDia(od), 50); return { ok: true, puntos: lineasOD(od), mostrado: true, guardado: false }; } },
       { name: 'abrir_manual', description: 'Abre el manual en el lateral, en el apartado de un tema («metas SMART», «semáforos», «liderazgo») o, sin tema, en el de la zona actual.', inputSchema: { type: 'object', properties: { tema: { type: 'string' } } }, run: (i) => (A.manualLateral ? A.manualLateral.abrirTema(i.tema) : { ok: false }) }
     ];
   }
@@ -195,17 +199,19 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
   const puedeEst = () => { const P = A.platform; return !(P && P.puede && !P.puede('estrategia')); };
   const informativa = () => { const P = A.platform; return !!(P && ((P.modelo && P.modelo.activa && P.modelo.activa()) || (P.user && P.user.demo))); };
   const cargarScript = (src) => new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ko(new Error('Sin ' + src)); document.head.appendChild(s); });
-  async function planDoc() {
+  // Un cálculo del sistema estratégico: con su estado vivo en su página; en cualquier otra, con el motor sin pantalla
+  async function calcEst(fn) {
     if (!puedeEst()) return null;
     const S = A.strat;
-    if (S && S.__vivo && S.state && S.planDocumentacion) return S.planDocumentacion();
+    if (S && S.__vivo && S.state && S.planDocumentacion) return fn(S);
     const P = A.platform; if (!P || !P.loadData) return null;
     if (!(A.calculo && A.calculo.estrategia)) await cargarScript('js/calculo-mundos.js');
     const ficha = (P.empresas && P.empresas.activa && P.empresas.activa()) || {};
     const leer = async (k, base) => { let st = null; try { st = JSON.parse(localStorage.getItem(P.k ? P.k(base) : base)); } catch (e) { /* local */ } try { const r = await P.loadData(k); if (r) st = r; } catch (e) { /* local */ } return st; };
     const [sim, est] = await Promise.all([leer('simulador', 'atalaya.v1'), leer('estrategia', 'atalaya.estrategia.v1')]);
-    return A.calculo.estrategia(sim, est, { ficha, real: !!(P.modoReal && P.modoReal()), modelo: !!(P.modelo && P.modelo.activa && P.modelo.activa()) }, (X) => (X.planDocumentacion ? X.planDocumentacion() : null));
+    return A.calculo.estrategia(sim, est, { ficha, real: !!(P.modoReal && P.modoReal()), modelo: !!(P.modelo && P.modelo.activa && P.modelo.activa()) }, fn);
   }
+  const planDoc = () => calcEst((X) => (X.planDocumentacion ? X.planDocumentacion() : null));
   // Área por su clave, su nombre o una palabra de su documento («cuentas», «caja», «facturas»…); «siguiente» es el siguiente paso
   const AREA_PAL = [['dinero', ['cuentas', 'balance', 'cuenta de resultados', 'flujo del dinero', 'cuentas anuales']], ['tesoreria', ['tesoreria', 'caja', 'banco', 'extracto', 'saldo']], ['margen', ['margen', 'productos', 'servicios', 'coste variable']], ['cobros', ['cobros', 'morosidad', 'facturas pendientes', 'clientes que deben']], ['plan', ['plan de empresa', 'mision', 'objetivos', 'dafo']], ['ventas', ['abc', 'concentracion', 'ventas por cliente', 'ventas']], ['compras', ['compras', 'proveedores']], ['tiempos', ['tiempos', 'horas', 'partes de horas']], ['logistica', ['logistica', 'rutas', 'transporte', 'almacen']], ['lean', ['lean', 'procesos', 'desperdicio']], ['impuestos', ['impuestos']], ['presupuesto', ['presupuesto']], ['valoracion', ['valoracion', 'valor de la empresa']], ['comercial', ['oportunidades', 'ventas en camino']], ['personas', ['plantilla', 'personas']], ['marketing', ['marketing', 'canales']], ['mercado', ['mercado', 'competencia']], ['expansion', ['expansion', 'zonas']]];
   const areaDe = (plan, q) => {
@@ -313,16 +319,22 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
     if (!['estrategia', 'inicio'].includes(page) || !puedeEst() || informativa()) return;
     const P = A.platform; if (!P || !P.user || !P.empresaId) return;
     const id = P.empresaId(), k = 'atalaya.guia.plan.' + id; if (SS.get(k)) return;
-    let p = null; try { p = await planDoc(); } catch (e) { p = null; }
+    let p = null, ac = null; try { const x = await calcEst((X) => ({ p: X.planDocumentacion(), ac: X.accionesPlan ? X.accionesPlan(14) : null })); p = x && x.p; ac = x && x.ac; } catch (e) { p = null; }
     if (!p || !p.esenciales.total || P.empresaId() !== id) return;
     if (!(await sinVentanas(90000)) || SS.get(k)) return;
     SS.set(k, 1);
-    if (!p.completo) { const s = p.siguiente; tarjeta({ titulo: 'Documentación de la empresa', texto: `${ESENC(p)}. Siguiente: ${s.documento}.${s.paso ? ' ' + s.paso : ''} ${conEsto(s)}`, nota: notaInf(), botones: botonesPlan(p, s) }); return; }
+    // Acciones del plan vencidas: una línea más en la misma tarjeta, con «Ver acciones»
+    const nv = ac && ac.vencidas ? ac.vencidas.length : 0;
+    const lineaV = nv ? `\n${nv === 1 ? '1 acción del plan está vencida' : nv + ' acciones del plan están vencidas'}.` : '';
+    const PLAN_ACC = { id: 'plan', zona: 'plan', n: 'Plan de empresa', como: 'Las acciones están en la tabla «Acciones», con su responsable y su fecha de fin.', url: 'estrategia.html#plan', donde: 'Sistema estratégico › Plan de empresa' };
+    const conV = (bs) => (nv ? bs.slice(0, -1).concat([{ t: 'Ver acciones', fn: () => { const r = irADoc(PLAN_ACC, true); if (r.ok && !r.viaje) add('bot', 'Está en «Plan de empresa». ' + PLAN_ACC.como); } }], bs.slice(-1)) : bs);
+    if (!p.completo) { const s = p.siguiente; tarjeta({ titulo: 'Documentación de la empresa', texto: `${ESENC(p)}. Siguiente: ${s.documento}.${s.paso ? ' ' + s.paso : ''} ${conEsto(s)}${lineaV}`, nota: notaInf(), botones: conV(botonesPlan(p, s)) }); return; }
     // Todo lo esencial entregado: se dice una vez (en la empresa modelo y la demostración, una vez por sesión)
     const kc = 'atalaya.guia.completa'; const lsK = P.k ? P.k(kc) : kc;
-    if (!informativa()) { try { if (localStorage.getItem(lsK)) return; localStorage.setItem(lsK, new Date().toISOString()); } catch (e) { /* sin almacenamiento */ } }
+    let yaDicha = false; if (!informativa()) { try { yaDicha = !!localStorage.getItem(lsK); if (!yaDicha) localStorage.setItem(lsK, new Date().toISOString()); } catch (e) { /* sin almacenamiento */ } }
+    if (yaDicha) { if (nv) tarjeta({ titulo: 'Plan de empresa', texto: lineaV.trim(), botones: conV([{ t: 'Ahora no', fn: () => {} }]) }); return; }
     const r = p.recomendadas[0];
-    tarjeta({ titulo: 'Documentación de la empresa', texto: `Documentación esencial completa: ${p.esenciales.total} de ${p.esenciales.total}. ${r ? `${p.recomendadas.length === 1 ? 'Queda un área recomendada, que no baja la nota y amplía el análisis: ' : `Quedan ${p.recomendadas.length} áreas recomendadas, que no bajan la nota y amplían el análisis. La primera: `}${r.n}, ${r.documento}.` : 'Las áreas recomendadas también están entregadas.'}`, nota: notaInf(), botones: botonesPlan(p, r) });
+    tarjeta({ titulo: 'Documentación de la empresa', texto: `Documentación esencial completa: ${p.esenciales.total} de ${p.esenciales.total}. ${r ? `${p.recomendadas.length === 1 ? 'Queda un área recomendada, que no baja la nota y amplía el análisis: ' : `Quedan ${p.recomendadas.length} áreas recomendadas, que no bajan la nota y amplían el análisis. La primera: `}${r.n}, ${r.documento}.` : 'Las áreas recomendadas también están entregadas.'}${lineaV}`, nota: notaInf(), botones: conV(botonesPlan(p, r)) });
   }
   /* Después de una entrega: al guardar datos en el sistema estratégico se comprueba qué áreas han pasado a entregadas */
   const notaArea = (id) => { try { const r = A.nota && A.nota.modulos ? A.nota.modulos([id]) : null; return r && r.n100 != null ? r.n100 : null; } catch (e) { return null; } };
@@ -347,15 +359,159 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
     const par = parciales.map((a) => `${a.n}: datos recibidos, aún sin valorar. ${a.incompleto.join(' ')}`);
     const s = ahora.p.siguiente;
     const texto = `${lin}${inc.length ? '\nPara completarla: ' + inc.join(' ') : ''}${par.length ? '\n' + par.join(' ') : ''}\n${s ? `${ESENC(ahora.p)}. Siguiente paso: ${s.n}${s.recomendada ? ' (recomendada)' : ''}, ${s.documento}.` : 'La documentación esencial y la recomendada están completas.'}`;
+    // El informe que ahora tiene sentido: el de auditoría al completar lo esencial; si no, el del área recién entregada
+    let rec = null; try { const l = A.strat.informesDisponibles(); rec = ahora.p.completo && !antes.p.completo ? l.find((x) => x.id === 'auditoria') : nuevas.map((a) => l.find((x) => x.id === a.id && x.estado === 'listo')).find(Boolean) || null; } catch (e) { rec = null; }
+    const lrec = rec ? (rec.id === 'auditoria' ? `\nCon la documentación esencial completa, ya puede sacar el ${rec.titulo}.` : `\nYa puede sacar el ${rec.titulo}.`) : '';
     await sinVentanas(120000);
-    tarjeta({ titulo: !nuevas.length ? 'Datos recibidos' : nuevas.length === 1 ? 'Área entregada' : 'Áreas entregadas', texto: texto.trim(), nota: notaInf(), botones: botonesPlan(ahora.p, s) });
-    guardarLog('assistant', texto);
+    const bs = botonesPlan(ahora.p, s); if (rec) bs.unshift({ t: 'Abrir informe', solid: true, fn: () => abrirInf(rec, true) });
+    tarjeta({ titulo: !nuevas.length ? 'Datos recibidos' : nuevas.length === 1 ? 'Área entregada' : 'Áreas entregadas', texto: (texto + lrec).trim(), nota: notaInf(), botones: bs });
+    guardarLog('assistant', texto + lrec);
   }
   function vigilarEntregas() {
     if (page !== 'estrategia' || !A.strat || !A.strat.planDocumentacion || vigilarEntregas.on) return;
     vigilarEntregas.on = true;
     setTimeout(async () => { try { foto = await tomarFoto(); } catch (e) { foto = null; } }, 3000);
     addEventListener('atalaya:datos', () => { clearTimeout(fotoT); fotoT = setTimeout(() => revisarEntregas().catch((e) => console.error(e)), 1500); });
+  }
+  /* ---------- Fase 2: informes y mesa de trabajo ----------
+     Qué informe tiene sentido sacar (S.informesDisponibles, sin IA), abrirlo con sus funciones de siempre avisando antes si
+     saldrá incompleto, y preparar el orden del día de la próxima reunión (S.ordenDelDia) para guardarlo en la mesa de
+     trabajo cuando el usuario lo pida. La IA solo interviene en «Redactar mejor», en modo análisis y sin cifras nuevas. */
+  const leerDato = async (k, base) => { const P = A.platform; let st = null; try { st = JSON.parse(localStorage.getItem(P.k ? P.k(base) : base)); } catch (e) { /* local */ } try { const r = await P.loadData(k); if (r) st = r; } catch (e) { /* local */ } return st; };
+  async function informes() {
+    if (!puedeEst()) return null;
+    const l = await calcEst((X) => (X.informesDisponibles ? X.informesDisponibles() : null)); if (!l) return null;
+    const P = A.platform, au = l.find((x) => x.id === 'auditoria');
+    if (P && P.puede && P.puede('personas')) {
+      const ps = (((A.personas && A.personas.state) || (await leerDato('personas', 'atalaya.personas.v1'))) || {}).personas || [];
+      l.push({ id: 'personas', tipo: 'personas', titulo: 'Diagnóstico de personas y estructura', mundo: 'personas', como: 'Personas y equipos › Diagnóstico de personas y estructura', estado: ps.length ? 'listo' : 'sin_sentido', motivo: ps.length ? `${ps.length === 1 ? 'Una persona dada' : ps.length + ' personas dadas'} de alta.` : 'Falta la plantilla: sin personas dadas de alta no hay diagnóstico.', faltan: [], ceros: 0 });
+    }
+    if (P && P.puede && P.puede('intervencion') && au) l.push({ id: 'intervencion', tipo: 'intervencion', titulo: 'Auditoría integral', mundo: 'intervencion', como: 'Auditoría integral › Auditoría por áreas › Informe', estado: au.estado, motivo: au.estado === 'listo' ? 'Se completa con lo recogido en las sesiones y sus transcripciones.' : au.motivo, faltan: au.faltan, ceros: au.ceros });
+    return l;
+  }
+  const INF_PAL = [['auditoria', ['informe de auditoria', 'auditoria estrategica', 'de auditoria', 'auditoria']], ['tablero', ['diagnostico estrategico', 'cuadro de mando', 'de la empresa', 'empresa', 'general', 'diagnostico']], ['simulador', ['simulador', 'inversion', 'viabilidad']], ['libro', ['libro']], ['personas', ['personas y estructura', 'plantilla', 'equipos']], ['intervencion', ['auditoria integral', 'integral']]];
+  function informeDe(l, q) {
+    const t = norm(q).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim(); if (!l || !t) return null;
+    const x = l.find((i) => i.id === t) || l.find((i) => norm(i.titulo) === t); if (x) return x;
+    if (/\bintegral\b/.test(t)) return l.find((i) => i.id === 'intervencion') || null;
+    // Un área por su nombre o por una palabra de su documento (antes que «auditoría» genérica)
+    const ar = l.filter((i) => i.area).find((i) => t.includes(norm(i.area)));
+    if (ar) return ar;
+    let mejor = null, lg = 0; AREA_PAL.forEach(([id, ps]) => ps.forEach((p) => { if (t.includes(p) && p.length > lg) { lg = p.length; mejor = id; } }));
+    INF_PAL.forEach(([id, ps]) => ps.forEach((p) => { if (t.includes(p) && p.length >= lg) { lg = p.length; mejor = id; } }));
+    return mejor ? l.find((i) => i.id === mejor) || null : null;
+  }
+  const URL_INF = (x) => (x.mundo === 'estrategia' ? 'estrategia.html#' + x.id : { simulador: 'app.html', libro: 'libro.html', personas: 'personas.html', intervencion: 'intervencion.html' }[x.mundo]);
+  // Abre el informe con la función de su pantalla; desde otro mundo viaja y lo abre al llegar (o dice qué botón pulsar)
+  function abrirInf(x, ahora) {
+    if (!x) return { ok: false };
+    const S = A.strat;
+    if (x.mundo === 'estrategia' && PG() === 'estrategia.html' && S && S.__vivo) {
+      cerrarVentanas(true);
+      if (x.id === 'auditoria') S.auditReport(); else { const m = S.mod(x.id); if (!m) return { ok: false }; if (x.tipo === '360' && S.report360) S.report360(m); else S.moduleReport(m); }
+      return { ok: true, abierto: true, informe: x.titulo };
+    }
+    if (x.mundo === 'simulador' && PG() === 'app.html' && $('#openReport')) { cerrarVentanas(true); $('#openReport').click(); return { ok: true, abierto: true, informe: x.titulo }; }
+    const url = URL_INF(x); if (!url) return { ok: false };
+    const auto = x.mundo === 'estrategia' || x.mundo === 'simulador';
+    if (auto) SS.set('atalaya.guia.informe', { id: x.id, t: Date.now() });
+    else SS.set('atalaya.guia.llegada', { mundo: x.mundo === 'intervencion' ? 'intervencion' : x.mundo, zona: '', doc: { id: '', n: x.titulo, como: 'Para abrirlo: ' + x.como + '.' }, t: Date.now() });
+    if (ahora) { SS.set('atalaya.asistente.abierto', !$('#asPanel').hidden); location.href = url; } else viajePendiente = url;
+    return { ok: true, viaje: true, informe: x.titulo, como: x.como };
+  }
+  // Al llegar a la página de un informe pedido desde otro mundo
+  async function informePendiente() {
+    const x = SS.get('atalaya.guia.informe'); if (!x || Date.now() - x.t > 120000) return; SS.del('atalaya.guia.informe');
+    await new Promise((r) => setTimeout(r, 2500));
+    const l = await informes(); const i = l && l.find((y) => y.id === x.id); if (i) abrirInf(i, true);
+  }
+  const ESTADO_TXT = (x) => (x.estado === 'listo' ? 'listo' : x.estado === 'incompleto' ? 'saldrá incompleto' : 'no tiene sentido todavía');
+  // Lo que falta para un informe: el siguiente documento del plan (o el del área)
+  async function irALoQueFalta(x) { const p = await planDoc(); if (!p) return; const a = (x.tipo === '360' || x.tipo === 'area') && x.id !== 'tablero' ? p.areas.find((y) => y.id === x.id) : p.siguiente; if (a) { const r = irADoc(a, true); if (r.ok && !r.viaje) { const m = 'Está en «' + a.n + '». ' + a.como; add('bot', m); guardarLog('assistant', m); } } }
+  /* Abrir con aviso: si saldrá incompleto o no tiene sentido todavía, una frase y dos botones; si está listo, se abre */
+  function pedirInforme(x) {
+    if (!x) return 'No encuentro ese informe. Diga «qué informe saco» y le digo cuáles tiene.';
+    if (x.estado === 'listo') { const r = abrirInf(x); return r.abierto ? `Abro el ${x.titulo}.` : r.viaje ? `Le llevo al ${x.titulo}.${r.como && x.mundo !== 'estrategia' && x.mundo !== 'simulador' ? ' Para abrirlo: ' + r.como + '.' : ''}` : 'No he podido abrir ese informe.'; }
+    const txt = `El ${x.titulo} ${ESTADO_TXT(x)}: ${minus(x.motivo)}`;
+    setTimeout(() => { open(); pintarTarjeta({ texto: txt, botones: [{ t: 'Abrir igualmente', fn: () => abrirInf(x, true) }, { t: 'Ir a lo que falta', solid: true, fn: () => irALoQueFalta(x) }] }, true); }, 50);
+    return txt;
+  }
+  function informesTexto(l) {
+    if (!l) return null;
+    const vis = l.filter((x) => x.mundo !== 'estrategia' || !x.area || x.estado !== 'sin_sentido');
+    const lis = vis.filter((x) => x.estado === 'listo'), inc = vis.filter((x) => x.estado === 'incompleto'), no = l.filter((x) => x.estado === 'sin_sentido' && !x.area);
+    const L = [];
+    L.push(lis.length ? `Listos: ${listaY(lis.map((x) => x.titulo))}.` : 'Ningún informe está listo todavía.');
+    inc.forEach((x) => L.push(`${x.titulo}: saldrá incompleto. ${x.motivo}`));
+    if (no.length) L.push(`No tienen sentido todavía: ${listaY(no.map((x) => x.titulo))}.`);
+    const nAreas = l.filter((x) => x.area && x.estado === 'sin_sentido' && !x.noAplica).length;
+    if (nAreas) L.push(`${nAreas === 1 ? 'Un informe de área espera' : nAreas + ' informes de área esperan'} su documentación.`);
+    const rec = recomendado(l); if (rec) L.push(`Le recomiendo el ${rec.titulo}. Diga «abre el ${rec.titulo.toLowerCase()}».`);
+    return L.join('\n');
+  }
+  // Informe recomendado: el de auditoría si está listo; si no, el informe de área listo más útil (por el orden del plan)
+  const recomendado = (l) => (l ? l.find((x) => x.id === 'auditoria' && x.estado === 'listo') || l.find((x) => x.area && x.estado === 'listo') || null : null);
+
+  /* Orden del día de la próxima reunión: borrador sin IA, guardable en la mesa de trabajo (Reuniones y delegación) */
+  const lineasOD = (od) => od.items.map((it, i) => `${i + 1}. ${it.tema}. ${it.base}${/[.!?]$/.test(it.base) ? '' : '.'}${it.resp ? ' Responsable: ' + it.resp + '.' : ''}`);
+  async function mesaComun() { if (!(A.mesa && A.mesa.cargar)) await cargarScript('js/mesa-comun.js'); return A.mesa; }
+  async function ordenDia() {
+    if (!puedeEst()) return null;
+    let st = null; try { const M = await mesaComun(); st = await M.cargar(); } catch (e) { st = null; }
+    return calcEst((X) => (X.ordenDelDia ? X.ordenDelDia(st) : null));
+  }
+  const NUMS = (t) => (String(t).match(/\d+(?:[.,]\d+)*/g) || []).map((n) => n.replace(/[.,]$/, ''));
+  // La redacción pulida no puede traer cifras nuevas ni cambiar el número de puntos
+  const mismasCifras = (borr, nuevo) => { const b = new Set(NUMS(borr)); const ln = (t) => String(t).split('\n').filter((x) => /^\s*\d+\.\s/.test(x)).length; return NUMS(nuevo).every((n) => b.has(n)) && ln(nuevo) === ln(borr) && ln(nuevo) > 0; };
+  const PROMPT_REDACCION = 'Mejore la redacción de este orden del día de una reunión de dirección de la empresa. Reglas obligatorias: no añada cifras, importes, porcentajes, fechas, nombres ni datos nuevos; no quite ni cambie ninguna cifra; mantenga el mismo número de puntos, en el mismo orden, numerados igual («1.», «2.»…), uno por línea; trato de usted, frases cortas, sin superlativos; el sujeto es la empresa. Devuelva solo los puntos, sin introducción ni comentarios.\n\n';
+  async function redactarMejor(borrador) {
+    const P = A.platform; await P.ready;
+    if (!(P.mode === 'server' && P.serverInfo && P.serverInfo.ia)) return { ok: false, motivo: 'La redacción con IA no está disponible en esta conexión: se mantiene el borrador.' };
+    const r = await P.api('/chat', { method: 'POST', body: JSON.stringify({ messages: [{ role: 'user', content: PROMPT_REDACCION + borrador }], tools: [], page, modo: 'analisis' }) });
+    const t = ((r && r.content) || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+    if (!t || !mismasCifras(borrador, t)) return { ok: false, motivo: 'La redacción propuesta cambiaba cifras o puntos: se mantiene el borrador.' };
+    return { ok: true, texto: t };
+  }
+  const sigLaborable = () => { const d = new Date(); do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  async function guardarOD(od, lineas) {
+    if (informativa()) return { ok: false, motivo: 'Con la empresa modelo o la cuenta de demostración no se guarda nada.' };
+    const M = await mesaComun(), st = await M.cargar(); st.reuniones = st.reuniones || [];
+    const r = { id: M.uid(), titulo: 'Reunión de seguimiento', fecha: sigLaborable(), hora: '', dur: 60, lugar: '', proposito: od.proposito, puntos: lineas.map((l, i) => ({ hora: '', tema: l.replace(/^\s*\d+\.\s*/, ''), resp: (od.items[i] && od.items[i].resp) || '' })), acta: [{ t: '', resp: '', fecha: '' }], origen: 'guia' };
+    st.reuniones.push(r); await M.guardarYa(st);
+    return { ok: true, id: r.id, fecha: r.fecha };
+  }
+  function verOrdenDia(od) {
+    open(); quitarTarjeta();
+    if (!od) { add('bot', 'El orden del día se prepara con el sistema estratégico, que no está incluido en su plan.'); return null; }
+    let lineas = lineasOD(od);
+    const el = document.createElement('div'); el.className = 'msg bot as-plan as-od';
+    const pintar = () => {
+      el.innerHTML = `<p class="as-gt"><b>Orden del día · borrador</b><br>${esc(od.proposito)}</p><ol class="as-od-l">${lineas.map((l) => `<li>${esc(l.replace(/^\s*\d+\.\s*/, ''))}</li>`).join('')}</ol>
+        <p class="as-gn">${informativa() ? esc(notaInf()) : 'Nada se guarda hasta que pulse «Guardar en la mesa de trabajo».'}</p>
+        <div class="as-gb">${informativa() ? '' : '<button type="button" class="btn solid small" data-od="g">Guardar en la mesa de trabajo</button>'}<button type="button" class="btn ghost small" data-od="c">Copiar</button><button type="button" class="btn ghost small" data-od="r">Redactar mejor</button></div>`;
+      const b = (k) => el.querySelector(`[data-od="${k}"]`);
+      if (b('g')) b('g').onclick = async () => { b('g').disabled = true; const r = await guardarOD(od, lineas).catch((e) => ({ ok: false, motivo: e.message })); if (!r.ok) { note(r.motivo); b('g').disabled = false; return; } note('Orden del día guardado en la mesa de trabajo › Reuniones y delegación, para el ' + new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) + '.'); if (PG() === 'mesa.html') { location.hash = 'reuniones'; location.reload(); } else { const v = document.createElement('div'); v.className = 'as-gb'; v.innerHTML = '<a class="btn ghost small" href="mesa.html#reuniones">Ver en la mesa de trabajo</a>'; el.appendChild(v); } };
+      b('c').onclick = async () => { const t = 'Orden del día\n' + lineas.join('\n'); try { await navigator.clipboard.writeText(t); note('Orden del día copiado.'); } catch (e) { note('No he podido copiar: seleccione el texto y cópielo.'); } };
+      b('r').onclick = async () => { b('r').disabled = true; b('r').textContent = 'Redactando…'; let r; try { r = await redactarMejor(lineas.join('\n')); } catch (e) { r = { ok: false, motivo: 'No se ha podido redactar: se mantiene el borrador.' }; } if (r.ok) { lineas = r.texto.split('\n').filter((x) => /^\s*\d+\.\s/.test(x)); pintar(); note('Redacción mejorada, con las mismas cifras.'); } else { note(r.motivo); b('r').disabled = false; b('r').textContent = 'Redactar mejor'; } };
+    };
+    pintar();
+    const lg = $('#asLog'); lg.appendChild(el); lg.scrollTop = el.getBoundingClientRect().top - lg.getBoundingClientRect().top + lg.scrollTop - 8;
+    return lineas.join('\n');
+  }
+  /* Preguntas sobre informes y reuniones (sin IA): qué informe saco, abre el informe…, prepara la reunión */
+  async function guiaInformes(text) {
+    const t = norm(text).replace(/[¿?¡!.,]/g, ' ').replace(/\s+/g, ' ').trim();
+    const reunion = /\b(prepara(r|me)? la (reunion|sesion)|orden del dia|que vemos en la proxima (sesion|reunion)|prepara(r|me)? la proxima (sesion|reunion))\b/.test(t);
+    const lista = /\b(que informes? (saco|puedo sacar|hago|tengo|hay)|informes? disponibles|que informes? me recomiendas)\b/.test(t);
+    const pide = /\binforme\b/.test(t) && /\b(hazme|haz|saca|sacame|abre|abreme|abrir|genera|generame|muestrame|ensename|quiero|dame)\b/.test(t);
+    if (!reunion && !lista && !pide) return null;
+    if (!puedeEst()) return null;
+    if (reunion) { const od = await ordenDia().catch(() => null); if (!od) return null; setTimeout(() => verOrdenDia(od), 50); return `Le preparo un borrador del orden del día con ${od.items.length} puntos, a partir de los datos de la empresa. Puede guardarlo en la mesa de trabajo, copiarlo o pedir una redacción mejor.`; }
+    const l = await informes().catch(() => null); if (!l) return null;
+    if (lista) return informesTexto(l);
+    const x = informeDe(l, t.replace(/\b(hazme|haz|saca|sacame|abre|abreme|abrir|genera|generame|muestrame|ensename|quiero|dame|el|la|un|una|de|del|informe|por favor)\b/g, ' ').replace(/\s+/g, ' ').trim()) || (/\b360\b/.test(t) ? null : null);
+    if (!x) return informesTexto(l);
+    return pedirInforme(x);
   }
   /* Preguntas sobre la documentación (qué me falta, siguiente paso, por dónde empiezo…): se responden aquí, con el plan */
   async function guiaDoc(text) {
@@ -621,7 +777,7 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
   const history = [];
   let busy = false;
   function note(t) { add('note', t); }
-  function activity(name) { const m = { cambiar_variable: 'Ajustando el simulador…', cambiar_escenario: 'Cambiando de escenario…', anadir_hipotesis: 'Añadiendo la hipótesis…', cambiar_estructura: 'Cambiando la estructura…', aplicar_plan: 'Aplicando el plan…', ver_situacion: 'Revisando su situación…', comparar_estructuras: 'Comparando estructuras…', explicar_concepto: 'Buscando en el diccionario…', cambiar_palanca: 'Moviendo la palanca…', donde_estoy: 'Mirando dónde está…', ir_a_mundo: 'Preparando el viaje…', ir_a_zona: 'Abriendo…', cerrar: 'Cerrando…', abrir_manual: 'Abriendo el manual…', ver_plan_documentacion: 'Revisando la documentación…', ir_a_documento: 'Abriendo la pantalla del documento…' }[name]; if (m) { const t = $('#asThinking'); if (t) t.textContent = m; } }
+  function activity(name) { const m = { cambiar_variable: 'Ajustando el simulador…', cambiar_escenario: 'Cambiando de escenario…', anadir_hipotesis: 'Añadiendo la hipótesis…', cambiar_estructura: 'Cambiando la estructura…', aplicar_plan: 'Aplicando el plan…', ver_situacion: 'Revisando su situación…', comparar_estructuras: 'Comparando estructuras…', explicar_concepto: 'Buscando en el diccionario…', cambiar_palanca: 'Moviendo la palanca…', donde_estoy: 'Mirando dónde está…', ir_a_mundo: 'Preparando el viaje…', ir_a_zona: 'Abriendo…', cerrar: 'Cerrando…', abrir_manual: 'Abriendo el manual…', ver_plan_documentacion: 'Revisando la documentación…', ir_a_documento: 'Abriendo la pantalla del documento…', ver_informes: 'Revisando los informes…', abrir_informe: 'Abriendo el informe…', preparar_orden_del_dia: 'Preparando el orden del día…' }[name]; if (m) { const t = $('#asThinking'); if (t) t.textContent = m; } }
   function add(role, text) {
     const box = $('#asLog'); if (!box) return null;
     const el = document.createElement('div');
@@ -644,7 +800,7 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
     bubble.innerHTML = '<span id="asThinking" class="thinking">Pensando…</span>';
     let answer = null;
     try {
-      answer = (await guiaDoc(text)) || guiaLocal(text);
+      answer = (await guiaInformes(text)) || (await guiaDoc(text)) || guiaLocal(text);
       if (!answer) {
         await A.platform.ready;
         if (A.platform.mode === 'server' && A.platform.serverInfo && A.platform.serverInfo.ia) {
@@ -670,7 +826,7 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
 
   const SUGS = {
     simulador: ['¿Me lo puedo permitir?', '¿Qué me debería preocupar?', '¿Cómo pongo en verde la liquidez?', 'Pon la financiación al 80 %', 'Llévame a la mesa de trabajo', '¿Dónde estoy?', 'Abre el manual'],
-    estrategia: ['¿Qué me falta?', '¿Cómo va el presupuesto?', '¿Dónde está el mayor riesgo?', 'Sube el precio un 3 %', 'Abre impuestos', 'Llévame a personas y equipos', '¿Dónde estoy?', 'Abre el manual'],
+    estrategia: ['¿Qué me falta?', '¿Qué informe saco?', 'Prepara la reunión', '¿Cómo va el presupuesto?', '¿Dónde está el mayor riesgo?', 'Sube el precio un 3 %', 'Abre impuestos', 'Llévame a personas y equipos', '¿Dónde estoy?', 'Abre el manual'],
     personas: ['¿Dónde estoy?', 'Abre liderazgo a medida', 'Abre el plan de desarrollo', 'Llévame a la mesa de trabajo', 'Abre el manual de liderazgo', 'Cierra el mundo'],
     intervencion: ['¿Dónde estoy?', 'Abre el guion de la sesión', 'Abre la escucha y transcripción', 'Abre el triaje y hoja de ruta', 'Abre el plan de intervención', 'Abre el manual de la auditoría integral'],
     mesa: ['¿Dónde estoy?', 'Abre las metas SMART', 'Abre la agenda semanal', 'Abre el manual de metas', 'Llévame al sistema estratégico', 'Cierra el mundo'],
@@ -732,6 +888,7 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
       if (voz && !SS.get('atalaya.guia.llegada')) setTimeout(escuchar, 900);
       // Guía de la documentación: tarjeta de saludo (sistema estratégico y puesto de mando) y aviso después de cada entrega
       setTimeout(() => { saludoPlan().catch((e) => console.error(e)); }, 3500);
+      informePendiente().catch((e) => console.error(e));
       vigilarEntregas();
       A.platform.ready.then(async () => {
         const m = $('#asMode');
@@ -743,7 +900,7 @@ Documentación de la empresa: cuando pregunte qué le falta, qué documentos tie
     open,
     voz: (on) => setVoz(on),
     guia: { destinos, mundoActual, irZona, viajar, cerrarVentanas },
-    plan: { calcular: planDoc, ver: () => planDoc().then(verPlan), texto: (corto) => planDoc().then((p) => planTexto(p, corto)), saludo: saludoPlan }
+    plan: { calcular: planDoc, ver: () => planDoc().then(verPlan), texto: (corto) => planDoc().then((p) => planTexto(p, corto)), saludo: saludoPlan, informes, ordenDia, verOrdenDia, redactarMejor, mismasCifras, PROMPT_REDACCION }
   };
   /* Puesto de mando, tablero, libro y cartera: el asistente hace de guía en cuanto la cuenta está en la barra */
   const AUTO = { 'portal.html': 'inicio', 'tablero.html': 'tablero', 'libro.html': 'libro', 'grupo.html': 'grupo' }[PG()];
